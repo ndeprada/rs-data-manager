@@ -1,0 +1,59 @@
+{
+  "name": "PlayerRating",
+  "type": "object",
+  "properties": {
+    "player_id": {
+      "type": "string",
+      "description": "ID del jugador observado (ScoutedPlayer)"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de la valoraci\u00f3n"
+    },
+    "scout_name": {
+      "type": "string",
+      "description": "Nombre del scout"
+    },
+    "match_observed": {
+      "type": "string",
+      "description": "Partido observado"
+    },
+    "skill_technical": {
+      "type": "number",
+      "description": "Habilidades t\u00e9cnicas (1-10)"
+    },
+    "skill_physical": {
+      "type": "number",
+      "description": "Condici\u00f3n f\u00edsica (1-10)"
+    },
+    "skill_tactical": {
+      "type": "number",
+      "description": "Capacidad t\u00e1ctica (1-10)"
+    },
+    "skill_mental": {
+      "type": "number",
+      "description": "Aspectos mentales (1-10)"
+    },
+    "skill_attack": {
+      "type": "number",
+      "description": "Juego en ataque (1-10)"
+    },
+    "skill_defense": {
+      "type": "number",
+      "description": "Juego en defensa (1-10)"
+    },
+    "overall_rating": {
+      "type": "number",
+      "description": "Valoraci\u00f3n global (1-5)"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas de la valoraci\u00f3n"
+    }
+  },
+  "required": [
+    "player_id",
+    "date"
+  ]
+}

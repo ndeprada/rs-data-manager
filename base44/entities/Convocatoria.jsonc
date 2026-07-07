@@ -1,0 +1,53 @@
+{
+  "name": "Convocatoria",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "ID del partido/evento"
+    },
+    "team_id": {
+      "type": "string",
+      "description": "ID del equipo"
+    },
+    "player_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs de los jugadores convocados"
+    },
+    "starters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs de los jugadores titulares"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas internas del cuerpo t\u00e9cnico (no se env\u00edan)"
+    },
+    "observations": {
+      "type": "string",
+      "description": "Observaciones para los jugadores (uniforme, material, etc.)"
+    },
+    "callup_time": {
+      "type": "string",
+      "description": "Hora de convocatoria (HH:mm)"
+    },
+    "notified": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si se enviaron las notificaciones"
+    },
+    "notified_at": {
+      "type": "string",
+      "description": "Fecha y hora del env\u00edo de notificaciones"
+    }
+  },
+  "required": [
+    "event_id",
+    "team_id"
+  ]
+}

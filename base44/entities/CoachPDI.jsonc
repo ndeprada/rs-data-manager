@@ -1,0 +1,97 @@
+{
+  "name": "CoachPDI",
+  "type": "object",
+  "properties": {
+    "staff_id": {
+      "type": "string",
+      "description": "ID del miembro del staff (entrenador)"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de la evaluaci\u00f3n"
+    },
+    "evaluator": {
+      "type": "string",
+      "description": "Nombre del evaluador (coordinador)"
+    },
+    "period": {
+      "type": "string",
+      "description": "Per\u00edodo evaluado (ej: Oct-Dic 2025)"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "borrador",
+        "publicado"
+      ],
+      "default": "borrador",
+      "description": "Borrador = solo visible para coordinadores. Publicado = visible tambi\u00e9n para el entrenador evaluado."
+    },
+    "tactical_knowledge": {
+      "type": "string",
+      "description": "Conocimiento T\u00e9cnico/T\u00e1ctico: modelo de juego, principios y fundamentos"
+    },
+    "tactical_knowledge_rating": {
+      "type": "number",
+      "description": "Valoraci\u00f3n 1-3: 1=Mejorar, 2=Correcto, 3=Destacado"
+    },
+    "methodology": {
+      "type": "string",
+      "description": "Metodolog\u00eda: planificaci\u00f3n, dise\u00f1o y direcci\u00f3n de sesiones"
+    },
+    "methodology_rating": {
+      "type": "number",
+      "description": "Valoraci\u00f3n 1-3: 1=Mejorar, 2=Correcto, 3=Destacado"
+    },
+    "communication": {
+      "type": "string",
+      "description": "Habilidades comunicativas con jugadores, familias y staff"
+    },
+    "communication_rating": {
+      "type": "number",
+      "description": "Valoraci\u00f3n 1-3: 1=Mejorar, 2=Correcto, 3=Destacado"
+    },
+    "leadership": {
+      "type": "string",
+      "description": "Liderazgo y gesti\u00f3n humana"
+    },
+    "leadership_rating": {
+      "type": "number",
+      "description": "Valoraci\u00f3n 1-3: 1=Mejorar, 2=Correcto, 3=Destacado"
+    },
+    "habits": {
+      "type": "string",
+      "description": "H\u00e1bitos de entrenador: puntualidad, gesti\u00f3n material, transmisi\u00f3n de valores"
+    },
+    "habits_rating": {
+      "type": "number",
+      "description": "Valoraci\u00f3n 1-3: 1=Mejorar, 2=Correcto, 3=Destacado"
+    },
+    "strengths": {
+      "type": "string",
+      "description": "Puntos fuertes"
+    },
+    "areas_to_improve": {
+      "type": "string",
+      "description": "\u00c1reas de mejora"
+    },
+    "objectives": {
+      "type": "string",
+      "description": "Objetivos para el siguiente per\u00edodo"
+    },
+    "coach_feedback": {
+      "type": "string",
+      "description": "Feedback del entrenador sobre la evaluaci\u00f3n recibida"
+    },
+    "coach_feedback_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha en que el entrenador escribi\u00f3 su feedback"
+    }
+  },
+  "required": [
+    "staff_id",
+    "date"
+  ]
+}

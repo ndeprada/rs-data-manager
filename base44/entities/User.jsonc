@@ -1,0 +1,168 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "user"
+      ],
+      "default": "user"
+    },
+    "app_role": {
+      "type": "string",
+      "enum": [
+        "coordinador_general",
+        "coordinador_f7",
+        "coordinador_f11",
+        "entrenador",
+        "preparador_fisico",
+        "entrenador_porteros",
+        "psicologo",
+        "fisioterapeuta"
+      ],
+      "description": "Rol principal aprobado"
+    },
+    "app_role_pending": {
+      "type": "string",
+      "enum": [
+        "coordinador_general",
+        "coordinador_f7",
+        "coordinador_f11",
+        "entrenador",
+        "preparador_fisico",
+        "entrenador_porteros",
+        "psicologo",
+        "fisioterapeuta"
+      ],
+      "description": "Rol principal solicitado pendiente"
+    },
+    "role_assignments": {
+      "type": "array",
+      "description": "Asignaciones de rol y equipo(s) aprobadas",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "team_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "pending_role_assignments": {
+      "type": "array",
+      "description": "Asignaciones de rol y equipo(s) pendientes de aprobaci\u00f3n",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "team_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "secondary_role": {
+      "type": "string",
+      "enum": [
+        "entrenador"
+      ],
+      "description": "Rol secundario (legacy)"
+    },
+    "secondary_team_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Equipos rol secundario (legacy)"
+    },
+    "pending_secondary_role": {
+      "type": "string",
+      "enum": [
+        "entrenador"
+      ],
+      "description": "Rol secundario pendiente (legacy)"
+    },
+    "pending_secondary_team_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Equipos secundarios pendientes (legacy)"
+    },
+    "team_id": {
+      "type": "string",
+      "description": "ID equipo principal (legacy)"
+    },
+    "team_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs equipos aprobados"
+    },
+    "pending_team_id": {
+      "type": "string",
+      "description": "ID equipo principal solicitado (legacy)"
+    },
+    "pending_team_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs equipos solicitados pendientes"
+    },
+    "access_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ],
+      "default": "pending",
+      "description": "Estado de acceso del usuario"
+    },
+    "rejection_reason": {
+      "type": "string",
+      "description": "Motivo de rechazo"
+    },
+    "staff_member_id": {
+      "type": "string",
+      "description": "ID del StaffMember vinculado"
+    },
+    "birth_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de nacimiento"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Tel\u00e9fono de contacto"
+    },
+    "contact_email": {
+      "type": "string",
+      "description": "Email de contacto"
+    },
+    "photo_url": {
+      "type": "string",
+      "description": "URL foto de perfil"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas / biograf\u00eda"
+    }
+  },
+  "required": []
+}

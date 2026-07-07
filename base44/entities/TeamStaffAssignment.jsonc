@@ -1,0 +1,42 @@
+{
+  "name": "TeamStaffAssignment",
+  "type": "object",
+  "properties": {
+    "staff_member_id": {
+      "type": "string",
+      "description": "ID del StaffMember"
+    },
+    "team_id": {
+      "type": "string",
+      "description": "ID del equipo"
+    },
+    "team_role": {
+      "type": "string",
+      "enum": [
+        "primer_entrenador",
+        "segundo_entrenador",
+        "asistente",
+        "preparador_fisico",
+        "entrenador_porteros",
+        "delegado",
+        "fisio",
+        "analista",
+        "coordinador"
+      ],
+      "description": "Rol en el equipo"
+    },
+    "season": {
+      "type": "string",
+      "description": "Temporada (ej: 2025-2026)"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Asignaci\u00f3n activa"
+    }
+  },
+  "required": [
+    "staff_member_id",
+    "team_id"
+  ]
+}

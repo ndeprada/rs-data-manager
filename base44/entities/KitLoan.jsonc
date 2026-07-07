@@ -1,0 +1,68 @@
+{
+  "name": "KitLoan",
+  "type": "object",
+  "properties": {
+    "team_id": {
+      "type": "string",
+      "description": "ID del equipo al que se presta la equipaci\u00f3n"
+    },
+    "staff_member_id": {
+      "type": "string",
+      "description": "ID del entrenador responsable"
+    },
+    "kit_type": {
+      "type": "string",
+      "enum": [
+        "segunda",
+        "tercera"
+      ],
+      "description": "Tipo de equipaci\u00f3n prestada"
+    },
+    "matchday": {
+      "type": "string",
+      "description": "Jornada o partido para el que se presta"
+    },
+    "loan_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha del pr\u00e9stamo"
+    },
+    "return_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de devoluci\u00f3n"
+    },
+    "quantity": {
+      "type": "number",
+      "default": 1,
+      "description": "N\u00famero de equipaciones prestadas"
+    },
+    "sizes": {
+      "type": "string",
+      "description": "Tallas entregadas (ej: S\u00d72, M\u00d75, L\u00d73)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "prestado",
+        "devuelto",
+        "pendiente_lavado"
+      ],
+      "default": "prestado",
+      "description": "Estado actual del pr\u00e9stamo"
+    },
+    "rival_team": {
+      "type": "string",
+      "description": "Equipo rival (por conflicto de colores)"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observaciones adicionales"
+    }
+  },
+  "required": [
+    "team_id",
+    "kit_type",
+    "loan_date"
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "name": "FollowUp",
+  "type": "object",
+  "properties": {
+    "player_id": {
+      "type": "string",
+      "description": "ID del jugador observado (ScoutedPlayer)"
+    },
+    "scheduled_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha programada"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pendiente",
+        "completado",
+        "cancelado"
+      ],
+      "default": "pendiente",
+      "description": "Estado del seguimiento"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas previas"
+    },
+    "completed_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha completado"
+    },
+    "completion_notes": {
+      "type": "string",
+      "description": "Notas al completar"
+    }
+  },
+  "required": [
+    "player_id",
+    "scheduled_date"
+  ]
+}

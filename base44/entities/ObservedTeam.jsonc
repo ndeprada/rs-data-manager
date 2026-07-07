@@ -1,0 +1,59 @@
+{
+  "name": "ObservedTeam",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nombre del equipo"
+    },
+    "letter": {
+      "type": "string",
+      "description": "Letra identificativa (A, B, C...)"
+    },
+    "category": {
+      "type": "string",
+      "description": "Categor\u00eda"
+    },
+    "division": {
+      "type": "string",
+      "description": "Divisi\u00f3n"
+    },
+    "group": {
+      "type": "string",
+      "description": "Grupo"
+    },
+    "fcf_url": {
+      "type": "string",
+      "description": "Enlace FCF"
+    },
+    "season": {
+      "type": "string",
+      "description": "Temporada"
+    },
+    "coach": {
+      "type": "string",
+      "description": "Entrenador"
+    },
+    "observed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Ha sido observado"
+    },
+    "observation_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de observaci\u00f3n"
+    },
+    "standout_players": {
+      "type": "string",
+      "description": "Jugadores destacados"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

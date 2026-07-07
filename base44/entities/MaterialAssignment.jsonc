@@ -1,0 +1,48 @@
+{
+  "name": "MaterialAssignment",
+  "type": "object",
+  "properties": {
+    "material_item_id": {
+      "type": "string",
+      "description": "ID del material asignado"
+    },
+    "team_id": {
+      "type": "string",
+      "description": "ID del equipo que recibe el material"
+    },
+    "quantity": {
+      "type": "number",
+      "description": "Cantidad asignada"
+    },
+    "assigned_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de asignaci\u00f3n"
+    },
+    "return_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de devoluci\u00f3n (si aplica)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "activo",
+        "devuelto",
+        "perdido"
+      ],
+      "default": "activo",
+      "description": "Estado de la asignaci\u00f3n"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas de la asignaci\u00f3n"
+    }
+  },
+  "required": [
+    "material_item_id",
+    "team_id",
+    "quantity",
+    "assigned_date"
+  ]
+}

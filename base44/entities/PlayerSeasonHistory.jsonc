@@ -1,0 +1,103 @@
+{
+  "name": "PlayerSeasonHistory",
+  "type": "object",
+  "properties": {
+    "player_id": {
+      "type": "string",
+      "description": "ID del jugador"
+    },
+    "season": {
+      "type": "string",
+      "description": "Temporada (ej: 2024-2025)"
+    },
+    "team_id": {
+      "type": "string",
+      "description": "ID del equipo en esa temporada"
+    },
+    "team_name": {
+      "type": "string",
+      "description": "Nombre del equipo (snapshot para hist\u00f3rico)"
+    },
+    "category": {
+      "type": "string",
+      "description": "Categor\u00eda del equipo en esa temporada"
+    },
+    "matches_played": {
+      "type": "number",
+      "default": 0,
+      "description": "Partidos jugados"
+    },
+    "matches_starter": {
+      "type": "number",
+      "default": 0,
+      "description": "Partidos de titular"
+    },
+    "matches_sub": {
+      "type": "number",
+      "default": 0,
+      "description": "Partidos de suplente"
+    },
+    "minutes_played": {
+      "type": "number",
+      "default": 0,
+      "description": "Minutos totales jugados"
+    },
+    "goals": {
+      "type": "number",
+      "default": 0,
+      "description": "Goles marcados"
+    },
+    "assists": {
+      "type": "number",
+      "default": 0,
+      "description": "Asistencias"
+    },
+    "yellow_cards": {
+      "type": "number",
+      "default": 0,
+      "description": "Tarjetas amarillas"
+    },
+    "red_cards": {
+      "type": "number",
+      "default": 0,
+      "description": "Tarjetas rojas"
+    },
+    "training_sessions": {
+      "type": "number",
+      "default": 0,
+      "description": "Sesiones de entrenamiento totales"
+    },
+    "training_present": {
+      "type": "number",
+      "default": 0,
+      "description": "Sesiones asistidas"
+    },
+    "injuries_count": {
+      "type": "number",
+      "default": 0,
+      "description": "N\u00famero de lesiones en la temporada"
+    },
+    "injuries_days": {
+      "type": "number",
+      "default": 0,
+      "description": "D\u00edas de baja por lesi\u00f3n"
+    },
+    "avg_rating": {
+      "type": "number",
+      "description": "Valoraci\u00f3n media de partido"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas o resumen de la temporada"
+    },
+    "is_current": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si es la temporada actual activa"
+    }
+  },
+  "required": [
+    "player_id",
+    "season"
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "name": "ObservedTeamPlayer",
+  "type": "object",
+  "properties": {
+    "team_id": {
+      "type": "string",
+      "description": "ID del equipo observado"
+    },
+    "name": {
+      "type": "string",
+      "description": "Nombre del jugador"
+    },
+    "position": {
+      "type": "string",
+      "enum": [
+        "portero",
+        "central",
+        "lateral",
+        "extremo",
+        "mediapunta",
+        "libre",
+        "mediocentro",
+        "interior",
+        "delantero_centro"
+      ],
+      "description": "Posici\u00f3n"
+    },
+    "laterality": {
+      "type": "string",
+      "enum": [
+        "diestro",
+        "zurdo",
+        "ambidiestro"
+      ],
+      "description": "Lateralidad"
+    },
+    "birth_year": {
+      "type": "number",
+      "description": "A\u00f1o de nacimiento"
+    },
+    "rating": {
+      "type": "number",
+      "description": "Valoraci\u00f3n (1-5)"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas"
+    }
+  },
+  "required": [
+    "team_id",
+    "name"
+  ]
+}

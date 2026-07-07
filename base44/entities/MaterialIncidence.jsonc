@@ -1,0 +1,73 @@
+{
+  "name": "MaterialIncidence",
+  "type": "object",
+  "properties": {
+    "material_item_id": {
+      "type": "string",
+      "description": "ID del material afectado"
+    },
+    "team_id": {
+      "type": "string",
+      "description": "Equipo relacionado con la incidencia (opcional)"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "da\u00f1o",
+        "perdida",
+        "rotura",
+        "desgaste",
+        "otro"
+      ],
+      "description": "Tipo de incidencia"
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "leve",
+        "moderada",
+        "grave"
+      ],
+      "default": "leve",
+      "description": "Gravedad"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descripci\u00f3n de la incidencia"
+    },
+    "reported_by": {
+      "type": "string",
+      "description": "Quien reporta la incidencia"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de la incidencia"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "abierta",
+        "en_gestion",
+        "resuelta",
+        "baja"
+      ],
+      "default": "abierta",
+      "description": "Estado de la incidencia"
+    },
+    "resolution_notes": {
+      "type": "string",
+      "description": "Notas de resoluci\u00f3n"
+    },
+    "quantity_affected": {
+      "type": "number",
+      "default": 1,
+      "description": "Cantidad afectada"
+    }
+  },
+  "required": [
+    "material_item_id",
+    "type",
+    "date"
+  ]
+}

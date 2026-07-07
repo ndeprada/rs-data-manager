@@ -1,0 +1,103 @@
+// Positions are expressed as { x: 0-100 (left%), y: 0-100 (top%) }
+// y=0 is goal (top of field view, goalkeeper end), y=100 is attack end
+
+export const FORMATIONS = {
+  "4-4-2": {
+    label: "4-4-2",
+    positions: [
+      { key: "gk",  label: "POR", x: 50, y: 6 },
+      { key: "lb",  label: "LTD", x: 18, y: 25 },
+      { key: "cb1", label: "CEN", x: 37, y: 25 },
+      { key: "cb2", label: "CEN", x: 63, y: 25 },
+      { key: "rb",  label: "RTD", x: 82, y: 25 },
+      { key: "lm",  label: "LMC", x: 18, y: 50 },
+      { key: "cm1", label: "MC",  x: 37, y: 50 },
+      { key: "cm2", label: "MC",  x: 63, y: 50 },
+      { key: "rm",  label: "RMC", x: 82, y: 50 },
+      { key: "st1", label: "DC",  x: 37, y: 76 },
+      { key: "st2", label: "DC",  x: 63, y: 76 },
+    ],
+  },
+  "4-3-3": {
+    label: "4-3-3",
+    positions: [
+      { key: "gk",  label: "POR", x: 50, y: 6 },
+      { key: "lb",  label: "LTD", x: 18, y: 25 },
+      { key: "cb1", label: "CEN", x: 37, y: 25 },
+      { key: "cb2", label: "CEN", x: 63, y: 25 },
+      { key: "rb",  label: "RTD", x: 82, y: 25 },
+      { key: "cm1", label: "MCO", x: 25, y: 50 },
+      { key: "cm2", label: "MC",  x: 50, y: 50 },
+      { key: "cm3", label: "MCO", x: 75, y: 50 },
+      { key: "lw",  label: "EXT", x: 20, y: 76 },
+      { key: "st",  label: "DC",  x: 50, y: 76 },
+      { key: "rw",  label: "EXT", x: 80, y: 76 },
+    ],
+  },
+  "4-2-3-1": {
+    label: "4-2-3-1",
+    positions: [
+      { key: "gk",  label: "POR", x: 50, y: 6 },
+      { key: "lb",  label: "LTD", x: 18, y: 22 },
+      { key: "cb1", label: "CEN", x: 37, y: 22 },
+      { key: "cb2", label: "CEN", x: 63, y: 22 },
+      { key: "rb",  label: "RTD", x: 82, y: 22 },
+      { key: "dm1", label: "MCD", x: 37, y: 42 },
+      { key: "dm2", label: "MCD", x: 63, y: 42 },
+      { key: "lam", label: "MC",  x: 20, y: 62 },
+      { key: "cam", label: "MCO", x: 50, y: 62 },
+      { key: "ram", label: "MC",  x: 80, y: 62 },
+      { key: "st",  label: "DC",  x: 50, y: 82 },
+    ],
+  },
+  "3-5-2": {
+    label: "3-5-2",
+    positions: [
+      { key: "gk",  label: "POR", x: 50, y: 6 },
+      { key: "cb1", label: "CEN", x: 25, y: 24 },
+      { key: "cb2", label: "CEN", x: 50, y: 24 },
+      { key: "cb3", label: "CEN", x: 75, y: 24 },
+      { key: "lwb", label: "CAR", x: 12, y: 48 },
+      { key: "cm1", label: "MC",  x: 30, y: 48 },
+      { key: "cm2", label: "MC",  x: 50, y: 48 },
+      { key: "cm3", label: "MC",  x: 70, y: 48 },
+      { key: "rwb", label: "CAR", x: 88, y: 48 },
+      { key: "st1", label: "DC",  x: 37, y: 76 },
+      { key: "st2", label: "DC",  x: 63, y: 76 },
+    ],
+  },
+  "5-3-2": {
+    label: "5-3-2",
+    positions: [
+      { key: "gk",  label: "POR", x: 50, y: 6 },
+      { key: "lwb", label: "CAR", x: 10, y: 24 },
+      { key: "cb1", label: "CEN", x: 28, y: 24 },
+      { key: "cb2", label: "CEN", x: 50, y: 24 },
+      { key: "cb3", label: "CEN", x: 72, y: 24 },
+      { key: "rwb", label: "CAR", x: 90, y: 24 },
+      { key: "cm1", label: "MC",  x: 25, y: 52 },
+      { key: "cm2", label: "MC",  x: 50, y: 52 },
+      { key: "cm3", label: "MC",  x: 75, y: 52 },
+      { key: "st1", label: "DC",  x: 37, y: 76 },
+      { key: "st2", label: "DC",  x: 63, y: 76 },
+    ],
+  },
+  "4-1-4-1": {
+    label: "4-1-4-1",
+    positions: [
+      { key: "gk",  label: "POR", x: 50, y: 6 },
+      { key: "lb",  label: "LTD", x: 18, y: 22 },
+      { key: "cb1", label: "CEN", x: 37, y: 22 },
+      { key: "cb2", label: "CEN", x: 63, y: 22 },
+      { key: "rb",  label: "RTD", x: 82, y: 22 },
+      { key: "dm",  label: "MCD", x: 50, y: 38 },
+      { key: "lm",  label: "EXT", x: 12, y: 58 },
+      { key: "cm1", label: "MC",  x: 35, y: 58 },
+      { key: "cm2", label: "MC",  x: 65, y: 58 },
+      { key: "rm",  label: "EXT", x: 88, y: 58 },
+      { key: "st",  label: "DC",  x: 50, y: 80 },
+    ],
+  },
+};
+
+export const FORMATION_KEYS = Object.keys(FORMATIONS);

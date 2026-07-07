@@ -1,0 +1,68 @@
+{
+  "name": "Field",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nombre del campo o espacio (ej: Campo 1, Sala de Futsal)"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "cesped_natural",
+        "cesped_artificial",
+        "futsal",
+        "sala_polideportiva",
+        "pabellon",
+        "pista_atletismo",
+        "otro"
+      ],
+      "description": "Tipo de superficie"
+    },
+    "format": {
+      "type": "string",
+      "enum": [
+        "f11",
+        "f7",
+        "f5",
+        "f3",
+        "multiusos"
+      ],
+      "description": "Formato de juego para el que est\u00e1 habilitado"
+    },
+    "location": {
+      "type": "string",
+      "description": "Direcci\u00f3n o lugar donde se encuentra"
+    },
+    "capacity": {
+      "type": "number",
+      "description": "Capacidad aproximada de jugadores / aforo"
+    },
+    "lighting": {
+      "type": "boolean",
+      "default": false,
+      "description": "Tiene iluminaci\u00f3n artificial"
+    },
+    "indoor": {
+      "type": "boolean",
+      "default": false,
+      "description": "Es instalaci\u00f3n cubierta (indoor)"
+    },
+    "available": {
+      "type": "boolean",
+      "default": true,
+      "description": "Disponible para reservas"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas adicionales (acceso, horarios, etc.)"
+    },
+    "google_maps_url": {
+      "type": "string",
+      "description": "URL de Google Maps"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

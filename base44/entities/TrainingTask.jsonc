@@ -1,0 +1,174 @@
+{
+  "name": "TrainingTask",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nombre de la tarea/ejercicio"
+    },
+    "task_type": {
+      "type": "string",
+      "enum": [
+        "parejas",
+        "analitico",
+        "finalizaciones",
+        "figura_pases",
+        "rondo",
+        "juego_posicion",
+        "juego_aplicacion",
+        "juego_posesion",
+        "juego_situacion",
+        "partido",
+        "partido_reducido",
+        "abp",
+        "preparacion_partido",
+        "juego",
+        "activacion_sin_balon"
+      ],
+      "description": "Tipo de tarea"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descripci\u00f3n detallada del ejercicio"
+    },
+    "duration_minutes": {
+      "type": "number",
+      "description": "Duraci\u00f3n en minutos"
+    },
+    "session_phase": {
+      "type": "string",
+      "enum": [
+        "calentamiento",
+        "parte_principal",
+        "vuelta_calma"
+      ],
+      "description": "Fase de la sesi\u00f3n"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "baja",
+        "media",
+        "alta"
+      ],
+      "default": "media"
+    },
+    "game_moment": {
+      "type": "string",
+      "enum": [
+        "juego_ataque",
+        "juego_defensa",
+        "transicion_ataque_defensa",
+        "transicion_defensa_ataque",
+        "balon_parado",
+        "fisico",
+        "ninguno"
+      ]
+    },
+    "tactical_aspect": {
+      "type": "string",
+      "enum": [
+        "presion",
+        "salida_balon",
+        "juego_posicion",
+        "contraataque",
+        "repliegue",
+        "estrategia",
+        "resistencia",
+        "velocidad",
+        "fuerza",
+        "coordinacion",
+        "flexibilidad",
+        "ninguno"
+      ]
+    },
+    "team_id": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "diagram_url": {
+      "type": "string"
+    },
+    "media_files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "link"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "football_format": {
+      "type": "string",
+      "enum": [
+        "f7",
+        "f11",
+        "ambos"
+      ],
+      "default": "ambos"
+    },
+    "players_count": {
+      "type": "number"
+    },
+    "space": {
+      "type": "string"
+    },
+    "principles": {
+      "type": "string",
+      "description": "Principios del juego que se trabajan"
+    },
+    "sub_principles": {
+      "type": "string",
+      "description": "Subprincipios espec\u00edficos"
+    },
+    "corrections": {
+      "type": "string",
+      "description": "Correcciones habituales a realizar"
+    },
+    "scoring": {
+      "type": "string",
+      "description": "Sistema de puntuaci\u00f3n del ejercicio"
+    },
+    "variants": {
+      "type": "string",
+      "description": "Variantes del ejercicio"
+    },
+    "coaching_points_1e": {
+      "type": "string",
+      "description": "Puntos de entrenamiento 1er entrenador (1E N)"
+    },
+    "coaching_points_ea_m": {
+      "type": "string",
+      "description": "Puntos entrenamiento EA-M"
+    },
+    "coaching_points_ea_i": {
+      "type": "string",
+      "description": "Puntos entrenamiento EA-I"
+    }
+  },
+  "required": [
+    "name",
+    "session_phase"
+  ]
+}

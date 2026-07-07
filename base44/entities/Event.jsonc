@@ -1,0 +1,244 @@
+{
+  "name": "Event",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "T\u00edtulo del evento"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "partido_amistoso",
+        "partido_liga",
+        "torneo",
+        "entrenamiento_fisico",
+        "entrenamiento",
+        "sesion_teorica",
+        "sesion_video",
+        "reunion_equipo",
+        "reunion_jugador",
+        "reunion_capitanes",
+        "stage",
+        "concentracion",
+        "cena_equipo",
+        "comida_equipo"
+      ],
+      "description": "Tipo de evento"
+    },
+    "team_id": {
+      "type": "string",
+      "description": "ID del equipo"
+    },
+    "field_id": {
+      "type": "string",
+      "description": "ID del campo/instalaci\u00f3n registrado"
+    },
+    "date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Fecha y hora de inicio del evento"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Fecha y hora de fin del evento"
+    },
+    "location": {
+      "type": "string",
+      "description": "Lugar del evento (texto libre)"
+    },
+    "opponent": {
+      "type": "string",
+      "description": "Rival (solo para partidos)"
+    },
+    "opponent_logo_url": {
+      "type": "string",
+      "description": "URL del escudo/logo del equipo rival"
+    },
+    "is_home": {
+      "type": "boolean",
+      "default": true,
+      "description": "true = jugamos como locales, false = como visitantes"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas adicionales"
+    },
+    "score_home": {
+      "type": "number",
+      "description": "Goles equipo local"
+    },
+    "score_away": {
+      "type": "number",
+      "description": "Goles equipo visitante"
+    },
+    "football_format": {
+      "type": "string",
+      "enum": [
+        "f7",
+        "f11"
+      ],
+      "description": "Formato del partido"
+    },
+    "match_duration": {
+      "type": "string",
+      "enum": [
+        "90",
+        "80",
+        "70",
+        "4x15",
+        "4x12"
+      ],
+      "description": "Duraci\u00f3n del partido"
+    },
+    "opponent_yellow_cards": {
+      "type": "number",
+      "default": 0,
+      "description": "Tarjetas amarillas del rival"
+    },
+    "opponent_double_yellow_cards": {
+      "type": "number",
+      "default": 0,
+      "description": "Dobles amarillas del rival"
+    },
+    "opponent_red_cards": {
+      "type": "number",
+      "default": 0,
+      "description": "Tarjetas rojas directas del rival"
+    },
+    "series_id": {
+      "type": "string",
+      "description": "ID compartido por todos los eventos de una serie recurrente"
+    },
+    "agenda_meta": {
+      "type": "object",
+      "description": "Metadatos de agenda semanal: vestuario, equipaci\u00f3n y talla",
+      "properties": {
+        "locker": {
+          "type": "string",
+          "description": "N\u00famero de vestuario asignado (partidos en casa)"
+        },
+        "kit": {
+          "type": "string",
+          "enum": [
+            "",
+            "segunda",
+            "tercera"
+          ],
+          "description": "Equipaci\u00f3n alternativa a usar"
+        },
+        "kit_size": {
+          "type": "string",
+          "description": "Talla de la equipaci\u00f3n"
+        }
+      }
+    },
+    "goal_events": {
+      "type": "array",
+      "description": "Eventos de gol del partido",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "team": {
+            "type": "string",
+            "enum": [
+              "home",
+              "away"
+            ]
+          },
+          "minute": {
+            "type": "number"
+          },
+          "player_id": {
+            "type": "string"
+          },
+          "assist_player_id": {
+            "type": "string"
+          },
+          "goal_type": {
+            "type": "string",
+            "enum": [
+              "dentro_area",
+              "fuera_area",
+              "centro_lateral",
+              "contraataque",
+              "perdida_salida",
+              "ataque_posicional",
+              "saque_centro",
+              "saque_porteria",
+              "balon_parado",
+              "penalti",
+              "esquina",
+              "gol_propio"
+            ]
+          }
+        }
+      }
+    },
+    "media_files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file_url": {
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "file_type": {
+            "type": "string",
+            "enum": [
+              "video",
+              "image"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "video_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "youtube",
+              "vimeo",
+              "dailymotion",
+              "otros"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "added_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "title",
+    "type",
+    "team_id",
+    "date"
+  ]
+}

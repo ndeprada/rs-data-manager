@@ -1,0 +1,191 @@
+{
+  "name": "ScoutedPlayer",
+  "type": "object",
+  "properties": {
+    "first_name": {
+      "type": "string",
+      "description": "Nombre"
+    },
+    "last_name": {
+      "type": "string",
+      "description": "Apellidos"
+    },
+    "birth_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de nacimiento"
+    },
+    "nationality": {
+      "type": "string",
+      "description": "Nacionalidad"
+    },
+    "modality": {
+      "type": "string",
+      "enum": [
+        "futbol_7",
+        "futbol_11"
+      ],
+      "description": "Modalidad"
+    },
+    "position": {
+      "type": "string",
+      "enum": [
+        "portero",
+        "central",
+        "lateral",
+        "extremo",
+        "mediapunta",
+        "libre",
+        "mediocentro",
+        "interior",
+        "delantero_centro"
+      ],
+      "description": "Posici\u00f3n principal"
+    },
+    "secondary_position": {
+      "type": "string",
+      "enum": [
+        "portero",
+        "central",
+        "lateral",
+        "extremo",
+        "mediapunta",
+        "libre",
+        "mediocentro",
+        "interior",
+        "delantero_centro"
+      ],
+      "description": "Posici\u00f3n secundaria"
+    },
+    "laterality": {
+      "type": "string",
+      "enum": [
+        "diestro",
+        "zurdo",
+        "ambidiestro"
+      ],
+      "description": "Lateralidad"
+    },
+    "current_club": {
+      "type": "string",
+      "description": "Club actual"
+    },
+    "height_cm": {
+      "type": "number",
+      "description": "Altura en cm"
+    },
+    "weight_kg": {
+      "type": "number",
+      "description": "Peso en kg"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Tel\u00e9fono del jugador"
+    },
+    "parent_name": {
+      "type": "string",
+      "description": "Nombre del padre/madre"
+    },
+    "parent_phone": {
+      "type": "string",
+      "description": "Tel\u00e9fono del padre/madre"
+    },
+    "contact_status": {
+      "type": "string",
+      "enum": [
+        "no_contactado",
+        "interesado",
+        "no_interesado",
+        "valorando"
+      ],
+      "default": "no_contactado",
+      "description": "Estado de contacto con padre/madre"
+    },
+    "contact_notes": {
+      "type": "string",
+      "description": "Notas de contacto"
+    },
+    "rating": {
+      "type": "number",
+      "description": "Valoraci\u00f3n del scout (1-5)"
+    },
+    "skill_technical": {
+      "type": "number",
+      "description": "Habilidades t\u00e9cnicas (1-10)"
+    },
+    "skill_physical": {
+      "type": "number",
+      "description": "Condici\u00f3n f\u00edsica (1-10)"
+    },
+    "skill_tactical": {
+      "type": "number",
+      "description": "Capacidad t\u00e1ctica (1-10)"
+    },
+    "skill_mental": {
+      "type": "number",
+      "description": "Aspectos mentales (1-10)"
+    },
+    "skill_attack": {
+      "type": "number",
+      "description": "Juego en ataque (1-10)"
+    },
+    "skill_defense": {
+      "type": "number",
+      "description": "Juego en defensa (1-10)"
+    },
+    "key_points": {
+      "type": "string",
+      "description": "Puntos clave / por qu\u00e9 ficharlo"
+    },
+    "observations": {
+      "type": "string",
+      "description": "Observaciones generales"
+    },
+    "match_observed": {
+      "type": "string",
+      "description": "Partido observado"
+    },
+    "observation_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de observaci\u00f3n"
+    },
+    "photo_url": {
+      "type": "string",
+      "description": "URL foto del jugador"
+    },
+    "futbolbase_url": {
+      "type": "string",
+      "description": "URL perfil en futbolbase.org"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Etiquetas personalizadas"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "seguir_viendo",
+        "fichar",
+        "descartar"
+      ],
+      "default": "seguir_viendo",
+      "description": "Decisi\u00f3n del scouting"
+    },
+    "category": {
+      "type": "string",
+      "description": "Categor\u00eda"
+    },
+    "league_group": {
+      "type": "string",
+      "description": "Liga y grupo"
+    }
+  },
+  "required": [
+    "first_name",
+    "last_name"
+  ]
+}

@@ -1,0 +1,163 @@
+{
+  "name": "TrainingSession",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "team_id": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "event_id": {
+      "type": "string"
+    },
+    "total_duration_minutes": {
+      "type": "number"
+    },
+    "objectives_atk": {
+      "type": "string",
+      "description": "Objetivos ATQ (ataque)"
+    },
+    "objectives_def": {
+      "type": "string",
+      "description": "Objetivos DEF (defensa)"
+    },
+    "objectives": {
+      "type": "string",
+      "description": "Objetivos generales (legacy)"
+    },
+    "main_game_moment": {
+      "type": "string",
+      "enum": [
+        "juego_ataque",
+        "juego_defensa",
+        "transicion_ataque_defensa",
+        "transicion_defensa_ataque",
+        "balon_parado",
+        "fisico",
+        "mixto"
+      ]
+    },
+    "session_label": {
+      "type": "string",
+      "description": "Etiqueta de la sesi\u00f3n (ej: MD-2, MD+1, VEL...)"
+    },
+    "match_reference": {
+      "type": "string",
+      "description": "Partido de referencia (ej: Racing \u2013 APA 28/3)"
+    },
+    "initial_plan": {
+      "type": "string",
+      "description": "Plan de partido / activaci\u00f3n inicial (texto libre)"
+    },
+    "attendance_notes": {
+      "type": "array",
+      "description": "Notas individuales de asistencia/desarrollo por jugador",
+      "items": {
+        "type": "object",
+        "properties": {
+          "player_id": {
+            "type": "string"
+          },
+          "present": {
+            "type": "boolean",
+            "default": true
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "order": {
+            "type": "number"
+          },
+          "duration_override": {
+            "type": "number"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "inline_name": {
+            "type": "string",
+            "description": "Nombre personalizado para esta sesi\u00f3n (si no usa biblioteca)"
+          },
+          "inline_description": {
+            "type": "string"
+          },
+          "inline_game_moment": {
+            "type": "string"
+          },
+          "inline_principles": {
+            "type": "string"
+          },
+          "inline_sub_principles": {
+            "type": "string"
+          },
+          "inline_corrections": {
+            "type": "string"
+          },
+          "inline_scoring": {
+            "type": "string"
+          },
+          "inline_coaching_1e": {
+            "type": "string"
+          },
+          "inline_coaching_eam": {
+            "type": "string"
+          },
+          "inline_coaching_eai": {
+            "type": "string"
+          },
+          "inline_diagram_url": {
+            "type": "string"
+          },
+          "inline_space": {
+            "type": "string"
+          },
+          "inline_session_phase": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "minutes_by_game_moment": {
+      "type": "object"
+    },
+    "minutes_by_tactical_aspect": {
+      "type": "object"
+    },
+    "season": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "planificada",
+        "realizada",
+        "cancelada"
+      ],
+      "default": "planificada"
+    }
+  },
+  "required": [
+    "title",
+    "team_id",
+    "date"
+  ]
+}

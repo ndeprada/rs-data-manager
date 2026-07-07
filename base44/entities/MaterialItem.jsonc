@@ -1,0 +1,58 @@
+{
+  "name": "MaterialItem",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nombre del material (ej: Bal\u00f3n de entrenamiento)"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "balon",
+        "peto",
+        "cono",
+        "porterias",
+        "ropa",
+        "equipacion",
+        "medico",
+        "electronico",
+        "otro"
+      ],
+      "description": "Categor\u00eda del material"
+    },
+    "total_quantity": {
+      "type": "number",
+      "default": 0,
+      "description": "Cantidad total disponible en el club"
+    },
+    "available_quantity": {
+      "type": "number",
+      "default": 0,
+      "description": "Cantidad actualmente disponible (sin asignar)"
+    },
+    "condition": {
+      "type": "string",
+      "enum": [
+        "bueno",
+        "regular",
+        "malo",
+        "baja"
+      ],
+      "default": "bueno",
+      "description": "Estado general del material"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas adicionales"
+    },
+    "photo_url": {
+      "type": "string",
+      "description": "URL de la foto del material"
+    }
+  },
+  "required": [
+    "name",
+    "category"
+  ]
+}
