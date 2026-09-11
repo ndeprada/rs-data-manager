@@ -8,6 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import AddStaffDialog from "@/components/team/AddStaffDialog";
 
 const CURRENT_SEASON = "2025-2026";
 
@@ -29,11 +30,12 @@ export default function TeamStaffSection({ teamId }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [newStaffOpen, setNewStaffOpen] = useState(false);
   const [editDialog, setEditDialog] = useState(null); // { assignmentId, team_role }
   const [deleteId, setDeleteId] = useState(null);   // assignmentId to delete
   const [form, setForm] = useState({ staff_member_id: "", team_role: "" });
 
-  // ── Data ──────────────────────────────────────────────────────────────────
+  // ── Data ───────────────────────────────────────────────────────────────
   const { data: assignments = [] } = useQuery({
     queryKey: ["team_staff_assignments", teamId],
     queryFn: () => base44.entities.TeamStaffAssignment.filter({ team_id: teamId, active: true }),
@@ -84,7 +86,7 @@ export default function TeamStaffSection({ teamId }) {
     queryClient.invalidateQueries({ queryKey: ["staff"] });
   };
 
-  // ── Mutations ─────────────────────────────────────────────────────────────
+  // ── Mutations ──────────────────────────────────────────────────────────
   const addMutation = useMutation({
     mutationFn: async ({ staff_member_id, team_role }) => {
       // Create assignment
@@ -132,7 +134,7 @@ export default function TeamStaffSection({ teamId }) {
     onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <>
       <div className="space-y-4">
@@ -210,6 +212,14 @@ export default function TeamStaffSection({ teamId }) {
                   ))}
                 </SelectContent>
               </Select>
+              <button
+                type="button"
+                onClick={() => setNewStaffOpen(true)}
+                className="text-xs font-medium flex items-center gap-1 hover:underline"
+                style={{ color: "var(--granate)" }}
+              >
+                <Plus className="w-3 h-3" /> Crear nuevo miembro del staff
+              </button>
             </div>
             <div className="space-y-2">
               <Label>Rol en el Equipo *</Label>
@@ -274,6 +284,19 @@ export default function TeamStaffSection({ teamId }) {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: Crear nuevo miembro del staff */}
+      <AddStaffDialog
+        open={newStaffOpen}
+        onOpenChange={setNewStaffOpen}
+        teamId={teamId}
+        editingStaff={null}
+        onCreated={(created) => {
+          queryClient.setQueryData(["staff"], (old = []) => [...old, created]);
+          setForm((f) => ({ ...f, staff_member_id: created.id }));
+          toast({ title: "Miembro del staff creado. Ahora elige su rol y pulsa Añadir." });
+        }}
+      />
+
       {/* Alert: Eliminar */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
         <AlertDialogContent className="bg-white border-gray-200">
@@ -291,8 +314,7 @@ export default function TeamStaffSection({ teamId }) {
               {deleteMutation.isPending ? "Desvinculando..." : "Desvincular"}
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        </AlertDialog>
     </>
   );
-}
+      }
