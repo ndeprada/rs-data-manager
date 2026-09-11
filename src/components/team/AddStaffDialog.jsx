@@ -21,7 +21,7 @@ const ROLES = [
 
 const emptyForm = { first_name: "", last_name: "", role: "", phone: "", email: "", notes: "" };
 
-export default function AddStaffDialog({ open, onOpenChange, teamId, editingStaff }) {
+export default function AddStaffDialog({ open, onOpenChange, teamId, editingStaff, onCreated }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(emptyForm);
 
@@ -42,7 +42,11 @@ export default function AddStaffDialog({ open, onOpenChange, teamId, editingStaf
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.StaffMember.create(data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["staff"] }); onOpenChange(false); },
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      onOpenChange(false);
+      onCreated?.(created);
+    },
   });
 
   const updateMutation = useMutation({
