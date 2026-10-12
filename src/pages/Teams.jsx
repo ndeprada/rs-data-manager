@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, Plus, List, Grid3x3 } from "lucide-react";
+import { Shield, Plus, List, Grid3x3, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,6 +82,21 @@ const groupTeamsByAge = (teams) => {
 export default function Teams() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const handleFcfSync = async () => {
+    setSyncing(true);
+    try {
+      const r = await fetch("/api/sync-fcf", { credentials: "include" });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.error || "Error al sincronizar");
+      queryClient.invalidateQueries();
+      alert(`Sincronización FCF completada\n\nEquipos nuevos: ${j.teams_created}\nJugadores nuevos: ${j.players_created}\nPartidos nuevos: ${j.matches_created}\nPartidos actualizados: ${j.matches_updated}${j.errors?.length ? "\n\nAvisos: " + j.errors.length : ""}`);
+    } catch (e) {
+      alert("No se pudo sincronizar: " + e.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
   const [deleteId, setDeleteId] = useState(null);
   const [editingTeam, setEditingTeam] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -199,6 +214,14 @@ export default function Teams() {
                <Grid3x3 className="w-4 h-4" />
              </button>
            </div>
+           <Button
+             onClick={handleFcfSync}
+             disabled={syncing}
+             variant="outline"
+             className="shadow-sm"
+           >
+             <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} /> {syncing ? "Sincronizando..." : "Sincronizar con FCF"}
+           </Button>
            <Button
              onClick={() => { setForm(emptyForm); setDialogOpen(true); }}
              className="text-white shadow-sm"

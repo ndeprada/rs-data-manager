@@ -47,7 +47,7 @@ export default function Matches() {
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const getResult = (event) => {
-    if (!event.score_home && !event.score_away) return "pendiente";
+    if (event.score_home == null && event.score_away == null) return "pendiente";
     const h = Number(event.score_home ?? 0);
     const a = Number(event.score_away ?? 0);
     if (h > a) return "victoria";

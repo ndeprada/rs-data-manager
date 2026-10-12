@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { getRoleOptions, findRole } from "@/lib/competencyCatalog";
 
 const POSITIONS = [
   { value: "portero", label: "Portero" },
@@ -25,7 +26,7 @@ const LATERALITY = [
 ];
 
 const emptyForm = {
-  first_name: "", last_name: "", birth_date: "", position: "", secondary_position: "",
+  first_name: "", last_name: "", birth_date: "", position: "", reference_role: "", secondary_position: "",
   laterality: "", jersey_number: "", phone: "", email: "", status: "activo", team_id: "",
 };
 
@@ -42,6 +43,7 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
         last_name: editingPlayer.last_name || "",
         birth_date: editingPlayer.birth_date || "",
         position: editingPlayer.position || "",
+        reference_role: editingPlayer.reference_role || "",
         secondary_position: editingPlayer.secondary_position || "",
         laterality: editingPlayer.laterality || "",
         jersey_number: editingPlayer.jersey_number || "",
@@ -106,7 +108,7 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-gray-700">Posición principal</Label>
-              <Select value={form.position} onValueChange={(v) => setForm({ ...form, position: v })}>
+              <Select value={form.position} onValueChange={(v) => setForm({ ...form, position: v, reference_role: "" })}>
                 <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                 <SelectContent>
                   {POSITIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
@@ -123,6 +125,18 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
               </Select>
             </div>
           </div>
+          {getRoleOptions(form.position).length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-gray-700">Rol de referencia</Label>
+              <Select value={form.reference_role} onValueChange={(v) => setForm({ ...form, reference_role: v })}>
+                <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar rol (define sus competencias clave)" /></SelectTrigger>
+                <SelectContent>
+                  {getRoleOptions(form.position).map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {form.reference_role && <p className="text-xs text-gray-500">{findRole(form.reference_role)?.role.description}</p>}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-gray-700">Lateralidad</Label>

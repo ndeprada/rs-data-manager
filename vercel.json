@@ -1,1 +1,21 @@
-{ "buildCommand": "npm run build", "outputDirectory": "dist", "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }] }
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/sync-fcf",
+      "schedule": "0 4 * * *"
+    }
+  ],
+  "functions": {
+    "api/sync-fcf.js": {
+      "maxDuration": 60
+    }
+  }
+}

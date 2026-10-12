@@ -314,7 +314,8 @@ export default function TeamStaffSection({ teamId }) {
               {deleteMutation.isPending ? "Desvinculando..." : "Desvincular"}
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialog>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
-      }
+}

@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MatchStatsSection from "../components/player/MatchStatsSection";
 import AttendanceHistorySection from "../components/player/AttendanceHistorySection";
 import PDISection from "../components/player/PDISection";
+import PDIPlanSection from "../components/player/PDIPlanSection";
 import InjurySection from "../components/player/InjurySection";
 import PlayerPerformancePanel from "../components/player/PlayerPerformancePanel";
 import GuardianContactCard from "../components/player/GuardianContactCard";
@@ -417,7 +418,10 @@ export default function PlayerProfile() {
                 />
               </TabsContent>
               <TabsContent value="pdi" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
+                <div className="space-y-6">
+                <PDIPlanSection player={player} />
                 <PDISection playerId={playerId} playerName={`${player.first_name} ${player.last_name}`} playerEmail={player.email} />
+                </div>
               </TabsContent>
               <TabsContent value="injuries" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
                <div className="space-y-4">
