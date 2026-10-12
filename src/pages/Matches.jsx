@@ -139,7 +139,10 @@ export default function Matches() {
                     </div>
                     <p className="font-semibold text-gray-900 truncate">{match.title}</p>
                     {match.opponent && (
-                      <p className="text-sm text-gray-500 truncate">vs {match.opponent}</p>
+                      <p className="text-sm text-gray-500 truncate flex items-center gap-1.5">
+                        {match.opponent_logo_url && <img src={match.opponent_logo_url} alt="" className="w-5 h-5 object-contain shrink-0" loading="lazy" />}
+                        <span className="truncate">vs {match.opponent}</span>
+                      </p>
                     )}
                     {match.location && (
                       <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">

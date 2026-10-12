@@ -23,6 +23,34 @@ function titleCase(s) {
     .replace(/(^|[\s\-'’(])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
 }
 
+
+const SIGLAS = new Set(['CE','CF','UE','UD','FC','AE','CD','EF','FE','AD','CP','SD','UDC','APA','AEC','CFS','EFB','CEB','FS','AFE','ACE','UEC','EFS','EE','CB','AA','AEM']);
+const LOWER = new Set(['de','del','dels','la','les','el','els','i','y','d','l','al','amb']);
+
+function capSegment(seg) {
+  return seg
+    .toLowerCase()
+    .replace(/(^|[\-'’(])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+}
+
+// "PÇ BARC. BARCINO, CE "a"" -> siglas en mayúsculas, letra de equipo en mayúsculas
+export function prettyName(raw) {
+  const words = clean(raw).replace(/\s+,/g, ',').split(' ').filter(Boolean);
+  return words
+    .map((w, i) => {
+      if (/^"[^"]*"$/.test(w)) return w.toUpperCase();
+      const base = w.replace(/,+$/, '');
+      const comma = w.slice(base.length);
+      if (/^(?:\p{L}\.){2,}$/u.test(base)) return base.toUpperCase() + comma;
+      const core = base.replace(/\.+$/, '');
+      const dots = base.slice(core.length);
+      if (SIGLAS.has(core.toUpperCase())) return core.toUpperCase() + dots + comma;
+      if (i > 0 && LOWER.has(core.toLowerCase())) return core.toLowerCase() + dots + comma;
+      return core.split('.').map(capSegment).join('.') + dots + comma;
+    })
+    .join(' ');
+}
+
 export function categorySlug(name) {
   let s = norm(name).replace(/[^a-z0-9]+/g, ' ').trim();
   s = s.replace(/\balevi\b/g, 'alevin').replace(/\bbenjami\b/g, 'benjamin');
@@ -126,9 +154,9 @@ export async function syncFcf() {
     playersByTeam.get(k).add(tokensKey(`${r.data.first_name || ''} ${r.data.last_name || ''}`));
   }
   const { rows: eventRows } = await query(
-    `select id, data ->> 'fcf_acta' as acta from entities where entity_type = 'Event' and data ? 'fcf_acta'`
+    `select id, data ->> 'fcf_acta' as acta, data ->> 'opponent_logo_url' as logo from entities where entity_type = 'Event' and data ? 'fcf_acta'`
   );
-  const eventByActa = new Map(eventRows.map((r) => [r.acta, r.id]));
+  const eventByActa = new Map(eventRows.map((r) => [r.acta, { id: r.id, logo: r.logo }]));
 
   const eventInserts = [];
   const eventPatches = [];
@@ -154,8 +182,8 @@ export async function syncFcf() {
         fcf_team_code: code,
         fcf_category_name: catName,
         fcf_group_url: `https://www.fcf.cat/ca/clubs/${CLUB_CODE}/categories/${code}`,
-        fcf_training: c.campo_entrenamiento ? `${days} ${c.ENTRENAR_HORARIO || ''} · ${titleCase(c.campo_entrenamiento)}`.trim() : '',
-        fcf_home_field: titleCase(c.campo_juego || ''),
+        fcf_training: c.campo_entrenamiento ? `${days} ${c.ENTRENAR_HORARIO || ''} · ${prettyName(c.campo_entrenamiento)}`.trim() : '',
+        fcf_home_field: prettyName(c.campo_juego || ''),
         fcf_match_time: c.JUGAR_HORARIO || '',
         fcf_synced_at: new Date().toISOString(),
       };
@@ -164,20 +192,25 @@ export async function syncFcf() {
       if (!team) {
         const { rows } = await query(
           `insert into entities (entity_type, data) values ('Team', $1::jsonb) returning id, data`,
-          [JSON.stringify({ name, category: slug, season, ...fcfInfo })]
+          [JSON.stringify({ name, fcf_auto_name: name, category: slug, season, ...fcfInfo })]
         );
         team = rows[0];
         stats.teams_created++;
       } else {
         const extra = {};
-        if (!team.data.fcf_name_locked) extra.name = name;
+        const oldAuto = `${titleCase(catName)}${clean(t.letra_equipo) ? ' ' + clean(t.letra_equipo) : ''}`;
+        const cur = team.data.name || '';
+        // Solo se renombra si el nombre sigue siendo el automático; si lo has cambiado tú, se respeta
+        const isAuto = !cur || cur === team.data.fcf_auto_name || cur === oldAuto || cur === name;
+        if (isAuto) { extra.name = name; extra.fcf_auto_name = name; }
         if (!team.data.category) extra.category = slug;
         if (!team.data.season) extra.season = season;
         teamPatches.push({ id: team.id, d: { ...fcfInfo, ...extra } });
         stats.teams_updated++;
       }
       const teamId = team.id;
-      const teamName = team.data.fcf_name_locked ? team.data.name : name;
+      const curName = team.data.name || '';
+      const teamName = !curName || curName === team.data.fcf_auto_name || curName === `${titleCase(catName)}${clean(t.letra_equipo) ? ' ' + clean(t.letra_equipo) : ''}` || curName === name ? name : curName;
 
       // Jugadores
       const known = playersByTeam.get(teamId) || new Set();
@@ -195,7 +228,8 @@ export async function syncFcf() {
       for (const m of detail.matches || []) {
         if (!m.COMIENZO1) continue;
         const home = String(m.CODEQUIPO_CASA) === code;
-        const opp = titleCase(clean(home ? m.NOMBRE_FUERA : m.NOMBRE_CASA));
+        const opp = prettyName(home ? m.NOMBRE_FUERA : m.NOMBRE_CASA);
+        const crest = home ? m.ESCUDO_FUERA : m.ESCUDO_CASA;
         const date = m.COMIENZO1.replace(' ', 'T').slice(0, 16);
         const hg = m.GOLES_CASA, ag = m.GOLES_FUERA;
         const played = hg !== null && hg !== undefined && ag !== null && ag !== undefined;
@@ -206,7 +240,7 @@ export async function syncFcf() {
           team_id: teamId,
           date,
           end_date: addMinutes(date, 120),
-          location: titleCase(m.CAMPO || ''),
+          location: prettyName(m.CAMPO || ''),
           opponent: opp,
           is_home: home,
           football_format: isF7(catName) ? 'f7' : 'f11',
@@ -215,10 +249,19 @@ export async function syncFcf() {
           fcf_competition: clean(m.NOMBRE_COMPETICION || ''),
           fcf_group: clean(m.GRUPO || ''),
         };
+        if (crest) data.fcf_opponent_logo = `https://files.fcf.cat/escudos/clubes/escudos/${crest}`;
         if (played) { data.score_home = Number(home ? hg : ag); data.score_away = Number(home ? ag : hg); }
-        const existingId = eventByActa.get(String(m.CODACTA));
-        if (existingId) { eventPatches.push({ id: existingId, d: data }); stats.matches_updated++; }
-        else { eventInserts.push(data); stats.matches_created++; }
+        const existing = eventByActa.get(String(m.CODACTA));
+        if (existing) {
+          // No pisar un escudo que hayas subido tú
+          if (data.fcf_opponent_logo && (!existing.logo || existing.logo.startsWith('https://files.fcf.cat/'))) data.opponent_logo_url = data.fcf_opponent_logo;
+          eventPatches.push({ id: existing.id, d: data });
+          stats.matches_updated++;
+        } else {
+          if (data.fcf_opponent_logo) data.opponent_logo_url = data.fcf_opponent_logo;
+          eventInserts.push(data);
+          stats.matches_created++;
+        }
       }
     } catch (e) {
       stats.errors.push(`${t.codequipo}: ${e.message}`);
