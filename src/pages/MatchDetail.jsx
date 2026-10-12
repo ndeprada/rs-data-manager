@@ -191,7 +191,11 @@ export default function MatchDetail() {
           <div className="flex flex-col items-center gap-2">
             {/* Row: Escudo — Marcador — Escudo */}
             <div className="flex items-center justify-center gap-3">
-              <Shield src={ourLogoUrl} name={ourTeamName} canUpload={false} onUpload={() => {}} />
+{isHome ? (
+                <Shield src={ourLogoUrl} name={ourTeamName} canUpload={false} onUpload={() => {}} />
+              ) : (
+                <Shield src={rivalLogoUrl} name={rivalName} canUpload={true} onUpload={(url) => updateLogoMutation.mutate({ opponent_logo_url: url })} />
+              )}
 
               {/* Score */}
               <div className="flex items-center gap-1.5">
@@ -204,12 +208,11 @@ export default function MatchDetail() {
                 </span>
               </div>
 
-              <Shield
-                src={rivalLogoUrl}
-                name={rivalName}
-                canUpload={true}
-                onUpload={(url) => updateLogoMutation.mutate({ opponent_logo_url: url })}
-              />
+{isHome ? (
+                <Shield src={rivalLogoUrl} name={rivalName} canUpload={true} onUpload={(url) => updateLogoMutation.mutate({ opponent_logo_url: url })} />
+              ) : (
+                <Shield src={ourLogoUrl} name={ourTeamName} canUpload={false} onUpload={() => {}} />
+              )}
             </div>
 
             {/* Result badge */}
@@ -224,24 +227,33 @@ export default function MatchDetail() {
             {/* Goalscorers — centered below, two columns */}
             {(ourGoals.length > 0 || theirGoals.length > 0) && (
               <div className="flex gap-6 w-full max-w-sm mt-0.5">
-                <div className="flex-1 flex flex-col items-end gap-0.5">
-                  {ourGoals.map((g, i) => {
+                {(() => {
+                  const ours = ourGoals.map((g, i) => {
                     const scorer = players.find(p => p.id === g.player_id);
-                    return (
-                      <span key={i} className="text-[10px] text-white/55 leading-snug text-right">
-                        ⚽ {scorer ? `${scorer.first_name} ${scorer.last_name}` : "—"} <span className="text-white/30">{g.minute}'</span>
-                      </span>
-                    );
-                  })}
-                </div>
-                <div className="w-px bg-white/10 shrink-0" />
-                <div className="flex-1 flex flex-col items-start gap-0.5">
-                  {theirGoals.map((g, i) => (
-                    <span key={i} className="text-[10px] text-white/55 leading-snug">
-                      <span className="text-white/30">{g.minute}'</span> ⚽
-                    </span>
-                  ))}
-                </div>
+                    return { k: "o" + i, minute: g.minute, label: scorer ? `${scorer.first_name} ${scorer.last_name}` : (g.goal_type === "gol_propio" ? "Propia puerta" : "—") };
+                  });
+                  const theirs = theirGoals.map((g, i) => {
+                    const ev = (event.match_events || []).find(e => e.id === g.id);
+                    return { k: "t" + i, minute: g.minute, label: ev?.fcfName || "" };
+                  });
+                  const leftList = isHome ? ours : theirs;
+                  const rightList = isHome ? theirs : ours;
+                  return (
+                    <>
+                      <div className="flex-1 flex flex-col items-end gap-0.5">
+                        {leftList.map(g => (
+                          <span key={g.k} className="text-[10px] text-white/55 leading-snug text-right">⚽ {g.label} <span className="text-white/30">{g.minute}'</span></span>
+                        ))}
+                      </div>
+                      <div className="w-px bg-white/10 shrink-0" />
+                      <div className="flex-1 flex flex-col items-start gap-0.5">
+                        {rightList.map(g => (
+                          <span key={g.k} className="text-[10px] text-white/55 leading-snug"><span className="text-white/30">{g.minute}'</span> ⚽ {g.label}</span>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>
