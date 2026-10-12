@@ -44,7 +44,7 @@ export default function Dashboard() {
     const home = m.score_home ?? null;
     const away = m.score_away ?? null;
     if (home === null || away === null) return false;
-    return (m.is_home !== false && home > away) || (m.is_home === false && away > home);
+    return home > away;
   }).length;
 
   // Asistencia media
@@ -55,7 +55,7 @@ export default function Dashboard() {
   // Récord acumulado del equipo principal (Juvenil A)
   const mainTeam = teams.find(t => t.name === "Juvenil A");
   const mainTeamMatches = mainTeam ? events.filter(e => isMatch(e.type) && e.team_id === mainTeam.id && e.score_home !== undefined && e.score_away !== undefined) : [];
-  const mainTeamVictories = mainTeamMatches.filter(m => (m.is_home !== false && m.score_home > m.score_away) || (m.is_home === false && m.score_away > m.score_home)).length;
+  const mainTeamVictories = mainTeamMatches.filter(m => m.score_home > m.score_away).length;
   const mainTeamDraws = mainTeamMatches.filter(m => m.score_home === m.score_away).length;
   const mainTeamLosses = mainTeamMatches.length - mainTeamVictories - mainTeamDraws;
 
@@ -254,7 +254,7 @@ export default function Dashboard() {
             <div className="divide-y divide-gray-50">
               {completedMatches.map(m => {
                 const team = teams.find(t => t.id === m.team_id);
-                const isWin = (m.is_home !== false && m.score_home > m.score_away) || (m.is_home === false && m.score_away > m.score_home);
+                const isWin = m.score_home > m.score_away;
                 const isDraw = m.score_home === m.score_away;
                 return (
                   <div key={m.id} className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors">

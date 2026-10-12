@@ -22,9 +22,9 @@ function getMatchResult(stat, events) {
   const homeGoals = event.score_home ?? null;
   const awayGoals = event.score_away ?? null;
   if (homeGoals === null || awayGoals === null) return null;
-  const isHome = event.is_home !== false;
-  const myGoals = isHome ? homeGoals : awayGoals;
-  const theirGoals = isHome ? awayGoals : homeGoals;
+  // score_home = goles de nuestro equipo, score_away = goles del rival
+  const myGoals = homeGoals;
+  const theirGoals = awayGoals;
   if (myGoals > theirGoals) return { label: "V", bg: "#16a34a", score: `${myGoals}-${theirGoals}` };
   if (myGoals < theirGoals) return { label: "D", bg: "#dc2626", score: `${myGoals}-${theirGoals}` };
   return { label: "E", bg: "#ea580c", score: `${myGoals}-${theirGoals}` };
