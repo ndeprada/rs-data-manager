@@ -37,6 +37,11 @@ export default async function handler(req, res) {
       const params = [entity];
       let where = `entity_type = $1`;
       Object.entries(filter).forEach(([key, value]) => {
+        if (key === 'id') {
+          params.push(String(value));
+          where += ` and id::text = $${params.length}`;
+          return;
+        }
         params.push(JSON.stringify(value));
         where += ` and data -> '${key.replace(/[^a-zA-Z0-9_]/g, '')}' = $${params.length}::jsonb`;
       });

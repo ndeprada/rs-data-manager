@@ -273,5 +273,159 @@ export async function syncFcf() {
   await bulkInsert('Player', playerInserts);
   await bulkInsert('Event', eventInserts);
   await bulkPatch(eventPatches);
+  try { await syncActas(stats); } catch (e) { stats.errors.push(`actas: ${e.message}`); }
   return stats;
+}
+
+// ── Actas: alineaciones, goles, tarjetas y cambios desde la FCF ──────────────
+const ACTA_BASE = 'https://www.fcf.cat/api/acta';
+
+function fcfPlayerKey(nombre) {
+  // "APELLIDOS, NOMBRE" -> mismos tokens que "NOMBRE APELLIDOS"
+  return tokensKey(String(nombre || '').replace(',', ' '));
+}
+
+async function syncActas(stats) {
+  stats.actas_synced = 0;
+  stats.actas_pending = 0;
+  const { rows: evRows } = await query(
+    `select id, data from entities
+      where entity_type = 'Event' and data ? 'fcf_acta' and data ? 'score_home'
+        and coalesce(data ->> 'fcf_acta_synced', '') = ''`
+  );
+  if (!evRows.length) return;
+  const { rows: teamRows } = await query(`select id, data from entities where entity_type = 'Team'`);
+  const teamCode = new Map(teamRows.map((r) => [r.id, String(r.data.fcf_team_code || '')]));
+  const { rows: playerRows } = await query(`select id, data from entities where entity_type = 'Player'`);
+  const playersByTeam = new Map();
+  for (const r of playerRows) {
+    const k = r.data.team_id;
+    if (!playersByTeam.has(k)) playersByTeam.set(k, new Map());
+    playersByTeam.get(k).set(tokensKey(`${r.data.first_name || ''} ${r.data.last_name || ''}`), r.id);
+  }
+  const { rows: convRows } = await query(`select id, data ->> 'event_id' as ev, data -> 'fcf_auto' as auto from entities where entity_type = 'Convocatoria'`);
+  const convByEvent = new Map(convRows.map((r) => [r.ev, r]));
+  const { rows: msRows } = await query(`select id, data ->> 'event_id' as ev, data ->> 'player_id' as pl from entities where entity_type = 'MatchStats'`);
+  const msByKey = new Map(msRows.map((r) => [`${r.ev}|${r.pl}`, r.id]));
+
+  const actas = await pool(evRows, 6, async (ev) => {
+    try { return await getJson(`${ACTA_BASE}/${ev.data.fcf_acta}`); } catch (e) { stats.errors.push(`acta ${ev.data.fcf_acta}: ${e.message}`); return null; }
+  });
+
+  const newPlayers = [];
+  const evPatches = [], convInserts = [], convPatches = [], msInserts = [], msPatches = [];
+  const pending = []; // jugadores nuevos a resolver tras insertar
+
+  for (let i = 0; i < evRows.length; i++) {
+    const ev = evRows[i], a = actas[i];
+    if (!a) continue;
+    if (String(a.CERRADA) !== '1') { stats.actas_pending++; continue; }
+    const code = teamCode.get(ev.data.team_id);
+    const ourSide = String(a.CODEQUIPO_CASA) === code ? 'local' : String(a.CODEQUIPO_FUERA) === code ? 'visitante' : null;
+    if (!ourSide) continue;
+    const theirSide = ourSide === 'local' ? 'visitante' : 'local';
+    const roster = playersByTeam.get(ev.data.team_id) || new Map();
+    const idToPlayer = new Map(); // id FCF -> id app
+    const ourList = a[`jugadores_equipo_${ourSide}`] || [];
+    for (const j of ourList) {
+      const key = fcfPlayerKey(j.nombre);
+      let pid = roster.get(key);
+      if (!pid) {
+        const parts = String(j.nombre).split(',');
+        const first = titleCase((parts[1] || '').trim());
+        const last = titleCase((parts[0] || '').trim());
+        const fresh = { first_name: first, last_name: last, team_id: ev.data.team_id, status: 'activo', fcf_imported: true };
+        newPlayers.push(fresh);
+        pid = `@new${newPlayers.length - 1}`;
+        roster.set(key, pid);
+      }
+      idToPlayer.set(String(j.id), pid);
+    }
+    const nameToPlayer = (n) => roster.get(fcfPlayerKey(n)) || '';
+    const matchEvents = [];
+    let k = 0;
+    const mk = (o) => ({ id: `fcf_${ev.data.fcf_acta}_${k++}`, ...o });
+    for (const side of ['local', 'visitante']) {
+      for (const g of a[`goles_equipo_${side}`] || []) {
+        const own = String(g.tipo_gol) === '102';
+        const scoringOurs = own ? side === theirSide : side === ourSide;
+        const ourPlayerInvolved = side === ourSide ? idToPlayer.get(String(g.id_jugador)) || nameToPlayer(g.nombre_jugador) : '';
+        matchEvents.push(mk({
+          type: 'goal', team: scoringOurs ? 'home' : 'away', minute: String(g.minuto ?? ''),
+          playerId: scoringOurs && !own ? ourPlayerInvolved || '' : '',
+          assistId: '', goalType: own ? 'gol_propio' : String(g.tipo_gol) === '101' ? 'penalti' : '',
+          fcfName: String(g.nombre_jugador || '').trim(), fcfDorsal: g.dorsal || '',
+        }));
+      }
+      for (const c of a[`tarjetas_equipo_${side}`] || []) {
+        const color = c.segunda_amarilla ? 'yellow2' : String(c.tipo_tarjeta) === '100' ? 'yellow' : 'red';
+        matchEvents.push(mk({
+          type: 'card', team: side === ourSide ? 'home' : 'away', minute: String(c.minuto ?? ''),
+          playerId: side === ourSide ? idToPlayer.get(String(c.id_jugador)) || '' : '', cardColor: color,
+        }));
+      }
+      for (const sb of a[`sustituciones_equipo_${side}`] || []) {
+        matchEvents.push(mk({
+          type: 'sub', team: side === ourSide ? 'home' : 'away', minute: String(sb.minuto ?? ''),
+          playerIn: side === ourSide ? idToPlayer.get(String(sb.id_jugador_entra)) || '' : '',
+          playerOut: side === ourSide ? idToPlayer.get(String(sb.id_jugador_sale)) || '' : '',
+        }));
+      }
+    }
+    const refs = (a.arbitros || []).map((x) => `${x.rol || ''}: ${prettyName(String(x.nombre_arbitro || '').split(',').reverse().join(' ').trim())}`).join(' · ');
+    const goalEvents = matchEvents.filter((e) => e.type === 'goal').map((e) => ({
+      id: e.id, team: e.team, minute: e.minute, player_id: e.playerId, assist_player_id: '', goal_type: e.goalType,
+    }));
+    const manual = ev.data.goal_events_source === 'manual';
+    const patch = { fcf_acta_synced: true, fcf_referee: refs };
+    if (!manual) { patch.goal_events = goalEvents; patch.match_events = matchEvents; patch.goal_events_source = 'fcf'; }
+    evPatches.push({ id: ev.id, d: patch });
+
+    const starters = ourList.filter((j) => String(j.titular) === '1').map((j) => idToPlayer.get(String(j.id)));
+    const called = ourList.map((j) => idToPlayer.get(String(j.id)));
+    pending.push({ ev, matchEvents, called, starters, manual });
+  }
+
+  // Jugadores nuevos
+  const inserted = await bulkInsert('Player', newPlayers);
+  const real = (id) => (typeof id === 'string' && id.startsWith('@new') ? inserted[Number(id.slice(4))]?.id : id);
+  stats.players_created += inserted.length;
+
+  const fixIds = (arr) => arr.map(real).filter(Boolean);
+  for (const p of pending) {
+    const { ev, matchEvents, called, starters } = p;
+    const calledIds = fixIds(called), starterIds = fixIds(starters);
+    for (const e of matchEvents) {
+      for (const f of ['playerId', 'playerIn', 'playerOut']) if (e[f]) e[f] = real(e[f]) || '';
+    }
+    const evPatch = evPatches.find((x) => x.id === ev.id);
+    if (evPatch.d.match_events) { evPatch.d.match_events = matchEvents; evPatch.d.goal_events = matchEvents.filter((e) => e.type === 'goal').map((e) => ({ id: e.id, team: e.team, minute: e.minute, player_id: e.playerId, assist_player_id: '', goal_type: e.goalType })); }
+
+    const conv = convByEvent.get(ev.id);
+    const convData = { event_id: ev.id, team_id: ev.data.team_id, player_ids: calledIds, starters: starterIds, fcf_auto: true };
+    if (!conv) convInserts.push(convData);
+    else if (conv.auto) convPatches.push({ id: conv.id, d: { player_ids: calledIds, starters: starterIds, fcf_auto: true } });
+
+    for (const pid of calledIds) {
+      const mine = matchEvents.filter((e) => e.team === 'home' && e.playerId === pid);
+      const data = {
+        starter: starterIds.includes(pid),
+        goals: mine.filter((e) => e.type === 'goal').length,
+        yellow_cards: mine.filter((e) => e.type === 'card' && e.cardColor === 'yellow').length,
+        double_yellow_card: mine.filter((e) => e.type === 'card' && e.cardColor === 'yellow2').length,
+        red_cards: mine.filter((e) => e.type === 'card' && e.cardColor === 'red').length,
+        fcf_auto: true,
+      };
+      const existing = msByKey.get(`${ev.id}|${pid}`);
+      if (existing) msPatches.push({ id: existing, d: data });   // minutos, asistencias y valoración se respetan
+      else msInserts.push({ player_id: pid, event_id: ev.id, date: String(ev.data.date || '').slice(0, 10), opponent: ev.data.opponent || '', minutes_played: 0, assists: 0, ...data });
+    }
+    stats.actas_synced++;
+  }
+
+  await bulkInsert('Convocatoria', convInserts);
+  await bulkPatch(convPatches);
+  await bulkInsert('MatchStats', msInserts);
+  await bulkPatch(msPatches);
+  await bulkPatch(evPatches);
 }

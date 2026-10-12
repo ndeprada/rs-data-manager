@@ -111,7 +111,7 @@ function Timeline({ events, players, opponent, onRemove }) {
     const playerIn = players.find(p => p.id === ev.playerIn);
     const playerOut = players.find(p => p.id === ev.playerOut);
     if (ev.type === "goal") {
-      const scorer = player ? `${player.first_name} ${player.last_name}` : (ev.team === "away" ? (opponent || "Rival") : "—");
+      const scorer = player ? `${player.first_name} ${player.last_name}` : (ev.fcfName ? ev.fcfName + (ev.goalType === "gol_propio" ? " (p.p.)" : "") : ev.team === "away" ? (opponent || "Rival") : "—");
       const assist = players.find(p => p.id === ev.assistId);
       return scorer + (assist ? ` (as. ${assist.first_name} ${assist.last_name})` : "");
     }
@@ -194,7 +194,9 @@ export default function ActaTab({ eventId, teamId, event, players }) {
 
   // Cargar eventos guardados desde Event.goal_events si existen
   useEffect(() => {
-    if (event?.goal_events?.length > 0 && matchEvents.length === 0) {
+    if (event?.match_events?.length > 0 && matchEvents.length === 0) {
+      setMatchEvents(event.match_events);
+    } else if (event?.goal_events?.length > 0 && matchEvents.length === 0) {
       const loaded = event.goal_events.map((g, i) => ({
         id: `loaded_${i}`,
         type: "goal",
@@ -243,6 +245,8 @@ export default function ActaTab({ eventId, teamId, event, players }) {
       score_away: Number(scoreAway),
       football_format: format,
       match_duration: duration,
+      match_events: matchEvents,
+      goal_events_source: "manual",
       goal_events: matchEvents.filter(e => e.type === "goal").map(e => ({
         id: e.id, team: e.team, minute: e.minute,
         player_id: e.playerId, assist_player_id: e.assistId, goal_type: e.goalType,
@@ -258,7 +262,7 @@ export default function ActaTab({ eventId, teamId, event, players }) {
       const mins = calcMinutesPlayed(p.id, starterIds, matchEvents, matchMinutes);
       const isStarter = starterIds.includes(p.id);
       const goals = matchEvents.filter(e => e.type === "goal" && e.team === "home" && e.playerId === p.id).length;
-      const assists = matchEvents.filter(e => e.type === "goal" && e.team === "home" && e.assistId === p.id).length;
+      const assistsFromEvents = matchEvents.filter(e => e.type === "goal" && e.team === "home" && e.assistId === p.id).length;
       const yellows = matchEvents.filter(e => e.type === "card" && e.team === "home" && e.playerId === p.id && e.cardColor === "yellow").length;
       const yellow2 = matchEvents.filter(e => e.type === "card" && e.team === "home" && e.playerId === p.id && e.cardColor === "yellow2").length;
       const red = matchEvents.filter(e => e.type === "card" && e.team === "home" && e.playerId === p.id && e.cardColor === "red").length;
@@ -266,11 +270,13 @@ export default function ActaTab({ eventId, teamId, event, players }) {
       const notes = ratings[p.id]?.notes || "";
 
       const existing = await base44.entities.MatchStats.filter({ event_id: eventId, player_id: p.id }).then(r => r[0] || null);
+      // Las asistencias y minutos se apuntan a mano: no se pisan con ceros
+      const assists = assistsFromEvents || existing?.assists || 0;
       const payload = {
         player_id: p.id, event_id: eventId,
         date: event?.date?.split("T")[0] || new Date().toISOString().split("T")[0],
         opponent: event?.opponent || "",
-        starter: isStarter, minutes_played: mins,
+        starter: isStarter, minutes_played: mins || existing?.minutes_played || 0,
         goals, assists, yellow_cards: yellows, double_yellow_card: yellow2, red_cards: red,
         rating, notes,
       };
