@@ -173,8 +173,8 @@ export default function PlayerPerformancePanel({ playerId }) {
       )}
 
       {chartData.length === 0 && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center shadow-sm text-gray-400">
-          <Trophy className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center shadow-sm text-gray-400 text-sm flex items-center justify-center gap-2">
+          <Trophy className="w-4 h-4 text-gray-300" />
           <p>Registra partidos para ver la evolución del jugador</p>
         </div>
       )}
