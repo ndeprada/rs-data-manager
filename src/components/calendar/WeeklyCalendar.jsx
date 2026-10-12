@@ -95,6 +95,9 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
                       style={{ background: getEventColor(evt.type), minHeight: "20px" }}
                       title={evt.title}
                     >
+                      {evt.opponent_logo_url && ["partido_liga","partido_amistoso","torneo"].includes(evt.type) && (
+                        <img src={evt.opponent_logo_url} alt="" loading="lazy" className="inline-block w-4 h-4 object-contain bg-white rounded-sm mr-1 align-middle" />
+                      )}
                       {evt.title}
                     </div>
                   ))

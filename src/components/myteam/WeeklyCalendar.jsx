@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, isSameDay, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, MapPin, Clock, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, Clock, Plus, Home, Plane } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
@@ -98,17 +98,24 @@ function EventCard({ event, navigate, onEventClick }) {
             {meta.label}
           </span>
           {isMatch && (
-            <span className="text-[9px]">⚽</span>
+            event.is_home === false
+              ? <span title="Fuera" className="inline-flex"><Plane className="w-3.5 h-3.5 text-sky-600" /></span>
+              : <span title="Casa" className="inline-flex"><Home className="w-3.5 h-3.5 text-emerald-600" /></span>
           )}
         </div>
 
         {/* Title */}
-        <p
-          className="text-[11px] font-black leading-tight line-clamp-2 text-gray-900"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          {isMatch && event.opponent ? `vs ${event.opponent}` : event.title}
-        </p>
+        <div className="flex items-center gap-1.5">
+          {isMatch && event.opponent_logo_url && (
+            <img src={event.opponent_logo_url} alt="" loading="lazy" className="w-6 h-6 object-contain shrink-0" />
+          )}
+          <p
+            className="text-[11px] font-black leading-tight line-clamp-2 text-gray-900"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {isMatch && event.opponent ? `vs ${event.opponent}` : event.title}
+          </p>
+        </div>
 
         {/* Time */}
         {timeStr && (
@@ -246,6 +253,8 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
                           style={{ background: styles.bg, border: `1px solid ${styles.border}` }}
                         >
                           <div className="w-1.5 h-full min-h-[20px] rounded-full shrink-0" style={{ background: styles.bar }} />
+                          {isMatch && (ev.is_home === false ? <Plane className="w-4 h-4 text-sky-600 shrink-0" /> : <Home className="w-4 h-4 text-emerald-600 shrink-0" />)}
+                          {isMatch && ev.opponent_logo_url && <img src={ev.opponent_logo_url} alt="" loading="lazy" className="w-6 h-6 object-contain shrink-0" />}
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-black truncate text-gray-900" style={{ fontFamily: "var(--font-display)" }}>
                               {isMatch && ev.opponent ? `vs ${ev.opponent}` : ev.title}

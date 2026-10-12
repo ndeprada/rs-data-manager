@@ -24,7 +24,7 @@ export default function TeamMatches() {
   const [filterType, setFilterType] = useState("all");
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
-  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date", 300) });
+  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
 
   const matches = events
     .filter(e => e.team_id === selectedTeamId && MATCH_TYPES.includes(e.type))

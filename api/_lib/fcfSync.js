@@ -87,6 +87,7 @@ function shortTeamName(catName, letter) {
   else if (c.includes('infantil')) base = 'Infantil';
   else if (c.includes('cadet')) base = 'Cadet';
   else if (c.includes('juvenil')) base = 'Juvenil';
+  else if (c.includes('tercera catalana')) return 'Primer Equipo';
   else base = titleCase(catName);
   return `${base}${sTag} ${clean(letter) || 'A'}`.trim();
 }

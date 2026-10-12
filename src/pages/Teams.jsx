@@ -263,8 +263,8 @@ export default function Teams() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {groupTeams.map(team => {
                     const teamPlayers = players.filter(p => p.team_id === team.id);
-                    const teamMatches = events.filter(e => e.team_id === team.id && e.score_home !== undefined && e.score_away !== undefined);
-                    const wins = teamMatches.filter(m => (m.is_home !== false && m.score_home > m.score_away) || (m.is_home === false && m.score_away > m.score_home)).length;
+                    const teamMatches = events.filter(e => e.team_id === team.id && e.score_home != null && e.score_away != null);
+                    const wins = teamMatches.filter(m => m.score_home > m.score_away).length;
                     const draws = teamMatches.filter(m => m.score_home === m.score_away).length;
                     const losses = teamMatches.length - wins - draws;
                     return (

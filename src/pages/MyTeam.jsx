@@ -1,3 +1,4 @@
+import MatchesTimeline from "@/components/match/MatchesTimeline";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -29,7 +30,7 @@ export default function MyTeam() {
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
-  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date", 100) });
+  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
   const { data: matchStats = [] } = useQuery({ queryKey: ["matchStats"], queryFn: () => base44.entities.MatchStats.list("-date", 500) });
 
   const [createEventDate, setCreateEventDate] = useState(null);
@@ -185,42 +186,8 @@ export default function MyTeam() {
       {/* FCF Classifications for this team */}
       {selectedTeam?.fcf_group_url && <FCFClassificationsPanel teams={[selectedTeam]} />}
 
-      {/* Recent Results */}
-      {recentMatches.length > 0 && (
-        <div className="bg-white border border-gray-200 shadow-sm" style={{ borderRadius: "4px" }}>
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-black text-base uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Últimos resultados</h2>
-            <Link to="/MyTeam/Matches" className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}>Ver todos →</Link>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {recentMatches.map(m => {
-              const result = getResult(m);
-              return (
-                <button key={m.id} onClick={() => navigate(`/MatchDetail?id=${m.id}&teamId=${m.team_id}`)}
-                  className="w-full px-5 py-3 flex items-center gap-4 hover:bg-gray-50 transition-colors text-left group">
-                  <div className="w-10 text-center shrink-0">
-                    <p className="text-lg font-black leading-none" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{format(new Date(m.date), "d")}</p>
-                    <p className="text-[10px] uppercase text-gray-400">{format(new Date(m.date), "MMM", { locale: es })}</p>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-gray-900 truncate" style={{ fontFamily: "var(--font-display)" }}>{m.opponent ? `vs ${m.opponent}` : m.title}</p>
-                    <p className="text-xs text-gray-400">{m.location || "—"}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    {result ? (
-                      <>
-                        <p className="text-xl font-black" style={{ fontFamily: "var(--font-display)" }}>{m.score_home} - {m.score_away}</p>
-                        <span className={`text-[10px] font-bold uppercase border px-2 py-0.5 rounded-sm ${RESULT_COLORS[result]}`}>{result}</span>
-                      </>
-                    ) : <p className="text-xs text-gray-400">Pendiente</p>}
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500" />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Últimos y próximos partidos */}
+      <MatchesTimeline matches={teamEvents.filter(e => MATCH_TYPES.includes(e.type))} title="Últimos y próximos partidos" onOpen={(m) => navigate(`/MatchDetail?id=${m.id}&teamId=${m.team_id}`)} />
 
       {/* Players list */}
       <div className="bg-white border border-gray-200 shadow-sm" style={{ borderRadius: "4px" }}>

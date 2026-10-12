@@ -118,7 +118,7 @@ function Sidebar({ onClose = () => {} }) {
   const { isCoordinator, appRole, selectedTeamId } = useTeamAccess();
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
-    queryFn: () => base44.entities.Event.list("-date", 500),
+    queryFn: () => base44.entities.Event.list("-date"),
   });
 
   // Calculate notification count for matches in next 2 days

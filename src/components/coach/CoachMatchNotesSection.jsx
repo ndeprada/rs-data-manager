@@ -34,7 +34,7 @@ export default function CoachMatchNotesSection({ staffId, teamId, isCoordinator 
 
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
-    queryFn: () => base44.entities.Event.list("-date", 200),
+    queryFn: () => base44.entities.Event.list("-date"),
   });
 
   const { data: notes = [] } = useQuery({

@@ -43,14 +43,15 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
 
   const getTeamResults = (teamId) => {
     return events
-      .filter((e) => e.team_id === teamId && e.type?.includes("partido") && e.score_home !== undefined && e.score_away !== undefined)
+      .filter((e) => e.team_id === teamId && e.type?.includes("partido") && e.score_home != null && e.score_away != null)
       .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 5)
+      .slice(0, 3)
+      .reverse()
       .map((e) => {
-        const isHome = e.is_home;
+        // score_home = goles de nuestro equipo; score_away = goles del rival
         let result;
-        if (e.score_home > e.score_away) result = isHome ? "win" : "loss";
-        else if (e.score_home < e.score_away) result = isHome ? "loss" : "win";
+        if (e.score_home > e.score_away) result = "win";
+        else if (e.score_home < e.score_away) result = "loss";
         else result = "draw";
         return { result, score: `${e.score_home}-${e.score_away}`, date: e.date };
       });
@@ -58,7 +59,7 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
 
   const getStats = (teamId) => {
     const teamMatches = events.filter(
-      (e) => e.team_id === teamId && e.type?.includes("partido") && e.score_home !== undefined && e.score_away !== undefined
+      (e) => e.team_id === teamId && e.type?.includes("partido") && e.score_home != null && e.score_away != null
     );
     const wins = teamMatches.filter((e) => e.score_home > e.score_away).length;
     const draws = teamMatches.filter((e) => e.score_home === e.score_away).length;

@@ -1,3 +1,4 @@
+import MatchesTimeline from "@/components/match/MatchesTimeline";
 import React, { useState } from "react";
 import { getCategoryLabel } from "@/components/fcfCategories";
 import { base44 } from "@/api/base44Client";
@@ -71,7 +72,7 @@ export default function TeamDetail() {
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
   const { data: staffList = [] } = useQuery({ queryKey: ["staff"], queryFn: () => base44.entities.StaffMember.list() });
-  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date", 200) });
+  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
   const { data: matchStats = [] } = useQuery({ queryKey: ["matchStats"], queryFn: () => base44.entities.MatchStats.list("-date", 500) });
 
   const deletePlayerMutation = useMutation({
@@ -103,10 +104,8 @@ export default function TeamDetail() {
   const teamStaff = staffList.filter((s) => s.team_id === teamId);
   
   // Últimos partidos
-  const recentMatches = events
-    .filter((e) => e.team_id === teamId && ["partido_liga", "partido_amistoso", "torneo"].includes(e.type))
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 5);
+  const teamMatchEvents = events
+    .filter((e) => e.team_id === teamId && ["partido_liga", "partido_amistoso", "torneo"].includes(e.type));
 
   // Estadísticas por jugador
   const playerStatsMap = {};
@@ -183,36 +182,8 @@ export default function TeamDetail() {
       {/* Próximos Eventos - WeeklyCalendar */}
       <WeeklyCalendar events={teamEvents} teamId={teamId} />
 
-      {/* Últimos Partidos */}
-      {recentMatches.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-          <div className="p-5 border-b border-gray-100 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-gray-400" />
-            <h2 className="font-semibold text-lg text-gray-900">Últimos Partidos</h2>
-          </div>
-          <div className="divide-y divide-gray-100">
-            {recentMatches.map((match) => (
-              <div key={match.id} className="px-5 py-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{match.title}</p>
-                    {match.opponent && (
-                      <p className="text-sm text-gray-500 mt-0.5">vs <span className="font-medium">{match.opponent}</span></p>
-                    )}
-                    {match.location && (
-                      <p className="text-xs text-gray-400 mt-1 flex items-center gap-1"><MapPin className="w-3 h-3" />{match.location}</p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold text-gray-900">{format(new Date(match.date), "d MMM", { locale: es })}</p>
-                    <p className="text-xs text-gray-400">{format(new Date(match.date), "HH:mm")}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Últimos y próximos partidos */}
+      <MatchesTimeline matches={teamMatchEvents} title="Últimos y próximos partidos" onOpen={(m) => navigate(`/MatchDetail?id=${m.id}&teamId=${m.team_id}`)} />
 
       {/* Estadísticas de Jugadores */}
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">

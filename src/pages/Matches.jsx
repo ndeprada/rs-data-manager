@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Swords, ChevronRight, MapPin, Filter } from "lucide-react";
+import { Swords, ChevronRight, MapPin, Filter, Home, Plane } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 
@@ -28,7 +28,7 @@ export default function Matches() {
 
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
-    queryFn: () => base44.entities.Event.list("-date", 300),
+    queryFn: () => base44.entities.Event.list("-date"),
   });
   const { data: teams = [] } = useQuery({
     queryKey: ["teams"],
@@ -142,6 +142,7 @@ export default function Matches() {
                       <p className="text-sm text-gray-500 truncate flex items-center gap-1.5">
                         {match.opponent_logo_url && <img src={match.opponent_logo_url} alt="" className="w-5 h-5 object-contain shrink-0" loading="lazy" />}
                         <span className="truncate">vs {match.opponent}</span>
+                        {match.is_home === false ? <Plane className="w-3.5 h-3.5 text-sky-600 shrink-0" title="Fuera" /> : <Home className="w-3.5 h-3.5 text-emerald-600 shrink-0" title="Casa" />}
                       </p>
                     )}
                     {match.location && (
