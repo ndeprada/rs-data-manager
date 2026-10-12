@@ -48,27 +48,19 @@ function splitName(full) {
   return { first: titleCase(first), last: titleCase(last) };
 }
 
-async function findOne(type, key, value) {
-  const { rows } = await query(
-    `select id, data from entities where entity_type = $1 and data ->> '${key}' = $2 limit 1`,
-    [type, String(value)]
-  );
-  return rows[0] || null;
-}
-
-async function insert(type, data) {
-  const { rows } = await query(
-    `insert into entities (entity_type, data) values ($1, $2::jsonb) returning id, data`,
-    [type, JSON.stringify(data)]
-  );
-  return rows[0];
-}
-
-async function patch(id, data) {
-  await query(
-    `update entities set data = data || $2::jsonb, updated_at = now() where id = $1`,
-    [id, JSON.stringify(data)]
-  );
+function shortTeamName(catName, letter) {
+  const c = norm(catName);
+  const sMatch = c.match(/\bs(\d{1,2})\b/);
+  const sTag = sMatch ? ` S${sMatch[1]}` : '';
+  let base;
+  if (c.startsWith('prebenjami') || c.includes(' prebenjami')) base = 'Prebenjamí';
+  else if (c.includes('benjami')) base = 'Benjamí';
+  else if (c.includes('alevi')) base = 'Aleví';
+  else if (c.includes('infantil')) base = 'Infantil';
+  else if (c.includes('cadet')) base = 'Cadet';
+  else if (c.includes('juvenil')) base = 'Juvenil';
+  else base = titleCase(catName);
+  return `${base}${sTag} ${clean(letter) || 'A'}`.trim();
 }
 
 function addMinutes(naive, mins) {
@@ -77,18 +69,84 @@ function addMinutes(naive, mins) {
   return d.toISOString().slice(0, 16);
 }
 
+async function pool(items, size, fn) {
+  const out = [];
+  let i = 0;
+  await Promise.all(
+    Array.from({ length: size }, async () => {
+      while (i < items.length) {
+        const idx = i++;
+        out[idx] = await fn(items[idx]);
+      }
+    })
+  );
+  return out;
+}
+
+async function bulkInsert(type, rows) {
+  if (!rows.length) return [];
+  const { rows: res } = await query(
+    `insert into entities (entity_type, data)
+     select $1, x from jsonb_array_elements($2::jsonb) x returning id`,
+    [type, JSON.stringify(rows)]
+  );
+  return res;
+}
+
+async function bulkPatch(items) {
+  if (!items.length) return;
+  await query(
+    `update entities e set data = e.data || x.d, updated_at = now()
+       from jsonb_to_recordset($1::jsonb) as x(id uuid, d jsonb)
+      where e.id = x.id`,
+    [JSON.stringify(items)]
+  );
+}
+
 export async function syncFcf() {
   const stats = { teams_created: 0, teams_updated: 0, players_created: 0, players_existing: 0, matches_created: 0, matches_updated: 0, errors: [] };
   const club = await getJson(BASE);
   const season = currentSeason();
+  const clubTeams = club.teams || [];
 
-  for (const t of club.teams || []) {
+  // Descargas en paralelo
+  const details = await pool(clubTeams, 6, async (t) => {
+    try { return await getJson(`${BASE}/team/${t.codequipo}`); }
+    catch (e) { stats.errors.push(`${t.codequipo}: ${e.message}`); return null; }
+  });
+
+  // Estado actual en pocas consultas
+  const { rows: teamRows } = await query(`select id, data from entities where entity_type = 'Team'`);
+  const teamByCode = new Map(teamRows.filter((r) => r.data.fcf_team_code).map((r) => [String(r.data.fcf_team_code), r]));
+  const { rows: playerRows } = await query(`select id, data from entities where entity_type = 'Player'`);
+  const playersByTeam = new Map();
+  for (const r of playerRows) {
+    const k = r.data.team_id;
+    if (!playersByTeam.has(k)) playersByTeam.set(k, new Set());
+    playersByTeam.get(k).add(tokensKey(`${r.data.first_name || ''} ${r.data.last_name || ''}`));
+  }
+  const { rows: eventRows } = await query(
+    `select id, data ->> 'fcf_acta' as acta from entities where entity_type = 'Event' and data ? 'fcf_acta'`
+  );
+  const eventByActa = new Map(eventRows.map((r) => [r.acta, r.id]));
+
+  const eventInserts = [];
+  const eventPatches = [];
+  const playerInserts = [];
+  const teamPatches = [];
+  const usedNames = new Set();
+
+  for (let n = 0; n < clubTeams.length; n++) {
+    const t = clubTeams[n];
+    const detail = details[n];
+    if (!detail) continue;
     try {
       const code = String(t.codequipo);
-      const detail = await getJson(`${BASE}/team/${code}`);
       const catName = clean(t.categoria_nombre);
-      const letter = clean(t.letra_equipo);
       const slug = categorySlug(catName);
+      let name = shortTeamName(catName, t.letra_equipo);
+      if (usedNames.has(name)) name = `${name} (${code.slice(-4)})`;
+      usedNames.add(name);
       const c = detail.campos || {};
       const days = [['L', 'ENTRENAR_LUNES'], ['M', 'ENTRENAR_MARTES'], ['X', 'ENTRENAR_MIERCOLES'], ['J', 'ENTRENAR_JUEVES'], ['V', 'ENTRENAR_VIERNES'], ['S', 'ENTRENAR_SABADO'], ['D', 'ENTRENAR_DOMINGO']]
         .filter(([, k]) => c[k] === '1').map(([d]) => d).join(' ');
@@ -102,32 +160,33 @@ export async function syncFcf() {
         fcf_synced_at: new Date().toISOString(),
       };
 
-      let team = await findOne('Team', 'fcf_team_code', code);
+      let team = teamByCode.get(code);
       if (!team) {
-        const name = `${titleCase(catName)}${letter ? ' ' + letter : ''}`;
-        team = await insert('Team', { name, category: slug, season, ...fcfInfo });
+        const { rows } = await query(
+          `insert into entities (entity_type, data) values ('Team', $1::jsonb) returning id, data`,
+          [JSON.stringify({ name, category: slug, season, ...fcfInfo })]
+        );
+        team = rows[0];
         stats.teams_created++;
       } else {
         const extra = {};
+        if (!team.data.fcf_name_locked) extra.name = name;
         if (!team.data.category) extra.category = slug;
         if (!team.data.season) extra.season = season;
-        await patch(team.id, { ...fcfInfo, ...extra });
+        teamPatches.push({ id: team.id, d: { ...fcfInfo, ...extra } });
         stats.teams_updated++;
       }
       const teamId = team.id;
+      const teamName = team.data.fcf_name_locked ? team.data.name : name;
 
       // Jugadores
-      const { rows: existing } = await query(
-        `select id, data from entities where entity_type = 'Player' and data ->> 'team_id' = $1`,
-        [teamId]
-      );
-      const known = new Set(existing.map((p) => tokensKey(`${p.data.first_name || ''} ${p.data.last_name || ''}`)));
+      const known = playersByTeam.get(teamId) || new Set();
       for (const p of detail.players || []) {
         const key = tokensKey(p.NOMBRE);
         if (!key) continue;
         if (known.has(key)) { stats.players_existing++; continue; }
         const { first, last } = splitName(p.NOMBRE);
-        await insert('Player', { first_name: first, last_name: last, team_id: teamId, status: 'activo', fcf_imported: true });
+        playerInserts.push({ first_name: first, last_name: last, team_id: teamId, status: 'activo', fcf_imported: true });
         known.add(key);
         stats.players_created++;
       }
@@ -136,21 +195,19 @@ export async function syncFcf() {
       for (const m of detail.matches || []) {
         if (!m.COMIENZO1) continue;
         const home = String(m.CODEQUIPO_CASA) === code;
-        const opp = clean(home ? m.NOMBRE_FUERA : m.NOMBRE_CASA);
+        const opp = titleCase(clean(home ? m.NOMBRE_FUERA : m.NOMBRE_CASA));
         const date = m.COMIENZO1.replace(' ', 'T').slice(0, 16);
         const hg = m.GOLES_CASA, ag = m.GOLES_FUERA;
         const played = hg !== null && hg !== undefined && ag !== null && ag !== undefined;
-        const ours = played ? Number(home ? hg : ag) : undefined;
-        const theirs = played ? Number(home ? ag : hg) : undefined;
         const j = Number(m.JORNADA);
         const data = {
-          title: `${j > 0 ? 'J' + j + ' · ' : ''}${home ? 'vs ' : '@ '}${titleCase(opp)}`,
+          title: `${j > 0 ? 'J' + j + ' · ' : ''}${home ? `${teamName} vs ${opp}` : `${opp} vs ${teamName}`}`,
           type: 'partido_liga',
           team_id: teamId,
           date,
           end_date: addMinutes(date, 120),
           location: titleCase(m.CAMPO || ''),
-          opponent: titleCase(opp),
+          opponent: opp,
           is_home: home,
           football_format: isF7(catName) ? 'f7' : 'f11',
           fcf_acta: String(m.CODACTA),
@@ -158,14 +215,19 @@ export async function syncFcf() {
           fcf_competition: clean(m.NOMBRE_COMPETICION || ''),
           fcf_group: clean(m.GRUPO || ''),
         };
-        if (played) { data.score_home = ours; data.score_away = theirs; }
-        const ev = await findOne('Event', 'fcf_acta', m.CODACTA);
-        if (!ev) { await insert('Event', data); stats.matches_created++; }
-        else { await patch(ev.id, data); stats.matches_updated++; }
+        if (played) { data.score_home = Number(home ? hg : ag); data.score_away = Number(home ? ag : hg); }
+        const existingId = eventByActa.get(String(m.CODACTA));
+        if (existingId) { eventPatches.push({ id: existingId, d: data }); stats.matches_updated++; }
+        else { eventInserts.push(data); stats.matches_created++; }
       }
     } catch (e) {
       stats.errors.push(`${t.codequipo}: ${e.message}`);
     }
   }
+
+  await bulkPatch(teamPatches);
+  await bulkInsert('Player', playerInserts);
+  await bulkInsert('Event', eventInserts);
+  await bulkPatch(eventPatches);
   return stats;
 }
