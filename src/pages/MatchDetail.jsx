@@ -27,8 +27,8 @@ function Shield({ src, name, canUpload, onUpload }) {
   };
 
   return (
-    <div className="flex flex-col items-center gap-2 relative group">
-      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden flex items-center justify-center border-2 border-white/20 bg-white/10 relative">
+    <div className="flex flex-col items-center gap-1 relative group">
+      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden flex items-center justify-center border-2 border-white/20 bg-white/10 relative">
         {src ? (
           <img src={src} alt={name} className="w-full h-full object-contain p-1.5" />
         ) : (
@@ -52,7 +52,7 @@ function Shield({ src, name, canUpload, onUpload }) {
           </>
         )}
       </div>
-      <p className="text-[10px] uppercase tracking-wider text-white/55 font-bold text-center max-w-[90px] leading-tight" style={{ fontFamily: "var(--font-display)" }}>
+      <p className="text-[10px] uppercase tracking-wider text-white/55 font-bold text-center max-w-[110px] leading-tight" style={{ fontFamily: "var(--font-display)" }}>
         {name}
       </p>
     </div>
@@ -159,13 +159,13 @@ export default function MatchDetail() {
   return (
     <div className="space-y-0">
       {/* ── HERO HEADER ── */}
-      <div className="relative overflow-hidden rounded-2xl mb-5" style={{ background: "linear-gradient(160deg, #4a1219 0%, #2a0a0e 60%, #1a0608 100%)" }}>
+      <div className="relative overflow-hidden rounded-2xl mb-4" style={{ background: "linear-gradient(160deg, #4a1219 0%, #2a0a0e 60%, #1a0608 100%)" }}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-40 rounded-full blur-3xl opacity-15" style={{ background: "radial-gradient(circle, #e67e22, transparent)" }} />
         <div className="absolute inset-0" style={{ backgroundImage: "radial-gradient(circle at 15% 85%, rgba(107,31,40,0.35) 0%, transparent 55%)" }} />
 
-        <div className="relative px-4 pt-4 pb-5">
+        <div className="relative px-4 pt-3 pb-3">
           {/* Top bar */}
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-1">
             <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-white/60 hover:text-white text-xs font-semibold transition-colors">
               <ArrowLeft className="w-4 h-4" /> Volver
             </button>
@@ -182,84 +182,62 @@ export default function MatchDetail() {
             </div>
           </div>
 
-          {/* Team label */}
-          <p className="text-[10px] uppercase tracking-widest text-white/30 font-bold text-center mb-3" style={{ fontFamily: "var(--font-display)" }}>
-            {team?.name}
-          </p>
+          {/* ── MARCADOR COMPACTO: [equipo + goleadores] [resultado] [equipo + goleadores] ── */}
+          {(() => {
+            const ours = ourGoals.map((g, i) => {
+              const scorer = players.find(p => p.id === g.player_id);
+              return { k: "o" + i, minute: g.minute, label: scorer ? `${scorer.first_name} ${scorer.last_name}` : (g.goal_type === "gol_propio" ? "Propia puerta" : "—") };
+            });
+            const theirs = theirGoals.map((g, i) => {
+              const ev = (event.match_events || []).find(e => e.id === g.id);
+              return { k: "t" + i, minute: g.minute, label: ev?.fcfName || "" };
+            });
+            const leftList = isHome ? ours : theirs;
+            const rightList = isHome ? theirs : ours;
+            const leftShield = isHome
+              ? <Shield src={ourLogoUrl} name={ourTeamName} canUpload={false} onUpload={() => {}} />
+              : <Shield src={rivalLogoUrl} name={rivalName} canUpload={true} onUpload={(url) => updateLogoMutation.mutate({ opponent_logo_url: url })} />;
+            const rightShield = isHome
+              ? <Shield src={rivalLogoUrl} name={rivalName} canUpload={true} onUpload={(url) => updateLogoMutation.mutate({ opponent_logo_url: url })} />
+              : <Shield src={ourLogoUrl} name={ourTeamName} canUpload={false} onUpload={() => {}} />;
+            return (
+              <div className="grid grid-cols-[1fr_auto_1fr] gap-x-2 items-start">
+                <div className="flex flex-col items-center gap-1.5 min-w-0">
+                  {leftShield}
+                  <div className="flex flex-col items-center gap-0.5 w-full">
+                    {leftList.map(g => (
+                      <span key={g.k} className="text-[10px] text-white/60 leading-snug text-center">⚽ {g.label} <span className="text-white/35">{g.minute}'</span></span>
+                    ))}
+                  </div>
+                </div>
 
-          {/* ── MAIN SCOREBOARD ── */}
-          <div className="flex flex-col items-center gap-2">
-            {/* Row: Escudo — Marcador — Escudo */}
-            <div className="flex items-center justify-center gap-3">
-{isHome ? (
-                <Shield src={ourLogoUrl} name={ourTeamName} canUpload={false} onUpload={() => {}} />
-              ) : (
-                <Shield src={rivalLogoUrl} name={rivalName} canUpload={true} onUpload={(url) => updateLogoMutation.mutate({ opponent_logo_url: url })} />
-              )}
+                <div className="flex flex-col items-center gap-1.5 pt-2">
+                  <div className="flex items-center gap-1">
+                    <span className="text-5xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>{hasScore ? displayLeft : "–"}</span>
+                    <span className="text-xl font-black leading-none text-white/20">:</span>
+                    <span className="text-5xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>{hasScore ? displayRight : "–"}</span>
+                  </div>
+                  {resultLabel ? (
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border" style={{ color: resultText, background: resultBg, borderColor: resultBorder }}>{resultLabel}</span>
+                  ) : (
+                    <span className="text-[9px] text-white/30 uppercase tracking-wider">Sin resultado</span>
+                  )}
+                </div>
 
-              {/* Score */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-7xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)", textShadow: "0 4px 24px rgba(0,0,0,0.7)" }}>
-                  {hasScore ? displayLeft : "–"}
-                </span>
-                <span className="text-3xl font-black leading-none" style={{ color: "rgba(255,255,255,0.15)" }}>:</span>
-                <span className="text-7xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)", textShadow: "0 4px 24px rgba(0,0,0,0.7)" }}>
-                  {hasScore ? displayRight : "–"}
-                </span>
+                <div className="flex flex-col items-center gap-1.5 min-w-0">
+                  {rightShield}
+                  <div className="flex flex-col items-center gap-0.5 w-full">
+                    {rightList.map(g => (
+                      <span key={g.k} className="text-[10px] text-white/60 leading-snug text-center"><span className="text-white/35">{g.minute}'</span> ⚽ {g.label}</span>
+                    ))}
+                  </div>
+                </div>
               </div>
-
-{isHome ? (
-                <Shield src={rivalLogoUrl} name={rivalName} canUpload={true} onUpload={(url) => updateLogoMutation.mutate({ opponent_logo_url: url })} />
-              ) : (
-                <Shield src={ourLogoUrl} name={ourTeamName} canUpload={false} onUpload={() => {}} />
-              )}
-            </div>
-
-            {/* Result badge */}
-            {resultLabel ? (
-              <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border" style={{ color: resultText, background: resultBg, borderColor: resultBorder }}>
-                {resultLabel}
-              </span>
-            ) : (
-              <span className="text-[10px] text-white/25 uppercase tracking-wider">Sin resultado</span>
-            )}
-
-            {/* Goalscorers — centered below, two columns */}
-            {(ourGoals.length > 0 || theirGoals.length > 0) && (
-              <div className="flex gap-6 w-full max-w-sm mt-0.5">
-                {(() => {
-                  const ours = ourGoals.map((g, i) => {
-                    const scorer = players.find(p => p.id === g.player_id);
-                    return { k: "o" + i, minute: g.minute, label: scorer ? `${scorer.first_name} ${scorer.last_name}` : (g.goal_type === "gol_propio" ? "Propia puerta" : "—") };
-                  });
-                  const theirs = theirGoals.map((g, i) => {
-                    const ev = (event.match_events || []).find(e => e.id === g.id);
-                    return { k: "t" + i, minute: g.minute, label: ev?.fcfName || "" };
-                  });
-                  const leftList = isHome ? ours : theirs;
-                  const rightList = isHome ? theirs : ours;
-                  return (
-                    <>
-                      <div className="flex-1 flex flex-col items-end gap-0.5">
-                        {leftList.map(g => (
-                          <span key={g.k} className="text-[10px] text-white/55 leading-snug text-right">⚽ {g.label} <span className="text-white/30">{g.minute}'</span></span>
-                        ))}
-                      </div>
-                      <div className="w-px bg-white/10 shrink-0" />
-                      <div className="flex-1 flex flex-col items-start gap-0.5">
-                        {rightList.map(g => (
-                          <span key={g.k} className="text-[10px] text-white/55 leading-snug"><span className="text-white/30">{g.minute}'</span> ⚽ {g.label}</span>
-                        ))}
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
-          </div>
+            );
+          })()}
 
           {/* Meta info */}
-          <div className="flex items-center justify-center gap-4 mt-4 flex-wrap">
+          <div className="flex items-center justify-center gap-4 mt-2 flex-wrap">
             {eventDate && (
               <div className="flex items-center gap-1.5 text-white/40 text-[11px]">
                 <Calendar className="w-3.5 h-3.5" />
