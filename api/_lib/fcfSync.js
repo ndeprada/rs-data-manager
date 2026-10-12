@@ -9,7 +9,7 @@ async function getJson(url) {
   const r = await fetch(url, { headers: { 'user-agent': UA, accept: 'application/json' } });
   if (!r.ok) throw new Error(`FCF ${r.status} en ${url}`);
   const j = await r.json();
-  return j.data;
+  return j.data !== undefined ? j.data : j;
 }
 
 const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
