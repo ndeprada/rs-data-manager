@@ -24,6 +24,24 @@ function StatBox({ label, value, sub, color = "gray" }) {
   );
 }
 
+function MiniRow({ title, children }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-2.5">
+      <p className="w-20 shrink-0 text-[10px] font-bold uppercase tracking-wider text-gray-400">{title}</p>
+      <div className="flex-1 flex flex-wrap gap-x-5 gap-y-1.5">{children}</div>
+    </div>
+  );
+}
+
+function Mini({ label, value }) {
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <span className="text-base font-bold text-gray-900 leading-none">{value}</span>
+      <span className="text-[11px] text-gray-500">{label}</span>
+    </div>
+  );
+}
+
 function StarRating({ value }) {
   return (
     <span className="inline-flex gap-0.5">
@@ -106,70 +124,30 @@ export default function PlayerPerformancePanel({ playerId }) {
 
   return (
     <div className="space-y-6">
-      {/* Convocatorias & Participación */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Participación</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatBox label="Convocatorias" value={totalConvocatorias} color="blue" />
-          <StatBox label="Partidos jugados" value={partidos} color="granate" />
-          <StatBox label="Como titular" value={titular} color="green" />
-          <StatBox label="Como suplente" value={suplente} color="gray" />
-        </div>
-      </div>
-
-      {/* Minutos */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Minutos</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <StatBox label="Minutos totales" value={`${totalMins}'`} color="blue" />
-          <StatBox
-            label="% min. / disponibles"
-            value={`${minsPct}%`}
-            sub={`${totalMins}' de ${maxMins}'`}
-            color={minsPct >= 70 ? "green" : minsPct >= 40 ? "yellow" : "gray"}
-          />
-          <StatBox
-            label="Media min/partido"
-            value={partidos > 0 ? `${Math.round(totalMins / partidos)}'` : "—"}
-            color="gray"
-          />
-        </div>
-      </div>
-
-      {/* Goles y asistencias */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Ofensiva</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatBox label="Goles" value={totalGoals} color="granate" />
-          <StatBox label="Asistencias" value={totalAssists} color="orange" />
-          <StatBox label="G+A por partido" value={partidos > 0 ? ((totalGoals + totalAssists) / partidos).toFixed(2) : "—"} color="gray" />
-          <div className="rounded-2xl border border-yellow-100 bg-yellow-50 p-4 text-center shadow-sm">
-            <div className="flex justify-center mb-1">
-              {avgRating ? <StarRating value={Math.round(parseFloat(avgRating))} /> : <span className="text-gray-400 text-sm">Sin datos</span>}
-            </div>
-            <p className="text-2xl font-bold text-yellow-800">{avgRating ?? "—"}</p>
-            <p className="text-xs font-medium text-yellow-700 opacity-80 mt-0.5">Valoración media</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Disciplina */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Disciplina</h3>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-center shadow-sm">
-            <p className="text-2xl font-bold text-yellow-800">{totalYellow}</p>
-            <p className="text-xs font-medium text-yellow-700 mt-0.5">🟨 Amarillas</p>
-          </div>
-          <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 text-center shadow-sm">
-            <p className="text-2xl font-bold text-orange-800">{totalDoubleYellow}</p>
-            <p className="text-xs font-medium text-orange-700 mt-0.5">🟨🟨 Doble amarilla</p>
-          </div>
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-center shadow-sm">
-            <p className="text-2xl font-bold text-red-800">{totalRed}</p>
-            <p className="text-xs font-medium text-red-700 mt-0.5">🟥 Rojas directas</p>
-          </div>
-        </div>
+      {/* Resumen compacto de estadísticas */}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm divide-y divide-gray-100">
+        <MiniRow title="Participación">
+          <Mini label="Convoc." value={totalConvocatorias} />
+          <Mini label="Jugados" value={partidos} />
+          <Mini label="Titular" value={titular} />
+          <Mini label="Suplente" value={suplente} />
+        </MiniRow>
+        <MiniRow title="Minutos">
+          <Mini label="Totales" value={`${totalMins}'`} />
+          <Mini label={`de ${maxMins}'`} value={`${minsPct}%`} />
+          <Mini label="Media/partido" value={partidos > 0 ? `${Math.round(totalMins / partidos)}'` : "—"} />
+        </MiniRow>
+        <MiniRow title="Ofensiva">
+          <Mini label="Goles" value={totalGoals} />
+          <Mini label="Asist." value={totalAssists} />
+          <Mini label="G+A/partido" value={partidos > 0 ? ((totalGoals + totalAssists) / partidos).toFixed(2) : "—"} />
+          <Mini label="Valoración" value={avgRating ? `${avgRating} ★` : "—"} />
+        </MiniRow>
+        <MiniRow title="Disciplina">
+          <Mini label="🟨 Amarillas" value={totalYellow} />
+          <Mini label="🟨🟨 Doble am." value={totalDoubleYellow} />
+          <Mini label="🟥 Rojas" value={totalRed} />
+        </MiniRow>
       </div>
 
       {/* Gráfica evolución */}
