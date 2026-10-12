@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { MapPin, Clock, Pencil, Trash2, Users, FileText, ClipboardList } from "lucide-react";
+import { MapPin, Clock, Pencil, Trash2, Users, FileText, ClipboardList, Home as HomeIcon, Plane as PlaneIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const EVENT_TYPES = [
@@ -149,7 +149,7 @@ export default function EventListWithDragDrop({
                                       )}
                                       {event.opponent && (
                                         <div className="flex items-center gap-1">
-                                          vs <span className="font-medium">{event.opponent}</span>
+                                          {event.is_home === true && <HomeIcon className="w-3.5 h-3.5 text-green-600" />}{event.is_home === false && <PlaneIcon className="w-3.5 h-3.5 text-sky-600" />}{event.opponent_logo_url && <img src={event.opponent_logo_url} alt="" className="w-4 h-4 object-contain" referrerPolicy="no-referrer" />}vs <span className="font-medium">{event.opponent}</span>
                                         </div>
                                       )}
                                       {event.location && (

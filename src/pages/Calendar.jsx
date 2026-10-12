@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, Plus, ChevronLeft, ChevronRight, Pencil, Trash2, MapPin, Users, ClipboardList, FileText, List } from "lucide-react";
+import { CalendarDays, Plus, ChevronLeft, ChevronRight, Pencil, Trash2, MapPin, Users, ClipboardList, FileText, List, Home as HomeIcon, Plane as PlaneIcon } from "lucide-react";
 import EventAttendanceDialog from "@/components/calendar/EventAttendanceDialog";
 import ConvocatoriaDialog from "@/components/calendar/ConvocatoriaDialog";
 import SessionReportDialog from "@/components/calendar/SessionReportDialog";
@@ -331,7 +331,7 @@ export default function Calendar() {
                             <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-400 mt-0.5">
                               <span>{getEventLabel(event.type)}</span>
                               {team && <span>· {team.name}</span>}
-                              {event.opponent && <span>· vs {event.opponent}</span>}
+                              {event.opponent && <span className="inline-flex items-center gap-1">· {event.is_home === true ? <HomeIcon className="w-3 h-3 text-green-600" /> : event.is_home === false ? <PlaneIcon className="w-3 h-3 text-sky-600" /> : null}{event.opponent_logo_url && <img src={event.opponent_logo_url} alt="" className="w-4 h-4 object-contain" referrerPolicy="no-referrer" />}vs {event.opponent}</span>}
                               {(event.location || event.field_id) && (
                                 <span className="flex items-center gap-0.5">
                                   <MapPin className="w-2.5 h-2.5" />
@@ -407,7 +407,7 @@ export default function Calendar() {
                           onClick={(e) => { e.stopPropagation(); isMatch ? navigate(`/MatchDetail?id=${evt.id}&teamId=${evt.team_id}`) : navigate(`/MyTeam/Attendance?eventId=${evt.id}`); }}
                           className="text-[9px] truncate px-1.5 py-0.5 rounded-full font-bold text-white hover:opacity-80 transition-opacity cursor-pointer leading-tight w-full"
                           style={{ background: eventColor }}>
-                          {evt.title}
+                          {isMatch && evt.is_home === true && <HomeIcon className="inline w-2.5 h-2.5 mr-0.5 -mt-0.5" />}{isMatch && evt.is_home === false && <PlaneIcon className="inline w-2.5 h-2.5 mr-0.5 -mt-0.5" />}{isMatch && evt.opponent_logo_url && <img src={evt.opponent_logo_url} alt="" className="inline w-3 h-3 object-contain bg-white rounded-full mr-0.5 -mt-0.5" referrerPolicy="no-referrer" />}{evt.title}
                         </div>
                       );
                     })}
@@ -457,7 +457,7 @@ export default function Calendar() {
                             <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-400 mt-0.5">
                               <span>{getEventLabel(event.type)}</span>
                               {team && <span>· {team.name}</span>}
-                              {event.opponent && <span>· vs {event.opponent}</span>}
+                              {event.opponent && <span className="inline-flex items-center gap-1">· {event.is_home === true ? <HomeIcon className="w-3 h-3 text-green-600" /> : event.is_home === false ? <PlaneIcon className="w-3 h-3 text-sky-600" /> : null}{event.opponent_logo_url && <img src={event.opponent_logo_url} alt="" className="w-4 h-4 object-contain" referrerPolicy="no-referrer" />}vs {event.opponent}</span>}
                               {(event.location || event.field_id) && (
                                 <span className="flex items-center gap-0.5">
                                   <MapPin className="w-2.5 h-2.5" />
