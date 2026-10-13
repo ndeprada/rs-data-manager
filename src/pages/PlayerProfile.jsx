@@ -7,7 +7,7 @@ import {
   ArrowLeft, BarChart2, BookOpen, Clock, HeartPulse,
   Camera, Loader2, Pencil, Trash2, User,
   Shield, Phone, Mail,
-  Plus, LayoutGrid, MoreHorizontal
+  Plus, LayoutGrid, IdCard, FileText, History
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import GuardianContactCard from "../components/player/GuardianContactCard";
 import DocumentsSection from "../components/player/DocumentsSection";
 import TrainingLoadSection from "../components/player/TrainingLoadSection";
 import PlayerSeasonHistorySection from "../components/player/PlayerSeasonHistorySection";
+import { MiniPitch, FootIndicator } from "../components/player/PlayerPositionBadges";
 import PlayerSummaryTab from "../components/player/PlayerSummaryTab";
 import PlayerInfoCards from "../components/player/PlayerInfoCards";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
@@ -54,7 +55,6 @@ export default function PlayerProfile() {
   const [selectedImageSrc, setSelectedImageSrc] = useState(null);
   const [injuryDialogOpen, setInjuryDialogOpen] = useState(false);
   const [tab, setTab] = useState("resumen");
-  const [moreSection, setMoreSection] = useState("ficha");
 
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
@@ -132,11 +132,13 @@ export default function PlayerProfile() {
   const nextInjury = activeInjuries[0];
   const tabs = [
     { value: "resumen", icon: <LayoutGrid className="w-3.5 h-3.5" />, label: "Resumen" },
+    { value: "ficha", icon: <IdCard className="w-3.5 h-3.5" />, label: "Ficha" },
     { value: "stats", icon: <BarChart2 className="w-3.5 h-3.5" />, label: "Partidos" },
     { value: "entrenos", icon: <Clock className="w-3.5 h-3.5" />, label: "Entrenos" },
     { value: "pdi", icon: <BookOpen className="w-3.5 h-3.5" />, label: "PDI" },
     { value: "injuries", icon: <HeartPulse className="w-3.5 h-3.5" />, label: "Médico" },
-    { value: "mas", icon: <MoreHorizontal className="w-3.5 h-3.5" />, label: "Más" },
+    { value: "documents", icon: <FileText className="w-3.5 h-3.5" />, label: "Documentos" },
+    { value: "historial", icon: <History className="w-3.5 h-3.5" />, label: "Historial" },
   ];
   const tabContentClass = "mt-0 focus-visible:outline-none focus-visible:ring-0";
 
@@ -190,13 +192,18 @@ export default function PlayerProfile() {
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-white/70">
                   {team && <span className="inline-flex items-center gap-1"><Shield className="w-3 h-3" style={{ color: "#e67e22" }} />{team.name}</span>}
                   {player.position && <span>· {POSITION_LABELS[player.position] || player.position}{player.secondary_position ? ` / ${POSITION_LABELS[player.secondary_position] || player.secondary_position}` : ""}</span>}
-                  {player.laterality && <span>· {LATERALITY_LABELS[player.laterality]}</span>}
                   {age && <span>· Nac. {age}</span>}
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${st.bg} ${st.text}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} /> {st.label}
                   </span>
                 </div>
               </div>
+              {(player.position || player.laterality) && (
+                <div className="flex items-center gap-3 shrink-0 ml-1">
+                  {player.position && <MiniPitch position={player.position} secondaryPosition={player.secondary_position} laterality={player.laterality} />}
+                  <FootIndicator laterality={player.laterality} />
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-7 gap-1 sm:gap-3 text-center shrink-0">
@@ -231,10 +238,10 @@ export default function PlayerProfile() {
                 <TabsTrigger
                   key={t.value}
                   value={t.value}
-                  className="flex-1 min-w-0 rounded-none border-b-2 border-transparent px-3 py-3 text-xs font-semibold text-gray-500 transition-all gap-1.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-[#6b1f28] data-[state=active]:text-[#6b1f28]"
+                  className="flex-1 min-w-0 rounded-none border-b-2 border-transparent px-1.5 sm:px-2 py-3 text-xs font-semibold text-gray-500 transition-all gap-1.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-[#6b1f28] data-[state=active]:text-[#6b1f28]"
                 >
                   {t.icon}
-                  <span className="hidden sm:inline">{t.label}</span>
+                  <span className="hidden md:inline">{t.label}</span>
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -287,40 +294,28 @@ export default function PlayerProfile() {
             </div>
           </TabsContent>
 
-          <TabsContent value="mas" className={tabContentClass}>
-            <div className="flex gap-2 mb-4">
-              {[
-                { value: "ficha", label: "Ficha" },
-                { value: "documents", label: "Documentos" },
-                { value: "historial", label: "Historial" },
-              ].map((s) => (
-                <button
-                  key={s.value}
-                  onClick={() => setMoreSection(s.value)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${moreSection === s.value ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-                  style={moreSection === s.value ? { background: "#6b1f28" } : {}}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-            {moreSection === "ficha" && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <PlayerInfoCards player={player} />
-                <div className="space-y-4">
-                  {(player.phone || player.email) && (
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-2">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Contacto del jugador</p>
-                      {player.phone && <a href={`tel:${player.phone}`} className="flex items-center gap-2 text-sm text-gray-700"><Phone className="w-3.5 h-3.5 text-gray-400" />{player.phone}</a>}
-                      {player.email && <a href={`mailto:${player.email}`} className="flex items-center gap-2 text-sm text-gray-700"><Mail className="w-3.5 h-3.5 text-gray-400" />{player.email}</a>}
-                    </div>
-                  )}
-                  <GuardianContactCard player={player} />
-                </div>
+          <TabsContent value="ficha" className={tabContentClass}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <PlayerInfoCards player={player} />
+              <div className="space-y-4">
+                {(player.phone || player.email) && (
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Contacto del jugador</p>
+                    {player.phone && <a href={`tel:${player.phone}`} className="flex items-center gap-2 text-sm text-gray-700"><Phone className="w-3.5 h-3.5 text-gray-400" />{player.phone}</a>}
+                    {player.email && <a href={`mailto:${player.email}`} className="flex items-center gap-2 text-sm text-gray-700"><Mail className="w-3.5 h-3.5 text-gray-400" />{player.email}</a>}
+                  </div>
+                )}
+                <GuardianContactCard player={player} />
               </div>
-            )}
-            {moreSection === "documents" && <DocumentsSection playerId={playerId} />}
-            {moreSection === "historial" && <PlayerSeasonHistorySection playerId={playerId} />}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="documents" className={tabContentClass}>
+            <DocumentsSection playerId={playerId} />
+          </TabsContent>
+
+          <TabsContent value="historial" className={tabContentClass}>
+            <PlayerSeasonHistorySection playerId={playerId} />
           </TabsContent>
         </Tabs>
       </div>
