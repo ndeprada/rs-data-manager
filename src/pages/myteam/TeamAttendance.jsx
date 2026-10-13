@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo } from "react";
+import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -156,7 +157,7 @@ export default function TeamAttendance() {
       <div key={pid} className="px-3 py-2.5 border-b border-gray-100 last:border-b-0" style={{ background: tint }}>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <div className="w-44 min-w-0">
-            <p className="font-bold text-gray-900 text-xs truncate" style={{ fontFamily: "var(--font-display)" }}>{name}</p>
+            <p className="font-bold text-gray-900 text-xs truncate" style={{ fontFamily: "var(--font-display)" }}>{pid.startsWith("prueba_") ? name : <PlayerName id={pid}>{name}</PlayerName>}</p>
             {sub && <p className="text-[10px] text-gray-400">{sub}</p>}
           </div>
           <div className="flex gap-1">

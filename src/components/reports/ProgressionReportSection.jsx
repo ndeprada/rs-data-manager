@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Download, TrendingUp, Loader2, Search, User, ChevronRight } from "lucide-react";
@@ -124,7 +125,7 @@ export default function ProgressionReportSection() {
                           }
                         </div>
                         <div>
-                          <p className="font-bold text-gray-900" style={{ fontFamily: "var(--font-display)" }}>{player.first_name} {player.last_name}</p>
+                          <p className="font-bold text-gray-900" style={{ fontFamily: "var(--font-display)" }}><PlayerName player={player} /></p>
                           <p className="text-xs text-gray-400">
                             {POSITION_LABELS[player.position] || "—"}
                             {player.jersey_number ? ` · #${player.jersey_number}` : ""}

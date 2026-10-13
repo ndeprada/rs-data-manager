@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Users, Send, Check, Clock, AlertCircle } from "lucide-react";
@@ -180,7 +181,7 @@ El cuerpo técnico
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">
-                        {player.first_name} {player.last_name}
+                        <PlayerName player={player} />
                       </p>
                       <p className="text-xs text-gray-500">
                         {POSITION_LABELS[player.position] || player.position}
@@ -227,7 +228,7 @@ El cuerpo técnico
                        </div>
                        <div>
                          <p className="font-medium text-gray-900">
-                           {player.first_name} {player.last_name}
+                           <PlayerName player={player} />
                            <span className="ml-2 text-xs text-blue-600 font-normal">(Invitado)</span>
                          </p>
                          <p className="text-xs text-gray-500">
@@ -325,7 +326,7 @@ El cuerpo técnico
                       />
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">
-                          {player.first_name} {player.last_name}
+                          <PlayerName player={player} />
                           {player.team_id !== teamId && <span className="ml-2 text-xs text-blue-600 font-normal">(Invitado)</span>}
                         </p>
                         {player.status === "lesionado" && (

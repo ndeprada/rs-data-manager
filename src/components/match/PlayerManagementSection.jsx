@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -72,7 +73,7 @@ export default function PlayerManagementSection({ eventId, teamId, players }) {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
               {/* Jugador */}
               <div>
-                <p className="font-semibold text-gray-900">{player.first_name} {player.last_name}</p>
+                <p className="font-semibold text-gray-900"><PlayerName player={player} /></p>
                 <p className="text-sm text-gray-500">Dorsal {player.jersey_number || "—"}</p>
               </div>
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { X, Save, Users } from "lucide-react";
@@ -111,7 +112,7 @@ export default function ConvocationPanel({ eventId, teamId, onClose }) {
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {player.first_name} {player.last_name}
+                    <PlayerName player={player} />
                   </p>
                 </div>
                 {selected.has(player.id) && (

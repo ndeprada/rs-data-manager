@@ -214,6 +214,7 @@ export default function MyTeam() {
                 <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-3 font-black text-gray-400" style={{ fontFamily: "var(--font-display)" }}>{p.jersey_number || "—"}</td>
                   <td className="px-3 py-3">
+                    <div className="flex items-center gap-2 group/row">
                     <Link to={`/PlayerProfile?id=${p.id}`} className="flex items-center gap-2 group">
                       <div className="relative shrink-0">
                         <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden border border-gray-200" style={{ background: "var(--granate-pale)" }}>
@@ -231,6 +232,8 @@ export default function MyTeam() {
                       </div>
                       <span className="font-bold text-gray-900 group-hover:underline" style={{ fontFamily: "var(--font-display)" }}>{p.first_name} {p.last_name}</span>
                     </Link>
+                    <Link to={`/PlayerProfile?id=${p.id}&edit=1`} title="Editar jugador" className="p-1 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-100 shrink-0"><Pencil className="w-3.5 h-3.5" /></Link>
+                    </div>
                   </td>
                   <td className="px-3 py-3 hidden sm:table-cell text-xs text-gray-500 capitalize">{p.position || "—"}</td>
                   <td className="px-3 py-3 text-center font-black" style={{ fontFamily: "var(--font-display)" }}>{p.matches}</td>

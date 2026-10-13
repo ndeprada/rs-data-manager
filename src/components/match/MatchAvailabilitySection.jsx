@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, XCircle, Users } from "lucide-react";
@@ -132,7 +133,7 @@ export default function MatchAvailabilitySection({ eventId, teamId, players }) {
 
               {/* Name + position */}
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 text-sm">{player.first_name} {player.last_name}</p>
+                <p className="font-medium text-gray-900 text-sm"><PlayerName player={player} /></p>
                 <p className="text-xs text-gray-400">{POSITION_LABELS[player.position] || player.position || "—"}
                   {player.jersey_number ? ` · #${player.jersey_number}` : ""}
                   {player.status === "lesionado" ? " · ⚠️ Lesionado" : ""}

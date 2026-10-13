@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Save, Star, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
@@ -495,7 +496,7 @@ export default function ActaTab({ eventId, teamId, event, players }) {
                       {p.first_name?.[0]}{p.last_name?.[0]}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-gray-900 truncate leading-tight">{p.first_name} {p.last_name}</p>
+                      <p className="text-xs font-bold text-gray-900 truncate leading-tight"><PlayerName player={p} /></p>
                       <p className="text-[10px] text-gray-400 leading-tight">
                         {isStarter ? "TIT" : "SUP"} · {mins}'
                         {goals > 0 && ` · ${goals}⚽`}

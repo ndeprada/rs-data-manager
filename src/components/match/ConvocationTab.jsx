@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Search, Plus, Check, Send, Eye, Clock, MapPin } from "lucide-react";
@@ -110,7 +111,7 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
               <p className="text-[10px] font-black uppercase tracking-wider text-green-700 mb-2">Convocados ({convocados.length})</p>
               <div className="space-y-0.5">
                 {convocados.map(p => (
-                  <p key={p.id} className="text-xs text-green-800">✓ {p.first_name} {p.last_name}</p>
+                  <p key={p.id} className="text-xs text-green-800">✓ <PlayerName player={p} /></p>
                 ))}
               </div>
             </div>
@@ -118,7 +119,7 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
               <p className="text-[10px] font-black uppercase tracking-wider text-red-700 mb-2">No convocados ({noConvocados.length})</p>
               <div className="space-y-0.5">
                 {noConvocados.map(p => (
-                  <p key={p.id} className="text-xs text-red-800">✗ {p.first_name} {p.last_name}</p>
+                  <p key={p.id} className="text-xs text-red-800">✗ <PlayerName player={p} /></p>
                 ))}
               </div>
             </div>
@@ -341,7 +342,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
               <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: "var(--granate)" }}>
                 {p.first_name?.[0]}{p.last_name?.[0]}
               </div>
-              <span className="font-medium">{p.first_name} {p.last_name}</span>
+              <span className="font-medium"><PlayerName player={p} /></span>
               <span className="text-xs text-gray-400 ml-auto">{POSITION_LABELS[p.position] || "—"}</span>
             </button>
           ))}
@@ -377,7 +378,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
 
                       <div className="flex-1 min-w-0">
                         <p className={`text-xs font-semibold truncate ${isConv ? "text-gray-900" : "text-gray-400"}`}>
-                          {player.last_name}, {player.first_name}
+                          <PlayerName player={player} format="last" />
                           {player.status === "lesionado" && <span className="ml-1 text-[10px] text-orange-500">⚠</span>}
                         </p>
                         <p className="text-[10px] text-gray-400 leading-none">

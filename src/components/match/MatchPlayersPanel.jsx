@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -214,7 +215,7 @@ export default function MatchPlayersPanel({ eventId, teamId, players, event }) {
                       </div>
                       <div className="min-w-0">
                         <p className={`font-medium leading-tight truncate ${convocado ? "text-gray-900" : "text-gray-400"}`}>
-                          {player.last_name}, {player.first_name}
+                          <PlayerName player={player} format="last" />
                         </p>
                         <p className="text-[10px] text-gray-400">
                           {POSITION_LABELS[player.position] || "—"}

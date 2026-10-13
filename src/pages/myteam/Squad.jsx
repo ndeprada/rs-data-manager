@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Users, Plus, User, ChevronUp, ChevronDown, ChevronsUpDown, ArrowLeft } from "lucide-react";
+import { Users, Plus, User, Pencil, ChevronUp, ChevronDown, ChevronsUpDown, ArrowLeft } from "lucide-react";
 import { useSelectedTeam } from "@/lib/useSelectedTeam";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -170,6 +170,7 @@ export default function Squad() {
                 {sortedStats.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-3 py-3">
+                      <div className="flex items-center gap-2 group/row">
                       <Link to={`/PlayerProfile?id=${p.id}`} className="flex items-center gap-2 group">
                         <div className="relative shrink-0">
                           <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden border border-gray-200" style={{ background: "var(--granate-pale)" }}>
@@ -190,6 +191,8 @@ export default function Squad() {
                           <p className="text-[10px] text-gray-400">{birthYearOf(p) ? `Nac. ${birthYearOf(p)}` : "—"}</p>
                         </div>
                       </Link>
+                      <Link to={`/PlayerProfile?id=${p.id}&edit=1`} title="Editar jugador" className="p-1 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-100 shrink-0"><Pencil className="w-3.5 h-3.5" /></Link>
+                      </div>
                     </td>
                     <td className="px-3 py-3 text-center">
                       <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-sm" style={{ background: "var(--granate-pale)", color: "var(--granate)", fontFamily: "var(--font-display)" }}>

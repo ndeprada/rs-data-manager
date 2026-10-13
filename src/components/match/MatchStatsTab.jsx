@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -373,7 +374,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
                     {g.team==="home"?(
                       <>
                         <span className="font-semibold">{scorer?`${scorer.first_name} ${scorer.last_name}`:"Gol propio"}</span>
-                        {assister&&<span className="text-gray-400 text-xs"> (asist. {assister.first_name} {assister.last_name})</span>}
+                        {assister&&<span className="text-gray-400 text-xs"> (asist. <PlayerName player={assister} />)</span>}
                       </>
                     ):(
                       <span className="text-gray-500 italic">{event?.opponent||"Rival"}</span>

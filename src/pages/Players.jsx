@@ -1,4 +1,5 @@
 import { birthYearOf } from "@/lib/birthYear";
+import PlayerName from "@/components/common/PlayerName";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -270,7 +271,7 @@ export default function Players() {
                              )}
                            </div>
                            <div>
-                             <p className="font-bold text-gray-900 leading-tight" style={{ fontFamily: "var(--font-display)" }}>{player.first_name} {player.last_name}</p>
+                             <p className="font-bold text-gray-900 leading-tight" style={{ fontFamily: "var(--font-display)" }}><PlayerName player={player} /></p>
                            </div>
                          </div>
                        </td>
