@@ -64,7 +64,7 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
         ...form,
         staff_id: staffId,
         team_id: ev?.team_id || editing?.team_id || null,
-        date: ev?.date?.split("T")[0] || editing?.date || new Date().toISOString().split("T")[0],
+        date: ev?.date?.split("T")[0] || editing?.date || format(new Date(), "yyyy-MM-dd"),
         author_name: editing?.author_name || author?.name || "",
         author_id: editing?.author_id || author?.id || "",
       };
