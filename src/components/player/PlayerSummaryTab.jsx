@@ -82,7 +82,11 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr_1fr] gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <PlayerInfoCards player={player} />
+        <PlayerAttributesBar playerId={playerId} />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {/* Forma */}
         <Card title="Forma · últimos partidos" onMore={() => onGoTab("stats")}>
           {recent.length === 0 ? (
@@ -129,10 +133,6 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
           )}
         </Card>
 
-        <PlayerInfoCards player={player} />
-        <PlayerAttributesBar playerId={playerId} />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         {/* Entrenos */}
         <Card title="Entrenos · últimos 30 días" onMore={() => onGoTab("entrenos")}>
           {pct === null ? (
@@ -181,8 +181,9 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
           )}
         </Card>
 
+      </div>
         {/* PDI */}
-        <Card title="PDI · a mejorar" onMore={() => onGoTab("pdi")} className="md:col-span-2">
+        <Card title="PDI · a mejorar" onMore={() => onGoTab("pdi")}>
           {pending.length === 0 ? (
             <p className="text-sm text-gray-400">Sin objetivos pendientes.</p>
           ) : (
@@ -198,7 +199,6 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
           )}
         </Card>
 
-      </div>
       <GuardianContactCard player={player} />
     </div>
   );
