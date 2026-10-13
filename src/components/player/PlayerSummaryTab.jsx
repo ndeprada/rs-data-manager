@@ -5,6 +5,7 @@ import { format, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { ChevronRight } from "lucide-react";
 import { isCleanSheet, useCleanSheetData } from "@/lib/cleanSheet";
+import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import PlayerAttributesBar from "./PlayerAttributesBar";
 import GuardianContactCard from "./GuardianContactCard";
 
@@ -43,7 +44,7 @@ function Card({ title, onMore, children, className = "" }) {
   );
 }
 
-export default function PlayerSummaryTab({ player, playerId, matchStats, attendance, injuries, onGoTab }) {
+export default function PlayerSummaryTab({ team, player, playerId, matchStats, attendance, injuries, onGoTab }) {
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list() });
   const { allStats } = useCleanSheetData(player.position === "portero");
   const { data: goals = [] } = useQuery({
@@ -96,18 +97,26 @@ export default function PlayerSummaryTab({ player, playerId, matchStats, attenda
                 ))}
               </div>
               <div className="divide-y divide-gray-100">
-                {recent.slice(0, 3).map((s, i) => (
-                  <div key={s.id} className="flex items-center justify-between py-1.5 text-xs gap-2">
-                    <span className="font-medium text-gray-800 truncate">{s.opponent || "Rival"}</span>
-                    <span className="text-gray-400 shrink-0">
-                      {results[i]?.score ? `${results[i].score} · ` : ""}
-                      {s.minutes_played ? `${s.minutes_played}'` : ""}
-                      {s.goals > 0 ? ` · ${s.goals} gol${s.goals > 1 ? "es" : ""}` : ""}
-                      {s.assists > 0 ? ` · ${s.assists} asist.` : ""}
-                      {player.position === "portero" && isCleanSheet(s, events, allStats) ? " · P0" : ""}
-                    </span>
-                  </div>
-                ))}
+                {recent.slice(0, 3).map((s, i) => {
+                  const ev = s.event_id ? events.find((e) => e.id === s.event_id) : null;
+                  const crest = "w-5 h-5 object-contain shrink-0";
+                  return (
+                    <div key={s.id} className="flex items-center py-1.5 text-xs gap-1.5">
+                      <img src={team?.logo_url || CLUB_LOGO_URL} alt="" className={crest} loading="lazy" referrerPolicy="no-referrer" />
+                      <span className="font-bold text-gray-700 shrink-0 w-9 text-center">{results[i]?.score || "—"}</span>
+                      {ev?.opponent_logo_url
+                        ? <img src={ev.opponent_logo_url} alt="" className={crest} loading="lazy" referrerPolicy="no-referrer" />
+                        : <span className={crest} />}
+                      <span className="font-medium text-gray-800 truncate flex-1 min-w-0">{s.opponent || "Rival"}</span>
+                      <span className="text-gray-400 shrink-0">
+                        {s.minutes_played ? `${s.minutes_played}'` : ""}
+                        {s.goals > 0 ? ` · ${s.goals} gol${s.goals > 1 ? "es" : ""}` : ""}
+                        {s.assists > 0 ? ` · ${s.assists} asist.` : ""}
+                        {player.position === "portero" && isCleanSheet(s, events, allStats) ? " · P0" : ""}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}

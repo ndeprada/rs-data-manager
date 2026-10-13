@@ -242,6 +242,7 @@ export default function PlayerProfile() {
 
           <TabsContent value="resumen" className={tabContentClass}>
             <PlayerSummaryTab
+              team={team}
               player={player}
               playerId={playerId}
               matchStats={matchStats}
