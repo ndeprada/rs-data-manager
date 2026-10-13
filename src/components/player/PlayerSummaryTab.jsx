@@ -8,6 +8,7 @@ import { isCleanSheet, useCleanSheetData } from "@/lib/cleanSheet";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import PlayerAttributesBar from "./PlayerAttributesBar";
 import GuardianContactCard from "./GuardianContactCard";
+import PlayerInfoCards from "./PlayerInfoCards";
 
 const REASON_LABEL = {
   lesion: "Lesión", enfermo: "Enfermo", clase: "Clase", examen: "Examen",
@@ -81,7 +82,7 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {/* Forma */}
         <Card title="Forma · últimos partidos" onMore={() => onGoTab("stats")}>
           {recent.length === 0 ? (
@@ -128,6 +129,9 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
           )}
         </Card>
 
+        <PlayerInfoCards player={player} />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Entrenos */}
         <Card title="Entrenos · últimos 30 días" onMore={() => onGoTab("entrenos")}>
           {pct === null ? (
@@ -193,13 +197,11 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
           )}
         </Card>
 
-        {/* Tutor */}
-        <div className="md:col-span-2 xl:col-span-2">
-          <GuardianContactCard player={player} />
-        </div>
       </div>
-
-      <PlayerAttributesBar playerId={playerId} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <GuardianContactCard player={player} />
+        <PlayerAttributesBar playerId={playerId} />
+      </div>
     </div>
   );
 }

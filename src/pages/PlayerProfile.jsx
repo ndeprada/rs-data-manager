@@ -133,7 +133,6 @@ export default function PlayerProfile() {
   const nextInjury = activeInjuries[0];
   const tabs = [
     { value: "resumen", icon: <LayoutGrid className="w-3.5 h-3.5" />, label: "Resumen" },
-    { value: "ficha", icon: <IdCard className="w-3.5 h-3.5" />, label: "Ficha" },
     { value: "stats", icon: <BarChart2 className="w-3.5 h-3.5" />, label: "Partidos" },
     { value: "entrenos", icon: <Clock className="w-3.5 h-3.5" />, label: "Entrenos" },
     { value: "pdi", icon: <BookOpen className="w-3.5 h-3.5" />, label: "PDI" },
@@ -298,22 +297,6 @@ export default function PlayerProfile() {
                 playerEmail={player.email}
                 staffEmails={staffEmails}
               />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="ficha" className={tabContentClass}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <PlayerInfoCards player={player} />
-              <div className="space-y-4">
-                {(player.phone || player.email) && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Contacto del jugador</p>
-                    {player.phone && <a href={`tel:${player.phone}`} className="flex items-center gap-2 text-sm text-gray-700"><Phone className="w-3.5 h-3.5 text-gray-400" />{player.phone}</a>}
-                    {player.email && <a href={`mailto:${player.email}`} className="flex items-center gap-2 text-sm text-gray-700"><Mail className="w-3.5 h-3.5 text-gray-400" />{player.email}</a>}
-                  </div>
-                )}
-                <GuardianContactCard player={player} />
-              </div>
             </div>
           </TabsContent>
 
