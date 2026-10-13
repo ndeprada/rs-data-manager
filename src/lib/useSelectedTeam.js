@@ -8,7 +8,7 @@ import { useTeamAccess } from './TeamAccessContext';
  * - Coordinators/Admins: reads from localStorage, can be changed via selectTeam()
  */
 export function useSelectedTeam() {
-  const { isCoordinator, teamId, teamIds } = useTeamAccess();
+  const { isCoordinator, teamId, teamIds, coachTeamIds } = useTeamAccess();
   const [selectedTeamId, setSelectedTeamId] = useState('');
 
   // A coach with multiple teams also needs to be able to switch
@@ -24,6 +24,9 @@ export function useSelectedTeam() {
       const stored = localStorage.getItem('rs_selected_team');
       if (stored) {
         setSelectedTeamId(stored);
+      } else if (isCoordinator && coachTeamIds && coachTeamIds.length > 0) {
+        // Coordinación que además entrena: por defecto, su equipo
+        setSelectedTeamId(coachTeamIds[0]);
       } else if (!isCoordinator && teamIds && teamIds.length > 0) {
         // Default to first team for multi-team coach
         setSelectedTeamId(teamIds[0]);
