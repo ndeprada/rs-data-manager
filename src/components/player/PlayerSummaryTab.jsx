@@ -82,7 +82,7 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1.1fr_0.9fr] gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr_1fr] gap-3">
         {/* Forma */}
         <Card title="Forma · últimos partidos" onMore={() => onGoTab("stats")}>
           {recent.length === 0 ? (
@@ -132,7 +132,7 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
         <PlayerInfoCards player={player} />
         <PlayerAttributesBar playerId={playerId} />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         {/* Entrenos */}
         <Card title="Entrenos · últimos 30 días" onMore={() => onGoTab("entrenos")}>
           {pct === null ? (
@@ -182,18 +182,18 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
         </Card>
 
         {/* PDI */}
-        <Card title="PDI · a mejorar" onMore={() => onGoTab("pdi")}>
+        <Card title="PDI · a mejorar" onMore={() => onGoTab("pdi")} className="md:col-span-2">
           {pending.length === 0 ? (
             <p className="text-sm text-gray-400">Sin objetivos pendientes.</p>
           ) : (
             <div className="space-y-2">
-              {pending.slice(0, 2).map((g) => (
+              {pending.slice(0, 3).map((g) => (
                 <div key={g.id}>
                   <p className="text-sm text-gray-800 line-clamp-2">{g.objective || g.competency_text}</p>
                   {g.period && <p className="text-[11px] text-gray-400">{g.period}</p>}
                 </div>
               ))}
-              {pending.length > 2 && <p className="text-[11px] text-gray-400">+{pending.length - 2} más</p>}
+              {pending.length > 3 && <p className="text-[11px] text-gray-400">+{pending.length - 3} más</p>}
             </div>
           )}
         </Card>

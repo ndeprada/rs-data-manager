@@ -6,7 +6,8 @@ const POSITION_FULL = {
 };
 const LATERALITY_LABELS = { diestro: "Diestro", zurdo: "Zurdo", ambidiestro: "Ambidiestro" };
 
-// Coordenadas base (jugador diestro); en zurdo se espejan laterales, extremos e interiores.
+// Coordenadas base en el lado izquierdo (perfil del zurdo); en diestro/ambidiestro/sin dato se espejan
+// laterales, extremos e interiores al lado derecho, para ponerlos siempre en su perfil natural.
 const COORDS = {
   portero: { x: 50, y: 88 }, central: { x: 50, y: 68 }, lateral: { x: 22, y: 72 },
   libre: { x: 50, y: 78 }, mediocentro: { x: 50, y: 48 }, interior: { x: 30, y: 38 },
@@ -16,7 +17,7 @@ const MIRROR = new Set(["lateral", "extremo", "interior"]);
 const coords = (pos, lat) => {
   const c = COORDS[pos];
   if (!c) return null;
-  return lat === "zurdo" && MIRROR.has(pos) ? { x: 100 - c.x, y: c.y } : c;
+  return lat !== "zurdo" && MIRROR.has(pos) ? { x: 100 - c.x, y: c.y } : c;
 };
 
 const GREEN = "#22c55e";
@@ -42,10 +43,10 @@ export function MiniPitch({ position, secondaryPosition, laterality }) {
   );
 }
 
-function Foot({ side, active }) {
+function Foot({ side, active, inactive = "rgba(255,255,255,0.28)" }) {
   // Planta del pie: el dedo gordo mira hacia dentro (derecha en el pie izquierdo, izquierda en el derecho).
   const dir = side === "left" ? 1 : -1;
-  const color = active ? GREEN : "rgba(255,255,255,0.28)";
+  const color = active ? GREEN : inactive;
   const toes = [
     { x: 7 * dir, y: 2, r: 3.2 }, { x: 2 * dir, y: -1, r: 2.2 }, { x: -2 * dir, y: -0.5, r: 2 },
     { x: -5.5 * dir, y: 1, r: 1.8 }, { x: -8.5 * dir, y: 3, r: 1.6 },
@@ -60,17 +61,17 @@ function Foot({ side, active }) {
   );
 }
 
-export function FootIndicator({ laterality }) {
+export function FootIndicator({ laterality, light = false }) {
   if (!laterality) return null;
   const left = laterality === "zurdo" || laterality === "ambidiestro";
   const right = laterality === "diestro" || laterality === "ambidiestro";
   return (
     <div className="flex flex-col items-center" title={LATERALITY_LABELS[laterality]}>
       <div className="flex gap-1 items-end">
-        <Foot side="left" active={left} />
-        <Foot side="right" active={right} />
+        <Foot side="left" active={left} inactive={light ? "#d1d5db" : undefined} />
+        <Foot side="right" active={right} inactive={light ? "#d1d5db" : undefined} />
       </div>
-      <span className="text-[9px] text-white/60 leading-none mt-1">{LATERALITY_LABELS[laterality]}</span>
+      <span className={`text-[9px] leading-none mt-1 ${light ? "text-gray-500" : "text-white/60"}`}>{LATERALITY_LABELS[laterality]}</span>
     </div>
   );
 }

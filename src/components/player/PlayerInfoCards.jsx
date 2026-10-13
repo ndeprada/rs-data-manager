@@ -1,5 +1,6 @@
 import { birthYearOf } from "@/lib/birthYear";
 import React from "react";
+import { FootIndicator } from "./PlayerPositionBadges";
 import { Phone, Mail, Calendar, Zap, MapPin, Hash } from "lucide-react";
 
 const POSITION_LABELS = {
@@ -12,7 +13,7 @@ const POSITION_FULL = {
 };
 const LATERALITY_LABELS = { diestro: "Diestro", zurdo: "Zurdo", ambidiestro: "Ambidiestro" };
 
-// Base coords (right-footed / default). X is mirrored for zurdo.
+// Base coords en el lado izquierdo; se espejan al derecho salvo en zurdos (perfil natural).
 const POSITION_COORDS_BASE = {
   portero:          { x: 50, y: 88 },
   central:          { x: 50, y: 68 },
@@ -30,7 +31,7 @@ const LATERALITY_MIRROR_POSITIONS = new Set(["lateral", "extremo", "interior"]);
 function getPositionCoords(position, laterality) {
   const base = POSITION_COORDS_BASE[position];
   if (!base) return base;
-  if (laterality === "zurdo" && LATERALITY_MIRROR_POSITIONS.has(position)) {
+  if (laterality !== "zurdo" && LATERALITY_MIRROR_POSITIONS.has(position)) {
     return { x: 100 - base.x, y: base.y };
   }
   return base;
@@ -121,126 +122,74 @@ function FootballField({ position, secondaryPosition, laterality }) {
   );
 }
 
+const Label = ({ children }) => <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mb-0.5">{children}</p>;
+
 export default function PlayerInfoCards({ player }) {
   const birthYear = birthYearOf(player);
+  const statusCls = player.status === "activo" ? "bg-green-100 text-green-700" : player.status === "lesionado" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700";
+  const statusTxt = player.status === "activo" ? "Activo" : player.status === "lesionado" ? "Lesionado" : "Baja";
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      {/* Header strip */}
-      <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+      <div className="px-4 py-2 border-b border-gray-100">
         <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Ficha del jugador</span>
-        {player.jersey_number && (
-          <span className="flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full" style={{ background: "#fdf2f4", color: "#6b1f28" }}>
-            <Hash className="w-3 h-3" />{player.jersey_number}
-          </span>
-        )}
       </div>
-
-      {/* Body: data left + field right */}
-      <div className="flex gap-0">
-
-        {/* Left: personal data */}
-        <div className="flex-1 min-w-0 px-4 py-3 space-y-2">
-
-          {/* Position badge */}
+      <div className="flex items-start gap-5 px-4 py-3">
+        {/* Columna 1: posición, año, estado */}
+        <div className="space-y-2 min-w-0">
           {player.position && (
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg text-white" style={{ background: "#6b1f28" }}>
-                {POSITION_LABELS[player.position]}
-              </span>
-              <span className="text-sm font-semibold text-gray-700">{POSITION_FULL[player.position] || player.position}</span>
-              {player.secondary_position && (
-                <span className="text-xs text-gray-400">/ {POSITION_FULL[player.secondary_position]}</span>
-              )}
+            <div>
+              <Label>Posición</Label>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[11px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg text-white" style={{ background: "#6b1f28" }}>{POSITION_LABELS[player.position]}</span>
+                <span className="text-sm font-semibold text-gray-700">{POSITION_FULL[player.position] || player.position}</span>
+                {player.secondary_position && <span className="text-xs text-gray-400">/ {POSITION_FULL[player.secondary_position]}</span>}
+              </div>
             </div>
           )}
-
-          {/* Key data grid */}
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-
-            {birthYear && (
-              <div>
-                <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mb-0.5">Año de nacimiento</p>
-                <p className="text-sm font-bold text-gray-800">{birthYear}
-                  {player.birth_date && <span className="text-xs text-gray-400 font-normal ml-1">({new Date(player.birth_date).toLocaleDateString("es")})</span>}
-                </p>
-              </div>
-            )}
-
-            {player.laterality && (
-              <div>
-                <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mb-0.5">Pie</p>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold text-gray-800">{LATERALITY_LABELS[player.laterality]}</span>
-                  {player.laterality === "zurdo" && <span className="text-base">🦶</span>}
-                </div>
-              </div>
-            )}
-
-            {player.status && (
-              <div>
-                <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mb-0.5">Estado</p>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                  player.status === "activo" ? "bg-green-100 text-green-700"
-                  : player.status === "lesionado" ? "bg-orange-100 text-orange-700"
-                  : "bg-red-100 text-red-700"
-                }`}>
-                  {player.status === "activo" ? "Activo" : player.status === "lesionado" ? "Lesionado" : "Baja"}
-                </span>
-              </div>
-            )}
-
-            {player.jersey_number && (
-              <div>
-                <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mb-0.5">Dorsal</p>
-                <p className="text-sm font-bold text-gray-800">#{player.jersey_number}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-gray-100 pt-2 space-y-1">
-            {player.phone && (
-              <a href={`tel:${player.phone}`} className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-800 transition-colors group">
-                <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 group-hover:opacity-80 transition-opacity" style={{ background: "#fdf2f4" }}>
-                  <Phone className="w-3 h-3" style={{ color: "#6b1f28" }} />
-                </span>
-                <span className="truncate font-medium">{player.phone}</span>
-              </a>
-            )}
-            {player.email && (
-              <a href={`mailto:${player.email}`} className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-800 transition-colors group">
-                <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 group-hover:opacity-80 transition-opacity" style={{ background: "#fdf2f4" }}>
-                  <Mail className="w-3 h-3" style={{ color: "#6b1f28" }} />
-                </span>
-                <span className="truncate font-medium">{player.email}</span>
-              </a>
-            )}
-          </div>
+          {birthYear && (
+            <div>
+              <Label>Año de nacimiento</Label>
+              <p className="text-sm font-bold text-gray-800">{birthYear}</p>
+            </div>
+          )}
+          {player.status && (
+            <div>
+              <Label>Estado</Label>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusCls}`}>{statusTxt}</span>
+            </div>
+          )}
         </div>
-
-        {/* Right: football field */}
+        {/* Columna 2: lateralidad y dorsal */}
+        <div className="space-y-2">
+          {player.laterality && (
+            <div>
+              <Label>Lateralidad</Label>
+              <FootIndicator laterality={player.laterality} light />
+            </div>
+          )}
+          {player.jersey_number && (
+            <div>
+              <Label>Dorsal</Label>
+              <p className="text-sm font-bold text-gray-800">#{player.jersey_number}</p>
+            </div>
+          )}
+        </div>
+        {/* Campo */}
         {player.position && (
-          <div className="shrink-0 flex flex-col items-center justify-center p-3" style={{ width: 96 }}>
+          <div className="shrink-0 flex flex-col items-center" style={{ width: 70 }}>
             <div className="w-full" style={{ aspectRatio: "200/300" }}>
               <FootballField position={player.position} secondaryPosition={player.secondary_position} laterality={player.laterality} />
             </div>
-            {/* Legend */}
-            <div className="mt-1 space-y-0.5 w-full">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: "#9b2c35" }} />
-                <span className="text-[9px] text-gray-500 truncate">{POSITION_FULL[player.position]}</span>
-              </div>
-              {player.secondary_position && (
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-orange-400" />
-                  <span className="text-[9px] text-gray-400 truncate">{POSITION_FULL[player.secondary_position]}</span>
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>
+      {(player.phone || player.email) && (
+        <div className="border-t border-gray-100 px-4 py-2 flex flex-wrap gap-x-4 gap-y-1">
+          {player.phone && <a href={`tel:${player.phone}`} className="flex items-center gap-1.5 text-xs text-gray-600"><Phone className="w-3 h-3" style={{ color: "#6b1f28" }} />{player.phone}</a>}
+          {player.email && <a href={`mailto:${player.email}`} className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0"><Mail className="w-3 h-3 shrink-0" style={{ color: "#6b1f28" }} /><span className="truncate">{player.email}</span></a>}
+        </div>
+      )}
     </div>
   );
 }
