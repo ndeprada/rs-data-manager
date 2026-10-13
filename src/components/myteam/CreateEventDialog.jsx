@@ -47,16 +47,24 @@ const buildDefaultNotificationMessage = (form, teams) => {
   return `Se ha añadido un nuevo evento al calendario:\n\n📌 ${title}\n🏷️ Tipo: ${eventLabel}\n📅 Fecha: ${formattedDate}${form.location ? `\n📍 Lugar: ${form.location}` : ""}${team ? `\n🛡️ Equipo: ${team.name}` : ""}${form.notes ? `\n📝 Notas: ${form.notes}` : ""}`;
 };
 
-function getOccurrenceDates(startDate, recurrence, count) {
+// Fechas de cada ocurrencia desde la fecha de inicio hasta "until" (inclusive)
+function getOccurrenceDates(startDate, recurrence, until) {
   const dates = [startDate];
-  for (let i = 1; i < count; i++) {
-    let next;
-    if (recurrence === "daily") next = addDays(dates[dates.length - 1], 1);
-    else if (recurrence === "weekly") next = addWeeks(dates[dates.length - 1], 1);
-    else if (recurrence === "biweekly") next = addWeeks(dates[dates.length - 1], 2);
+  const limit = until ? parseISO(until) : startDate;
+  const step = (d) => recurrence === "daily" ? addDays(d, 1) : recurrence === "biweekly" ? addWeeks(d, 2) : addWeeks(d, 1);
+  let next = step(startDate);
+  while (next <= limit && dates.length < 366) {
     dates.push(next);
+    next = step(next);
   }
   return dates;
+}
+
+// Fin de temporada por defecto: 30 de junio
+function defaultSeasonEnd(date) {
+  const d = date || new Date();
+  const year = d.getMonth() >= 6 ? d.getFullYear() + 1 : d.getFullYear();
+  return `${year}-06-30`;
 }
 
 const buildEmptyForm = (date, teamId) => ({
@@ -73,7 +81,7 @@ const buildEmptyForm = (date, teamId) => ({
   teamId: teamId || "",
   recurring: false,
   recurrence: "weekly",
-  recurrence_count: 8,
+  recurrence_until: defaultSeasonEnd(date),
   send_notification: false,
   notification_message: "",
 });
@@ -106,7 +114,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
   const parsedDate = form.date ? parseISO(form.date) : new Date();
 
   const previewDates = form.recurring
-    ? getOccurrenceDates(parsedDate, form.recurrence, Math.min(form.recurrence_count, 20))
+    ? getOccurrenceDates(parsedDate, form.recurrence, form.recurrence_until)
     : [];
 
   const sendNotifications = async (createdEvent) => {
@@ -134,10 +142,10 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
     mutationFn: async (data) => {
       const seriesId = form.recurring ? crypto.randomUUID() : undefined;
       const occurrences = form.recurring
-        ? getOccurrenceDates(parsedDate, form.recurrence, form.recurrence_count)
+        ? getOccurrenceDates(parsedDate, form.recurrence, form.recurrence_until)
         : [parsedDate];
 
-      const results = await Promise.all(occurrences.map(occDate => {
+      const makeOne = (occDate) => {
         const dStr = format(occDate, "yyyy-MM-dd");
         const endDate = isMultiday && form.end_date_multiday
           ? `${form.end_date_multiday}T${form.end_time_multiday}:00`
@@ -148,7 +156,11 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
           end_date: endDate,
           ...(seriesId ? { series_id: seriesId } : {}),
         });
-      }));
+      };
+      const results = [];
+      for (let i = 0; i < occurrences.length; i += 10) {
+        results.push(...(await Promise.all(occurrences.slice(i, i + 10).map(makeOne))));
+      }
       return results;
     },
     onSuccess: async (results) => {
@@ -347,11 +359,11 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                     </Select>
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Nº de veces</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Repetir hasta</p>
                     <Input
-                      type="number" min={2} max={52}
-                      value={form.recurrence_count}
-                      onChange={e => set("recurrence_count", Math.max(2, Math.min(52, parseInt(e.target.value) || 2)))}
+                      type="date" min={form.date}
+                      value={form.recurrence_until}
+                      onChange={e => set("recurrence_until", e.target.value)}
                       className="border-gray-200 h-8 text-sm"
                     />
                   </div>
@@ -378,7 +390,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
               {createMutation.isPending
                 ? "Guardando…"
                 : form.recurring
-                  ? `Crear ${form.recurrence_count} eventos`
+                  ? `Crear ${previewDates.length} eventos`
                   : "Crear evento"}
             </Button>
           </div>
