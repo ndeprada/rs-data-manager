@@ -94,14 +94,18 @@ export default function TeamAttendance() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["attendance"] }); setPendingChanges({}); },
   });
 
+  const savedAtt = (playerId) => {
+    const saved = eventAttendance.find(a => a.player_id === playerId);
+    return saved ? { status: saved.status, absence_reason: saved.absence_reason, notes: saved.notes } : {};
+  };
   const setPlayerStatus = (playerId, status) => {
-    setPendingChanges(prev => ({ ...prev, [playerId]: { ...prev[playerId], status } }));
+    setPendingChanges(prev => ({ ...prev, [playerId]: { ...savedAtt(playerId), ...prev[playerId], status } }));
   };
   const setPlayerReason = (playerId, absence_reason) => {
-    setPendingChanges(prev => ({ ...prev, [playerId]: { ...prev[playerId], absence_reason } }));
+    setPendingChanges(prev => ({ ...prev, [playerId]: { ...savedAtt(playerId), ...prev[playerId], absence_reason } }));
   };
   const setPlayerNotes = (playerId, notes) => {
-    setPendingChanges(prev => ({ ...prev, [playerId]: { ...prev[playerId], notes } }));
+    setPendingChanges(prev => ({ ...prev, [playerId]: { ...savedAtt(playerId), ...prev[playerId], notes } }));
   };
 
   const getPlayerAttendance = (playerId) => {
@@ -289,8 +293,7 @@ export default function TeamAttendance() {
                       <tr className="bg-gray-50 border-b border-gray-100 text-[10px] text-gray-400 uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
                         <th className="text-left px-3 py-2 font-bold w-44">Jugador</th>
                         <th className="text-center px-2 py-2 font-bold">Asistencia</th>
-                        <th className="text-left px-2 py-2 font-bold w-24 hidden sm:table-cell">Motivo</th>
-                        <th className="text-left px-2 py-2 font-bold hidden lg:table-cell">Observaciones</th>
+                        <th className="text-left px-2 py-2 font-bold">Motivo y observaciones</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -330,22 +333,22 @@ export default function TeamAttendance() {
                                     ))}
                                   </div>
                                 </td>
-                                <td className="px-2 py-2 hidden sm:table-cell">
-                                  {att.status === "absent" ? (
-                                    <Select value={att.absence_reason || ""} onValueChange={v => setPlayerReason(p.id, v)}>
-                                      <SelectTrigger className="h-6 text-[10px] border-gray-200 bg-white w-24"><SelectValue placeholder="Motivo" /></SelectTrigger>
-                                      <SelectContent>{ABSENCE_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                  ) : <span className="text-gray-300 text-[10px]">—</span>}
-                                </td>
-                                <td className="px-2 py-2 hidden lg:table-cell">
-                                  <Input
-                                    value={att.notes || ""}
-                                    onChange={e => setPlayerNotes(p.id, e.target.value)}
-                                    placeholder="Observaciones..."
-                                    className="h-6 text-[10px] border-gray-200"
-                                    style={{ minWidth: 0 }}
-                                  />
+                                <td className="px-2 py-2">
+                                  <div className="flex flex-col gap-1 min-w-[170px]">
+                                    {att.status === "absent" && (
+                                      <Select value={att.absence_reason || ""} onValueChange={v => setPlayerReason(p.id, v)}>
+                                        <SelectTrigger className="h-6 text-[10px] border-gray-200 bg-white w-full"><SelectValue placeholder="Motivo" /></SelectTrigger>
+                                        <SelectContent>{ABSENCE_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+                                      </Select>
+                                    )}
+                                    <Input
+                                      value={att.notes || ""}
+                                      onChange={e => setPlayerNotes(p.id, e.target.value)}
+                                      placeholder={att.status === "absent" ? "Observación (p. ej. tipo de lesión)…" : att.status === "apart" ? "Observación (qué trabaja aparte)…" : "Observaciones…"}
+                                      className="h-6 text-[10px] border-gray-200"
+                                      style={{ minWidth: 0 }}
+                                    />
+                                  </div>
                                 </td>
                                 </tr>
                                 );
@@ -389,22 +392,22 @@ export default function TeamAttendance() {
                                     ))}
                                   </div>
                                 </td>
-                                <td className="px-2 py-2 hidden sm:table-cell">
-                                  {att.status === "absent" ? (
-                                    <Select value={att.absence_reason || ""} onValueChange={v => setPlayerReason(p.id, v)}>
-                                      <SelectTrigger className="h-6 text-[10px] border-gray-200 bg-white w-24"><SelectValue placeholder="Motivo" /></SelectTrigger>
-                                      <SelectContent>{ABSENCE_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                  ) : <span className="text-gray-300 text-[10px]">—</span>}
-                                </td>
-                                <td className="px-2 py-2 hidden lg:table-cell">
-                                  <Input
-                                    value={att.notes || ""}
-                                    onChange={e => setPlayerNotes(p.id, e.target.value)}
-                                    placeholder="Observaciones..."
-                                    className="h-6 text-[10px] border-gray-200"
-                                    style={{ minWidth: 0 }}
-                                  />
+                                <td className="px-2 py-2">
+                                  <div className="flex flex-col gap-1 min-w-[170px]">
+                                    {att.status === "absent" && (
+                                      <Select value={att.absence_reason || ""} onValueChange={v => setPlayerReason(p.id, v)}>
+                                        <SelectTrigger className="h-6 text-[10px] border-gray-200 bg-white w-full"><SelectValue placeholder="Motivo" /></SelectTrigger>
+                                        <SelectContent>{ABSENCE_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+                                      </Select>
+                                    )}
+                                    <Input
+                                      value={att.notes || ""}
+                                      onChange={e => setPlayerNotes(p.id, e.target.value)}
+                                      placeholder={att.status === "absent" ? "Observación (p. ej. tipo de lesión)…" : att.status === "apart" ? "Observación (qué trabaja aparte)…" : "Observaciones…"}
+                                      className="h-6 text-[10px] border-gray-200"
+                                      style={{ minWidth: 0 }}
+                                    />
+                                  </div>
                                 </td>
                                 </tr>
                                 );
