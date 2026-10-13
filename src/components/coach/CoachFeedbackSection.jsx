@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, Pencil, ChevronDown, ChevronUp, Send, Trash2 } from "lucide-react";
+import { Plus, Pencil, ChevronDown, ChevronUp, Send, Trash2, Zap, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,6 +20,17 @@ export const FEEDBACK_SECTIONS = [
   { key: "positivo", label: "Lo positivo", color: "#16a34a", placeholder: "Qué hizo bien…" },
   { key: "otros", label: "Otros", color: "#64748b", placeholder: "Cualquier otra cosa…" },
 ];
+
+const notifyCoach = (id) => {
+  if (!id) return;
+  try {
+    fetch("/api/notify-feedback", {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ feedback_id: id }),
+    }).catch(() => {});
+  } catch (_) { /* el aviso por email es opcional */ }
+};
 
 const EMPTY = { event_id: "", lectura: "", sistema: "", jugadores: "", direccion: "", positivo: "", otros: "" };
 
@@ -75,12 +86,15 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
       } else if (!editing) data.status = "borrador";
       return editing ? base44.entities.CoachFeedback.update(editing.id, data) : base44.entities.CoachFeedback.create(data);
     },
-    onSuccess: () => { invalidate(); setOpen(false); setEditing(null); },
+    onSuccess: (res, { send }) => {
+      if (send) notifyCoach(res?.id || editing?.id);
+      invalidate(); setOpen(false); setEditing(null);
+    },
   });
 
   const sendMutation = useMutation({
     mutationFn: (i) => base44.entities.CoachFeedback.update(i.id, { status: "enviado", sent_at: new Date().toISOString(), read_at: null }),
-    onSuccess: invalidate,
+    onSuccess: (_, i) => { notifyCoach(i.id); invalidate(); },
   });
 
   const deleteMutation = useMutation({
@@ -91,6 +105,44 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
   const markRead = useMutation({
     mutationFn: (i) => base44.entities.CoachFeedback.update(i.id, { read_at: new Date().toISOString() }),
     onSuccess: invalidate,
+  });
+
+  const [replyText, setReplyText] = useState({});
+  const replyMutation = useMutation({
+    mutationFn: ({ i, text }) => base44.entities.CoachFeedback.update(i.id, {
+      replies: [...(i.replies || []), { by_id: author?.id || "", by_name: author?.name || "", text, at: new Date().toISOString(), from_coach: !!(isOwnProfile && !canWrite) }],
+    }),
+    onSuccess: (_, { i }) => { setReplyText((p) => ({ ...p, [i.id]: "" })); invalidate(); },
+  });
+
+  // Captura rápida (móvil, durante el partido): añade una nota corta al borrador del partido
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quick, setQuick] = useState({ event_id: "", section: "lectura", text: "" });
+  const [quickDone, setQuickDone] = useState(0);
+  const openQuick = () => {
+    const now = format(new Date(), "yyyy-MM-dd'T'HH:mm");
+    const current = matchEvents.find((e) => (e.date || "") <= now) || matchEvents[0];
+    setQuick({ event_id: current?.id || "", section: "lectura", text: "" });
+    setQuickDone(0);
+    setQuickOpen(true);
+  };
+  const quickMutation = useMutation({
+    mutationFn: async () => {
+      const ev = eventById(quick.event_id);
+      const draft = items.find((i) => i.status !== "enviado" && (i.event_id || "") === (quick.event_id || ""));
+      const clean = quick.text.trim();
+      if (draft) {
+        const prev = draft[quick.section] || "";
+        return base44.entities.CoachFeedback.update(draft.id, { [quick.section]: prev ? `${prev}\n${clean}` : clean });
+      }
+      return base44.entities.CoachFeedback.create({
+        staff_id: staffId, event_id: quick.event_id || "", team_id: ev?.team_id || null,
+        date: ev?.date?.split("T")[0] || format(new Date(), "yyyy-MM-dd"),
+        author_name: author?.name || "", author_id: author?.id || "", status: "borrador",
+        [quick.section]: clean,
+      });
+    },
+    onSuccess: () => { invalidate(); setQuick((q) => ({ ...q, text: "" })); setQuickDone((n) => n + 1); },
   });
 
   const toggle = (i) => {
@@ -114,9 +166,14 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-black uppercase" style={{ ...FONT, color: "var(--granate)" }}>Feedback y correcciones</h2>
         {canWrite && (
-          <Button size="sm" onClick={openCreate} className="text-white text-xs" style={{ background: "var(--granate)" }}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> Nuevo feedback
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={openQuick} className="text-xs">
+              <Zap className="w-3.5 h-3.5 mr-1" /> Nota rápida
+            </Button>
+            <Button size="sm" onClick={openCreate} className="text-white text-xs" style={{ background: "var(--granate)" }}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> Nuevo feedback
+            </Button>
+          </div>
         )}
       </div>
 
@@ -176,6 +233,28 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
                         <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{i[s.key]}</p>
                       </div>
                     ))}
+                    {(i.status === "enviado" || canWrite) && (
+                      <div className="border-t border-gray-100 pt-3 space-y-2">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1" style={FONT}>
+                          <MessageSquare className="w-3 h-3" /> Conversación
+                        </p>
+                        {(i.replies || []).map((r, k) => (
+                          <div key={k} className={`rounded p-2 text-sm ${r.from_coach ? "bg-orange-50" : "bg-gray-50"}`}>
+                            <p className="text-[10px] text-gray-400">{r.by_name || (r.from_coach ? "Entrenador" : "Coordinación")} · {r.at ? format(new Date(r.at), "d MMM HH:mm", { locale: es }) : ""}</p>
+                            <p className="text-gray-700 whitespace-pre-wrap">{r.text}</p>
+                          </div>
+                        ))}
+                        {i.status === "enviado" && (
+                          <div className="flex gap-2">
+                            <Textarea rows={1} placeholder="Escribe una respuesta…" value={replyText[i.id] || ""}
+                              onChange={(e) => setReplyText((p) => ({ ...p, [i.id]: e.target.value }))} className="border-gray-200 text-sm" />
+                            <Button size="sm" disabled={!(replyText[i.id] || "").trim() || replyMutation.isPending}
+                              onClick={() => replyMutation.mutate({ i, text: replyText[i.id].trim() })}
+                              className="text-white self-end" style={{ background: "var(--granate)" }}>Responder</Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -183,6 +262,38 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
           })}
         </div>
       )}
+
+      <Dialog open={quickOpen} onOpenChange={setQuickOpen}>
+        <DialogContent className="bg-white border-gray-200 max-w-md">
+          <DialogHeader><DialogTitle>Nota rápida</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Select value={quick.event_id || "none"} onValueChange={(v) => setQuick({ ...quick, event_id: v === "none" ? "" : v })}>
+              <SelectTrigger className="border-gray-200"><SelectValue placeholder="Partido…" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sin partido concreto</SelectItem>
+                {matchEvents.map((e) => <SelectItem key={e.id} value={e.id}>{matchLabel(e)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="flex flex-wrap gap-1.5">
+              {FEEDBACK_SECTIONS.map((s) => (
+                <button key={s.key} type="button" onClick={() => setQuick({ ...quick, section: s.key })}
+                  className={`text-xs px-2.5 py-1.5 rounded-full border ${quick.section === s.key ? "text-white border-transparent" : "text-gray-600 border-gray-200"}`}
+                  style={quick.section === s.key ? { background: "var(--granate)" } : undefined}>
+                  {s.label.replace(" (correcciones individuales)", "")}
+                </button>
+              ))}
+            </div>
+            <Textarea autoFocus rows={3} placeholder="Apunta la idea y sigue viendo el partido…" value={quick.text}
+              onChange={(e) => setQuick({ ...quick, text: e.target.value })} className="border-gray-200 text-sm" />
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-green-600 flex-1">{quickDone > 0 ? `✓ ${quickDone} añadida${quickDone > 1 ? "s" : ""} al borrador` : "Se guarda en el borrador del partido"}</p>
+              <Button variant="outline" onClick={() => setQuickOpen(false)}>Cerrar</Button>
+              <Button disabled={!quick.text.trim() || quickMutation.isPending} onClick={() => quickMutation.mutate()}
+                className="text-white" style={{ background: "var(--granate)" }}>Añadir</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-white border-gray-200 max-h-[90vh] overflow-y-auto max-w-xl">

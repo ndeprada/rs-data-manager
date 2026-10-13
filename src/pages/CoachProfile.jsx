@@ -14,6 +14,7 @@ import { useAuth } from "@/lib/AuthContext";
 import CoachPDISection from "@/components/coach/CoachPDISection";
 import CoachMatchNotesSection from "@/components/coach/CoachMatchNotesSection";
 import CoachFeedbackSection from "@/components/coach/CoachFeedbackSection";
+import CoachEval360Section from "@/components/coach/CoachEval360Section";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 import { TEAM_ROLES } from "@/lib/staffRoles";
@@ -417,6 +418,11 @@ export default function CoachProfile() {
               Feedback
             </TabsTrigger>
           )}
+          {showFeedbackTab && (
+            <TabsTrigger value="eval360" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
+              Evaluación 360
+            </TabsTrigger>
+          )}
           {showPDITab && (
             <TabsTrigger value="pdi" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
               PDI · Plan Desarrollo Individual
@@ -440,6 +446,18 @@ export default function CoachProfile() {
               staffId={member._isUser ? `user_${member._userId}` : staffId}
               teamIds={[...new Set([...(memberAssignments || []).map(a => a.team_id), member.team_id].filter(Boolean))]}
               canWrite={canViewReports}
+              isOwnProfile={!!isOwnProfile}
+              author={{ id: user?.id, name: user?.full_name }}
+            />
+          </TabsContent>
+        )}
+
+        {showFeedbackTab && (
+          <TabsContent value="eval360" className="mt-4">
+            <CoachEval360Section
+              staffId={member._isUser ? `user_${member._userId}` : staffId}
+              teamIds={[...new Set([...(memberAssignments || []).map(a => a.team_id), member.team_id].filter(Boolean))]}
+              canEvaluate={canEvaluate}
               isOwnProfile={!!isOwnProfile}
               author={{ id: user?.id, name: user?.full_name }}
             />

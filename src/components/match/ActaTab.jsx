@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Save, Star, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Save, Star, ChevronDown, ChevronUp, AlertTriangle, Pencil } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -97,7 +98,7 @@ function isOnField(playerId, minute, starterIds, matchEvents) {
 }
 
 // ── Timeline visual (con botón eliminar integrado) ───────
-function Timeline({ events, players, opponent, onRemove }) {
+function Timeline({ events, players, opponent, onRemove, onEdit }) {
   if (events.length === 0) return null;
   const sorted = [...events].sort((a, b) => Number(a.minute) - Number(b.minute));
 
@@ -134,8 +135,13 @@ function Timeline({ events, players, opponent, onRemove }) {
             <span className="text-xs font-black text-gray-500 w-7 shrink-0" style={{ fontFamily: "var(--font-display)" }}>{ev.minute}'</span>
             <span className="text-xs text-gray-700 truncate">{getDesc(ev)}</span>
             {ev.type === "goal" && <span className="text-[9px] text-gray-400 shrink-0">{GOAL_TYPES.find(g => g.value === ev.goalType)?.label}</span>}
+            {String(ev.id).startsWith("fcf_") && !ev.edited && <span className="text-[8px] font-bold text-blue-500 bg-blue-50 rounded px-1 shrink-0">FCF</span>}
+            {ev.edited && <span className="text-[8px] font-bold text-green-600 bg-green-50 rounded px-1 shrink-0">editado</span>}
           </div>
-          <button onClick={() => onRemove(ev.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-opacity shrink-0">
+          <button onClick={() => onEdit(ev)} title="Editar" className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-400 hover:text-gray-700 transition-opacity shrink-0">
+            <Pencil className="w-3 h-3" />
+          </button>
+          <button onClick={() => onRemove(ev.id)} title="Eliminar" className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-opacity shrink-0">
             <Trash2 className="w-3 h-3" />
           </button>
         </div>
@@ -237,7 +243,46 @@ export default function ActaTab({ eventId, teamId, event, players }) {
     setNewEvMinute(""); setNewEvPlayerId(""); setNewEvAssistId(""); setNewEvPlayerIn(""); setNewEvPlayerOut("");
   };
 
+  const persistEvents = async (next) => {
+    await base44.entities.Event.update(eventId, {
+      match_events: next,
+      goal_events_source: "manual",
+      goal_events: next.filter(e => e.type === "goal").map(e => ({
+        id: e.id, team: e.team, minute: e.minute,
+        player_id: e.playerId, assist_player_id: e.assistId, goal_type: e.goalType,
+      })),
+    });
+    queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+  };
+
   const removeEvent = (id) => setMatchEvents(prev => prev.filter(e => e.id !== id));
+
+  const [editEv, setEditEv] = useState(null);
+  const [savingEv, setSavingEv] = useState(false);
+  const saveEdit = async () => {
+    setSavingEv(true);
+    const next = matchEvents.map(e => e.id === editEv.id ? { ...editEv, edited: true } : e);
+    setMatchEvents(next);
+    try { await persistEvents(next); } finally { setSavingEv(false); setEditEv(null); }
+  };
+  const deleteEdit = async () => {
+    const next = matchEvents.filter(e => e.id !== editEv.id);
+    setMatchEvents(next);
+    await persistEvents(next);
+    setEditEv(null);
+  };
+  const playerOptions = convocados.length > 0 ? convocados : [...players].sort(sortByPosition);
+  const setE = (k, v) => setEditEv(prev => ({ ...prev, [k]: v }));
+  const PlayerSelect = ({ value, onChange, placeholder, allowNone }) => (
+    <Select value={value || "none"} onValueChange={v => onChange(v === "none" ? "" : v)}>
+      <SelectTrigger className="h-9 text-sm border-gray-200"><SelectValue placeholder={placeholder} /></SelectTrigger>
+      <SelectContent>
+        {allowNone && <SelectItem value="none">— Ninguno —</SelectItem>}
+        {!allowNone && <SelectItem value="none">— Sin asignar —</SelectItem>}
+        {playerOptions.map(p => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
 
   const saveScore = async () => {
     setSavingScore(true);
@@ -468,7 +513,8 @@ export default function ActaTab({ eventId, teamId, event, players }) {
       {matchEvents.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
           <p className="text-sm font-bold text-gray-900">📋 Línea del tiempo</p>
-          <Timeline events={matchEvents} players={players} opponent={event?.opponent} onRemove={removeEvent} />
+          <Timeline events={matchEvents} players={players} opponent={event?.opponent} onRemove={removeEvent} onEdit={ev => setEditEv({ ...ev })} />
+          <p className="text-[10px] text-gray-400">Pulsa el lápiz para completar o corregir un evento (asistente, tipo de gol, jugador…). Los datos vienen de la FCF y tus cambios se mantienen al volver a sincronizar.</p>
         </div>
       )}
 
@@ -522,6 +568,103 @@ export default function ActaTab({ eventId, teamId, event, players }) {
           </div>
         </div>
       )}
+
+      {/* ── Editar evento ── */}
+      <Dialog open={!!editEv} onOpenChange={o => { if (!o) setEditEv(null); }}>
+        <DialogContent className="bg-white border-gray-200 max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editEv?.type === "goal" ? "⚽ Editar gol" : editEv?.type === "card" ? "🟨 Editar tarjeta" : "🔄 Editar cambio"}</DialogTitle>
+          </DialogHeader>
+          {editEv && (
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <div className="w-24">
+                  <p className="text-xs text-gray-500 mb-1">Minuto</p>
+                  <Input type="number" min="0" value={editEv.minute} onChange={e => setE("minute", e.target.value)} className="h-9 border-gray-200" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 mb-1">Equipo</p>
+                  <Select value={editEv.team} onValueChange={v => setE("team", v)}>
+                    <SelectTrigger className="h-9 text-sm border-gray-200"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="home">Nuestro equipo</SelectItem>
+                      <SelectItem value="away">{event?.opponent || "Rival"}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {editEv.type === "goal" && (
+                <>
+                  {editEv.team === "home" ? (
+                    <>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Goleador {editEv.fcfName ? <span className="text-gray-400">· FCF: {editEv.fcfName}</span> : null}</p>
+                        {PlayerSelect({ value: editEv.playerId, onChange: v => setE("playerId", v), placeholder: "Jugador…" })}
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Asistente</p>
+                        {PlayerSelect({ value: editEv.assistId, onChange: v => setE("assistId", v), placeholder: "Sin asistencia", allowNone: true })}
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Goleador rival</p>
+                      <Input value={editEv.fcfName || ""} onChange={e => setE("fcfName", e.target.value)} className="h-9 border-gray-200" placeholder="Nombre (opcional)" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Tipo de gol</p>
+                    <Select value={editEv.goalType || "none"} onValueChange={v => setE("goalType", v === "none" ? "" : v)}>
+                      <SelectTrigger className="h-9 text-sm border-gray-200"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— Sin indicar —</SelectItem>
+                        {GOAL_TYPES.map(g => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              {editEv.type === "card" && (
+                <>
+                  {editEv.team === "home" && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Jugador</p>
+                      {PlayerSelect({ value: editEv.playerId, onChange: v => setE("playerId", v), placeholder: "Jugador…" })}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Tarjeta</p>
+                    <Select value={editEv.cardColor} onValueChange={v => setE("cardColor", v)}>
+                      <SelectTrigger className="h-9 text-sm border-gray-200"><SelectValue /></SelectTrigger>
+                      <SelectContent>{CARD_COLORS.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              {editEv.type === "sub" && editEv.team === "home" && (
+                <>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Entra</p>
+                    {PlayerSelect({ value: editEv.playerIn, onChange: v => setE("playerIn", v), placeholder: "Jugador…" })}
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Sale</p>
+                    {PlayerSelect({ value: editEv.playerOut, onChange: v => setE("playerOut", v), placeholder: "Jugador…" })}
+                  </div>
+                </>
+              )}
+              <div className="flex gap-2 pt-2 border-t border-gray-100">
+                <Button variant="outline" size="icon" onClick={deleteEdit} title="Eliminar evento"><Trash2 className="w-4 h-4 text-gray-400" /></Button>
+                <div className="flex-1" />
+                <Button variant="outline" onClick={() => setEditEv(null)}>Cancelar</Button>
+                <Button onClick={saveEdit} disabled={savingEv} className="text-white" style={{ background: "var(--granate)" }}>
+                  {savingEv ? "Guardando…" : "Guardar"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
