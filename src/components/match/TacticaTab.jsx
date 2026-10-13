@@ -31,7 +31,19 @@ const FORMATION_POSITIONS = {
 };
 
 // ── Draggable Football Field ────────────────────────────
-function DraggableField({ slots, positions, onPositionsChange, onSlotClick }) {
+const KITS = {
+  "1": { label: "1ª", fill: "#ffffff", stroke: "#8B1A2B", num: "#8B1A2B" },
+  "2": { label: "2ª", fill: "#8B1A2B", stroke: "#4a0a14", num: "#ffffff" },
+  "3": { label: "3ª", fill: "#22a559", stroke: "#0f5132", num: "#ffffff" },
+};
+const GK_KITS = {
+  naranja: { label: "Naranja", fill: "#F97316", stroke: "#9a3412", num: "#ffffff" },
+  azul: { label: "Azul eléctrico", fill: "#0a4bff", stroke: "#0a2a99", num: "#ffffff" },
+};
+const kitFor = (player, kit, gkKit) =>
+  player?.position === "portero" ? (GK_KITS[gkKit] || GK_KITS.naranja) : (KITS[kit] || KITS["1"]);
+
+function DraggableField({ kit, gkKit,  slots, positions, onPositionsChange, onSlotClick }) {
   const svgRef = useRef(null);
   const draggingIdx = useRef(null);
   const W = 300, H = 420;
@@ -117,11 +129,12 @@ function DraggableField({ slots, positions, onPositionsChange, onSlotClick }) {
         const cx = pos[0] / 100 * W;
         const cy = pos[1] / 100 * H;
         const [line1, line2] = player ? labelLines(player) : ["", ""];
+        const k = kitFor(player, kit, gkKit);
         return (
           <g key={i} onPointerDown={e => handlePointerDown(e, i)} style={{ cursor: "grab" }}>
             <circle cx={cx + 1} cy={cy + 1.5} r="13" fill="rgba(0,0,0,0.25)" />
-            <circle cx={cx} cy={cy} r="13" fill={player ? "var(--granate)" : "rgba(255,255,255,0.15)"} stroke="white" strokeWidth="2" strokeDasharray={player ? "0" : "4 3"} />
-            <text x={cx} y={cy + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 10.5 : 13} fontWeight="900" fill="white">
+            <circle cx={cx} cy={cy} r="13" fill={player ? k.fill : "rgba(255,255,255,0.15)"} stroke={player ? k.stroke : "white"} strokeWidth="2.2" strokeDasharray={player ? "0" : "4 3"} />
+            <text x={cx} y={cy + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 10.5 : 13} fontWeight="900" fill={player ? k.num : "white"}>
               {player ? (player.jersey_number || player.first_name?.[0]) : "+"}
             </text>
             {player && (
@@ -214,6 +227,8 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const [planDefense, setPlanDefense] = useState("");
   const [rival, setRival] = useState({ strengths: "", weaknesses: "", keys: "", notes: "" });
   const [pieces, setPieces] = useState([]);
+  const [kit, setKit] = useState("1");
+  const [gkKit, setGkKit] = useState("naranja");
   const [pickSlot, setPickSlot] = useState(null);
   const [status, setStatus] = useState("");
   const loaded = useRef(false);
@@ -240,6 +255,8 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
       setPlanDefense(plan.plan_defense || "");
       setRival({ strengths: "", weaknesses: "", keys: "", notes: "", ...(plan.rival || {}) });
       setPieces(plan.set_pieces || []);
+      if (KITS[plan.kit]) setKit(plan.kit);
+      if (GK_KITS[plan.gk_kit]) setGkKit(plan.gk_kit);
     } else {
       try {
         const old = JSON.parse(localStorage.getItem(`tactica_${event?.id}`) || "null");
@@ -261,7 +278,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const taken = new Set(slotIds.filter(Boolean));
 
   // Autoguardado (1,2 s después del último cambio)
-  const payload = { formation: validFormation, positions, lineup: slotIds, bench, plan_attack: planAttack, plan_defense: planDefense, rival, set_pieces: pieces };
+  const payload = { formation: validFormation, positions, lineup: slotIds, bench, plan_attack: planAttack, plan_defense: planDefense, rival, set_pieces: pieces, kit, gk_kit: gkKit };
   const payloadKey = JSON.stringify(payload);
   const firstRun = useRef(true);
   useEffect(() => {
@@ -315,9 +332,29 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
               {filled > 0 && <button onClick={() => setLineup([])} title="Vaciar el once" className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-red-600 hover:bg-red-50"><Eraser className="w-3.5 h-3.5" /></button>}
             </div>
           </div>
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Equipación</span>
+              {Object.entries(KITS).map(([k, v]) => (
+                <button key={k} type="button" onClick={() => setKit(k)} title={`${v.label} equipación`}
+                  className={`w-7 h-7 rounded-full text-[10px] font-black flex items-center justify-center ${kit === k ? "ring-2 ring-offset-1 ring-gray-400" : ""}`}
+                  style={{ background: v.fill, border: `2px solid ${v.stroke}`, color: v.num }}>{v.label[0]}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Portero</span>
+              {Object.entries(GK_KITS).map(([k, v]) => (
+                <button key={k} type="button" onClick={() => setGkKit(k)} title={v.label}
+                  className={`w-7 h-7 rounded-full text-[10px] font-black flex items-center justify-center ${gkKit === k ? "ring-2 ring-offset-1 ring-gray-400" : ""}`}
+                  style={{ background: v.fill, border: `2px solid ${v.stroke}`, color: v.num }}>P</button>
+              ))}
+            </div>
+          </div>
           <p className="text-[10px] text-gray-400 text-center">Toca un hueco para elegir jugador (cualquiera del club) · arrastra para reposicionar</p>
           <div style={{ maxWidth: 380, margin: "0 auto", aspectRatio: "300/420" }}>
             <DraggableField
+              kit={kit}
+              gkKit={gkKit}
               slots={slots}
               positions={currentPositions}
               onPositionsChange={(newPos) => setPositions(newPos)}
