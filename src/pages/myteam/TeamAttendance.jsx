@@ -126,9 +126,7 @@ export default function TeamAttendance() {
   };
 
   // ── Resumen por jugador ──
-  const now = new Date();
-  const pastSessions = trainings.filter(e => new Date(e.date) < now);
-  const doneSessions = pastSessions.filter(e => recordsOf(e).length > 0); // sesiones ya gestionadas
+  const doneSessions = trainings.filter(e => recordsOf(e).some(r => r.status)); // sesiones con asistencia anotada
   const doneIds = new Set(doneSessions.map(e => e.id));
   const summary = teamPlayers.map(p => {
     const recs = allAttendance.filter(a => a.player_id === p.id && doneIds.has(a.event_id));
