@@ -141,7 +141,7 @@ function EventCard({ event, navigate, onEventClick }) {
 
 const DAYS_ES = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
 
-export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEventClick }) {
+export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEventClick, title = "Previsión semanal", selectedEventId }) {
   const navigate = useNavigate();
   const [weekBase, setWeekBase] = useState(new Date());
 
@@ -178,7 +178,7 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
         style={{ background: "var(--granate)" }}>
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-white/60" style={{ fontFamily: "var(--font-display)" }}>
-            Previsión semanal
+            {title}
           </p>
           <p className="text-sm font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>
             Sem. {weekNum} · {format(weekStart, "d MMM", { locale: es })} – {format(weekEnd, "d MMM", { locale: es })}
