@@ -6,6 +6,8 @@ import { Users, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { useAuth } from "@/lib/AuthContext";
+import { buildLinks } from "@/lib/staffLink";
+import { STAFF_FUNCTION_VALUES, teamRoleLabel } from "@/lib/staffRoles";
 
 const ROLE_LABELS = {
   entrenador: "Entrenador",
@@ -24,7 +26,7 @@ const ROLE_LABELS = {
   admin: "Director / Admin",
 };
 
-const APP_STAFF_ROLES = ["coordinador_general", "coordinador_f7", "coordinador_f11", "entrenador", "preparador_fisico", "entrenador_porteros", "psicologo", "fisioterapeuta"];
+const APP_STAFF_ROLES = STAFF_FUNCTION_VALUES;
 
 export default function Coaches() {
   const navigate = useNavigate();
@@ -35,6 +37,10 @@ export default function Coaches() {
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: staff = [] } = useQuery({ queryKey: ["staff"], queryFn: () => base44.entities.StaffMember.list() });
   const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: () => base44.entities.User.list() });
+  const { data: assignments = [] } = useQuery({
+    queryKey: ["team_staff_assignments"],
+    queryFn: () => base44.entities.TeamStaffAssignment.filter({ active: true }),
+  });
 
   if (!isCoordinator) {
     return (
@@ -51,23 +57,45 @@ export default function Coaches() {
   };
   const isF11Team = (t) => !isF7Team(t);
 
-  // Usuarios registrados con roles de staff (excluye admins que tratamos por separado)
-  const staffEmails = new Set(staff.map(s => s.email).filter(Boolean));
-  const usersAsStaff = users
+  // Una persona = una tarjeta: los usuarios registrados se enlazan con su ficha de personal
+  // (por vínculo, email sin mayúsculas o nombre) y solo salen aparte si no tienen ficha.
+  const liveUsers = users.filter(u => u.access_status !== "deleted");
+  const links = buildLinks(liveUsers, staff);
+  const linkedStaffIds = new Set([...links.values()].map(s => s.id));
+  const userOfStaff = new Map([...links.entries()].map(([uid, s]) => [s.id, liveUsers.find(u => u.id === uid)]));
+
+  const teamsOfStaff = (staffId, fallbackTeamId) => {
+    const list = assignments.filter(a => a.staff_member_id === staffId).map(a => ({ team_id: a.team_id, team_role: a.team_role }));
+    if (list.length === 0 && fallbackTeamId) list.push({ team_id: fallbackTeamId, team_role: null });
+    return list;
+  };
+
+  const staffCards = staff.map(s => {
+    const u = userOfStaff.get(s.id);
+    const list = teamsOfStaff(s.id, s.team_id);
+    return {
+      ...s,
+      role: u?.app_role || s.role,
+      photo_url: s.photo_url || u?.photo_url || null,
+      phone: s.phone || u?.phone || null,
+      team_list: list,
+      team_id: list[0]?.team_id || s.team_id,
+    };
+  });
+
+  const usersAsStaff = liveUsers
     .filter(u => APP_STAFF_ROLES.includes(u.app_role) && u.access_status === "approved")
-    .filter(u => !staffEmails.has(u.email))
+    .filter(u => !links.has(u.id))
     .map(u => {
-      const teamIds = u.role_assignments?.flatMap(a => a.team_ids || []) ||
-                      u.team_ids || (u.team_id ? [u.team_id] : []);
-      const primaryTeamId = teamIds[0] || "";
+      const teamIds = u.team_ids || (u.team_id ? [u.team_id] : []);
       return {
         id: `user_${u.id}`,
         _userId: u.id,
         first_name: u.full_name?.split(" ")[0] || u.full_name || "",
         last_name: u.full_name?.split(" ").slice(1).join(" ") || "",
         role: u.app_role,
-        team_id: primaryTeamId,
-        team_ids: teamIds,
+        team_id: teamIds[0] || "",
+        team_list: teamIds.map(id => ({ team_id: id, team_role: null })),
         photo_url: u.photo_url || null,
         phone: u.phone || null,
         email: u.email,
@@ -75,11 +103,11 @@ export default function Coaches() {
       };
     });
 
-  // Usuarios admin: incluir siempre en el cuerpo técnico
-  const adminUsers = users
+  // Administradores sin ficha ni función de personal
+  const adminUsers = liveUsers
     .filter(u => u.role === "admin")
-    .filter(u => !staffEmails.has(u.email))
-    .filter(u => !usersAsStaff.some(s => s.email === u.email))
+    .filter(u => !links.has(u.id))
+    .filter(u => !usersAsStaff.some(s => s._userId === u.id))
     .map(u => ({
       id: `user_${u.id}`,
       _userId: u.id,
@@ -87,7 +115,7 @@ export default function Coaches() {
       last_name: u.full_name?.split(" ").slice(1).join(" ") || "",
       role: "admin",
       team_id: "",
-      team_ids: [],
+      team_list: [],
       photo_url: u.photo_url || null,
       phone: u.phone || null,
       email: u.email,
@@ -95,17 +123,18 @@ export default function Coaches() {
       _isAdmin: true,
     }));
 
-  const allStaff = [...staff, ...usersAsStaff, ...adminUsers];
+  const allStaff = [...staffCards, ...usersAsStaff, ...adminUsers];
 
   const filtered = allStaff.filter(s => {
     if (s.role === "medico") return false;
     // Admins siempre visibles sin filtro de equipo
     if (s._isAdmin) return filterTeam === "all";
-    if (filterTeam !== "all" && s.team_id !== filterTeam) return false;
+    const teamIdsOfS = (s.team_list || []).map(a => a.team_id);
+    if (filterTeam !== "all" && !teamIdsOfS.includes(filterTeam)) return false;
     if (!isCoordinatorGeneral) {
-      const sTeam = teams.find(t => t.id === s.team_id);
-      if (coordType === "coordinador_f7" && !isF7Team(sTeam)) return false;
-      if (coordType === "coordinador_f11" && !isF11Team(sTeam)) return false;
+      const sTeams = teamIdsOfS.map(id => teams.find(t => t.id === id));
+      if (coordType === "coordinador_f7" && !sTeams.some(isF7Team)) return false;
+      if (coordType === "coordinador_f11" && !sTeams.some(isF11Team)) return false;
     }
     return true;
   });
@@ -140,7 +169,6 @@ export default function Coaches() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(s => {
-            const team = getTeam(s.team_id);
             const profileUrl = s._isUser ? `/CoachProfile?userId=${s._userId}` : `/CoachProfile?id=${s.id}`;
             return (
               <button key={s.id} onClick={() => navigate(profileUrl)}
@@ -162,8 +190,16 @@ export default function Coaches() {
                     <p className="text-xs font-bold uppercase tracking-wide mt-0.5" style={{ color: "var(--naranja)", fontFamily: "var(--font-display)" }}>
                       {ROLE_LABELS[s.role] || s.role}
                     </p>
-                    {team && (
-                      <p className="text-xs text-gray-400 mt-1 truncate">{team.name}</p>
+                    {(s.team_list || []).slice(0, 3).map(a => {
+                      const t = getTeam(a.team_id);
+                      return t ? (
+                        <p key={a.team_id} className="text-xs text-gray-400 mt-0.5 truncate">
+                          {t.name}{a.team_role ? ` · ${teamRoleLabel(a.team_role)}` : ""}
+                        </p>
+                      ) : null;
+                    })}
+                    {(s.team_list || []).length > 3 && (
+                      <p className="text-[11px] text-gray-300">+{s.team_list.length - 3} equipos más</p>
                     )}
                     {s.phone && <p className="text-xs text-gray-400 mt-0.5">{s.phone}</p>}
                   </div>

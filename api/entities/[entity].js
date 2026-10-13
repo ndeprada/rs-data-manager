@@ -1,5 +1,6 @@
 import { query } from '../_lib/db.js';
 import { requireUser } from '../_lib/auth.js';
+import { checkEntityAccess } from '../_lib/access.js';
 
 function rowToDoc(row) {
   return {
@@ -26,6 +27,12 @@ export default async function handler(req, res) {
 
   const user = await requireUser(req, res);
   if (!user) return;
+
+  const access = checkEntityAccess(user, entity, req.method, req.body || {});
+  if (!access.ok) {
+    res.status(403).json({ error: access.error, field: access.field });
+    return;
+  }
 
   if (req.method === 'GET') {
     try {

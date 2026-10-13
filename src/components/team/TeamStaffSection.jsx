@@ -10,21 +10,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import AddStaffDialog from "@/components/team/AddStaffDialog";
 
-const CURRENT_SEASON = "2025-2026";
-
-const TEAM_ROLES = [
-  { value: "primer_entrenador", label: "1er Entrenador" },
-  { value: "segundo_entrenador", label: "2o Entrenador" },
-  { value: "asistente", label: "Asistente" },
-  { value: "preparador_fisico", label: "Preparador Físico" },
-  { value: "entrenador_porteros", label: "Entrenador de Porteros" },
-  { value: "delegado", label: "Delegado" },
-  { value: "fisio", label: "Fisio" },
-  { value: "analista", label: "Analista" },
-  { value: "coordinador", label: "Coordinador" },
-];
-
-const teamRoleLabel = (v) => TEAM_ROLES.find(r => r.value === v)?.label || v || "Sin rol";
+import { CURRENT_SEASON, TEAM_ROLES, teamRoleLabel } from "@/lib/staffRoles";
+import { syncUserTeamsForStaff } from "@/lib/staffLink";
 
 export default function TeamStaffSection({ teamId }) {
   const queryClient = useQueryClient();
@@ -99,6 +86,7 @@ export default function TeamStaffSection({ teamId }) {
       });
       // Keep StaffMember.team_id in sync for backwards compat
       await base44.entities.StaffMember.update(staff_member_id, { team_id: teamId, team_role });
+      await syncUserTeamsForStaff(staff_member_id);
     },
     onSuccess: () => {
       invalidate();
@@ -113,6 +101,7 @@ export default function TeamStaffSection({ teamId }) {
     mutationFn: async ({ assignmentId, staff_member_id, team_role }) => {
       await base44.entities.TeamStaffAssignment.update(assignmentId, { team_role });
       await base44.entities.StaffMember.update(staff_member_id, { team_role });
+      await syncUserTeamsForStaff(staff_member_id);
     },
     onSuccess: () => {
       invalidate();
@@ -124,7 +113,14 @@ export default function TeamStaffSection({ teamId }) {
 
   const deleteMutation = useMutation({
     mutationFn: async (assignmentId) => {
+      const a = assignments.find(x => x.id === assignmentId);
       await base44.entities.TeamStaffAssignment.update(assignmentId, { active: false });
+      // Limpiar el campo antiguo para que la migración automática no lo vuelva a crear
+      const s = allStaff.find(x => x.id === a?.staff_member_id);
+      if (s && s.team_id === teamId) {
+        await base44.entities.StaffMember.update(s.id, { team_id: "" });
+      }
+      await syncUserTeamsForStaff(a?.staff_member_id);
     },
     onSuccess: () => {
       invalidate();

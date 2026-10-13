@@ -14,7 +14,9 @@ import { useAuth } from "@/lib/AuthContext";
 import CoachPDISection from "@/components/coach/CoachPDISection";
 import CoachMatchNotesSection from "@/components/coach/CoachMatchNotesSection";
 import ImageCropDialog from "@/components/ImageCropDialog";
-import CoachTeamAssignments from "@/components/coach/CoachTeamAssignments";
+import TeamRolesEditor from "@/components/access/TeamRolesEditor";
+import { TEAM_ROLES } from "@/lib/staffRoles";
+import { syncAssignments, syncUserTeamsForStaff } from "@/lib/staffLink";
 
 const ROLE_LABELS = {
   entrenador: "Entrenador",
@@ -137,7 +139,9 @@ export default function CoachProfile() {
   const member = rawMember;
   const team = teams.find(t => t.id === member?.team_id);
 
-  const isOwnProfile = user?.email && member?.email?.toLowerCase() === user.email.toLowerCase();
+  const isOwnProfile =
+    (user?.email && member?.email?.toLowerCase() === user.email.toLowerCase()) ||
+    (!!staffId && !!user?.staff_member_id && user.staff_member_id === staffId);
 
   // Coordinador F7 solo ve entrenadores de equipos F7, etc.
   const F7_CATEGORIES = ["f7", "f7", "benjami", "alevin", "prebenjami", "benjamin"]; // detect by category string
@@ -213,6 +217,7 @@ export default function CoachProfile() {
     mutationFn: async (data) => {
       const firstName = data.first_name?.trim() || "";
       const lastName = data.last_name?.trim() || "";
+      let savedStaffId = null;
 
       if (member?._isUser) {
         // 1. Update User — only mutable fields (full_name and email are platform read-only)
@@ -237,6 +242,7 @@ export default function CoachProfile() {
 
         if (linkedStaff) {
           await base44.entities.StaffMember.update(linkedStaff.id, staffPayload);
+          savedStaffId = linkedStaff.id;
         } else {
           // Create StaffMember and link it back to User
           const newStaff = await base44.entities.StaffMember.create({
@@ -245,6 +251,7 @@ export default function CoachProfile() {
             team_id: member.team_id || null,
           });
           await base44.entities.User.update(member._userId, { staff_member_id: newStaff.id });
+          savedStaffId = newStaff.id;
         }
       } else {
         // Direct StaffMember update
@@ -255,11 +262,20 @@ export default function CoachProfile() {
           birth_date: data.birth_date || null,
           notes: data.notes || null,
         });
+        savedStaffId = staffId;
+      }
+
+      // Equipos y rol en cada uno (solo coordinación)
+      if (isCoordinator && savedStaffId && Array.isArray(data.role_assignments)) {
+        const existing = await base44.entities.TeamStaffAssignment.filter({ staff_member_id: savedStaffId, active: true });
+        await syncAssignments(savedStaffId, data.role_assignments, existing);
+        await syncUserTeamsForStaff(savedStaffId);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff"] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["team_staff_assignments"] });
       setEditDialogOpen(false);
       toast({ title: "Perfil actualizado", description: "Los cambios se han guardado correctamente." });
     },
@@ -278,7 +294,7 @@ export default function CoachProfile() {
       notes: member.notes || "",
       role: member.role || "",
       team_ids: member.team_ids || [],
-      role_assignments: member.role_assignments || [],
+      role_assignments: memberAssignments.map(a => ({ team_id: a.team_id, team_role: a.team_role || "" })),
     });
     setEditDialogOpen(true);
   };
@@ -511,9 +527,11 @@ export default function CoachProfile() {
             </div>
 
             {isCoordinator && (
-              <CoachTeamAssignments
-                assignments={editForm.role_assignments || []}
+              <TeamRolesEditor
+                value={editForm.role_assignments || []}
                 teams={teams}
+                roleOptions={TEAM_ROLES}
+                label="Equipos y rol en cada uno"
                 onChange={(assignments) => setEditForm({ ...editForm, role_assignments: assignments })}
               />
             )}

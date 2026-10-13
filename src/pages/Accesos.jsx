@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, X, Clock, Edit2, Trash2, Mail } from "lucide-react";
+import { Check, X, Clock, Edit2, Trash2, Mail, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,38 +9,95 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
+import { APP_FUNCTIONS, FUNCTION_LABELS, TEAM_ROLES, teamRoleLabel, functionConfig } from "@/lib/staffRoles";
+import { buildLinks, saveUserAccess, staffFullName, userTeamFields } from "@/lib/staffLink";
+import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 
-const ROLE_LABELS = {
-  admin: "Admin",
-  entrenador: "Entrenador",
-  preparador_fisico: "Preparador Físico",
-  entrenador_porteros: "Entrenador de Porteros",
-  psicologo: "Psicólogo",
-  fisioterapeuta: "Fisioterapeuta",
-  coordinador_f7: "Coordinador F7",
-  coordinador_f11: "Coordinador F11",
-  coordinador_general: "Coordinador General",
-};
+const STATUS_LABELS = { pending: "Pendiente", approved: "Aprobado", rejected: "Rechazado" };
+const NEW_STAFF = "__new__";
 
-const STATUS_LABELS = {
-  pending: "Pendiente",
-  approved: "Aprobado",
-  rejected: "Rechazado",
-};
+const Label = ({ children }) => (
+  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{children}</label>
+);
 
 export default function Accesos() {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [editDialog, setEditDialog] = useState(null); // stores the user id
+  const [editUser, setEditUser] = useState(null); // usuario que se edita / aprueba
   const [editForm, setEditForm] = useState({});
   const [deleteDialog, setDeleteDialog] = useState(null);
   const [filterRole, setFilterRole] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
 
-  const { data: users = [], isLoading } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => base44.entities.User.list(),
+  const { data: users = [], isLoading } = useQuery({ queryKey: ["users"], queryFn: () => base44.entities.User.list() });
+  const { data: staff = [] } = useQuery({ queryKey: ["staff"], queryFn: () => base44.entities.StaffMember.list() });
+  const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
+  const { data: assignments = [] } = useQuery({
+    queryKey: ["team_staff_assignments"],
+    queryFn: () => base44.entities.TeamStaffAssignment.filter({ active: true }),
+  });
+
+  const liveUsers = useMemo(() => users.filter((u) => u.access_status !== "deleted"), [users]);
+  const links = useMemo(() => buildLinks(liveUsers, staff), [liveUsers, staff]);
+  const teamName = (id) => teams.find((t) => t.id === id)?.name || "—";
+  const assignmentsOfStaff = (staffId) => assignments.filter((a) => a.staff_member_id === staffId);
+
+  // Reparación automática: enlaza usuarios con su ficha de personal y rellena sus equipos
+  const repaired = useRef(new Set());
+  useEffect(() => {
+    if (currentUser?.role !== "admin" || isLoading || users.length === 0 || staff.length === 0) return;
+    liveUsers.forEach(async (u) => {
+      if (repaired.current.has(u.id)) return;
+      const s = links.get(u.id);
+      if (!s) return;
+      const patch = {};
+      if (u.staff_member_id !== s.id) patch.staff_member_id = s.id;
+      if (!(u.team_ids?.length > 0) && u.app_role) {
+        let list = assignmentsOfStaff(s.id);
+        if (list.length === 0 && s.team_id) list = [{ team_id: s.team_id, team_role: s.team_role || null }];
+        if (list.length > 0) Object.assign(patch, userTeamFields(u.app_role, list));
+      }
+      if (Object.keys(patch).length === 0) return;
+      repaired.current.add(u.id);
+      try {
+        await base44.entities.User.update(u.id, patch);
+        queryClient.invalidateQueries({ queryKey: ["users"] });
+      } catch (_) {}
+    });
+  }, [liveUsers, staff, assignments, links, isLoading]);
+
+  const saveMutation = useMutation({
+    mutationFn: ({ user, form }) => saveUserAccess({ user, form, staffList: staff, activeAssignments: assignments }),
+    onSuccess: (_, { form }) => {
+      ["users", "staff", "team_staff_assignments"].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+      setEditUser(null);
+      toast({
+        title: form.access_status === "approved" ? "Acceso guardado" : "Cambios guardados",
+        description: "Se ha vinculado a una única ficha de personal con sus equipos y roles.",
+      });
+    },
+    onError: (err) => toast({ title: "Error al guardar", description: err.message, variant: "destructive" }),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (userId) => base44.entities.User.update(userId, { access_status: "rejected", app_role_pending: null }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast({ title: "Acceso rechazado" });
+    },
+    onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (userId) =>
+      base44.entities.User.update(userId, { access_status: "deleted", app_role: null, app_role_pending: null }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      setDeleteDialog(null);
+      toast({ title: "Usuario eliminado" });
+    },
+    onError: (err) => toast({ title: "Error al eliminar", description: err.message, variant: "destructive" }),
   });
 
   if (currentUser?.role !== "admin") {
@@ -51,136 +108,51 @@ export default function Accesos() {
     );
   }
 
-  const filteredUsers = users.filter(u => {
+  const isPlayerReq = (u) => u.person_type === "jugador" || u.app_role === "jugador" || u.app_role_pending === "jugador";
+
+  const openEdit = (u, approving = false) => {
+    const linked = links.get(u.id);
+    const fn = u.app_role || u.app_role_pending || "";
+    const player = isPlayerReq(u);
+    let list = [];
+    if (linked) {
+      list = assignmentsOfStaff(linked.id).map((a) => ({ team_id: a.team_id, team_role: a.team_role }));
+      if (list.length === 0 && linked.team_id) list = [{ team_id: linked.team_id, team_role: linked.team_role || "" }];
+    }
+    if (approving && list.length === 0 && u.requested_assignments?.length) list = u.requested_assignments;
+    setEditForm({
+      role: u.role || "user",
+      person_type: player ? "jugador" : "cuerpo_tecnico",
+      app_role: player ? "jugador" : fn,
+      access_status: approving ? "approved" : u.access_status || "",
+      phone: u.phone || "",
+      staff_member_id: linked?.id || NEW_STAFF,
+      assignments: list,
+    });
+    setEditUser({ ...u, _approving: approving, _linked: linked || null });
+  };
+
+  const handleSave = () => {
+    if (!editUser) return;
+    saveMutation.mutate({
+      user: editUser,
+      form: { ...editForm, staff_member_id: editForm.staff_member_id === NEW_STAFF ? "" : editForm.staff_member_id },
+    });
+  };
+
+  const filteredUsers = liveUsers.filter((u) => {
     if (filterRole !== "all" && u.role !== filterRole && u.app_role !== filterRole) return false;
     if (filterStatus !== "all" && u.access_status !== filterStatus) return false;
     return true;
   });
 
-  const approveMutation = useMutation({
-    mutationFn: async (userId) => {
-      const user = users.find(u => u.id === userId);
-      if (!user) throw new Error("Usuario no encontrado");
-      await base44.entities.User.update(userId, {
-        app_role: user.app_role_pending,
-        access_status: "approved",
-        app_role_pending: null,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast({ title: "Acceso aprobado", description: "El usuario ha sido aprobado correctamente." });
-    },
-    onError: (err) => toast({ title: "Error al aprobar", description: err.message, variant: "destructive" }),
-  });
-
-  const rejectMutation = useMutation({
-    mutationFn: async (userId) => {
-      await base44.entities.User.update(userId, {
-        access_status: "rejected",
-        app_role_pending: null,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast({ title: "Acceso rechazado" });
-    },
-    onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
-  });
-
-  const { data: staff = [] } = useQuery({
-    queryKey: ["staff"],
-    queryFn: () => base44.entities.StaffMember.list(),
-  });
-
-  const editMutation = useMutation({
-    mutationFn: async ({ userId, payload }) => {
-      // PASO 1: Actualizar User
-      await base44.entities.User.update(userId, {
-        role: payload.role || "user",
-        app_role: payload.app_role || null,
-        access_status: payload.access_status || null,
-        phone: payload.phone || null,
-      });
-
-      // PASO 2: Buscar StaffMember por email
-      const targetUser = users.find(u => u.id === userId);
-      if (!targetUser) return;
-
-      const allStaffList = await base44.entities.StaffMember.list();
-      const linkedStaff = allStaffList.find(s => s.email?.toLowerCase() === targetUser.email?.toLowerCase());
-
-      if (linkedStaff) {
-        // Actualizar StaffMember existente
-        await base44.entities.StaffMember.update(linkedStaff.id, {
-          phone: payload.phone || null,
-          role: payload.app_role || linkedStaff.role || "entrenador",
-        });
-        // Vincular si no estaba vinculado
-        if (!targetUser.staff_member_id) {
-          await base44.entities.User.update(userId, { staff_member_id: linkedStaff.id });
-        }
-      } else {
-        // Crear nuevo StaffMember vinculado
-        const nameParts = (targetUser.full_name || "").split(" ");
-        const newStaff = await base44.entities.StaffMember.create({
-          first_name: nameParts[0] || "",
-          last_name: nameParts.slice(1).join(" ") || "",
-          email: targetUser.email,
-          phone: payload.phone || "",
-          role: payload.app_role || "entrenador",
-          team_id: "",
-        });
-        await base44.entities.User.update(userId, { staff_member_id: newStaff.id });
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      queryClient.invalidateQueries({ queryKey: ["staff"] });
-      setEditDialog(null);
-      toast({ title: "Usuario actualizado", description: "Los cambios se han guardado correctamente." });
-    },
-    onError: (err) => toast({ title: "Error al guardar", description: err.message, variant: "destructive" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (userId) => {
-      await base44.entities.User.update(userId, {
-        access_status: "deleted",
-        app_role: null,
-        app_role_pending: null,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      setDeleteDialog(null);
-      toast({ title: "Usuario eliminado" });
-    },
-    onError: (err) => toast({ title: "Error al eliminar", description: err.message, variant: "destructive" }),
-  });
-
-  const handleOpenEdit = (user) => {
-    setEditForm({
-      role: user.role || "user",
-      app_role: user.app_role || "",
-      access_status: user.access_status || "",
-      phone: user.phone || "",
-    });
-    setEditDialog(user.id);
-  };
-
-  const handleSaveEdit = () => {
-    if (!editDialog) return;
-    editMutation.mutate({
-      userId: editDialog,
-      payload: {
-        role: editForm.role || "user",
-        app_role: editForm.app_role || null,
-        access_status: editForm.access_status || null,
-        phone: editForm.phone || null,
-      },
-    });
-  };
+  const isStaffForm = editForm.person_type === "cuerpo_tecnico";
+  const fnCfg = functionConfig(editForm.app_role);
+  const showTeamsEditor = isStaffForm && fnCfg && fnCfg.teams !== "none";
+  const sortedStaff = [...staff].sort((a, b) => staffFullName(a).localeCompare(staffFullName(b), "es"));
+  const incomplete = (editForm.assignments || []).some((a) => (a.team_id && !a.team_role) || (!a.team_id && a.team_role));
+  const needsTeam = isStaffForm && fnCfg?.teams === "required" && editForm.access_status === "approved" &&
+    !(editForm.assignments || []).some((a) => a.team_id && a.team_role);
 
   return (
     <div className="space-y-6">
@@ -192,28 +164,22 @@ export default function Accesos() {
 
       <div className="flex gap-3 flex-wrap">
         <div className="flex-1 min-w-48">
-          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Filtrar por rol</label>
+          <Label>Filtrar por rol</Label>
           <Select value={filterRole} onValueChange={setFilterRole}>
-            <SelectTrigger className="border-gray-200">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los roles</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="coordinador_general">Coordinador General</SelectItem>
-              <SelectItem value="coordinador_f7">Coordinador F7</SelectItem>
-              <SelectItem value="coordinador_f11">Coordinador F11</SelectItem>
-              <SelectItem value="entrenador">Entrenador</SelectItem>
+              {APP_FUNCTIONS.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+              <SelectItem value="jugador">Jugador</SelectItem>
               <SelectItem value="user">Usuario</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="flex-1 min-w-48">
-          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Filtrar por estado</label>
+          <Label>Filtrar por estado</Label>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="border-gray-200">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los estados</SelectItem>
               <SelectItem value="pending">Pendiente</SelectItem>
@@ -230,9 +196,7 @@ export default function Accesos() {
         </div>
       ) : filteredUsers.length === 0 ? (
         <div className="bg-white border border-gray-200 p-12 text-center" style={{ borderRadius: "4px" }}>
-          <p className="text-gray-400 text-sm uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
-            No hay usuarios
-          </p>
+          <p className="text-gray-400 text-sm uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>No hay usuarios</p>
         </div>
       ) : (
         <div className="bg-white border border-gray-200 overflow-hidden" style={{ borderRadius: "4px" }}>
@@ -240,199 +204,224 @@ export default function Accesos() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-4 py-3 text-left font-bold text-gray-600 text-xs uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>Usuario</th>
-                  <th className="px-4 py-3 text-left font-bold text-gray-600 text-xs uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>Email</th>
-                  <th className="px-4 py-3 text-left font-bold text-gray-600 text-xs uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>Rol</th>
-                  <th className="px-4 py-3 text-left font-bold text-gray-600 text-xs uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>Estado</th>
-                  <th className="px-4 py-3 text-right font-bold text-gray-600 text-xs uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>Acciones</th>
+                  {["Usuario", "Función y equipos", "Estado", "Acciones"].map((h, i) => (
+                    <th key={h} className={`px-4 py-3 font-bold text-gray-600 text-xs uppercase tracking-wider ${i === 3 ? "text-right" : "text-left"}`} style={{ fontFamily: "var(--font-display)" }}>{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredUsers.map(user => (
-                  <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div>
+                {filteredUsers.map((user) => {
+                  const linked = links.get(user.id);
+                  const list = linked ? assignmentsOfStaff(linked.id) : [];
+                  const requested = user.access_status === "pending" ? user.requested_assignments || [] : [];
+                  return (
+                    <tr key={user.id} className="hover:bg-gray-50 transition-colors align-top">
+                      <td className="px-4 py-3">
                         <p className="font-semibold text-gray-900">{user.full_name}</p>
-                        <p className="text-xs text-gray-500">{user.phone || "—"}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5 text-gray-400" />
-                      {user.email}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div>
-                        <p className="font-medium text-gray-900" style={{ color: user.role === "admin" ? "var(--naranja)" : "var(--granate)" }}>
-                          {ROLE_LABELS[user.app_role] || ROLE_LABELS[user.role] || user.role}
+                        <p className="text-xs text-gray-500 flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400" />{user.email}</p>
+                        {user.phone && <p className="text-xs text-gray-400">{user.phone}</p>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium" style={{ color: user.role === "admin" ? "var(--naranja)" : "var(--granate)" }}>
+                          {user.role === "admin" && !user.app_role ? "Admin" : FUNCTION_LABELS[user.app_role] || FUNCTION_LABELS[user.role] || user.role}
+                          {user.role === "admin" && user.app_role && <span className="text-[10px] text-gray-400 font-normal"> · admin</span>}
                         </p>
                         {user.app_role_pending && (
-                          <p className="text-xs text-gray-500">Solicitado: {ROLE_LABELS[user.app_role_pending] || user.app_role_pending}</p>
+                          <p className="text-xs text-gray-500">Solicita: <b>{FUNCTION_LABELS[user.app_role_pending] || user.app_role_pending}</b></p>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        {user.access_status === "pending" && (
-                          <>
-                            <Clock className="w-3.5 h-3.5 text-yellow-500" />
-                            <span className="text-yellow-600">{STATUS_LABELS[user.access_status]}</span>
-                          </>
-                        )}
-                        {user.access_status === "approved" && (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-green-500" />
-                            <span className="text-green-600">{STATUS_LABELS[user.access_status]}</span>
-                          </>
-                        )}
-                        {user.access_status === "rejected" && (
-                          <>
-                            <X className="w-3.5 h-3.5 text-red-500" />
-                            <span className="text-red-600">{STATUS_LABELS[user.access_status]}</span>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {user.access_status === "pending" && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => approveMutation.mutate(user.id)}
-                              disabled={approveMutation.isPending}
-                              className="text-green-600 hover:bg-green-50 text-xs"
-                            >
-                              <Check className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => rejectMutation.mutate(user.id)}
-                              disabled={rejectMutation.isPending}
-                              className="text-red-600 hover:bg-red-50 text-xs"
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleOpenEdit(user)}
-                          className="text-gray-600 hover:bg-gray-100 text-xs"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setDeleteDialog(user.id)}
-                          className="text-red-500 hover:bg-red-50 text-xs"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {list.map((a) => (
+                            <span key={a.id} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                              {teamName(a.team_id)} · {teamRoleLabel(a.team_role)}
+                            </span>
+                          ))}
+                          {requested.map((a, i) => (
+                            <span key={`r${i}`} className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-50 text-yellow-700 border border-yellow-200">
+                              {teamName(a.team_id)} · {teamRoleLabel(a.team_role)}
+                            </span>
+                          ))}
+                          {user.app_role_pending === "jugador" && user.requested_team_id && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-50 text-yellow-700 border border-yellow-200">{teamName(user.requested_team_id)}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          {user.access_status === "pending" && <><Clock className="w-3.5 h-3.5 text-yellow-500" /><span className="text-yellow-600">{STATUS_LABELS.pending}</span></>}
+                          {user.access_status === "approved" && <><Check className="w-3.5 h-3.5 text-green-500" /><span className="text-green-600">{STATUS_LABELS.approved}</span></>}
+                          {user.access_status === "rejected" && <><X className="w-3.5 h-3.5 text-red-500" /><span className="text-red-600">{STATUS_LABELS.rejected}</span></>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {user.access_status === "pending" && (
+                            <>
+                              <Button size="sm" variant="ghost" title="Revisar y aprobar" onClick={() => openEdit(user, true)} className="text-green-600 hover:bg-green-50 text-xs">
+                                <Check className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" title="Rechazar" onClick={() => rejectMutation.mutate(user.id)} disabled={rejectMutation.isPending} className="text-red-600 hover:bg-red-50 text-xs">
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+                          <Button size="sm" variant="ghost" title="Editar" onClick={() => openEdit(user)} className="text-gray-600 hover:bg-gray-100 text-xs">
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" title="Eliminar" onClick={() => setDeleteDialog(user.id)} className="text-red-500 hover:bg-red-50 text-xs">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* Edit Dialog */}
-      <Dialog open={!!editDialog} onOpenChange={(open) => { if (!open) setEditDialog(null); }}>
-        <DialogContent className="bg-white max-w-md">
+      {/* Aprobar / editar */}
+      <Dialog open={!!editUser} onOpenChange={(open) => { if (!open) setEditUser(null); }}>
+        <DialogContent className="bg-white max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Editar usuario</DialogTitle>
+            <DialogTitle style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
+              {editUser?._approving ? "Aprobar acceso" : "Editar usuario"} · {editUser?.full_name}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Teléfono</label>
-              <Input
-                value={editForm.phone || ""}
-                onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
-                className="border-gray-200"
-                type="tel"
-              />
+            {editUser?.app_role_pending && (
+              <div className="text-xs bg-yellow-50 border border-yellow-200 text-yellow-800 rounded px-3 py-2">
+                Solicita: <b>{FUNCTION_LABELS[editUser.app_role_pending]}</b>
+                {(editUser.requested_assignments || []).map((a, i) => (
+                  <span key={i}> · {teamName(a.team_id)} ({teamRoleLabel(a.team_role)})</span>
+                ))}
+                {editUser.requested_team_id && <span> · {teamName(editUser.requested_team_id)}</span>}
+                . Puedes ajustarlo aquí antes de aprobar.
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Tipo</Label>
+                <Select
+                  value={editForm.person_type || "cuerpo_tecnico"}
+                  onValueChange={(v) => setEditForm((f) => ({ ...f, person_type: v, app_role: v === "jugador" ? "jugador" : (f.app_role === "jugador" ? "" : f.app_role) }))}
+                >
+                  <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cuerpo_tecnico">Cuerpo técnico</SelectItem>
+                    <SelectItem value="jugador">Jugador</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Estado de acceso</Label>
+                <Select value={editForm.access_status || ""} onValueChange={(v) => setEditForm((f) => ({ ...f, access_status: v }))}>
+                  <SelectTrigger className="border-gray-200"><SelectValue placeholder="Sin estado" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pendiente</SelectItem>
+                    <SelectItem value="approved">Aprobado</SelectItem>
+                    <SelectItem value="rejected">Rechazado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Rol de plataforma</label>
-              <Select value={editForm.role || "user"} onValueChange={(v) => setEditForm(f => ({ ...f, role: v }))}>
-                <SelectTrigger className="border-gray-200">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="user">Usuario</SelectItem>
-                </SelectContent>
-              </Select>
+
+            {isStaffForm && (
+              <div>
+                <Label>Función en el club</Label>
+                <Select value={editForm.app_role || ""} onValueChange={(v) => setEditForm((f) => ({ ...f, app_role: v }))}>
+                  <SelectTrigger className="border-gray-200"><SelectValue placeholder="Selecciona función" /></SelectTrigger>
+                  <SelectContent>
+                    {APP_FUNCTIONS.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {fnCfg?.hint && <p className="text-[11px] text-gray-400 mt-1">{fnCfg.hint}</p>}
+              </div>
+            )}
+
+            {showTeamsEditor && (
+              <div className="p-3 bg-gray-50 rounded-sm border border-gray-100">
+                <TeamRolesEditor
+                  value={editForm.assignments || []}
+                  onChange={(a) => setEditForm((f) => ({ ...f, assignments: a }))}
+                  teams={teams}
+                  roleOptions={TEAM_ROLES}
+                  label="Equipos y rol exacto en cada uno"
+                  compact
+                />
+                <p className="text-[11px] text-gray-400 mt-2">Una misma persona puede tener varios equipos y un rol distinto en cada uno.</p>
+              </div>
+            )}
+
+            {isStaffForm && editForm.app_role && (
+              <div>
+                <Label>Ficha de personal vinculada</Label>
+                <Select value={editForm.staff_member_id || NEW_STAFF} onValueChange={(v) => setEditForm((f) => ({ ...f, staff_member_id: v }))}>
+                  <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NEW_STAFF}>Crear ficha nueva</SelectItem>
+                    {sortedStaff.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{staffFullName(s)}{s.email ? ` (${s.email})` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
+                  <Link2 className="w-3 h-3" />
+                  {editUser?._linked ? "Vinculada automáticamente a su ficha existente." : "Si ya existe su ficha, elígela para no duplicar a la persona."}
+                </p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Teléfono</Label>
+                <Input value={editForm.phone || ""} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} className="border-gray-200" type="tel" />
+              </div>
+              <div>
+                <Label>Rol de plataforma</Label>
+                <Select value={editForm.role || "user"} onValueChange={(v) => setEditForm((f) => ({ ...f, role: v }))}>
+                  <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="user">Usuario</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Rol en la app</label>
-              <Select value={editForm.app_role || ""} onValueChange={(v) => setEditForm(f => ({ ...f, app_role: v }))}>
-                <SelectTrigger className="border-gray-200">
-                  <SelectValue placeholder="Sin rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={null}>Sin rol</SelectItem>
-                  <SelectItem value="coordinador_general">Coordinador General</SelectItem>
-                  <SelectItem value="coordinador_f7">Coordinador F7</SelectItem>
-                  <SelectItem value="coordinador_f11">Coordinador F11</SelectItem>
-                  <SelectItem value="entrenador">Entrenador</SelectItem>
-                  <SelectItem value="preparador_fisico">Preparador Físico</SelectItem>
-                  <SelectItem value="entrenador_porteros">Entrenador de Porteros</SelectItem>
-                  <SelectItem value="psicologo">Psicólogo</SelectItem>
-                  <SelectItem value="fisioterapeuta">Fisioterapeuta</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Estado de acceso</label>
-              <Select value={editForm.access_status || ""} onValueChange={(v) => setEditForm(f => ({ ...f, access_status: v }))}>
-                <SelectTrigger className="border-gray-200">
-                  <SelectValue placeholder="Sin estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pendiente</SelectItem>
-                  <SelectItem value="approved">Aprobado</SelectItem>
-                  <SelectItem value="rejected">Rechazado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
+            {(incomplete || needsTeam) && (
+              <p className="text-xs text-orange-600">
+                {incomplete ? "Completa equipo y rol en cada fila (o quita la fila)." : "Un entrenador necesita al menos un equipo con su rol."}
+              </p>
+            )}
+
             <div className="flex gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={() => setEditDialog(null)} className="flex-1">
-                Cancelar
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setEditUser(null)} className="flex-1">Cancelar</Button>
               <Button
-                onClick={handleSaveEdit}
-                disabled={editMutation.isPending}
+                onClick={handleSave}
+                disabled={saveMutation.isPending || incomplete || needsTeam || (isStaffForm && !editForm.app_role && editForm.access_status === "approved")}
                 className="flex-1 text-white"
                 style={{ background: "var(--granate)" }}
               >
-                {editMutation.isPending ? "Guardando..." : "Guardar cambios"}
+                {saveMutation.isPending ? "Guardando..." : editUser?._approving ? "Aprobar y guardar" : "Guardar cambios"}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
+      {/* Eliminar */}
       <AlertDialog open={!!deleteDialog} onOpenChange={(open) => { if (!open) setDeleteDialog(null); }}>
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
             <AlertDialogTitle style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>¿Eliminar usuario?</AlertDialogTitle>
-            <AlertDialogDescription>Esta acción eliminará el usuario del sistema. No se puede deshacer.</AlertDialogDescription>
+            <AlertDialogDescription>Se le quitará el acceso a la aplicación. Su ficha de personal y su historial se conservan.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteMutation.mutate(deleteDialog)}
-              disabled={deleteMutation.isPending}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
+            <AlertDialogAction onClick={() => deleteMutation.mutate(deleteDialog)} disabled={deleteMutation.isPending} className="bg-red-600 hover:bg-red-700 text-white">
               {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
             </AlertDialogAction>
           </AlertDialogFooter>

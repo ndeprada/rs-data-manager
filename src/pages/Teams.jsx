@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import TeamsTable from "@/components/teams/TeamsTable";
 import TeamStaffSection from "@/components/team/TeamStaffSection";
+import { buildLinks } from "@/lib/staffLink";
 import { FCF_CATEGORIES, FCF_CATEGORY_GROUPS, getCategoryLabel } from "@/components/fcfCategories";
 
 const emptyForm = { name: "", category: "", coach_id: "", season: "", fcf_group_url: "" };
@@ -133,11 +134,11 @@ export default function Teams() {
   });
 
   // Entrenadores: StaffMembers + usuarios registrados con rol entrenador aprobados
-  const staffEmails = new Set(staff.map(s => s.email).filter(Boolean));
+  const linkedUserIds = new Set([...buildLinks(users.filter(u => u.access_status !== "deleted"), staff).keys()]);
   const coachUsers = users.filter(u =>
     ["entrenador"].includes(u.app_role) &&
     u.access_status === "approved" &&
-    !staffEmails.has(u.email)
+    !linkedUserIds.has(u.id)
   ).map(u => ({
     id: `user_${u.id}`,
     first_name: u.full_name?.split(" ")[0] || u.full_name || "",

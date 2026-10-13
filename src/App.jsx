@@ -31,6 +31,8 @@ import Development from './pages/myteam/Development';
 import { Navigate } from 'react-router-dom';
 import RoleSetup from './pages/RoleSetup';
 import PendingApproval from './pages/PendingApproval';
+import PlayerHome from './pages/PlayerHome';
+import { STAFF_FUNCTION_VALUES } from '@/lib/staffRoles';
 import Accesos from './pages/Accesos';
 import Fields from './pages/Fields';
 import CleanDB from './pages/CleanDB';
@@ -39,7 +41,7 @@ import Methodology from './pages/Methodology';
 import { TeamAccessProvider } from '@/lib/TeamAccessContext';
 import { useTeamAccess } from '@/lib/TeamAccessContext';
 
-const STAFF_ROLES = ["coordinador_general", "coordinador_f7", "coordinador_f11", "entrenador", "preparador_fisico", "entrenador_porteros", "psicologo", "fisioterapeuta"];
+const STAFF_ROLES = STAFF_FUNCTION_VALUES;
 
 const RootRedirect = () => {
   const { user } = useAuth();
@@ -75,16 +77,27 @@ const AuthenticatedApp = () => {
     return <Login />;
   }
 
-  // Usuario sin rol ni solicitud pendiente → onboarding
-  const hasRole = user?.app_role && ["coordinador_general","coordinador_f7","coordinador_f11","entrenador"].includes(user.app_role);
-  if (isAuthenticated && user && !hasRole && !user.app_role_pending && user.role !== 'admin') {
+  const isAdminUser = user?.role === 'admin';
+  const status = user?.access_status;
+
+  // Acceso rechazado o eliminado → pantalla de denegado
+  if (user && !isAdminUser && (status === 'rejected' || status === 'deleted')) {
+    return <PendingApproval />;
+  }
+
+  // Jugador con acceso aprobado
+  if (user && !isAdminUser && user.app_role === 'jugador' && status === 'approved') {
+    return <PlayerHome />;
+  }
+
+  // Usuario sin función aprobada ni solicitud pendiente → elegir jugador / cuerpo técnico
+  const hasRole = !!user?.app_role && STAFF_ROLES.includes(user.app_role);
+  if (user && !isAdminUser && !hasRole && !user.app_role_pending) {
     return <RoleSetup />;
   }
 
-  // Usuario con solicitud pendiente o rechazada → pantalla de espera
-  if (isAuthenticated && user && user.role !== 'admin' &&
-      (user.access_status === 'pending' || user.access_status === 'rejected') &&
-      !user.app_role) {
+  // Solicitud pendiente de aprobación → pantalla de espera
+  if (user && !isAdminUser && (status === 'pending' || !hasRole)) {
     return <PendingApproval />;
   }
 

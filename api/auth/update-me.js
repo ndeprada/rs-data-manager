@@ -1,6 +1,15 @@
 import { query } from '../_lib/db.js';
 import { requireUser } from '../_lib/auth.js';
 
+const REQUESTABLE_FUNCTIONS = [
+  'coordinador_general', 'coordinador_f7', 'coordinador_f11', 'entrenador', 'entrenador_porteros',
+  'preparador_fisico', 'psicologo', 'fisioterapeuta', 'jugador',
+];
+// Datos de perfil que cada persona puede cambiarse a sí misma
+const PROFILE_FIELDS = ['full_name', 'phone', 'photo_url', 'notes', 'birth_date'];
+// Datos de la solicitud de acceso (solo mientras no tenga acceso aprobado)
+const REQUEST_FIELDS = ['person_type', 'app_role_pending', 'requested_assignments', 'requested_team_id'];
+
 export default async function handler(req, res) {
   if (req.method !== 'PUT' && req.method !== 'PATCH' && req.method !== 'POST') {
     res.status(405).json({ error: 'method_not_allowed' });
@@ -10,7 +19,40 @@ export default async function handler(req, res) {
   if (!user) return;
 
   try {
-    const patch = req.body || {};
+    const body = req.body || {};
+    const canRequest =
+      user.role !== 'admin' &&
+      user.access_status !== 'approved' &&
+      user.access_status !== 'deleted' &&
+      user.access_status !== 'rejected';
+
+    const patch = {};
+    PROFILE_FIELDS.forEach((k) => {
+      if (k in body) patch[k] = body[k];
+    });
+
+    if (canRequest) {
+      REQUEST_FIELDS.forEach((k) => {
+        if (k in body) patch[k] = body[k];
+      });
+      if (patch.app_role_pending && !REQUESTABLE_FUNCTIONS.includes(patch.app_role_pending)) {
+        res.status(400).json({ error: 'invalid_role' });
+        return;
+      }
+      if (patch.person_type && !['jugador', 'cuerpo_tecnico'].includes(patch.person_type)) {
+        res.status(400).json({ error: 'invalid_person_type' });
+        return;
+      }
+      if (body.access_status === 'pending' && user.access_status !== 'rejected') {
+        patch.access_status = 'pending';
+      }
+    }
+
+    if (Object.keys(patch).length === 0) {
+      res.status(200).json(user);
+      return;
+    }
+
     const { rows } = await query(
       `update entities set data = data || $2::jsonb, updated_at = now()
         where entity_type = 'User' and id = $1
