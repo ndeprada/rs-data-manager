@@ -82,6 +82,7 @@ const buildEmptyForm = (date, teamId) => ({
   recurring: false,
   recurrence: "weekly",
   recurrence_until: defaultSeasonEnd(date),
+  excluded: [],
   send_notification: false,
   notification_message: "",
 });
@@ -113,9 +114,20 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
   // Parse current date for preview
   const parsedDate = form.date ? parseISO(form.date) : new Date();
 
-  const previewDates = form.recurring
+  const allDates = form.recurring
     ? getOccurrenceDates(parsedDate, form.recurrence, form.recurrence_until)
     : [];
+  const dKey = (d) => format(d, "yyyy-MM-dd");
+  const excludedSet = new Set(form.excluded || []);
+  const previewDates = allDates.filter(d => !excludedSet.has(dKey(d)));
+  const toggleExcluded = (d) => {
+    const k = dKey(d);
+    setForm(prev => {
+      const cur = new Set(prev.excluded || []);
+      if (cur.has(k)) cur.delete(k); else cur.add(k);
+      return { ...prev, excluded: [...cur] };
+    });
+  };
 
   const sendNotifications = async (createdEvent) => {
     if (!createdEvent?.team_id) return;
@@ -142,7 +154,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
     mutationFn: async (data) => {
       const seriesId = form.recurring ? crypto.randomUUID() : undefined;
       const occurrences = form.recurring
-        ? getOccurrenceDates(parsedDate, form.recurrence, form.recurrence_until)
+        ? getOccurrenceDates(parsedDate, form.recurrence, form.recurrence_until).filter(d => !(form.excluded || []).includes(format(d, "yyyy-MM-dd")))
         : [parsedDate];
 
       const makeOne = (occDate) => {
@@ -370,14 +382,26 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                 </div>
                 <div className="bg-gray-50 rounded p-2">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-                    Se crearán {previewDates.length} eventos:
+                    Se crearán {previewDates.length} eventos · pulsa una fecha para quitarla (festivos…)
                   </p>
-                  <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
-                    {previewDates.map((d, i) => (
-                      <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-gray-200 text-gray-600 font-medium">
-                        {format(d, "d MMM", { locale: es })}
-                      </span>
-                    ))}
+                  <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                    {allDates.map((d, i) => {
+                      const off = excludedSet.has(dKey(d));
+                      return (
+                        <button
+                          type="button"
+                          key={i}
+                          onClick={() => toggleExcluded(d)}
+                          title={off ? "Volver a incluir" : "Quitar esta fecha"}
+                          className={`text-[10px] pl-1.5 pr-1 py-0.5 rounded border font-medium inline-flex items-center gap-1 transition-colors ${
+                            off ? "bg-gray-100 border-dashed border-gray-300 text-gray-400 line-through" : "bg-white border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-600"
+                          }`}
+                        >
+                          {format(d, "d MMM", { locale: es })}
+                          <span className="text-[11px] leading-none no-underline">{off ? "+" : "×"}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -386,7 +410,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
 
           <div className="flex gap-3 pt-1">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancelar</Button>
-            <Button type="submit" disabled={createMutation.isPending} className="flex-1 text-white" style={{ background: "var(--granate)" }}>
+            <Button type="submit" disabled={createMutation.isPending || (form.recurring && previewDates.length === 0)} className="flex-1 text-white" style={{ background: "var(--granate)" }}>
               {createMutation.isPending
                 ? "Guardando…"
                 : form.recurring
