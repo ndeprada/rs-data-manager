@@ -369,7 +369,7 @@ export default function ActaTab({ eventId, teamId, event, players }) {
 
         <div className="flex items-center gap-4">
           <div className="flex-1">
-            <p className="text-xs text-gray-500 mb-1">{event?.is_home !== false ? "Nuestro equipo" : (event?.opponent || "Visitante")}</p>
+            <p className="text-xs text-gray-500 mb-1">Nuestro equipo</p>
             <Input type="number" min="0" value={scoreHome} onChange={e => setScoreHome(e.target.value)}
               className="text-2xl font-black text-center h-14 border-gray-200" />
           </div>
