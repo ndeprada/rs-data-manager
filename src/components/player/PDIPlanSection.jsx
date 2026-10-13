@@ -12,11 +12,11 @@ import {
   GROUP_LABELS, POSITION_CATALOG, getPositionCatalog, getRoleOptions, findRole, getSelectableCompetencies,
 } from "@/lib/competencyCatalog";
 
-// Etapa por defecto según el nombre del equipo (TFM: F7 hasta S11, F11 desde S12)
+// Etapa por defecto según el equipo. En Racing Sarrià: F7 hasta S12, F11 desde S13
 export function defaultStage(teamName) {
   const m = /S\s?(\d{1,2})/i.exec(teamName || "");
   if (!m) return "f11";
-  return Number(m[1]) <= 11 ? "f7" : "f11";
+  return Number(m[1]) <= 12 ? "f7" : "f11";
 }
 const STAGE_LABEL = { f7: "Fútbol 7", f11: "Fútbol 11" };
 const F7_GROUPS = ["tecnicas", "fisicas", "mentales"];

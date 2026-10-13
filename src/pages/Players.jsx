@@ -3,7 +3,7 @@ import PlayerName from "@/components/common/PlayerName";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Users, Plus, Pencil, Trash2, Search, ChevronUp, ChevronDown, ChevronsUpDown, Eye } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Search, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -297,9 +297,6 @@ export default function Players() {
                       </td>
                       <td className="px-3 py-1.5 text-right">
                         <div className="flex justify-end gap-1">
-                          <Link to={`/PlayerProfile?id=${player.id}`} className="p-1.5 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors" title="Ver perfil">
-                            <Eye className="w-3.5 h-3.5" />
-                          </Link>
                           <button onClick={() => { setEditingPlayer(player); setDialogOpen(true); }} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
