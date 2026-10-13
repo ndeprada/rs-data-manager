@@ -17,6 +17,7 @@ import MatchStatsSection from "../components/player/MatchStatsSection";
 import AttendanceHistorySection from "../components/player/AttendanceHistorySection";
 import PDISection from "../components/player/PDISection";
 import PDIPlanSection from "../components/player/PDIPlanSection";
+import Evaluation360Section from "../components/player/Evaluation360Section";
 import InjurySection from "../components/player/InjurySection";
 import PlayerPerformancePanel from "../components/player/PlayerPerformancePanel";
 import GuardianContactCard from "../components/player/GuardianContactCard";
@@ -275,8 +276,14 @@ export default function PlayerProfile() {
 
           <TabsContent value="pdi" className={tabContentClass}>
             <div className="space-y-6">
-              <PDIPlanSection player={player} />
-              <PDISection playerId={playerId} playerName={`${player.first_name} ${player.last_name}`} playerEmail={player.email} />
+              <PDIPlanSection player={player} team={team} />
+              <Evaluation360Section player={player} playerId={playerId} />
+              <details className="bg-white border border-gray-200 rounded-2xl shadow-sm">
+                <summary className="px-5 py-3 cursor-pointer text-sm font-semibold text-gray-600">Evaluaciones antiguas (texto libre)</summary>
+                <div className="px-4 pb-4">
+                  <PDISection readOnly playerId={playerId} playerName={`${player.first_name} ${player.last_name}`} playerEmail={player.email} />
+                </div>
+              </details>
             </div>
           </TabsContent>
 

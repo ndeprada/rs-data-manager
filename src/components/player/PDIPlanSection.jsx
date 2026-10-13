@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Target, CheckCircle2, Plus, Trash2, RotateCcw, ChevronDown, ChevronUp, BookOpen, AlertTriangle } from "lucide-react";
+import { Target, CheckCircle2, Plus, Trash2, RotateCcw, ChevronDown, ChevronUp, BookOpen, AlertTriangle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -9,15 +9,37 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  GROUP_LABELS, getPositionCatalog, getRoleOptions, findRole, getSelectableCompetencies,
+  GROUP_LABELS, POSITION_CATALOG, getPositionCatalog, getRoleOptions, findRole, getSelectableCompetencies,
 } from "@/lib/competencyCatalog";
+
+// Etapa por defecto según el nombre del equipo (TFM: F7 hasta S11, F11 desde S12)
+export function defaultStage(teamName) {
+  const m = /S\s?(\d{1,2})/i.exec(teamName || "");
+  if (!m) return "f11";
+  return Number(m[1]) <= 11 ? "f7" : "f11";
+}
+const STAGE_LABEL = { f7: "Fútbol 7", f11: "Fútbol 11" };
+const F7_GROUPS = ["tecnicas", "fisicas", "mentales"];
+
+// Competencias de otras posiciones (generales + clave de sus roles)
+function otherPositionOptions(currentKey) {
+  const out = [];
+  Object.entries(POSITION_CATALOG).forEach(([pk, pos]) => {
+    if (pk === currentKey) return;
+    Object.entries(pos.groups).forEach(([group, items]) => {
+      items.forEach((text, i) => out.push({ id: `${pk}.${group}.${i}`, source: "other", group: pk, groupLabel: pos.label, subLabel: GROUP_LABELS[group], text, roleLabel: pos.label }));
+    });
+    pos.roles.forEach((r) => r.key.forEach((text, i) => out.push({ id: `${r.id}.key.${i}`, source: "other", group: pk, groupLabel: pos.label, subLabel: `Rol ${r.label}`, text, roleLabel: pos.label })));
+  });
+  return out;
+}
 
 function currentQuarter() {
   const d = new Date();
   return `${d.getFullYear()} T${Math.floor(d.getMonth() / 3) + 1}`;
 }
 
-function CompetencyPicker({ options, selectedId, onSelect }) {
+function CompetencyPicker({ options, selectedId, onSelect, labelOf }) {
   const [group, setGroup] = useState("all");
   const groups = [...new Set(options.map((o) => o.group))];
   const list = options.filter((o) => group === "all" || o.group === group);
@@ -33,7 +55,7 @@ function CompetencyPicker({ options, selectedId, onSelect }) {
               className={`px-2.5 py-1 rounded-full text-xs border ${group === g ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`}
               style={group === g ? { background: "var(--granate)" } : {}}
             >
-              {g === "all" ? "Todas" : GROUP_LABELS[g] || g}
+              {g === "all" ? "Todas" : (labelOf ? labelOf(g) : GROUP_LABELS[g] || g)}
             </button>
           ))}
         </div>
@@ -47,7 +69,7 @@ function CompetencyPicker({ options, selectedId, onSelect }) {
             onClick={() => onSelect(o)}
             className={`w-full text-left text-sm rounded-xl border px-3 py-2 transition-colors ${selectedId === o.id ? "border-[var(--granate)] bg-red-50" : "border-gray-200 hover:bg-gray-50"}`}
           >
-            <span className="block text-[10px] uppercase tracking-wider text-gray-400 mb-0.5">{GROUP_LABELS[o.group] || "Rol de referencia"}</span>
+            <span className="block text-[10px] uppercase tracking-wider text-gray-400 mb-0.5">{o.subLabel ? `${o.groupLabel} · ${o.subLabel}` : (GROUP_LABELS[o.group] || "Rol de referencia")}</span>
             {o.text}
           </button>
         ))}
@@ -56,18 +78,20 @@ function CompetencyPicker({ options, selectedId, onSelect }) {
   );
 }
 
-function GoalCard({ goal, onToggle, onDelete }) {
-  const improved = goal.status === "mejorado";
+function GoalCard({ goal, onAdvance, onBack, onDelete }) {
+  const st = goal.status === "mejorado" ? "mejorado" : goal.status === "trabajando" ? "trabajando" : "a_mejorar";
+  const tag = goal.source === "role" ? `Rol · ${goal.role_label || ""}` : goal.source === "other" ? `Otra posición · ${goal.role_label || ""}` : `General · ${GROUP_LABELS[goal.group] || ""}`;
+  const tagCls = goal.source === "role" ? "bg-amber-100 text-amber-800" : goal.source === "other" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-600";
+  const box = st === "mejorado" ? "border-green-200 bg-green-50/50" : st === "trabajando" ? "border-blue-200 bg-blue-50/40" : "border-gray-200 bg-white";
   return (
-    <div className={`rounded-xl border p-3 ${improved ? "border-green-200 bg-green-50/50" : "border-gray-200 bg-white"}`}>
+    <div className={`rounded-xl border p-3 ${box}`}>
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-1.5 mb-1">
-            <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${goal.source === "role" ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-600"}`}>
-              {goal.source === "role" ? `Rol · ${goal.role_label || ""}` : `General · ${GROUP_LABELS[goal.group] || ""}`}
-            </span>
+            <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${tagCls}`}>{tag}</span>
+            {st === "trabajando" && <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">Trabajando</span>}
             {goal.period && <span className="text-[10px] text-gray-400">{goal.period}</span>}
-            {improved && goal.improved_date && <span className="text-[10px] text-green-700">Mejorado el {new Date(goal.improved_date).toLocaleDateString("es-ES")}</span>}
+            {st === "mejorado" && goal.improved_date && <span className="text-[10px] text-green-700">Mejorado el {new Date(goal.improved_date).toLocaleDateString("es-ES")}</span>}
           </div>
           <p className="text-sm text-gray-800">{goal.competency_text}</p>
           {goal.objective && <p className="text-sm text-gray-600 mt-1.5"><strong>Objetivo:</strong> {goal.objective}</p>}
@@ -75,9 +99,9 @@ function GoalCard({ goal, onToggle, onDelete }) {
           {goal.evidence && <p className="text-sm text-gray-600 mt-1"><strong>Evidencia / comportamiento observado:</strong> {goal.evidence}</p>}
         </div>
         <div className="flex flex-col gap-1 shrink-0">
-          <button onClick={() => onToggle(goal)} title={improved ? "Volver a 'a mejorar'" : "Marcar como mejorado"} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-green-700">
-            {improved ? <RotateCcw className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-          </button>
+          {st === "a_mejorar" && <button onClick={() => onAdvance(goal)} title="Empezar a trabajarlo" className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-700"><Play className="w-4 h-4" /></button>}
+          {st === "trabajando" && <button onClick={() => onAdvance(goal)} title="Marcar como mejorado" className="p-1.5 rounded-lg hover:bg-green-50 text-gray-500 hover:text-green-700"><CheckCircle2 className="w-4 h-4" /></button>}
+          {st !== "a_mejorar" && <button onClick={() => onBack(goal)} title={st === "mejorado" ? "Reabrir (a mejorar)" : "Volver a 'a mejorar'"} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"><RotateCcw className="w-4 h-4" /></button>}
           <button onClick={() => onDelete(goal)} title="Eliminar" className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">
             <Trash2 className="w-4 h-4" />
           </button>
@@ -87,12 +111,19 @@ function GoalCard({ goal, onToggle, onDelete }) {
   );
 }
 
-export default function PDIPlanSection({ player }) {
+export default function PDIPlanSection({ player, team }) {
   const queryClient = useQueryClient();
   const playerId = player.id;
   const catalog = getPositionCatalog(player.position);
   const roleInfo = player.reference_role ? findRole(player.reference_role) : null;
-  const selectable = useMemo(() => getSelectableCompetencies(player.position, player.reference_role), [player.position, player.reference_role]);
+  const stage = player.pdi_stage || defaultStage(team?.name);
+  const isF7 = stage === "f7";
+  const selectableAll = useMemo(() => getSelectableCompetencies(player.position, player.reference_role), [player.position, player.reference_role]);
+  const selectable = useMemo(() => ({
+    role: isF7 ? [] : selectableAll.role,
+    general: isF7 ? selectableAll.general.filter((o) => F7_GROUPS.includes(o.group)) : selectableAll.general,
+  }), [selectableAll, isF7]);
+  const others = useMemo(() => otherPositionOptions(catalog?.key), [catalog?.key]);
 
   const [open, setOpen] = useState(false);
   const [showRef, setShowRef] = useState(false);
@@ -111,6 +142,10 @@ export default function PDIPlanSection({ player }) {
     mutationFn: (role) => base44.entities.Player.update(playerId, { reference_role: role }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["players"] }),
   });
+  const setStage = useMutation({
+    mutationFn: (v) => base44.entities.Player.update(playerId, { pdi_stage: v }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["players"] }),
+  });
   const create = useMutation({
     mutationFn: (data) => base44.entities.PDIGoal.create({ ...data, player_id: playerId }),
     onSuccess: () => { refresh(); setOpen(false); setPicked(null); setForm({ objective: "", strategy: "", evidence: "", period: currentQuarter(), status: "a_mejorar" }); },
@@ -119,6 +154,7 @@ export default function PDIPlanSection({ player }) {
   const remove = useMutation({ mutationFn: (id) => base44.entities.PDIGoal.delete(id), onSuccess: refresh });
 
   const toImprove = goals.filter((g) => g.status !== "mejorado");
+  const active = toImprove.filter((g) => g.status === "trabajando");
   const improved = goals.filter((g) => g.status === "mejorado");
 
   const submit = (e) => {
@@ -136,14 +172,19 @@ export default function PDIPlanSection({ player }) {
       strategy: form.strategy,
       evidence: form.evidence,
       period: form.period,
-      status: form.status === "mejorado" ? "mejorado" : "a_mejorar",
+      stage,
+      status: ["mejorado", "trabajando"].includes(form.status) ? form.status : "a_mejorar",
       improved_date: form.status === "mejorado" ? new Date().toISOString() : undefined,
     });
   };
 
-  const toggle = (g) => {
-    const next = g.status === "mejorado" ? "a_mejorar" : "mejorado";
+  const advance = (g) => {
+    const next = g.status === "trabajando" ? "mejorado" : "trabajando";
     update.mutate({ id: g.id, data: { status: next, improved_date: next === "mejorado" ? new Date().toISOString() : null } });
+  };
+  const back = (g) => {
+    const next = g.status === "mejorado" ? "trabajando" : "a_mejorar";
+    update.mutate({ id: g.id, data: { status: next, improved_date: null } });
   };
 
   if (!catalog) {
@@ -163,11 +204,21 @@ export default function PDIPlanSection({ player }) {
           </div>
           <div className="flex-1 min-w-[220px]">
             <h3 className="font-semibold text-gray-900">Plan de Desarrollo Individual · competencias</h3>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-xs text-gray-500">Etapa:</span>
+              {["f7", "f11"].map((k) => (
+                <button key={k} type="button" onClick={() => setStage.mutate(k)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border ${stage === k ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`}
+                  style={stage === k ? { background: "var(--granate)" } : {}}>{STAGE_LABEL[k]}</button>
+              ))}
+              {!player.pdi_stage && <span className="text-[10px] text-gray-400">(según el equipo)</span>}
+            </div>
+            {isF7 && <p className="text-xs text-gray-500 mt-1">En Fútbol 7 la posición pesa poco: se trabajan sobre todo competencias técnicas, físicas y mentales.</p>}
+            <p className="text-sm text-gray-500 mt-1.5">
               Posición: <strong>{catalog.label}</strong>
-              {roleInfo ? <> · Rol de referencia: <strong>{roleInfo.role.label}</strong></> : null}
+              {roleInfo && !isF7 ? <> · Rol de referencia: <strong>{roleInfo.role.label}</strong></> : null}
             </p>
-            {!roleInfo && (
+            {!roleInfo && !isF7 && (
               <div className="mt-2 max-w-xs">
                 <Label className="text-xs text-gray-500">Asigna un rol de referencia</Label>
                 <Select value="" onValueChange={(v) => setRole.mutate(v)}>
@@ -178,9 +229,9 @@ export default function PDIPlanSection({ player }) {
                 </Select>
               </div>
             )}
-            {roleInfo && <p className="text-xs text-gray-500 mt-1.5 max-w-2xl">{roleInfo.role.description}</p>}
+            {roleInfo && !isF7 && <p className="text-xs text-gray-500 mt-1.5 max-w-2xl">{roleInfo.role.description}</p>}
           </div>
-          <Button onClick={() => { setTab(roleInfo ? "role" : "general"); setOpen(true); }} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
+          <Button onClick={() => { setTab(roleInfo && !isF7 ? "role" : "general"); setOpen(true); }} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
             <Plus className="w-4 h-4 mr-2" /> Añadir aspecto
           </Button>
         </div>
@@ -213,7 +264,7 @@ export default function PDIPlanSection({ player }) {
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="font-semibold text-gray-900 flex items-center gap-2"><Target className="w-4 h-4 text-orange-500" /> Aspectos a mejorar <span className="text-xs text-gray-400">({toImprove.length})</span></h4>
+            <h4 className="font-semibold text-gray-900 flex items-center gap-2"><Target className="w-4 h-4 text-orange-500" /> Aspectos a mejorar <span className="text-xs text-gray-400">({toImprove.length}{active.length ? ` · ${active.length} trabajando` : ""})</span></h4>
           </div>
           {toImprove.length > 3 && (
             <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg p-2 mb-3">
@@ -221,13 +272,13 @@ export default function PDIPlanSection({ player }) {
             </div>
           )}
           <div className="space-y-2">
-            {toImprove.length === 0 ? <p className="text-sm text-gray-400">Aún no hay aspectos a mejorar.</p> : toImprove.map((g) => <GoalCard key={g.id} goal={g} onToggle={toggle} onDelete={(x) => remove.mutate(x.id)} />)}
+            {toImprove.length === 0 ? <p className="text-sm text-gray-400">Aún no hay aspectos a mejorar.</p> : toImprove.map((g) => <GoalCard key={g.id} goal={g} onAdvance={advance} onBack={back} onDelete={(x) => remove.mutate(x.id)} />)}
           </div>
         </div>
         <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
           <h4 className="font-semibold text-gray-900 flex items-center gap-2 mb-3"><CheckCircle2 className="w-4 h-4 text-green-600" /> Trabajados y mejorados <span className="text-xs text-gray-400">({improved.length})</span></h4>
           <div className="space-y-2">
-            {improved.length === 0 ? <p className="text-sm text-gray-400">Todavía no hay aspectos marcados como mejorados.</p> : improved.map((g) => <GoalCard key={g.id} goal={g} onToggle={toggle} onDelete={(x) => remove.mutate(x.id)} />)}
+            {improved.length === 0 ? <p className="text-sm text-gray-400">Todavía no hay aspectos marcados como mejorados.</p> : improved.map((g) => <GoalCard key={g.id} goal={g} onAdvance={advance} onBack={back} onDelete={(x) => remove.mutate(x.id)} />)}
           </div>
         </div>
       </div>
@@ -237,7 +288,7 @@ export default function PDIPlanSection({ player }) {
           <DialogHeader><DialogTitle className="text-gray-900">Añadir aspecto al PDI</DialogTitle></DialogHeader>
           <form onSubmit={submit} className="space-y-4">
             <div className="flex gap-2">
-              {roleInfo && (
+              {roleInfo && !isF7 && (
                 <button type="button" onClick={() => { setTab("role"); setPicked(null); }} className={`px-3 py-1.5 rounded-lg text-sm border ${tab === "role" ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={tab === "role" ? { background: "var(--granate)" } : {}}>
                   Rol: {roleInfo.role.label}
                 </button>
@@ -245,8 +296,13 @@ export default function PDIPlanSection({ player }) {
               <button type="button" onClick={() => { setTab("general"); setPicked(null); }} className={`px-3 py-1.5 rounded-lg text-sm border ${tab === "general" ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={tab === "general" ? { background: "var(--granate)" } : {}}>
                 Generales de {catalog.label}
               </button>
+              <button type="button" onClick={() => { setTab("other"); setPicked(null); }} className={`px-3 py-1.5 rounded-lg text-sm border ${tab === "other" ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={tab === "other" ? { background: "#7e22ce" } : {}}>
+                Competencias de otras posiciones
+              </button>
             </div>
-            <CompetencyPicker key={tab} options={tab === "role" ? selectable.role : selectable.general} selectedId={picked?.id} onSelect={setPicked} />
+            {tab === "other" && <p className="text-xs text-purple-800 bg-purple-50 border border-purple-100 rounded-lg p-2">Competencias de otras posiciones: quedarán marcadas como «Otra posición».</p>}
+            <CompetencyPicker key={tab} options={tab === "role" ? selectable.role : tab === "other" ? others : selectable.general} selectedId={picked?.id} onSelect={setPicked}
+              labelOf={tab === "other" ? (g) => POSITION_CATALOG[g]?.label || g : undefined} />
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-gray-700">Periodo</Label>
@@ -258,6 +314,7 @@ export default function PDIPlanSection({ player }) {
                   <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="a_mejorar">A mejorar</SelectItem>
+                    <SelectItem value="trabajando">Trabajando</SelectItem>
                     <SelectItem value="mejorado">Ya trabajado y mejorado</SelectItem>
                   </SelectContent>
                 </Select>

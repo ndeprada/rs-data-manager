@@ -21,7 +21,7 @@ const FIELD_SECTIONS = [
   { key: "objectives", label: "🎯 Objetivos para el siguiente período", placeholder: "Metas concretas y medibles para la próxima evaluación..." },
 ];
 
-function PDICard({ pdi, onEdit, onDelete }) {
+function PDICard({ pdi, onEdit, onDelete, readOnly }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -48,7 +48,7 @@ function PDICard({ pdi, onEdit, onDelete }) {
               <Star className="w-3.5 h-3.5" />{pdi.overall_rating}/10
             </span>
           )}
-          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+          <div className={`flex gap-1 ${readOnly ? "hidden" : ""}`} onClick={(e) => e.stopPropagation()}>
             <button onClick={() => onEdit(pdi)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
             <button onClick={() => onDelete(pdi.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
           </div>
@@ -70,7 +70,7 @@ function PDICard({ pdi, onEdit, onDelete }) {
   );
 }
 
-export default function PDISection({ playerId, playerName, playerEmail }) {
+export default function PDISection({ playerId, playerName, playerEmail, readOnly = false }) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
@@ -126,21 +126,19 @@ export default function PDISection({ playerId, playerName, playerEmail }) {
 
   return (
     <div className="space-y-6">
-      {/* Header info */}
+      {!readOnly && (
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
         <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--granate-pale, #fdf2f4)" }}>
-            <BookOpen className="w-5 h-5" style={{ color: "var(--granate)" }} />
-          </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 mb-1">Plan de Desarrollo Individual (PDI)</h3>
-            <p className="text-sm text-gray-500">Evaluaciones periódicas del rendimiento y desarrollo de <strong>{playerName}</strong>. Cada evaluación recoge una valoración completa del jugador en los aspectos técnico, táctico, físico y mental, junto con objetivos de mejora.</p>
+            <h3 className="font-semibold text-gray-900 mb-1">Evaluaciones PDI</h3>
+            <p className="text-sm text-gray-500">Evaluaciones de <strong>{playerName}</strong>.</p>
           </div>
           <Button onClick={() => setDialogOpen(true)} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
             <Plus className="w-4 h-4 mr-2" /> Nueva Evaluación
           </Button>
         </div>
       </div>
+      )}
 
       {isLoading ? (
         <div className="text-center py-8 text-gray-400">Cargando...</div>
@@ -153,7 +151,7 @@ export default function PDISection({ playerId, playerName, playerEmail }) {
       ) : (
         <div className="space-y-4">
           {records.map((pdi) => (
-            <PDICard key={pdi.id} pdi={pdi} onEdit={openEdit} onDelete={setDeleteId} />
+            <PDICard key={pdi.id} pdi={pdi} onEdit={openEdit} onDelete={setDeleteId} readOnly={readOnly} />
           ))}
         </div>
       )}
