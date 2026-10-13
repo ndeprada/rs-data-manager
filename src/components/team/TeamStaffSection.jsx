@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Pencil, Mail, Phone } from "lucide-react";
@@ -23,7 +23,7 @@ export default function TeamStaffSection({ teamId }) {
   const [form, setForm] = useState({ staff_member_id: "", team_role: "" });
 
   // ── Data ───────────────────────────────────────────────────────────────
-  const { data: assignments = [] } = useQuery({
+  const { data: assignments = [], isFetched: assignmentsLoaded } = useQuery({
     queryKey: ["team_staff_assignments", teamId],
     queryFn: () => base44.entities.TeamStaffAssignment.filter({ team_id: teamId, active: true }),
     enabled: !!teamId,
@@ -34,14 +34,17 @@ export default function TeamStaffSection({ teamId }) {
     queryFn: () => base44.entities.StaffMember.list(),
   });
 
-  // ── Auto-migrate: create TeamStaffAssignment for StaffMembers that have team_id but no assignment yet ──
+  // ── Auto-migrate: crea la asignación de quien tiene team_id pero aún no tiene asignación ──
+  // (una sola vez por persona y equipo: antes se repetía en bucle y creaba asignaciones duplicadas)
+  const migrating = useRef(new Set());
   useEffect(() => {
-    if (!teamId || allStaff.length === 0 || assignments === undefined) return;
+    if (!teamId || !assignmentsLoaded || allStaff.length === 0) return;
     const assignedStaffIds = new Set(assignments.map(a => a.staff_member_id));
     const toMigrate = allStaff.filter(
-      s => s.team_id === teamId && !assignedStaffIds.has(s.id)
+      s => s.team_id === teamId && !assignedStaffIds.has(s.id) && !migrating.current.has(`${s.id}:${teamId}`)
     );
     toMigrate.forEach(async (s) => {
+      migrating.current.add(`${s.id}:${teamId}`);
       try {
         await base44.entities.TeamStaffAssignment.create({
           staff_member_id: s.id,
@@ -53,10 +56,12 @@ export default function TeamStaffSection({ teamId }) {
         queryClient.invalidateQueries({ queryKey: ["team_staff_assignments", teamId] });
       } catch (_) {}
     });
-  }, [teamId, allStaff, assignments]);
+  }, [teamId, allStaff, assignments, assignmentsLoaded]);
 
   // Build combined view: assignment + staff data
+  const seenStaff = new Set();
   const teamStaff = assignments
+    .filter(a => (seenStaff.has(a.staff_member_id) ? false : (seenStaff.add(a.staff_member_id), true)))
     .map(a => {
       const staff = allStaff.find(s => s.id === a.staff_member_id);
       if (!staff) return null;

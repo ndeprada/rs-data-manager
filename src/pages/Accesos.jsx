@@ -67,6 +67,26 @@ export default function Accesos() {
     });
   }, [liveUsers, staff, assignments, links, isLoading]);
 
+  // Limpieza: asignaciones activas repetidas (misma persona y equipo) → se queda la más antigua
+  const dedupDone = useRef(false);
+  useEffect(() => {
+    if (currentUser?.role !== "admin" || dedupDone.current || assignments.length === 0) return;
+    const seen = new Map();
+    const extras = [];
+    [...assignments]
+      .sort((a, b) => String(a.created_date).localeCompare(String(b.created_date)))
+      .forEach((a) => {
+        const key = `${a.staff_member_id}:${a.team_id}`;
+        if (seen.has(key)) extras.push(a);
+        else seen.set(key, a);
+      });
+    dedupDone.current = true;
+    if (extras.length === 0) return;
+    Promise.all(extras.map((a) => base44.entities.TeamStaffAssignment.update(a.id, { active: false })))
+      .then(() => queryClient.invalidateQueries({ queryKey: ["team_staff_assignments"] }))
+      .catch(() => {});
+  }, [assignments]);
+
   const saveMutation = useMutation({
     mutationFn: ({ user, form }) => saveUserAccess({ user, form, staffList: staff, activeAssignments: assignments }),
     onSuccess: (_, { form }) => {
