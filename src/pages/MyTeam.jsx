@@ -1,4 +1,5 @@
-import MatchesTimeline from "@/components/match/MatchesTimeline";
+import TeamMatchesColumns from "@/components/team/TeamMatchesColumns";
+import TeamSquadTable from "@/components/team/TeamSquadTable";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -36,6 +37,7 @@ export default function MyTeam() {
   const [createEventDate, setCreateEventDate] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
   const [editingPlayer, setEditingPlayer] = useState(null);
+  const [addPlayerOpen, setAddPlayerOpen] = useState(false);
   const [deletePlayerId, setDeletePlayerId] = useState(null);
 
   const deleteMutation = useMutation({
@@ -118,7 +120,7 @@ export default function MyTeam() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -170,6 +172,8 @@ export default function MyTeam() {
         editingPlayer={editingPlayer}
       />
 
+      <AddPlayerDialog open={addPlayerOpen} onOpenChange={setAddPlayerOpen} teamId={selectedTeamId} />
+
       <AlertDialog open={!!deletePlayerId} onOpenChange={open => { if (!open) setDeletePlayerId(null); }}>
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
@@ -186,82 +190,11 @@ export default function MyTeam() {
       {/* FCF Classifications for this team */}
       {selectedTeam?.fcf_group_url && <FCFClassificationsPanel teams={[selectedTeam]} />}
 
-      {/* Últimos y próximos partidos */}
-      <MatchesTimeline matches={teamEvents.filter(e => MATCH_TYPES.includes(e.type))} title="Últimos y próximos partidos" onOpen={(m) => navigate(`/MatchDetail?id=${m.id}&teamId=${m.team_id}`)} />
+      {/* Últimos y próximos partidos (3 y 3) */}
+      <TeamMatchesColumns matches={teamEvents.filter(e => MATCH_TYPES.includes(e.type))} onOpen={(m) => navigate(`/MatchDetail?id=${m.id}&teamId=${m.team_id}`)} />
 
-      {/* Players list */}
-      <div className="bg-white border border-gray-200 shadow-sm" style={{ borderRadius: "4px" }}>
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-black text-base uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Plantilla</h2>
-          <Link to="/MyTeam/Squad" className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}>Ver completo →</Link>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-[10px] text-gray-400 uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
-                <th className="text-left px-5 py-2.5 font-bold">#</th>
-                <th className="text-left px-3 py-2.5 font-bold">Jugador</th>
-                <th className="text-left px-3 py-2.5 font-bold hidden sm:table-cell">Posición</th>
-                <th className="text-center px-3 py-2.5 font-bold">PJ</th>
-                <th className="text-center px-3 py-2.5 font-bold">Goles</th>
-                <th className="text-center px-3 py-2.5 font-bold hidden md:table-cell">Asist.</th>
-                <th className="text-center px-3 py-2.5 font-bold hidden sm:table-cell">Estado</th>
-                <th className="px-3 py-2.5"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {playerWithStats.map(p => (
-                <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-3 font-black text-gray-400" style={{ fontFamily: "var(--font-display)" }}>{p.jersey_number || "—"}</td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2 group/row">
-                    <Link to={`/PlayerProfile?id=${p.id}`} className="flex items-center gap-2 group">
-                      <div className="relative shrink-0">
-                        <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden border border-gray-200" style={{ background: "var(--granate-pale)" }}>
-                          {p.photo_url ? (
-                            <img src={p.photo_url} alt={p.first_name} className="w-full h-full object-cover" />
-                          ) : (
-                            <User className="w-4 h-4 text-gray-400" />
-                          )}
-                        </div>
-                        {p.jersey_number && (
-                          <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full text-white flex items-center justify-center text-[9px] font-black leading-none" style={{ background: "var(--granate)", fontFamily: "var(--font-display)" }}>
-                            {p.jersey_number}
-                          </span>
-                        )}
-                      </div>
-                      <span className="font-bold text-gray-900 group-hover:underline" style={{ fontFamily: "var(--font-display)" }}>{p.first_name} {p.last_name}</span>
-                    </Link>
-                    <Link to={`/PlayerProfile?id=${p.id}&edit=1`} title="Editar jugador" className="p-1 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-100 shrink-0"><Pencil className="w-3.5 h-3.5" /></Link>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3 hidden sm:table-cell text-xs text-gray-500 capitalize">{p.position || "—"}</td>
-                  <td className="px-3 py-3 text-center font-black" style={{ fontFamily: "var(--font-display)" }}>{p.matches}</td>
-                  <td className="px-3 py-3 text-center font-black" style={{ fontFamily: "var(--font-display)", color: p.goals > 0 ? "var(--granate)" : "inherit" }}>{p.goals}</td>
-                  <td className="px-3 py-3 text-center hidden md:table-cell font-bold text-gray-600">{p.assists}</td>
-                  <td className="px-3 py-3 text-center hidden sm:table-cell">
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-sm border ${
-                      p.status === "activo" ? "bg-green-50 text-green-700 border-green-200" :
-                      p.status === "lesionado" ? "bg-red-50 text-red-700 border-red-200" :
-                      "bg-gray-50 text-gray-500 border-gray-200"
-                    }`}>{p.status}</span>
-                  </td>
-                  <td className="px-3 py-3 text-right">
-                    <div className="flex justify-end gap-1">
-                      <button onClick={() => setEditingPlayer(p)} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => setDeletePlayerId(p.id)} className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Plantilla: datos + estadísticas en una sola tabla */}
+      <TeamSquadTable teamId={selectedTeamId} onAddPlayer={() => setAddPlayerOpen(true)} />
     </div>
   );
 }

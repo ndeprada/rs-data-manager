@@ -257,6 +257,15 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
     (guestSearch ? `${p.first_name} ${p.last_name}`.toLowerCase().includes(guestSearch.toLowerCase()) : false)
   );
 
+  // Seleccionar / quitar a todos los jugadores del equipo de golpe (luego se ajusta uno a uno)
+  const allSelected = activePlayers.length > 0 && activePlayers.every(p => convocadoIds.includes(p.id));
+  const toggleAll = () => {
+    const teamIds = activePlayers.map(p => p.id);
+    setConvocadoIds(prev => allSelected
+      ? prev.filter(id => !teamIds.includes(id))
+      : [...new Set([...prev, ...teamIds])]);
+  };
+
   const convocados = allPlayers.filter(p => convocadoIds.includes(p.id));
   const noConvocados = activePlayers.filter(p => !convocadoIds.includes(p.id));
   const convocadosCount = convocadoIds.length;
@@ -314,6 +323,9 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
           )}
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button size="sm" variant="outline" onClick={toggleAll} className="text-xs border-gray-200">
+            <Check className="w-3.5 h-3.5 mr-1" /> {allSelected ? "Quitar todos" : "Seleccionar todos"}
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setShowGuestSearch(!showGuestSearch)} className="text-xs border-gray-200">
             <Plus className="w-3.5 h-3.5 mr-1" /> Añadir de otro equipo
           </Button>

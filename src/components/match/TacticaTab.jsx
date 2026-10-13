@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Save, RotateCcw } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { RotateCcw, Eraser, Wand2, Search } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import SetPieceBoard from "./SetPieceBoard";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,7 +31,7 @@ const FORMATION_POSITIONS = {
 };
 
 // ── Draggable Football Field ────────────────────────────
-function DraggableField({ players, positions, onPositionsChange }) {
+function DraggableField({ slots, positions, onPositionsChange, onSlotClick }) {
   const svgRef = useRef(null);
   const draggingIdx = useRef(null);
   const W = 300, H = 420;
@@ -44,9 +48,11 @@ function DraggableField({ players, positions, onPositionsChange }) {
     };
   }, []);
 
+  const downAt = useRef(null);
   const handlePointerDown = (e, idx) => {
     e.preventDefault();
     draggingIdx.current = idx;
+    downAt.current = { x: e.clientX, y: e.clientY, idx };
     svgRef.current?.setPointerCapture(e.pointerId);
   };
 
@@ -59,7 +65,10 @@ function DraggableField({ players, positions, onPositionsChange }) {
     onPositionsChange(next);
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e) => {
+    const d = downAt.current;
+    if (d && e && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) onSlotClick?.(d.idx);
+    downAt.current = null;
     draggingIdx.current = null;
   };
 
@@ -100,36 +109,23 @@ function DraggableField({ players, positions, onPositionsChange }) {
 
       {/* Players */}
       {positions.map((pos, i) => {
-        const player = players[i];
+        const player = slots[i];
         if (!pos) return null;
         const cx = pos[0] / 100 * W;
         const cy = pos[1] / 100 * H;
-        const name = player?.last_name || `${i + 1}`;
+        const name = player?.last_name || "";
         return (
-          <g
-            key={i}
-            onPointerDown={e => handlePointerDown(e, i)}
-            style={{ cursor: "grab" }}
-          >
-            {/* Shadow */}
+          <g key={i} onPointerDown={e => handlePointerDown(e, i)} style={{ cursor: "grab" }}>
             <circle cx={cx + 1} cy={cy + 2} r="17" fill="rgba(0,0,0,0.25)" />
-            {/* Token */}
-            <circle cx={cx} cy={cy} r="17" fill="var(--granate)" stroke="white" strokeWidth="2.5" />
-            {/* Number */}
-            {player?.jersey_number ? (
-              <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fontSize="11" fontWeight="900" fill="white">
-                {player.jersey_number}
-              </text>
-            ) : (
-              <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fontSize="10" fill="rgba(255,255,255,0.7)">
-                {i + 1}
+            <circle cx={cx} cy={cy} r="17" fill={player ? "var(--granate)" : "rgba(255,255,255,0.15)"} stroke="white" strokeWidth="2.5" strokeDasharray={player ? "0" : "4 3"} />
+            <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 11 : 14} fontWeight="900" fill="white">
+              {player ? (player.jersey_number || player.first_name?.[0]) : "+"}
+            </text>
+            {player && (
+              <text x={cx} y={cy + 27} textAnchor="middle" fontSize="8" fontWeight="700" fill="white" opacity="0.95">
+                {name.length > 10 ? name.slice(0, 10) + "…" : name}
               </text>
             )}
-            {/* Name label */}
-            <text x={cx} y={cy + 27} textAnchor="middle" fontSize="8" fontWeight="700" fill="white" opacity="0.95"
-              style={{ textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
-              {name.length > 10 ? name.slice(0, 10) + "…" : name}
-            </text>
           </g>
         );
       })}
@@ -137,155 +133,237 @@ function DraggableField({ players, positions, onPositionsChange }) {
   );
 }
 
+// ── Selector de jugador para un hueco del once ─────────
+function PlayerPicker({ open, onClose, teamPlayers, taken, onPick, onClear, current }) {
+  const [q, setQ] = useState("");
+  const { data: allPlayers = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list(), enabled: open });
+  useEffect(() => { if (open) setQ(""); }, [open]);
+  const pool = q.trim()
+    ? allPlayers.filter(p => p.status !== "baja" && `${p.first_name} ${p.last_name}`.toLowerCase().includes(q.toLowerCase())).slice(0, 30)
+    : teamPlayers;
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="bg-white border-gray-200 max-w-sm max-h-[85vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Elegir jugador</DialogTitle></DialogHeader>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar (incluye otros equipos)…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-gray-300" />
+        </div>
+        <div className="space-y-1">
+          {current && <button onClick={onClear} className="w-full text-left text-xs px-3 py-2 rounded border border-red-200 text-red-600 hover:bg-red-50">Dejar el hueco vacío</button>}
+          {pool.map(p => {
+            const used = taken.has(p.id) && p.id !== current?.id;
+            return (
+              <button key={p.id} disabled={used} onClick={() => onPick(p)} className={`w-full text-left flex items-center gap-2 px-3 py-1.5 rounded text-sm ${used ? "opacity-40" : "hover:bg-gray-50"}`}>
+                <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-black shrink-0" style={{ background: "var(--granate)" }}>{p.jersey_number || p.first_name?.[0]}</span>
+                <span className="font-medium truncate">{p.first_name} {p.last_name}</span>
+                <span className="ml-auto text-[10px] text-gray-400">{POS_LABEL[p.position] || ""}</span>
+              </button>
+            );
+          })}
+          {pool.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Sin resultados</p>}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CT", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
+const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
+
+function Plan({ title, hint, value, onChange: set, placeholder }) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-2">
+      <p className="text-sm font-bold text-gray-900">{title}</p>
+      <p className="text-[10px] text-gray-400">{hint}</p>
+      <Textarea value={value} onChange={e => set(e.target.value)} rows={6} className="border-gray-200 text-sm" placeholder={placeholder} />
+    </div>
+  );
+}
+
 // ── Main Tab ────────────────────────────────────────────
 export default function TacticaTab({ event, players, convocadoIds, starterIds, footballFormat }) {
+  const qc = useQueryClient();
   const isF7 = footballFormat === "f7";
   const formations = isF7 ? FORMATIONS_F7 : FORMATIONS_F11;
   const validDefault = formations[0];
+  const teamPlayers = [...players.filter(p => p.status !== "baja")].sort((a, b) => (POS_ORDER.indexOf(a.position) - POS_ORDER.indexOf(b.position)) || (a.last_name || "").localeCompare(b.last_name || ""));
 
+  const { data: allPlayers = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
   const [formation, setFormation] = useState(validDefault);
-  const [positions, setPositions] = useState(null); // null = use default
-  const [planPropio, setPlanPropio] = useState("");
-  const [planRival, setPlanRival] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [positions, setPositions] = useState(null);
+  const [lineup, setLineup] = useState([]);       // ids por hueco (null = vacío)
+  const [bench, setBench] = useState([]);
+  const [planAttack, setPlanAttack] = useState("");
+  const [planDefense, setPlanDefense] = useState("");
+  const [rival, setRival] = useState({ strengths: "", weaknesses: "", keys: "", notes: "" });
+  const [pieces, setPieces] = useState([]);
+  const [pickSlot, setPickSlot] = useState(null);
+  const [status, setStatus] = useState("");
+  const loaded = useRef(false);
+  const planId = useRef(null);
+  const chain = useRef(Promise.resolve());
 
-  const starters = players.filter(p => starterIds.includes(p.id));
-  const suplentes = players.filter(p => convocadoIds.includes(p.id) && !starterIds.includes(p.id));
+  const { data: plan, isFetched } = useQuery({
+    queryKey: ["matchplan", event?.id],
+    queryFn: () => base44.entities.MatchPlan.filter({ event_id: event.id }).then(d => d[0] || null),
+    enabled: !!event?.id,
+  });
+
+  // Carga inicial (una vez): plan guardado, o el borrador antiguo de este navegador
+  useEffect(() => {
+    if (!isFetched || loaded.current) return;
+    loaded.current = true;
+    if (plan) {
+      planId.current = plan.id;
+      if (formations.includes(plan.formation)) setFormation(plan.formation);
+      setPositions(plan.positions || null);
+      setLineup(plan.lineup || []);
+      setBench(plan.bench || []);
+      setPlanAttack(plan.plan_attack || "");
+      setPlanDefense(plan.plan_defense || "");
+      setRival({ strengths: "", weaknesses: "", keys: "", notes: "", ...(plan.rival || {}) });
+      setPieces(plan.set_pieces || []);
+    } else {
+      try {
+        const old = JSON.parse(localStorage.getItem(`tactica_${event?.id}`) || "null");
+        if (old) {
+          if (formations.includes(old.formation)) setFormation(old.formation);
+          setPlanAttack(old.planPropio || "");
+          setRival(r => ({ ...r, notes: old.planRival || "" }));
+        }
+      } catch (_) {}
+    }
+  }, [isFetched]);
 
   const validFormation = formations.includes(formation) ? formation : validDefault;
   const defaultPositions = FORMATION_POSITIONS[validFormation] || [];
   const currentPositions = positions || defaultPositions;
+  const nSlots = defaultPositions.length;
+  const slotIds = Array.from({ length: nSlots }, (_, i) => lineup[i] || null);
+  const slots = slotIds.map(id => (id ? allPlayers.find(p => p.id === id) || players.find(p => p.id === id) || null : null));
+  const taken = new Set(slotIds.filter(Boolean));
 
-  // Reset positions when formation changes
+  // Autoguardado (1,2 s después del último cambio)
+  const payload = { formation: validFormation, positions, lineup: slotIds, bench, plan_attack: planAttack, plan_defense: planDefense, rival, set_pieces: pieces };
+  const payloadKey = JSON.stringify(payload);
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (!loaded.current) return;
+    if (firstRun.current) { firstRun.current = false; return; }
+    setStatus("Guardando…");
+    const t = setTimeout(() => {
+      chain.current = chain.current.then(async () => {
+        try {
+          if (planId.current) await base44.entities.MatchPlan.update(planId.current, payload);
+          else { const c = await base44.entities.MatchPlan.create({ event_id: event.id, team_id: event.team_id, ...payload }); planId.current = c.id; }
+          qc.invalidateQueries({ queryKey: ["matchplan", event.id] });
+          setStatus("Guardado ✓");
+        } catch (_) { setStatus("Error al guardar"); }
+      });
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [payloadKey]);
+
   const handleFormationChange = (f) => {
     setFormation(f);
     setPositions(null);
+    setLineup(l => l.slice(0, (FORMATION_POSITIONS[f] || []).length));
   };
-
-  const handleResetPositions = () => setPositions(null);
-
-  // Load from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem(`tactica_${event?.id}`);
-    if (stored) {
-      try {
-        const { formation: f, positions: pos, planPropio: p, planRival: r } = JSON.parse(stored);
-        if (formations.includes(f)) { setFormation(f); }
-        if (pos) setPositions(pos);
-        setPlanPropio(p || "");
-        setPlanRival(r || "");
-      } catch (_) {}
-    }
-  }, [event?.id]);
-
-  const handleSave = () => {
-    localStorage.setItem(`tactica_${event?.id}`, JSON.stringify({
-      formation: validFormation, positions: currentPositions, planPropio, planRival,
-    }));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const setSlot = (i, id) => setLineup(() => { const n = [...slotIds]; n[i] = id; return n; });
+  const fillFromActa = () => {
+    const ids = players.filter(p => starterIds.includes(p.id)).sort((a, b) => POS_ORDER.indexOf(a.position) - POS_ORDER.indexOf(b.position)).map(p => p.id);
+    setLineup(Array.from({ length: nSlots }, (_, i) => ids[i] || null));
   };
+  const toggleBench = (id) => setBench(b => b.includes(id) ? b.filter(x => x !== id) : [...b, id]);
+  const benchCandidates = teamPlayers.filter(p => !taken.has(p.id));
+  const filled = slotIds.filter(Boolean).length;
+  const names = [...new Set(players.map(p => p.last_name).filter(Boolean))];
 
   return (
     <div className="space-y-5">
+      <div className="flex justify-end text-[11px] text-gray-400 h-4">{status}</div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-        {/* ── Campo táctico ── */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-bold text-gray-900">Once inicial</p>
+        {/* ── Once inicial: libre, no depende de la convocatoria ── */}
+        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-sm font-bold text-gray-900">Once inicial <span className="text-gray-400 font-normal text-xs">({filled}/{nSlots})</span></p>
             <div className="flex items-center gap-2">
               <Select value={validFormation} onValueChange={handleFormationChange}>
-                <SelectTrigger className="w-32 h-8 text-xs border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-28 h-8 text-xs border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent>{formations.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
               </Select>
-              <button onClick={handleResetPositions} title="Restablecer posiciones" className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors">
-                <RotateCcw className="w-3.5 h-3.5" />
-              </button>
+              <button onClick={() => setPositions(null)} title="Restablecer posiciones" className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50"><RotateCcw className="w-3.5 h-3.5" /></button>
+              {starterIds?.length > 0 && <button onClick={fillFromActa} title="Rellenar con los titulares del acta" className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50"><Wand2 className="w-3.5 h-3.5" /></button>}
+              {filled > 0 && <button onClick={() => setLineup([])} title="Vaciar el once" className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-red-600 hover:bg-red-50"><Eraser className="w-3.5 h-3.5" /></button>}
             </div>
           </div>
+          <p className="text-[10px] text-gray-400 text-center">Toca un hueco para elegir jugador (cualquiera del club) · arrastra para reposicionar</p>
+          <div style={{ maxWidth: 320, margin: "0 auto", aspectRatio: "300/420" }}>
+            <DraggableField
+              slots={slots}
+              positions={currentPositions}
+              onPositionsChange={(newPos) => setPositions(newPos)}
+              onSlotClick={(i) => setPickSlot(i)}
+            />
+          </div>
 
-          {starters.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-10">Define los titulares en la pestaña Convocatoria</p>
-          ) : (
-            <>
-              <p className="text-[10px] text-gray-400 text-center">Arrastra los jugadores para reposicionarlos</p>
-              <div style={{ maxWidth: 320, margin: "0 auto", aspectRatio: "300/420" }}>
-                <DraggableField
-                  players={starters}
-                  positions={currentPositions.slice(0, starters.length)}
-                  onPositionsChange={(newPos) => {
-                    const full = [...currentPositions];
-                    newPos.forEach((p, i) => { full[i] = p; });
-                    setPositions(full);
-                  }}
-                />
-              </div>
-            </>
-          )}
-
-          {/* Titulares + suplentes list */}
-          {starters.length > 0 && (
-            <div className="space-y-1 pt-2 border-t border-gray-100">
-              <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1">Titulares</p>
-              <div className="grid grid-cols-2 gap-1">
-                {starters.map((p, i) => (
-                  <div key={p.id} className="flex items-center gap-1.5 px-2 py-1 rounded bg-gray-50 text-xs">
-                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-black shrink-0" style={{ background: "var(--granate)" }}>{i + 1}</span>
-                    <span className="font-medium truncate">{p.first_name?.[0]}. {p.last_name}</span>
-                    {p.jersey_number && <span className="text-gray-400 ml-auto text-[10px]">#{p.jersey_number}</span>}
-                  </div>
-                ))}
-              </div>
-              {suplentes.length > 0 && (
-                <>
-                  <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mt-2 mb-1">Suplentes</p>
-                  <div className="grid grid-cols-2 gap-1">
-                    {suplentes.map(p => (
-                      <div key={p.id} className="flex items-center gap-1.5 px-2 py-1 rounded bg-orange-50 text-xs">
-                        <span className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-black shrink-0" style={{ background: "var(--naranja)" }}>S</span>
-                        <span className="font-medium truncate">{p.first_name?.[0]}. {p.last_name}</span>
-                        {p.jersey_number && <span className="text-gray-400 ml-auto text-[10px]">#{p.jersey_number}</span>}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+          <div className="pt-2 border-t border-gray-100">
+            <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1.5">Banquillo <span className="font-normal normal-case">(toca para añadir o quitar)</span></p>
+            <div className="flex flex-wrap gap-1">
+              {benchCandidates.map(p => {
+                const on = bench.includes(p.id);
+                return (
+                  <button key={p.id} type="button" onClick={() => toggleBench(p.id)}
+                    className={`text-[11px] px-2 py-1 rounded-full border ${on ? "text-white border-transparent" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                    style={on ? { background: "var(--naranja)" } : {}}>
+                    {p.first_name?.[0]}. {p.last_name}
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* ── Plan de partido ── */}
+        {/* ── Planes ── */}
         <div className="space-y-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-            <p className="text-sm font-bold text-gray-900">🎯 Nuestro plan de partido</p>
-            <p className="text-[10px] text-gray-400">Estrategia, sistemas, movimientos clave, pressing…</p>
-            <Textarea
-              value={planPropio}
-              onChange={e => setPlanPropio(e.target.value)}
-              rows={7}
-              className="border-gray-200 text-sm"
-              placeholder="Ej: Salir en 4-3-3 con presión alta. Aprovechar la banda derecha con el lateral. Saques de esquina en corto…"
-            />
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-            <p className="text-sm font-bold text-gray-900">🔍 Análisis del rival</p>
-            <p className="text-[10px] text-gray-400">Puntos fuertes/débiles del rival, cómo neutralizarlos…</p>
-            <Textarea
-              value={planRival}
-              onChange={e => setPlanRival(e.target.value)}
-              rows={7}
-              className="border-gray-200 text-sm"
-              placeholder="Ej: Rival muy fuerte en transiciones. Delantero rápido por la derecha. Tapar el mediocampista organizador…"
-            />
-          </div>
-
-          <Button onClick={handleSave} className="w-full text-white" style={{ background: "var(--granate)" }}>
-            <Save className="w-4 h-4 mr-2" />{saved ? "¡Guardado!" : "Guardar plan de partido"}
-          </Button>
+          <Plan title="⚔️ Plan de partido en ataque" hint="Salida de balón, progresión, zonas de ataque, movimientos clave, finalización…" value={planAttack} onChange={setPlanAttack}
+            placeholder="Ej: Salida 3+1 con el mediocentro, progresar por banda derecha, extremos cerrando para el desmarque del 9…" />
+          <Plan title="🛡️ Plan de partido en defensa" hint="Bloque, altura de presión, referencias de marcaje, transiciones defensivas…" value={planDefense} onChange={setPlanDefense}
+            placeholder="Ej: Bloque medio 4-4-2, presión tras pase atrás, vigilar al 10 rival en el rechace, repliegue rápido…" />
         </div>
       </div>
+
+      {/* ── Análisis del rival ── */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+        <p className="text-sm font-bold text-gray-900">🔍 Análisis del rival{event?.opponent ? ` · ${event.opponent}` : ""}</p>
+        <div className="grid md:grid-cols-3 gap-3">
+          {[["strengths", "Puntos fuertes", "Qué hacen bien, cómo atacan…"], ["weaknesses", "Puntos débiles", "Dónde les podemos hacer daño…"], ["keys", "Jugadores clave", "Dorsal, perfil, cómo frenarlo…"]].map(([k, label, ph]) => (
+            <div key={k} className="space-y-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{label}</p>
+              <Textarea rows={5} value={rival[k]} onChange={e => setRival(r => ({ ...r, [k]: e.target.value }))} className="border-gray-200 text-sm" placeholder={ph} />
+            </div>
+          ))}
+        </div>
+        <div className="space-y-1">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Comentarios</p>
+          <Textarea rows={3} value={rival.notes} onChange={e => setRival(r => ({ ...r, notes: e.target.value }))} className="border-gray-200 text-sm" placeholder="Sistema habitual, estilo, balón parado, resultados recientes…" />
+        </div>
+      </div>
+
+      {/* ── Balón parado ── */}
+      <SetPieceBoard pieces={pieces} onChange={setPieces} names={names} />
+
+      <PlayerPicker
+        open={pickSlot !== null}
+        onClose={() => setPickSlot(null)}
+        teamPlayers={teamPlayers}
+        taken={taken}
+        current={pickSlot !== null ? slots[pickSlot] : null}
+        onPick={(p) => { setSlot(pickSlot, p.id); setBench(b => b.filter(x => x !== p.id)); setPickSlot(null); }}
+        onClear={() => { setSlot(pickSlot, null); setPickSlot(null); }}
+      />
     </div>
   );
 }
