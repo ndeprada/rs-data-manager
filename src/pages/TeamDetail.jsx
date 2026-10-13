@@ -17,6 +17,8 @@ import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import AddStaffDialog from "@/components/team/AddStaffDialog";
 import TeamStaffSection from "@/components/team/TeamStaffSection";
 import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
+import CreateEventDialog from "@/components/myteam/CreateEventDialog";
+import EditEventDialog from "@/components/myteam/EditEventDialog";
 
 const EVENT_TYPES = [
   { value: "entrenamiento", label: "Entrenamiento" },
@@ -67,6 +69,8 @@ export default function TeamDetail() {
   const [deletePlayer, setDeletePlayer] = useState(null);
   const [deleteStaff, setDeleteStaff] = useState(null);
   const [newEventOpen, setNewEventOpen] = useState(false);
+  const [createEventDate, setCreateEventDate] = useState(null);
+  const [editingWeekEvent, setEditingWeekEvent] = useState(null);
   const [eventForm, setEventForm] = useState({ title: "", type: "entrenamiento", date: "", location: "", opponent: "" });
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
@@ -181,7 +185,23 @@ export default function TeamDetail() {
       </div>
 
       {/* Próximos Eventos - WeeklyCalendar */}
-      <WeeklyCalendar events={allTeamEvents} teamId={teamId} />
+      <WeeklyCalendar
+        events={allTeamEvents}
+        teamId={teamId}
+        onDayClick={(day) => setCreateEventDate(day)}
+        onEventClick={(ev) => setEditingWeekEvent(ev)}
+      />
+      <CreateEventDialog
+        open={!!createEventDate}
+        onOpenChange={(open) => { if (!open) setCreateEventDate(null); }}
+        date={createEventDate}
+        teamId={teamId}
+      />
+      <EditEventDialog
+        open={!!editingWeekEvent}
+        onOpenChange={(open) => { if (!open) setEditingWeekEvent(null); }}
+        event={editingWeekEvent}
+      />
 
       {/* Últimos y próximos partidos */}
       <MatchesTimeline matches={teamMatchEvents} title="Últimos y próximos partidos" onOpen={(m) => navigate(`/MatchDetail?id=${m.id}&teamId=${m.team_id}`)} />
