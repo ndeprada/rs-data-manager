@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { ChevronRight } from "lucide-react";
+import { isCleanSheet } from "@/lib/cleanSheet";
 import PlayerAttributesBar from "./PlayerAttributesBar";
 import GuardianContactCard from "./GuardianContactCard";
 
@@ -102,6 +103,7 @@ export default function PlayerSummaryTab({ player, playerId, matchStats, attenda
                       {s.minutes_played ? `${s.minutes_played}'` : ""}
                       {s.goals > 0 ? ` · ${s.goals} gol${s.goals > 1 ? "es" : ""}` : ""}
                       {s.assists > 0 ? ` · ${s.assists} asist.` : ""}
+                      {player.position === "portero" && isCleanSheet(s, events) ? " · P0" : ""}
                     </span>
                   </div>
                 ))}

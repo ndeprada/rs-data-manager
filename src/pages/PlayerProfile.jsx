@@ -1,4 +1,5 @@
 import { birthYearOf } from "@/lib/birthYear";
+import { countCleanSheets } from "@/lib/cleanSheet";
 import React, { useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -61,6 +62,7 @@ export default function PlayerProfile() {
   const { data: attendance = [] } = useQuery({ queryKey: ["attendance"], queryFn: () => base44.entities.TrainingAttendance.list() });
   const { data: injuries = [] } = useQuery({ queryKey: ["injuries"], queryFn: () => base44.entities.Injury.list() });
   const { data: matchStats = [] } = useQuery({ queryKey: ["matchstats", playerId], queryFn: () => base44.entities.MatchStats.filter({ player_id: playerId }, "date"), enabled: !!playerId });
+  const { data: allEvents = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list() });
   const { data: convocatorias = [] } = useQuery({ queryKey: ["convocatorias"], queryFn: () => base44.entities.Convocatoria.list() });
 
   const player = players.find((p) => p.id === playerId);
@@ -117,11 +119,12 @@ export default function PlayerProfile() {
   const age = birthYearOf(player);
   const convPct = totalConvocatorias > 0 && partidos > 0 ? Math.round((partidos / totalConvocatorias) * 100) : null;
 
+  const isGK = player.position === "portero";
   const heroStats = [
     { label: "PJ", value: partidos },
     { label: "Min", value: totalMins > 0 ? `${totalMins.toLocaleString("es-ES")}'` : "0'" },
     { label: "Goles", value: totalGoals },
-    { label: "Asist.", value: totalAssists },
+    isGK ? { label: "Porter. a 0", value: countCleanSheets(matchStats, allEvents) } : { label: "Asist.", value: totalAssists },
     { label: "Tarj.", value: yellowCards + redCards },
     { label: "Asist. entr.", value: attendancePct !== null ? `${attendancePct}%` : "—" },
     { label: "Nota", value: avgRating || "—" },
@@ -251,7 +254,7 @@ export default function PlayerProfile() {
           <TabsContent value="stats" className={tabContentClass}>
             <div className="space-y-4">
               <PlayerPerformancePanel playerId={playerId} />
-              <MatchStatsSection playerId={playerId} />
+              <MatchStatsSection playerId={playerId} isGoalkeeper={player.position === "portero"} />
             </div>
           </TabsContent>
 
