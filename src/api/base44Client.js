@@ -66,6 +66,35 @@ const entitiesProxy = new Proxy(
   }
 );
 
+// Reduce las imágenes antes de subirlas: el servidor rechaza peticiones de más de ~4,5 MB
+// y una foto de móvil recortada a resolución completa (sobre todo en PNG) las supera.
+async function shrinkImage(file, maxSide = 1280) {
+  if (!file.type?.startsWith('image/') || file.type === 'image/gif' || file.type === 'image/svg+xml') return file;
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = url;
+    });
+    URL.revokeObjectURL(url);
+    const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+    if (scale === 1 && file.size < 1.5 * 1024 * 1024) return file;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    const keepPng = file.type === 'image/png';
+    const blob = await new Promise((r) => canvas.toBlob(r, keepPng ? 'image/png' : 'image/jpeg', 0.88));
+    if (!blob || blob.size >= file.size) return file;
+    const base = (file.name || 'imagen').replace(/\.[^.]+$/, '');
+    return new File([blob], `${base}.${keepPng ? 'png' : 'jpg'}`, { type: blob.type });
+  } catch {
+    return file;
+  }
+}
+
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -100,11 +129,15 @@ export const base44 = {
 
   integrations: {
     Core: {
-      UploadFile: async ({ file }) => {
+      UploadFile: async ({ file: original }) => {
+        const file = await shrinkImage(original);
         const base64 = await fileToBase64(file);
+        if (base64.length > 4.2 * 1024 * 1024) {
+          throw new Error('El archivo es demasiado grande (máximo unos 3 MB). Reduce su tamaño e inténtalo de nuevo.');
+        }
         return apiFetch('/api/upload', {
           method: 'POST',
-          body: { filename: file.name, contentType: file.type, base64 },
+          body: { filename: file.name || 'archivo', contentType: file.type, base64 },
         });
       },
       // Sin proveedor de email/LLM configurado todavía: no-op seguro.

@@ -32,8 +32,10 @@ export default function ImageCropDialog({ open, onOpenChange, imageSrc, onConfir
     await new Promise(resolve => { image.onload = resolve; });
 
     const canvas = document.createElement("canvas");
-    canvas.width = croppedAreaPixels.width;
-    canvas.height = croppedAreaPixels.height;
+    // Foto de perfil: no hace falta más de 1024 px (evita archivos enormes)
+    const outScale = Math.min(1, 1024 / Math.max(croppedAreaPixels.width, croppedAreaPixels.height));
+    canvas.width = Math.round(croppedAreaPixels.width * outScale);
+    canvas.height = Math.round(croppedAreaPixels.height * outScale);
     const ctx = canvas.getContext("2d");
 
     // Fill background first
@@ -50,8 +52,8 @@ export default function ImageCropDialog({ open, onOpenChange, imageSrc, onConfir
       croppedAreaPixels.height,
       0,
       0,
-      croppedAreaPixels.width,
-      croppedAreaPixels.height
+      canvas.width,
+      canvas.height
     );
 
     const mimeType = bgColor === "transparent" ? "image/png" : "image/jpeg";
