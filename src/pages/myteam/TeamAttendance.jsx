@@ -44,6 +44,7 @@ export default function TeamAttendance() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [trialName, setTrialName] = useState("");
   const [showGuests, setShowGuests] = useState(false);
+  const [showExternal, setShowExternal] = useState(true);
   const chain = useRef({}); // serializa guardados por jugador
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
@@ -131,6 +132,23 @@ export default function TeamAttendance() {
     return { p, ...c };
   });
   const total = doneSessions.length;
+
+  // Jugadores externos (otros equipos del club y a prueba) con asistencia anotada en sesiones de este equipo
+  const external = (() => {
+    const map = {};
+    allAttendance.forEach(a => {
+      if (!doneIds.has(a.event_id) || !a.status || rosterIds.has(a.player_id)) return;
+      const isTrial = !!a.trial_name;
+      const pl = isTrial ? null : players.find(p => p.id === a.player_id);
+      if (!isTrial && !pl) return;
+      const key = isTrial ? `t_${a.trial_name.trim().toLowerCase()}` : a.player_id;
+      const e = map[key] || (map[key] = { key, isTrial, pl, name: isTrial ? a.trial_name : `${pl.first_name} ${pl.last_name}`, present: 0, apart: 0, absent: 0, reasons: {} });
+      if (a.status === "present") e.present++;
+      else if (a.status === "apart") e.apart++;
+      else if (a.status === "absent") { e.absent++; const k = a.absence_reason || "otro"; e.reasons[k] = (e.reasons[k] || 0) + 1; }
+    });
+    return Object.values(map).sort((a, b) => Number(a.isTrial) - Number(b.isTrial) || (b.present + b.apart) - (a.present + a.apart));
+  })();
 
   const renderRow = ({ pid, name, sub, tint, onRemove }) => {
     const att = recFor(pid);
@@ -297,6 +315,47 @@ export default function TeamAttendance() {
               </table>
             </div>
           </div>
+
+          {external.length > 0 && (
+            <div className="bg-white border border-blue-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
+              <button onClick={() => setShowExternal(v => !v)} className="w-full px-4 py-3 flex items-center justify-between text-left" style={{ background: "#eff6ff" }}>
+                <h2 className="font-black text-sm uppercase" style={{ fontFamily: "var(--font-display)", color: "#2563eb" }}>
+                  Jugadores de otros equipos y a prueba <span className="text-blue-400 font-normal">({external.length})</span>
+                </h2>
+                <span className="text-xs text-blue-500">{showExternal ? "Ocultar" : "Mostrar"}</span>
+              </button>
+              {showExternal && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100 text-[10px] text-gray-400 uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
+                        <th className="text-left px-3 py-2 font-bold">Jugador</th>
+                        <th className="text-left px-2 py-2 font-bold">Procedencia</th>
+                        <th className="text-center px-2 py-2 font-bold">Año nac.</th>
+                        <th className="text-center px-2 py-2 font-bold text-green-600">Asiste</th>
+                        <th className="text-center px-2 py-2 font-bold text-blue-600">A parte</th>
+                        <th className="text-center px-2 py-2 font-bold text-red-600">No asiste</th>
+                        <th className="text-left px-2 py-2 font-bold">Motivos</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {external.map(e => (
+                        <tr key={e.key} style={{ background: e.isTrial ? "#fffbeb" : "#f8fbff" }}>
+                          <td className="px-3 py-2 font-bold text-gray-900 whitespace-nowrap" style={{ fontFamily: "var(--font-display)" }}>{e.name}</td>
+                          <td className="px-2 py-2 text-gray-500 whitespace-nowrap">{e.isTrial ? "A prueba" : (teams.find(t => t.id === e.pl.team_id)?.name || "Otro equipo")}</td>
+                          <td className="px-2 py-2 text-center text-gray-500">{e.pl ? (birthYearOf(e.pl) ?? "—") : "—"}</td>
+                          <td className="px-2 py-2 text-center font-black text-green-700">{e.present}</td>
+                          <td className="px-2 py-2 text-center font-black text-blue-700">{e.apart}</td>
+                          <td className="px-2 py-2 text-center font-black text-red-600">{e.absent}</td>
+                          <td className="px-2 py-2 text-gray-500">{Object.entries(e.reasons).map(([k, n]) => `${REASON_LABEL[k] || k} ${n}`).join(" · ") || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 
