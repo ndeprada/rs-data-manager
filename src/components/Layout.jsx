@@ -13,6 +13,7 @@ import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { addDays, isWithinInterval, parseISO } from "date-fns";
+import { buildLinks } from "@/lib/staffLink";
 
 const MY_TEAM_SUBITEMS = [
   { label: "Panel", path: "/MyTeam", exact: true, icon: LayoutDashboard },
@@ -28,6 +29,8 @@ const ROLE_DISPLAY = {
   coordinador_f7: "Coord. F7",
   coordinador_f11: "Coord. F11",
   entrenador: "Entrenador",
+  director: "Director",
+  director_deportivo: "Dir. Deportivo",
   admin: "Admin",
 };
 
@@ -135,6 +138,22 @@ function Sidebar({ onClose = () => {} }) {
     }).length;
   }, [events, selectedTeamId]);
 
+  const { data: staffList = [] } = useQuery({
+    queryKey: ["staff"],
+    queryFn: () => base44.entities.StaffMember.list(),
+    enabled: !!user,
+  });
+  const myStaff = useMemo(() => (user ? buildLinks([user], staffList).get(user.id) : null), [user, staffList]);
+  const myStaffId = myStaff?.id;
+  const { data: unreadFeedback = [] } = useQuery({
+    queryKey: ["coachFeedbackUnread", myStaffId],
+    queryFn: () => base44.entities.CoachFeedback.filter({ staff_id: myStaffId, status: "enviado" }),
+    enabled: !!myStaffId,
+    refetchInterval: 120000,
+  });
+  const unreadCount = unreadFeedback.filter((f) => !f.read_at).length;
+  const myProfilePath = myStaffId ? `/CoachProfile?id=${myStaffId}` : user?.id ? `/CoachProfile?userId=${user.id}` : null;
+
   const adminNav = [
     { label: "Panel", path: "/Dashboard", icon: LayoutDashboard },
     { label: "Calendario", path: "/Calendar", icon: CalendarDays },
@@ -175,6 +194,20 @@ function Sidebar({ onClose = () => {} }) {
           <>
             <SectionLabel>Administración</SectionLabel>
             {adminNav.map(item => <NavItem key={item.path} item={item} onClick={onClose} />)}
+          </>
+        )}
+
+        {myProfilePath && (
+          <>
+            <SectionLabel>Mi perfil</SectionLabel>
+            <Link to={myProfilePath} onClick={onClose}
+              className="group flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl transition-all duration-150 nav-label text-[11px] text-white/55 hover:text-white hover:bg-white/10">
+              <UserCheck className="shrink-0 w-3.5 h-3.5 text-white/45 group-hover:text-white/75" />
+              <span className="flex-1 leading-none">Perfil y feedback</span>
+              {unreadCount > 0 && (
+                <span className="bg-red-500 text-white text-[8px] font-black rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none">{unreadCount}</span>
+              )}
+            </Link>
           </>
         )}
 

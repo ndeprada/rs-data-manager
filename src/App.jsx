@@ -46,8 +46,11 @@ const STAFF_ROLES = STAFF_FUNCTION_VALUES;
 const RootRedirect = () => {
   const { user } = useAuth();
   const appRole = user?.app_role;
-  if (STAFF_ROLES.includes(appRole)) {
+  if (["director", "director_deportivo", "coordinador_general", "coordinador_f7", "coordinador_f11"].includes(appRole)) {
     return <Navigate to="/Coaches" replace />;
+  }
+  if (STAFF_ROLES.includes(appRole)) {
+    return <Navigate to="/MyTeam" replace />;
   }
   return <Navigate to="/Dashboard" replace />;
 };

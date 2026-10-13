@@ -13,6 +13,7 @@ import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { useAuth } from "@/lib/AuthContext";
 import CoachPDISection from "@/components/coach/CoachPDISection";
 import CoachMatchNotesSection from "@/components/coach/CoachMatchNotesSection";
+import CoachFeedbackSection from "@/components/coach/CoachFeedbackSection";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 import { TEAM_ROLES } from "@/lib/staffRoles";
@@ -173,6 +174,7 @@ export default function CoachProfile() {
   const canEvaluate = isCoordinatorGeneral || (isCoordinator && coordCanSeeTeam());
   // El entrenador siempre ve su propia pestaña PDI (para ver informes publicados y dejar feedback)
   const showPDITab = canViewReports || isOwnProfile;
+  const showFeedbackTab = canViewReports || isOwnProfile;
 
   const updatePhotoMutation = useMutation({
     mutationFn: async (file) => {
@@ -408,8 +410,13 @@ export default function CoachProfile() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue={showPDITab ? "pdi" : "notes"}>
+      <Tabs defaultValue={showFeedbackTab ? "feedback" : "notes"}>
         <TabsList className="bg-gray-100 border border-gray-200">
+          {showFeedbackTab && (
+            <TabsTrigger value="feedback" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
+              Feedback
+            </TabsTrigger>
+          )}
           {showPDITab && (
             <TabsTrigger value="pdi" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
               PDI · Plan Desarrollo Individual
@@ -417,7 +424,7 @@ export default function CoachProfile() {
           )}
           {canViewReports && (
             <TabsTrigger value="matches" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
-              Obs. Partidos
+              Notas privadas
             </TabsTrigger>
           )}
           {member.notes && (
@@ -427,15 +434,29 @@ export default function CoachProfile() {
           )}
         </TabsList>
 
+        {showFeedbackTab && (
+          <TabsContent value="feedback" className="mt-4">
+            <CoachFeedbackSection
+              staffId={member._isUser ? `user_${member._userId}` : staffId}
+              teamIds={[...new Set([...(memberAssignments || []).map(a => a.team_id), member.team_id].filter(Boolean))]}
+              canWrite={canViewReports}
+              isOwnProfile={!!isOwnProfile}
+              author={{ id: user?.id, name: user?.full_name }}
+            />
+          </TabsContent>
+        )}
+
         {showPDITab && (
         <TabsContent value="pdi" className="mt-4">
           <CoachPDISection staffId={member._isUser ? `user_${member._userId}` : staffId} canEvaluate={canEvaluate} canView={canViewReports} isOwnProfile={isOwnProfile} />
         </TabsContent>
         )}
 
+        {canViewReports && (
         <TabsContent value="matches" className="mt-4">
           <CoachMatchNotesSection staffId={member._isUser ? `user_${member._userId}` : staffId} teamId={member.team_id} isCoordinator={canViewReports} />
         </TabsContent>
+        )}
 
         {member.notes && (
           <TabsContent value="notes" className="mt-4">
