@@ -189,8 +189,17 @@ export default function PDIPlanSection({ player, team }) {
 
   if (!catalog) {
     return (
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm text-sm text-gray-500">
-        Para usar el Plan de Desarrollo por competencias, asigna una <strong>posición</strong> al jugador (botón Editar del perfil).
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">Etapa:</span>
+          {["f7", "f11"].map((k) => (
+            <button key={k} type="button" onClick={() => setStage.mutate(k)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border ${stage === k ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`}
+              style={stage === k ? { background: "var(--granate)" } : {}}>{STAGE_LABEL[k]}</button>
+          ))}
+          {!player.pdi_stage && <span className="text-[10px] text-gray-400">(según el equipo)</span>}
+        </div>
+        <p className="text-sm text-gray-500">Para planificar competencias por posición, asigna una <strong>posición</strong> al jugador (botón Editar del perfil).</p>
       </div>
     );
   }
