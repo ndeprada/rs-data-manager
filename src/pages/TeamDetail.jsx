@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import AddStaffDialog from "@/components/team/AddStaffDialog";
 import TeamStaffSection from "@/components/team/TeamStaffSection";
+import { useSelectedTeam } from "@/lib/useSelectedTeam";
 import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
@@ -69,6 +70,7 @@ export default function TeamDetail() {
   const [deletePlayer, setDeletePlayer] = useState(null);
   const [deleteStaff, setDeleteStaff] = useState(null);
   const [newEventOpen, setNewEventOpen] = useState(false);
+  const { selectTeam } = useSelectedTeam();
   const [createEventDate, setCreateEventDate] = useState(null);
   const [editingWeekEvent, setEditingWeekEvent] = useState(null);
   const [eventForm, setEventForm] = useState({ title: "", type: "entrenamiento", date: "", location: "", opponent: "" });
@@ -189,7 +191,15 @@ export default function TeamDetail() {
         events={allTeamEvents}
         teamId={teamId}
         onDayClick={(day) => setCreateEventDate(day)}
-        onEventClick={(ev) => setEditingWeekEvent(ev)}
+        onEventClick={(ev) => {
+          // Entrenamientos: abrir el control de asistencia de ese día; otros eventos: editar
+          if (["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"].includes(ev.type)) {
+            selectTeam(ev.team_id || teamId);
+            navigate(`/MyTeam/Attendance?eventId=${ev.id}`);
+          } else {
+            setEditingWeekEvent(ev);
+          }
+        }}
       />
       <CreateEventDialog
         open={!!createEventDate}
