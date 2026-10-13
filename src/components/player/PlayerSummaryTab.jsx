@@ -100,13 +100,19 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
                 {recent.slice(0, 3).map((s, i) => {
                   const ev = s.event_id ? events.find((e) => e.id === s.event_id) : null;
                   const crest = "w-5 h-5 object-contain shrink-0";
+                  const away = ev?.is_home === false;
+                  const ours = <img src={team?.logo_url || CLUB_LOGO_URL} alt="" className={crest} loading="lazy" referrerPolicy="no-referrer" />;
+                  const rival = ev?.opponent_logo_url
+                    ? <img src={ev.opponent_logo_url} alt="" className={crest} loading="lazy" referrerPolicy="no-referrer" />
+                    : <span className={crest} />;
+                  const score = ev && ev.score_home != null && ev.score_away != null
+                    ? (away ? `${ev.score_away}-${ev.score_home}` : `${ev.score_home}-${ev.score_away}`)
+                    : "—";
                   return (
                     <div key={s.id} className="flex items-center py-1.5 text-xs gap-1.5">
-                      <img src={team?.logo_url || CLUB_LOGO_URL} alt="" className={crest} loading="lazy" referrerPolicy="no-referrer" />
-                      <span className="font-bold text-gray-700 shrink-0 w-9 text-center">{results[i]?.score || "—"}</span>
-                      {ev?.opponent_logo_url
-                        ? <img src={ev.opponent_logo_url} alt="" className={crest} loading="lazy" referrerPolicy="no-referrer" />
-                        : <span className={crest} />}
+                      {away ? rival : ours}
+                      <span className="font-bold text-gray-700 shrink-0 w-9 text-center">{score}</span>
+                      {away ? ours : rival}
                       <span className="font-medium text-gray-800 truncate flex-1 min-w-0">{s.opponent || "Rival"}</span>
                       <span className="text-gray-400 shrink-0">
                         {s.minutes_played ? `${s.minutes_played}'` : ""}
