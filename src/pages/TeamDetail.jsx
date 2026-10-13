@@ -122,10 +122,11 @@ export default function TeamDetail() {
     };
   });
 
-  const teamEvents = events
-    .filter((e) => e.team_id === teamId && isAfter(new Date(e.date), startOfDay(new Date())))
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .slice(0, 10);
+  // Todos los eventos del equipo (la previsión semanal navega por cualquier semana)
+  const allTeamEvents = events.filter((e) => e.team_id === teamId);
+  const teamEvents = allTeamEvents
+    .filter((e) => isAfter(new Date(e.date), startOfDay(new Date())))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   if (!team) {
     return (
@@ -180,7 +181,7 @@ export default function TeamDetail() {
       </div>
 
       {/* Próximos Eventos - WeeklyCalendar */}
-      <WeeklyCalendar events={teamEvents} teamId={teamId} />
+      <WeeklyCalendar events={allTeamEvents} teamId={teamId} />
 
       {/* Últimos y próximos partidos */}
       <MatchesTimeline matches={teamMatchEvents} title="Últimos y próximos partidos" onOpen={(m) => navigate(`/MatchDetail?id=${m.id}&teamId=${m.team_id}`)} />
