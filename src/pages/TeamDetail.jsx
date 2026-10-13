@@ -209,10 +209,6 @@ export default function TeamDetail() {
 
       {/* Team Staff Section - Vincular staff existente */}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <UserCog className="w-5 h-5 text-gray-400" />
-          <h2 className="font-semibold text-lg text-gray-900">Cuerpo Técnico del Equipo</h2>
-        </div>
         <TeamStaffSection teamId={teamId} />
       </div>
 

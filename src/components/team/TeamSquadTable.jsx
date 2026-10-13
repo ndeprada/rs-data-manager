@@ -139,9 +139,9 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
                     <td className={`${num} font-black`}>{r.pj}</td>
                     <td className={`${num} font-black`} style={{ color: r.goals > 0 ? "var(--granate)" : undefined }}>{r.goals}</td>
                     <td className={`${num} font-bold text-gray-600`}>{r.assists}</td>
-                    <td className={`${num} text-gray-700`}>{r.mins}'</td>
-                    <td className={`${num} text-gray-600`}>{r.minPJ != null ? `${r.minPJ}'` : "—"}</td>
-                    <td className={`${num} font-bold`} style={{ color: "var(--granate)" }}>{r.pctMin != null && r.pj ? `${r.pctMin}%` : "—"}</td>
+                    <td className={`${num} text-gray-700`}>{r.mins > 0 ? `${r.mins}'` : "—"}</td>
+                    <td className={`${num} text-gray-600`}>{r.minPJ ? `${r.minPJ}'` : "—"}</td>
+                    <td className={`${num} font-bold`} style={{ color: "var(--granate)" }}>{r.pctMin != null && r.mins > 0 ? `${r.pctMin}%` : "—"}</td>
                     <td className={`${num} font-bold`}>{r.rating != null ? r.rating.toFixed(1) : "—"}</td>
                     <td className={num}>{r.ta > 0 ? <span className="inline-block min-w-4 px-1 rounded-sm bg-yellow-400 text-[10px] font-bold text-yellow-900">{r.ta}</span> : <span className="text-gray-300">—</span>}</td>
                     <td className={num}>{r.tr > 0 ? <span className="inline-block min-w-4 px-1 rounded-sm bg-red-500 text-[10px] font-bold text-white">{r.tr}</span> : <span className="text-gray-300">—</span>}</td>
