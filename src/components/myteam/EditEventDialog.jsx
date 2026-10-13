@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays, startOfDay, parseISO } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,34 +82,48 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
     },
   });
 
+  const fmtNaive = (d) => format(d, "yyyy-MM-dd'T'HH:mm");
+
   const updateSeriesMutation = useMutation({
     mutationFn: async (data) => {
       const allEvents = await base44.entities.Event.filter({ series_id: event.series_id });
-      await Promise.all(allEvents.map(e => {
-        // Keep each event's own date, only update time from form
-        const originalDate = new Date(e.date);
-        const [hh, mm] = form.time.split(":");
-        originalDate.setHours(Number(hh), Number(mm), 0);
-
-        let endDate = undefined;
-        if (form.end_time) {
-          const originalEnd = e.end_date ? new Date(e.end_date) : new Date(e.date);
-          const [ehh, emm] = form.end_time.split(":");
-          originalEnd.setFullYear(originalDate.getFullYear(), originalDate.getMonth(), originalDate.getDate());
-          originalEnd.setHours(Number(ehh), Number(emm), 0);
-          endDate = originalEnd.toISOString();
-        }
-
-        return base44.entities.Event.update(e.id, {
-          ...data,
-          date: originalDate.toISOString(),
-          end_date: endDate,
-        });
-      }));
+      // Si cambias la fecha de este evento, el resto de la serie se desplaza los mismos días
+      // (p. ej. de martes a jueves = +2 días en todos). La hora se aplica a todos.
+      const shift = differenceInCalendarDays(parseISO(form.date), startOfDay(new Date(event.date)));
+      const [hh, mm] = (form.time || "00:00").split(":").map(Number);
+      const [ehh, emm] = form.end_time ? form.end_time.split(":").map(Number) : [null, null];
+      const { date: _d, end_date: _e, ...common } = data;
+      for (let i = 0; i < allEvents.length; i += 10) {
+        await Promise.all(allEvents.slice(i, i + 10).map((e) => {
+          const old = new Date(e.date);
+          const start = new Date(old.getFullYear(), old.getMonth(), old.getDate() + shift, hh, mm);
+          let end;
+          if (ehh !== null) end = new Date(start.getFullYear(), start.getMonth(), start.getDate(), ehh, emm);
+          return base44.entities.Event.update(e.id, {
+            ...common,
+            date: fmtNaive(start),
+            end_date: end ? fmtNaive(end) : undefined,
+          });
+        }));
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
       setSeriesConfirm(false);
+      onOpenChange(false);
+    },
+  });
+
+  const deleteSeriesMutation = useMutation({
+    mutationFn: async () => {
+      const allEvents = await base44.entities.Event.filter({ series_id: event.series_id });
+      for (let i = 0; i < allEvents.length; i += 10) {
+        await Promise.all(allEvents.slice(i, i + 10).map((e) => base44.entities.Event.delete(e.id)));
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      setConfirmDelete(false);
       onOpenChange(false);
     },
   });
@@ -271,12 +285,19 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar evento?</AlertDialogTitle>
-            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+            <AlertDialogDescription>
+              {event.series_id ? "Este evento forma parte de una serie recurrente. Esta acción no se puede deshacer." : "Esta acción no se puede deshacer."}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            {event.series_id && (
+              <Button variant="outline" onClick={() => deleteSeriesMutation.mutate()} disabled={deleteSeriesMutation.isPending} className="text-red-600 border-red-200 hover:bg-red-50">
+                {deleteSeriesMutation.isPending ? "Eliminando…" : "Toda la serie"}
+              </Button>
+            )}
             <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-red-600 hover:bg-red-700 text-white">
-              Eliminar
+              {event.series_id ? "Solo este" : "Eliminar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -287,7 +308,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Evento recurrente</AlertDialogTitle>
             <AlertDialogDescription>
-              Este evento forma parte de una serie. ¿A qué eventos quieres aplicar los cambios?
+              Este evento forma parte de una serie. ¿A qué eventos quieres aplicar los cambios? Si has cambiado la fecha (por ejemplo de martes a jueves), toda la serie se moverá esos mismos días.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
