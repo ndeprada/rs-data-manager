@@ -141,7 +141,7 @@ function EventCard({ event, navigate, onEventClick }) {
 
 const DAYS_ES = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
 
-export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEventClick, title = "Previsión semanal", selectedEventId }) {
+export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEventClick, title = "Previsión semanal", selectedEventId, forceGrid = false }) {
   const navigate = useNavigate();
   const [weekBase, setWeekBase] = useState(new Date());
 
@@ -202,7 +202,7 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
       </div>
 
       {/* ── MOBILE LIST VIEW (hidden on md+) ── */}
-      <div className="block md:hidden bg-white">
+      <div className={`${forceGrid ? "hidden" : "block md:hidden"} bg-white`}>
         {days.map((day, i) => {
           const dayEvents = getEventsForDay(day);
           const todayDay = isToday(day);
@@ -286,7 +286,8 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
       </div>
 
       {/* ── DESKTOP GRID VIEW (hidden on mobile) ── */}
-      <div className="hidden md:grid grid-cols-7 bg-white" style={{ borderTop: "1px solid #f3f4f6" }}>
+      <div className={forceGrid ? "overflow-x-auto" : "hidden md:block"}>
+      <div className="grid grid-cols-7 bg-white" style={{ borderTop: "1px solid #f3f4f6", minWidth: forceGrid ? 760 : undefined }}>
         {days.map((day, i) => {
           const dayEvents = getEventsForDay(day);
           const todayDay = isToday(day);
@@ -345,6 +346,8 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
             </div>
           );
         })}
+      </div>
+
       </div>
 
       {/* ── LEGEND ── */}

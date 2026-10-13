@@ -250,10 +250,11 @@ export default function TeamAttendance() {
         /* ───────── LÍNEA TEMPORAL + RESUMEN ───────── */
         <>
           <WeeklyCalendar
-            events={trainings}
+            events={events.filter(e => e.team_id === selectedTeamId)}
             teamId={selectedTeamId}
             title="Entrenamientos de la semana"
-            onEventClick={(ev) => navigate(`/MyTeam/Attendance?eventId=${ev.id}`)}
+            forceGrid
+            onEventClick={(ev) => TRAINING_TYPES.includes(ev.type) ? navigate(`/MyTeam/Attendance?eventId=${ev.id}`) : setEditingEvent(ev)}
           />
 
           <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
