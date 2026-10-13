@@ -3,7 +3,8 @@ import { useAuth } from "@/lib/AuthContext";
 
 const TeamAccessContext = createContext();
 
-const COORDINATOR_ROLES = ["coordinador_general", "coordinador_f7", "coordinador_f11"];
+const DIRECTOR_ROLES = ["director", "director_deportivo"];
+const COORDINATOR_ROLES = ["coordinador_general", "coordinador_f7", "coordinador_f11", ...DIRECTOR_ROLES];
 const STAFF_ROLES = ["preparador_fisico", "entrenador_porteros", "psicologo", "fisioterapeuta"];
 
 export const TeamAccessProvider = ({ children }) => {
@@ -19,7 +20,7 @@ export const TeamAccessProvider = ({ children }) => {
 
   const isAdmin = user?.role === "admin";
   const isCoordinator = isAdmin || COORDINATOR_ROLES.includes(appRole);
-  const isCoordinatorGeneral = isAdmin || appRole === "coordinador_general";
+  const isCoordinatorGeneral = isAdmin || appRole === "coordinador_general" || DIRECTOR_ROLES.includes(appRole);
 
   // Staff técnico: acceso a perfiles de jugadores de todos los equipos
   const isStaffTecnico = STAFF_ROLES.includes(appRole);

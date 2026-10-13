@@ -7,6 +7,8 @@ export const CURRENT_SEASON = "2025-2026";
 //        "optional" = puede además estar asignada a equipos concretos;
 //        "none"     = rol general del club, sin equipos.
 export const APP_FUNCTIONS = [
+  { value: "director", label: "Director", teams: "optional", hint: "Acceso completo, como coordinación general" },
+  { value: "director_deportivo", label: "Director Deportivo", teams: "optional", hint: "Acceso completo, como coordinación general" },
   { value: "coordinador_general", label: "Coordinador General", teams: "optional", hint: "Acceso a todos los equipos; añade los que además entrenes" },
   { value: "coordinador_f7", label: "Coordinador de etapa F7", teams: "optional" },
   { value: "coordinador_f11", label: "Coordinador de etapa F11", teams: "optional" },

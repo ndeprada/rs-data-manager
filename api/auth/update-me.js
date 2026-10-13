@@ -2,7 +2,7 @@ import { query } from '../_lib/db.js';
 import { requireUser } from '../_lib/auth.js';
 
 const REQUESTABLE_FUNCTIONS = [
-  'coordinador_general', 'coordinador_f7', 'coordinador_f11', 'entrenador', 'entrenador_porteros',
+  'director', 'director_deportivo', 'coordinador_general', 'coordinador_f7', 'coordinador_f11', 'entrenador', 'entrenador_porteros',
   'preparador_fisico', 'psicologo', 'fisioterapeuta', 'jugador',
 ];
 // Datos de perfil que cada persona puede cambiarse a sí misma

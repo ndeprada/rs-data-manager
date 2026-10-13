@@ -19,6 +19,8 @@ const ROLE_LABELS = {
   coordinador: "Coordinador",
   otro: "Otro",
   coordinador_general: "Coord. General",
+  director: "Director",
+  director_deportivo: "Director Deportivo",
   coordinador_f7: "Coord. F7",
   coordinador_f11: "Coord. F11",
   entrenador_porteros: "Entren. Porteros",

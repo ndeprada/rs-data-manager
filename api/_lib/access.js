@@ -13,7 +13,7 @@ const PROFILE_FIELDS = new Set(['phone', 'notes', 'birth_date', 'photo_url', 'fu
 // Campos de vinculación a equipos: además los puede tocar la coordinación
 const TEAM_LINK_FIELDS = new Set(['staff_member_id', 'team_id', 'team_ids', 'secondary_role', 'secondary_team_ids']);
 
-const COORDINATOR_ROLES = ['coordinador_general', 'coordinador_f7', 'coordinador_f11'];
+const COORDINATOR_ROLES = ['director', 'director_deportivo', 'coordinador_general', 'coordinador_f7', 'coordinador_f11'];
 
 export const isAdmin = (u) => u.role === 'admin';
 // Usuarios antiguos sin estado pero con función asignada se consideran aprobados (igual que en la app)
