@@ -116,17 +116,18 @@ function DraggableField({ slots, positions, onPositionsChange, onSlotClick }) {
         if (!pos) return null;
         const cx = pos[0] / 100 * W;
         const cy = pos[1] / 100 * H;
-        const name = player?.last_name || "";
+        const [line1, line2] = player ? labelLines(player) : ["", ""];
         return (
           <g key={i} onPointerDown={e => handlePointerDown(e, i)} style={{ cursor: "grab" }}>
-            <circle cx={cx + 1} cy={cy + 2} r="17" fill="rgba(0,0,0,0.25)" />
-            <circle cx={cx} cy={cy} r="17" fill={player ? "var(--granate)" : "rgba(255,255,255,0.15)"} stroke="white" strokeWidth="2.5" strokeDasharray={player ? "0" : "4 3"} />
-            <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 11 : 14} fontWeight="900" fill="white">
+            <circle cx={cx + 1} cy={cy + 1.5} r="13" fill="rgba(0,0,0,0.25)" />
+            <circle cx={cx} cy={cy} r="13" fill={player ? "var(--granate)" : "rgba(255,255,255,0.15)"} stroke="white" strokeWidth="2" strokeDasharray={player ? "0" : "4 3"} />
+            <text x={cx} y={cy + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 10.5 : 13} fontWeight="900" fill="white">
               {player ? (player.jersey_number || player.first_name?.[0]) : "+"}
             </text>
             {player && (
-              <text x={cx} y={cy + 27} textAnchor="middle" fontSize="8" fontWeight="700" fill="white" opacity="0.95">
-                {name.length > 10 ? name.slice(0, 10) + "…" : name}
+              <text x={cx} y={cy + 23} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="white" stroke="rgba(0,0,0,0.55)" strokeWidth="2.2" paintOrder="stroke" strokeLinejoin="round">
+                <tspan x={cx}>{line1}</tspan>
+                {line2 && <tspan x={cx} dy="9.5">{line2}</tspan>}
               </text>
             )}
           </g>
@@ -135,6 +136,18 @@ function DraggableField({ slots, positions, onPositionsChange, onSlotClick }) {
     </svg>
   );
 }
+
+// Nombre completo en una línea y primer apellido en la segunda (respeta partículas: "De la Torre")
+const PARTICLES = ["de", "del", "la", "las", "los", "da", "di", "van", "von", "el", "i"];
+function firstSurname(last = "") {
+  const t = last.trim().split(/\s+/).filter(Boolean);
+  if (t.length <= 1) return t[0] || "";
+  let i = 0;
+  while (i < t.length - 1 && PARTICLES.includes(t[i].toLowerCase())) i++;
+  return t.slice(0, i + 1).join(" ");
+}
+function labelLines(p) { return [(p.first_name || "").trim(), firstSurname(p.last_name)]; }
+
 
 // ── Selector de jugador para un hueco del once ─────────
 function PlayerPicker({ open, onClose, teamPlayers, taken, onPick, onClear, current }) {
@@ -303,7 +316,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
             </div>
           </div>
           <p className="text-[10px] text-gray-400 text-center">Toca un hueco para elegir jugador (cualquiera del club) · arrastra para reposicionar</p>
-          <div style={{ maxWidth: 320, margin: "0 auto", aspectRatio: "300/420" }}>
+          <div style={{ maxWidth: 380, margin: "0 auto", aspectRatio: "300/420" }}>
             <DraggableField
               slots={slots}
               positions={currentPositions}
