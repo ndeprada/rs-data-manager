@@ -31,8 +31,8 @@ function resultOf(stat, events) {
 
 function Card({ title, onMore, children, className = "" }) {
   return (
-    <div className={`bg-white rounded-2xl border border-gray-200 shadow-sm p-4 ${className}`}>
-      <div className="flex items-center justify-between mb-3">
+    <div className={`bg-white rounded-2xl border border-gray-200 shadow-sm p-3 ${className}`}>
+      <div className="flex items-center justify-between mb-2">
         <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{title}</p>
         {onMore && (
           <button onClick={onMore} className="text-[11px] font-semibold flex items-center gap-0.5" style={{ color: "#6b1f28" }}>
@@ -82,14 +82,14 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1.1fr_0.9fr] gap-3">
         {/* Forma */}
         <Card title="Forma · últimos partidos" onMore={() => onGoTab("stats")}>
           {recent.length === 0 ? (
             <p className="text-sm text-gray-400">Sin partidos registrados.</p>
           ) : (
             <>
-              <div className="flex gap-1.5 mb-3">
+              <div className="flex gap-1.5 mb-2">
                 {results.map((r, i) => (
                   <div key={i} className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black text-white"
                     style={{ background: r ? r.bg : "#e5e7eb", color: r ? "white" : "#9ca3af" }}>
@@ -110,7 +110,7 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
                     ? (away ? `${ev.score_away}-${ev.score_home}` : `${ev.score_home}-${ev.score_away}`)
                     : "—";
                   return (
-                    <div key={s.id} className="flex items-center py-1.5 text-xs gap-1.5">
+                    <div key={s.id} className="flex items-center py-1 text-xs gap-1.5">
                       {away ? rival : ours}
                       <span className="font-bold text-gray-700 shrink-0 w-9 text-center">{score}</span>
                       {away ? ours : rival}
@@ -130,6 +130,7 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
         </Card>
 
         <PlayerInfoCards player={player} />
+        <PlayerAttributesBar playerId={playerId} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Entrenos */}
@@ -198,10 +199,7 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
         </Card>
 
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <GuardianContactCard player={player} />
-        <PlayerAttributesBar playerId={playerId} />
-      </div>
+      <GuardianContactCard player={player} />
     </div>
   );
 }

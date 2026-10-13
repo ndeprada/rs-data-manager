@@ -11,7 +11,7 @@ function StatCircle({ label, value }) {
   const color = scoreColor(value);
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <div className="relative w-14 h-14">
+      <div className="relative w-12 h-12">
         <svg viewBox="0 0 60 60" className="w-full h-full -rotate-90">
           <circle cx="30" cy="30" r={r} fill="none" stroke="#f0f0f0" strokeWidth="5" />
           <circle cx="30" cy="30" r={r} fill="none" stroke={color} strokeWidth="5"
@@ -37,22 +37,22 @@ export default function PlayerAttributesBar({ playerId }) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+      <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <span className="text-sm font-bold text-gray-900">Atributos</span>
-          <span className="inline-flex items-center justify-center min-w-8 h-8 px-1 rounded-xl text-sm font-black text-white shadow-sm" style={{ background: "linear-gradient(135deg, #6b1f28, #3d0d13)" }}>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Atributos</span>
+          <span className="inline-flex items-center justify-center min-w-7 h-7 px-1 rounded-lg text-xs font-black text-white shadow-sm" style={{ background: "linear-gradient(135deg, #6b1f28, #3d0d13)" }}>
             {avg.overall ?? "—"}
           </span>
         </div>
         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: latest ? "#f0fdf4" : "#f3f4f6", color: latest ? "#16a34a" : "#9ca3af" }}>
-          {latest ? `Evaluación 360 · ${latest.period || (latest.date ? new Date(latest.date).toLocaleDateString("es-ES", { month: "short", year: "numeric" }) : "")}` : "Sin Evaluación 360"}
+          {latest ? `360 · ${latest.period || (latest.date ? new Date(latest.date).toLocaleDateString("es-ES", { month: "short", year: "numeric" }) : "")}` : "Sin Evaluación 360"}
         </span>
       </div>
-      <div className="px-5 py-5 grid grid-cols-4 gap-4 justify-items-center max-w-md mx-auto">
+      <div className="px-3 py-3 grid grid-cols-4 gap-2 justify-items-center">
         {AREAS.map((a) => <StatCircle key={a.key} label={a.label} value={avg[a.key]} />)}
       </div>
       {!latest && (
-        <p className="text-center text-[10px] text-gray-400 pb-3 -mt-2">Crea una Evaluación 360 en la pestaña PDI para ver los atributos</p>
+        <p className="text-center text-[10px] text-gray-400 pb-2 -mt-1">Se rellena con la Evaluación 360 (pestaña PDI)</p>
       )}
     </div>
   );

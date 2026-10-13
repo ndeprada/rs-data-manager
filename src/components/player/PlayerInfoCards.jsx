@@ -127,8 +127,8 @@ export default function PlayerInfoCards({ player }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       {/* Header strip */}
-      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-        <span className="text-sm font-bold text-gray-900">Ficha del jugador</span>
+      <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Ficha del jugador</span>
         {player.jersey_number && (
           <span className="flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full" style={{ background: "#fdf2f4", color: "#6b1f28" }}>
             <Hash className="w-3 h-3" />{player.jersey_number}
@@ -140,7 +140,7 @@ export default function PlayerInfoCards({ player }) {
       <div className="flex gap-0">
 
         {/* Left: personal data */}
-        <div className="flex-1 min-w-0 px-5 py-4 space-y-3">
+        <div className="flex-1 min-w-0 px-4 py-3 space-y-2">
 
           {/* Position badge */}
           {player.position && (
@@ -156,7 +156,7 @@ export default function PlayerInfoCards({ player }) {
           )}
 
           {/* Key data grid */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
 
             {birthYear && (
               <div>
@@ -199,7 +199,7 @@ export default function PlayerInfoCards({ player }) {
           </div>
 
           {/* Divider */}
-          <div className="border-t border-gray-100 pt-3 space-y-2">
+          <div className="border-t border-gray-100 pt-2 space-y-1">
             {player.phone && (
               <a href={`tel:${player.phone}`} className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-800 transition-colors group">
                 <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 group-hover:opacity-80 transition-opacity" style={{ background: "#fdf2f4" }}>
@@ -221,12 +221,12 @@ export default function PlayerInfoCards({ player }) {
 
         {/* Right: football field */}
         {player.position && (
-          <div className="shrink-0 flex flex-col items-center justify-center p-4" style={{ width: 130 }}>
+          <div className="shrink-0 flex flex-col items-center justify-center p-3" style={{ width: 96 }}>
             <div className="w-full" style={{ aspectRatio: "200/300" }}>
               <FootballField position={player.position} secondaryPosition={player.secondary_position} laterality={player.laterality} />
             </div>
             {/* Legend */}
-            <div className="mt-2 space-y-1 w-full">
+            <div className="mt-1 space-y-0.5 w-full">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: "#9b2c35" }} />
                 <span className="text-[9px] text-gray-500 truncate">{POSITION_FULL[player.position]}</span>
