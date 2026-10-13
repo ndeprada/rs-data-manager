@@ -67,7 +67,10 @@ function DraggableField({ slots, positions, onPositionsChange, onSlotClick }) {
 
   const handlePointerUp = (e) => {
     const d = downAt.current;
-    if (d && e && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) onSlotClick?.(d.idx);
+    if (d && e && e.type === "pointerup" && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) {
+      const idx = d.idx;
+      setTimeout(() => onSlotClick?.(idx), 120); // evita que el "click" posterior caiga sobre el selector ya abierto
+    }
     downAt.current = null;
     draggingIdx.current = null;
   };
