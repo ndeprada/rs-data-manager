@@ -276,8 +276,8 @@ export default function PlayerProfile() {
 
           <TabsContent value="pdi" className={tabContentClass}>
             <div className="space-y-6">
-              <PDIPlanSection player={player} team={team} />
               <Evaluation360Section player={player} playerId={playerId} />
+              <PDIPlanSection player={player} team={team} />
               <details className="bg-white border border-gray-200 rounded-2xl shadow-sm">
                 <summary className="px-5 py-3 cursor-pointer text-sm font-semibold text-gray-600">Evaluaciones antiguas (texto libre)</summary>
                 <div className="px-4 pb-4">
