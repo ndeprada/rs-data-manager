@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { isCleanSheet, countCleanSheets } from "@/lib/cleanSheet";
+import { isCleanSheet, countCleanSheets, useCleanSheetData } from "@/lib/cleanSheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const emptyForm = {
@@ -51,12 +51,8 @@ export default function MatchStatsSection({ playerId, isGoalkeeper = false }) {
     queryFn: () => base44.entities.MatchStats.filter({ player_id: playerId }, "-date"),
   });
 
-  const { data: events = [] } = useQuery({
-    queryKey: ["events"],
-    queryFn: () => base44.entities.Event.list(),
-    enabled: isGoalkeeper,
-  });
-  const cleanSheets = isGoalkeeper ? countCleanSheets(stats, events) : 0;
+  const { events, allStats } = useCleanSheetData(isGoalkeeper);
+  const cleanSheets = isGoalkeeper ? countCleanSheets(stats, events, allStats) : 0;
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.MatchStats.create({ ...data, player_id: playerId }),
@@ -162,7 +158,7 @@ export default function MatchStatsSection({ playerId, isGoalkeeper = false }) {
                     <td className="px-2 py-3 text-center text-gray-500">{s.minutes_played ?? "—"}'</td>
                     {isGoalkeeper && (
                       <td className="px-2 py-3 text-center">
-                        {isCleanSheet(s, events) ? <span className="text-xs font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700">P0</span> : <span className="text-gray-300">—</span>}
+                        {isCleanSheet(s, events, allStats) ? <span className="text-xs font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700">P0</span> : <span className="text-gray-300">—</span>}
                       </td>
                     )}
                     <td className="px-2 py-3 text-center font-semibold text-gray-900">{s.goals || 0}</td>

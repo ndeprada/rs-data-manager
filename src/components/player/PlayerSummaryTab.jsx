@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { ChevronRight } from "lucide-react";
-import { isCleanSheet } from "@/lib/cleanSheet";
+import { isCleanSheet, useCleanSheetData } from "@/lib/cleanSheet";
 import PlayerAttributesBar from "./PlayerAttributesBar";
 import GuardianContactCard from "./GuardianContactCard";
 
@@ -45,6 +45,7 @@ function Card({ title, onMore, children, className = "" }) {
 
 export default function PlayerSummaryTab({ player, playerId, matchStats, attendance, injuries, onGoTab }) {
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list() });
+  const { allStats } = useCleanSheetData(player.position === "portero");
   const { data: goals = [] } = useQuery({
     queryKey: ["pdi_goals", playerId],
     queryFn: () => base44.entities.PDIGoal.filter({ player_id: playerId }, "-created_date"),
@@ -103,7 +104,7 @@ export default function PlayerSummaryTab({ player, playerId, matchStats, attenda
                       {s.minutes_played ? `${s.minutes_played}'` : ""}
                       {s.goals > 0 ? ` · ${s.goals} gol${s.goals > 1 ? "es" : ""}` : ""}
                       {s.assists > 0 ? ` · ${s.assists} asist.` : ""}
-                      {player.position === "portero" && isCleanSheet(s, events) ? " · P0" : ""}
+                      {player.position === "portero" && isCleanSheet(s, events, allStats) ? " · P0" : ""}
                     </span>
                   </div>
                 ))}

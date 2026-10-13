@@ -1,5 +1,5 @@
 import { birthYearOf } from "@/lib/birthYear";
-import { countCleanSheets } from "@/lib/cleanSheet";
+import { countCleanSheets, useCleanSheetData } from "@/lib/cleanSheet";
 import React, { useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -62,10 +62,10 @@ export default function PlayerProfile() {
   const { data: attendance = [] } = useQuery({ queryKey: ["attendance"], queryFn: () => base44.entities.TrainingAttendance.list() });
   const { data: injuries = [] } = useQuery({ queryKey: ["injuries"], queryFn: () => base44.entities.Injury.list() });
   const { data: matchStats = [] } = useQuery({ queryKey: ["matchstats", playerId], queryFn: () => base44.entities.MatchStats.filter({ player_id: playerId }, "date"), enabled: !!playerId });
-  const { data: allEvents = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list() });
   const { data: convocatorias = [] } = useQuery({ queryKey: ["convocatorias"], queryFn: () => base44.entities.Convocatoria.list() });
 
   const player = players.find((p) => p.id === playerId);
+  const { events: allEvents, allStats: allMatchStats } = useCleanSheetData(player?.position === "portero");
   const team = teams.find((t) => t.id === player?.team_id);
   const teamStaff = staffList.filter((s) => s.team_id === player?.team_id && s.email);
   const staffEmails = teamStaff.map((s) => s.email);
@@ -124,7 +124,7 @@ export default function PlayerProfile() {
     { label: "PJ", value: partidos },
     { label: "Min", value: totalMins > 0 ? `${totalMins.toLocaleString("es-ES")}'` : "0'" },
     { label: "Goles", value: totalGoals },
-    isGK ? { label: "Porter. a 0", value: countCleanSheets(matchStats, allEvents) } : { label: "Asist.", value: totalAssists },
+    isGK ? { label: "Porter. a 0", value: countCleanSheets(matchStats, allEvents, allMatchStats) } : { label: "Asist.", value: totalAssists },
     { label: "Tarj.", value: yellowCards + redCards },
     { label: "Asist. entr.", value: attendancePct !== null ? `${attendancePct}%` : "—" },
     { label: "Nota", value: avgRating || "—" },
