@@ -215,7 +215,7 @@ export default function PlayerProfile() {
                 )}
                 {age && (
                   <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs text-white/60 border border-white/10" style={{ background: "rgba(255,255,255,0.05)" }}>
-                    <Calendar className="w-3 h-3" /> Nac. {age}
+                    <Calendar className="w-3 h-3" /> Nac. {player.birth_date ? new Date(player.birth_date).toLocaleDateString("es") : age}
                   </span>
                 )}
               </div>
