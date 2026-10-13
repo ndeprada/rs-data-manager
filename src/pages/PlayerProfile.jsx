@@ -1,3 +1,4 @@
+import { birthYearOf } from "@/lib/birthYear";
 import React, { useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -113,7 +114,7 @@ export default function PlayerProfile() {
   const playerInjuries = injuries.filter((i) => i.player_id === playerId);
   const activeInjuries = playerInjuries.filter((i) => i.status !== "alta");
   const st = STATUS_CONFIG[player.status] || STATUS_CONFIG.activo;
-  const age = player.birth_date ? Math.floor((new Date() - new Date(player.birth_date)) / (365.25 * 24 * 3600 * 1000)) : null;
+  const age = birthYearOf(player);
   const convPct = totalConvocatorias > 0 && partidos > 0 ? Math.round((partidos / totalConvocatorias) * 100) : null;
 
   return (
@@ -214,7 +215,7 @@ export default function PlayerProfile() {
                 )}
                 {age && (
                   <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs text-white/60 border border-white/10" style={{ background: "rgba(255,255,255,0.05)" }}>
-                    <Calendar className="w-3 h-3" /> {age} años
+                    <Calendar className="w-3 h-3" /> Nac. {age}
                   </span>
                 )}
               </div>

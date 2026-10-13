@@ -26,7 +26,7 @@ const LATERALITY = [
 ];
 
 const emptyForm = {
-  first_name: "", last_name: "", birth_date: "", position: "", reference_role: "", secondary_position: "",
+  first_name: "", last_name: "", birth_date: "", birth_year: "", position: "", reference_role: "", secondary_position: "",
   laterality: "", jersey_number: "", phone: "", email: "", status: "activo", team_id: "",
 };
 
@@ -42,6 +42,7 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
         first_name: editingPlayer.first_name || "",
         last_name: editingPlayer.last_name || "",
         birth_date: editingPlayer.birth_date || "",
+        birth_year: editingPlayer.birth_year || (editingPlayer.birth_date ? String(editingPlayer.birth_date).slice(0, 4) : ""),
         position: editingPlayer.position || "",
         reference_role: editingPlayer.reference_role || "",
         secondary_position: editingPlayer.secondary_position || "",
@@ -69,7 +70,7 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const data = { ...form, team_id: form.team_id || teamId, jersey_number: form.jersey_number ? Number(form.jersey_number) : undefined };
+    const data = { ...form, birth_year: form.birth_year ? Number(form.birth_year) : null, birth_date: form.birth_date || null, team_id: form.team_id || teamId, jersey_number: form.jersey_number ? Number(form.jersey_number) : undefined };
     if (editingPlayer) {
       updateMutation.mutate({ id: editingPlayer.id, data });
     } else {
@@ -152,9 +153,17 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
               <Input type="number" value={form.jersey_number} onChange={(e) => setForm({ ...form, jersey_number: e.target.value })} className="border-gray-200" />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label className="text-gray-700">Fecha de nacimiento</Label>
-            <Input type="date" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} className="border-gray-200" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-gray-700">Año de nacimiento</Label>
+              <Input type="number" min="1980" max="2030" placeholder="2009" value={form.birth_year}
+                onChange={(e) => setForm({ ...form, birth_year: e.target.value })} className="border-gray-200" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-gray-700">Fecha completa <span className="text-gray-400 font-normal">(opcional)</span></Label>
+              <Input type="date" value={form.birth_date || ""}
+                onChange={(e) => setForm({ ...form, birth_date: e.target.value, birth_year: e.target.value ? e.target.value.slice(0, 4) : form.birth_year })} className="border-gray-200" />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

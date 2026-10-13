@@ -1,3 +1,4 @@
+import { birthYearOf } from "@/lib/birthYear";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -104,13 +105,13 @@ export default function Players() {
   });
 
   const birthYears = [...new Set(
-    players.map(p => p.birth_date ? new Date(p.birth_date).getFullYear() : null).filter(Boolean)
+    players.map(p => birthYearOf(p)).filter(Boolean)
   )].sort((a, b) => b - a);
 
   const filtered = players.filter((p) => {
     const matchSearch = `${p.first_name} ${p.last_name}`.toLowerCase().includes(search.toLowerCase());
     const matchTeam = filterTeam === "all" || p.team_id === filterTeam;
-    const matchYear = filterYear === "all" || (p.birth_date && new Date(p.birth_date).getFullYear().toString() === filterYear);
+    const matchYear = filterYear === "all" || (birthYearOf(p) && birthYearOf(p).toString() === filterYear);
     const matchLaterality = filterLaterality === "all" || p.laterality === filterLaterality;
     const matchPosition = filterPosition.size === 0 || filterPosition.has(p.position);
     const matchStatus = filterStatus === "all" || p.status === filterStatus;
@@ -128,7 +129,7 @@ export default function Players() {
       bVal = POS_ORDER.indexOf(b.position) === -1 ? 99 : POS_ORDER.indexOf(b.position);
     }
     else if (sortKey === "jersey_number") { aVal = a.jersey_number || 999; bVal = b.jersey_number || 999; }
-    else if (sortKey === "birth_date") { aVal = a.birth_date || ""; bVal = b.birth_date || ""; }
+    else if (sortKey === "birth_date") { aVal = birthYearOf(a) || 0; bVal = birthYearOf(b) || 0; }
     else if (sortKey === "status") { aVal = a.status || ""; bVal = b.status || ""; }
     else if (sortKey === "team") { aVal = teams.find(t => t.id === a.team_id)?.name || ""; bVal = teams.find(t => t.id === b.team_id)?.name || ""; }
     else { aVal = `${a.last_name} ${a.first_name}`.toLowerCase(); bVal = `${b.last_name} ${b.first_name}`.toLowerCase(); }
@@ -253,7 +254,7 @@ export default function Players() {
               <tbody className="divide-y divide-gray-50">
                 {sorted.map(player => {
                   const team = teams.find(t => t.id === player.team_id);
-                  const birthYear = player.birth_date ? new Date(player.birth_date).getFullYear() : null;
+                  const birthYear = birthYearOf(player);
                   return (
                     <tr key={player.id} className="hover:bg-gray-50 transition-colors">
                        <td className="px-4 py-1.5">

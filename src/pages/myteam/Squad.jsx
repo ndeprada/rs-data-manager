@@ -1,3 +1,4 @@
+import { birthYearOf } from "@/lib/birthYear";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -186,7 +187,7 @@ export default function Squad() {
                         </div>
                         <div>
                           <p className="font-bold text-gray-900 group-hover:underline" style={{ fontFamily: "var(--font-display)" }}>{p.first_name} {p.last_name}</p>
-                          <p className="text-[10px] text-gray-400">{p.birth_date ? format(new Date(p.birth_date), "dd/MM/yyyy") : "—"}</p>
+                          <p className="text-[10px] text-gray-400">{birthYearOf(p) ? `Nac. ${birthYearOf(p)}` : "—"}</p>
                         </div>
                       </Link>
                     </td>

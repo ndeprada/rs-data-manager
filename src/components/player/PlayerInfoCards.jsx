@@ -1,3 +1,4 @@
+import { birthYearOf } from "@/lib/birthYear";
 import React from "react";
 import { Phone, Mail, Calendar, Zap, MapPin, Hash } from "lucide-react";
 
@@ -121,10 +122,7 @@ function FootballField({ position, secondaryPosition, laterality }) {
 }
 
 export default function PlayerInfoCards({ player }) {
-  const birthYear = player.birth_date ? new Date(player.birth_date).getFullYear() : null;
-  const age = player.birth_date
-    ? Math.floor((new Date() - new Date(player.birth_date)) / (365.25 * 24 * 3600 * 1000))
-    : null;
+  const birthYear = birthYearOf(player);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -160,11 +158,11 @@ export default function PlayerInfoCards({ player }) {
           {/* Key data grid */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
 
-            {age && (
+            {birthYear && (
               <div>
-                <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mb-0.5">Edad</p>
-                <p className="text-sm font-bold text-gray-800">{age} años
-                  {birthYear && <span className="text-xs text-gray-400 font-normal ml-1">({birthYear})</span>}
+                <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mb-0.5">Año de nacimiento</p>
+                <p className="text-sm font-bold text-gray-800">{birthYear}
+                  {player.birth_date && <span className="text-xs text-gray-400 font-normal ml-1">({new Date(player.birth_date).toLocaleDateString("es")})</span>}
                 </p>
               </div>
             )}

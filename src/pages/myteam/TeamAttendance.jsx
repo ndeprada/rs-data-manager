@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useSelectedTeam } from "@/lib/useSelectedTeam";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
 import GuestPlayerSelector from "@/components/common/GuestPlayerSelector";
+import { birthYearOf } from "@/lib/birthYear";
 import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
 
 const STATUS_CONFIG = {
@@ -32,15 +33,6 @@ const POSITION_LABELS = {
 };
 const POSITION_ORDER = ["portero", "lateral", "central", "libre", "mediocentro", "interior", "extremo", "delantero_centro"];
 const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
-const ageOf = (bd) => {
-  if (!bd) return null;
-  const d = new Date(bd);
-  if (isNaN(d)) return null;
-  const now = new Date();
-  let a = now.getFullYear() - d.getFullYear();
-  if (now < new Date(now.getFullYear(), d.getMonth(), d.getDate())) a--;
-  return a;
-};
 
 export default function TeamAttendance() {
   const qc = useQueryClient();
@@ -267,7 +259,7 @@ export default function TeamAttendance() {
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100 text-[10px] text-gray-400 uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
                     <th className="text-left px-3 py-2 font-bold">Jugador</th>
-                    <th className="text-center px-2 py-2 font-bold">Edad</th>
+                    <th className="text-center px-2 py-2 font-bold">Año nac.</th>
                     <th className="text-left px-2 py-2 font-bold">Posición</th>
                     <th className="text-center px-2 py-2 font-bold text-green-600">Asiste</th>
                     <th className="text-center px-2 py-2 font-bold text-blue-600">A parte</th>
@@ -283,7 +275,7 @@ export default function TeamAttendance() {
                     return (
                       <tr key={p.id} className="hover:bg-gray-50">
                         <td className="px-3 py-2 font-bold text-gray-900 whitespace-nowrap" style={{ fontFamily: "var(--font-display)" }}>{p.first_name} {p.last_name}</td>
-                        <td className="px-2 py-2 text-center text-gray-500">{ageOf(p.birth_date) ?? "—"}</td>
+                        <td className="px-2 py-2 text-center text-gray-500">{birthYearOf(p) ?? "—"}</td>
                         <td className="px-2 py-2 text-gray-500 whitespace-nowrap">{POSITION_LABELS[p.position] || "—"}</td>
                         <td className="px-2 py-2 text-center font-black text-green-700">{present}</td>
                         <td className="px-2 py-2 text-center font-black text-blue-700">{apart}</td>
