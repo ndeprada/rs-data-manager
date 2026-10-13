@@ -106,17 +106,25 @@ export default function Calendar() {
 
   const createRecurringEvents = async (baseData) => {
     const { is_recurring, recurrence_until, ...eventData } = baseData;
+    const fmt = (d) => format(d, "yyyy-MM-dd'T'HH:mm");
     const baseDate = new Date(eventData.date);
+    const baseEnd = eventData.end_date ? new Date(eventData.end_date) : null;
+    const durationMs = baseEnd && baseEnd > baseDate ? baseEnd - baseDate : 90 * 60000;
     const untilDate = new Date(recurrence_until);
     untilDate.setHours(23, 59, 59);
     const seriesId = `series_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const promises = [];
+    const items = [];
     let current = new Date(baseDate);
     while (current <= untilDate) {
-      promises.push(base44.entities.Event.create({ ...eventData, date: new Date(current).toISOString(), series_id: seriesId }));
-      current.setDate(current.getDate() + 7);
+      // Cada ocurrencia lleva su propia fecha de fin (misma duración) y hora local, sin desfase UTC
+      items.push({ ...eventData, date: fmt(current), end_date: fmt(new Date(current.getTime() + durationMs)), series_id: seriesId });
+      current = new Date(current.getFullYear(), current.getMonth(), current.getDate() + 7, current.getHours(), current.getMinutes());
     }
-    return Promise.all(promises);
+    const created = [];
+    for (let i = 0; i < items.length; i += 10) {
+      created.push(...(await Promise.all(items.slice(i, i + 10).map((it) => base44.entities.Event.create(it)))));
+    }
+    return created;
   };
 
   const createMutation = useMutation({
@@ -231,7 +239,7 @@ export default function Calendar() {
   const filteredEvents = filterTeam === "all" ? events : events.filter((e) => e.team_id === filterTeam);
   const getEventsForDay = (day) => filteredEvents.filter((e) => {
     const start = new Date(e.date);
-    const end = e.end_date ? new Date(e.end_date) : start;
+    const end = e.end_date && new Date(e.end_date) >= start ? new Date(e.end_date) : start;
     const dayStart = startOfDay(day);
     const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000 - 1);
     return start <= dayEnd && end >= dayStart;
