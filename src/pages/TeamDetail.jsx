@@ -1,4 +1,5 @@
-import MatchesTimeline from "@/components/match/MatchesTimeline";
+import TeamMatchesColumns from "@/components/team/TeamMatchesColumns";
+import TeamSquadTable from "@/components/team/TeamSquadTable";
 import React, { useState } from "react";
 import { getCategoryLabel } from "@/components/fcfCategories";
 import { base44 } from "@/api/base44Client";
@@ -147,7 +148,7 @@ export default function TeamDetail() {
   const openEditStaff = (staff) => { setEditingStaff(staff); setStaffDialogOpen(true); };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <div>
         <Link to="/Teams" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors mb-4 font-medium">
           <ArrowLeft className="w-4 h-4" /> Volver a equipos
@@ -160,6 +161,7 @@ export default function TeamDetail() {
               <span>{getCategoryLabel(team.category)}</span>
               {team.coach && <span>· Entrenador: {team.coach}</span>}
               {team.season && <span>· {team.season}</span>}
+              <span>· {teamPlayers.filter(p => p.status !== "baja").length} jugadores</span>
               {team.fcf_group_url && (
                 <a href={team.fcf_group_url} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 font-medium hover:underline"
@@ -170,20 +172,6 @@ export default function TeamDetail() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: "Jugadores", value: teamPlayers.length },
-          { label: "Activos", value: teamPlayers.filter(p => p.status === "activo").length },
-          { label: "Próx. eventos", value: teamEvents.length },
-        ].map((stat) => (
-          <div key={stat.label} className="bg-white border border-gray-200 rounded-2xl p-5 text-center shadow-sm">
-            <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-            <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
-          </div>
-        ))}
       </div>
 
       {/* Próximos Eventos - WeeklyCalendar */}
@@ -213,148 +201,11 @@ export default function TeamDetail() {
         event={editingWeekEvent}
       />
 
-      {/* Últimos y próximos partidos */}
-      <MatchesTimeline matches={teamMatchEvents} title="Últimos y próximos partidos" onOpen={(m) => navigate(`/MatchDetail?id=${m.id}&teamId=${m.team_id}`)} />
+      {/* Últimos y próximos partidos (3 y 3) */}
+      <TeamMatchesColumns matches={teamMatchEvents} onOpen={(m) => navigate(`/MatchDetail?id=${m.id}&teamId=${m.team_id}`)} />
 
-      {/* Estadísticas de Jugadores */}
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-5 border-b border-gray-100 flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-gray-400" />
-          <h2 className="font-semibold text-lg text-gray-900">Estadísticas de Jugadores</h2>
-        </div>
-        {teamPlayers.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">No hay jugadores en este equipo</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50 text-gray-500">
-                  <th className="text-left font-medium px-5 py-3">Jugador</th>
-                  <th className="text-center font-medium px-3 py-3 whitespace-nowrap">Partidos</th>
-                  <th className="text-center font-medium px-3 py-3 whitespace-nowrap">Goles</th>
-                  <th className="text-center font-medium px-3 py-3 whitespace-nowrap">Asistencias</th>
-                  <th className="text-center font-medium px-3 py-3 whitespace-nowrap">Minutos</th>
-                  <th className="text-center font-medium px-3 py-3 whitespace-nowrap">Valoración</th>
-                  <th className="text-center font-medium px-3 py-3 whitespace-nowrap">Amarillas</th>
-                  <th className="text-center font-medium px-3 py-3 whitespace-nowrap">Rojas</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {teamPlayers.map((player) => {
-                  const stats = playerStatsMap[player.id];
-                  return (
-                    <tr key={player.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-3">
-                        <Link to={`/PlayerProfile?id=${player.id}`} className="flex items-center gap-3 group">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: "var(--granate)" }}>
-                            {player.jersey_number || (player.first_name?.[0] + (player.last_name?.[0] || ""))}
-                          </div>
-                          <span className="font-medium text-gray-900 group-hover:underline">{player.first_name} {player.last_name}</span>
-                        </Link>
-                      </td>
-                      <td className="px-3 py-3 text-center font-medium text-gray-900">{stats.matches}</td>
-                      <td className="px-3 py-3 text-center text-gray-900">{stats.goals}</td>
-                      <td className="px-3 py-3 text-center text-gray-900">{stats.assists}</td>
-                      <td className="px-3 py-3 text-center text-gray-600">{stats.minutesPlayed}</td>
-                      <td className="px-3 py-3 text-center font-medium" style={{ color: stats.avgRating !== "—" ? (parseFloat(stats.avgRating) >= 4 ? "var(--granate)" : "#666") : "#999" }}>
-                        {stats.avgRating}
-                      </td>
-                      <td className="px-3 py-3 text-center">
-                        {stats.yellowCards > 0 && <span className="inline-block w-4 h-4 bg-yellow-400 rounded text-xs text-white font-bold">{stats.yellowCards}</span>}
-                      </td>
-                      <td className="px-3 py-3 text-center">
-                        {stats.redCards > 0 && <span className="inline-block w-4 h-4 bg-red-600 rounded text-xs text-white font-bold">{stats.redCards}</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Players */}
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-gray-400" />
-            <h2 className="font-semibold text-lg text-gray-900">Plantilla</h2>
-          </div>
-          <Button size="sm" onClick={() => { setEditingPlayer(null); setPlayerDialogOpen(true); }} className="text-white" style={{ background: "var(--granate)" }}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> Añadir jugador
-          </Button>
-        </div>
-        {teamPlayers.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">No hay jugadores en este equipo</div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {POSITION_GROUPS.map((pos) => {
-              const groupPlayers = teamPlayers.filter((p) => p.position === pos);
-              if (groupPlayers.length === 0) return null;
-              return (
-                <div key={pos}>
-                  <div className="px-5 py-2 bg-gray-50">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{POSITIONS[pos]}</p>
-                  </div>
-                  {groupPlayers.map((player) => {
-                    const st = STATUS_STYLES[player.status] || STATUS_STYLES.activo;
-                    return (
-                      <div key={player.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors group">
-                        <Link to={`/PlayerProfile?id=${player.id}`} className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: "var(--granate)" }}>
-                          {player.jersey_number || (player.first_name?.[0] + (player.last_name?.[0] || ""))}
-                        </Link>
-                        <div className="flex-1 min-w-0">
-                          <Link to={`/PlayerProfile?id=${player.id}`} className="font-medium text-gray-900 hover:underline">
-                            {player.first_name} {player.last_name}
-                          </Link>
-                          {player.secondary_position && (
-                            <p className="text-xs text-gray-400">{POSITIONS[player.secondary_position]} (2ª pos.){player.laterality ? ` · ${player.laterality}` : ""}</p>
-                          )}
-                        </div>
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border" style={{ background: st.bg, color: st.color, borderColor: st.border }}>
-                          {st.label}
-                        </span>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => openEditPlayer(player)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => setDeletePlayer(player.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-            {teamPlayers.filter(p => !p.position).length > 0 && (
-              <div>
-                <div className="px-5 py-2 bg-gray-50">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Sin posición</p>
-                </div>
-                {teamPlayers.filter(p => !p.position).map((player) => {
-                  const st = STATUS_STYLES[player.status] || STATUS_STYLES.activo;
-                  return (
-                    <div key={player.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors group">
-                      <Link to={`/PlayerProfile?id=${player.id}`} className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: "var(--granate)" }}>
-                        {player.first_name?.[0]}{player.last_name?.[0]}
-                      </Link>
-                      <div className="flex-1 min-w-0">
-                        <Link to={`/PlayerProfile?id=${player.id}`} className="font-medium text-gray-900 hover:underline">{player.first_name} {player.last_name}</Link>
-                      </div>
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border" style={{ background: st.bg, color: st.color, borderColor: st.border }}>
-                        {st.label}
-                      </span>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openEditPlayer(player)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => setDeletePlayer(player.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      {/* Plantilla: datos + estadísticas en una sola tabla */}
+      <TeamSquadTable teamId={teamId} onAddPlayer={() => { setEditingPlayer(null); setPlayerDialogOpen(true); }} />
 
       {/* Team Staff Section - Vincular staff existente */}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
