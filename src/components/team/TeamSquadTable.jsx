@@ -37,26 +37,35 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
   const { data: allStats = [] } = useQuery({ queryKey: ["matchstats_all"], queryFn: () => base44.entities.MatchStats.list() });
+  const { data: convocs = [] } = useQuery({ queryKey: ["convocatorias_all"], queryFn: () => base44.entities.Convocatoria.list() });
   const { data: attendance = [] } = useQuery({ queryKey: ["attendance_all"], queryFn: () => base44.entities.TrainingAttendance.list() });
   const { data: injuries = [] } = useQuery({ queryKey: ["injuries_all"], queryFn: () => base44.entities.Injury.list() });
 
   const { rows, guests } = useMemo(() => {
     const now = new Date();
-    const played = events.filter((e) => e.team_id === teamId && MATCH_TYPES.includes(e.type) && new Date(e.date) < now);
+    const statEvents = new Set(allStats.map((s) => s.event_id));
+    // Partido ya disputado: fecha pasada y con resultado o estadísticas registradas
+    const played = events.filter((e) => e.team_id === teamId && MATCH_TYPES.includes(e.type) && new Date(e.date) < now
+      && (e.score_home != null && e.score_home !== "" && e.score_away != null && e.score_away !== "" || statEvents.has(e.id)));
     const playedIds = new Set(played.map((e) => e.id));
     const totalMin = played.reduce((a, e) => a + matchMinutes(e), 0);
+    const convByEvent = new Map(convocs.map((c) => [c.event_id, new Set(c.player_ids || [])]));
     const statsOf = (pid) => allStats.filter((s) => s.player_id === pid && playedIds.has(s.event_id));
     const agg = (pid) => {
       const st = statsOf(pid);
       const rated = st.filter((s) => s.rating);
       const mins = st.reduce((a, s) => a + (s.minutes_played || 0), 0);
+      // Minutos disponibles: partidos disputados en los que estuvo convocado (o con estadísticas)
+      const withStats = new Set(st.map((s) => s.event_id));
+      const availMin = played.reduce((a, e) => a + (convByEvent.get(e.id)?.has(pid) || withStats.has(e.id) ? matchMinutes(e) : 0), 0);
       return {
+        totalMin, availMin,
         pj: st.length,
         goals: st.reduce((a, s) => a + (s.goals || 0), 0),
         assists: st.reduce((a, s) => a + (s.assists || 0), 0),
         mins,
         minPJ: st.length ? Math.round(mins / st.length) : null,
-        pctMin: totalMin ? Math.round((mins / totalMin) * 100) : null,
+        pctMin: availMin ? Math.min(100, Math.round((mins / availMin) * 100)) : null,
         rating: rated.length ? rated.reduce((a, s) => a + s.rating, 0) / rated.length : null,
         ta: st.reduce((a, s) => a + (s.yellow_cards || 0), 0),
         tr: st.reduce((a, s) => a + (s.red_cards || 0), 0),
@@ -73,7 +82,7 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
     const guestIds = [...new Set(allStats.filter((s) => playedIds.has(s.event_id) && !ids.has(s.player_id)).map((s) => s.player_id))];
     const guests = guestIds.map((id) => players.find((p) => p.id === id)).filter(Boolean).map((p) => ({ p, ...agg(p.id), year: birthYearOf(p), team: teams.find((t) => t.id === p.team_id) }));
     return { rows, guests };
-  }, [players, teams, events, allStats, attendance, injuries, teamId]);
+  }, [players, teams, events, allStats, convocs, attendance, injuries, teamId]);
 
   const sorted = useMemo(() => {
     const val = (r) => {
@@ -140,9 +149,9 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
                     <td className={`${num} font-black`}>{r.pj}</td>
                     <td className={`${num} font-black`} style={{ color: r.goals > 0 ? "var(--granate)" : undefined }}>{r.goals}</td>
                     <td className={`${num} font-bold text-gray-600`}>{r.assists}</td>
-                    <td className={`${num} text-gray-700`}>{r.mins > 0 ? `${r.mins}'` : "—"}</td>
+                    <td className={`${num} text-gray-700`} title={`${r.mins}' de ${r.totalMin}' de partidos jugados`}>{r.mins > 0 ? `${r.mins}'` : "—"}</td>
                     <td className={`${num} text-gray-600`}>{r.minPJ ? `${r.minPJ}'` : "—"}</td>
-                    <td className={`${num} font-bold`} style={{ color: "var(--granate)" }}>{r.pctMin != null && r.mins > 0 ? `${r.pctMin}%` : "—"}</td>
+                    <td className={`${num} font-bold`} style={{ color: "var(--granate)" }} title={`${r.mins}' de ${r.availMin}' disponibles (convocado)`}>{r.pctMin != null && r.mins > 0 ? `${r.pctMin}%` : "—"}</td>
                     <td className={`${num} font-bold`}>{r.rating != null ? r.rating.toFixed(1) : "—"}</td>
                     <td className={num}>{r.ta > 0 ? <span className="inline-block min-w-4 px-1 rounded-sm bg-yellow-400 text-[10px] font-bold text-yellow-900">{r.ta}</span> : <span className="text-gray-300">—</span>}</td>
                     <td className={num}>{r.tr > 0 ? <span className="inline-block min-w-4 px-1 rounded-sm bg-red-500 text-[10px] font-bold text-white">{r.tr}</span> : <span className="text-gray-300">—</span>}</td>
