@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+
+/* Racing Sarria solo en títulos y textos grandes; el resto, IBM Plex */
+:is([style*="font-display"], .font-display, .rs-font):is(.text-xl, .text-2xl, .text-3xl, .text-4xl, .text-5xl, .text-6xl, .text-7xl, .text-8xl) {
+  font-family: 'Racing Sarria', sans-serif !important;
+  letter-spacing: 0.03em;
+}
+
 /* Tipografías del club */
 @font-face { font-family: 'Racing Sarria'; src: url('/fonts/RacingSarria.ttf') format('truetype'); font-weight: 100 900; font-style: normal; font-display: swap; }
 @font-face { font-family: 'IBM Plex Sans Condensed'; src: url('/fonts/IBMPlexSansCondensed-Light.ttf') format('truetype'); font-weight: 300; font-style: normal; font-display: swap; }

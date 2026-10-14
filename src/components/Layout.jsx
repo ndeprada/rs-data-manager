@@ -253,16 +253,17 @@ export default function Layout() {
         :root {
           --granate: #73000A; --granate-dark: #36000D; --granate-hover: #36000D;
           --granate-pale: #fdf2f4; --naranja: #FF6E00; --naranja-pale: #fff7ed;
-          --font-display: 'Racing Sarria', sans-serif;
+          --font-display: 'IBM Plex Sans Condensed', sans-serif;
+          --font-title: 'Racing Sarria', sans-serif;
           --font-body: 'IBM Plex Sans Condensed', sans-serif;
         }
         * { font-family: var(--font-body); }
-        h1 { font-family: var(--font-display) !important; font-weight: 800 !important; letter-spacing: 0.04em; color: var(--granate) !important; text-transform: uppercase; font-size: 2rem; line-height: 1.1; }
-        h2 { font-family: var(--font-display) !important; font-weight: 700 !important; letter-spacing: 0.04em; color: var(--granate) !important; text-transform: uppercase; }
+        h1 { font-family: var(--font-title) !important; font-weight: 800 !important; letter-spacing: 0.04em; color: var(--granate) !important; text-transform: uppercase; font-size: 2rem; line-height: 1.1; }
+        h2 { font-family: var(--font-title) !important; font-weight: 700 !important; letter-spacing: 0.04em; color: var(--granate) !important; text-transform: uppercase; }
         h3 { font-family: var(--font-display) !important; font-weight: 600 !important; letter-spacing: 0.03em; color: var(--naranja) !important; text-transform: uppercase; }
         h4,h5,h6 { font-family: var(--font-display) !important; font-weight: 600 !important; letter-spacing: 0.03em; color: var(--naranja) !important; text-transform: uppercase; }
         .font-display { font-family: var(--font-display) !important; letter-spacing: 0.04em; }
-        .rs-title { font-family: var(--font-display) !important; font-weight: 700 !important; letter-spacing: 0.04em; color: var(--granate); text-transform: uppercase; }
+        .rs-title { font-family: var(--font-title) !important; font-weight: 700 !important; letter-spacing: 0.04em; color: var(--granate); text-transform: uppercase; }
         .rs-subtitle { font-family: var(--font-display) !important; font-weight: 600 !important; letter-spacing: 0.03em; color: var(--naranja); text-transform: uppercase; }
         .on-dark h1, .on-dark h2, .on-dark h3, .on-dark .rs-title { color: #ffffff !important; }
         h1.on-dark, h2.on-dark, h3.on-dark { color: #ffffff !important; }

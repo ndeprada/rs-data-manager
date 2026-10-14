@@ -122,10 +122,10 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
           .header-logo { width:60px; height:60px; background:#73000A; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:8px; }
           .header-logo img { width:100%; height:100%; object-fit:contain; filter:brightness(10); }
           .header-text h1 { font-family:'Racing Sarria',sans-serif; font-weight:800; font-size:24px; text-transform:uppercase; letter-spacing:0.05em; color:#73000A; }
-          .header-text p { font-family:'Racing Sarria',sans-serif; font-size:14px; color:#666; text-transform:uppercase; letter-spacing:0.1em; }
+          .header-text p { font-family:'IBM Plex Sans Condensed',sans-serif; font-size:14px; color:#666; text-transform:uppercase; letter-spacing:0.1em; }
           table { width:100%; border-collapse:collapse; font-size:12px; }
           thead tr { background:#73000A; color:white; }
-          thead th { padding:8px 10px; text-align:left; font-family:'Racing Sarria',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.1em; }
+          thead th { padding:8px 10px; text-align:left; font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.1em; }
           tbody tr { border-bottom:1px solid #e5e7eb; }
           tbody tr:nth-child(even) { background:#fdf2f4; }
           tbody td { padding:8px 10px; vertical-align:middle; }
@@ -253,10 +253,10 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
                 .header-logo{width:60px;height:60px;background:#73000A;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:8px;}
                 .header-logo img{width:100%;height:100%;object-fit:contain;filter:brightness(10);}
                 .header-text h1{font-family:'Racing Sarria',sans-serif;font-weight:800;font-size:24px;text-transform:uppercase;letter-spacing:0.05em;color:#73000A;}
-                .header-text p{font-family:'Racing Sarria',sans-serif;font-size:14px;color:#666;text-transform:uppercase;letter-spacing:0.1em;}
+                .header-text p{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:14px;color:#666;text-transform:uppercase;letter-spacing:0.1em;}
                 table{width:100%;border-collapse:collapse;font-size:12px;}
                 thead tr{background:#73000A;color:white;}
-                thead th{padding:8px 10px;text-align:left;font-family:'Racing Sarria',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;}
+                thead th{padding:8px 10px;text-align:left;font-family:'IBM Plex Sans Condensed',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;}
                 tbody tr{border-bottom:1px solid #e5e7eb;}
                 tbody tr:nth-child(even){background:#fdf2f4;}
                 tbody td{padding:8px 10px;vertical-align:middle;}

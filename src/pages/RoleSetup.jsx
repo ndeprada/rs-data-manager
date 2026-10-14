@@ -14,7 +14,7 @@ function Shell({ children }) {
   return (
     <div
       className="min-h-screen flex items-center justify-center bg-[#f5f5f5] p-4"
-      style={{ "--granate": "#73000A", "--naranja": "#FF6E00", "--font-display": "'Racing Sarria', sans-serif" }}
+      style={{ "--granate": "#73000A", "--naranja": "#FF6E00", "--font-display": "'IBM Plex Sans Condensed', sans-serif" }}
     >
       <div className="w-full max-w-md">
         <div className="text-center mb-6">

@@ -9,7 +9,7 @@ export default function PlayerHome() {
   return (
     <div
       className="min-h-screen flex items-center justify-center bg-[#f5f5f5] p-4"
-      style={{ "--granate": "#73000A", "--font-display": "'Racing Sarria', sans-serif" }}
+      style={{ "--granate": "#73000A", "--font-display": "'IBM Plex Sans Condensed', sans-serif" }}
     >
       <div className="w-full max-w-md text-center">
         <img src={CLUB_LOGO_URL} alt="RS Club" className="w-14 h-14 object-contain mx-auto mb-4" />
