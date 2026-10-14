@@ -125,20 +125,20 @@ export default function MyTeam() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-gray-400 mb-1" style={{ fontFamily: "var(--font-display)" }}>Mi Equipo</p>
+      <div>
+        <p className="text-xs uppercase tracking-widest text-gray-400 mb-1" style={{ fontFamily: "var(--font-display)" }}>Mi Equipo</p>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <h1 className="text-3xl md:text-4xl font-black uppercase leading-tight" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
             {selectedTeam?.name || "—"}
           </h1>
-          <p className="text-xs text-gray-400 capitalize mt-1">{selectedTeam?.category} · {selectedTeam?.coach}</p>
+      {canSwitch && (
+        <Select value={selectedTeamId} onValueChange={selectTeam}>
+          <SelectTrigger className="w-52 h-9 font-bold text-[13px] text-[#73000A] border border-[#73000A] bg-white hover:bg-[#FDF2F4] [&>span]:text-[#73000A] [&>svg]:text-[#73000A] [&>svg]:opacity-100"><SelectValue /></SelectTrigger>
+          <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+        </Select>
+      )}
         </div>
-        {canSwitch && (
-          <Select value={selectedTeamId} onValueChange={selectTeam}>
-            <SelectTrigger className="w-52 h-9 font-bold text-[13px] text-[#73000A] border border-[#73000A] bg-white hover:bg-[#FDF2F4] [&>span]:text-[#73000A] [&>svg]:text-[#73000A] [&>svg]:opacity-100"><SelectValue /></SelectTrigger>
-            <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-          </Select>
-        )}
+        <p className="text-xs text-gray-400 capitalize mt-1">{selectedTeam?.category} · {selectedTeam?.coach}</p>
       </div>
 
       {selectedTeam && <TeamSummary team={selectedTeam} events={teamEvents} players={players} matchStats={matchStats} />}
