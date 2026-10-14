@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, MapPin, Lightbulb, Home, CheckCircle2, XCircle, Layers, ExternalLink } from "lucide-react";
+import { Plus, Pencil, Trash2, MapPin, Lightbulb, Home, CheckCircle2, XCircle, Layers, ExternalLink, List, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +52,8 @@ export default function Fields() {
   const [editingField, setEditingField] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [view, setViewState] = useState(() => { try { return localStorage.getItem("fields_view") === "list" ? "list" : "cards"; } catch { return "cards"; } });
+  const setView = (v) => { setViewState(v); try { localStorage.setItem("fields_view", v); } catch {} };
 
   const { data: fields = [], isLoading } = useQuery({
     queryKey: ["fields"],
@@ -125,9 +127,20 @@ export default function Fields() {
             Gestión de instalaciones y espacios de entrenamiento
           </p>
         </div>
-        <Button onClick={openNew} className="text-white h-8 text-xs" style={{ background: "var(--granate)" }}>
-          <Plus className="w-3.5 h-3.5 mr-1" /> Nuevo campo
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex border border-gray-200 rounded-sm overflow-hidden bg-white">
+            {[["cards", LayoutGrid, "Tarjetas"], ["list", List, "Lista"]].map(([v, Icon, t]) => (
+              <button key={v} type="button" title={t} onClick={() => setView(v)}
+                className={`p-1.5 ${view === v ? "text-white" : "text-gray-400 hover:text-gray-700"}`}
+                style={view === v ? { background: "var(--granate)" } : undefined}>
+                <Icon className="w-4 h-4" />
+              </button>
+            ))}
+          </div>
+          <Button onClick={openNew} className="text-white h-8 text-xs" style={{ background: "var(--granate)" }}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Nuevo campo
+          </Button>
+        </div>
       </div>
 
       {/* Stats strip */}
@@ -156,6 +169,42 @@ export default function Fields() {
           <Button onClick={openNew} className="mt-4 text-white text-xs" style={{ background: "var(--granate)" }}>
             <Plus className="w-3.5 h-3.5 mr-1" /> Añadir primer campo
           </Button>
+        </div>
+      ) : view === "list" ? (
+        <div className="bg-white border border-gray-200 rounded-sm shadow-sm divide-y divide-gray-100">
+          {fields.map(field => {
+            const surfaceColor = SURFACE_COLORS[field.type] || "#64748b";
+            const isAvailable = field.available !== false;
+            return (
+              <div key={field.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50" style={{ borderLeft: `3px solid ${surfaceColor}` }}>
+                <p className="font-black text-sm text-gray-900 uppercase truncate w-40 sm:w-52 shrink-0" style={{ fontFamily: "var(--font-display)" }}>{field.name}</p>
+                <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-sm text-white shrink-0" style={{ fontFamily: "var(--font-display)", background: surfaceColor }}>
+                  {SURFACE_LABELS[field.type] || field.type}
+                </span>
+                {field.format && (
+                  <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-sm bg-gray-100 text-gray-600 border border-gray-200 shrink-0" style={{ fontFamily: "var(--font-display)" }}>
+                    {FORMAT_LABELS[field.format] || field.format}
+                  </span>
+                )}
+                <div className="hidden sm:flex items-center gap-3 text-xs text-gray-400 min-w-0 flex-1">
+                  {field.lighting && <Lightbulb className="w-3 h-3 text-yellow-500 shrink-0" title="Iluminación" />}
+                  {field.indoor && <Home className="w-3 h-3 shrink-0" title="Cubierto" />}
+                  {field.capacity && <span className="shrink-0">{field.capacity} jug.</span>}
+                  {field.location && (
+                    <span className="flex items-center gap-1 truncate min-w-0">
+                      <MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{field.location}</span>
+                      {field.google_maps_url && <a href={field.google_maps_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 shrink-0"><ExternalLink className="w-3 h-3" /></a>}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-0.5 shrink-0 ml-auto">
+                  {isAvailable ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mr-0.5" title="Disponible" /> : <XCircle className="w-3.5 h-3.5 text-red-400 mr-0.5" title="No disponible" />}
+                  <button type="button" onClick={() => openEdit(field)} title="Editar" className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
+                  <button type="button" onClick={() => setDeleteId(field.id)} title="Eliminar" className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5">
