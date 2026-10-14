@@ -38,9 +38,10 @@ const ROLE_DISPLAY = {
 
 function SectionLabel({ children }) {
   return (
-    <p className="px-2 pt-3 pb-0.5 text-[8px] font-black uppercase tracking-[0.18em] text-white/25"
+    <p className="px-2.5 pt-3.5 pb-1 text-[9px] font-black uppercase tracking-[0.16em] text-white/45 flex items-center gap-2"
       style={{ fontFamily: "var(--font-display)" }}>
-      {children}
+      <span>{children}</span>
+      <span className="flex-1 h-px bg-white/12" />
     </p>
   );
 }
@@ -50,17 +51,18 @@ function NavItem({ item, onClick, badge = 0 }) {
   const active = location.pathname === item.path;
   return (
     <Link to={item.path} onClick={onClick}
-      className={`group flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl transition-all duration-150 nav-label text-[11px]
+      style={active ? { borderLeft: "3px solid var(--naranja)" } : { borderLeft: "3px solid transparent" }}
+      className={`group flex items-center gap-2.5 pl-2 pr-2.5 py-1.5 rounded-[6px] transition-all duration-150 nav-label text-[11px]
         ${active
-          ? "bg-white/18 text-white shadow-sm"
-          : "text-white/55 hover:text-white hover:bg-white/10"
+          ? "bg-white text-[color:var(--granate)] shadow-sm"
+          : "text-white/75 hover:text-white hover:bg-white/10"
         }`}>
       {item.icon && (
-        <item.icon className={`shrink-0 w-3.5 h-3.5 ${active ? "text-white" : "text-white/45 group-hover:text-white/75"}`} />
+        <item.icon className={`shrink-0 w-3.5 h-3.5 ${active ? "text-[color:var(--granate)]" : "text-white/55 group-hover:text-white/85"}`} />
       )}
       <span className="flex-1 leading-none">{item.label}</span>
       {badge > 0 && <span className="min-w-4 h-4 px-1 rounded-full bg-[#FF6E00] text-white text-[9px] font-black flex items-center justify-center shrink-0" title={`${badge} usuario(s) pendientes de aceptar`}>{badge}</span>}
-      {active && <div className="w-1 h-1 rounded-full bg-white/50 shrink-0" />}
+      
     </Link>
   );
 }
@@ -74,10 +76,11 @@ function MyTeamNav({ onClose, notificationCount }) {
     <div>
       <button
         onClick={() => setOpen(o => !o)}
-        className={`group w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl transition-all duration-150 nav-label text-[11px] relative
-          ${isActive ? "bg-white/18 text-white shadow-sm" : "text-white/55 hover:text-white hover:bg-white/10"}`}>
+        style={isActive ? { borderLeft: "3px solid var(--naranja)" } : { borderLeft: "3px solid transparent" }}
+        className={`group w-full flex items-center gap-2.5 pl-2 pr-2.5 py-1.5 rounded-[6px] transition-all duration-150 nav-label text-[11px] relative
+          ${isActive ? "bg-white text-[color:var(--granate)] shadow-sm" : "text-white/75 hover:text-white hover:bg-white/10"}`}>
         <div className="relative">
-          <ClipboardList className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-white" : "text-white/45 group-hover:text-white/75"}`} />
+          <ClipboardList className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-[color:var(--granate)]" : "text-white/55 group-hover:text-white/85"}`} />
           {notificationCount > 0 && (
             <div className="absolute -top-2 -right-2 flex items-center justify-center bg-red-500 text-white text-[8px] font-black rounded-full w-4 h-4 leading-none">
               {notificationCount > 9 ? "9+" : notificationCount}
@@ -99,14 +102,14 @@ function MyTeamNav({ onClose, notificationCount }) {
             transition={{ duration: 0.18 }}
             className="overflow-hidden"
           >
-            <div className="mt-0.5 ml-3 pl-2.5 border-l border-white/10 space-y-0.5 py-0.5">
+            <div className="mt-0.5 ml-3 pl-2.5 border-l border-white/20 space-y-0.5 py-0.5">
               {MY_TEAM_SUBITEMS.map(sub => {
                 const active = location.pathname === sub.path;
                 return (
                   <Link key={sub.path} to={sub.path} onClick={onClose}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[10px] transition-all nav-label
-                      ${active ? "bg-white/15 text-white" : "text-white/40 hover:text-white/75 hover:bg-white/8"}`}>
-                    <sub.icon className={`w-3 h-3 shrink-0 ${active ? "text-white/80" : "text-white/25"}`} />
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-[6px] text-[10px] transition-all nav-label
+                      ${active ? "bg-white/20 text-white" : "text-white/60 hover:text-white hover:bg-white/10"}`}>
+                    <sub.icon className={`w-3 h-3 shrink-0 ${active ? "text-[color:var(--naranja)]" : "text-white/40"}`} />
                     {sub.label}
                   </Link>
                 );
@@ -210,7 +213,7 @@ function StaffSidebar({ onClose = () => {} }) {
       {/* Logo */}
       <div className="px-3 py-4 border-b border-white/10">
         <Link to="/Dashboard" onClick={onClose} className="flex items-center gap-2.5">
-          <div className="w-8 h-8 shrink-0 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.13)" }}>
+          <div className="w-8 h-8 shrink-0 rounded-[6px] flex items-center justify-center" style={{ background: "rgba(255,255,255,0.13)" }}>
             <img src={CLUB_LOGO_URL_WHITE} alt="RS" className="w-6 h-6 object-contain" />
           </div>
           <div>
@@ -240,8 +243,9 @@ function StaffSidebar({ onClose = () => {} }) {
           <>
             <SectionLabel>Mi perfil</SectionLabel>
             <Link to={myProfilePath} onClick={onClose}
-              className="group flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl transition-all duration-150 nav-label text-[11px] text-white/55 hover:text-white hover:bg-white/10">
-              <UserCheck className="shrink-0 w-3.5 h-3.5 text-white/45 group-hover:text-white/75" />
+              style={{ borderLeft: "3px solid transparent" }}
+              className="group flex items-center gap-2.5 pl-2 pr-2.5 py-1.5 rounded-[6px] transition-all duration-150 nav-label text-[11px] text-white/75 hover:text-white hover:bg-white/10">
+              <UserCheck className="shrink-0 w-3.5 h-3.5 text-white/55 group-hover:text-white/85" />
               <span className="flex-1 leading-none">Perfil y feedback</span>
               {unreadCount > 0 && (
                 <span className="bg-red-500 text-white text-[8px] font-black rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none">{unreadCount}</span>
@@ -260,7 +264,7 @@ function StaffSidebar({ onClose = () => {} }) {
       {/* User */}
       <div className="px-2 py-3 border-t border-white/10 space-y-2">
         {user && (
-          <div className="flex items-center gap-2 px-1.5 py-1.5 rounded-xl" style={{ background: "rgba(255,255,255,0.07)" }}>
+          <div className="flex items-center gap-2 px-1.5 py-1.5 rounded-[6px]" style={{ background: "rgba(255,255,255,0.10)", borderLeft: "3px solid var(--naranja)" }}>
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0"
               style={{ background: "var(--granate)", fontFamily: "var(--font-display)" }}>
               {user.full_name?.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase() || "U"}
@@ -269,7 +273,7 @@ function StaffSidebar({ onClose = () => {} }) {
               <p className="text-white text-[11px] font-bold truncate leading-tight" style={{ fontFamily: "var(--font-display)" }}>
                 {user.full_name?.split(" ")[0]}
               </p>
-              <p className="text-white/40 text-[9px] truncate leading-tight" style={{ fontFamily: "var(--font-display)" }}>
+              <p className="text-white/60 text-[9px] truncate leading-tight" style={{ fontFamily: "var(--font-display)" }}>
                 {ROLE_DISPLAY[appRole] || ROLE_DISPLAY[user?.role] || appRole || ""}
               </p>
             </div>
