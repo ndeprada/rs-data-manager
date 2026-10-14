@@ -134,7 +134,7 @@ function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsC
           <g key={i} onPointerDown={e => handlePointerDown(e, i)} style={{ cursor: "grab" }}>
             <circle cx={cx + 1} cy={cy + 1.5} r="13" fill="rgba(0,0,0,0.25)" />
             <circle cx={cx} cy={cy} r="13" fill={player ? k.fill : "rgba(255,255,255,0.15)"} stroke={player ? k.stroke : "white"} strokeWidth="2.2" strokeDasharray={player ? "0" : "4 3"} />
-            <text x={cx} y={cy + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 13 : 13} fontWeight="400" style={{ fontFamily: "'Racing Sarria', sans-serif" }} fill={player ? k.num : "white"}>
+            <text x={cx} y={cy + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 17 : 13} fontWeight="400" style={{ fontFamily: "'Racing Sarria', sans-serif" }} fill={player ? k.num : "white"}>
               {player ? (player.jersey_number || player.first_name?.[0]) : "+"}
             </text>
             {player && captainId && player.id === captainId && (
