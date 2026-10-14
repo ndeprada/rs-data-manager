@@ -91,11 +91,13 @@ function FootballField({ player }) {
 
       {pts.map((x) => {
         const cx = (x.c.x / 100) * 200, cy = (x.c.y / 100) * 300, col = LEVELS[x.level].color;
+        const nat = x.level === "natural";
         return (
           <g key={x.position}>
-            <circle cx={cx} cy={cy} r={x.level === "natural" ? 20 : 17} fill={col} fillOpacity="0.25" />
-            <circle cx={cx} cy={cy} r={x.level === "natural" ? 11 : 9} fill={col} stroke="#fff" strokeWidth="2" />
-            <text x={cx} y={cy - 20} textAnchor="middle" fontSize="10" fontWeight="700" fill="white" fontFamily="system-ui, sans-serif">{POSITION_LABELS[x.position]}</text>
+            {nat && <circle cx={cx} cy={cy} r="26" fill="#4ade80" fillOpacity="0.28" />}
+            {nat && <circle cx={cx} cy={cy} r="19" fill="#4ade80" fillOpacity="0.35" />}
+            <circle cx={cx} cy={cy} r={nat ? 13 : 11} fill={nat ? "#22c55e" : col} stroke="#fff" strokeWidth={nat ? 2.5 : 2} />
+            <text x={cx} y={cy - (nat ? 30 : 17)} textAnchor="middle" fontSize="12" fontWeight="800" fill="white" fontFamily="system-ui, sans-serif" stroke="rgba(0,0,0,0.45)" strokeWidth="0.6" paintOrder="stroke">{POSITION_LABELS[x.position]}</text>
           </g>
         );
       })}
@@ -126,10 +128,9 @@ export default function PlayerInfoCards({ player }) {
                   const role = x.role ? findRole(x.role)?.role.label : "";
                   return (
                     <div key={x.position} className="flex items-center gap-1.5 flex-wrap">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: LEVELS[x.level].color }} title={LEVELS[x.level].label} />
-                      <span className="text-[11px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-lg text-white" style={{ background: "#6b1f28" }}>{POSITION_LABELS[x.position]}</span>
-                      <span className={`text-sm text-gray-700 ${x.level === "natural" ? "font-semibold" : ""}`}>{POSITION_FULL[x.position] || x.position}{role ? ` · ${role}` : ""}</span>
-                      <span className="text-[10px] text-gray-400">{LEVELS[x.level].label}</span>
+                      <span className="text-[11px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md text-white min-w-[30px] text-center" style={{ background: LEVELS[x.level].color }}>{POSITION_LABELS[x.position]}</span>
+                      <span className={`text-sm ${x.level === "natural" ? "font-bold text-gray-900" : "font-medium text-gray-700"}`}>{POSITION_FULL[x.position] || x.position}{role ? ` · ${role}` : ""}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: LEVELS[x.level].color }}>{LEVELS[x.level].label}</span>
                     </div>
                   );
                 })}
@@ -175,7 +176,7 @@ export default function PlayerInfoCards({ player }) {
         </div>
         {/* Campo */}
         {player.position && (
-          <div className="shrink-0 flex flex-col items-center" style={{ width: 84 }}>
+          <div className="shrink-0 flex flex-col items-center" style={{ width: 132 }}>
             <div className="w-full" style={{ aspectRatio: "200/300" }}>
               <FootballField player={player} />
             </div>

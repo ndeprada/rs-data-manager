@@ -4,9 +4,9 @@
 // Compatibilidad: si solo existe el antiguo secondary_position, se trata como una secundaria sin rol.
 
 export const LEVELS = {
-  natural: { label: "Natural", color: "#22c55e" },
-  secundaria: { label: "Secundaria", color: "#86efac" },
-  competente: { label: "Competente", color: "#f59e0b" },
+  natural: { label: "Natural", color: "#16a34a" },
+  secundaria: { label: "Secundaria", color: "#6b9a7a" },
+  competente: { label: "Competente", color: "#ea7a0a" },
 };
 export const EXTRA_LEVELS = ["secundaria", "competente"];
 
