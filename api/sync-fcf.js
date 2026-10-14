@@ -1,7 +1,9 @@
 import { getCurrentUser } from './_lib/auth.js';
 import { syncFcf } from './_lib/fcfSync.js';
+import { standingsHandler } from './_lib/fcfStandings.js';
 
 export default async function handler(req, res) {
+  if (req.query?.standings) { req.query.team_id = req.query.standings; return standingsHandler(req, res); }
   const auth = req.headers.authorization || '';
   const cronOk = process.env.CRON_SECRET && auth === `Bearer ${process.env.CRON_SECRET}`;
   if (!cronOk) {

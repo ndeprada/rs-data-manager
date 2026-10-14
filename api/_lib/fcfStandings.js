@@ -1,5 +1,5 @@
-import { query } from './_lib/db.js';
-import { getCurrentUser } from './_lib/auth.js';
+import { query } from './db.js';
+import { getCurrentUser } from './auth.js';
 
 const API = 'https://www.fcf.cat/api/competition';
 const UA = 'Mozilla/5.0 (compatible; RSDataManager/1.0)';
@@ -38,7 +38,7 @@ async function discoverGroup(team) {
   return null;
 }
 
-export default async function handler(req, res) {
+export async function standingsHandler(req, res) {
   const user = await getCurrentUser(req);
   if (!user) return res.status(401).json({ error: 'auth_required' });
   const teamId = String(req.query.team_id || '');

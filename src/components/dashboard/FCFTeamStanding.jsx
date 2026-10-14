@@ -9,7 +9,7 @@ const logoUrl = (f) => (f ? `https://files.fcf.cat/escudos/clubes/escudos/${f}` 
 const shortName = (n) => String(n || "").replace(/\s+/g, " ").replace(/ ([A-Z])$/, " $1").trim();
 
 async function fetchStanding(teamId) {
-  const r = await fetch(`/api/fcf-standings?team_id=${teamId}`, { credentials: "include" });
+  const r = await fetch(`/api/sync-fcf?standings=${teamId}`, { credentials: "include" });
   if (!r.ok) throw new Error("error");
   return r.json();
 }
