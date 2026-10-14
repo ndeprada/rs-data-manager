@@ -8,6 +8,7 @@ import AttendanceChart from "@/components/stats/AttendanceChart";
 import MatchResultsChart from "@/components/stats/MatchResultsChart";
 import MinutesDistributionChart from "@/components/stats/MinutesDistributionChart";
 import { playerFullName } from "@/lib/playerName";
+import { useCountedStats } from "@/lib/matchStatus";
 
 export default function Stats() {
   const [selectedTeam, setSelectedTeam] = useState("all");
@@ -28,10 +29,11 @@ export default function Stats() {
     queryFn: () => base44.entities.TrainingAttendance.list("-date", 500),
   });
 
-  const { data: matchStats = [] } = useQuery({
+  const { data: raw_matchStats = [] } = useQuery({
     queryKey: ["matchStats"],
     queryFn: () => base44.entities.MatchStats.list("-date", 500),
   });
+  const matchStats = useCountedStats(raw_matchStats);
 
   const { data: events = [] } = useQuery({
     queryKey: ["events"],

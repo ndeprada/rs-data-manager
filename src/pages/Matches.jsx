@@ -6,6 +6,7 @@ import { es } from "date-fns/locale";
 import { Swords, ChevronRight, MapPin, Filter, Home, Plane } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
+import { useCountedStats } from "@/lib/matchStatus";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TYPE_LABELS = {
@@ -34,10 +35,11 @@ export default function Matches() {
     queryKey: ["teams"],
     queryFn: () => base44.entities.Team.list(),
   });
-  const { data: allStats = [] } = useQuery({
+  const { data: raw_allStats = [] } = useQuery({
     queryKey: ["matchStats"],
     queryFn: () => base44.entities.MatchStats.list("-date", 500),
   });
+  const allStats = useCountedStats(raw_allStats);
 
   const matches = events.filter((e) => MATCH_TYPES.includes(e.type));
 

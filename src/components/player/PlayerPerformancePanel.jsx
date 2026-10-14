@@ -5,6 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
 import { Trophy, Clock, Target, Star, Square } from "lucide-react";
+import { useCountedStats } from "@/lib/matchStatus";
 
 function StatBox({ label, value, sub, color = "gray" }) {
   const colors = {
@@ -56,10 +57,11 @@ function StarRating({ value }) {
 }
 
 export default function PlayerPerformancePanel({ playerId }) {
-  const { data: stats = [] } = useQuery({
+  const { data: raw_stats = [] } = useQuery({
     queryKey: ["matchstats", playerId],
     queryFn: () => base44.entities.MatchStats.filter({ player_id: playerId }, "date"),
   });
+  const stats = useCountedStats(raw_stats);
 
   const { data: attendance = [] } = useQuery({
     queryKey: ["attendance", playerId],

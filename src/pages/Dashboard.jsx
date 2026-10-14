@@ -11,6 +11,7 @@ import FCFClassificationsPanel from "../components/dashboard/FCFClassificationsP
 import WeekendAgenda from "../components/dashboard/WeekendAgenda";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { playerFullName } from "@/lib/playerName";
+import { useCountedStats } from "@/lib/matchStatus";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
@@ -67,7 +68,8 @@ export default function Dashboard() {
     .slice(0, 3);
 
   // Estadísticas: máximo goleador, asistente y más minutos
-  const { data: matchStats = [] } = useQuery({ queryKey: ["matchstats"], queryFn: () => base44.entities.MatchStats.list() });
+  const { data: raw_matchStats = [] } = useQuery({ queryKey: ["matchstats"], queryFn: () => base44.entities.MatchStats.list() });
+  const matchStats = useCountedStats(raw_matchStats);
   const playerStatsMap = new Map();
   matchStats.forEach(ms => {
     if (!playerStatsMap.has(ms.player_id)) {

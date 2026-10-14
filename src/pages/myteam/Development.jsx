@@ -7,6 +7,7 @@ import { useSelectedTeam } from "@/lib/useSelectedTeam";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { playerFullName, playerSearchName } from "@/lib/playerName";
+import { useCountedStats } from "@/lib/matchStatus";
 
 export default function Development() {
   const { selectedTeamId, selectTeam, isCoordinator } = useSelectedTeam();
@@ -16,7 +17,8 @@ export default function Development() {
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
   const { data: pdis = [] } = useQuery({ queryKey: ["pdis"], queryFn: () => base44.entities.PDI.list("-date", 500) });
   const { data: injuries = [] } = useQuery({ queryKey: ["injuries"], queryFn: () => base44.entities.Injury.list() });
-  const { data: matchStats = [] } = useQuery({ queryKey: ["matchStats"], queryFn: () => base44.entities.MatchStats.list("-date", 500) });
+  const { data: raw_matchStats = [] } = useQuery({ queryKey: ["matchStats"], queryFn: () => base44.entities.MatchStats.list("-date", 500) });
+  const matchStats = useCountedStats(raw_matchStats);
 
   const teamPlayers = players.filter(p =>
     p.team_id === selectedTeamId && p.status !== "baja" &&

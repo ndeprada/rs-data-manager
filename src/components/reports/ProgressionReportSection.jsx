@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { downloadProgressionPDF } from "./progressionPdfGenerator";
 import { playerSearchName } from "@/lib/playerName";
+import { useCountedStats } from "@/lib/matchStatus";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
@@ -22,7 +23,8 @@ export default function ProgressionReportSection() {
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
-  const { data: matchStats = [] } = useQuery({ queryKey: ["matchStats"], queryFn: () => base44.entities.MatchStats.list("-date", 1000) });
+  const { data: raw_matchStats = [] } = useQuery({ queryKey: ["matchStats"], queryFn: () => base44.entities.MatchStats.list("-date", 1000) });
+  const matchStats = useCountedStats(raw_matchStats);
   const { data: attendance = [] } = useQuery({ queryKey: ["attendance"], queryFn: () => base44.entities.TrainingAttendance.list("-date", 2000) });
   const { data: pdiAll = [] } = useQuery({ queryKey: ["pdiAll"], queryFn: () => base44.entities.PDI.list("-date", 500) });
   const { data: sessionReports = [] } = useQuery({ queryKey: ["sessionReports"], queryFn: () => base44.entities.SessionReport.list("-date", 500) });

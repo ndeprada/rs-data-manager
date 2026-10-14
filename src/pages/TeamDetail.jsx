@@ -21,6 +21,7 @@ import { useSelectedTeam } from "@/lib/useSelectedTeam";
 import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
+import { useCountedStats } from "@/lib/matchStatus";
 
 const EVENT_TYPES = [
   { value: "entrenamiento", label: "Entrenamiento" },
@@ -80,7 +81,8 @@ export default function TeamDetail() {
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
   const { data: staffList = [] } = useQuery({ queryKey: ["staff"], queryFn: () => base44.entities.StaffMember.list() });
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
-  const { data: matchStats = [] } = useQuery({ queryKey: ["matchStats"], queryFn: () => base44.entities.MatchStats.list("-date", 500) });
+  const { data: raw_matchStats = [] } = useQuery({ queryKey: ["matchStats"], queryFn: () => base44.entities.MatchStats.list("-date", 500) });
+  const matchStats = useCountedStats(raw_matchStats);
 
   const deletePlayerMutation = useMutation({
     mutationFn: (id) => base44.entities.Player.delete(id),

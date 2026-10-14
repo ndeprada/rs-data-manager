@@ -9,6 +9,7 @@ import { format, getMonth, getYear, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { downloadPlayerPDF, generatePlayerPDF } from "./playerPdfGenerator";
 import { playerFullName } from "@/lib/playerName";
+import { useCountedStats } from "@/lib/matchStatus";
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({
   value: String(i + 1),
@@ -41,7 +42,8 @@ export default function MonthlyReportSection() {
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
-  const { data: matchStats = [] } = useQuery({ queryKey: ["matchStats"], queryFn: () => base44.entities.MatchStats.list("-date", 500) });
+  const { data: raw_matchStats = [] } = useQuery({ queryKey: ["matchStats"], queryFn: () => base44.entities.MatchStats.list("-date", 500) });
+  const matchStats = useCountedStats(raw_matchStats);
   const { data: attendance = [] } = useQuery({ queryKey: ["attendance"], queryFn: () => base44.entities.TrainingAttendance.list("-date", 1000) });
 
   const teamPlayers = useMemo(() => {

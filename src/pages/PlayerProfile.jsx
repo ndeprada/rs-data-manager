@@ -32,6 +32,7 @@ import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import InjuryRegistrationDialog from "@/components/player/InjuryRegistrationDialog";
 import { playerFirstName, playerFullName } from "@/lib/playerName";
+import { useCountedStats } from "@/lib/matchStatus";
 
 const POSITION_LABELS = {
   portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
@@ -64,7 +65,8 @@ export default function PlayerProfile() {
   const { data: staffList = [] } = useQuery({ queryKey: ["staff"], queryFn: () => base44.entities.StaffMember.list() });
   const { data: attendance = [] } = useQuery({ queryKey: ["attendance"], queryFn: () => base44.entities.TrainingAttendance.list() });
   const { data: injuries = [] } = useQuery({ queryKey: ["injuries"], queryFn: () => base44.entities.Injury.list() });
-  const { data: matchStats = [] } = useQuery({ queryKey: ["matchstats", playerId], queryFn: () => base44.entities.MatchStats.filter({ player_id: playerId }, "date"), enabled: !!playerId });
+  const { data: raw_matchStats = [] } = useQuery({ queryKey: ["matchstats", playerId], queryFn: () => base44.entities.MatchStats.filter({ player_id: playerId }, "date"), enabled: !!playerId });
+  const matchStats = useCountedStats(raw_matchStats);
   const { data: convocatorias = [] } = useQuery({ queryKey: ["convocatorias"], queryFn: () => base44.entities.Convocatoria.list() });
 
   const player = players.find((p) => p.id === playerId);

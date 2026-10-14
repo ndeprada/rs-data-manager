@@ -5,6 +5,7 @@ import { Pencil, Plus, ChevronUp, ChevronDown, ChevronsUpDown, User } from "luci
 import { base44 } from "@/api/base44Client";
 import { birthYearOf } from "@/lib/birthYear";
 import { playerFullName } from "@/lib/playerName";
+import { useMatchStatus } from "@/lib/matchStatus";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
@@ -41,12 +42,12 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
   const { data: attendance = [] } = useQuery({ queryKey: ["attendance_all"], queryFn: () => base44.entities.TrainingAttendance.list() });
   const { data: injuries = [] } = useQuery({ queryKey: ["injuries_all"], queryFn: () => base44.entities.Injury.list() });
 
+  const { counted, pending } = useMatchStatus();
+  const pendingHere = events.filter((e) => e.team_id === teamId && pending.has(e.id)).length;
   const { rows, guests } = useMemo(() => {
     const now = new Date();
-    const statEvents = new Set(allStats.map((s) => s.event_id));
-    // Partido ya disputado: fecha pasada y con resultado o estadísticas registradas
-    const played = events.filter((e) => e.team_id === teamId && MATCH_TYPES.includes(e.type) && new Date(e.date) < now
-      && (e.score_home != null && e.score_home !== "" && e.score_away != null && e.score_away !== "" || statEvents.has(e.id)));
+    // Solo partidos de liga/torneo cerrados completamente (no amistosos ni pendientes de gestionar)
+    const played = events.filter((e) => e.team_id === teamId && counted.has(e.id));
     const playedIds = new Set(played.map((e) => e.id));
     const totalMin = played.reduce((a, e) => a + matchMinutes(e), 0);
     const convByEvent = new Map(convocs.map((c) => [c.event_id, new Set(c.player_ids || [])]));
@@ -83,7 +84,7 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
     const guestIds = [...new Set(allStats.filter((s) => playedIds.has(s.event_id) && !ids.has(s.player_id)).map((s) => s.player_id))];
     const guests = guestIds.map((id) => players.find((p) => p.id === id)).filter(Boolean).map((p) => ({ p, ...agg(p.id), year: birthYearOf(p), team: teams.find((t) => t.id === p.team_id) }));
     return { rows, guests };
-  }, [players, teams, events, allStats, convocs, attendance, injuries, teamId]);
+  }, [players, teams, events, allStats, convocs, attendance, injuries, teamId, counted]);
 
   const sorted = useMemo(() => {
     const val = (r) => {
@@ -106,6 +107,11 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
       <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
         <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-black text-sm uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Plantilla <span className="text-gray-400 font-bold">({rows.length})</span></h2>
+          {pendingHere > 0 && (
+            <Link to="/MyTeam/Matches" className="ml-3 mr-auto text-[11px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap" title="Estos partidos no suman a las estadísticas hasta completar convocatoria, alineación y minutos">
+              {pendingHere} partido{pendingHere !== 1 ? "s" : ""} pendiente{pendingHere !== 1 ? "s" : ""} de gestionar
+            </Link>
+          )}
           {onAddPlayer && (
             <button onClick={onAddPlayer} className="inline-flex items-center gap-1 text-xs font-bold text-white px-2.5 py-1.5 rounded" style={{ background: "var(--granate)" }}><Plus className="w-3.5 h-3.5" /> Jugador</button>
           )}

@@ -15,6 +15,7 @@ import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
+import { useCountedStats } from "@/lib/matchStatus";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
@@ -32,7 +33,8 @@ export default function MyTeam() {
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
-  const { data: matchStats = [] } = useQuery({ queryKey: ["matchStats"], queryFn: () => base44.entities.MatchStats.list("-date", 500) });
+  const { data: raw_matchStats = [] } = useQuery({ queryKey: ["matchStats"], queryFn: () => base44.entities.MatchStats.list("-date", 500) });
+  const matchStats = useCountedStats(raw_matchStats);
 
   const [createEventDate, setCreateEventDate] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);

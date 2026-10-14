@@ -12,6 +12,7 @@ import MonthlyReportSection from "@/components/reports/MonthlyReportSection";
 import PDIReportSection from "@/components/reports/PDIReportSection";
 import ProgressionReportSection from "@/components/reports/ProgressionReportSection";
 import { playerFullName } from "@/lib/playerName";
+import { useCountedStats } from "@/lib/matchStatus";
 
 export default function Reports() {
   const [selectedTeamId, setSelectedTeamId] = useState("all");
@@ -26,10 +27,11 @@ export default function Reports() {
     queryKey: ["players"],
     queryFn: () => base44.entities.Player.list(),
   });
-  const { data: matchStats = [] } = useQuery({
+  const { data: raw_matchStats = [] } = useQuery({
     queryKey: ["matchStats"],
     queryFn: () => base44.entities.MatchStats.list("-date", 200),
   });
+  const matchStats = useCountedStats(raw_matchStats);
   const { data: attendance = [] } = useQuery({
     queryKey: ["attendance"],
     queryFn: () => base44.entities.TrainingAttendance.list("-date", 500),
