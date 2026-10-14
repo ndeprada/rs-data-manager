@@ -20,12 +20,19 @@ const RAW = [
 ["ao","AGO","Angola"],["cv","CPV","Cabo Verde"],["sa","SAU","Arabia Saudí"],["ir","IRN","Irán"],["iq","IRQ","Irak"],["uz","UZB","Uzbekistán"],["al","ALB","Albania"],["cy","CYP","Chipre"],["mt","MLT","Malta"],
 ];
 
-// Comunidades autónomas (código ISO 3166-2 sin "ES-", para flagcdn)
+// Comunidades autónomas (código ISO 3166-2 sin "ES-")
 export const REGIONS = [
   ["an","Andalucía"],["ar","Aragón"],["as","Asturias"],["ib","Islas Baleares"],["cn","Canarias"],["cb","Cantabria"],["cl","Castilla y León"],["cm","Castilla-La Mancha"],
   ["ct","Cataluña"],["ce","Ceuta"],["vc","Comunidad Valenciana"],["ex","Extremadura"],["ga","Galicia"],["md","Madrid"],["ml","Melilla"],["mc","Murcia"],["nc","Navarra"],
   ["pv","País Vasco"],["ri","La Rioja"],
 ].map(([code, name]) => ({ code, name }));
+const REGION_FILE = {
+  an: "Flag_of_Andalusia.svg", ar: "Flag_of_Aragon.svg", as: "Flag_of_Asturias.svg", ib: "Flag_of_the_Balearic_Islands.svg", cn: "Flag_of_the_Canary_Islands.svg",
+  cb: "Flag_of_Cantabria.svg", cl: "Flag_of_Castile_and_León.svg", cm: "Flag_of_Castilla-La_Mancha.svg", ct: "Flag_of_Catalonia.svg", ce: "Flag_of_Ceuta.svg",
+  vc: "Flag_of_the_Land_of_Valencia_(official).svg", ex: "Flag_of_Extremadura_(with_coat_of_arms).svg", ga: "Flag_of_Galicia.svg", md: "Flag_of_the_Community_of_Madrid.svg",
+  ml: "Flag_of_Melilla.svg", mc: "Flag_of_the_Region_of_Murcia.svg", nc: "Flag_of_Navarre.svg", pv: "Flag_of_the_Basque_Country.svg", ri: "Flag_of_La_Rioja_(with_coat_of_arms).svg",
+};
+const regionSrc = (code, w) => `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(REGION_FILE[code])}?width=${w}`;
 export const regionOf = (p) => (p?.region ? REGIONS.find((r) => r.code === p.region) || null : null);
 
 export const COUNTRIES = RAW.map(([a2, a3, name]) => ({ a2, a3, name }));
@@ -46,7 +53,7 @@ export function Flag({ player, code, showCode = true, className = "" }) {
       <img src={`https://flagcdn.com/w20/${c.a2}.png`} srcSet={`https://flagcdn.com/w40/${c.a2}.png 2x`} width="16" height="12" alt={c.name} loading="lazy" className="inline-block rounded-[2px] border border-black/10 object-cover" style={{ width: 16, height: 12 }} />
       {showCode && <span className="text-[10px] font-bold text-gray-500 tracking-wide">{c.a3}</span>}
       {c.a3 === "ESP" && region && (
-        <span title={region.name} className="inline-flex"><img src={`https://flagcdn.com/w20/es-${region.code}.png`} srcSet={`https://flagcdn.com/w40/es-${region.code}.png 2x`} alt={region.name} loading="lazy" className="inline-block rounded-[2px] border border-black/10 object-cover" style={{ width: 16, height: 12 }} /></span>
+        <span title={region.name} className="inline-flex"><img src={regionSrc(region.code, 20)} srcSet={`${regionSrc(region.code, 40)} 2x`} alt={region.name} loading="lazy" className="inline-block rounded-[2px] border border-black/10 object-cover" style={{ width: 16, height: 12 }} /></span>
       )}
     </span>
   );
