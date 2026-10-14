@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Tipografías del club */
+@font-face { font-family: 'Racing Sarria'; src: url('/fonts/RacingSarria.ttf') format('truetype'); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'IBM Plex Sans Condensed'; src: url('/fonts/IBMPlexSansCondensed-Light.ttf') format('truetype'); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: 'IBM Plex Sans Condensed'; src: url('/fonts/IBMPlexSansCondensed-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'IBM Plex Sans Condensed'; src: url('/fonts/IBMPlexSansCondensed-Italic.ttf') format('truetype'); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: 'IBM Plex Sans Condensed'; src: url('/fonts/IBMPlexSansCondensed-Medium.ttf') format('truetype'); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: 'IBM Plex Sans Condensed'; src: url('/fonts/IBMPlexSansCondensed-SemiBold.ttf') format('truetype'); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: 'IBM Plex Sans Condensed'; src: url('/fonts/IBMPlexSansCondensed-Bold.ttf') format('truetype'); font-weight: 700 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'IBM Plex Sans Condensed'; src: url('/fonts/IBMPlexSansCondensed-BoldItalic.ttf') format('truetype'); font-weight: 700 900; font-style: italic; font-display: swap; }
+
+
 @layer base {
   :root {
     --background: 0 0% 100%;

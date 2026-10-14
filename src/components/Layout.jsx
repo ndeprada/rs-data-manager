@@ -250,11 +250,10 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-gray-900 flex">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap');
         :root {
           --granate: #8B1A2B; --granate-dark: #6d1120; --granate-hover: #6d1120;
           --granate-pale: #fdf2f4; --naranja: #E85D04; --naranja-pale: #fff7ed;
-          --font-display: 'Barlow Condensed', sans-serif;
+          --font-display: 'Racing Sarria', sans-serif;
           --font-body: 'IBM Plex Sans Condensed', sans-serif;
         }
         * { font-family: var(--font-body); }

@@ -15,8 +15,7 @@ export default function PendingApproval() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5] p-4">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap');
-        .rs-font { font-family: 'Barlow Condensed', sans-serif; }
+        .rs-font { font-family: 'Racing Sarria', sans-serif; }
         .rs-body { font-family: 'IBM Plex Sans Condensed', sans-serif; }
       `}</style>
 

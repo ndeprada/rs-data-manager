@@ -45,7 +45,7 @@ export default function Login() {
       style={{
         "--granate": "#8B1A2B",
         "--naranja": "#E85D04",
-        "--font-display": "'Barlow Condensed', sans-serif",
+        "--font-display": "'Racing Sarria', sans-serif",
       }}
     >
       <div className="w-full max-w-md">
