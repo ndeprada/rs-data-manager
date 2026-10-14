@@ -42,7 +42,7 @@ export function MiniPitch({ player, position, secondaryPosition, laterality }) {
       <rect x="25" y="1" width="50" height="25" fill="none" stroke={line} strokeWidth="2" />
       <rect x="25" y="124" width="50" height="25" fill="none" stroke={line} strokeWidth="2" />
       {pts.map((x) => (
-        <circle key={x.position} cx={x.c.x} cy={(x.c.y / 100) * 150} r={x.level === "natural" ? 10 : 9} fill={LEVELS[x.level].color} stroke="#fff" strokeWidth={x.level === "natural" ? 2 : 1.5} />
+        <circle key={x.position + (x.role||"")} cx={x.c.x} cy={(x.c.y / 100) * 150} r={x.level === "natural" ? 10 : 9} fill={LEVELS[x.level].color} stroke="#fff" strokeWidth={x.level === "natural" ? 2 : 1.5} />
       ))}
     </svg>
   );

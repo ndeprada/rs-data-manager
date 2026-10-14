@@ -77,7 +77,7 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const extras = (form.extra_positions || []).filter((e) => e.position && e.position !== form.position);
+    const extras = (form.extra_positions || []).filter((e) => e.position && !(e.position === form.position && (e.role || "") === (form.reference_role || "")));
     const data = { ...form, extra_positions: extras, secondary_position: extras[0]?.position || "", birth_year: form.birth_year ? Number(form.birth_year) : null, birth_date: form.birth_date || null, team_id: form.team_id || teamId, jersey_number: form.jersey_number ? Number(form.jersey_number) : undefined };
     if (editingPlayer) {
       updateMutation.mutate({ id: editingPlayer.id, data });
@@ -151,7 +151,7 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
                   <div key={idx} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">
                     <Select value={e.position} onValueChange={(v) => upd({ position: v, role: "" })}>
                       <SelectTrigger className="border-gray-200"><SelectValue placeholder="Posición" /></SelectTrigger>
-                      <SelectContent>{POSITIONS.filter((p) => p.value !== form.position).map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+                      <SelectContent>{POSITIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
                     </Select>
                     {roles.length > 0 ? (
                       <Select value={e.role} onValueChange={(v) => upd({ role: v })}>

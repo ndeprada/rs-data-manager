@@ -93,7 +93,7 @@ function FootballField({ player }) {
         const cx = (x.c.x / 100) * 200, cy = (x.c.y / 100) * 300, col = LEVELS[x.level].color;
         const nat = x.level === "natural";
         return (
-          <g key={x.position}>
+          <g key={x.position + (x.role||"")}>
             {nat && <circle cx={cx} cy={cy} r="27" fill={col} fillOpacity="0.22" />}
             {nat && <circle cx={cx} cy={cy} r="20" fill={col} fillOpacity="0.35" />}
             <circle cx={cx} cy={cy} r={nat ? 13 : 11} fill={col} stroke={nat ? "#fff" : "#0b2a12"} strokeWidth={nat ? 2.5 : 2} />
@@ -127,7 +127,7 @@ export default function PlayerInfoCards({ player }) {
                 {getPositionList(player).map((x) => {
                   const role = x.role ? findRole(x.role)?.role.label : "";
                   return (
-                    <div key={x.position} className="flex items-center gap-2">
+                    <div key={x.position + (x.role||"")} className="flex items-center gap-2">
                       <span className="text-[11px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md min-w-[34px] text-center shrink-0" style={{ background: LEVELS[x.level].color, color: LEVELS[x.level].text }}>{POSITION_LABELS[x.position]}</span>
                       <div className="leading-tight min-w-0">
                         <p className={`text-sm ${x.level === "natural" ? "font-bold text-gray-900" : "font-medium text-gray-700"}`}>{POSITION_FULL[x.position] || x.position}{role ? ` · ${role}` : ""}</p>

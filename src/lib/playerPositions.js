@@ -22,7 +22,7 @@ export function getPositionList(player) {
   const list = [];
   if (player.position) list.push({ position: player.position, role: player.reference_role || "", level: "natural" });
   getExtraPositions(player).forEach((e) => {
-    if (!list.some((x) => x.position === e.position)) list.push({ position: e.position, role: e.role || "", level: e.level === "competente" ? "competente" : "secundaria" });
+    if (!list.some((x) => x.position === e.position && (x.role || "") === (e.role || ""))) list.push({ position: e.position, role: e.role || "", level: e.level === "competente" ? "competente" : "secundaria" });
   });
   return list;
 }
@@ -33,16 +33,16 @@ export function getPositionList(player) {
 // El rol ajusta la altura: libre más atrás, delantero de referencia muy arriba, falso 9 / mediapunta más cerca de los medios.
 const BASE = {
   portero: { x: 50, y: 93 },
-  central: { x: 50, y: 74 },
-  lateral: { x: 14, y: 69 },   // lado izquierdo (perfil del zurdo); se espeja para diestros
+  central: { x: 50, y: 70 },
+  lateral: { x: 14, y: 65 },   // lado izquierdo (perfil del zurdo); se espeja para diestros
   mediocentro: { x: 50, y: 52 },
   interior: { x: 30, y: 42 },
   extremo: { x: 12, y: 27 },
   delantero_centro: { x: 50, y: 15 },
 };
 const ROLE_ADJUST = {
-  central_libre: { y: 78 }, central_marcador: { y: 74 }, central_con_salida: { y: 72 }, central_completo: { y: 73 },
-  lateral_defensivo: { y: 71 }, lateral_interior: { x: 26, y: 65 }, lateral_completo: { y: 67 },
+  central_libre: { y: 74 }, central_marcador: { y: 70 }, central_con_salida: { y: 68 }, central_completo: { y: 69 },
+  lateral_defensivo: { y: 67 }, lateral_interior: { x: 26, y: 61 }, lateral_completo: { y: 63 },
   mediocentro_posicional: { y: 58 }, mediocentro_organizador: { y: 49 },
   interior_mixto: { y: 43 }, interior_avanzado: { y: 35 },
   extremo_apoyo: { x: 14, y: 32 }, extremo_profundo: { x: 10, y: 21 }, extremo_interior: { x: 22, y: 28 },
