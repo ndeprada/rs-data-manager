@@ -42,7 +42,7 @@ export default function TeamAttendance() {
   const navigate = useNavigate();
   const eventId = new URLSearchParams(location.search).get("eventId") || "";
 
-  const { selectedTeamId, selectTeam, canSwitch } = useSelectedTeam();
+  const { selectedTeamId, selectTeam, canSwitch, isCoordinator, teamIds: myTeamIds } = useSelectedTeam();
   const [editingEvent, setEditingEvent] = useState(null);
   const [trialName, setTrialName] = useState("");
   const [showGuests, setShowGuests] = useState(false);
@@ -203,7 +203,7 @@ export default function TeamAttendance() {
         {canSwitch && (
           <Select value={selectedTeamId} onValueChange={selectTeam}>
             <SelectTrigger className="w-48 border-gray-200 bg-white"><SelectValue placeholder="Equipo" /></SelectTrigger>
-            <SelectContent>{teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
           </Select>
         )}
       </div>

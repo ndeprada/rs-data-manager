@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Trash2, Users, FileText, Map, Pencil, Upload, MapPin, Calendar } from "lucide-react";
@@ -65,6 +66,7 @@ export default function MatchDetail() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const params = new URLSearchParams(location.search);
+  const { canManageTeam } = useTeamAccess();
   const eventId = params.get("id");
   const teamId = params.get("teamId");
 
@@ -174,12 +176,12 @@ export default function MatchDetail() {
               <span className="text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider border border-white/15 text-white/55">
                 {typeLabel}
               </span>
-              <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white/60 hover:text-white border border-white/15 hover:border-white/30 transition-all">
+              {canManageTeam(teamId) && <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white/60 hover:text-white border border-white/15 hover:border-white/30 transition-all">
                 <Pencil className="w-3 h-3" /> Editar
-              </button>
-              <button onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium text-red-400/80 hover:text-red-300 border border-red-500/20 hover:border-red-500/40 transition-all">
+              </button>}
+              {canManageTeam(teamId) && <button onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium text-red-400/80 hover:text-red-300 border border-red-500/20 hover:border-red-500/40 transition-all">
                 <Trash2 className="w-3 h-3" />
-              </button>
+              </button>}
             </div>
           </div>
 
@@ -276,6 +278,12 @@ export default function MatchDetail() {
       </div>
 
       {/* ── CONTENT ── */}
+      {!canManageTeam(teamId) && (
+        <div className="mb-3 px-3 py-2 rounded-md text-xs font-semibold border border-orange-200 bg-orange-50 text-orange-800">
+          Solo lectura: solo el administrador y los entrenadores de este equipo pueden gestionar la convocatoria, el acta y la táctica.
+        </div>
+      )}
+      <div {...(!canManageTeam(teamId) ? { inert: "", style: { pointerEvents: "none", opacity: 0.92 } } : {})}>
       {activeTab === "convocatoria" && (
         <ConvocationTab eventId={eventId} teamId={teamId} event={event} players={players} team={team} />
       )}
@@ -291,6 +299,8 @@ export default function MatchDetail() {
           footballFormat={event?.football_format}
         />
       )}
+
+      </div>
 
       {/* ── DIALOGS ── */}
       <EditEventDialog

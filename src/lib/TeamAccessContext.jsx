@@ -31,6 +31,9 @@ export const TeamAccessProvider = ({ children }) => {
   // Equipos como entrenador: principales si rol=entrenador, secundarios si rol secundario=entrenador
   const coachTeamIds = appRole === "entrenador" ? teamIds : secondaryTeamIds;
 
+  // Gestionar convocatoria/acta/táctica: solo admin y entrenadores del propio equipo
+  const canManageTeam = (id) => isAdmin || (!!id && (coachTeamIds || []).includes(id));
+
   const coordType = appRole;
 
   const teamFilter = isCoordinator ? null : (teamIds.length > 0 ? teamIds : null);
@@ -48,6 +51,8 @@ export const TeamAccessProvider = ({ children }) => {
       secondaryTeamIds,
       isAlsoCoach,
       coachTeamIds,
+      canManageTeam,
+      isAdmin,
       isStaffTecnico,
     }}>
       {children}

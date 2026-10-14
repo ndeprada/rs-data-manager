@@ -1,6 +1,6 @@
 import { query } from '../../_lib/db.js';
 import { requireUser } from '../../_lib/auth.js';
-import { checkEntityAccess, isPlayerUser, playerFilterDocs } from '../../_lib/access.js';
+import { checkEntityAccess, checkTeamWrite, isPlayerUser, playerFilterDocs } from '../../_lib/access.js';
 
 function rowToDoc(row) {
   return {
@@ -22,6 +22,9 @@ export default async function handler(req, res) {
     res.status(403).json({ error: access.error, field: access.field });
     return;
   }
+
+  const tw = await checkTeamWrite(user, entity, req.method, req.body || {}, id);
+  if (!tw.ok) { res.status(403).json({ error: tw.error }); return; }
 
   if (req.method === 'GET') {
     const { rows } = await query(

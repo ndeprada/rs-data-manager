@@ -29,7 +29,7 @@ const RESULT_COLORS = {
 export default function MyTeam() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { selectedTeamId, selectTeam, isCoordinator } = useSelectedTeam();
+  const { selectedTeamId, selectTeam, isCoordinator, canSwitch, teamIds: myTeamIds } = useSelectedTeam();
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
@@ -133,10 +133,10 @@ export default function MyTeam() {
           </h1>
           <p className="text-xs text-gray-400 capitalize mt-1">{selectedTeam?.category} · {selectedTeam?.coach}</p>
         </div>
-        {isCoordinator && (
+        {canSwitch && (
           <Select value={selectedTeamId} onValueChange={selectTeam}>
             <SelectTrigger className="w-56 border-gray-200 bg-white"><SelectValue /></SelectTrigger>
-            <SelectContent>{teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
           </Select>
         )}
       </div>

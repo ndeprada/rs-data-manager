@@ -135,3 +135,28 @@ export async function playerFilterDocs(user, entity, docs) {
   }
   return out;
 }
+
+// ── Gestión de convocatorias: solo admin y entrenadores del propio equipo ─────
+export function coachTeamIdsOf(u) {
+  if (u.app_role === 'entrenador') return [...(u.team_ids || []), ...(u.team_id ? [u.team_id] : [])];
+  if (u.secondary_role === 'entrenador') return u.secondary_team_ids || [];
+  return [];
+}
+
+const TEAM_MANAGED = new Set(['Convocatoria']);
+
+export async function checkTeamWrite(user, entity, method, body, id) {
+  if (method === 'GET' || !TEAM_MANAGED.has(entity) || isAdmin(user)) return { ok: true };
+  let teamId = body?.team_id || null;
+  let eventId = body?.event_id || null;
+  if (id) {
+    const { rows } = await query(`select data from entities where entity_type = $1 and id = $2`, [entity, id]);
+    if (rows[0]) { teamId = rows[0].data?.team_id || teamId; eventId = rows[0].data?.event_id || eventId; }
+  }
+  if (!teamId && eventId) {
+    const { rows } = await query(`select data from entities where entity_type = 'Event' and id::text = $1`, [String(eventId)]);
+    teamId = rows[0]?.data?.team_id || null;
+  }
+  if (!teamId) return { ok: true };
+  return coachTeamIdsOf(user).includes(teamId) ? { ok: true } : { ok: false, error: 'not_team_coach' };
+}

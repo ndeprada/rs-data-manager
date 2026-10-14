@@ -129,7 +129,7 @@ function Leaders({ title, items }) {
 }
 
 export default function Dashboard() {
-  const { isCoordinator, coachTeamIds } = useTeamAccess();
+  const { isCoordinator, coachTeamIds, canManageTeam } = useTeamAccess();
   const pendingUsers = usePendingUsers(isCoordinator);
   const [tab, setTab] = useState("equipos");
   const [group, setGroup] = useState("Todos");
@@ -240,7 +240,7 @@ export default function Dashboard() {
                   <span>{teamName(nextClub.team_id)}</span>
                   {nextClub.location && <span className="inline-flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{nextClub.location}</span>}
                 </p>
-                <MatchButtons ev={nextClub} mine={myIds.has(nextClub.team_id) || isCoordinator} light />
+                <MatchButtons ev={nextClub} mine={canManageTeam(nextClub.team_id)} light />
               </div>
               <Countdown date={nextClub.date} />
             </div>

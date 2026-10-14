@@ -21,7 +21,7 @@ const RESULT_COLORS = {
 
 export default function TeamMatches() {
   const navigate = useNavigate();
-  const { selectedTeamId, selectTeam, isCoordinator, canSwitch } = useSelectedTeam();
+  const { selectedTeamId, selectTeam, isCoordinator, canSwitch, teamIds: myTeamIds } = useSelectedTeam();
   const [filterType, setFilterType] = useState("all");
   const { pending } = useMatchStatus();
 
@@ -57,7 +57,7 @@ export default function TeamMatches() {
           {canSwitch && (
             <Select value={selectedTeamId} onValueChange={selectTeam}>
               <SelectTrigger className="w-48 border-gray-200 bg-white"><SelectValue placeholder="Equipo" /></SelectTrigger>
-              <SelectContent>{teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+              <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
             </Select>
           )}
           <Select value={filterType} onValueChange={setFilterType}>

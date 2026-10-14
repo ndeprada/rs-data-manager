@@ -10,7 +10,7 @@ import TeamSquadTable from "@/components/team/TeamSquadTable";
 
 // Plantilla: misma tabla (y mismas estadísticas) que el resumen del equipo.
 export default function Squad() {
-  const { selectedTeamId, selectTeam, canSwitch } = useSelectedTeam();
+  const { selectedTeamId, selectTeam, canSwitch, isCoordinator, teamIds: myTeamIds } = useSelectedTeam();
   const [addPlayerOpen, setAddPlayerOpen] = useState(false);
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
 
@@ -27,7 +27,7 @@ export default function Squad() {
         {canSwitch && (
           <Select value={selectedTeamId} onValueChange={selectTeam}>
             <SelectTrigger className="w-48 border-gray-200 bg-white"><SelectValue placeholder="Seleccionar equipo" /></SelectTrigger>
-            <SelectContent>{teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
           </Select>
         )}
       </div>

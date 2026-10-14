@@ -10,7 +10,7 @@ import { playerFullName, playerSearchName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
 
 export default function Development() {
-  const { selectedTeamId, selectTeam, isCoordinator } = useSelectedTeam();
+  const { selectedTeamId, selectTeam, isCoordinator, canSwitch, teamIds: myTeamIds } = useSelectedTeam();
   const [search, setSearch] = useState("");
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
@@ -45,10 +45,10 @@ export default function Development() {
           <h1 className="text-3xl font-black uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Desarrollo</h1>
         </div>
         <div className="flex gap-3 flex-wrap">
-          {isCoordinator && (
+          {canSwitch && (
             <Select value={selectedTeamId} onValueChange={selectTeam}>
               <SelectTrigger className="w-48 border-gray-200 bg-white"><SelectValue placeholder="Equipo" /></SelectTrigger>
-              <SelectContent>{teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+              <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
             </Select>
           )}
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar jugador..."
