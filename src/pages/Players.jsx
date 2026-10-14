@@ -137,6 +137,8 @@ export default function Players() {
     }
     else if (sortKey === "jersey_number") { aVal = a.jersey_number || 999; bVal = b.jersey_number || 999; }
     else if (sortKey === "birth_date") { aVal = birthYearOf(a) || 0; bVal = birthYearOf(b) || 0; }
+    else if (sortKey === "laterality") { aVal = a.laterality || "z"; bVal = b.laterality || "z"; }
+    else if (sortKey === "nat") { const k = (p) => (isForeign(p) ? `1${countryOf(p)?.a3 || ""}` : countryOf(p) ? "0" : "2"); aVal = k(a); bVal = k(b); }
     else if (sortKey === "status") { aVal = a.status || ""; bVal = b.status || ""; }
     else if (sortKey === "team") { aVal = teams.find(t => t.id === a.team_id)?.name || ""; bVal = teams.find(t => t.id === b.team_id)?.name || ""; }
     else { aVal = `${a.last_name} ${a.first_name}`.toLowerCase(); bVal = `${b.last_name} ${b.first_name}`.toLowerCase(); }
@@ -159,75 +161,63 @@ export default function Players() {
         </Button>
       </div>
 
-      {/* Sticky Filter Bar */}
-      <div className="sticky top-[56px] lg:top-0 z-20 bg-white border border-gray-200 rounded-sm shadow-sm p-3 space-y-2">
-        <div className="flex flex-col lg:flex-row gap-2 items-start lg:items-center">
-          <div className="relative flex-1 min-w-0">
+      {/* Barra de búsqueda y filtros (sticky) */}
+      <div className="sticky top-[56px] lg:top-0 z-20 bg-white border border-gray-200 rounded-sm shadow-sm p-3 space-y-2.5">
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input placeholder="Buscar por nombre…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 border-gray-200 h-8" />
           </div>
-          <div className="flex flex-wrap gap-2 w-full lg:w-auto">
-            <Select value={filterTeam} onValueChange={setFilterTeam}>
-              <SelectTrigger className="w-full sm:w-40 border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Equipo" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los equipos</SelectItem>
-                {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <Select value={filterTeam} onValueChange={setFilterTeam}>
+            <SelectTrigger className="w-[170px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Equipo" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los equipos</SelectItem>
+              {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterYear} onValueChange={setFilterYear}>
+            <SelectTrigger className="w-[130px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Año nac." /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los años</SelectItem>
+              {birthYears.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterNat} onValueChange={setFilterNat}>
+            <SelectTrigger className="w-[150px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Nacionalidad" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toda nacionalidad</SelectItem>
+              <SelectItem value="ESP">Españoles ({players.filter((p) => countryOf(p)?.a3 === "ESP").length})</SelectItem>
+              <SelectItem value="foreign">Extranjeros ({players.filter(isForeign).length})</SelectItem>
+              {natList.map((c) => <SelectItem key={c.a3} value={c.a3}>{c.name} ({players.filter((p) => countryOf(p)?.a3 === c.a3).length})</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterLaterality} onValueChange={setFilterLaterality}>
+            <SelectTrigger className="w-[140px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Lateralidad" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toda lateralidad</SelectItem>
+              {LATERALITY.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[120px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Estado" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="activo">Activo</SelectItem>
+              <SelectItem value="lesionado">Lesionado</SelectItem>
+              <SelectItem value="baja">Baja</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-            <Select value={filterYear} onValueChange={setFilterYear}>
-              <SelectTrigger className="w-full sm:w-32 border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Año nac." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los años</SelectItem>
-                {birthYears.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterLaterality} onValueChange={setFilterLaterality}>
-              <SelectTrigger className="w-full sm:w-32 border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Lateralidad" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toda lateralidad</SelectItem>
-                {LATERALITY.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterNat} onValueChange={setFilterNat}>
-              <SelectTrigger className="w-full sm:w-36 border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Nacionalidad" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toda nacionalidad</SelectItem>
-                <SelectItem value="ESP">Españoles ({players.filter((p) => countryOf(p)?.a3 === "ESP").length})</SelectItem>
-                <SelectItem value="foreign">Extranjeros ({players.filter(isForeign).length})</SelectItem>
-                {natList.map((c) => <SelectItem key={c.a3} value={c.a3}>{c.name} ({players.filter((p) => countryOf(p)?.a3 === c.a3).length})</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full sm:w-28 border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Estado" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="activo">Activo</SelectItem>
-                <SelectItem value="lesionado">Lesionado</SelectItem>
-                <SelectItem value="baja">Baja</SelectItem>
-              </SelectContent>
-            </Select>
-            {hasFilters && (
-              <button
-                onClick={() => { setSearch(""); setFilterTeam("all"); setFilterYear("all"); setFilterLaterality("all"); setFilterPosition(new Set()); setFilterStatus("all"); setFilterNat("all"); }}
-                className="text-xs text-gray-400 hover:text-gray-700 underline px-2 h-8 flex items-center shrink-0"
-              >
-                Limpiar
-              </button>
-            )}
-          </div>
-
-          {/* Position pills */}
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Posición:</span>
+        <div className="flex flex-wrap gap-x-4 gap-y-2 items-center">
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider mr-1">Posición</span>
             {POSITION_PILLS.map(pos => (
               <button
                 key={pos.value}
                 onClick={() => togglePositionFilter(pos.value)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  filterPosition.has(pos.value)
-                    ? "text-white border-2"
-                    : "text-gray-500 border-2 border-gray-200 hover:border-gray-300"
+                className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all border ${
+                  filterPosition.has(pos.value) ? "text-white" : "text-gray-500 border-gray-200 hover:border-gray-300"
                 }`}
                 style={filterPosition.has(pos.value) ? { background: "var(--granate)", borderColor: "var(--granate)" } : {}}
               >
@@ -235,8 +225,18 @@ export default function Players() {
               </button>
             ))}
           </div>
+          <div className="ml-auto flex items-center gap-3">
+            <p className="text-xs text-gray-500">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</p>
+            {hasFilters && (
+              <button
+                onClick={() => { setSearch(""); setFilterTeam("all"); setFilterYear("all"); setFilterLaterality("all"); setFilterPosition(new Set()); setFilterStatus("all"); setFilterNat("all"); }}
+                className="text-xs font-semibold underline" style={{ color: "var(--granate)" }}
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
         </div>
-        <p className="text-xs text-gray-500">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</p>
       </div>
 
       {/* Table */}
@@ -258,11 +258,12 @@ export default function Players() {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-400 uppercase tracking-wider select-none" style={{ fontFamily: "var(--font-display)" }}>
                    <th className="text-left px-4 py-2 font-bold cursor-pointer hover:text-gray-700" onClick={() => handleSort("name")}>Jugador<SortIcon col="name" /></th>
+                   <th className="text-center px-3 py-2 font-bold hidden sm:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("birth_date")}>Año nac.<SortIcon col="birth_date" /></th>
+                   <th className="text-center px-3 py-2 font-bold hidden md:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("nat")}>Nac.<SortIcon col="nat" /></th>
                    <th className="text-left px-3 py-2 font-bold hidden md:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("team")}>Equipo<SortIcon col="team" /></th>
                    <th className="text-center px-3 py-2 font-bold cursor-pointer hover:text-gray-700" onClick={() => handleSort("position")}>Pos.<SortIcon col="position" /></th>
-                   <th className="text-center px-3 py-2 font-bold hidden sm:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("birth_date")}>Año nac.<SortIcon col="birth_date" /></th>
-                   <th className="text-center px-3 py-2 font-bold hidden lg:table-cell">Lateral.</th>
-                   <th className="text-center px-3 py-2 font-bold hidden lg:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("jersey_number")}>#<SortIcon col="jersey_number" /></th>
+                   <th className="text-center px-3 py-2 font-bold hidden lg:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("laterality")}>Lateralidad<SortIcon col="laterality" /></th>
+                   <th className="text-center px-3 py-2 font-bold hidden sm:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("jersey_number")}>Dorsal<SortIcon col="jersey_number" /></th>
                    <th className="text-center px-3 py-2 font-bold cursor-pointer hover:text-gray-700" onClick={() => handleSort("status")}>Estado<SortIcon col="status" /></th>
                    <th className="px-3 py-2"></th>
                  </tr>
@@ -275,21 +276,14 @@ export default function Players() {
                     <tr key={player.id} className="hover:bg-gray-50 transition-colors">
                        <td className="px-4 py-1.5">
                          <div className="flex items-center gap-2">
-                           <div className="relative shrink-0">
-                             <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden border border-gray-200" style={{ background: "var(--granate)" }}>
-                               <PlayerAvatar player={player} />
-                             </div>
-                             {player.jersey_number && (
-                               <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full text-white flex items-center justify-center text-[9px] font-black leading-none border border-white" style={{ background: "var(--naranja)", fontFamily: "var(--font-display)" }}>
-                                 {player.jersey_number}
-                               </span>
-                             )}
+                           <div className="w-8 h-8 shrink-0 rounded flex items-center justify-center overflow-hidden border border-gray-200" style={{ background: "var(--granate)" }}>
+                             <PlayerAvatar player={player} />
                            </div>
-                           <div>
-                             <p className="font-bold text-gray-900 leading-tight flex items-center gap-1.5" style={{ fontFamily: "var(--font-display)" }}><PlayerName player={player} /><Flag player={player} /></p>
-                           </div>
+                           <p className="font-bold text-gray-900 leading-tight" style={{ fontFamily: "var(--font-display)" }}><PlayerName player={player} /></p>
                          </div>
                        </td>
+                      <td className="px-3 py-1.5 text-center hidden sm:table-cell font-black text-gray-600 text-sm" style={{ fontFamily: "var(--font-display)" }}>{birthYear || "—"}</td>
+                      <td className="px-3 py-1.5 text-center hidden md:table-cell"><Flag player={player} /></td>
                       <td className="px-3 py-1.5 hidden md:table-cell text-xs text-gray-500">{team?.name || "—"}</td>
                       <td className="px-3 py-1.5 text-center">
                         {player.position ? (
@@ -298,11 +292,8 @@ export default function Players() {
                           </span>
                         ) : <span className="text-gray-300">—</span>}
                       </td>
-                      <td className="px-3 py-1.5 text-center hidden sm:table-cell font-black text-gray-600 text-sm" style={{ fontFamily: "var(--font-display)" }}>
-                        {birthYear || "—"}
-                      </td>
-                      <td className="px-3 py-1.5 text-center hidden lg:table-cell text-xs text-gray-400 capitalize">{player.laterality || "—"}</td>
-                      <td className="px-3 py-1.5 text-center hidden lg:table-cell font-black text-gray-400" style={{ fontFamily: "var(--font-display)" }}>{player.jersey_number || "—"}</td>
+                      <td className="px-3 py-1.5 text-center hidden lg:table-cell text-xs text-gray-500 capitalize">{player.laterality || "—"}</td>
+                      <td className="px-3 py-1.5 text-center hidden sm:table-cell font-black text-gray-600" style={{ fontFamily: "var(--font-display)" }}>{player.jersey_number || "—"}</td>
                       <td className="px-3 py-1.5 text-center">
                         <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-sm border ${
                           player.status === "activo" ? "bg-green-50 text-green-700 border-green-200" :
