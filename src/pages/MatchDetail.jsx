@@ -68,7 +68,7 @@ export default function MatchDetail() {
   const eventId = params.get("id");
   const teamId = params.get("teamId");
 
-  const [activeTab, setActiveTab] = useState("convocatoria");
+  const [activeTab, setActiveTab] = useState(["convocatoria", "acta", "tactica"].includes(params.get("tab")) ? params.get("tab") : "convocatoria");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 

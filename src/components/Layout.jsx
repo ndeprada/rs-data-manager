@@ -209,7 +209,7 @@ function StaffSidebar({ onClose = () => {} }) {
     <div className="flex flex-col h-full" style={{ background: "var(--granate)" }}>
       {/* Logo */}
       <div className="px-3 py-4 border-b border-white/10">
-        <Link to={isCoordinator ? "/Dashboard" : "/MyTeam"} onClick={onClose} className="flex items-center gap-2.5">
+        <Link to="/Dashboard" onClick={onClose} className="flex items-center gap-2.5">
           <div className="w-8 h-8 shrink-0 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.13)" }}>
             <img src={CLUB_LOGO_URL_WHITE} alt="RS" className="w-6 h-6 object-contain" />
           </div>
@@ -226,6 +226,13 @@ function StaffSidebar({ onClose = () => {} }) {
           <>
             <SectionLabel>Administración</SectionLabel>
             {adminNav.map(item => <NavItem key={item.path} item={item} onClick={onClose} badge={item.path === "/Accesos" ? pendingUsers.length : 0} />)}
+          </>
+        )}
+
+        {!isCoordinator && (
+          <>
+            <SectionLabel>Club</SectionLabel>
+            <NavItem item={{ label: "Panel del club", path: "/Dashboard", icon: LayoutDashboard }} onClick={onClose} />
           </>
         )}
 
@@ -325,7 +332,7 @@ export default function Layout() {
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             {pendingUsersCount > 0 && !mobileOpen && <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-[#FF6E00] border border-[#73000A]" />}
           </button>
-          <Link to={playerMode ? "/PlayerTeam" : isCoordinator ? "/Dashboard" : "/MyTeam"} onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
+          <Link to={playerMode ? "/PlayerTeam" : "/Dashboard"} onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
             <img src={CLUB_LOGO_URL_WHITE} alt="RS Club" className="w-7 h-7 object-contain" />
             <h1 className="font-bold text-xl tracking-wider uppercase leading-none" style={{ fontFamily: "var(--font-display)", color: "#ffffff" }}>RS Data Manager</h1>
           </Link>
