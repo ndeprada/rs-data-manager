@@ -56,7 +56,7 @@ export default function TeamMatches() {
         <div className="flex gap-3 flex-wrap">
           {canSwitch && (
             <Select value={selectedTeamId} onValueChange={selectTeam}>
-              <SelectTrigger className="w-48 border-gray-200 bg-white"><SelectValue placeholder="Equipo" /></SelectTrigger>
+              <SelectTrigger className="w-56 h-10 font-bold uppercase tracking-wide text-[13px] text-white border-2 border-[#FF6E00] bg-[#73000A] hover:bg-[#36000D] shadow-md [&>span]:text-white [&>svg]:text-[#FF6E00] [&>svg]:opacity-100"><SelectValue placeholder="Equipo" /></SelectTrigger>
               <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
             </Select>
           )}
