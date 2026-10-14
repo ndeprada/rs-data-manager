@@ -44,6 +44,7 @@ const GROUP_COLORS = {
 
 const NO_CONV_REASONS = [
   { value: "lesion",           label: "Lesión" },
+  { value: "enfermo",          label: "Enfermo (cuenta como lesión)" },
   { value: "sancion",          label: "Sanción" },
   { value: "descanso",         label: "Descanso" },
   { value: "decision_tecnica", label: "Dec. técnica" },

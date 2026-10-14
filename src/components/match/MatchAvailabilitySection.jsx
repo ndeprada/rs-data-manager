@@ -13,6 +13,7 @@ const POSITION_LABELS = {
 
 const REASON_LABELS = {
   lesion: "Lesión",
+  enfermo: "Enfermo (cuenta como lesión)",
   sancion: "Sanción",
   viaje: "Viaje",
   familiar: "Motivo familiar",

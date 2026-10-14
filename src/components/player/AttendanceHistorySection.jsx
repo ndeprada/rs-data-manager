@@ -33,7 +33,7 @@ export default function AttendanceHistorySection({ attendance = [], injuries = [
 
   const attendancePercentage = stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0;
   const absenceWithLesion = attendance.filter(
-    (a) => a.status === "absent" && a.absence_reason === "lesion"
+    (a) => a.status === "absent" && (a.absence_reason === "lesion" || a.absence_reason === "enfermo")
   ).length;
 
   const getReasonLabel = (reason) => ABSENCE_REASON_LABELS[reason] || "—";

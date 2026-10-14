@@ -10,6 +10,7 @@ import { Trash2 } from "lucide-react";
 
 const ABSENCE_REASONS = {
   lesion: "Lesión",
+  enfermo: "Enfermo",
   suspension: "Sanción",
   personal: "Razón personal",
   otros: "Otros"

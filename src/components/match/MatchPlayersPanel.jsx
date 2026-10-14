@@ -18,7 +18,7 @@ const POSITION_LABELS = {
 };
 
 const NO_CONVOC_REASONS = {
-  lesion: "Lesión", decision_tecnica: "Dec. técnica", estudios: "Estudios",
+  lesion: "Lesión", enfermo: "Enfermo", decision_tecnica: "Dec. técnica", estudios: "Estudios",
   viaje: "Viaje", familiar: "Familiar", sancion: "Sanción", otro: "Otro",
 };
 
