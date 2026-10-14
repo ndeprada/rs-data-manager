@@ -274,6 +274,7 @@ export async function syncFcf() {
   await bulkInsert('Event', eventInserts);
   await bulkPatch(eventPatches);
   try { await syncActas(stats); } catch (e) { stats.errors.push(`actas: ${e.message}`); }
+  try { await recalcPrimerEquipoMinutes(stats); } catch (e) { stats.errors.push(`minutos: ${e.message}`); }
   return stats;
 }
 
@@ -283,6 +284,63 @@ const ACTA_BASE = 'https://www.fcf.cat/api/acta';
 function fcfPlayerKey(nombre) {
   // "APELLIDOS, NOMBRE" -> mismos tokens que "NOMBRE APELLIDOS"
   return tokensKey(String(nombre || '').replace(',', ' '));
+}
+
+// ── Minutos automáticos (solo Primer Equipo: el acta recoge los cambios) ─────
+const PRIMER_EQUIPO_SLUGS = new Set(['primera_federacio', 'segona_federacio', 'tercera_federacio', 'lliga_elit', 'copa_catalunya_masculina_24_25', 'copa_catalunya_masculina', 'copa_lleida', 'primera_catalana', 'segona_catalana', 'tercera_catalana', 'quarta_catalana']);
+const isPrimerEquipo = (team) => !!team && (PRIMER_EQUIPO_SLUGS.has(String(team.category || '')) || /^primer equip/i.test(String(team.name || '')));
+
+function totalMatchMinutes(d) {
+  const x = d.match_duration;
+  if (!x) return 90;
+  if (x === '4x15') return 60;
+  if (x === '4x12') return 48;
+  return parseInt(x) || 90;
+}
+
+// Titular: de 0 al minuto en que sale (cambio o roja); suplente: del minuto en que entra hasta el final o su salida; el resto, 0.
+function minutesFromActa(pid, starterIds, matchEvents, total) {
+  const marks = matchEvents
+    .filter((e) => e.team === 'home' && e.minute !== '' && e.minute != null && (
+      (e.type === 'sub' && (e.playerIn === pid || e.playerOut === pid)) ||
+      (e.type === 'card' && e.playerId === pid && (e.cardColor === 'red' || e.cardColor === 'yellow2'))))
+    .map((e) => ({ m: Math.min(Number(e.minute) || 0, total), in: e.type === 'sub' && e.playerIn === pid }))
+    .sort((a, b) => a.m - b.m);
+  let cur = starterIds.includes(pid) ? 0 : null, sum = 0;
+  for (const k of marks) {
+    if (k.in) { if (cur === null) cur = k.m; }
+    else if (cur !== null) { sum += Math.max(0, k.m - cur); cur = null; }
+  }
+  if (cur !== null) sum += Math.max(0, total - cur);
+  return sum;
+}
+
+// Recalcula los minutos de todos los partidos de equipos "Primer Equipo" con acta.
+async function recalcPrimerEquipoMinutes(stats) {
+  stats.minutes_recalc = 0;
+  const { rows: teamRows } = await query(`select id, data from entities where entity_type = 'Team'`);
+  const teams = new Map(teamRows.filter((r) => isPrimerEquipo(r.data)).map((r) => [r.id, r.data]));
+  if (!teams.size) return;
+  const { rows: evs } = await query(`select id, data from entities where entity_type = 'Event' and data ? 'match_events' and data ->> 'team_id' = any($1)`, [[...teams.keys()]]);
+  if (!evs.length) return;
+  const { rows: convs } = await query(`select data from entities where entity_type = 'Convocatoria'`);
+  const convByEvent = new Map(convs.map((r) => [r.data.event_id, r.data]));
+  const { rows: ms } = await query(`select id, data from entities where entity_type = 'MatchStats'`);
+  const msByEvent = new Map();
+  for (const r of ms) { if (!msByEvent.has(r.data.event_id)) msByEvent.set(r.data.event_id, []); msByEvent.get(r.data.event_id).push(r); }
+  const patches = [];
+  for (const ev of evs) {
+    const conv = convByEvent.get(ev.id);
+    const events = Array.isArray(ev.data.match_events) ? ev.data.match_events : [];
+    if (!conv || !(conv.starters || []).length) continue;
+    const total = totalMatchMinutes(ev.data);
+    for (const r of msByEvent.get(ev.id) || []) {
+      const mins = minutesFromActa(r.data.player_id, conv.starters || [], events, total);
+      if (Number(r.data.minutes_played || 0) !== mins) patches.push({ id: r.id, d: { minutes_played: mins, minutes_auto: true } });
+    }
+  }
+  await bulkPatch(patches);
+  stats.minutes_recalc = patches.length;
 }
 
 async function syncActas(stats) {

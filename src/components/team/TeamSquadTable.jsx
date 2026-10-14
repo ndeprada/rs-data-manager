@@ -62,6 +62,7 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
         totalMin, availMin,
         pj: st.length,
         goals: st.reduce((a, s) => a + (s.goals || 0), 0),
+        conceded: st.reduce((a, s) => a + (s.goals_conceded || 0), 0),
         assists: st.reduce((a, s) => a + (s.assists || 0), 0),
         mins,
         minPJ: st.length ? Math.round(mins / st.length) : null,
@@ -147,7 +148,14 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
                     <td className={`${num} text-gray-600`}>{r.year ?? "—"}</td>
                     <td className={num}><span className="text-[10px] font-black px-1.5 py-0.5 rounded-sm" style={{ background: "var(--granate-pale)", color: "var(--granate)" }}>{POS_LABEL[r.p.position] || "—"}</span></td>
                     <td className={`${num} font-black`}>{r.pj}</td>
-                    <td className={`${num} font-black`} style={{ color: r.goals > 0 ? "var(--granate)" : undefined }}>{r.goals}</td>
+                    <td className={`${num} font-black`} style={{ color: r.p.position === "portero" ? undefined : r.goals > 0 ? "var(--granate)" : undefined }} title={r.p.position === "portero" ? "Goles encajados (y marcados entre paréntesis)" : undefined}>
+                      {r.p.position === "portero" ? (
+                        <span>
+                          <span style={{ color: r.conceded > 0 ? "#dc2626" : "#9ca3af" }}>{r.conceded > 0 ? `-${r.conceded}` : "0"}</span>
+                          {r.goals > 0 && <span className="text-gray-700"> ({r.goals})</span>}
+                        </span>
+                      ) : r.goals}
+                    </td>
                     <td className={`${num} font-bold text-gray-600`}>{r.assists}</td>
                     <td className={`${num} text-gray-700`} title={`${r.mins}' de ${r.totalMin}' de partidos jugados`}>{r.mins > 0 ? `${r.mins}'` : "—"}</td>
                     <td className={`${num} text-gray-600`}>{r.minPJ ? `${r.minPJ}'` : "—"}</td>
