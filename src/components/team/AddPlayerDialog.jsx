@@ -13,7 +13,6 @@ const POSITIONS = [
   { value: "portero", label: "Portero" },
   { value: "lateral", label: "Lateral" },
   { value: "central", label: "Central" },
-  { value: "libre", label: "Libre" },
   { value: "mediocentro", label: "Mediocentro" },
   { value: "interior", label: "Interior" },
   { value: "delantero_centro", label: "Delantero Centro" },

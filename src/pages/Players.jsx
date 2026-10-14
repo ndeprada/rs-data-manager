@@ -18,7 +18,6 @@ const POSITIONS = [
   { value: "portero", label: "Portero" },
   { value: "lateral", label: "Lateral" },
   { value: "central", label: "Central" },
-  { value: "libre", label: "Libre" },
   { value: "mediocentro", label: "Mediocentro" },
   { value: "interior", label: "Interior" },
   { value: "delantero_centro", label: "Del. Centro" },
@@ -37,7 +36,6 @@ const POSITION_PILLS = [
   { value: "central", label: "CTR" },
   { value: "interior", label: "INT" },
   { value: "extremo", label: "EXT" },
-  { value: "libre", label: "LIB" },
 ];
 
 function PlayerAvatar({ player }) {
