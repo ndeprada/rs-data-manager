@@ -43,7 +43,7 @@ const GK_KITS = {
 const kitFor = (player, kit, gkKit) =>
   player?.position === "portero" ? (GK_KITS[gkKit] || GK_KITS.naranja) : (KITS[kit] || KITS["1"]);
 
-function DraggableField({ kit, gkKit,  slots, positions, onPositionsChange, onSlotClick }) {
+function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsChange, onSlotClick }) {
   const svgRef = useRef(null);
   const draggingIdx = useRef(null);
   const W = 300, H = 420;
@@ -134,9 +134,17 @@ function DraggableField({ kit, gkKit,  slots, positions, onPositionsChange, onSl
           <g key={i} onPointerDown={e => handlePointerDown(e, i)} style={{ cursor: "grab" }}>
             <circle cx={cx + 1} cy={cy + 1.5} r="13" fill="rgba(0,0,0,0.25)" />
             <circle cx={cx} cy={cy} r="13" fill={player ? k.fill : "rgba(255,255,255,0.15)"} stroke={player ? k.stroke : "white"} strokeWidth="2.2" strokeDasharray={player ? "0" : "4 3"} />
-            <text x={cx} y={cy + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 10.5 : 13} fontWeight="900" fill={player ? k.num : "white"}>
+            <text x={cx} y={cy + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 13 : 13} fontWeight="400" fontFamily="Anton, 'Barlow Condensed', sans-serif" fill={player ? k.num : "white"}>
               {player ? (player.jersey_number || player.first_name?.[0]) : "+"}
             </text>
+            {player && captainId && player.id === captainId && (
+              <g transform={`translate(${cx + 11}, ${cy - 20})`}>
+                <rect x="-0.8" y="-0.8" width="15.6" height="11.6" rx="2" fill="#1f2937" opacity="0.55" />
+                <rect x="0" y="0" width="14" height="10" rx="1.5" fill="#FCDD09" />
+                {[1.4, 4.4, 7.4, 10.4].map(x => <rect key={x} x={x} y="0" width="1.7" height="10" fill="#DA121A" />)}
+                <text x="17" y="9" fontSize="10" fontFamily="Anton, sans-serif" fill="white" stroke="rgba(0,0,0,0.7)" strokeWidth="2" paintOrder="stroke" strokeLinejoin="round">C</text>
+              </g>
+            )}
             {player && (
               <text x={cx} y={cy + 23} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="white" stroke="rgba(0,0,0,0.55)" strokeWidth="2.2" paintOrder="stroke" strokeLinejoin="round">
                 <tspan x={cx}>{line1}</tspan>
@@ -227,6 +235,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const [planDefense, setPlanDefense] = useState("");
   const [rival, setRival] = useState({ strengths: "", weaknesses: "", keys: "", notes: "" });
   const [pieces, setPieces] = useState([]);
+  const [captain, setCaptain] = useState("");
   const [kit, setKit] = useState("1");
   const [gkKit, setGkKit] = useState("naranja");
   const [pickSlot, setPickSlot] = useState(null);
@@ -255,6 +264,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
       setPlanDefense(plan.plan_defense || "");
       setRival({ strengths: "", weaknesses: "", keys: "", notes: "", ...(plan.rival || {}) });
       setPieces(plan.set_pieces || []);
+      setCaptain(plan.captain_id || "");
       if (KITS[plan.kit]) setKit(plan.kit);
       if (GK_KITS[plan.gk_kit]) setGkKit(plan.gk_kit);
     } else {
@@ -278,7 +288,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const taken = new Set(slotIds.filter(Boolean));
 
   // Autoguardado (1,2 s después del último cambio)
-  const payload = { formation: validFormation, positions, lineup: slotIds, bench, plan_attack: planAttack, plan_defense: planDefense, rival, set_pieces: pieces, kit, gk_kit: gkKit };
+  const payload = { formation: validFormation, positions, lineup: slotIds, bench, plan_attack: planAttack, plan_defense: planDefense, rival, set_pieces: pieces, kit, gk_kit: gkKit, captain_id: slotIds.includes(captain) ? captain : "" };
   const payloadKey = JSON.stringify(payload);
   const firstRun = useRef(true);
   useEffect(() => {
@@ -350,11 +360,24 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
               ))}
             </div>
           </div>
+          {filled > 0 && (
+            <div className="flex items-center justify-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Capitán</span>
+              <Select value={slotIds.includes(captain) ? captain : "none"} onValueChange={v => setCaptain(v === "none" ? "" : v)}>
+                <SelectTrigger className="w-44 h-7 text-xs border-gray-200"><SelectValue placeholder="Elegir…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin capitán</SelectItem>
+                  {slots.filter(Boolean).map(p => <SelectItem key={p.id} value={p.id}>{p.first_name} {firstSurname(p.last_name)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <p className="text-[10px] text-gray-400 text-center">Toca un hueco para elegir jugador (cualquiera del club) · arrastra para reposicionar</p>
           <div style={{ maxWidth: 380, margin: "0 auto", aspectRatio: "300/420" }}>
             <DraggableField
               kit={kit}
               gkKit={gkKit}
+              captainId={slotIds.includes(captain) ? captain : ""}
               slots={slots}
               positions={currentPositions}
               onPositionsChange={(newPos) => setPositions(newPos)}
