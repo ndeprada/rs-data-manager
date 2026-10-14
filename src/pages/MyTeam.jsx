@@ -15,6 +15,7 @@ import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
+import TeamSummary from "@/components/myteam/TeamSummary";
 import { useCountedStats } from "@/lib/matchStatus";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
@@ -139,6 +140,8 @@ export default function MyTeam() {
           </Select>
         )}
       </div>
+
+      {selectedTeam && <TeamSummary team={selectedTeam} events={teamEvents} players={players} matchStats={matchStats} />}
 
       {/* Previsión semanal en columnas */}
       <WeeklyCalendar
