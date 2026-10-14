@@ -1,3 +1,4 @@
+import JerseyBack from "@/components/player/JerseyBack";
 import { birthYearOf } from "@/lib/birthYear";
 import { countCleanSheets, useCleanSheetData } from "@/lib/cleanSheet";
 import React, { useRef, useState } from "react";
@@ -173,16 +174,13 @@ export default function PlayerProfile() {
                     </div>
                   )}
                 </div>
-                {player.jersey_number && (
-                  <div className="absolute -bottom-1.5 -right-1.5 min-w-[22px] h-[22px] px-1 rounded-md flex items-center justify-center text-[11px] font-black text-white border border-white/20" style={{ background: "#e67e22" }}>
-                    {player.jersey_number}
-                  </div>
-                )}
                 <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 rounded-xl flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" aria-label="Cambiar foto">
                   {uploading ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Camera className="w-5 h-5 text-white" />}
                 </button>
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
               </div>
+
+              {player.jersey_number && <JerseyBack number={player.jersey_number} goalkeeper={player.position === "portero"} />}
 
               <div className="min-w-0">
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
