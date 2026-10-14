@@ -33,6 +33,17 @@ const REGION_FILE = {
   ml: "Flag_of_Melilla.svg", mc: "Flag_of_the_Region_of_Murcia.svg", nc: "Flag_of_Navarre.svg", pv: "Flag_of_the_Basque_Country.svg", ri: "Flag_of_La_Rioja_(with_coat_of_arms).svg",
 };
 const regionSrc = (code, w) => `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(REGION_FILE[code])}?width=${w}`;
+// Provincias → comunidad autónoma
+const PROV = {
+  an: ["Almería","Cádiz","Córdoba","Granada","Huelva","Jaén","Málaga","Sevilla"], ar: ["Huesca","Teruel","Zaragoza"], as: ["Asturias"], ib: ["Illes Balears"],
+  cn: ["Las Palmas","Santa Cruz de Tenerife"], cb: ["Cantabria"], cl: ["Ávila","Burgos","León","Palencia","Salamanca","Segovia","Soria","Valladolid","Zamora"],
+  cm: ["Albacete","Ciudad Real","Cuenca","Guadalajara","Toledo"], ct: ["Barcelona","Girona","Lleida","Tarragona"], vc: ["Alicante","Castellón","Valencia"],
+  ex: ["Badajoz","Cáceres"], ga: ["A Coruña","Lugo","Ourense","Pontevedra"], md: ["Madrid"], mc: ["Murcia"], nc: ["Navarra"], pv: ["Álava","Bizkaia","Gipuzkoa"],
+  ri: ["La Rioja"], ce: ["Ceuta"], ml: ["Melilla"],
+};
+export const PROVINCES = Object.entries(PROV).flatMap(([region, list]) => list.map((name) => ({ name, region }))).sort((a, b) => a.name.localeCompare(b.name, "es"));
+export const regionOfProvince = (name) => PROVINCES.find((p) => p.name === name)?.region || "";
+
 export const regionOf = (p) => (p?.region ? REGIONS.find((r) => r.code === p.region) || null : null);
 
 export const COUNTRIES = RAW.map(([a2, a3, name]) => ({ a2, a3, name }));

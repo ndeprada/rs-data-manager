@@ -149,7 +149,7 @@ export async function saveUserAccess({ user, form, staffList, activeAssignments 
     if (form.player_id && user.birth_country) {
       try {
         const pl = await base44.entities.Player.get(form.player_id);
-        if (pl && !pl.nationality) await base44.entities.Player.update(pl.id, { nationality: user.birth_country, ...(user.birth_country === "ESP" && user.birth_region ? { region: user.birth_region } : {}) });
+        if (pl && !pl.nationality) await base44.entities.Player.update(pl.id, { nationality: user.birth_country, birth_place: user.birth_city || "", ...(user.birth_country === "ESP" ? { region: user.birth_region || "", birth_province: user.birth_province || "" } : {}) });
       } catch { /* no bloquea el acceso */ }
     }
   }

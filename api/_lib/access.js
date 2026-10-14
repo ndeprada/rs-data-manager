@@ -11,7 +11,7 @@ const PERMISSION_FIELDS = new Set([
   'requested_assignments', 'requested_team_id', 'rejection_reason',
 ]);
 // Campos de perfil que cualquier usuario aprobado puede editar (propio o, en la ficha de personal, ajeno)
-const PROFILE_FIELDS = new Set(['phone', 'notes', 'birth_date', 'photo_url', 'full_name', 'birth_country', 'birth_region']);
+const PROFILE_FIELDS = new Set(['phone', 'notes', 'birth_date', 'photo_url', 'full_name', 'birth_country', 'birth_region', 'birth_province', 'birth_city']);
 // Campos de vinculación a equipos: además los puede tocar la coordinación
 const TEAM_LINK_FIELDS = new Set(['staff_member_id', 'team_id', 'team_ids', 'secondary_role', 'secondary_team_ids']);
 

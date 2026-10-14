@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { LogOut, UserRound, ClipboardList, ArrowLeft, Check } from "lucide-react";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import { APP_FUNCTIONS, COACH_TEAM_ROLES, functionConfig } from "@/lib/staffRoles";
-import { COUNTRIES, REGIONS, Flag } from "@/lib/countries";
+import { COUNTRIES, PROVINCES, regionOfProvince } from "@/lib/countries";
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -54,7 +54,8 @@ export default function RoleSetup() {
   const [playerTeam, setPlayerTeam] = useState("");
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("");
-  const [region, setRegion] = useState("");
+  const [province, setProvince] = useState("");
+  const [city, setCity] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -70,7 +71,7 @@ export default function RoleSetup() {
     setSubmitting(true);
     setError("");
     try {
-      await base44.auth.updateMe({ ...payload, phone: phone || undefined, birth_country: country, birth_region: country === "ESP" ? region : "", access_status: "pending" });
+      await base44.auth.updateMe({ ...payload, phone: phone || undefined, birth_country: country, birth_province: country === "ESP" ? province : "", birth_city: city.trim(), birth_region: country === "ESP" ? regionOfProvince(province) : "", access_status: "pending" });
       await refreshUser();
     } catch {
       setError("No se ha podido enviar la solicitud. Inténtalo de nuevo.");
@@ -114,22 +115,26 @@ export default function RoleSetup() {
         <p className="text-gray-500 text-sm mb-4">Para solicitar acceso, dinos de dónde eres y quién eres en el club.</p>
         <div className="mb-4">
           <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">País de nacimiento *</label>
-          <Select value={country} onValueChange={(v) => { setCountry(v); setRegion(""); }}>
+          <Select value={country} onValueChange={(v) => { setCountry(v); setProvince(""); }}>
             <SelectTrigger className="border-gray-300"><SelectValue placeholder="Selecciona tu país" /></SelectTrigger>
             <SelectContent className="max-h-72">
               {COUNTRIES.map((c) => <SelectItem key={c.a3} value={c.a3}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
           {country === "ESP" && (
-            <Select value={region} onValueChange={setRegion}>
-              <SelectTrigger className="border-gray-300 mt-2"><SelectValue placeholder="Comunidad autónoma" /></SelectTrigger>
+            <Select value={province} onValueChange={setProvince}>
+              <SelectTrigger className="border-gray-300 mt-2"><SelectValue placeholder="Provincia de nacimiento" /></SelectTrigger>
               <SelectContent className="max-h-72">
-                {REGIONS.map((r) => <SelectItem key={r.code} value={r.code}>{r.name}</SelectItem>)}
+                {PROVINCES.map((p) => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
           )}
+          {country && (
+            <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ciudad / municipio de nacimiento"
+              className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm mt-2 focus:outline-none focus:ring-2" />
+          )}
         </div>
-        <div className={`space-y-3 mb-6 ${country && (country !== "ESP" || region) ? "" : "opacity-40 pointer-events-none"}`}>
+        <div className={`space-y-3 mb-6 ${country && city.trim() && (country !== "ESP" || province) ? "" : "opacity-40 pointer-events-none"}`}>
           <button onClick={() => setStep("staff")} className={`${optionClass(false)} flex items-center gap-3`}>
             <ClipboardList className="w-6 h-6 shrink-0" style={{ color: "var(--granate)" }} />
             <span>

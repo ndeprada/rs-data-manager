@@ -158,6 +158,9 @@ export default function PlayerInfoCards({ player }) {
             <div>
               <Label>Nacionalidad</Label>
               <Flag player={player} className="text-sm" />
+              {(player.birth_place || player.birth_province) && (
+                <p className="text-[11px] text-gray-500 mt-0.5">{[player.birth_place, player.birth_province && player.birth_province !== player.birth_place ? player.birth_province : ""].filter(Boolean).join(", ")}</p>
+              )}
             </div>
           )}
           {player.status && (

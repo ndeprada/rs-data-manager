@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { COUNTRIES, REGIONS, countryOf } from "@/lib/countries";
+import { COUNTRIES, PROVINCES, regionOfProvince, countryOf } from "@/lib/countries";
 import { getRoleOptions, findRole } from "@/lib/competencyCatalog";
 
 const POSITIONS = [
@@ -28,7 +28,7 @@ const LATERALITY = [
 
 const emptyForm = {
   first_name: "", last_name: "", nickname: "", birth_date: "", birth_year: "", position: "", reference_role: "", secondary_position: "",
-  laterality: "", nationality: "", region: "", jersey_number: "", phone: "", email: "", status: "activo", team_id: "",
+  laterality: "", nationality: "", region: "", birth_province: "", birth_place: "", jersey_number: "", phone: "", email: "", status: "activo", team_id: "",
 };
 
 export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPlayer }) {
@@ -51,6 +51,8 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
         laterality: editingPlayer.laterality || "",
         nationality: countryOf(editingPlayer)?.a3 || "",
         region: editingPlayer.region || "",
+        birth_province: editingPlayer.birth_province || "",
+        birth_place: editingPlayer.birth_place || "",
         jersey_number: editingPlayer.jersey_number || "",
         phone: editingPlayer.phone || "",
         email: editingPlayer.email || "",
@@ -164,7 +166,7 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
           </div>
           <div className="space-y-2">
             <Label className="text-gray-700">Nacionalidad</Label>
-            <Select value={form.nationality || "none"} onValueChange={(v) => setForm({ ...form, nationality: v === "none" ? "" : v, region: v === "ESP" ? form.region : "" })}>
+            <Select value={form.nationality || "none"} onValueChange={(v) => setForm({ ...form, nationality: v === "none" ? "" : v, region: v === "ESP" ? form.region : "", birth_province: v === "ESP" ? form.birth_province : "" })}>
               <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
               <SelectContent className="max-h-72">
                 <SelectItem value="none">Sin indicar</SelectItem>
@@ -172,16 +174,24 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
               </SelectContent>
             </Select>
           </div>
-          {form.nationality === "ESP" && (
-            <div className="space-y-2">
-              <Label className="text-gray-700">Comunidad autónoma</Label>
-              <Select value={form.region || "none"} onValueChange={(v) => setForm({ ...form, region: v === "none" ? "" : v })}>
-                <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                <SelectContent className="max-h-72">
-                  <SelectItem value="none">Sin indicar</SelectItem>
-                  {REGIONS.map((r) => <SelectItem key={r.code} value={r.code}>{r.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          {form.nationality && (
+            <div className="grid grid-cols-2 gap-4">
+              {form.nationality === "ESP" && (
+                <div className="space-y-2">
+                  <Label className="text-gray-700">Provincia de nacimiento</Label>
+                  <Select value={form.birth_province || "none"} onValueChange={(v) => { const p = v === "none" ? "" : v; setForm({ ...form, birth_province: p, region: regionOfProvince(p) }); }}>
+                    <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      <SelectItem value="none">Sin indicar</SelectItem>
+                      {PROVINCES.map((p) => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className={`space-y-2 ${form.nationality === "ESP" ? "" : "col-span-2"}`}>
+                <Label className="text-gray-700">Ciudad / municipio</Label>
+                <Input value={form.birth_place} onChange={(e) => setForm({ ...form, birth_place: e.target.value })} className="border-gray-200" />
+              </div>
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">
