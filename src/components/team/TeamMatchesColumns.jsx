@@ -16,7 +16,7 @@ function Row({ m, onOpen }) {
       </div>
       <HomeAwayIcon match={m} className="w-4 h-4 shrink-0" />
       {m.opponent_logo_url ? <img src={m.opponent_logo_url} alt="" loading="lazy" className="w-5 h-5 object-contain shrink-0" /> : <span className="w-5 shrink-0" />}
-      <span className="flex-1 min-w-0 truncate text-sm font-normal text-gray-900">{m.opponent || m.title || "Rival"}</span>
+      <span className="flex-1 min-w-0 truncate text-sm font-light text-gray-900">{m.opponent || m.title || "Rival"}</span>
       {r ? (
         <span className="flex items-center gap-1.5 shrink-0">
           <span className="text-sm font-black" style={{ fontFamily: "var(--font-display)" }}>{m.score_home}-{m.score_away}</span>
