@@ -8,6 +8,7 @@ import { Swords, ChevronRight, MapPin, ArrowLeft, Home, Plane, CheckCircle, Cloc
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import { Link } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import TeamPageHeader from "@/components/myteam/TeamPageHeader";
 import { useSelectedTeam } from "@/lib/useSelectedTeam";
 import { useMatchStatus } from "@/lib/matchStatus";
 
@@ -45,30 +46,15 @@ export default function TeamMatches() {
 
   return (
     <div className="space-y-4">
-      <Link to="/MyTeam" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">
-        <ArrowLeft className="w-4 h-4" /> Volver a Mi Equipo
-      </Link>
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <p className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Mi Equipo</p>
-          <h1 className="text-2xl font-black uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Partidos</h1>
-        </div>
-        <div className="flex gap-3 flex-wrap">
-          {canSwitch && (
-            <Select value={selectedTeamId} onValueChange={selectTeam}>
-              <SelectTrigger className="w-52 h-9 font-bold text-[13px] text-[#73000A] border border-[#73000A] bg-white hover:bg-[#FDF2F4] [&>span]:text-[#73000A] [&>svg]:text-[#73000A] [&>svg]:opacity-100"><SelectValue placeholder="Equipo" /></SelectTrigger>
-              <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-            </Select>
-          )}
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-36 border-gray-200 bg-white"><SelectValue placeholder="Tipo" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {MATCH_TYPES.map(t => <SelectItem key={t} value={t}>{TYPE_LABELS[t]}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <TeamPageHeader title="Partidos">
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-36 h-9 border-gray-200 bg-white"><SelectValue placeholder="Tipo" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            {MATCH_TYPES.map(t => <SelectItem key={t} value={t}>{TYPE_LABELS[t]}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </TeamPageHeader>
 
       {/* Summary */}
       <div className="grid grid-cols-4 gap-2">

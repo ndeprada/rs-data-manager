@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, Layers, BarChart2 } from "lucide-react";
@@ -24,10 +26,12 @@ export default function Methodology() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}>
-          Metodología
-        </h1>
-        <p className="text-sm text-gray-500 mt-0.5">Biblioteca de tareas, planificación de sesiones y análisis del trabajo</p>
+        <Link to="/MyTeam" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium mb-2">
+          <ArrowLeft className="w-4 h-4" /> Volver a Mi Equipo
+        </Link>
+        <p className="text-xs uppercase tracking-widest text-gray-400 mb-1" style={{ fontFamily: "var(--font-display)" }}>Mi Equipo</p>
+        <h1 className="text-3xl md:text-4xl font-black uppercase leading-tight" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Metodología</h1>
+        <p className="text-xs text-gray-400 mt-1">Biblioteca de tareas, planificación de sesiones y análisis del trabajo</p>
       </div>
 
       <Tabs defaultValue="sessions">

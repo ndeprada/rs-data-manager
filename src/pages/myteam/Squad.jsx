@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Users, ArrowLeft } from "lucide-react";
+import TeamPageHeader from "@/components/myteam/TeamPageHeader";
 import { useSelectedTeam } from "@/lib/useSelectedTeam";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
@@ -16,21 +17,7 @@ export default function Squad() {
 
   return (
     <div className="space-y-4">
-      <Link to="/MyTeam" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">
-        <ArrowLeft className="w-4 h-4" /> Volver a Mi Equipo
-      </Link>
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-gray-400 mb-1" style={{ fontFamily: "var(--font-display)" }}>Mi Equipo</p>
-          <h1 className="text-3xl font-black uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Plantilla</h1>
-        </div>
-        {canSwitch && (
-          <Select value={selectedTeamId} onValueChange={selectTeam}>
-            <SelectTrigger className="w-52 h-9 font-bold text-[13px] text-[#73000A] border border-[#73000A] bg-white hover:bg-[#FDF2F4] [&>span]:text-[#73000A] [&>svg]:text-[#73000A] [&>svg]:opacity-100"><SelectValue placeholder="Seleccionar equipo" /></SelectTrigger>
-            <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-          </Select>
-        )}
-      </div>
+      <TeamPageHeader title="Plantilla"></TeamPageHeader>
       {selectedTeamId ? (
         <TeamSquadTable teamId={selectedTeamId} onAddPlayer={() => setAddPlayerOpen(true)} />
       ) : (
