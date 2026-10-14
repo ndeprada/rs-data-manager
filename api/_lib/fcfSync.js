@@ -315,6 +315,27 @@ function minutesFromActa(pid, starterIds, matchEvents, total) {
   return sum;
 }
 
+// Goles encajados por un portero: goles del rival (o en propia puerta) mientras estaba en el campo.
+function concededWhileOnPitch(pid, starterIds, matchEvents) {
+  let n = 0;
+  for (const g of matchEvents) {
+    if (g.type !== 'goal' || g.minute === '' || g.minute == null) continue;
+    const against = g.team === 'away' || (g.team === 'home' && g.goalType === 'gol_propio');
+    if (against && onPitchAt(pid, starterIds, matchEvents, Number(g.minute) || 0)) n++;
+  }
+  return n;
+}
+function onPitchAt(pid, starterIds, matchEvents, m) {
+  let on = starterIds.includes(pid);
+  const marks = matchEvents
+    .filter((e) => e.team === 'home' && e.minute !== '' && e.minute != null && Number(e.minute) <= m && (
+      (e.type === 'sub' && (e.playerIn === pid || e.playerOut === pid)) ||
+      (e.type === 'card' && e.playerId === pid && (e.cardColor === 'red' || e.cardColor === 'yellow2'))))
+    .sort((a, b) => Number(a.minute) - Number(b.minute));
+  for (const e of marks) on = e.type === 'sub' && e.playerIn === pid ? true : false;
+  return on;
+}
+
 // Recalcula los minutos de todos los partidos de equipos "Primer Equipo" con acta.
 async function recalcPrimerEquipoMinutes(stats) {
   stats.minutes_recalc = 0;
@@ -326,6 +347,8 @@ async function recalcPrimerEquipoMinutes(stats) {
   const { rows: convs } = await query(`select data from entities where entity_type = 'Convocatoria'`);
   const convByEvent = new Map(convs.map((r) => [r.data.event_id, r.data]));
   const { rows: ms } = await query(`select id, data from entities where entity_type = 'MatchStats'`);
+  const { rows: plRows } = await query(`select id, data ->> 'position' as pos from entities where entity_type = 'Player'`);
+  const isGK = new Set(plRows.filter((r) => r.pos === 'portero').map((r) => r.id));
   const msByEvent = new Map();
   for (const r of ms) { if (!msByEvent.has(r.data.event_id)) msByEvent.set(r.data.event_id, []); msByEvent.get(r.data.event_id).push(r); }
   const patches = [];
@@ -336,7 +359,13 @@ async function recalcPrimerEquipoMinutes(stats) {
     const total = totalMatchMinutes(ev.data);
     for (const r of msByEvent.get(ev.id) || []) {
       const mins = minutesFromActa(r.data.player_id, conv.starters || [], events, total);
-      if (Number(r.data.minutes_played || 0) !== mins) patches.push({ id: r.id, d: { minutes_played: mins, minutes_auto: true } });
+      const d = {};
+      if (Number(r.data.minutes_played || 0) !== mins) { d.minutes_played = mins; d.minutes_auto = true; }
+      if (isGK.has(r.data.player_id)) {
+        const c = mins > 0 ? concededWhileOnPitch(r.data.player_id, conv.starters || [], events) : 0;
+        if (Number(r.data.goals_conceded || 0) !== c) d.goals_conceded = c;
+      }
+      if (Object.keys(d).length) patches.push({ id: r.id, d });
     }
   }
   await bulkPatch(patches);
