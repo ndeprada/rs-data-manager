@@ -15,6 +15,8 @@ import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
+import BirthdayAlert from "@/components/myteam/BirthdayAlert";
+import { getCategoryLabel } from "@/components/fcfCategories";
 import TeamSummary from "@/components/myteam/TeamSummary";
 import { useCountedStats } from "@/lib/matchStatus";
 
@@ -138,8 +140,10 @@ export default function MyTeam() {
         </Select>
       )}
         </div>
-        <p className="text-xs text-gray-400 capitalize mt-1">{selectedTeam?.category} · {selectedTeam?.coach}</p>
+        <p className="text-xs text-gray-400 mt-1">{[getCategoryLabel(selectedTeam?.category), selectedTeam?.coach].filter(Boolean).join(" · ")}</p>
       </div>
+
+      <BirthdayAlert players={teamPlayers} />
 
       {selectedTeam && <TeamSummary team={selectedTeam} events={teamEvents} players={players} matchStats={matchStats} />}
 

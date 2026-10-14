@@ -279,7 +279,7 @@ export default function Teams() {
                           </div>
                           <div className="flex-1">
                             <p className="font-black text-gray-900 uppercase text-sm" style={{ fontFamily: "var(--font-display)" }}>{team.name}</p>
-                            <p className="text-xs text-gray-400 capitalize">{team.category}</p>
+                            <p className="text-xs text-gray-400">{getCategoryLabel(team.category)}</p>
                           </div>
                         </div>
                         <div className="space-y-2 pt-2 border-t border-gray-100">

@@ -73,7 +73,7 @@ export const FCF_CATEGORIES = [
 
 export const getCategoryLabel = (value) => {
   const cat = FCF_CATEGORIES.find((c) => c.value === value);
-  return cat ? cat.label : value;
+  return cat ? cat.label : String(value || "").replace(/_/g, " ");
 };
 
 export const FCF_CATEGORY_GROUPS = FCF_CATEGORIES.reduce((acc, cat) => {
