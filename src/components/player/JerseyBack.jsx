@@ -6,7 +6,7 @@ export default function JerseyBack({ number, goalkeeper = false, className = "w-
   const stroke = goalkeeper ? "#B84C00" : "#CFCFCF";
   const ink = goalkeeper ? "#FFFFFF" : "#73000A";
   const len = String(number).length;
-  const size = len >= 3 ? 38 : len === 2 ? 52 : 60;
+  const size = len >= 3 ? 36 : len === 2 ? 48 : 56;
   return (
     <svg viewBox="0 0 120 130" className={`shrink-0 drop-shadow-md ${className}`} role="img" aria-label={`Camiseta dorsal ${number}`}>
       <path
@@ -19,7 +19,8 @@ export default function JerseyBack({ number, goalkeeper = false, className = "w-
       <text x="60" y="27" textAnchor="middle" fontSize="5" letterSpacing="0.3" fill={ink} opacity="0.7" style={{ fontFamily: "'IBM Plex Sans Condensed', sans-serif", fontWeight: 600 }}>
         EF HRISTO STOITCHKOV
       </text>
-      <text x="60" y="96" textAnchor="middle" fontSize={size} fill={ink} style={{ fontFamily: "'Racing Sarria', sans-serif", letterSpacing: "0.05em" }}>
+      <image href={goalkeeper ? "/img/chalito-blanco.png" : "/img/chalito-granate.png"} x="40" y="102" width="40" height="15" preserveAspectRatio="xMidYMid meet" />
+      <text x="60" y="94" textAnchor="middle" fontSize={size} fill={ink} style={{ fontFamily: "'Racing Sarria', sans-serif", letterSpacing: "0.05em" }}>
         {number}
       </text>
     </svg>
