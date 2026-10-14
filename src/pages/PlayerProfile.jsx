@@ -25,6 +25,7 @@ import GuardianContactCard from "../components/player/GuardianContactCard";
 import DocumentsSection from "../components/player/DocumentsSection";
 import TrainingLoadSection from "../components/player/TrainingLoadSection";
 import PlayerSeasonHistorySection from "../components/player/PlayerSeasonHistorySection";
+import { getExtraPositions } from "@/lib/playerPositions";
 import { MiniPitch, FootIndicator } from "../components/player/PlayerPositionBadges";
 import PlayerSummaryTab from "../components/player/PlayerSummaryTab";
 import PlayerInfoCards from "../components/player/PlayerInfoCards";
@@ -198,7 +199,7 @@ export default function PlayerProfile() {
                 </h1>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-white/70">
                   {team && <span className="inline-flex items-center gap-1"><Shield className="w-3 h-3" style={{ color: "#e67e22" }} />{team.name}</span>}
-                  {player.position && <span>· {POSITION_LABELS[player.position] || player.position}{player.secondary_position ? ` / ${POSITION_LABELS[player.secondary_position] || player.secondary_position}` : ""}</span>}
+                  {player.position && <span>· {POSITION_LABELS[player.position] || player.position}{getExtraPositions(player).map((e) => ` / ${POSITION_LABELS[e.position] || e.position}`).join("")}</span>}
                   {age && <span>· Nac. {age}</span>}
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${st.bg} ${st.text}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} /> {st.label}
@@ -207,7 +208,7 @@ export default function PlayerProfile() {
               </div>
               {(player.position || player.laterality) && (
                 <div className="flex items-center gap-3 shrink-0 ml-1">
-                  {player.position && <MiniPitch position={player.position} secondaryPosition={player.secondary_position} laterality={player.laterality} />}
+                  {player.position && <MiniPitch player={player} />}
                   <FootIndicator laterality={player.laterality} />
                 </div>
               )}

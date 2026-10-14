@@ -1,4 +1,5 @@
 import React from "react";
+import { LEVELS, getPositionList } from "@/lib/playerPositions";
 
 const POSITION_FULL = {
   portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
@@ -23,11 +24,14 @@ const coords = (pos, lat) => {
 const GREEN = "#22c55e";
 const ORANGE = "#f59e0b";
 
-export function MiniPitch({ position, secondaryPosition, laterality }) {
-  const p = coords(position, laterality);
-  const s = secondaryPosition ? coords(secondaryPosition, laterality) : null;
-  if (!p) return null;
-  const title = `${POSITION_FULL[position] || position}${secondaryPosition ? ` / ${POSITION_FULL[secondaryPosition] || secondaryPosition}` : ""}`;
+export function MiniPitch({ player, position, secondaryPosition, laterality }) {
+  const list = player ? getPositionList(player) : [{ position, level: "natural" }, ...(secondaryPosition ? [{ position: secondaryPosition, level: "secundaria" }] : [])];
+  const lat = player ? player.laterality : laterality;
+  const pts = list.map((x) => ({ ...x, c: coords(x.position, lat) })).filter((x) => x.c);
+  if (!pts.length) return null;
+  const order = { competente: 0, secundaria: 1, natural: 2 };
+  pts.sort((a, b) => order[a.level] - order[b.level]);
+  const title = list.map((x) => `${POSITION_FULL[x.position] || x.position} (${LEVELS[x.level].label})`).join(" · ");
   const line = "rgba(255,255,255,0.45)";
   return (
     <svg viewBox="0 0 100 150" width="40" height="60" role="img" aria-label={title} style={{ display: "block" }}>
@@ -37,8 +41,9 @@ export function MiniPitch({ position, secondaryPosition, laterality }) {
       <circle cx="50" cy="75" r="14" fill="none" stroke={line} strokeWidth="2" />
       <rect x="25" y="1" width="50" height="25" fill="none" stroke={line} strokeWidth="2" />
       <rect x="25" y="124" width="50" height="25" fill="none" stroke={line} strokeWidth="2" />
-      {s && <circle cx={s.x} cy={(s.y / 100) * 150} r="9" fill={ORANGE} stroke="#fff" strokeWidth="1.5" />}
-      <circle cx={p.x} cy={(p.y / 100) * 150} r="10" fill={GREEN} stroke="#fff" strokeWidth="2" />
+      {pts.map((x) => (
+        <circle key={x.position} cx={x.c.x} cy={(x.c.y / 100) * 150} r={x.level === "natural" ? 10 : 9} fill={LEVELS[x.level].color} stroke="#fff" strokeWidth={x.level === "natural" ? 2 : 1.5} />
+      ))}
     </svg>
   );
 }

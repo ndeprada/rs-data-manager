@@ -1,6 +1,8 @@
 import { birthYearOf } from "@/lib/birthYear";
 import { Flag, countryOf } from "@/lib/countries";
 import React from "react";
+import { LEVELS, getPositionList } from "@/lib/playerPositions";
+import { findRole } from "@/lib/competencyCatalog";
 import { FootIndicator } from "./PlayerPositionBadges";
 import { Phone, Mail, Calendar, Zap, MapPin, Hash } from "lucide-react";
 
@@ -38,9 +40,13 @@ function getPositionCoords(position, laterality) {
   return base;
 }
 
-function FootballField({ position, secondaryPosition, laterality }) {
-  const primary = getPositionCoords(position, laterality);
-  const secondary = secondaryPosition ? getPositionCoords(secondaryPosition, laterality) : null;
+function FootballField({ player }) {
+  const laterality = player.laterality;
+  const order = { competente: 0, secundaria: 1, natural: 2 };
+  const pts = getPositionList(player)
+    .map((x) => ({ ...x, c: getPositionCoords(x.position, laterality) }))
+    .filter((x) => x.c)
+    .sort((a, b) => order[a.level] - order[b.level]);
 
   return (
     <svg viewBox="0 0 200 300" className="w-full h-full" style={{ display: "block" }}>
@@ -83,42 +89,16 @@ function FootballField({ position, secondaryPosition, laterality }) {
       <circle cx="100" cy="40" r="1.8" fill="rgba(255,255,255,0.55)" />
       <circle cx="100" cy="260" r="1.8" fill="rgba(255,255,255,0.55)" />
 
-      {/* Secondary position */}
-      {secondary && (
-        <>
-          <circle cx={secondary.x / 100 * 200} cy={secondary.y / 100 * 300} r="13"
-            fill="rgba(230,126,34,0.2)" stroke="rgba(230,126,34,0.5)" strokeWidth="1.5" strokeDasharray="3 2" />
-          <circle cx={secondary.x / 100 * 200} cy={secondary.y / 100 * 300} r="5"
-            fill="#e67e22" opacity="0.85" />
-        </>
-      )}
-
-      {/* Primary position glow */}
-      {primary && (
-        <>
-          <circle cx={primary.x / 100 * 200} cy={primary.y / 100 * 300} r="22"
-            fill="rgba(107,31,40,0.25)" />
-          <circle cx={primary.x / 100 * 200} cy={primary.y / 100 * 300} r="13"
-            fill="rgba(107,31,40,0.4)" stroke="#6b1f28" strokeWidth="2" />
-          <circle cx={primary.x / 100 * 200} cy={primary.y / 100 * 300} r="6"
-            fill="#9b2c35" />
-          <circle cx={primary.x / 100 * 200} cy={primary.y / 100 * 300} r="3"
-            fill="white" opacity="0.9" />
-          {/* Position label */}
-          <text
-            x={primary.x / 100 * 200}
-            y={primary.y / 100 * 300 - 18}
-            textAnchor="middle"
-            fontSize="9"
-            fontWeight="700"
-            fill="white"
-            opacity="0.9"
-            fontFamily="system-ui, sans-serif"
-          >
-            {POSITION_LABELS[position]}
-          </text>
-        </>
-      )}
+      {pts.map((x) => {
+        const cx = (x.c.x / 100) * 200, cy = (x.c.y / 100) * 300, col = LEVELS[x.level].color;
+        return (
+          <g key={x.position}>
+            <circle cx={cx} cy={cy} r={x.level === "natural" ? 20 : 17} fill={col} fillOpacity="0.25" />
+            <circle cx={cx} cy={cy} r={x.level === "natural" ? 11 : 9} fill={col} stroke="#fff" strokeWidth="2" />
+            <text x={cx} y={cy - 20} textAnchor="middle" fontSize="10" fontWeight="700" fill="white" fontFamily="system-ui, sans-serif">{POSITION_LABELS[x.position]}</text>
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -140,11 +120,19 @@ export default function PlayerInfoCards({ player }) {
         <div className="space-y-2 min-w-0">
           {player.position && (
             <div>
-              <Label>Posición</Label>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg text-white" style={{ background: "#6b1f28" }}>{POSITION_LABELS[player.position]}</span>
-                <span className="text-sm font-semibold text-gray-700">{POSITION_FULL[player.position] || player.position}</span>
-                {player.secondary_position && <span className="text-xs text-gray-400">/ {POSITION_FULL[player.secondary_position]}</span>}
+              <Label>Posiciones</Label>
+              <div className="space-y-1">
+                {getPositionList(player).map((x) => {
+                  const role = x.role ? findRole(x.role)?.role.label : "";
+                  return (
+                    <div key={x.position} className="flex items-center gap-1.5 flex-wrap">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: LEVELS[x.level].color }} title={LEVELS[x.level].label} />
+                      <span className="text-[11px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-lg text-white" style={{ background: "#6b1f28" }}>{POSITION_LABELS[x.position]}</span>
+                      <span className={`text-sm text-gray-700 ${x.level === "natural" ? "font-semibold" : ""}`}>{POSITION_FULL[x.position] || x.position}{role ? ` · ${role}` : ""}</span>
+                      <span className="text-[10px] text-gray-400">{LEVELS[x.level].label}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -187,9 +175,9 @@ export default function PlayerInfoCards({ player }) {
         </div>
         {/* Campo */}
         {player.position && (
-          <div className="shrink-0 flex flex-col items-center" style={{ width: 70 }}>
+          <div className="shrink-0 flex flex-col items-center" style={{ width: 84 }}>
             <div className="w-full" style={{ aspectRatio: "200/300" }}>
-              <FootballField position={player.position} secondaryPosition={player.secondary_position} laterality={player.laterality} />
+              <FootballField player={player} />
             </div>
           </div>
         )}
