@@ -78,9 +78,6 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-700" style={{ fontFamily: "var(--font-display)" }}>
               Categoría
             </th>
-            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-700" style={{ fontFamily: "var(--font-display)" }}>
-              Cuerpo Técnico
-            </th>
             <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-gray-700" style={{ fontFamily: "var(--font-display)" }}>
               Jugadores
             </th>
@@ -110,10 +107,17 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
                     <img
                       src="https://media.base44.com/images/public/69b72e4f23c3602504953d0d/442c01da9_Escudo_Granate.png"
                       alt="Escudo"
-                      className="w-6 h-6 object-contain"
+                      className="w-6 h-6 object-contain shrink-0"
                     />
-                    <span className="font-semibold text-gray-900 group-hover:underline">{team.name}</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500" />
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1">
+                        <span className="font-semibold text-gray-900 group-hover:underline">{team.name}</span>
+                        <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500" />
+                      </span>
+                      <span className="block text-[11px] leading-tight text-gray-500 font-normal max-w-[240px] truncate" title={teamStaff.map(m => `${m.first_name} ${m.last_name}${m.team_role ? " · " + (TEAM_ROLE_SHORT[m.team_role] || m.team_role) : ""}`).join("\n")}>
+                        {teamStaff.length === 0 ? <span className="text-gray-300">Sin cuerpo técnico</span> : teamStaff.map(m => `${m.first_name} ${m.last_name}`).join(" · ")}
+                      </span>
+                    </span>
                   </Link>
                 </td>
 
@@ -122,24 +126,6 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
                   <span className="text-xs font-bold text-gray-700" style={{ fontFamily: "var(--font-display)" }}>
                     {getCategoryLabel(team.category)}
                   </span>
-                </td>
-
-                {/* Staff */}
-                <td className="px-4 py-3">
-                  {teamStaff.length === 0 ? (
-                    <span className="text-gray-400 text-xs">Sin asignar</span>
-                  ) : (
-                    <div className="space-y-0.5">
-                      {teamStaff.map(m => (
-                        <div key={m.id} className="flex items-center gap-1.5">
-                          <span className="text-xs font-semibold text-gray-900">{m.first_name} {m.last_name}</span>
-                          {m.team_role && (
-                            <span className="text-[10px] text-gray-400">· {TEAM_ROLE_SHORT[m.team_role] || m.team_role}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </td>
 
                 {/* Player Count */}
