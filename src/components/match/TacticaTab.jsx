@@ -134,7 +134,7 @@ function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsC
           <g key={i} onPointerDown={e => handlePointerDown(e, i)} style={{ cursor: "grab" }}>
             <circle cx={cx + 1} cy={cy + 1.5} r="13" fill="rgba(0,0,0,0.25)" />
             <circle cx={cx} cy={cy} r="13" fill={player ? k.fill : "rgba(255,255,255,0.15)"} stroke={player ? k.stroke : "white"} strokeWidth="2.2" strokeDasharray={player ? "0" : "4 3"} />
-            <text x={cx} y={cy + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 13 : 13} fontWeight="400" fontFamily="'Racing Sarria', sans-serif" fill={player ? k.num : "white"}>
+            <text x={cx} y={cy + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 13 : 13} fontWeight="400" style={{ fontFamily: "'Racing Sarria', sans-serif" }} fill={player ? k.num : "white"}>
               {player ? (player.jersey_number || player.first_name?.[0]) : "+"}
             </text>
             {player && captainId && player.id === captainId && (
@@ -142,7 +142,7 @@ function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsC
                 <rect x="-0.8" y="-0.8" width="15.6" height="11.6" rx="2" fill="#1f2937" opacity="0.55" />
                 <rect x="0" y="0" width="14" height="10" rx="1.5" fill="#FCDD09" />
                 {[1.4, 4.4, 7.4, 10.4].map(x => <rect key={x} x={x} y="0" width="1.7" height="10" fill="#DA121A" />)}
-                <text x="17" y="9" fontSize="10" fontFamily="'Racing Sarria', sans-serif" fill="white" stroke="rgba(0,0,0,0.7)" strokeWidth="2" paintOrder="stroke" strokeLinejoin="round">C</text>
+                <text x="17" y="9" fontSize="10" style={{ fontFamily: "'Racing Sarria', sans-serif" }} fill="white" stroke="rgba(0,0,0,0.7)" strokeWidth="2" paintOrder="stroke" strokeLinejoin="round">C</text>
               </g>
             )}
             {player && (
