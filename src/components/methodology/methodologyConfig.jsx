@@ -29,7 +29,7 @@ export const TACTICAL_ASPECTS = [
 
 export const SESSION_PHASES = [
   { value: "calentamiento", label: "Calentamiento", color: "#f59e0b" },
-  { value: "parte_principal", label: "Parte Principal", color: "#8B1A2B" },
+  { value: "parte_principal", label: "Parte Principal", color: "#73000A" },
   { value: "vuelta_calma", label: "Vuelta a la Calma", color: "#6b7280" },
 ];
 

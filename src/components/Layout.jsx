@@ -251,8 +251,8 @@ export default function Layout() {
     <div className="min-h-screen bg-[#f5f5f5] text-gray-900 flex">
       <style>{`
         :root {
-          --granate: #8B1A2B; --granate-dark: #6d1120; --granate-hover: #6d1120;
-          --granate-pale: #fdf2f4; --naranja: #E85D04; --naranja-pale: #fff7ed;
+          --granate: #73000A; --granate-dark: #36000D; --granate-hover: #36000D;
+          --granate-pale: #fdf2f4; --naranja: #FF6E00; --naranja-pale: #fff7ed;
           --font-display: 'Racing Sarria', sans-serif;
           --font-body: 'IBM Plex Sans Condensed', sans-serif;
         }

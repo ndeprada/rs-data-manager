@@ -83,7 +83,7 @@ export default function MonthlyReportSection() {
 
     const emailBody = `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a;">
-  <div style="background: #8B1A2B; padding: 24px 28px; border-radius: 8px 8px 0 0;">
+  <div style="background: #73000A; padding: 24px 28px; border-radius: 8px 8px 0 0;">
     <h1 style="color: white; margin: 0; font-size: 20px;">Informe Mensual de Rendimiento</h1>
     <p style="color: rgba(255,255,255,0.7); margin: 6px 0 0; font-size: 14px;">${periodLabel} · ${team?.name || ""}</p>
   </div>
@@ -94,7 +94,7 @@ export default function MonthlyReportSection() {
     </p>
 
     <div style="background: #f9f9f9; border-radius: 8px; padding: 20px; margin: 20px 0;">
-      <h3 style="margin: 0 0 14px; color: #8B1A2B; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">Resumen del Mes</h3>
+      <h3 style="margin: 0 0 14px; color: #73000A; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">Resumen del Mes</h3>
       <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
         <tr>
           <td style="padding: 6px 0; color: #888;">Partidos jugados</td>
@@ -114,7 +114,7 @@ export default function MonthlyReportSection() {
 
     ${pdfUrl ? `
     <div style="text-align: center; margin: 24px 0;">
-      <a href="${pdfUrl}" style="background: #8B1A2B; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 600;">
+      <a href="${pdfUrl}" style="background: #73000A; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 600;">
         📄 Descargar Informe PDF
       </a>
     </div>

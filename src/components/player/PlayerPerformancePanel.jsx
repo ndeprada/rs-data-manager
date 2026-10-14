@@ -165,7 +165,7 @@ export default function PlayerPerformancePanel({ playerId }) {
                 formatter={(value, name) => name === "Valoración (★)" ? [`${value} ★`, name] : [`${value}%`, name]}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line yAxisId="rating" type="monotone" dataKey="rating" name="Valoración (★)" stroke="#E85D04" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
+              <Line yAxisId="rating" type="monotone" dataKey="rating" name="Valoración (★)" stroke="#FF6E00" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
               <Line yAxisId="asistencia" type="monotone" dataKey="asistencia" name="Asistencia (%)" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
             </LineChart>
           </ResponsiveContainer>

@@ -8,7 +8,7 @@ import { getCategoryLabel } from "@/components/fcfCategories";
 const RESULT_COLORS = {
   W: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0", label: "V" },
   D: { bg: "#fefce8", color: "#ca8a04", border: "#fde68a", label: "E" },
-  L: { bg: "#fdf2f4", color: "#8B1A2B", border: "#fecdd3", label: "D" },
+  L: { bg: "#fdf2f4", color: "#73000A", border: "#fecdd3", label: "D" },
 };
 
 async function fetchTeamStanding(fcfUrl) {

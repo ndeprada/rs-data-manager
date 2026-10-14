@@ -151,7 +151,7 @@ export default function PlayerSeasonHistoryTab({ playerId }) {
               <XAxis dataKey="season" tick={{ fontSize: 10 }} />
               <YAxis domain={[0, 5]} tick={{ fontSize: 10 }} />
               <Tooltip formatter={(v) => `${v}/5`} />
-              <Line type="monotone" dataKey="rating" stroke="#8B1A2B" strokeWidth={2} dot={{ fill: "#8B1A2B", r: 4 }} />
+              <Line type="monotone" dataKey="rating" stroke="#73000A" strokeWidth={2} dot={{ fill: "#73000A", r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>

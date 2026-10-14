@@ -28,7 +28,7 @@ function addPDIBlock(doc, pdi, margin, cW, y) {
   // Period header bar
   setFill(doc, 248, 245, 245);
   doc.roundedRect(margin, y, cW, 12, 2, 2, "F");
-  setTxt(doc, 139, 26, 43);
+  setTxt(doc, 115, 0, 10);
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   const periodLabel = pdi.period || (pdi.date ? format(new Date(pdi.date), "MMMM yyyy", { locale: es }) : "—");
@@ -52,7 +52,7 @@ function addPDIBlock(doc, pdi, margin, cW, y) {
     if (!value) return;
     if (y > 265) { doc.addPage(); y = 20; }
 
-    setTxt(doc, 139, 26, 43);
+    setTxt(doc, 115, 0, 10);
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.text(label.toUpperCase(), margin, y);
@@ -82,7 +82,7 @@ export function generatePDIPDF(player, team, pdiRecords) {
   let y = 0;
 
   // === HEADER BAND ===
-  setFill(doc, 139, 26, 43);
+  setFill(doc, 115, 0, 10);
   doc.rect(0, 0, W, 42, "F");
   setTxt(doc, 255, 255, 255);
   doc.setFontSize(18);
@@ -97,7 +97,7 @@ export function generatePDIPDF(player, team, pdiRecords) {
   // Player initials circle
   setFill(doc, 255, 255, 255);
   doc.circle(W - margin - 12, 21, 12, "F");
-  setTxt(doc, 139, 26, 43);
+  setTxt(doc, 115, 0, 10);
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
   const initials = `${player.first_name?.[0] || ""}${player.last_name?.[0] || ""}`;
@@ -106,7 +106,7 @@ export function generatePDIPDF(player, team, pdiRecords) {
   y = 54;
 
   // === PLAYER INFO ===
-  setTxt(doc, 139, 26, 43);
+  setTxt(doc, 115, 0, 10);
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
   doc.text(`${player.first_name} ${player.last_name}`, margin, y);
@@ -144,7 +144,7 @@ export function generatePDIPDF(player, team, pdiRecords) {
   const totalPages = doc.internal.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
-    setFill(doc, 139, 26, 43);
+    setFill(doc, 115, 0, 10);
     doc.rect(0, 289, W, 9, "F");
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7);

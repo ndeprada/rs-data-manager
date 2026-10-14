@@ -15,7 +15,7 @@ function addWrappedText(doc, text, x, y, maxWidth, lineHeight = 5.5) {
 function statBox(doc, label, value, bx, by, boxW) {
   setFill(doc, 248, 245, 245);
   doc.roundedRect(bx, by, boxW, 18, 2, 2, "F");
-  setTxt(doc, 139, 26, 43);
+  setTxt(doc, 115, 0, 10);
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.text(String(value), bx + boxW / 2, by + 10, { align: "center" });
@@ -33,7 +33,7 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
   let y = 0;
 
   // ── HEADER ──
-  setFill(doc, 139, 26, 43);
+  setFill(doc, 115, 0, 10);
   doc.rect(0, 0, W, 44, "F");
   setTxt(doc, 255, 255, 255);
   doc.setFontSize(16);
@@ -51,7 +51,7 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
   // Initials circle
   setFill(doc, 255, 255, 255);
   doc.circle(W - margin - 12, 22, 12, "F");
-  setTxt(doc, 139, 26, 43);
+  setTxt(doc, 115, 0, 10);
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
   const initials = `${player.first_name?.[0] || ""}${player.last_name?.[0] || ""}`;
@@ -60,12 +60,12 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
   y = 56;
 
   // ── RESUMEN ESTADÍSTICO ──
-  setTxt(doc, 139, 26, 43);
+  setTxt(doc, 115, 0, 10);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("Resumen Estadístico", margin, y);
   y += 3;
-  setDraw(doc, 139, 26, 43);
+  setDraw(doc, 115, 0, 10);
   doc.setLineWidth(0.4);
   doc.line(margin, y, margin + cW, y);
   y += 6;
@@ -101,18 +101,18 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
   if (matchStats.length > 0) {
     if (y > 240) { doc.addPage(); y = 20; }
     y += 4;
-    setTxt(doc, 139, 26, 43);
+    setTxt(doc, 115, 0, 10);
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.text("Participación en Partidos", margin, y);
     y += 3;
-    setDraw(doc, 139, 26, 43);
+    setDraw(doc, 115, 0, 10);
     doc.setLineWidth(0.4);
     doc.line(margin, y, margin + cW, y);
     y += 6;
 
     // Table header
-    setFill(doc, 139, 26, 43);
+    setFill(doc, 115, 0, 10);
     doc.rect(margin, y, cW, 7, "F");
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7.5);
@@ -161,12 +161,12 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
   if (attendance.length > 0) {
     if (y > 240) { doc.addPage(); y = 20; }
     y += 8;
-    setTxt(doc, 139, 26, 43);
+    setTxt(doc, 115, 0, 10);
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.text("Asistencia a Entrenamientos", margin, y);
     y += 3;
-    setDraw(doc, 139, 26, 43);
+    setDraw(doc, 115, 0, 10);
     doc.setLineWidth(0.4);
     doc.line(margin, y, margin + cW, y);
     y += 6;
@@ -197,7 +197,7 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
 
     // Last 15 sessions
     const recentSessions = [...attendance].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 15);
-    setFill(doc, 139, 26, 43);
+    setFill(doc, 115, 0, 10);
     doc.rect(margin, y, cW, 7, "F");
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7.5);
@@ -229,12 +229,12 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
   if (latestPDI) {
     if (y > 230) { doc.addPage(); y = 20; }
     y += 8;
-    setTxt(doc, 139, 26, 43);
+    setTxt(doc, 115, 0, 10);
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.text("Evaluación PDI — Notas del Cuerpo Técnico", margin, y);
     y += 3;
-    setDraw(doc, 139, 26, 43);
+    setDraw(doc, 115, 0, 10);
     doc.setLineWidth(0.4);
     doc.line(margin, y, margin + cW, y);
     y += 6;
@@ -242,7 +242,7 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
     const periodLabel = latestPDI.period || format(new Date(latestPDI.date), "MMMM yyyy", { locale: es });
     setFill(doc, 248, 245, 245);
     doc.roundedRect(margin, y, cW, 10, 2, 2, "F");
-    setTxt(doc, 139, 26, 43);
+    setTxt(doc, 115, 0, 10);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text(periodLabel, margin + 4, y + 7);
@@ -267,7 +267,7 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
     fields.forEach(({ key, label }) => {
       if (!latestPDI[key]) return;
       if (y > 265) { doc.addPage(); y = 20; }
-      setTxt(doc, 139, 26, 43);
+      setTxt(doc, 115, 0, 10);
       doc.setFontSize(8);
       doc.setFont("helvetica", "bold");
       doc.text(label.toUpperCase(), margin, y);
@@ -285,12 +285,12 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
   if (relevantNotes.length > 0) {
     if (y > 230) { doc.addPage(); y = 20; }
     y += 8;
-    setTxt(doc, 139, 26, 43);
+    setTxt(doc, 115, 0, 10);
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.text("Notas Tácticas de Sesiones", margin, y);
     y += 3;
-    setDraw(doc, 139, 26, 43);
+    setDraw(doc, 115, 0, 10);
     doc.setLineWidth(0.4);
     doc.line(margin, y, margin + cW, y);
     y += 6;
@@ -309,7 +309,7 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
       }
       y += 11;
       if (r.tactical_notes) {
-        setTxt(doc, 139, 26, 43);
+        setTxt(doc, 115, 0, 10);
         doc.setFontSize(7.5);
         doc.setFont("helvetica", "bold");
         doc.text("Notas tácticas:", margin + 2, y);
@@ -321,7 +321,7 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
         y += 3;
       }
       if (r.observations) {
-        setTxt(doc, 139, 26, 43);
+        setTxt(doc, 115, 0, 10);
         doc.setFontSize(7.5);
         doc.setFont("helvetica", "bold");
         doc.text("Observaciones:", margin + 2, y);
@@ -343,7 +343,7 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
   const totalPages = doc.internal.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
-    setFill(doc, 139, 26, 43);
+    setFill(doc, 115, 0, 10);
     doc.rect(0, 289, W, 9, "F");
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7);

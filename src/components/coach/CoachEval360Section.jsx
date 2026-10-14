@@ -14,19 +14,19 @@ const FONT = { fontFamily: "var(--font-display)" };
 
 // Estructura basada en el documento de evaluación del Área de Metodología
 export const EVAL_BLOCKS = [
-  { key: "habitos", label: "Hábitos", color: "#35000f", sections: [
+  { key: "habitos", label: "Hábitos", color: "#36000D", sections: [
     { key: "puntualidad", label: "Puntualidad, control de vestuarios…" },
     { key: "material", label: "Material" },
     { key: "datos", label: "Control de datos" },
     { key: "segundo", label: "Observaciones para 2º entrenador/a" },
   ]},
-  { key: "entrenamientos", label: "Entrenamientos", color: "#6a0014", sections: [
+  { key: "entrenamientos", label: "Entrenamientos", color: "#73000A", sections: [
     { key: "metodologia", label: "Metodología" },
     { key: "planificacion", label: "Planificación y diseño de sesiones" },
     { key: "direccion_entreno", label: "Dirección del entrenamiento" },
     { key: "correcciones", label: "Correcciones" },
   ]},
-  { key: "partidos", label: "Partidos", color: "#E85D04", sections: [
+  { key: "partidos", label: "Partidos", color: "#FF6E00", sections: [
     { key: "preparacion", label: "Preparación" },
     { key: "direccion_partido", label: "Dirección de partido" },
     { key: "minutos", label: "Gestión de minutos" },

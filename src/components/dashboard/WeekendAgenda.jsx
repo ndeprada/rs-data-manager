@@ -118,13 +118,13 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
           * { margin:0; padding:0; box-sizing:border-box; }
           body { font-family:'IBM Plex Sans Condensed',sans-serif; color:#1a1a1a; background:#fff; padding:24px; }
           .print-root { max-width:800px; margin:0 auto; }
-          .header { display:flex; align-items:center; gap:16px; margin-bottom:24px; padding-bottom:16px; border-bottom: 3px solid #8B1A2B; }
-          .header-logo { width:60px; height:60px; background:#8B1A2B; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:8px; }
+          .header { display:flex; align-items:center; gap:16px; margin-bottom:24px; padding-bottom:16px; border-bottom: 3px solid #73000A; }
+          .header-logo { width:60px; height:60px; background:#73000A; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:8px; }
           .header-logo img { width:100%; height:100%; object-fit:contain; filter:brightness(10); }
-          .header-text h1 { font-family:'Racing Sarria',sans-serif; font-weight:800; font-size:24px; text-transform:uppercase; letter-spacing:0.05em; color:#8B1A2B; }
+          .header-text h1 { font-family:'Racing Sarria',sans-serif; font-weight:800; font-size:24px; text-transform:uppercase; letter-spacing:0.05em; color:#73000A; }
           .header-text p { font-family:'Racing Sarria',sans-serif; font-size:14px; color:#666; text-transform:uppercase; letter-spacing:0.1em; }
           table { width:100%; border-collapse:collapse; font-size:12px; }
-          thead tr { background:#8B1A2B; color:white; }
+          thead tr { background:#73000A; color:white; }
           thead th { padding:8px 10px; text-align:left; font-family:'Racing Sarria',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.1em; }
           tbody tr { border-bottom:1px solid #e5e7eb; }
           tbody tr:nth-child(even) { background:#fdf2f4; }
@@ -249,13 +249,13 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
                 @font-face{font-family:'Racing Sarria';src:url('${window.location.origin}/fonts/RacingSarria.ttf');font-weight:100 900;} @font-face{font-family:'IBM Plex Sans Condensed';src:url('${window.location.origin}/fonts/IBMPlexSansCondensed-Regular.ttf');font-weight:400;} @font-face{font-family:'IBM Plex Sans Condensed';src:url('${window.location.origin}/fonts/IBMPlexSansCondensed-Bold.ttf');font-weight:600 900;}
                 *{margin:0;padding:0;box-sizing:border-box;}
                 body{font-family:'IBM Plex Sans Condensed',sans-serif;color:#1a1a1a;background:#fff;padding:24px;}
-                .header{display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #8B1A2B;}
-                .header-logo{width:60px;height:60px;background:#8B1A2B;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:8px;}
+                .header{display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #73000A;}
+                .header-logo{width:60px;height:60px;background:#73000A;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:8px;}
                 .header-logo img{width:100%;height:100%;object-fit:contain;filter:brightness(10);}
-                .header-text h1{font-family:'Racing Sarria',sans-serif;font-weight:800;font-size:24px;text-transform:uppercase;letter-spacing:0.05em;color:#8B1A2B;}
+                .header-text h1{font-family:'Racing Sarria',sans-serif;font-weight:800;font-size:24px;text-transform:uppercase;letter-spacing:0.05em;color:#73000A;}
                 .header-text p{font-family:'Racing Sarria',sans-serif;font-size:14px;color:#666;text-transform:uppercase;letter-spacing:0.1em;}
                 table{width:100%;border-collapse:collapse;font-size:12px;}
-                thead tr{background:#8B1A2B;color:white;}
+                thead tr{background:#73000A;color:white;}
                 thead th{padding:8px 10px;text-align:left;font-family:'Racing Sarria',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;}
                 tbody tr{border-bottom:1px solid #e5e7eb;}
                 tbody tr:nth-child(even){background:#fdf2f4;}

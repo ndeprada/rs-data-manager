@@ -32,8 +32,8 @@ const FORMATION_POSITIONS = {
 
 // ── Draggable Football Field ────────────────────────────
 const KITS = {
-  "1": { label: "1ª", fill: "#ffffff", stroke: "#8B1A2B", num: "#8B1A2B" },
-  "2": { label: "2ª", fill: "#8B1A2B", stroke: "#4a0a14", num: "#ffffff" },
+  "1": { label: "1ª", fill: "#ffffff", stroke: "#73000A", num: "#73000A" },
+  "2": { label: "2ª", fill: "#73000A", stroke: "#36000D", num: "#ffffff" },
   "3": { label: "3ª", fill: "#22a559", stroke: "#0f5132", num: "#ffffff" },
 };
 const GK_KITS = {

@@ -72,7 +72,7 @@ const REC_COLORS = { fichar: "text-green-600", seguir_viendo: "text-blue-600", d
 async function generatePDF(report, player) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF();
-  const granate = [139, 26, 43];
+  const granate = [115, 0, 10];
   let y = 20;
 
   // Header

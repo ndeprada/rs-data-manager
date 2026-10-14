@@ -185,7 +185,7 @@ export default function MethodologyStats({ teams = [], isCoordinator, selectedTe
                   <XAxis dataKey="semana" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} />
                   <Tooltip formatter={(v) => `${v} min`} />
-                  <Bar dataKey="minutos" fill="#E85D04" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="minutos" fill="#FF6E00" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -24,7 +24,7 @@ export default function PendingApproval() {
           src="https://media.base44.com/images/public/69b72e4f23c3602504953d0d/442c01da9_Escudo_Granate.png"
           alt="RS Club" className="w-14 h-14 object-contain mx-auto mb-6"
         />
-        <h1 className="rs-font text-3xl font-black uppercase tracking-wider text-[#8B1A2B] mb-2">
+        <h1 className="rs-font text-3xl font-black uppercase tracking-wider text-[#73000A] mb-2">
           RS Data Manager
         </h1>
 
@@ -50,7 +50,7 @@ export default function PendingApproval() {
           ) : (
             <>
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "var(--granate-pale, #fdf2f4)" }}>
-                <Clock className="w-8 h-8" style={{ color: "var(--granate, #8B1A2B)" }} />
+                <Clock className="w-8 h-8" style={{ color: "var(--granate, #73000A)" }} />
               </div>
               <h2 className="rs-font text-2xl font-black uppercase text-gray-900 mb-2">Pendiente de aprobación</h2>
               <p className="rs-body text-gray-500 text-sm mb-4">

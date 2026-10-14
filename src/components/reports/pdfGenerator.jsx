@@ -21,7 +21,7 @@ export function generatePDF(data) {
   let y = 0;
 
   // Header band
-  setFill(doc, 139, 26, 43);
+  setFill(doc, 115, 0, 10);
   doc.rect(0, 0, W, 36, "F");
   setTxt(doc, 255, 255, 255);
   doc.setFontSize(17);
@@ -37,12 +37,12 @@ export function generatePDF(data) {
   y = 46;
 
   // Executive Summary
-  setTxt(doc, 139, 26, 43);
+  setTxt(doc, 115, 0, 10);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("Resumen Ejecutivo", margin, y);
   y += 4;
-  setDraw(doc, 139, 26, 43);
+  setDraw(doc, 115, 0, 10);
   doc.setLineWidth(0.4);
   doc.line(margin, y, margin + cW, y);
   y += 6;
@@ -58,7 +58,7 @@ export function generatePDF(data) {
     if (y > 242) { doc.addPage(); y = 20; }
 
     // Team header bar
-    setFill(doc, 139, 26, 43);
+    setFill(doc, 115, 0, 10);
     doc.roundedRect(margin, y, cW, 14, 2, 2, "F");
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(10);
@@ -122,7 +122,7 @@ export function generatePDF(data) {
         const cx = margin + 3;
         const cy = y - 0.5;
         if (idx === 0) {
-          setFill(doc, 139, 26, 43);
+          setFill(doc, 115, 0, 10);
         } else {
           setFill(doc, 160, 160, 160);
         }
@@ -153,7 +153,7 @@ export function generatePDF(data) {
   const total = doc.internal.getNumberOfPages();
   for (let p = 1; p <= total; p++) {
     doc.setPage(p);
-    setFill(doc, 139, 26, 43);
+    setFill(doc, 115, 0, 10);
     doc.rect(0, 289, W, 9, "F");
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7);

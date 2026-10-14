@@ -21,10 +21,10 @@ const PART_LABELS = { tobillo: "Tobillo", rodilla: "Rodilla", muslo: "Muslo", ge
 const SEVERITY_STYLES = {
   leve:     { label: "Leve",     bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
   moderada: { label: "Moderada", bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
-  grave:    { label: "Grave",    bg: "#fdf2f4", color: "#8B1A2B", border: "#fecdd3" },
+  grave:    { label: "Grave",    bg: "#fdf2f4", color: "#73000A", border: "#fecdd3" },
 };
 const STATUS_STYLES = {
-  activa:       { label: "Activa",       bg: "#fdf2f4", color: "#8B1A2B", border: "#fecdd3" },
+  activa:       { label: "Activa",       bg: "#fdf2f4", color: "#73000A", border: "#fecdd3" },
   recuperacion: { label: "Recuperación", bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
   alta:         { label: "Alta",         bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
 };

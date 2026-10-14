@@ -39,7 +39,7 @@ export function generatePlayerPDF(player, team, stats, attendance, month, year) 
   const periodLabel = format(new Date(year, month - 1, 1), "MMMM yyyy", { locale: es });
 
   // === HEADER BAND ===
-  setFill(doc, 139, 26, 43);
+  setFill(doc, 115, 0, 10);
   doc.rect(0, 0, W, 40, "F");
   setTxt(doc, 255, 255, 255);
   doc.setFontSize(16);
@@ -54,7 +54,7 @@ export function generatePlayerPDF(player, team, stats, attendance, month, year) 
   // Player initials circle
   setFill(doc, 255, 255, 255);
   doc.circle(W - margin - 12, 20, 12, "F");
-  setTxt(doc, 139, 26, 43);
+  setTxt(doc, 115, 0, 10);
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   const initials = `${player.first_name?.[0] || ""}${player.last_name?.[0] || ""}`;
@@ -63,7 +63,7 @@ export function generatePlayerPDF(player, team, stats, attendance, month, year) 
   y = 50;
 
   // === PLAYER INFO ===
-  setTxt(doc, 139, 26, 43);
+  setTxt(doc, 115, 0, 10);
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
   doc.text(`${player.first_name} ${player.last_name}`, margin, y);
@@ -88,7 +88,7 @@ export function generatePlayerPDF(player, team, stats, attendance, month, year) 
   y += 8;
 
   // === MATCH STATS ===
-  setTxt(doc, 139, 26, 43);
+  setTxt(doc, 115, 0, 10);
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.text("Rendimiento en Partidos", margin, y);
@@ -172,7 +172,7 @@ export function generatePlayerPDF(player, team, stats, attendance, month, year) 
   doc.line(margin, y, margin + cW, y);
   y += 8;
 
-  setTxt(doc, 139, 26, 43);
+  setTxt(doc, 115, 0, 10);
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.text("Asistencia a Entrenamientos", margin, y);
@@ -220,7 +220,7 @@ export function generatePlayerPDF(player, team, stats, attendance, month, year) 
     doc.line(margin, y, margin + cW, y);
     y += 8;
 
-    setTxt(doc, 139, 26, 43);
+    setTxt(doc, 115, 0, 10);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.text("Contacto del Tutor Legal", margin, y);
@@ -241,7 +241,7 @@ export function generatePlayerPDF(player, team, stats, attendance, month, year) 
   const total_pages = doc.internal.getNumberOfPages();
   for (let p = 1; p <= total_pages; p++) {
     doc.setPage(p);
-    setFill(doc, 139, 26, 43);
+    setFill(doc, 115, 0, 10);
     doc.rect(0, 289, W, 9, "F");
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7);

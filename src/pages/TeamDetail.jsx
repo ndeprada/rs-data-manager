@@ -40,7 +40,7 @@ const isMatchType = (type) => ["partido_amistoso", "partido_liga", "torneo"].inc
 const STATUS_STYLES = {
   activo: { label: "Activo", bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
   lesionado: { label: "Lesionado", bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
-  baja: { label: "Baja", bg: "#fdf2f4", color: "#8B1A2B", border: "#fecdd3" },
+  baja: { label: "Baja", bg: "#fdf2f4", color: "#73000A", border: "#fecdd3" },
 };
 
 const POSITIONS = {

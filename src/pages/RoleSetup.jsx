@@ -14,7 +14,7 @@ function Shell({ children }) {
   return (
     <div
       className="min-h-screen flex items-center justify-center bg-[#f5f5f5] p-4"
-      style={{ "--granate": "#8B1A2B", "--naranja": "#E85D04", "--font-display": "'Racing Sarria', sans-serif" }}
+      style={{ "--granate": "#73000A", "--naranja": "#FF6E00", "--font-display": "'Racing Sarria', sans-serif" }}
     >
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
@@ -41,7 +41,7 @@ function LogoutButton({ logout }) {
 
 const optionClass = (selected) =>
   `w-full text-left px-4 py-3 rounded-sm border text-sm font-medium transition-colors ${
-    selected ? "border-[#8B1A2B] bg-[#fdf2f4] text-[#8B1A2B]" : "border-gray-200 hover:bg-gray-50 text-gray-700"
+    selected ? "border-[#73000A] bg-[#fdf2f4] text-[#73000A]" : "border-gray-200 hover:bg-gray-50 text-gray-700"
   }`;
 
 export default function RoleSetup() {
