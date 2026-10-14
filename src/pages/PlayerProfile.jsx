@@ -165,7 +165,7 @@ export default function PlayerProfile() {
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="relative group shrink-0">
-                <div className="w-16 h-16 rounded-xl overflow-hidden border-2" style={{ borderColor: "rgba(230,126,34,0.6)" }}>
+                <div className="w-16 h-16 min-w-[64px] rounded-xl overflow-hidden border-2" style={{ borderColor: "rgba(230,126,34,0.6)" }}>
                   {player.photo_url ? (
                     <img src={player.photo_url} alt={player.first_name} className="w-full h-full object-cover" />
                   ) : (

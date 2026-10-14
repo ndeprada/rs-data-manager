@@ -1,7 +1,7 @@
 import React from "react";
 
 // Espalda de la camiseta de Racing Sarrià con el dorsal del jugador (blanca; naranja para porteros)
-export default function JerseyBack({ number, goalkeeper = false, className = "w-[72px] h-[78px]" }) {
+export default function JerseyBack({ number, goalkeeper = false, className = "w-11 h-12" }) {
   const fill = goalkeeper ? "#FF6E00" : "#F4F4F4";
   const stroke = goalkeeper ? "#B84C00" : "#CFCFCF";
   const ink = goalkeeper ? "#FFFFFF" : "#73000A";
