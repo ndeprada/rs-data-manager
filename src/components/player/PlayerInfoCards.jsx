@@ -1,7 +1,7 @@
 import { birthYearOf } from "@/lib/birthYear";
 import { Flag, countryOf } from "@/lib/countries";
 import React from "react";
-import { LEVELS, getPositionList } from "@/lib/playerPositions";
+import { LEVELS, getPositionList, getPitchXY } from "@/lib/playerPositions";
 import { findRole } from "@/lib/competencyCatalog";
 import { FootIndicator } from "./PlayerPositionBadges";
 import { Phone, Mail, Calendar, Zap, MapPin, Hash } from "lucide-react";
@@ -44,7 +44,7 @@ function FootballField({ player }) {
   const laterality = player.laterality;
   const order = { competente: 0, secundaria: 1, natural: 2 };
   const pts = getPositionList(player)
-    .map((x) => ({ ...x, c: getPositionCoords(x.position, laterality) }))
+    .map((x) => ({ ...x, c: getPitchXY(x.position, x.role, laterality) }))
     .filter((x) => x.c)
     .sort((a, b) => order[a.level] - order[b.level]);
 
@@ -94,10 +94,10 @@ function FootballField({ player }) {
         const nat = x.level === "natural";
         return (
           <g key={x.position}>
-            {nat && <circle cx={cx} cy={cy} r="26" fill="#4ade80" fillOpacity="0.28" />}
-            {nat && <circle cx={cx} cy={cy} r="19" fill="#4ade80" fillOpacity="0.35" />}
-            <circle cx={cx} cy={cy} r={nat ? 13 : 11} fill={nat ? "#22c55e" : col} stroke="#fff" strokeWidth={nat ? 2.5 : 2} />
-            <text x={cx} y={cy - (nat ? 30 : 17)} textAnchor="middle" fontSize="12" fontWeight="800" fill="white" fontFamily="system-ui, sans-serif" stroke="rgba(0,0,0,0.45)" strokeWidth="0.6" paintOrder="stroke">{POSITION_LABELS[x.position]}</text>
+            {nat && <circle cx={cx} cy={cy} r="27" fill={col} fillOpacity="0.22" />}
+            {nat && <circle cx={cx} cy={cy} r="20" fill={col} fillOpacity="0.35" />}
+            <circle cx={cx} cy={cy} r={nat ? 13 : 11} fill={col} stroke={nat ? "#fff" : "#0b2a12"} strokeWidth={nat ? 2.5 : 2} />
+            <text x={cx} y={x.c.y < 80 ? cy + (nat ? 27 : 24) : cy - (nat ? 22 : 17)} textAnchor="middle" fontSize="12" fontWeight="800" fill="white" fontFamily="system-ui, sans-serif" stroke="rgba(0,0,0,0.5)" strokeWidth="0.7" paintOrder="stroke">{POSITION_LABELS[x.position]}</text>
           </g>
         );
       })}
@@ -128,9 +128,9 @@ export default function PlayerInfoCards({ player }) {
                   const role = x.role ? findRole(x.role)?.role.label : "";
                   return (
                     <div key={x.position} className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md text-white min-w-[30px] text-center" style={{ background: LEVELS[x.level].color }}>{POSITION_LABELS[x.position]}</span>
+                      <span className="text-[11px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md min-w-[30px] text-center" style={{ background: LEVELS[x.level].color, color: LEVELS[x.level].text }}>{POSITION_LABELS[x.position]}</span>
                       <span className={`text-sm ${x.level === "natural" ? "font-bold text-gray-900" : "font-medium text-gray-700"}`}>{POSITION_FULL[x.position] || x.position}{role ? ` · ${role}` : ""}</span>
-                      <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: LEVELS[x.level].color }}>{LEVELS[x.level].label}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: LEVELS[x.level].ink }}>{LEVELS[x.level].label}</span>
                     </div>
                   );
                 })}
