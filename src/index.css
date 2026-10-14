@@ -6,8 +6,11 @@
 /* Racing Sarria solo en títulos y textos grandes; el resto, IBM Plex */
 :is([style*="font-display"], .font-display, .rs-font):is(.text-xl, .text-2xl, .text-3xl, .text-4xl, .text-5xl, .text-6xl, .text-7xl, .text-8xl) {
   font-family: 'Racing Sarria', sans-serif !important;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em !important;
 }
+
+/* Misma separación de letras en todo lo que usa Racing Sarria */
+h1, h2, .rs-title { letter-spacing: 0.05em !important; }
 
 /* Tipografías del club */
 @font-face { font-family: 'Racing Sarria'; src: url('/fonts/RacingSarria.ttf') format('truetype'); font-weight: 100 900; font-style: normal; font-display: swap; }
