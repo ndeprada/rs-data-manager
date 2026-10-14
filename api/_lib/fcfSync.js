@@ -274,6 +274,7 @@ export async function syncFcf() {
   await bulkInsert('Event', eventInserts);
   await bulkPatch(eventPatches);
   try { await syncActas(stats); } catch (e) { stats.errors.push(`actas: ${e.message}`); }
+  try { await syncDorsales(stats); } catch (e) { stats.errors.push(`dorsales: ${e.message}`); }
   try { await recalcPrimerEquipoMinutes(stats); } catch (e) { stats.errors.push(`minutos: ${e.message}`); }
   return stats;
 }
@@ -370,6 +371,52 @@ async function recalcPrimerEquipoMinutes(stats) {
   }
   await bulkPatch(patches);
   stats.minutes_recalc = patches.length;
+}
+
+// Dorsales: rellena el dorsal de los jugadores que no lo tienen con el que figura en el acta (solo lectura de la FCF).
+async function syncDorsales(stats) {
+  stats.dorsales_set = 0;
+  const { rows: evRows } = await query(
+    `select id, data from entities
+      where entity_type = 'Event' and data ? 'fcf_acta' and coalesce(data ->> 'fcf_acta_synced', '') <> ''
+        and coalesce(data ->> 'fcf_dorsal_checked', '') = ''
+      order by data ->> 'date' desc limit 60`
+  );
+  if (!evRows.length) return;
+  const { rows: teamRows } = await query(`select id, data from entities where entity_type = 'Team'`);
+  const teamCode = new Map(teamRows.map((r) => [r.id, String(r.data.fcf_team_code || '')]));
+  const { rows: playerRows } = await query(`select id, data from entities where entity_type = 'Player'`);
+  const byTeam = new Map(), jersey = new Map();
+  for (const r of playerRows) {
+    if (!byTeam.has(r.data.team_id)) byTeam.set(r.data.team_id, new Map());
+    byTeam.get(r.data.team_id).set(tokensKey(`${r.data.first_name || ''} ${r.data.last_name || ''}`), r.id);
+    jersey.set(r.id, r.data.jersey_number);
+  }
+  const actas = await pool(evRows, 6, async (ev) => {
+    try { return await getJson(`${ACTA_BASE}/${ev.data.fcf_acta}`); } catch { return null; }
+  });
+  const patches = [], evPatches = [];
+  for (let i = 0; i < evRows.length; i++) {
+    const ev = evRows[i], a = actas[i];
+    if (!a) continue;
+    const code = teamCode.get(ev.data.team_id);
+    const side = String(a.CODEQUIPO_CASA) === code ? 'local' : String(a.CODEQUIPO_FUERA) === code ? 'visitante' : null;
+    if (side) {
+      const roster = byTeam.get(ev.data.team_id) || new Map();
+      for (const j of a[`jugadores_equipo_${side}`] || []) {
+        const pid = roster.get(fcfPlayerKey(j.nombre));
+        const n = parseInt(j.dorsal, 10);
+        if (pid && n > 0 && (jersey.get(pid) == null || jersey.get(pid) === '')) {
+          jersey.set(pid, n);
+          patches.push({ id: pid, d: { jersey_number: n } });
+        }
+      }
+    }
+    evPatches.push({ id: ev.id, d: { fcf_dorsal_checked: true } });
+  }
+  await bulkPatch(patches);
+  await bulkPatch(evPatches);
+  stats.dorsales_set = patches.length;
 }
 
 async function syncActas(stats) {
