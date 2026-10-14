@@ -14,6 +14,7 @@ export default async function handler(req, res) {
   }
   const user = await requireUser(req, res);
   if (!user) return;
+  if (user.role !== 'admin' && user.app_role === 'jugador') { res.status(403).json({ error: 'player_forbidden' }); return; }
 
   try {
     const { filename, contentType, base64 } = req.body || {};

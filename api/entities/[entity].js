@@ -1,6 +1,6 @@
 import { query } from '../_lib/db.js';
 import { requireUser } from '../_lib/auth.js';
-import { checkEntityAccess } from '../_lib/access.js';
+import { checkEntityAccess, isPlayerUser, playerFilterDocs } from '../_lib/access.js';
 
 function rowToDoc(row) {
   return {
@@ -65,11 +65,17 @@ export default async function handler(req, res) {
         }
       }
 
+      const player = isPlayerUser(user);
       let sql = `select id, data, created_at, updated_at from entities where ${where} order by ${orderBy}`;
-      if (limit) sql += ` limit ${parseInt(limit, 10)}`;
+      if (limit && !player) sql += ` limit ${parseInt(limit, 10)}`;
 
       const { rows } = await query(sql, params);
-      res.status(200).json(rows.map(rowToDoc));
+      let docs = rows.map(rowToDoc);
+      if (player) {
+        docs = await playerFilterDocs(user, entity, docs);
+        if (limit) docs = docs.slice(0, parseInt(limit, 10));
+      }
+      res.status(200).json(docs);
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'list_failed', message: err.message });

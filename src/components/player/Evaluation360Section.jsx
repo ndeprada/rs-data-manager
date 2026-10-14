@@ -10,13 +10,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AREAS, areasFor, computeAverages, scoreColor } from "@/lib/eval360";
 import { playerFirstName } from "@/lib/playerName";
+import { VisibilityField, VisibilityBadge } from "@/components/player/VisibilityToggle";
+import { usePlayerMode } from "@/lib/playerMode";
 
 function currentQuarter() {
   const d = new Date();
   return `${d.getFullYear()} T${Math.floor(d.getMonth() / 3) + 1}`;
 }
 const today = () => new Date().toISOString().slice(0, 10);
-const emptyForm = () => ({ date: today(), period: currentQuarter(), evaluator: "", scores: {}, strengths: "", improve: "", notes: "" });
+const emptyForm = () => ({ visible: null, date: today(), period: currentQuarter(), evaluator: "", scores: {}, strengths: "", improve: "", notes: "" });
 
 function AreaBars({ avg }) {
   return (
@@ -60,7 +62,7 @@ function ScoreRow({ label, value, onChange }) {
   );
 }
 
-function EvalCard({ ev, areas, onEdit, onDelete }) {
+function EvalCard({ ev, areas, onEdit, onDelete, onToggleVisible, readOnly }) {
   const [open, setOpen] = useState(false);
   const avg = computeAverages(ev.scores);
   return (
@@ -80,10 +82,11 @@ function EvalCard({ ev, areas, onEdit, onDelete }) {
           ))}
         </div>
         <span className="text-sm font-black px-2.5 py-1 rounded-full text-white" style={{ background: scoreColor(avg.overall) }}>{avg.overall ?? "—"}</span>
-        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+        {!readOnly && <VisibilityBadge value={ev.visible_to_player} onToggle={(v) => onToggleVisible(ev, v)} />}
+        {!readOnly && <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
           <button onClick={() => onEdit(ev)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
           <button onClick={() => onDelete(ev.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
-        </div>
+        </div>}
         {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
       </div>
       {open && (
@@ -129,6 +132,8 @@ export default function Evaluation360Section({ player, playerId }) {
   const [deleteId, setDeleteId] = useState(null);
   const [form, setForm] = useState(emptyForm());
   const [tab, setTab] = useState("tecnica");
+  const [visError, setVisError] = useState(false);
+  const playerMode = usePlayerMode();
   const areas = areasFor(player.position);
 
   const { data: evals = [], isLoading } = useQuery({
@@ -141,16 +146,20 @@ export default function Evaluation360Section({ player, playerId }) {
     mutationFn: (data) => (editing ? base44.entities.Evaluation360.update(editing.id, data) : base44.entities.Evaluation360.create({ ...data, player_id: playerId })),
     onSuccess: () => { refresh(); close(); },
   });
+  const toggleVisible = useMutation({
+    mutationFn: ({ id, v }) => base44.entities.Evaluation360.update(id, { visible_to_player: v }),
+    onSuccess: refresh,
+  });
   const del = useMutation({
     mutationFn: (id) => base44.entities.Evaluation360.delete(id),
     onSuccess: () => { refresh(); setDeleteId(null); },
   });
 
-  const close = () => { setOpen(false); setEditing(null); setForm(emptyForm()); setTab("tecnica"); };
+  const close = () => { setVisError(false); setOpen(false); setEditing(null); setForm(emptyForm()); setTab("tecnica"); };
   const openNew = () => { setEditing(null); setForm(emptyForm()); setTab("tecnica"); setOpen(true); };
   const openEdit = (ev) => {
     setEditing(ev);
-    setForm({ date: ev.date || today(), period: ev.period || "", evaluator: ev.evaluator || "", scores: ev.scores || {}, strengths: ev.strengths || "", improve: ev.improve || "", notes: ev.notes || "" });
+    setForm({ visible: ev.visible_to_player ?? null, date: ev.date || today(), period: ev.period || "", evaluator: ev.evaluator || "", scores: ev.scores || {}, strengths: ev.strengths || "", improve: ev.improve || "", notes: ev.notes || "" });
     setTab("tecnica");
     setOpen(true);
   };
@@ -165,8 +174,10 @@ export default function Evaluation360Section({ player, playerId }) {
 
   const submit = (e) => {
     e.preventDefault();
+    if (form.visible == null) { setVisError(true); setTab("cierre"); return; }
     const avg = computeAverages(form.scores);
     save.mutate({
+      visible_to_player: form.visible,
       date: form.date, period: form.period, evaluator: form.evaluator, scores: form.scores,
       strengths: form.strengths, improve: form.improve, notes: form.notes,
       avg_tecnica: avg.tecnica, avg_tactica: avg.tactica, avg_fisica: avg.fisica, avg_mental: avg.mental, overall: avg.overall,
@@ -190,9 +201,9 @@ export default function Evaluation360Section({ player, playerId }) {
             <h3 className="font-semibold text-gray-900">Evaluación 360</h3>
             <p className="text-sm text-gray-500">Perfil general de <strong>{playerFirstName(player)}</strong>: técnica, táctica, física y mental (1-10). Es el punto de partida; el trabajo concreto se planifica en el plan de desarrollo.</p>
           </div>
-          <Button onClick={openNew} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
+          {!playerMode && <Button onClick={openNew} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
             <Plus className="w-4 h-4 mr-2" /> Nueva evaluación
-          </Button>
+          </Button>}
         </div>
         {latestAvg && (
           <div className="mt-4 pt-4 border-t border-gray-100">
@@ -214,7 +225,7 @@ export default function Evaluation360Section({ player, playerId }) {
         </div>
       ) : (
         <div className="space-y-3">
-          {evals.map((ev) => <EvalCard key={ev.id} ev={ev} areas={areas} onEdit={openEdit} onDelete={setDeleteId} />)}
+          {evals.map((ev) => <EvalCard key={ev.id} ev={ev} areas={areas} onEdit={openEdit} onDelete={setDeleteId} readOnly={playerMode} onToggleVisible={(e, v) => toggleVisible.mutate({ id: e.id, v })} />)}
         </div>
       )}
 
@@ -236,6 +247,8 @@ export default function Evaluation360Section({ player, playerId }) {
                 <Input value={form.evaluator} onChange={(e) => setForm({ ...form, evaluator: e.target.value })} className="border-gray-200" />
               </div>
             </div>
+
+            <VisibilityField value={form.visible} onChange={(v) => setForm({ ...form, visible: v })} error={visError} />
 
             <div className="flex gap-1 border-b border-gray-100 overflow-x-auto">
               {tabs.map((t) => {

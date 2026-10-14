@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   GROUP_LABELS, POSITION_CATALOG, getPositionCatalog, getRoleOptions, findRole, getSelectableCompetencies,
 } from "@/lib/competencyCatalog";
+import { VisibilityField, VisibilityBadge } from "@/components/player/VisibilityToggle";
+import { usePlayerMode } from "@/lib/playerMode";
 
 // Etapa por defecto según el equipo. En Racing Sarrià: F7 hasta S12, F11 desde S13
 export function defaultStage(teamName) {
@@ -78,7 +80,7 @@ function CompetencyPicker({ options, selectedId, onSelect, labelOf }) {
   );
 }
 
-function GoalCard({ goal, onAdvance, onBack, onDelete }) {
+function GoalCard({ goal, onAdvance, onBack, onDelete, onToggleVisible, readOnly }) {
   const st = goal.status === "mejorado" ? "mejorado" : goal.status === "trabajando" ? "trabajando" : "a_mejorar";
   const tag = goal.source === "role" ? `Rol · ${goal.role_label || ""}` : goal.source === "other" ? `Otra posición · ${goal.role_label || ""}` : `General · ${GROUP_LABELS[goal.group] || ""}`;
   const tagCls = goal.source === "role" ? "bg-amber-100 text-amber-800" : goal.source === "other" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-600";
@@ -91,6 +93,7 @@ function GoalCard({ goal, onAdvance, onBack, onDelete }) {
             <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${tagCls}`}>{tag}</span>
             {st === "trabajando" && <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">Trabajando</span>}
             {goal.period && <span className="text-[10px] text-gray-400">{goal.period}</span>}
+            {!readOnly && <VisibilityBadge value={goal.visible_to_player} onToggle={(v) => onToggleVisible(goal, v)} />}
             {st === "mejorado" && goal.improved_date && <span className="text-[10px] text-green-700">Mejorado el {new Date(goal.improved_date).toLocaleDateString("es-ES")}</span>}
           </div>
           <p className="text-sm text-gray-800">{goal.competency_text}</p>
@@ -98,14 +101,14 @@ function GoalCard({ goal, onAdvance, onBack, onDelete }) {
           {goal.strategy && <p className="text-sm text-gray-600 mt-1"><strong>Cómo se trabaja:</strong> {goal.strategy}</p>}
           {goal.evidence && <p className="text-sm text-gray-600 mt-1"><strong>Evidencia / comportamiento observado:</strong> {goal.evidence}</p>}
         </div>
-        <div className="flex flex-col gap-1 shrink-0">
+        {!readOnly && <div className="flex flex-col gap-1 shrink-0">
           {st === "a_mejorar" && <button onClick={() => onAdvance(goal)} title="Empezar a trabajarlo" className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-700"><Play className="w-4 h-4" /></button>}
           {st === "trabajando" && <button onClick={() => onAdvance(goal)} title="Marcar como mejorado" className="p-1.5 rounded-lg hover:bg-green-50 text-gray-500 hover:text-green-700"><CheckCircle2 className="w-4 h-4" /></button>}
           {st !== "a_mejorar" && <button onClick={() => onBack(goal)} title={st === "mejorado" ? "Reabrir (a mejorar)" : "Volver a 'a mejorar'"} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"><RotateCcw className="w-4 h-4" /></button>}
           <button onClick={() => onDelete(goal)} title="Eliminar" className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">
             <Trash2 className="w-4 h-4" />
           </button>
-        </div>
+        </div>}
       </div>
     </div>
   );
@@ -113,6 +116,9 @@ function GoalCard({ goal, onAdvance, onBack, onDelete }) {
 
 export default function PDIPlanSection({ player, team }) {
   const queryClient = useQueryClient();
+  const playerMode = usePlayerMode();
+  const [visible, setVisible] = useState(null);
+  const [visError, setVisError] = useState(false);
   const playerId = player.id;
   const catalog = getPositionCatalog(player.position);
   const roleInfo = player.reference_role ? findRole(player.reference_role) : null;
@@ -148,9 +154,10 @@ export default function PDIPlanSection({ player, team }) {
   });
   const create = useMutation({
     mutationFn: (data) => base44.entities.PDIGoal.create({ ...data, player_id: playerId }),
-    onSuccess: () => { refresh(); setOpen(false); setPicked(null); setForm({ objective: "", strategy: "", evidence: "", period: currentQuarter(), status: "a_mejorar" }); },
+    onSuccess: () => { refresh(); setOpen(false); setPicked(null); setVisible(null); setVisError(false); setForm({ objective: "", strategy: "", evidence: "", period: currentQuarter(), status: "a_mejorar" }); },
   });
   const update = useMutation({ mutationFn: ({ id, data }) => base44.entities.PDIGoal.update(id, data), onSuccess: refresh });
+  const toggleVisible = (g, v) => update.mutate({ id: g.id, data: { visible_to_player: v } });
   const remove = useMutation({ mutationFn: (id) => base44.entities.PDIGoal.delete(id), onSuccess: refresh });
 
   const toImprove = goals.filter((g) => g.status !== "mejorado");
@@ -160,7 +167,9 @@ export default function PDIPlanSection({ player, team }) {
   const submit = (e) => {
     e.preventDefault();
     if (!picked) return;
+    if (visible == null) { setVisError(true); return; }
     create.mutate({
+      visible_to_player: visible,
       competency_id: picked.id,
       competency_text: picked.text,
       source: picked.source,
@@ -213,7 +222,7 @@ export default function PDIPlanSection({ player, team }) {
           </div>
           <div className="flex-1 min-w-[220px]">
             <h3 className="font-semibold text-gray-900">Plan de Desarrollo Individual · competencias</h3>
-            <div className="flex items-center gap-2 mt-2">
+            <div className={`flex items-center gap-2 mt-2 ${playerMode ? "hidden" : ""}`}>
               <span className="text-xs text-gray-500">Etapa:</span>
               {["f7", "f11"].map((k) => (
                 <button key={k} type="button" onClick={() => setStage.mutate(k)}
@@ -227,7 +236,7 @@ export default function PDIPlanSection({ player, team }) {
               Posición: <strong>{catalog.label}</strong>
               {roleInfo && !isF7 ? <> · Rol de referencia: <strong>{roleInfo.role.label}</strong></> : null}
             </p>
-            {!roleInfo && !isF7 && (
+            {!roleInfo && !isF7 && !playerMode && (
               <div className="mt-2 max-w-xs">
                 <Label className="text-xs text-gray-500">Asigna un rol de referencia</Label>
                 <Select value="" onValueChange={(v) => setRole.mutate(v)}>
@@ -240,9 +249,9 @@ export default function PDIPlanSection({ player, team }) {
             )}
             {roleInfo && !isF7 && <p className="text-xs text-gray-500 mt-1.5 max-w-2xl">{roleInfo.role.description}</p>}
           </div>
-          <Button onClick={() => { setTab(roleInfo && !isF7 ? "role" : "general"); setOpen(true); }} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
+          {!playerMode && <Button onClick={() => { setTab(roleInfo && !isF7 ? "role" : "general"); setOpen(true); }} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
             <Plus className="w-4 h-4 mr-2" /> Añadir aspecto
-          </Button>
+          </Button>}
         </div>
         <button onClick={() => setShowRef(!showRef)} className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800">
           <BookOpen className="w-3.5 h-3.5" /> Ver competencias de referencia {showRef ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -281,13 +290,13 @@ export default function PDIPlanSection({ player, team }) {
             </div>
           )}
           <div className="space-y-2">
-            {toImprove.length === 0 ? <p className="text-sm text-gray-400">Aún no hay aspectos a mejorar.</p> : toImprove.map((g) => <GoalCard key={g.id} goal={g} onAdvance={advance} onBack={back} onDelete={(x) => remove.mutate(x.id)} />)}
+            {toImprove.length === 0 ? <p className="text-sm text-gray-400">Aún no hay aspectos a mejorar.</p> : toImprove.map((g) => <GoalCard key={g.id} goal={g} onAdvance={advance} onBack={back} onDelete={(x) => remove.mutate(x.id)} onToggleVisible={toggleVisible} readOnly={playerMode} />)}
           </div>
         </div>
         <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
           <h4 className="font-semibold text-gray-900 flex items-center gap-2 mb-3"><CheckCircle2 className="w-4 h-4 text-green-600" /> Trabajados y mejorados <span className="text-xs text-gray-400">({improved.length})</span></h4>
           <div className="space-y-2">
-            {improved.length === 0 ? <p className="text-sm text-gray-400">Todavía no hay aspectos marcados como mejorados.</p> : improved.map((g) => <GoalCard key={g.id} goal={g} onAdvance={advance} onBack={back} onDelete={(x) => remove.mutate(x.id)} />)}
+            {improved.length === 0 ? <p className="text-sm text-gray-400">Todavía no hay aspectos marcados como mejorados.</p> : improved.map((g) => <GoalCard key={g.id} goal={g} onAdvance={advance} onBack={back} onDelete={(x) => remove.mutate(x.id)} onToggleVisible={toggleVisible} readOnly={playerMode} />)}
           </div>
         </div>
       </div>
@@ -341,6 +350,7 @@ export default function PDIPlanSection({ player, team }) {
               <Label className="text-gray-700">Comportamiento observable / evidencia</Label>
               <Textarea rows={2} value={form.evidence} onChange={(e) => setForm({ ...form, evidence: e.target.value })} className="border-gray-200" />
             </div>
+            <VisibilityField value={visible} onChange={setVisible} error={visError} />
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
               <Button type="submit" disabled={!picked || create.isPending} className="text-white" style={{ background: "var(--granate)" }}>Añadir</Button>

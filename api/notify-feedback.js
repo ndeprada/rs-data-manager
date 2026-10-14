@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
   const user = await requireUser(req, res);
   if (!user) return;
-  if (!isAdmin(user) && !isApproved(user)) return res.status(403).json({ error: 'forbidden' });
+  if (!isAdmin(user) && (!isApproved(user) || user.app_role === 'jugador')) return res.status(403).json({ error: 'forbidden' });
 
   const key = process.env.RESEND_API_KEY;
   if (!key) return res.status(200).json({ sent: false, reason: 'no_provider' });
