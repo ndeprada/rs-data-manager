@@ -117,9 +117,9 @@ export default function PlayerInfoCards({ player }) {
       <div className="px-4 py-2 border-b border-gray-100">
         <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Ficha del jugador</span>
       </div>
-      <div className="flex items-start gap-5 px-4 py-3">
-        {/* Columna 1: posición, año, estado */}
-        <div className="space-y-2 min-w-0">
+      <div className="flex items-stretch gap-5 px-4 py-3">
+        {/* Izquierda: posiciones y datos */}
+        <div className="flex-1 min-w-0 flex flex-col gap-3">
           {player.position && (
             <div>
               <Label>Posiciones</Label>
@@ -139,49 +139,45 @@ export default function PlayerInfoCards({ player }) {
               </div>
             </div>
           )}
-          {birthYear && (
-            <div>
-              <Label>Año de nacimiento</Label>
-              <p className="text-sm font-bold text-gray-800">{birthYear}</p>
-            </div>
-          )}
-          {countryOf(player) && (
-            <div>
-              <Label>Nacionalidad</Label>
-              <Flag player={player} className="text-sm" />
-              {(player.birth_place || player.birth_province) && (
-                <p className="text-[11px] text-gray-500 mt-0.5">{[player.birth_place, player.birth_province && player.birth_province !== player.birth_place ? player.birth_province : ""].filter(Boolean).join(", ")}</p>
-              )}
-            </div>
-          )}
-          {player.status && (
-            <div>
-              <Label>Estado</Label>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusCls}`}>{statusTxt}</span>
-            </div>
-          )}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-gray-100 pt-3">
+            {birthYear && (
+              <div>
+                <Label>Año de nacimiento</Label>
+                <p className="text-sm font-bold text-gray-800">{birthYear}</p>
+              </div>
+            )}
+            {player.status && (
+              <div>
+                <Label>Estado</Label>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusCls}`}>{statusTxt}</span>
+              </div>
+            )}
+            {countryOf(player) && (
+              <div className="col-span-2">
+                <Label>Nacionalidad</Label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Flag player={player} className="text-sm" />
+                  {(player.birth_place || player.birth_province) && (
+                    <span className="text-[11px] text-gray-500">{[player.birth_place, player.birth_province && player.birth_province !== player.birth_place ? player.birth_province : ""].filter(Boolean).join(", ")}</span>
+                  )}
+                </div>
+              </div>
+            )}
+            {player.jersey_number && (
+              <div>
+                <Label>Dorsal</Label>
+                <p className="text-sm font-bold text-gray-800">#{player.jersey_number}</p>
+              </div>
+            )}
+          </div>
         </div>
-        {/* Columna 2: lateralidad y dorsal */}
-        <div className="space-y-2">
-          {player.laterality && (
-            <div>
-              <Label>Lateralidad</Label>
-              <FootIndicator laterality={player.laterality} light />
-            </div>
-          )}
-          {player.jersey_number && (
-            <div>
-              <Label>Dorsal</Label>
-              <p className="text-sm font-bold text-gray-800">#{player.jersey_number}</p>
-            </div>
-          )}
-        </div>
-        {/* Campo */}
+        {/* Derecha: campograma y lateralidad debajo */}
         {player.position && (
-          <div className="shrink-0 flex flex-col items-center" style={{ width: 132 }}>
+          <div className="shrink-0 flex flex-col items-center gap-2" style={{ width: 160 }}>
             <div className="w-full" style={{ aspectRatio: "200/300" }}>
               <FootballField player={player} />
             </div>
+            {player.laterality && <FootIndicator laterality={player.laterality} light />}
           </div>
         )}
       </div>

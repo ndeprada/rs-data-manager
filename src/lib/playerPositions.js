@@ -33,16 +33,16 @@ export function getPositionList(player) {
 // El rol ajusta la altura: libre más atrás, delantero de referencia muy arriba, falso 9 / mediapunta más cerca de los medios.
 const BASE = {
   portero: { x: 50, y: 93 },
-  central: { x: 50, y: 78 },
-  lateral: { x: 14, y: 66 },   // lado izquierdo (perfil del zurdo); se espeja para diestros
+  central: { x: 50, y: 74 },
+  lateral: { x: 14, y: 69 },   // lado izquierdo (perfil del zurdo); se espeja para diestros
   mediocentro: { x: 50, y: 52 },
   interior: { x: 30, y: 42 },
   extremo: { x: 12, y: 27 },
   delantero_centro: { x: 50, y: 15 },
 };
 const ROLE_ADJUST = {
-  central_libre: { y: 84 }, central_marcador: { y: 78 }, central_con_salida: { y: 75 }, central_completo: { y: 76 },
-  lateral_defensivo: { y: 69 }, lateral_interior: { x: 26, y: 61 }, lateral_completo: { y: 62 },
+  central_libre: { y: 78 }, central_marcador: { y: 74 }, central_con_salida: { y: 72 }, central_completo: { y: 73 },
+  lateral_defensivo: { y: 71 }, lateral_interior: { x: 26, y: 65 }, lateral_completo: { y: 67 },
   mediocentro_posicional: { y: 58 }, mediocentro_organizador: { y: 49 },
   interior_mixto: { y: 43 }, interior_avanzado: { y: 35 },
   extremo_apoyo: { x: 14, y: 32 }, extremo_profundo: { x: 10, y: 21 }, extremo_interior: { x: 22, y: 28 },
