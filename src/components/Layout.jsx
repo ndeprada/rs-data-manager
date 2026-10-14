@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 import { CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
+import { usePendingUsers } from "@/lib/pendingUsers";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { addDays, isWithinInterval, parseISO } from "date-fns";
@@ -43,7 +44,7 @@ function SectionLabel({ children }) {
   );
 }
 
-function NavItem({ item, onClick }) {
+function NavItem({ item, onClick, badge = 0 }) {
   const location = useLocation();
   const active = location.pathname === item.path;
   return (
@@ -57,6 +58,7 @@ function NavItem({ item, onClick }) {
         <item.icon className={`shrink-0 w-3.5 h-3.5 ${active ? "text-white" : "text-white/45 group-hover:text-white/75"}`} />
       )}
       <span className="flex-1 leading-none">{item.label}</span>
+      {badge > 0 && <span className="min-w-4 h-4 px-1 rounded-full bg-[#FF6E00] text-white text-[9px] font-black flex items-center justify-center shrink-0" title={`${badge} usuario(s) pendientes de aceptar`}>{badge}</span>}
       {active && <div className="w-1 h-1 rounded-full bg-white/50 shrink-0" />}
     </Link>
   );
@@ -119,6 +121,7 @@ function MyTeamNav({ onClose, notificationCount }) {
 function Sidebar({ onClose = () => {} }) {
   const { user, logout } = useAuth();
   const { isCoordinator, appRole, selectedTeamId } = useTeamAccess();
+  const pendingUsers = usePendingUsers(isCoordinator);
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
     queryFn: () => base44.entities.Event.list("-date"),
@@ -193,7 +196,7 @@ function Sidebar({ onClose = () => {} }) {
         {isCoordinator && (
           <>
             <SectionLabel>Administración</SectionLabel>
-            {adminNav.map(item => <NavItem key={item.path} item={item} onClick={onClose} />)}
+            {adminNav.map(item => <NavItem key={item.path} item={item} onClick={onClose} badge={item.path === "/Accesos" ? pendingUsers.length : 0} />)}
           </>
         )}
 
@@ -247,6 +250,7 @@ function Sidebar({ onClose = () => {} }) {
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isCoordinator } = useTeamAccess();
+  const pendingUsersCount = usePendingUsers(isCoordinator).length;
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-gray-900 flex">
@@ -287,8 +291,9 @@ export default function Layout() {
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center shadow-sm" style={{ background: "var(--granate)" }}>
         <div className="flex items-center gap-2">
-          <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 -ml-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors" aria-label="Menú">
+          <button onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menú" className="relative p-2 -ml-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {pendingUsersCount > 0 && !mobileOpen && <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-[#FF6E00] border border-[#73000A]" />}
           </button>
           <Link to={isCoordinator ? "/Dashboard" : "/MyTeam"} onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
             <img src={CLUB_LOGO_URL_WHITE} alt="RS Club" className="w-7 h-7 object-contain" />

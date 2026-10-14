@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, Users, Activity, Swords, ChevronRight, Trophy, TrendingUp, Users2, HeartPulse } from "lucide-react";
+import { Shield, Users, Activity, Swords, ChevronRight, Trophy, TrendingUp, Users2, HeartPulse, UserCog } from "lucide-react";
 import { format, isAfter, startOfDay, isSameMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { Link, useNavigate } from "react-router-dom";
@@ -12,6 +12,7 @@ import WeekendAgenda from "../components/dashboard/WeekendAgenda";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { playerFullName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
+import { usePendingUsers } from "@/lib/pendingUsers";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
@@ -20,6 +21,7 @@ const isMatch = (type) => MATCH_TYPES.includes(type);
 export default function Dashboard() {
   const navigate = useNavigate();
   const { isCoordinator } = useTeamAccess();
+  const pendingUsers = usePendingUsers(isCoordinator);
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
@@ -111,6 +113,13 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5">
+      {pendingUsers.length > 0 && (
+        <Link to="/Accesos" className="flex items-center gap-3 px-4 py-2.5 border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors" style={{ borderRadius: "4px" }}>
+          <UserCog className="w-4 h-4 text-orange-600 shrink-0" />
+          <span className="text-sm font-bold text-orange-800">{pendingUsers.length} usuario{pendingUsers.length !== 1 ? "s" : ""} pendiente{pendingUsers.length !== 1 ? "s" : ""} de aceptar</span>
+          <span className="ml-auto text-xs font-bold text-orange-700">Revisar →</span>
+        </Link>
+      )}
 
       {/* ── HERO (COMPACTO) ── */}
       <div className="rounded-sm overflow-hidden on-dark h-24 flex items-center" style={{ background: "var(--granate)" }}>
