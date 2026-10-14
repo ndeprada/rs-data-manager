@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import GuestPlayerSelector from "@/components/common/GuestPlayerSelector";
+import { playerFullName } from "@/lib/playerName";
 
 const STATUS_CONFIG = {
   present: { label: "Presente",  icon: CheckCircle, iconClass: "text-green-500",  activeBorder: "border-green-400 bg-green-50" },
@@ -164,7 +165,7 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
                       {/* Name */}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {player.first_name} {player.last_name}
+                          {playerFullName(player)}
                           {player.status === "lesionado" && <span className="ml-2 text-xs text-orange-500">⚠ Lesionado</span>}
                         </p>
                         <p className="text-xs text-gray-400">
@@ -237,7 +238,7 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
 
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-900 truncate">
-                              {player.first_name} {player.last_name}
+                              {playerFullName(player)}
                             </p>
                             <p className="text-xs text-blue-500">
                               {teams.find(t => t.id === player.team_id)?.name || "Otro equipo"} · {POSITION_LABELS[player.position] || player.position || "—"}

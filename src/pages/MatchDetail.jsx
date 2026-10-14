@@ -12,6 +12,7 @@ import ConvocationTab from "@/components/match/ConvocationTab";
 import ActaTab from "@/components/match/ActaTab";
 import TacticaTab from "@/components/match/TacticaTab";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
+import { playerFullName } from "@/lib/playerName";
 
 function Shield({ src, name, canUpload, onUpload }) {
   const inputRef = useRef(null);
@@ -186,7 +187,7 @@ export default function MatchDetail() {
           {(() => {
             const ours = ourGoals.map((g, i) => {
               const scorer = players.find(p => p.id === g.player_id);
-              return { k: "o" + i, minute: g.minute, label: scorer ? `${scorer.first_name} ${scorer.last_name}` : (g.goal_type === "gol_propio" ? "Propia puerta" : "—") };
+              return { k: "o" + i, minute: g.minute, label: scorer ? `${playerFullName(scorer)}` : (g.goal_type === "gol_propio" ? "Propia puerta" : "—") };
             });
             const theirs = theirGoals.map((g, i) => {
               const ev = (event.match_events || []).find(e => e.id === g.id);

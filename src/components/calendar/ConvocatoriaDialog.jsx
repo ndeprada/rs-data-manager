@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { CheckCircle, Circle, Send, Users, AlertTriangle, Activity } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { playerFirstName, playerFullName } from "@/lib/playerName";
 
 const STATUS_STYLES = {
   activo:   { label: "Activo",    dot: "bg-green-400" },
@@ -99,7 +100,7 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
       await base44.integrations.Core.SendEmail({
         to: player.email,
         subject: `📋 Convocatoria: ${event?.title}`,
-        body: `Hola ${player.first_name},\n\nEstàs convocat/da per al següent partit:\n\n🏟️ ${event?.title}${event?.opponent ? ` vs ${event.opponent}` : ""}\n📅 ${eventDate}${event?.location ? `\n📍 ${event.location}` : ""}${notes ? `\n\n📝 Notes: ${notes}` : ""}\n\nConfirma la teva assistència amb el teu entrenador.\n\nRS Data Manager`,
+        body: `Hola ${playerFirstName(player)},\n\nEstàs convocat/da per al següent partit:\n\n🏟️ ${event?.title}${event?.opponent ? ` vs ${event.opponent}` : ""}\n📅 ${eventDate}${event?.location ? `\n📍 ${event.location}` : ""}${notes ? `\n\n📝 Notes: ${notes}` : ""}\n\nConfirma la teva assistència amb el teu entrenador.\n\nRS Data Manager`,
       });
     }
 
@@ -186,7 +187,7 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-medium ${isSelected ? "text-green-800" : "text-gray-800"}`}>
-                          {player.first_name} {player.last_name}
+                          {playerFullName(player)}
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
@@ -212,7 +213,7 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
                       <div className="shrink-0">
                         {isSelected ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Circle className="w-4 h-4 text-gray-400" />}
                       </div>
-                      <p className="text-sm font-medium text-gray-800">{player.first_name} {player.last_name}</p>
+                      <p className="text-sm font-medium text-gray-800">{playerFullName(player)}</p>
                     </button>
                   );
                 })}

@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { playerFullName } from "@/lib/playerName";
 
 function setFill(doc, r, g, b) { doc.setFillColor(r, g, b); }
 function setDraw(doc, r, g, b) { doc.setDrawColor(r, g, b); }
@@ -41,7 +42,7 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
   doc.text("Informe de Progresión Individual", margin, 14);
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(`${player.first_name} ${player.last_name}  ·  ${team?.name || "—"}`, margin, 23);
+  doc.text(`${playerFullName(player)}  ·  ${team?.name || "—"}`, margin, 23);
   doc.setFontSize(7.5);
   doc.text(
     `Generado el ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es })}`,
@@ -348,7 +349,7 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text(`RS Data Manager — Progresión Individual — ${player.first_name} ${player.last_name}`, margin, 294.5);
+    doc.text(`RS Data Manager — Progresión Individual — ${playerFullName(player)}`, margin, 294.5);
     doc.text(`Pág. ${p} / ${totalPages}`, W - margin - 16, 294.5);
   }
 

@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Save, Trash2 } from "lucide-react";
+import { playerFirstName, playerFullName } from "@/lib/playerName";
 
 const FORMATIONS = {
   "4-4-2": { GK: 1, DEF: 4, MID: 4, ATT: 2 },
@@ -230,7 +231,7 @@ export default function TacticsFieldSection({ eventId, teamId, players }) {
                   }`}
                 >
                   <div className="font-bold">#{player.jersey_number || "—"}</div>
-                  <div className="text-[10px] truncate">{player.first_name}</div>
+                  <div className="text-[10px] truncate">{playerFirstName(player)}</div>
                 </div>
               );
             })}
@@ -282,7 +283,7 @@ export default function TacticsFieldSection({ eventId, teamId, players }) {
                   top: `${pos.y}%`,
                   transform: "translate(-50%, -50%)"
                 }}
-                title={`${player?.first_name} ${player?.last_name}`}
+                title={`${playerFullName(player?)}`}
               >
                 {player?.jersey_number || "—"}
               </div>

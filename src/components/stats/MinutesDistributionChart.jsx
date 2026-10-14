@@ -1,5 +1,6 @@
 import React from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { playerFullName } from "@/lib/playerName";
 
 const POSITION_COLORS = {
   portero: "#3b82f6",           // azul
@@ -20,8 +21,8 @@ export default function MinutesDistributionChart({ matchStats, players }) {
       const totalMinutes = stats.reduce((sum, ms) => sum + (ms.minutes_played || 0), 0);
       const gamesPlayed = stats.filter((ms) => (ms.minutes_played || 0) > 0).length;
       return {
-        name: `${player.first_name?.[0]}. ${player.last_name}`,
-        fullName: `${player.first_name} ${player.last_name}`,
+        name: playerFullName(player),
+        fullName: `${playerFullName(player)}`,
         minutes: totalMinutes,
         games: gamesPlayed,
         position: player.position,

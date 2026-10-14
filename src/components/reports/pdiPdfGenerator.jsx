@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { playerFullName } from "@/lib/playerName";
 
 function setFill(doc, r, g, b) { doc.setFillColor(r, g, b); }
 function setDraw(doc, r, g, b) { doc.setDrawColor(r, g, b); }
@@ -90,7 +91,7 @@ export function generatePDIPDF(player, team, pdiRecords) {
   doc.text("Informe PDI — Plan de Desarrollo Individual", margin, 14);
   doc.setFontSize(9.5);
   doc.setFont("helvetica", "normal");
-  doc.text(`${player.first_name} ${player.last_name}  ·  ${team?.name || "—"}`, margin, 23);
+  doc.text(`${playerFullName(player)}  ·  ${team?.name || "—"}`, margin, 23);
   doc.setFontSize(7.5);
   doc.text(`Generado el ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es })}  ·  ${pdiRecords.length} evaluación${pdiRecords.length !== 1 ? "es" : ""}`, margin, 30);
 
@@ -109,7 +110,7 @@ export function generatePDIPDF(player, team, pdiRecords) {
   setTxt(doc, 115, 0, 10);
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text(`${player.first_name} ${player.last_name}`, margin, y);
+  doc.text(`${playerFullName(player)}`, margin, y);
 
   setTxt(doc, 110, 110, 110);
   doc.setFontSize(8.5);
@@ -149,7 +150,7 @@ export function generatePDIPDF(player, team, pdiRecords) {
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text(`RS Data Manager — PDI Confidencial — ${player.first_name} ${player.last_name}`, margin, 294.5);
+    doc.text(`RS Data Manager — PDI Confidencial — ${playerFullName(player)}`, margin, 294.5);
     doc.text(`Pág. ${p} / ${totalPages}`, W - margin - 16, 294.5);
   }
 

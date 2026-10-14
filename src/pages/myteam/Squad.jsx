@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
+import { playerFullName } from "@/lib/playerName";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB",
@@ -187,7 +188,7 @@ export default function Squad() {
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-gray-900 group-hover:underline" style={{ fontFamily: "var(--font-display)" }}>{p.first_name} {p.last_name}</p>
+                          <p className="font-bold text-gray-900 group-hover:underline" style={{ fontFamily: "var(--font-display)" }}>{playerFullName(p)}</p>
                           <p className="text-[10px] text-gray-400">{birthYearOf(p) ? `Nac. ${birthYearOf(p)}` : "—"}</p>
                         </div>
                       </Link>

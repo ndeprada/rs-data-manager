@@ -14,6 +14,7 @@ import DrawableField from "@/components/tactics/DrawableField";
 import FootballField from "@/components/tactics/FootballField";
 import PlayerToken from "@/components/tactics/PlayerToken";
 import { FORMATIONS, FORMATION_KEYS } from "@/components/tactics/formations";
+import { playerFirstName, playerFullName } from "@/lib/playerName";
 
 const DRAW_COLORS = [
   { label: "Blanco", value: "#ffffff" },
@@ -55,7 +56,7 @@ function PlayerDragToken({ pos, player, onMouseDown, onTouchStart, isDragging })
         {initials}
       </div>
       <div className="mt-0.5 bg-black/60 text-white text-[9px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap max-w-[70px] truncate text-center">
-        {player?.first_name} {player?.last_name?.[0]}.
+        {playerFirstName(player)} {player?.last_name?.[0]}.
       </div>
     </div>
   );
@@ -561,7 +562,7 @@ export default function MatchTacticsBoard({ eventId, teamId, players }) {
                         style={{ background: onField ? "#9ca3af" : "var(--granate)" }}>
                         {p.first_name?.[0]}{p.last_name?.[0]}
                       </span>
-                      <span className="truncate flex-1">{p.first_name} {p.last_name}</span>
+                      <span className="truncate flex-1">{playerFullName(p)}</span>
                       {p.jersey_number && <span className="text-gray-400 text-[10px]">#{p.jersey_number}</span>}
                       {onField && <span className="text-red-400 text-[10px] font-bold">✕</span>}
                     </div>
@@ -576,7 +577,7 @@ export default function MatchTacticsBoard({ eventId, teamId, players }) {
                         style={{ background: isAssigned ? "#9ca3af" : "var(--granate)" }}>
                         {p.first_name?.[0]}{p.last_name?.[0]}
                       </span>
-                      <span className="truncate flex-1">{p.first_name} {p.last_name}</span>
+                      <span className="truncate flex-1">{playerFullName(p)}</span>
                       {p.jersey_number && <span className="text-[10px]">#{p.jersey_number}</span>}
                       {p.status === "lesionado" && <span title="Lesionado" className="ml-auto">⚠️</span>}
                     </div>

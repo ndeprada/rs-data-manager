@@ -1,4 +1,5 @@
 import React, { useRef, useState, useCallback } from "react";
+import { playerFirstName } from "@/lib/playerName";
 
 const POSITION_LABELS = {
   portero: "POR",
@@ -118,7 +119,7 @@ export default function FreeDragField({ players = [], positions = [], onChange }
               {initials || label}
             </div>
             <div className="mt-0.5 bg-black/60 text-white text-[9px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap max-w-[70px] truncate text-center">
-              {player.first_name} {player.last_name?.[0]}.
+              {playerFirstName(player)} {player.last_name?.[0]}.
             </div>
           </div>
         );

@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Shirt, RotateCcw } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
+import { playerFullName } from "@/lib/playerName";
 
 const KIT_LABELS = { segunda: "2ª Equipación", tercera: "3ª Equipación" };
 const KIT_COLORS = { segunda: "bg-amber-100 text-amber-800", tercera: "bg-purple-100 text-purple-800" };
@@ -68,7 +69,7 @@ export default function KitLoansTab() {
   const getTeamName = (id) => teams.find(t => t.id === id)?.name || "—";
   const getStaffName = (id) => {
     const s = staff.find(m => m.id === id);
-    return s ? `${s.first_name} ${s.last_name}` : null;
+    return s ? `${playerFullName(s)}` : null;
   };
 
   const filtered = filterStatus === "all" ? loans : loans.filter(l => l.status === filterStatus);
@@ -203,7 +204,7 @@ export default function KitLoansTab() {
                 <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Sin especificar</SelectItem>
-                  {staff.map(s => <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name}</SelectItem>)}
+                  {staff.map(s => <SelectItem key={s.id} value={s.id}>{playerFullName(s)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

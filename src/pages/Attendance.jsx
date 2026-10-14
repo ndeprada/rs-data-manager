@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+import { playerFullName } from "@/lib/playerName";
 
 const STATUS_CONFIG = {
   present: { label: "Asistió", color: "green", icon: CheckCircle2 },
@@ -198,7 +199,7 @@ export default function Attendance() {
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">
-                              {player.first_name} {player.last_name}
+                              {playerFullName(player)}
                             </p>
                             <p className="text-xs text-gray-400">{player.jersey_number ? `#${player.jersey_number}` : "—"}</p>
                           </div>

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import { format } from "date-fns";
+import { playerSearchName } from "@/lib/playerName";
 
 const POSITIONS = [
   { value: "portero", label: "Portero" },
@@ -110,7 +111,7 @@ export default function Players() {
   )].sort((a, b) => b - a);
 
   const filtered = players.filter((p) => {
-    const matchSearch = `${p.first_name} ${p.last_name}`.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = `${playerSearchName(p)}`.toLowerCase().includes(search.toLowerCase());
     const matchTeam = filterTeam === "all" || p.team_id === filterTeam;
     const matchYear = filterYear === "all" || (birthYearOf(p) && birthYearOf(p).toString() === filterYear);
     const matchLaterality = filterLaterality === "all" || p.laterality === filterLaterality;

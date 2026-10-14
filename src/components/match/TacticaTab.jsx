@@ -7,6 +7,7 @@ import SetPieceBoard from "./SetPieceBoard";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { playerFirstName, playerFullName, playerSearchName } from "@/lib/playerName";
 
 const FORMATIONS_F11 = ["4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "3-4-3", "5-3-2", "4-5-1", "4-1-4-1"];
 const FORMATIONS_F7 = ["3-2-1", "2-3-1", "2-2-2", "3-1-2", "1-3-2"];
@@ -167,7 +168,7 @@ function firstSurname(last = "") {
   while (i < t.length - 1 && PARTICLES.includes(t[i].toLowerCase())) i++;
   return t.slice(0, i + 1).join(" ");
 }
-function labelLines(p) { return [(p.first_name || "").trim(), firstSurname(p.last_name)]; }
+function labelLines(p) { return [playerFirstName(p), firstSurname(p.last_name)]; }
 
 
 // ── Selector de jugador para un hueco del once ─────────
@@ -176,7 +177,7 @@ function PlayerPicker({ open, onClose, teamPlayers, taken, onPick, onClear, curr
   const { data: allPlayers = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list(), enabled: open });
   useEffect(() => { if (open) setQ(""); }, [open]);
   const pool = q.trim()
-    ? allPlayers.filter(p => p.status !== "baja" && `${p.first_name} ${p.last_name}`.toLowerCase().includes(q.toLowerCase())).slice(0, 30)
+    ? allPlayers.filter(p => p.status !== "baja" && `${playerSearchName(p)}`.toLowerCase().includes(q.toLowerCase())).slice(0, 30)
     : teamPlayers;
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -193,7 +194,7 @@ function PlayerPicker({ open, onClose, teamPlayers, taken, onPick, onClear, curr
             return (
               <button key={p.id} disabled={used} onClick={() => onPick(p)} className={`w-full text-left flex items-center gap-2 px-3 py-1.5 rounded text-sm ${used ? "opacity-40" : "hover:bg-gray-50"}`}>
                 <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-black shrink-0" style={{ background: "var(--granate)" }}>{p.jersey_number || p.first_name?.[0]}</span>
-                <span className="font-medium truncate">{p.first_name} {p.last_name}</span>
+                <span className="font-medium truncate">{playerFullName(p)}</span>
                 <span className="ml-auto text-[10px] text-gray-400">{POS_LABEL[p.position] || ""}</span>
               </button>
             );
@@ -367,7 +368,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
                 <SelectTrigger className="w-44 h-7 text-xs border-gray-200"><SelectValue placeholder="Elegir…" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sin capitán</SelectItem>
-                  {slots.filter(Boolean).map(p => <SelectItem key={p.id} value={p.id}>{p.first_name} {firstSurname(p.last_name)}</SelectItem>)}
+                  {slots.filter(Boolean).map(p => <SelectItem key={p.id} value={p.id}>{playerFirstName(p)} {firstSurname(p.last_name)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -394,7 +395,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
                   <button key={p.id} type="button" onClick={() => toggleBench(p.id)}
                     className={`text-[11px] px-2 py-1 rounded-full border ${on ? "text-white border-transparent" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
                     style={on ? { background: "var(--naranja)" } : {}}>
-                    {p.first_name?.[0]}. {p.last_name}
+                    {playerFullName(p)}
                   </button>
                 );
               })}

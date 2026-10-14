@@ -14,6 +14,7 @@ import EditEventDialog from "@/components/myteam/EditEventDialog";
 import GuestPlayerSelector from "@/components/common/GuestPlayerSelector";
 import { birthYearOf } from "@/lib/birthYear";
 import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
+import { playerFullName } from "@/lib/playerName";
 
 const STATUS_CONFIG = {
   present: { label: "Asiste", cls: "bg-green-50 text-green-700 border-green-200" },
@@ -143,7 +144,7 @@ export default function TeamAttendance() {
       const pl = isTrial ? null : players.find(p => p.id === a.player_id);
       if (!isTrial && !pl) return;
       const key = isTrial ? `t_${a.trial_name.trim().toLowerCase()}` : a.player_id;
-      const e = map[key] || (map[key] = { key, isTrial, pl, name: isTrial ? a.trial_name : `${pl.first_name} ${pl.last_name}`, present: 0, apart: 0, absent: 0, reasons: {} });
+      const e = map[key] || (map[key] = { key, isTrial, pl, name: isTrial ? a.trial_name : `${playerFullName(pl)}`, present: 0, apart: 0, absent: 0, reasons: {} });
       if (a.status === "present") e.present++;
       else if (a.status === "apart") e.apart++;
       else if (a.status === "absent") { e.absent++; const k = a.absence_reason || "otro"; e.reasons[k] = (e.reasons[k] || 0) + 1; }
@@ -228,8 +229,8 @@ export default function TeamAttendance() {
           </div>
 
           <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
-            {teamPlayers.map(p => renderRow({ pid: p.id, name: `${p.first_name} ${p.last_name}`, sub: POSITION_LABELS[p.position] }))}
-            {guests.map(p => renderRow({ pid: p.id, tint: "#eff6ff", name: `${p.first_name} ${p.last_name}`,
+            {teamPlayers.map(p => renderRow({ pid: p.id, name: `${playerFullName(p)}`, sub: POSITION_LABELS[p.position] }))}
+            {guests.map(p => renderRow({ pid: p.id, tint: "#eff6ff", name: `${playerFullName(p)}`,
               sub: `Convocado · ${teams.find(t => t.id === p.team_id)?.name || "Otro equipo"}`, onRemove: () => removeRecord(p.id) }))}
             {trials.map(r => renderRow({ pid: r.player_id, tint: "#fffbeb", name: r.trial_name, sub: "A prueba", onRemove: () => removeRecord(r.player_id) }))}
           </div>
@@ -293,7 +294,7 @@ export default function TeamAttendance() {
                     const pa = pct(present, total);
                     return (
                       <tr key={p.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 font-bold text-gray-900 whitespace-nowrap" style={{ fontFamily: "var(--font-display)" }}>{p.first_name} {p.last_name}</td>
+                        <td className="px-3 py-2 font-bold text-gray-900 whitespace-nowrap" style={{ fontFamily: "var(--font-display)" }}>{playerFullName(p)}</td>
                         <td className="px-2 py-2 text-center text-gray-500">{birthYearOf(p) ?? "—"}</td>
                         <td className="px-2 py-2 text-gray-500 whitespace-nowrap">{POSITION_LABELS[p.position] || "—"}</td>
                         <td className="px-2 py-2 text-center font-black text-green-700">{present}</td>

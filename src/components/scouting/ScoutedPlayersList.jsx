@@ -15,6 +15,7 @@ import PlayerSeasonHistoryTab from "./PlayerSeasonHistoryTab";
 import PlayerReportsTab from "./PlayerReportsTab";
 import PlayerFollowUpsTab from "./PlayerFollowUpsTab";
 import { useToast } from "@/components/ui/use-toast";
+import { playerFullName, playerSearchName } from "@/lib/playerName";
 
 const POSITIONS = {
   portero: "Portero", central: "Central", lateral: "Lateral", extremo: "Extremo",
@@ -108,7 +109,7 @@ export default function ScoutedPlayersList() {
   const openNew = () => { setEditingPlayer(null); setFormOpen(true); };
 
   let filtered = players.filter(p => {
-    const name = `${p.first_name} ${p.last_name} ${p.current_club || ""}`.toLowerCase();
+    const name = `${playerSearchName(p)} ${p.current_club || ""}`.toLowerCase();
     if (search && !name.includes(search.toLowerCase())) return false;
     if (filterDecision !== "all" && p.decision !== filterDecision) return false;
     if (filterPosition !== "all" && p.position !== filterPosition) return false;
@@ -118,7 +119,7 @@ export default function ScoutedPlayersList() {
 
   filtered = [...filtered].sort((a, b) => {
     if (sortBy === "rating") return (b.rating || 0) - (a.rating || 0);
-    if (sortBy === "name") return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
+    if (sortBy === "name") return `${playerFullName(a)}`.localeCompare(`${playerFullName(b)}`);
     if (sortBy === "observation_date") return (b.observation_date || "").localeCompare(a.observation_date || "");
     return 0;
   });
@@ -219,7 +220,7 @@ export default function ScoutedPlayersList() {
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-bold text-gray-900 text-base">{p.first_name} {p.last_name}</p>
+                      <p className="font-bold text-gray-900 text-base">{playerFullName(p)}</p>
                       {p.birth_date && <span className="text-xs text-gray-400">{new Date(p.birth_date).getFullYear()}</span>}
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${dec.cls}`}>{dec.label}</span>
                       {p.contact_status && p.contact_status !== "no_contactado" && (

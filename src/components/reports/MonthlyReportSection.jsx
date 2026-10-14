@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { format, getMonth, getYear, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { downloadPlayerPDF, generatePlayerPDF } from "./playerPdfGenerator";
+import { playerFullName } from "@/lib/playerName";
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({
   value: String(i + 1),
@@ -90,7 +91,7 @@ export default function MonthlyReportSection() {
   <div style="background: #fff; border: 1px solid #e5e7eb; border-top: none; padding: 24px 28px; border-radius: 0 0 8px 8px;">
     <p style="font-size: 15px; margin-top: 0;">Estimado/a <strong>${player.guardian_name || "tutor/a"}</strong>,</p>
     <p style="color: #555; font-size: 14px; line-height: 1.6;">
-      Le enviamos el informe mensual de rendimiento de <strong>${player.first_name} ${player.last_name}</strong> correspondiente a <strong>${periodLabel}</strong>.
+      Le enviamos el informe mensual de rendimiento de <strong>${playerFullName(player)}</strong> correspondiente a <strong>${periodLabel}</strong>.
     </p>
 
     <div style="background: #f9f9f9; border-radius: 8px; padding: 20px; margin: 20px 0;">
@@ -130,7 +131,7 @@ export default function MonthlyReportSection() {
 
     await base44.integrations.Core.SendEmail({
       to: player.guardian_email,
-      subject: `Informe mensual de ${player.first_name} ${player.last_name} — ${periodLabel}`,
+      subject: `Informe mensual de ${playerFullName(player)} — ${periodLabel}`,
       body: emailBody,
     });
 
@@ -244,7 +245,7 @@ export default function MonthlyReportSection() {
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 text-sm">
-                      {player.first_name} {player.last_name}
+                      {playerFullName(player)}
                       {player.jersey_number && <span className="text-gray-400 font-normal ml-1">#{player.jersey_number}</span>}
                     </p>
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">

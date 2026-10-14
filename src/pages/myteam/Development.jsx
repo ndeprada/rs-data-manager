@@ -6,6 +6,7 @@ import { Users, ArrowLeft } from "lucide-react";
 import { useSelectedTeam } from "@/lib/useSelectedTeam";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
+import { playerFullName, playerSearchName } from "@/lib/playerName";
 
 export default function Development() {
   const { selectedTeamId, selectTeam, isCoordinator } = useSelectedTeam();
@@ -19,7 +20,7 @@ export default function Development() {
 
   const teamPlayers = players.filter(p =>
     p.team_id === selectedTeamId && p.status !== "baja" &&
-    (search === "" || `${p.first_name} ${p.last_name}`.toLowerCase().includes(search.toLowerCase()))
+    (search === "" || `${playerSearchName(p)}`.toLowerCase().includes(search.toLowerCase()))
   );
 
   const playerData = teamPlayers.map(p => {
@@ -76,7 +77,7 @@ export default function Development() {
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="font-black text-gray-900 group-hover:underline truncate" style={{ fontFamily: "var(--font-display)" }}>
-                    {p.first_name} {p.last_name}
+                    {playerFullName(p)}
                   </p>
                   <p className="text-xs text-gray-400 capitalize">{p.position} · #{p.jersey_number || "—"}</p>
                 </div>

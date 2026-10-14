@@ -5,6 +5,7 @@ import { Plus, Trash2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { playerFullName } from "@/lib/playerName";
 
 const CARD_COLORS = {
   yellow: "bg-yellow-100 border-yellow-300",
@@ -166,7 +167,7 @@ export default function MatchRecordTab({ eventId, teamId, event, players, onScor
                   }}>
                     <SelectTrigger className="border-gray-200 flex-1"><SelectValue placeholder="Jugador" /></SelectTrigger>
                     <SelectContent>
-                      {players.map(p => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}
+                      {players.map(p => <SelectItem key={p.id} value={p.id}>{playerFullName(p)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <Input
@@ -214,7 +215,7 @@ export default function MatchRecordTab({ eventId, teamId, event, players, onScor
                     }}>
                       <SelectTrigger className="border-gray-200 flex-1"><SelectValue placeholder="Jugador" /></SelectTrigger>
                       <SelectContent>
-                        {players.map(p => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}
+                        {players.map(p => <SelectItem key={p.id} value={p.id}>{playerFullName(p)}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <Input
@@ -260,7 +261,7 @@ export default function MatchRecordTab({ eventId, teamId, event, players, onScor
                     }}>
                       <SelectTrigger className="border-gray-200 flex-1"><SelectValue placeholder="Jugador" /></SelectTrigger>
                       <SelectContent>
-                        {players.map(p => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}
+                        {players.map(p => <SelectItem key={p.id} value={p.id}>{playerFullName(p)}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <Input

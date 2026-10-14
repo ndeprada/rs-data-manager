@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { playerFullName } from "@/lib/playerName";
 
 // ── Formatos de partido ──────────────────────────────────
 const FOOTBALL_FORMATS = [
@@ -113,13 +114,13 @@ function Timeline({ events, players, opponent, onRemove, onEdit }) {
     const playerIn = players.find(p => p.id === ev.playerIn);
     const playerOut = players.find(p => p.id === ev.playerOut);
     if (ev.type === "goal") {
-      const scorer = player ? `${player.first_name} ${player.last_name}` : (ev.fcfName ? ev.fcfName + (ev.goalType === "gol_propio" ? " (p.p.)" : "") : ev.team === "away" ? (opponent || "Rival") : "—");
+      const scorer = player ? `${playerFullName(player)}` : (ev.fcfName ? ev.fcfName + (ev.goalType === "gol_propio" ? " (p.p.)" : "") : ev.team === "away" ? (opponent || "Rival") : "—");
       const assist = players.find(p => p.id === ev.assistId);
-      return scorer + (assist ? ` (as. ${assist.first_name} ${assist.last_name})` : "");
+      return scorer + (assist ? ` (as. ${playerFullName(assist)})` : "");
     }
-    if (ev.type === "sub") return `${playerIn ? playerIn.last_name : "—"} ↑ / ${playerOut ? playerOut.last_name : "—"} ↓`;
+    if (ev.type === "sub") return `${playerIn ? playerFullName(playerIn) : "—"} ↑ / ${playerOut ? playerFullName(playerOut) : "—"} ↓`;
     if (ev.type === "card") {
-      const who = player ? `${player.first_name} ${player.last_name}` : (ev.team === "away" ? (opponent || "Rival") : "—");
+      const who = player ? `${playerFullName(player)}` : (ev.team === "away" ? (opponent || "Rival") : "—");
       return `${who} (${ev.cardColor === "yellow" ? "amarilla" : ev.cardColor === "yellow2" ? "2ª amarilla" : "roja"})`;
     }
     return "";
@@ -279,7 +280,7 @@ export default function ActaTab({ eventId, teamId, event, players }) {
       <SelectContent>
         {allowNone && <SelectItem value="none">— Ninguno —</SelectItem>}
         {!allowNone && <SelectItem value="none">— Sin asignar —</SelectItem>}
-        {playerOptions.map(p => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}
+        {playerOptions.map(p => <SelectItem key={p.id} value={p.id}>{playerFullName(p)}</SelectItem>)}
       </SelectContent>
     </Select>
   );
@@ -428,7 +429,7 @@ export default function ActaTab({ eventId, teamId, event, players }) {
                 <Select value={newEvPlayerId} onValueChange={setNewEvPlayerId}>
                   <SelectTrigger className="h-8 w-40 text-xs border-gray-200"><SelectValue placeholder="Jugador…" /></SelectTrigger>
                   <SelectContent>
-                    {convocados.map(p => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}
+                    {convocados.map(p => <SelectItem key={p.id} value={p.id}>{playerFullName(p)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -438,7 +439,7 @@ export default function ActaTab({ eventId, teamId, event, players }) {
                   <SelectTrigger className="h-8 w-40 text-xs border-gray-200"><SelectValue placeholder="Asistente…" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={null}>Sin asistencia</SelectItem>
-                    {convocados.map(p => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}
+                    {convocados.map(p => <SelectItem key={p.id} value={p.id}>{playerFullName(p)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -466,14 +467,14 @@ export default function ActaTab({ eventId, teamId, event, players }) {
                 <p className="text-[10px] text-gray-400 mb-1">Entra</p>
                 <Select value={newEvPlayerIn} onValueChange={setNewEvPlayerIn}>
                   <SelectTrigger className="h-8 w-40 text-xs border-gray-200"><SelectValue placeholder="Jugador…" /></SelectTrigger>
-                  <SelectContent>{convocados.map(p => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{convocados.map(p => <SelectItem key={p.id} value={p.id}>{playerFullName(p)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <p className="text-[10px] text-gray-400 mb-1">Sale</p>
                 <Select value={newEvPlayerOut} onValueChange={setNewEvPlayerOut}>
                   <SelectTrigger className="h-8 w-40 text-xs border-gray-200"><SelectValue placeholder="Jugador…" /></SelectTrigger>
-                  <SelectContent>{convocados.map(p => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{convocados.map(p => <SelectItem key={p.id} value={p.id}>{playerFullName(p)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </>
@@ -483,7 +484,7 @@ export default function ActaTab({ eventId, teamId, event, players }) {
               <p className="text-[10px] text-gray-400 mb-1">Jugador</p>
               <Select value={newEvPlayerId} onValueChange={setNewEvPlayerId}>
                 <SelectTrigger className="h-8 w-40 text-xs border-gray-200"><SelectValue placeholder="Jugador…" /></SelectTrigger>
-                <SelectContent>{convocados.map(p => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}</SelectContent>
+                <SelectContent>{convocados.map(p => <SelectItem key={p.id} value={p.id}>{playerFullName(p)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           )}

@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import GuestPlayerSelector from "@/components/common/GuestPlayerSelector";
+import { playerFirstName } from "@/lib/playerName";
 
 const POSITION_LABELS = {
   portero: "Portero",
@@ -84,7 +85,7 @@ export default function ConvocationSection({ eventId, teamId, players, event }) 
             to: player.email,
             subject: `Convocatoria: ${event.title}`,
             body: `
-Hola ${player.first_name},
+Hola ${playerFirstName(player)},
 
 Has sido convocado para el partido:
 

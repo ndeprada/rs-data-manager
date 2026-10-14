@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Pencil, Plus, ChevronUp, ChevronDown, ChevronsUpDown, User } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { birthYearOf } from "@/lib/birthYear";
+import { playerFullName } from "@/lib/playerName";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
@@ -131,7 +132,7 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
                         <span className="w-6 h-6 rounded overflow-hidden border border-gray-200 flex items-center justify-center shrink-0" style={{ background: "var(--granate-pale)" }}>
                           {r.p.photo_url ? <img src={r.p.photo_url} alt="" className="w-full h-full object-cover" loading="lazy" /> : <User className="w-3.5 h-3.5 text-gray-400" />}
                         </span>
-                        <span className="font-bold text-gray-900 group-hover:underline whitespace-nowrap" style={{ fontFamily: "var(--font-display)" }}>{r.p.first_name} {r.p.last_name}</span>
+                        <span className="font-bold text-gray-900 group-hover:underline whitespace-nowrap" style={{ fontFamily: "var(--font-display)" }}>{playerFullName(r.p)}</span>
                       </Link>
                     </td>
                     <td className={`${num} text-gray-600`}>{r.year ?? "—"}</td>
@@ -182,7 +183,7 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
               <tbody className="divide-y divide-gray-50">
                 {guests.map((g) => (
                   <tr key={g.p.id} className="hover:bg-gray-50">
-                    <td className="px-2 py-1.5"><Link to={`/PlayerProfile?id=${g.p.id}`} className="font-bold text-gray-900 hover:underline" style={{ fontFamily: "var(--font-display)" }}>{g.p.first_name} {g.p.last_name}</Link></td>
+                    <td className="px-2 py-1.5"><Link to={`/PlayerProfile?id=${g.p.id}`} className="font-bold text-gray-900 hover:underline" style={{ fontFamily: "var(--font-display)" }}>{playerFullName(g.p)}</Link></td>
                     <td className={`${num} text-gray-600`}>{g.year ?? "—"}</td>
                     <td className="px-2 py-1.5 text-gray-500">{g.team?.name || "—"}</td>
                     <td className={`${num} font-black`}>{g.pj}</td>

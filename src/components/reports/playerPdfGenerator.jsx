@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { playerFullName } from "@/lib/playerName";
 
 function setFill(doc, r, g, b) { doc.setFillColor(r, g, b); }
 function setDraw(doc, r, g, b) { doc.setDrawColor(r, g, b); }
@@ -66,7 +67,7 @@ export function generatePlayerPDF(player, team, stats, attendance, month, year) 
   setTxt(doc, 115, 0, 10);
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text(`${player.first_name} ${player.last_name}`, margin, y);
+  doc.text(`${playerFullName(player)}`, margin, y);
   y += 5;
 
   setTxt(doc, 100, 100, 100);
@@ -246,7 +247,7 @@ export function generatePlayerPDF(player, team, stats, attendance, month, year) 
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text(`RS Data Manager — Informe Mensual Confidencial — ${player.first_name} ${player.last_name}`, margin, 294.5);
+    doc.text(`RS Data Manager — Informe Mensual Confidencial — ${playerFullName(player)}`, margin, 294.5);
     doc.text(`Pág. ${p} / ${total_pages}`, W - margin - 16, 294.5);
   }
 

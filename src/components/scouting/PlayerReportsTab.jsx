@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { Star } from "lucide-react";
+import { playerFullName } from "@/lib/playerName";
 
 function StarDisplay({ value, max = 5 }) {
   return (
@@ -90,7 +91,7 @@ async function generatePDF(report, player) {
   doc.setFontSize(18);
   doc.setFont(undefined, "bold");
   doc.setTextColor(...granate);
-  doc.text(`${player.first_name} ${player.last_name}`, 10, y + 10);
+  doc.text(`${playerFullName(player)}`, 10, y + 10);
 
   doc.setFontSize(10);
   doc.setFont(undefined, "normal");

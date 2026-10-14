@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Repeat } from "lucide-react";
+import { playerFullName } from "@/lib/playerName";
 
 const EVENT_TYPES = [
   { value: "entrenamiento",        label: "Entrenamiento" },
@@ -136,8 +137,8 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
       base44.entities.StaffMember.filter({ team_id: createdEvent.team_id }),
     ]);
     const recipients = [
-      ...players.filter(p => p.email).map(p => ({ email: p.email, name: `${p.first_name} ${p.last_name}` })),
-      ...staff.filter(s => s.email).map(s => ({ email: s.email, name: `${s.first_name} ${s.last_name}` })),
+      ...players.filter(p => p.email).map(p => ({ email: p.email, name: `${playerFullName(p)}` })),
+      ...staff.filter(s => s.email).map(s => ({ email: s.email, name: `${playerFullName(s)}` })),
     ];
     const message = form.notification_message || buildDefaultNotificationMessage(form, teams);
     const title = form.title?.trim() || (isMatch && form.opponent ? `vs ${form.opponent}` : typeLabel);

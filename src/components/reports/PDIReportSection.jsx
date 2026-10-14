@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { downloadPDIPDF } from "./pdiPdfGenerator";
+import { playerFullName, playerSearchName } from "@/lib/playerName";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
@@ -27,7 +28,7 @@ export default function PDIReportSection() {
     .filter(p => selectedTeamId === "all" || p.team_id === selectedTeamId)
     .filter(p => {
       const q = search.toLowerCase();
-      return !q || `${p.first_name} ${p.last_name}`.toLowerCase().includes(q);
+      return !q || `${playerSearchName(p)}`.toLowerCase().includes(q);
     })
     .sort((a, b) => `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`));
 
@@ -98,7 +99,7 @@ export default function PDIReportSection() {
                           {player.first_name?.[0]}{player.last_name?.[0]}
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{player.first_name} {player.last_name}</p>
+                          <p className="font-medium text-gray-900">{playerFullName(player)}</p>
                           <p className="text-xs text-gray-400">
                             {POSITION_LABELS[player.position] || "—"}
                             {player.jersey_number ? ` · #${player.jersey_number}` : ""}

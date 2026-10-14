@@ -3,6 +3,7 @@ import { Phone, Mail, User, MessageSquare, ChevronDown, ChevronUp } from "lucide
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
+import { playerFullName } from "@/lib/playerName";
 
 const RELATIONSHIP_LABELS = {
   padre: "Padre",
@@ -26,8 +27,8 @@ export default function GuardianContactCard({ player }) {
     setSending(true);
     await base44.integrations.Core.SendEmail({
       to: player.guardian_email,
-      subject: `Contacto sobre ${player.first_name} ${player.last_name}`,
-      body: `Estimado/a ${player.guardian_name || "tutor/a"},\n\nNos ponemos en contacto con usted en relación a ${player.first_name} ${player.last_name}.\n\nQuedamos a su disposición.\n\nUn saludo,\nRS Data Manager`,
+      subject: `Contacto sobre ${playerFullName(player)}`,
+      body: `Estimado/a ${player.guardian_name || "tutor/a"},\n\nNos ponemos en contacto con usted en relación a ${playerFullName(player)}.\n\nQuedamos a su disposición.\n\nUn saludo,\nRS Data Manager`,
     });
     setSending(false);
     toast({ title: "Email enviado", description: `Se ha enviado un email a ${player.guardian_email}` });

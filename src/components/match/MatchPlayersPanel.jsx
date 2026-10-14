@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { playerFirstName, playerFullName } from "@/lib/playerName";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
@@ -120,7 +121,7 @@ export default function MatchPlayersPanel({ eventId, teamId, players, event }) {
         base44.integrations.Core.SendEmail({
           to: p.email,
           subject: `Convocatoria: ${event?.title}`,
-          body: `Hola ${p.first_name},\n\nHas sido convocado para el partido:\n\n${event?.title}\nFecha: ${event?.date ? format(new Date(event.date), "dd 'de' MMMM 'de' yyyy", { locale: es }) : ""}\nHora: ${event?.date ? format(new Date(event.date), "HH:mm") : ""}${event?.location ? `\nLugar: ${event.location}` : ""}${event?.opponent ? `\nRival: ${event.opponent}` : ""}\n${convocNotes ? `\nNotas: ${convocNotes}` : ""}\n\nSaludos,\nEl cuerpo técnico`,
+          body: `Hola ${playerFirstName(p)},\n\nHas sido convocado para el partido:\n\n${event?.title}\nFecha: ${event?.date ? format(new Date(event.date), "dd 'de' MMMM 'de' yyyy", { locale: es }) : ""}\nHora: ${event?.date ? format(new Date(event.date), "HH:mm") : ""}${event?.location ? `\nLugar: ${event.location}` : ""}${event?.opponent ? `\nRival: ${event.opponent}` : ""}\n${convocNotes ? `\nNotas: ${convocNotes}` : ""}\n\nSaludos,\nEl cuerpo técnico`,
         })
       ));
       if (convocation) {
@@ -334,7 +335,7 @@ export default function MatchPlayersPanel({ eventId, teamId, players, event }) {
               {activePlayers.map(player => (
                 <label key={player.id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
                   <Checkbox checked={pendingConvocIds.includes(player.id)} onCheckedChange={() => setPendingConvocIds(prev => prev.includes(player.id) ? prev.filter(id => id !== player.id) : [...prev, player.id])} />
-                  <span className="text-sm font-medium text-gray-900 flex-1">{player.first_name} {player.last_name}</span>
+                  <span className="text-sm font-medium text-gray-900 flex-1">{playerFullName(player)}</span>
                   <span className="text-xs text-gray-400">{POSITION_LABELS[player.position] || "—"}{player.jersey_number ? ` · #${player.jersey_number}` : ""}</span>
                   {player.status === "lesionado" && <span className="text-xs text-red-500">Lesionado</span>}
                 </label>

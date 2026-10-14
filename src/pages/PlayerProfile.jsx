@@ -31,6 +31,7 @@ import PlayerInfoCards from "../components/player/PlayerInfoCards";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import InjuryRegistrationDialog from "@/components/player/InjuryRegistrationDialog";
+import { playerFirstName, playerFullName } from "@/lib/playerName";
 
 const POSITION_LABELS = {
   portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
@@ -184,7 +185,7 @@ export default function PlayerProfile() {
 
               <div className="min-w-0">
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
-                  <span style={{ color: "#e67e22" }}>{player.first_name}</span>{" "}
+                  <span style={{ color: "#e67e22" }}>{playerFirstName(player)}</span>{" "}
                   <span className="text-white">{player.last_name}</span>
                 </h1>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-white/70">
@@ -278,7 +279,7 @@ export default function PlayerProfile() {
               <details className="bg-white border border-gray-200 rounded-2xl shadow-sm">
                 <summary className="px-5 py-3 cursor-pointer text-sm font-semibold text-gray-600">Evaluaciones antiguas (texto libre)</summary>
                 <div className="px-4 pb-4">
-                  <PDISection readOnly playerId={playerId} playerName={`${player.first_name} ${player.last_name}`} playerEmail={player.email} />
+                  <PDISection readOnly playerId={playerId} playerName={`${playerFullName(player)}`} playerEmail={player.email} />
                 </div>
               </details>
             </div>
@@ -291,7 +292,7 @@ export default function PlayerProfile() {
               </Button>
               <InjurySection
                 playerId={playerId}
-                playerName={`${player.first_name} ${player.last_name}`}
+                playerName={`${playerFullName(player)}`}
                 playerEmail={player.email}
                 staffEmails={staffEmails}
               />
@@ -317,7 +318,7 @@ export default function PlayerProfile() {
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar jugador?</AlertDialogTitle>
-            <AlertDialogDescription>Se eliminará a {player.first_name} {player.last_name} y todos sus datos. Esta acción no se puede deshacer.</AlertDialogDescription>
+            <AlertDialogDescription>Se eliminará a {playerFullName(player)} y todos sus datos. Esta acción no se puede deshacer.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>

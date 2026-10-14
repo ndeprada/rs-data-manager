@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { playerFullName } from "@/lib/playerName";
 
 const EVENT_TYPES = [
   { value: "partido_amistoso", label: "Partido amistoso", isMatch: true },
@@ -92,8 +93,8 @@ export default function Calendar() {
     ]);
     const message = customMessage || buildDefaultNotificationMessage(event);
     const recipients = [
-      ...players.filter(p => p.email).map(p => ({ email: p.email, name: `${p.first_name} ${p.last_name}` })),
-      ...staff.filter(s => s.email).map(s => ({ email: s.email, name: `${s.first_name} ${s.last_name}` })),
+      ...players.filter(p => p.email).map(p => ({ email: p.email, name: `${playerFullName(p)}` })),
+      ...staff.filter(s => s.email).map(s => ({ email: s.email, name: `${playerFullName(s)}` })),
     ];
     await Promise.all(recipients.map(r =>
       base44.integrations.Core.SendEmail({

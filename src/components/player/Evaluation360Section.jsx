@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AREAS, areasFor, computeAverages, scoreColor } from "@/lib/eval360";
+import { playerFirstName } from "@/lib/playerName";
 
 function currentQuarter() {
   const d = new Date();
@@ -187,7 +188,7 @@ export default function Evaluation360Section({ player, playerId }) {
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900">Evaluación 360</h3>
-            <p className="text-sm text-gray-500">Perfil general de <strong>{player.first_name}</strong>: técnica, táctica, física y mental (1-10). Es el punto de partida; el trabajo concreto se planifica en el plan de desarrollo.</p>
+            <p className="text-sm text-gray-500">Perfil general de <strong>{playerFirstName(player)}</strong>: técnica, táctica, física y mental (1-10). Es el punto de partida; el trabajo concreto se planifica en el plan de desarrollo.</p>
           </div>
           <Button onClick={openNew} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
             <Plus className="w-4 h-4 mr-2" /> Nueva evaluación

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { playerFirstName, playerFullName, playerSearchName } from "@/lib/playerName";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CT", libre: "LIB",
@@ -54,10 +55,10 @@ const NO_CONV_REASONS = [
 function buildEmailHtml({ player, event, team, convocados, noConvocados, callupTime, observations }) {
   const eventDate = event?.date ? format(new Date(event.date), "EEEE d 'de' MMMM 'de' yyyy", { locale: es }) : "";
   const matchTime = event?.date ? format(new Date(event.date), "HH:mm") : "";
-  const convList = convocados.map(p => `• ${p.first_name} ${p.last_name}`).join("\n");
-  const noConvList = noConvocados.map(p => `• ${p.first_name} ${p.last_name}`).join("\n");
+  const convList = convocados.map(p => `• ${playerFullName(p)}`).join("\n");
+  const noConvList = noConvocados.map(p => `• ${playerFullName(p)}`).join("\n");
 
-  return `Hola ${player.first_name},
+  return `Hola ${playerFirstName(player)},
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   CONVOCATORIA OFICIAL
@@ -254,7 +255,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
   const guestPlayers = allPlayers.filter(p =>
     p.team_id !== teamId &&
     !activePlayers.find(sp => sp.id === p.id) &&
-    (guestSearch ? `${p.first_name} ${p.last_name}`.toLowerCase().includes(guestSearch.toLowerCase()) : false)
+    (guestSearch ? `${playerSearchName(p)}`.toLowerCase().includes(guestSearch.toLowerCase()) : false)
   );
 
   // Seleccionar / quitar a todos los jugadores del equipo de golpe (luego se ajusta uno a uno)

@@ -7,6 +7,7 @@ import { BarChart2, Users } from "lucide-react";
 import AttendanceChart from "@/components/stats/AttendanceChart";
 import MatchResultsChart from "@/components/stats/MatchResultsChart";
 import MinutesDistributionChart from "@/components/stats/MinutesDistributionChart";
+import { playerFullName } from "@/lib/playerName";
 
 export default function Stats() {
   const [selectedTeam, setSelectedTeam] = useState("all");
@@ -113,21 +114,21 @@ export default function Stats() {
           <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-4">
             <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-2">Máximo goleador</p>
             <p className="text-2xl font-black" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{topScorer.goals}</p>
-            <p className="text-xs text-gray-500 mt-1">{topScorer.player.first_name} {topScorer.player.last_name}</p>
+            <p className="text-xs text-gray-500 mt-1">{playerFullName(topScorer.player)}</p>
           </div>
         )}
         {topAssister && (
           <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-4">
             <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-2">Máximo asistente</p>
             <p className="text-2xl font-black" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{topAssister.assists}</p>
-            <p className="text-xs text-gray-500 mt-1">{topAssister.player.first_name} {topAssister.player.last_name}</p>
+            <p className="text-xs text-gray-500 mt-1">{playerFullName(topAssister.player)}</p>
           </div>
         )}
         {topMinutes && (
           <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-4">
             <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-2">Más minutos</p>
             <p className="text-2xl font-black" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{topMinutes.minutes}'</p>
-            <p className="text-xs text-gray-500 mt-1">{topMinutes.player.first_name} {topMinutes.player.last_name}</p>
+            <p className="text-xs text-gray-500 mt-1">{playerFullName(topMinutes.player)}</p>
           </div>
         )}
       </div>

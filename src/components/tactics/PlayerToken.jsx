@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { playerFirstName, playerFullName } from "@/lib/playerName";
 
 export default function PlayerToken({ position, assignment, players, onAssign, readOnly }) {
   const [open, setOpen] = useState(false);
@@ -43,7 +44,7 @@ export default function PlayerToken({ position, assignment, players, onAssign, r
           style={{ background: "rgba(0,0,0,0.55)" }}
         >
           {assignedPlayer
-            ? `${assignedPlayer.first_name?.split(" ")[0]} ${assignedPlayer.last_name?.split(" ")[0]}`
+            ? `${playerFirstName(assignedPlayer)?.split(" ")[0]} ${assignedPlayer.last_name?.split(" ")[0]}`
             : position.label}
         </span>
       </button>
@@ -71,7 +72,7 @@ export default function PlayerToken({ position, assignment, players, onAssign, r
             )}
             {players
               .filter((p) => p.status !== "baja")
-              .sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`))
+              .sort((a, b) => `${playerFullName(a)}`.localeCompare(`${playerFullName(b)}`))
               .map((p) => (
                 <button
                   key={p.id}
@@ -86,7 +87,7 @@ export default function PlayerToken({ position, assignment, players, onAssign, r
                   >
                     {p.first_name?.[0]}{p.last_name?.[0]}
                   </span>
-                  {p.first_name} {p.last_name}
+                  {playerFullName(p)}
                   {p.status === "lesionado" && <span className="ml-auto text-orange-400">⚠</span>}
                 </button>
               ))}

@@ -11,6 +11,7 @@ import { generatePDF } from "@/components/reports/pdfGenerator";
 import MonthlyReportSection from "@/components/reports/MonthlyReportSection";
 import PDIReportSection from "@/components/reports/PDIReportSection";
 import ProgressionReportSection from "@/components/reports/ProgressionReportSection";
+import { playerFullName } from "@/lib/playerName";
 
 export default function Reports() {
   const [selectedTeamId, setSelectedTeamId] = useState("all");
@@ -71,7 +72,7 @@ export default function Reports() {
         const topScorers = Object.entries(scorerMap)
           .map(([pid, stats]) => {
             const p = tp.find(pl => pl.id === pid);
-            return p ? { name: `${p.first_name} ${p.last_name}`, ...stats } : null;
+            return p ? { name: `${playerFullName(p)}`, ...stats } : null;
           })
           .filter(Boolean)
           .sort((a, b) => b.goals - a.goals)

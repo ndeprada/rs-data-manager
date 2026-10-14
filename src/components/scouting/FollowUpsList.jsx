@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
+import { playerFullName } from "@/lib/playerName";
 
 const STATUS_STYLES = {
   pendiente: { label: "Pendiente", icon: Clock, cls: "text-yellow-600 bg-yellow-50 border-yellow-200" },
@@ -62,7 +63,7 @@ export default function FollowUpsList() {
 
   const playerName = (id) => {
     const p = players.find(p => p.id === id);
-    return p ? `${p.first_name} ${p.last_name}` : "—";
+    return p ? `${playerFullName(p)}` : "—";
   };
 
   const filtered = followups.filter(f => filterStatus === "all" || f.status === filterStatus);
@@ -129,7 +130,7 @@ export default function FollowUpsList() {
               <Select value={form.player_id} onValueChange={v => set("player_id", v)} required>
                 <SelectTrigger><SelectValue placeholder="Seleccionar jugador" /></SelectTrigger>
                 <SelectContent>
-                  {players.map(p => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}
+                  {players.map(p => <SelectItem key={p.id} value={p.id}>{playerFullName(p)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

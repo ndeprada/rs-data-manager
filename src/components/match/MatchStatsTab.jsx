@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { playerFirstName, playerFullName } from "@/lib/playerName";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
@@ -185,7 +186,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
         base44.integrations.Core.SendEmail({
           to: p.email,
           subject: `Convocatoria: ${event?.title}`,
-          body: `Hola ${p.first_name},\n\nHas sido convocado para el partido:\n\n${event?.title}\nFecha: ${event?.date?format(new Date(event.date),"dd 'de' MMMM 'de' yyyy",{locale:es}):""}\nHora: ${event?.date?format(new Date(event.date),"HH:mm"):""}${event?.location?`\nLugar: ${event.location}`:""}${event?.opponent?`\nRival: ${event.opponent}`:""}\n${convocNotes?`\nNotas: ${convocNotes}`:""}\n\nSaludos,\nEl cuerpo técnico`,
+          body: `Hola ${playerFirstName(p)},\n\nHas sido convocado para el partido:\n\n${event?.title}\nFecha: ${event?.date?format(new Date(event.date),"dd 'de' MMMM 'de' yyyy",{locale:es}):""}\nHora: ${event?.date?format(new Date(event.date),"HH:mm"):""}${event?.location?`\nLugar: ${event.location}`:""}${event?.opponent?`\nRival: ${event.opponent}`:""}\n${convocNotes?`\nNotas: ${convocNotes}`:""}\n\nSaludos,\nEl cuerpo técnico`,
         })
       ));
       if (convocation) await base44.entities.Convocatoria.update(convocation.id,{notified:true,notified_at:new Date().toISOString()});
@@ -331,7 +332,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
                 <Select value={newGoal.player_id} onValueChange={v=>setNewGoal(g=>({...g,player_id:v}))}>
                   <SelectTrigger className="h-8 w-40 text-xs border-gray-200 bg-white"><SelectValue placeholder="Jugador…"/></SelectTrigger>
                   <SelectContent>
-                    {convocadoPlayers.map(p=><SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}
+                    {convocadoPlayers.map(p=><SelectItem key={p.id} value={p.id}>{playerFullName(p)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -340,7 +341,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
                 <Select value={newGoal.assist_player_id} onValueChange={v=>setNewGoal(g=>({...g,assist_player_id:v}))}>
                   <SelectTrigger className="h-8 w-40 text-xs border-gray-200 bg-white"><SelectValue placeholder="Asistente…"/></SelectTrigger>
                   <SelectContent>
-                    {convocadoPlayers.map(p=><SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}
+                    {convocadoPlayers.map(p=><SelectItem key={p.id} value={p.id}>{playerFullName(p)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -373,7 +374,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
                   <span className="flex-1 text-gray-700">
                     {g.team==="home"?(
                       <>
-                        <span className="font-semibold">{scorer?`${scorer.first_name} ${scorer.last_name}`:"Gol propio"}</span>
+                        <span className="font-semibold">{scorer?`${playerFullName(scorer)}`:"Gol propio"}</span>
                         {assister&&<span className="text-gray-400 text-xs"> (asist. <PlayerName player={assister} />)</span>}
                       </>
                     ):(
@@ -488,7 +489,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
                           {player.first_name?.[0]}{player.last_name?.[0]}
                         </div>
                         <div className="min-w-0">
-                          <p className={`text-xs font-medium leading-tight truncate ${convocado?"text-gray-900":"text-gray-400"}`}>{player.last_name}, {player.first_name}</p>
+                          <p className={`text-xs font-medium leading-tight truncate ${convocado?"text-gray-900":"text-gray-400"}`}>{playerFullName(player)}</p>
                           <p className="text-[9px] text-gray-400">{POSITION_LABELS[player.position]||"—"}{player.jersey_number?` #${player.jersey_number}`:""}{player.status==="lesionado"?" ⚠️":""}</p>
                         </div>
                       </div>
@@ -559,7 +560,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
               {activePlayers.map(player=>(
                 <label key={player.id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
                   <Checkbox checked={pendingConvocIds.includes(player.id)} onCheckedChange={()=>setPendingConvocIds(prev=>prev.includes(player.id)?prev.filter(id=>id!==player.id):[...prev,player.id])}/>
-                  <span className="text-sm font-medium text-gray-900 flex-1">{player.first_name} {player.last_name}</span>
+                  <span className="text-sm font-medium text-gray-900 flex-1">{playerFullName(player)}</span>
                   <span className="text-xs text-gray-400">{POSITION_LABELS[player.position]||"—"}{player.jersey_number?` · #${player.jersey_number}`:""}</span>
                   {player.status==="lesionado"&&<span className="text-xs text-red-500">Lesionado</span>}
                 </label>

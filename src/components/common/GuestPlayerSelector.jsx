@@ -5,6 +5,7 @@ import { X, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { playerFullName, playerSearchName } from "@/lib/playerName";
 
 const POSITION_LABELS = {
   portero: "Portero",
@@ -40,7 +41,7 @@ export default function GuestPlayerSelector({ teamId, selectedPlayers, onAdd, on
     if (p.status === "baja") return false; // Excluir bajas
     if (selectedTeamId && p.team_id !== selectedTeamId) return false; // Filtrar por equipo si está seleccionado
     if (selectedPlayers.includes(p.id)) return false; // Excluir ya seleccionados
-    if (searchTerm && !`${p.first_name} ${p.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())) {
+    if (searchTerm && !`${playerSearchName(p)}`.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
     return true;
@@ -84,7 +85,7 @@ export default function GuestPlayerSelector({ teamId, selectedPlayers, onAdd, on
             >
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-gray-900 truncate">
-                  {player.first_name} {player.last_name}
+                  {playerFullName(player)}
                 </p>
                 <p className="text-[10px] text-gray-500">
                   {POSITION_LABELS[player.position] || player.position || "—"} · {teams.find((t) => t.id === player.team_id)?.name}
@@ -113,7 +114,7 @@ export default function GuestPlayerSelector({ teamId, selectedPlayers, onAdd, on
                 >
                   <div className="text-xs">
                     <p className="font-medium text-gray-900">
-                      {player.first_name} {player.last_name}
+                      {playerFullName(player)}
                     </p>
                     <p className="text-gray-500">{teams.find((t) => t.id === player.team_id)?.name}</p>
                   </div>

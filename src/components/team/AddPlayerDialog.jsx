@@ -26,7 +26,7 @@ const LATERALITY = [
 ];
 
 const emptyForm = {
-  first_name: "", last_name: "", birth_date: "", birth_year: "", position: "", reference_role: "", secondary_position: "",
+  first_name: "", last_name: "", nickname: "", birth_date: "", birth_year: "", position: "", reference_role: "", secondary_position: "",
   laterality: "", jersey_number: "", phone: "", email: "", status: "activo", team_id: "",
 };
 
@@ -41,6 +41,7 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
       setForm({
         first_name: editingPlayer.first_name || "",
         last_name: editingPlayer.last_name || "",
+        nickname: editingPlayer.nickname || "",
         birth_date: editingPlayer.birth_date || "",
         birth_year: editingPlayer.birth_year || (editingPlayer.birth_date ? String(editingPlayer.birth_date).slice(0, 4) : ""),
         position: editingPlayer.position || "",
@@ -105,6 +106,11 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
               <Label className="text-gray-700">Apellidos *</Label>
               <Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required className="border-gray-200" />
             </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-gray-700">Apodo <span className="text-gray-400 font-normal">(opcional)</span></Label>
+            <Input value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} placeholder="Ej: Kiku" className="border-gray-200" />
+            <p className="text-[11px] text-gray-400">Se muestra en la app en lugar del nombre. El nombre y apellidos oficiales (FCF) no cambian.</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

@@ -14,6 +14,7 @@ import FootballField from "@/components/tactics/FootballField";
 import PlayerToken from "@/components/tactics/PlayerToken";
 import FreeDragField from "@/components/tactics/FreeDragField";
 import { FORMATIONS, FORMATION_KEYS } from "@/components/tactics/formations";
+import { playerFullName } from "@/lib/playerName";
 
 export default function Tactics() {
   const queryClient = useQueryClient();
@@ -265,12 +266,12 @@ export default function Tactics() {
                     <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Plantilla ({boardPlayers.filter(p => p.status !== "baja").length})</p>
                   </div>
                   <div className="px-5 py-4 flex flex-wrap gap-2">
-                    {boardPlayers.filter((p) => p.status !== "baja").sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)).map((p) => {
+                    {boardPlayers.filter((p) => p.status !== "baja").sort((a, b) => `${playerFullName(a)}`.localeCompare(`${playerFullName(b)}`)).map((p) => {
                       const isAssigned = Object.values(activeBoard.assignments || {}).some((a) => a.player_id === p.id);
                       return (
                         <div key={p.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isAssigned ? "bg-gray-100 border-gray-200 text-gray-400 line-through" : p.status === "lesionado" ? "bg-orange-50 border-orange-200 text-orange-700" : "bg-white border-gray-200 text-gray-700"}`}>
                           <span className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0" style={{ background: isAssigned ? "#9ca3af" : "var(--granate)" }}>{p.first_name?.[0]}{p.last_name?.[0]}</span>
-                          {p.first_name} {p.last_name}
+                          {playerFullName(p)}
                           {p.jersey_number && <span className="text-gray-400">#{p.jersey_number}</span>}
                           {p.status === "lesionado" && <span title="Lesionado">⚠️</span>}
                         </div>
@@ -325,7 +326,7 @@ export default function Tactics() {
                             <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0" style={{ background: onField ? "#9ca3af" : "var(--granate)" }}>
                               {p.first_name?.[0]}{p.last_name?.[0]}
                             </span>
-                            <span className="truncate">{p.first_name} {p.last_name}</span>
+                            <span className="truncate">{playerFullName(p)}</span>
                             {onField && <span className="ml-auto text-red-400 text-[10px]">✕</span>}
                           </div>
                         );

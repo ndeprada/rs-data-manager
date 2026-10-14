@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle, XCircle, Activity, X } from "lucide-react";
 import { format } from "date-fns";
+import { playerFullName } from "@/lib/playerName";
 
 const STATUS_CONFIG = {
   present: { label: "Presente",        icon: CheckCircle, iconClass: "text-green-500",  badge: "bg-green-100 text-green-700 border-green-200", activeBorder: "border-green-400 bg-green-50" },
@@ -107,7 +108,7 @@ export default function EventAttendancePanel({ event, onClose }) {
                 {/* Name + position */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {player.first_name} {player.last_name}
+                    {playerFullName(player)}
                     {player.status === "lesionado" && (
                       <span className="ml-2 text-xs text-orange-500">⚠ Lesionado</span>
                     )}
