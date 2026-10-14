@@ -127,10 +127,12 @@ export default function PlayerInfoCards({ player }) {
                 {getPositionList(player).map((x) => {
                   const role = x.role ? findRole(x.role)?.role.label : "";
                   return (
-                    <div key={x.position} className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md min-w-[30px] text-center" style={{ background: LEVELS[x.level].color, color: LEVELS[x.level].text }}>{POSITION_LABELS[x.position]}</span>
-                      <span className={`text-sm ${x.level === "natural" ? "font-bold text-gray-900" : "font-medium text-gray-700"}`}>{POSITION_FULL[x.position] || x.position}{role ? ` · ${role}` : ""}</span>
-                      <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: LEVELS[x.level].ink }}>{LEVELS[x.level].label}</span>
+                    <div key={x.position} className="flex items-center gap-2">
+                      <span className="text-[11px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md min-w-[34px] text-center shrink-0" style={{ background: LEVELS[x.level].color, color: LEVELS[x.level].text }}>{POSITION_LABELS[x.position]}</span>
+                      <div className="leading-tight min-w-0">
+                        <p className={`text-sm ${x.level === "natural" ? "font-bold text-gray-900" : "font-medium text-gray-700"}`}>{POSITION_FULL[x.position] || x.position}{role ? ` · ${role}` : ""}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: LEVELS[x.level].ink }}>{LEVELS[x.level].label}</p>
+                      </div>
                     </div>
                   );
                 })}
