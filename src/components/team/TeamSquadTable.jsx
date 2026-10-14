@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Pencil, Plus, ChevronUp, ChevronDown, ChevronsUpDown, User } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { birthYearOf } from "@/lib/birthYear";
-import { Flag } from "@/lib/countries";
+import { Flag, countryOf } from "@/lib/countries";
 import { playerFullName } from "@/lib/playerName";
 import { useMatchStatus } from "@/lib/matchStatus";
 
@@ -93,6 +93,7 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
         case "name": return `${r.p.last_name || ""} ${r.p.first_name || ""}`.toLowerCase();
         case "num": return r.p.jersey_number ?? 999;
         case "year": return r.year ?? 0;
+        case "nat": { const c = countryOf(r.p); return c ? (c.a3 === "ESP" ? "0" : `1${c.a3}`) : "2"; }
         case "pos": { const i = POS_ORDER.indexOf(r.p.position); return (i < 0 ? 99 : i) * 1000 + (r.p.jersey_number ?? 999); }
         default: return r[sort.key] ?? -1;
       }
@@ -125,6 +126,7 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
                   <Th label="#" k="num" {...hdr} className="text-left" />
                   <Th label="Jugador" k="name" {...hdr} className="text-left" />
                   <Th label="Año" k="year" {...hdr} />
+                  <Th label="Nac" k="nat" {...hdr} />
                   <Th label="Pos" k="pos" {...hdr} />
                   <Th label="PJ" k="pj" {...hdr} />
                   <Th label="Goles" k="goals" {...hdr} />
@@ -150,10 +152,10 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
                           {r.p.photo_url ? <img src={r.p.photo_url} alt="" className="w-full h-full object-cover" loading="lazy" /> : <User className="w-3.5 h-3.5 text-gray-400" />}
                         </span>
                         <span className="font-bold text-gray-900 group-hover:underline whitespace-nowrap" style={{ fontFamily: "var(--font-display)" }}>{playerFullName(r.p)}</span>
-                        <Flag player={r.p} showCode={false} />
                       </Link>
                     </td>
                     <td className={`${num} text-gray-600`}>{r.year ?? "—"}</td>
+                    <td className={num}>{countryOf(r.p) ? <Flag player={r.p} className="justify-center" /> : <span className="text-gray-300">—</span>}</td>
                     <td className={num}><span className="text-[10px] font-black px-1.5 py-0.5 rounded-sm" style={{ background: "var(--granate-pale)", color: "var(--granate)" }}>{POS_LABEL[r.p.position] || "—"}</span></td>
                     <td className={`${num} font-black`}>{r.pj}</td>
                     <td className={`${num} font-black`} style={{ color: r.p.position === "portero" ? undefined : r.goals > 0 ? "var(--granate)" : undefined }} title={r.p.position === "portero" ? "Goles encajados (y marcados entre paréntesis)" : undefined}>
