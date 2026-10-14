@@ -177,7 +177,7 @@ function Sidebar({ onClose = () => {} }) {
     <div className="flex flex-col h-full" style={{ background: "var(--granate)" }}>
       {/* Logo */}
       <div className="px-3 py-4 border-b border-white/10">
-        <div className="flex items-center gap-2.5">
+        <Link to={isCoordinator ? "/Dashboard" : "/MyTeam"} onClick={onClose} className="flex items-center gap-2.5">
           <div className="w-8 h-8 shrink-0 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.13)" }}>
             <img src={CLUB_LOGO_URL_WHITE} alt="RS" className="w-6 h-6 object-contain" />
           </div>
@@ -185,7 +185,7 @@ function Sidebar({ onClose = () => {} }) {
             <p className="text-white font-black text-sm leading-tight uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>RS Data</p>
             <p className="text-[9px] uppercase tracking-widest leading-tight" style={{ fontFamily: "var(--font-display)", color: "var(--naranja)" }}>Manager</p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Nav */}
@@ -246,6 +246,7 @@ function Sidebar({ onClose = () => {} }) {
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isCoordinator } = useTeamAccess();
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-gray-900 flex">
@@ -284,14 +285,16 @@ export default function Layout() {
       </aside>
 
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center justify-between shadow-sm" style={{ background: "var(--granate)" }}>
-        <div className="flex items-center gap-3">
-          <img src={CLUB_LOGO_URL_WHITE} alt="RS Club" className="w-7 h-7 object-contain" />
-          <h1 className="font-bold text-xl tracking-wider uppercase leading-none" style={{ fontFamily: "var(--font-display)", color: "#ffffff" }}>RS Data Manager</h1>
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center shadow-sm" style={{ background: "var(--granate)" }}>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 -ml-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors" aria-label="Menú">
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+          <Link to={isCoordinator ? "/Dashboard" : "/MyTeam"} onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
+            <img src={CLUB_LOGO_URL_WHITE} alt="RS Club" className="w-7 h-7 object-contain" />
+            <h1 className="font-bold text-xl tracking-wider uppercase leading-none" style={{ fontFamily: "var(--font-display)", color: "#ffffff" }}>RS Data Manager</h1>
+          </Link>
         </div>
-        <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors">
-          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
       </div>
 
       {/* Mobile Drawer */}

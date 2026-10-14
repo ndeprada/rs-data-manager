@@ -150,8 +150,8 @@ export default function PlayerProfile() {
       <div style={{ background: "linear-gradient(135deg, #6b1f28 0%, #3d0d13 100%)" }}>
         <div className="px-4 sm:px-6 pt-3 pb-4">
           <div className="flex items-center justify-between mb-3">
-            <Link to="/Players" className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm font-medium">
-              <ArrowLeft className="w-4 h-4" /> Jugadores
+            <Link to="/Players" onClick={(e) => { if (window.history.state?.idx > 0) { e.preventDefault(); navigate(-1); } }} className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm font-medium">
+              <ArrowLeft className="w-4 h-4" /> Volver
             </Link>
             <div className="flex gap-2">
               <button onClick={() => setEditDialogOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-white/80 hover:text-white border border-white/20 hover:border-white/40 transition-all">
