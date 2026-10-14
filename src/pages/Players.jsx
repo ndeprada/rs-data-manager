@@ -1,4 +1,5 @@
 import { birthYearOf } from "@/lib/birthYear";
+import { Flag, countryOf, isForeign } from "@/lib/countries";
 import PlayerName from "@/components/common/PlayerName";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
@@ -68,6 +69,7 @@ export default function Players() {
   const [filterLaterality, setFilterLaterality] = useState("all");
   const [filterPosition, setFilterPosition] = useState(new Set());
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterNat, setFilterNat] = useState("all");
   const [sortKey, setSortKey] = useState("last_name");
   const [sortDir, setSortDir] = useState("asc");
 
@@ -110,6 +112,8 @@ export default function Players() {
     players.map(p => birthYearOf(p)).filter(Boolean)
   )].sort((a, b) => b - a);
 
+  const natList = [...new Map(players.filter(isForeign).map((p) => [countryOf(p).a3, countryOf(p)])).values()].sort((a, b) => a.name.localeCompare(b.name, "es"));
+
   const filtered = players.filter((p) => {
     const matchSearch = `${playerSearchName(p)}`.toLowerCase().includes(search.toLowerCase());
     const matchTeam = filterTeam === "all" || p.team_id === filterTeam;
@@ -117,10 +121,11 @@ export default function Players() {
     const matchLaterality = filterLaterality === "all" || p.laterality === filterLaterality;
     const matchPosition = filterPosition.size === 0 || filterPosition.has(p.position);
     const matchStatus = filterStatus === "all" || p.status === filterStatus;
-    return matchSearch && matchTeam && matchYear && matchLaterality && matchPosition && matchStatus;
+    const matchNat = filterNat === "all" || (filterNat === "foreign" ? isForeign(p) : filterNat === "ESP" ? countryOf(p)?.a3 === "ESP" : countryOf(p)?.a3 === filterNat);
+    return matchNat && matchSearch && matchTeam && matchYear && matchLaterality && matchPosition && matchStatus;
   });
 
-  const hasFilters = search || filterTeam !== "all" || filterYear !== "all" || filterLaterality !== "all" || filterPosition.size > 0 || filterStatus !== "all";
+  const hasFilters = search || filterTeam !== "all" || filterYear !== "all" || filterLaterality !== "all" || filterPosition.size > 0 || filterStatus !== "all" || filterNat !== "all";
 
   const sorted = [...filtered].sort((a, b) => {
     let aVal, bVal;
@@ -184,6 +189,15 @@ export default function Players() {
                 {LATERALITY.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={filterNat} onValueChange={setFilterNat}>
+              <SelectTrigger className="w-full sm:w-36 border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Nacionalidad" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toda nacionalidad</SelectItem>
+                <SelectItem value="ESP">Españoles ({players.filter((p) => countryOf(p)?.a3 === "ESP").length})</SelectItem>
+                <SelectItem value="foreign">Extranjeros ({players.filter(isForeign).length})</SelectItem>
+                {natList.map((c) => <SelectItem key={c.a3} value={c.a3}>{c.name} ({players.filter((p) => countryOf(p)?.a3 === c.a3).length})</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-full sm:w-28 border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Estado" /></SelectTrigger>
               <SelectContent>
@@ -195,7 +209,7 @@ export default function Players() {
             </Select>
             {hasFilters && (
               <button
-                onClick={() => { setSearch(""); setFilterTeam("all"); setFilterYear("all"); setFilterLaterality("all"); setFilterPosition(new Set()); setFilterStatus("all"); }}
+                onClick={() => { setSearch(""); setFilterTeam("all"); setFilterYear("all"); setFilterLaterality("all"); setFilterPosition(new Set()); setFilterStatus("all"); setFilterNat("all"); }}
                 className="text-xs text-gray-400 hover:text-gray-700 underline px-2 h-8 flex items-center shrink-0"
               >
                 Limpiar
@@ -272,7 +286,7 @@ export default function Players() {
                              )}
                            </div>
                            <div>
-                             <p className="font-bold text-gray-900 leading-tight" style={{ fontFamily: "var(--font-display)" }}><PlayerName player={player} /></p>
+                             <p className="font-bold text-gray-900 leading-tight flex items-center gap-1.5" style={{ fontFamily: "var(--font-display)" }}><PlayerName player={player} /><Flag player={player} /></p>
                            </div>
                          </div>
                        </td>

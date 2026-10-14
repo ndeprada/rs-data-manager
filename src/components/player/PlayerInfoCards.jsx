@@ -1,4 +1,5 @@
 import { birthYearOf } from "@/lib/birthYear";
+import { Flag, countryOf } from "@/lib/countries";
 import React from "react";
 import { FootIndicator } from "./PlayerPositionBadges";
 import { Phone, Mail, Calendar, Zap, MapPin, Hash } from "lucide-react";
@@ -151,6 +152,12 @@ export default function PlayerInfoCards({ player }) {
             <div>
               <Label>Año de nacimiento</Label>
               <p className="text-sm font-bold text-gray-800">{birthYear}</p>
+            </div>
+          )}
+          {countryOf(player) && (
+            <div>
+              <Label>Nacionalidad</Label>
+              <Flag player={player} className="text-sm" />
             </div>
           )}
           {player.status && (

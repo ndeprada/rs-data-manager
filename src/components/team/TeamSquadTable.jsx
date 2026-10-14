@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Pencil, Plus, ChevronUp, ChevronDown, ChevronsUpDown, User } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { birthYearOf } from "@/lib/birthYear";
+import { Flag } from "@/lib/countries";
 import { playerFullName } from "@/lib/playerName";
 import { useMatchStatus } from "@/lib/matchStatus";
 
@@ -149,6 +150,7 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
                           {r.p.photo_url ? <img src={r.p.photo_url} alt="" className="w-full h-full object-cover" loading="lazy" /> : <User className="w-3.5 h-3.5 text-gray-400" />}
                         </span>
                         <span className="font-bold text-gray-900 group-hover:underline whitespace-nowrap" style={{ fontFamily: "var(--font-display)" }}>{playerFullName(r.p)}</span>
+                        <Flag player={r.p} showCode={false} />
                       </Link>
                     </td>
                     <td className={`${num} text-gray-600`}>{r.year ?? "—"}</td>

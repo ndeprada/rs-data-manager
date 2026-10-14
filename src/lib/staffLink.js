@@ -145,6 +145,13 @@ export async function saveUserAccess({ user, form, staffList, activeAssignments 
     patch.player_id = form.player_id || null;
     patch.staff_member_id = null;
     if (form.player_team_id) { patch.team_id = form.player_team_id; patch.team_ids = [form.player_team_id]; }
+    // Si la ficha aún no tiene nacionalidad, se toma el país de nacimiento indicado al registrarse
+    if (form.player_id && user.birth_country) {
+      try {
+        const pl = await base44.entities.Player.get(form.player_id);
+        if (pl && !pl.nationality) await base44.entities.Player.update(pl.id, { nationality: user.birth_country, ...(user.birth_country === "ESP" && user.birth_region ? { region: user.birth_region } : {}) });
+      } catch { /* no bloquea el acceso */ }
+    }
   }
 
   if (isStaff) {

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { LogOut, UserRound, ClipboardList, ArrowLeft, Check } from "lucide-react";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import { APP_FUNCTIONS, COACH_TEAM_ROLES, functionConfig } from "@/lib/staffRoles";
+import { COUNTRIES, REGIONS, Flag } from "@/lib/countries";
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -52,6 +53,8 @@ export default function RoleSetup() {
   const [moreTeams, setMoreTeams] = useState(false);
   const [playerTeam, setPlayerTeam] = useState("");
   const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState("");
+  const [region, setRegion] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -67,7 +70,7 @@ export default function RoleSetup() {
     setSubmitting(true);
     setError("");
     try {
-      await base44.auth.updateMe({ ...payload, phone: phone || undefined, access_status: "pending" });
+      await base44.auth.updateMe({ ...payload, phone: phone || undefined, birth_country: country, birth_region: country === "ESP" ? region : "", access_status: "pending" });
       await refreshUser();
     } catch {
       setError("No se ha podido enviar la solicitud. Inténtalo de nuevo.");
@@ -108,8 +111,25 @@ export default function RoleSetup() {
         <h2 className="text-xl font-black uppercase mb-1" style={{ color: "var(--granate)", ...FONT }}>
           Hola{user?.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}
         </h2>
-        <p className="text-gray-500 text-sm mb-5">Para solicitar acceso, dinos quién eres en el club.</p>
-        <div className="space-y-3 mb-6">
+        <p className="text-gray-500 text-sm mb-4">Para solicitar acceso, dinos de dónde eres y quién eres en el club.</p>
+        <div className="mb-4">
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">País de nacimiento *</label>
+          <Select value={country} onValueChange={(v) => { setCountry(v); setRegion(""); }}>
+            <SelectTrigger className="border-gray-300"><SelectValue placeholder="Selecciona tu país" /></SelectTrigger>
+            <SelectContent className="max-h-72">
+              {COUNTRIES.map((c) => <SelectItem key={c.a3} value={c.a3}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {country === "ESP" && (
+            <Select value={region} onValueChange={setRegion}>
+              <SelectTrigger className="border-gray-300 mt-2"><SelectValue placeholder="Comunidad autónoma" /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                {REGIONS.map((r) => <SelectItem key={r.code} value={r.code}>{r.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+        <div className={`space-y-3 mb-6 ${country && (country !== "ESP" || region) ? "" : "opacity-40 pointer-events-none"}`}>
           <button onClick={() => setStep("staff")} className={`${optionClass(false)} flex items-center gap-3`}>
             <ClipboardList className="w-6 h-6 shrink-0" style={{ color: "var(--granate)" }} />
             <span>

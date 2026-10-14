@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { COUNTRIES, REGIONS, countryOf } from "@/lib/countries";
 import { getRoleOptions, findRole } from "@/lib/competencyCatalog";
 
 const POSITIONS = [
@@ -27,7 +28,7 @@ const LATERALITY = [
 
 const emptyForm = {
   first_name: "", last_name: "", nickname: "", birth_date: "", birth_year: "", position: "", reference_role: "", secondary_position: "",
-  laterality: "", jersey_number: "", phone: "", email: "", status: "activo", team_id: "",
+  laterality: "", nationality: "", region: "", jersey_number: "", phone: "", email: "", status: "activo", team_id: "",
 };
 
 export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPlayer }) {
@@ -48,6 +49,8 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
         reference_role: editingPlayer.reference_role || "",
         secondary_position: editingPlayer.secondary_position || "",
         laterality: editingPlayer.laterality || "",
+        nationality: countryOf(editingPlayer)?.a3 || "",
+        region: editingPlayer.region || "",
         jersey_number: editingPlayer.jersey_number || "",
         phone: editingPlayer.phone || "",
         email: editingPlayer.email || "",
@@ -159,6 +162,28 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
               <Input type="number" value={form.jersey_number} onChange={(e) => setForm({ ...form, jersey_number: e.target.value })} className="border-gray-200" />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label className="text-gray-700">Nacionalidad</Label>
+            <Select value={form.nationality || "none"} onValueChange={(v) => setForm({ ...form, nationality: v === "none" ? "" : v, region: v === "ESP" ? form.region : "" })}>
+              <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value="none">Sin indicar</SelectItem>
+                {COUNTRIES.map((c) => <SelectItem key={c.a3} value={c.a3}>{c.name} ({c.a3})</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          {form.nationality === "ESP" && (
+            <div className="space-y-2">
+              <Label className="text-gray-700">Comunidad autónoma</Label>
+              <Select value={form.region || "none"} onValueChange={(v) => setForm({ ...form, region: v === "none" ? "" : v })}>
+                <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="none">Sin indicar</SelectItem>
+                  {REGIONS.map((r) => <SelectItem key={r.code} value={r.code}>{r.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-gray-700">Año de nacimiento</Label>
