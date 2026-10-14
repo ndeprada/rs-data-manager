@@ -31,7 +31,7 @@ import Development from './pages/myteam/Development';
 import { Navigate } from 'react-router-dom';
 import RoleSetup from './pages/RoleSetup';
 import PendingApproval from './pages/PendingApproval';
-import PlayerHome from './pages/PlayerHome';
+import PlayerTeam from './pages/PlayerTeam';
 import { STAFF_FUNCTION_VALUES } from '@/lib/staffRoles';
 import Accesos from './pages/Accesos';
 import Fields from './pages/Fields';
@@ -90,7 +90,17 @@ const AuthenticatedApp = () => {
 
   // Jugador con acceso aprobado
   if (user && !isAdminUser && user.app_role === 'jugador' && status === 'approved') {
-    return <PlayerHome />;
+    return (
+      <TeamAccessProvider>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/PlayerTeam" element={<PlayerTeam />} />
+            <Route path="/PlayerProfile" element={<PlayerProfile />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/PlayerTeam" replace />} />
+        </Routes>
+      </TeamAccessProvider>
+    );
   }
 
   // Usuario sin función aprobada ni solicitud pendiente → elegir jugador / cuerpo técnico

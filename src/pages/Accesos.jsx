@@ -33,6 +33,7 @@ export default function Accesos() {
   const { data: users = [], isLoading } = useQuery({ queryKey: ["users"], queryFn: () => base44.entities.User.list() });
   const { data: staff = [] } = useQuery({ queryKey: ["staff"], queryFn: () => base44.entities.StaffMember.list() });
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
+  const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
   const { data: assignments = [] } = useQuery({
     queryKey: ["team_staff_assignments"],
     queryFn: () => base44.entities.TeamStaffAssignment.filter({ active: true }),
@@ -40,6 +41,21 @@ export default function Accesos() {
 
   const liveUsers = useMemo(() => users.filter((u) => u.access_status !== "deleted"), [users]);
   const links = useMemo(() => buildLinks(liveUsers, staff), [liveUsers, staff]);
+  const playerLabel = (p) => `${[p.nickname || p.first_name, p.last_name].filter(Boolean).join(" ")} · ${teams.find((t) => t.id === p.team_id)?.name || "sin equipo"}`;
+  const norm = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  // Sugerencia de ficha: jugador del equipo solicitado cuyo nombre coincide con el del usuario
+  const suggestPlayer = (u) => {
+    const tokens = norm(u.full_name).split(/\s+/).filter((t) => t.length > 1);
+    if (!tokens.length) return "";
+    const pool = players.filter((p) => !u.requested_team_id || p.team_id === u.requested_team_id);
+    let best = null, bestScore = 0;
+    for (const p of pool) {
+      const hay = norm(`${p.first_name} ${p.last_name} ${p.nickname || ""}`);
+      const score = tokens.filter((t) => hay.includes(t)).length;
+      if (score > bestScore) { best = p; bestScore = score; }
+    }
+    return bestScore >= Math.min(2, tokens.length) ? best.id : "";
+  };
   const teamName = (id) => teams.find((t) => t.id === id)?.name || "—";
   const assignmentsOfStaff = (staffId) => assignments.filter((a) => a.staff_member_id === staffId);
 
@@ -148,15 +164,24 @@ export default function Accesos() {
       phone: u.phone || "",
       staff_member_id: linked?.id || NEW_STAFF,
       assignments: list,
+      player_id: player ? (u.player_id || suggestPlayer(u)) : "",
     });
     setEditUser({ ...u, _approving: approving, _linked: linked || null });
   };
 
   const handleSave = () => {
     if (!editUser) return;
+    if (editForm.person_type === "jugador" && editForm.access_status === "approved" && !editForm.player_id) {
+      toast({ title: "Falta vincular la ficha de jugador", description: "Elige a qué jugador corresponde esta cuenta para que vea sus datos.", variant: "destructive" });
+      return;
+    }
     saveMutation.mutate({
       user: editUser,
-      form: { ...editForm, staff_member_id: editForm.staff_member_id === NEW_STAFF ? "" : editForm.staff_member_id },
+      form: {
+        ...editForm,
+        staff_member_id: editForm.staff_member_id === NEW_STAFF ? "" : editForm.staff_member_id,
+        player_team_id: players.find((p) => p.id === editForm.player_id)?.team_id || "",
+      },
     });
   };
 
@@ -260,6 +285,9 @@ export default function Accesos() {
                               {teamName(a.team_id)} · {teamRoleLabel(a.team_role)}
                             </span>
                           ))}
+                          {user.player_id && players.find((p) => p.id === user.player_id) && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{playerLabel(players.find((p) => p.id === user.player_id))}</span>
+                          )}
                           {user.app_role_pending === "jugador" && user.requested_team_id && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-50 text-yellow-700 border border-yellow-200">{teamName(user.requested_team_id)}</span>
                           )}
@@ -372,6 +400,22 @@ export default function Accesos() {
                   compact
                 />
                 <p className="text-[11px] text-gray-400 mt-2">Una misma persona puede tener varios equipos y un rol distinto en cada uno.</p>
+              </div>
+            )}
+
+            {!isStaffForm && (
+              <div>
+                <Label>Ficha de jugador vinculada *</Label>
+                <Select value={editForm.player_id || ""} onValueChange={(v) => setEditForm((f) => ({ ...f, player_id: v }))}>
+                  <SelectTrigger className="border-gray-200"><SelectValue placeholder="Elige el jugador" /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {[...players]
+                      .filter((p) => p.status !== "baja")
+                      .sort((a, b) => ((a.team_id === editUser?.requested_team_id ? 0 : 1) - (b.team_id === editUser?.requested_team_id ? 0 : 1)) || playerLabel(a).localeCompare(playerLabel(b), "es"))
+                      .map((p) => <SelectItem key={p.id} value={p.id}>{playerLabel(p)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-1"><Link2 className="w-3 h-3" />Con esta ficha el jugador verá solo sus datos y los de su equipo (sin valoraciones de partido ni notas internas).</p>
               </div>
             )}
 

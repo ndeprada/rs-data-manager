@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { usePlayerMode } from "@/lib/playerMode";
 
 // Solo cuentan para estadísticas los partidos de liga y torneo (no amistosos),
 // ya disputados y completamente cerrados (convocatoria, alineación y minutos).
@@ -32,6 +33,7 @@ export function pendingReasons(ev, conv, evStats) {
 
 // Estado de todos los partidos (liga/torneo) ya disputados.
 export function useMatchStatus() {
+  const playerMode = usePlayerMode();
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
   const { data: convocs = [] } = useQuery({ queryKey: ["convocatorias_all"], queryFn: () => base44.entities.Convocatoria.list() });
   const { data: stats = [] } = useQuery({ queryKey: ["matchstats_all"], queryFn: () => base44.entities.MatchStats.list() });
@@ -43,11 +45,13 @@ export function useMatchStatus() {
     const counted = new Set(), pending = new Map();
     for (const ev of events) {
       if (!STAT_TYPES.includes(ev.type) || !isFinished(ev, now)) continue;
+      // El jugador no ve las estadísticas de sus compañeros: el servidor le indica si el partido está cerrado
+      if (playerMode) { if (ev.stats_closed) counted.add(ev.id); else pending.set(ev.id, ["Pendiente de cerrar"]); continue; }
       const reasons = pendingReasons(ev, convBy.get(ev.id), statsBy.get(ev.id));
       if (reasons.length) pending.set(ev.id, reasons); else counted.add(ev.id);
     }
     return { counted, pending, events };
-  }, [events, convocs, stats]);
+  }, [events, convocs, stats, playerMode]);
 }
 
 // Deja solo las estadísticas de partidos contabilizables. Las sin partido asociado (entradas manuales antiguas) se mantienen.

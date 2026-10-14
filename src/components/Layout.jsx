@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { addDays, isWithinInterval, parseISO } from "date-fns";
 import { buildLinks } from "@/lib/staffLink";
+import { usePlayerMode } from "@/lib/playerMode";
 
 const MY_TEAM_SUBITEMS = [
   { label: "Panel", path: "/MyTeam", exact: true, icon: LayoutDashboard },
@@ -118,7 +119,35 @@ function MyTeamNav({ onClose, notificationCount }) {
   );
 }
 
-function Sidebar({ onClose = () => {} }) {
+function PlayerSidebar({ onClose = () => {} }) {
+  const { user, logout } = useAuth();
+  return (
+    <div className="flex flex-col h-full" style={{ background: "var(--granate)" }}>
+      <div className="px-3 py-4 border-b border-white/10">
+        <Link to="/PlayerTeam" onClick={onClose} className="flex items-center gap-2.5">
+          <img src={CLUB_LOGO_URL_WHITE} alt="RS Club" className="w-7 h-7 object-contain" />
+          <h1 className="font-bold text-xl tracking-wider uppercase leading-none text-white" style={{ fontFamily: "var(--font-display)" }}>RS Data Manager</h1>
+        </Link>
+      </div>
+      <nav className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5">
+        <NavItem item={{ label: "Mi equipo", path: "/PlayerTeam", icon: Users }} onClick={onClose} />
+        <NavItem item={{ label: "Mi ficha y estadísticas", path: "/PlayerProfile", icon: UserCheck }} onClick={onClose} />
+      </nav>
+      <div className="px-2 py-3 border-t border-white/10">
+        <div className="flex items-center gap-2 px-1.5 py-1.5">
+          <p className="text-white text-[11px] font-bold truncate flex-1" style={{ fontFamily: "var(--font-display)" }}>{user?.full_name?.split(" ")[0]}</p>
+          <button onClick={logout} aria-label="Salir" className="text-white/60 hover:text-white"><LogOut className="w-4 h-4" /></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Sidebar(props) {
+  return usePlayerMode() ? <PlayerSidebar {...props} /> : <StaffSidebar {...props} />;
+}
+
+function StaffSidebar({ onClose = () => {} }) {
   const { user, logout } = useAuth();
   const { isCoordinator, appRole, selectedTeamId } = useTeamAccess();
   const pendingUsers = usePendingUsers(isCoordinator);
@@ -251,6 +280,7 @@ export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isCoordinator } = useTeamAccess();
   const pendingUsersCount = usePendingUsers(isCoordinator).length;
+  const playerMode = usePlayerMode();
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-gray-900 flex">
@@ -295,7 +325,7 @@ export default function Layout() {
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             {pendingUsersCount > 0 && !mobileOpen && <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-[#FF6E00] border border-[#73000A]" />}
           </button>
-          <Link to={isCoordinator ? "/Dashboard" : "/MyTeam"} onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
+          <Link to={playerMode ? "/PlayerTeam" : isCoordinator ? "/Dashboard" : "/MyTeam"} onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
             <img src={CLUB_LOGO_URL_WHITE} alt="RS Club" className="w-7 h-7 object-contain" />
             <h1 className="font-bold text-xl tracking-wider uppercase leading-none" style={{ fontFamily: "var(--font-display)", color: "#ffffff" }}>RS Data Manager</h1>
           </Link>

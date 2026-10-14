@@ -4,6 +4,7 @@ import { es } from "date-fns/locale";
 import { ChevronRight } from "lucide-react";
 import { resultOf, HomeAwayIcon } from "@/components/match/MatchesTimeline";
 import { useMatchStatus } from "@/lib/matchStatus";
+import { usePlayerMode } from "@/lib/playerMode";
 
 const CHIP = { victoria: ["V", "#16a34a"], empate: ["E", "#ea580c"], derrota: ["D", "#dc2626"] };
 
@@ -45,7 +46,8 @@ function Column({ title, rows, empty, onOpen, pending }) {
 
 // Últimos partidos jugados (izquierda) y próximos (derecha), 3 y 3.
 export default function TeamMatchesColumns({ matches, onOpen, count = 3 }) {
-  const { pending } = useMatchStatus();
+  const { pending: allPending } = useMatchStatus();
+  const pending = usePlayerMode() ? undefined : allPending;
   const now = new Date();
   const last = matches.filter((m) => new Date(m.date) < now).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, count);
   const next = matches.filter((m) => new Date(m.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, count);

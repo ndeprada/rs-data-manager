@@ -33,6 +33,9 @@ import ImageCropDialog from "@/components/ImageCropDialog";
 import InjuryRegistrationDialog from "@/components/player/InjuryRegistrationDialog";
 import { playerFirstName, playerFullName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
+import { usePlayerMode } from "@/lib/playerMode";
+import { useAuth } from "@/lib/AuthContext";
+import { PlayerMatchesReadOnly, PlayerInjuriesReadOnly, PlayerDocumentsReadOnly, PlayerHistoryReadOnly } from "@/components/player/PlayerReadOnlySections";
 
 const POSITION_LABELS = {
   portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
@@ -48,7 +51,10 @@ const STATUS_CONFIG = {
 
 export default function PlayerProfile() {
   const urlParams = new URLSearchParams(window.location.search);
-  const playerId = urlParams.get("id");
+  const playerMode = usePlayerMode();
+  const { user: authUser } = useAuth();
+  // El jugador solo puede ver su propia ficha
+  const playerId = playerMode ? authUser?.player_id : urlParams.get("id");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
@@ -132,7 +138,7 @@ export default function PlayerProfile() {
     isGK ? { label: "Porter. a 0", value: countCleanSheets(matchStats, allEvents, allMatchStats) } : { label: "Asist.", value: totalAssists },
     { label: "Tarj.", value: yellowCards + redCards },
     { label: "Asist. entr.", value: attendancePct !== null ? `${attendancePct}%` : "—" },
-    { label: "Nota", value: avgRating || "—" },
+    ...(playerMode ? [] : [{ label: "Nota", value: avgRating || "—" }]),
   ];
   const nextInjury = activeInjuries[0];
   const tabs = [
@@ -152,10 +158,10 @@ export default function PlayerProfile() {
       <div style={{ background: "linear-gradient(135deg, #6b1f28 0%, #3d0d13 100%)" }}>
         <div className="px-4 sm:px-6 pt-3 pb-4">
           <div className="flex items-center justify-between mb-3">
-            <Link to="/Players" onClick={(e) => { if (window.history.state?.idx > 0) { e.preventDefault(); navigate(-1); } }} className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm font-medium">
+            <Link to="/Players" onClick={(e) => { if (!playerMode && window.history.state?.idx > 0) { e.preventDefault(); navigate(-1); } }} className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm font-medium">
               <ArrowLeft className="w-4 h-4" /> Volver
             </Link>
-            <div className="flex gap-2">
+            <div className={`flex gap-2 ${playerMode ? "hidden" : ""}`}>
               <button onClick={() => setEditDialogOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-white/80 hover:text-white border border-white/20 hover:border-white/40 transition-all">
                 <Pencil className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Editar</span>
               </button>
@@ -177,7 +183,7 @@ export default function PlayerProfile() {
                     </div>
                   )}
                 </div>
-                <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 rounded-xl flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" aria-label="Cambiar foto">
+                <button onClick={() => !playerMode && fileInputRef.current?.click()} className={`${playerMode ? "hidden" : ""} absolute inset-0 rounded-xl flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer`} aria-label="Cambiar foto">
                   {uploading ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Camera className="w-5 h-5 text-white" />}
                 </button>
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
@@ -207,7 +213,7 @@ export default function PlayerProfile() {
               )}
             </div>
 
-            <div className="grid grid-cols-7 gap-1 sm:gap-3 text-center shrink-0">
+            <div className={`grid ${playerMode ? "grid-cols-6" : "grid-cols-7"} gap-1 sm:gap-3 text-center shrink-0`}>
               {heroStats.map(({ label, value }) => (
                 <div key={label} className="px-1">
                   <p className="text-base sm:text-lg font-black text-white leading-none">{value}</p>
@@ -263,14 +269,14 @@ export default function PlayerProfile() {
           <TabsContent value="stats" className={tabContentClass}>
             <div className="space-y-4">
               <PlayerPerformancePanel playerId={playerId} />
-              <MatchStatsSection playerId={playerId} isGoalkeeper={player.position === "portero"} />
+              {playerMode ? <PlayerMatchesReadOnly playerId={playerId} /> : <MatchStatsSection playerId={playerId} isGoalkeeper={player.position === "portero"} />}
             </div>
           </TabsContent>
 
           <TabsContent value="entrenos" className={tabContentClass}>
             <div className="space-y-4">
               <AttendanceHistorySection attendance={playerAttendance} injuries={playerInjuries} />
-              <TrainingLoadSection playerId={playerId} />
+              {!playerMode && <TrainingLoadSection playerId={playerId} />}
             </div>
           </TabsContent>
 
@@ -278,17 +284,17 @@ export default function PlayerProfile() {
             <div className="space-y-6">
               <Evaluation360Section player={player} playerId={playerId} />
               <PDIPlanSection player={player} team={team} />
-              <details className="bg-white border border-gray-200 rounded-2xl shadow-sm">
+              {!playerMode && <details className="bg-white border border-gray-200 rounded-2xl shadow-sm">
                 <summary className="px-5 py-3 cursor-pointer text-sm font-semibold text-gray-600">Evaluaciones antiguas (texto libre)</summary>
                 <div className="px-4 pb-4">
                   <PDISection readOnly playerId={playerId} playerName={`${playerFullName(player)}`} playerEmail={player.email} />
                 </div>
-              </details>
+              </details>}
             </div>
           </TabsContent>
 
           <TabsContent value="injuries" className={tabContentClass}>
-            <div className="space-y-4">
+            {playerMode ? <PlayerInjuriesReadOnly playerId={playerId} /> : <div className="space-y-4">
               <Button onClick={() => setInjuryDialogOpen(true)} className="text-white w-full" style={{ background: "var(--granate)" }}>
                 <Plus className="w-4 h-4 mr-2" /> Registrar lesión
               </Button>
@@ -298,15 +304,15 @@ export default function PlayerProfile() {
                 playerEmail={player.email}
                 staffEmails={staffEmails}
               />
-            </div>
+            </div>}
           </TabsContent>
 
           <TabsContent value="documents" className={tabContentClass}>
-            <DocumentsSection playerId={playerId} />
+            {playerMode ? <PlayerDocumentsReadOnly playerId={playerId} /> : <DocumentsSection playerId={playerId} />}
           </TabsContent>
 
           <TabsContent value="historial" className={tabContentClass}>
-            <PlayerSeasonHistorySection playerId={playerId} />
+            {playerMode ? <PlayerHistoryReadOnly playerId={playerId} /> : <PlayerSeasonHistorySection playerId={playerId} />}
           </TabsContent>
         </Tabs>
       </div>

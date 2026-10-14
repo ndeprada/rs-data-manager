@@ -141,6 +141,12 @@ export async function saveUserAccess({ user, form, staffList, activeAssignments 
     patch.requested_assignments = null;
   }
 
+  if (form.person_type === "jugador") {
+    patch.player_id = form.player_id || null;
+    patch.staff_member_id = null;
+    if (form.player_team_id) { patch.team_id = form.player_team_id; patch.team_ids = [form.player_team_id]; }
+  }
+
   if (isStaff) {
     let staff = form.staff_member_id ? staffList.find((s) => s.id === form.staff_member_id) : null;
     const staffData = {

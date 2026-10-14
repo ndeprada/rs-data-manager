@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { Trophy, Clock, Target, Star, Square } from "lucide-react";
 import { useCountedStats } from "@/lib/matchStatus";
+import { usePlayerMode } from "@/lib/playerMode";
 
 function StatBox({ label, value, sub, color = "gray" }) {
   const colors = {
@@ -77,6 +78,7 @@ export default function PlayerPerformancePanel({ playerId }) {
     (c) => Array.isArray(c.player_ids) && c.player_ids.includes(playerId)
   ).length;
 
+  const playerMode = usePlayerMode();
   const partidos = stats.length;
   const titular = stats.filter((s) => s.starter !== false).length;
   const suplente = stats.filter((s) => s.starter === false).length;
@@ -143,7 +145,7 @@ export default function PlayerPerformancePanel({ playerId }) {
           <Mini label="Goles" value={totalGoals} />
           <Mini label="Asist." value={totalAssists} />
           <Mini label="G+A/partido" value={partidos > 0 ? ((totalGoals + totalAssists) / partidos).toFixed(2) : "—"} />
-          <Mini label="Valoración" value={avgRating ? `${avgRating} ★` : "—"} />
+          {!playerMode && <Mini label="Valoración" value={avgRating ? `${avgRating} ★` : "—"} />}
         </MiniRow>
         <MiniRow title="Disciplina">
           <Mini label="🟨 Amarillas" value={totalYellow} />
@@ -160,14 +162,14 @@ export default function PlayerPerformancePanel({ playerId }) {
             <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9ca3af" }} />
-              <YAxis yAxisId="rating" domain={[0, 5]} tick={{ fontSize: 11, fill: "#9ca3af" }} />
+              <YAxis yAxisId="rating" hide={playerMode} domain={[0, 5]} tick={{ fontSize: 11, fill: "#9ca3af" }} />
               <YAxis yAxisId="asistencia" orientation="right" domain={[0, 100]} tick={{ fontSize: 11, fill: "#9ca3af" }} unit="%" />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }}
                 formatter={(value, name) => name === "Valoración (★)" ? [`${value} ★`, name] : [`${value}%`, name]}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line yAxisId="rating" type="monotone" dataKey="rating" name="Valoración (★)" stroke="#FF6E00" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
+              {!playerMode && <Line yAxisId="rating" type="monotone" dataKey="rating" name="Valoración (★)" stroke="#FF6E00" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />}
               <Line yAxisId="asistencia" type="monotone" dataKey="asistencia" name="Asistencia (%)" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
             </LineChart>
           </ResponsiveContainer>
