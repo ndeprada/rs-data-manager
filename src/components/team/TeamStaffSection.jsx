@@ -151,23 +151,22 @@ export default function TeamStaffSection({ teamId }) {
             <p className="text-gray-400 text-sm">No hay miembros asignados al cuerpo técnico</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
             {teamStaff.map((member) => (
-              <div key={member.assignment_id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors group">
-                <div className="flex items-center gap-3">
+              <div key={member.assignment_id} className="flex items-center justify-between px-3 py-1.5 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors group">
+                <div className="flex items-center gap-2.5 min-w-0">
                   {member.photo_url ? (
-                    <img src={member.photo_url} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
+                    <img src={member.photo_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
                   ) : (
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: "var(--granate)" }}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: "var(--granate)" }}>
                       {member.first_name?.[0]}{member.last_name?.[0]}
                     </div>
                   )}
-                  <div>
-                    <p className="font-semibold text-gray-900">{member.first_name} {member.last_name}</p>
-                    <p className="text-xs font-medium" style={{ color: "var(--granate)" }}>{teamRoleLabel(member.team_role)}</p>
-                    <div className="flex gap-3 mt-0.5">
-                      {member.email && <span className="text-xs text-gray-400 flex items-center gap-1"><Mail className="w-3 h-3" />{member.email}</span>}
-                      {member.phone && <span className="text-xs text-gray-400 flex items-center gap-1"><Phone className="w-3 h-3" />{member.phone}</span>}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{member.first_name} {member.last_name} <span className="text-[11px] font-medium ml-1" style={{ color: "var(--granate)" }}>{teamRoleLabel(member.team_role)}</span></p>
+                    <div className="flex gap-3 flex-wrap">
+                      {member.email && <span className="text-[11px] text-gray-400 flex items-center gap-1 min-w-0"><Mail className="w-3 h-3" />{member.email}</span>}
+                      {member.phone && <span className="text-[11px] text-gray-400 flex items-center gap-1"><Phone className="w-3 h-3" />{member.phone}</span>}
                     </div>
                   </div>
                 </div>
