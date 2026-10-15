@@ -29,7 +29,7 @@ export function getPositionList(player) {
 }
 
 // ── Ubicación en el campo (0-100; x = izquierda→derecha, y = 0 portería rival … 100 portería propia) ──
-// Regla: ningún lateral se dibuja por encima de un central (como mucho a la misma altura: el central más retrasado, el libre, está en 80).
+// Regla: ningún central se dibuja por encima de un lateral: los laterales, como mucho, a la altura del central más adelantado (69).
 // Cada rol tiene una altura (y) y un modo de reparto horizontal según la lateralidad:
 //  center = siempre en el centro · shift = algo hacia su pie natural (dx desde el centro)
 //  band = banda del pie natural (x desde el borde) · band_inv = banda contraria (pierna cambiada)
@@ -37,7 +37,7 @@ export function getPositionList(player) {
 const POS_DEFAULT = {
   portero: { y: 96, mode: "center" },
   central: { y: 69, mode: "shift", v: 4 },
-  lateral: { y: 80, mode: "band", v: 16 },
+  lateral: { y: 66, mode: "band", v: 16 },
   mediocentro: { y: 56, mode: "center" },
   interior: { y: 41, mode: "shift", v: 12 },
   extremo: { y: 25, mode: "band", v: 11 },
@@ -45,7 +45,7 @@ const POS_DEFAULT = {
 };
 const ROLE_POS = {
   central_libre: { y: 80 }, central_marcador: { y: 69 }, central_con_salida: { y: 69 }, central_completo: { y: 69 },
-  lateral_defensivo: { y: 82 }, lateral_interior: { y: 80 }, lateral_completo: { y: 80 },
+  lateral_defensivo: { y: 69 }, lateral_interior: { y: 65 }, lateral_completo: { y: 66 },
   mediocentro_posicional: { y: 56 }, mediocentro_organizador: { y: 56 },
   interior_mixto: { y: 41 }, interior_avanzado: { y: 31 },
   extremo_apoyo: { y: 30, v: 13 }, extremo_profundo: { y: 19, v: 10 }, extremo_interior: { y: 19, v: 10, mode: "band_inv" },
