@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { es } from "date-fns/locale";
-import { format, differenceInCalendarDays, startOfDay, parseISO } from "date-fns";
+import { format, differenceInCalendarDays, startOfDay, parseISO, addDays } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,19 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
+  // Eventos de la serie (para ver y ampliar sus fechas de inicio y fin)
+  const { data: seriesEvents = [] } = useQuery({
+    queryKey: ["series-events", event?.series_id],
+    queryFn: () => base44.entities.Event.filter({ series_id: event.series_id }),
+    enabled: !!event?.series_id && open,
+  });
+  const seriesDays = seriesEvents.map((e) => String(e.date).slice(0, 10)).sort();
+  const seriesFirst = seriesDays[0] || "";
+  const seriesLast = seriesDays[seriesDays.length - 1] || "";
+  useEffect(() => {
+    if (seriesFirst) setForm((p) => ({ ...p, series_from: seriesFirst, series_until: seriesLast }));
+  }, [seriesFirst, seriesLast]);
+
   const { data: fields = [] } = useQuery({
     queryKey: ["fields"],
     queryFn: () => base44.entities.Field.list(),
@@ -48,7 +61,8 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
     if (event) {
       const dateObj = new Date(event.date);
       const endDateObj = event.end_date ? new Date(event.end_date) : null;
-      setForm({
+      setForm((prev) => ({
+        series_from: prev.series_from, series_until: prev.series_until,
         type: event.type || "entrenamiento",
         title: event.title || "",
         date: format(dateObj, "yyyy-MM-dd"),
@@ -59,7 +73,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
         opponent: event.opponent || "",
         opponent_logo_url: event.opponent_logo_url || "",
         notes: event.notes || "",
-      });
+      }));
     }
   }, [event]);
 
@@ -94,22 +108,39 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
       const [hh, mm] = (form.time || "00:00").split(":").map(Number);
       const [ehh, emm] = form.end_time ? form.end_time.split(":").map(Number) : [null, null];
       const { date: _d, end_date: _e, ...common } = data;
-      for (let i = 0; i < allEvents.length; i += 10) {
-        await Promise.all(allEvents.slice(i, i + 10).map((e) => {
+      const mk = (day) => {
+        const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hh, mm);
+        const end = ehh !== null ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), ehh, emm) : undefined;
+        return { date: fmtNaive(start), end_date: end ? fmtNaive(end) : undefined };
+      };
+      const days = allEvents.map((e) => { const o = new Date(e.date); return new Date(o.getFullYear(), o.getMonth(), o.getDate() + shift); }).sort((a, b) => a - b);
+      const fromD = form.series_from && form.series_from !== seriesFirst ? parseISO(form.series_from) : null;
+      const untilD = form.series_until && form.series_until !== seriesLast ? parseISO(form.series_until) : null;
+      const stepDays = days.length > 1 ? Math.max(1, differenceInCalendarDays(days[1], days[0])) : 7;
+      // Fechas nuevas al ampliar la serie hacia atrás (antes del primer día) o hacia delante (después del último)
+      const toCreate = [];
+      if (fromD && days.length) for (let d = addDays(days[0], -stepDays); d >= fromD && toCreate.length < 400; d = addDays(d, -stepDays)) toCreate.push(d);
+      if (untilD && days.length) for (let d = addDays(days[days.length - 1], stepDays); d <= untilD && toCreate.length < 400; d = addDays(d, stepDays)) toCreate.push(d);
+      // Eventos que quedan fuera si se acorta la serie
+      const outside = (day) => (fromD && day < fromD) || (untilD && day > untilD);
+      const toDelete = allEvents.filter((e) => { const o = new Date(e.date); return outside(new Date(o.getFullYear(), o.getMonth(), o.getDate() + shift)); });
+      const keep = allEvents.filter((e) => !toDelete.includes(e));
+      for (let i = 0; i < keep.length; i += 10) {
+        await Promise.all(keep.slice(i, i + 10).map((e) => {
           const old = new Date(e.date);
-          const start = new Date(old.getFullYear(), old.getMonth(), old.getDate() + shift, hh, mm);
-          let end;
-          if (ehh !== null) end = new Date(start.getFullYear(), start.getMonth(), start.getDate(), ehh, emm);
-          return base44.entities.Event.update(e.id, {
-            ...common,
-            date: fmtNaive(start),
-            end_date: end ? fmtNaive(end) : undefined,
-          });
+          const day = new Date(old.getFullYear(), old.getMonth(), old.getDate() + shift);
+          return base44.entities.Event.update(e.id, { ...common, ...mk(day) });
         }));
+      }
+      for (let i = 0; i < toDelete.length; i += 10) await Promise.all(toDelete.slice(i, i + 10).map((e) => base44.entities.Event.delete(e.id)));
+      const { id: _i, created_date: _c, updated_date: _u, created_at: _ca, updated_at: _ua, score_home: _sh, score_away: _sa, ...tpl } = allEvents[0];
+      for (let i = 0; i < toCreate.length; i += 10) {
+        await Promise.all(toCreate.slice(i, i + 10).map((day) => base44.entities.Event.create({ ...tpl, ...common, ...mk(day), series_id: event.series_id })));
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["series-events"] });
       setSeriesConfirm(false);
       onOpenChange(false);
     },
@@ -246,6 +277,27 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
               </div>
             </div>
 
+            {event.series_id && form.series_from && (
+              <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 -mt-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Serie · {seriesEvents.length} eventos</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-[10px] text-gray-500 mb-0.5">Primer día</p>
+                    <input type="date" value={form.series_from} onChange={e => set("series_from", e.target.value)}
+                      className="w-full h-8 rounded-md border border-gray-200 bg-white text-sm px-1.5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-500 mb-0.5">Último día</p>
+                    <input type="date" value={form.series_until} onChange={e => set("series_until", e.target.value)}
+                      className="w-full h-8 rounded-md border border-gray-200 bg-white text-sm px-1.5" />
+                  </div>
+                </div>
+                {(form.series_from !== seriesFirst || form.series_until !== seriesLast) && (
+                  <p className="text-[10px] text-amber-700 mt-1">Al guardar con «Todos los eventos de la serie» se añadirán (o quitarán) eventos para cubrir estas fechas, con la misma frecuencia.</p>
+                )}
+              </div>
+            )}
+
             {isMatch && String(event.date || "").slice(0, 10) !== form.date && form.date && (
               <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 -mt-2">
                 Se guardará como <b>partido aplazado</b> (fecha original: {format(new Date(event.postponed_from || event.date), "d MMM", { locale: es })}). Se mantiene todo lo anotado en el partido.
@@ -318,7 +370,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Evento recurrente</AlertDialogTitle>
             <AlertDialogDescription>
-              Este evento forma parte de una serie. ¿A qué eventos quieres aplicar los cambios? Si has cambiado la fecha (por ejemplo de martes a jueves), toda la serie se moverá esos mismos días.
+              Este evento forma parte de una serie. ¿A qué eventos quieres aplicar los cambios? Si has cambiado la fecha (por ejemplo de martes a jueves), toda la serie se moverá esos mismos días. Si has cambiado el primer o el último día de la serie, se añadirán o quitarán eventos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
