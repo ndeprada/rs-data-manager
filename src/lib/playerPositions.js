@@ -24,7 +24,21 @@ export function getPositionList(player) {
   getExtraPositions(player).forEach((e) => {
     if (!list.some((x) => x.position === e.position && (x.role || "") === (e.role || ""))) list.push({ position: e.position, role: e.role || "", level: e.level === "competente" ? "competente" : "secundaria" });
   });
-  return list;
+  const rank = { natural: 0, secundaria: 1, competente: 2 };
+  return list.map((x, i) => ({ x, i })).sort((a, b) => rank[a.x.level] - rank[b.x.level] || a.i - b.i).map((o) => o.x);
+}
+
+// Un solo botón por posición en el campograma: el del nivel más alto (natural > secundaria > competente)
+export function getPitchMarkers(player, laterality) {
+  const seen = new Set();
+  const out = [];
+  getPositionList(player).forEach((x) => {
+    if (seen.has(x.position)) return;
+    seen.add(x.position);
+    const c = getPitchXY(x.position, x.role, laterality);
+    if (c) out.push({ ...x, c });
+  });
+  return out;
 }
 
 

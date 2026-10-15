@@ -1,5 +1,5 @@
 import React from "react";
-import { LEVELS, getPositionList, getPitchXY } from "@/lib/playerPositions";
+import { LEVELS, getPositionList, getPitchXY, getPitchMarkers } from "@/lib/playerPositions";
 
 const POSITION_FULL = {
   portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
@@ -27,7 +27,7 @@ const ORANGE = "#f59e0b";
 export function MiniPitch({ player, position, secondaryPosition, laterality }) {
   const list = player ? getPositionList(player) : [{ position, level: "natural" }, ...(secondaryPosition ? [{ position: secondaryPosition, level: "secundaria" }] : [])];
   const lat = player ? player.laterality : laterality;
-  const pts = list.map((x) => ({ ...x, c: getPitchXY(x.position, x.role, lat) })).filter((x) => x.c);
+  const pts = player ? getPitchMarkers(player, lat) : list.map((x) => ({ ...x, c: getPitchXY(x.position, x.role, lat) })).filter((x) => x.c);
   if (!pts.length) return null;
   const order = { competente: 0, secundaria: 1, natural: 2 };
   pts.sort((a, b) => order[a.level] - order[b.level]);

@@ -1,7 +1,7 @@
 import { birthYearOf } from "@/lib/birthYear";
 import { Flag, countryOf } from "@/lib/countries";
 import React from "react";
-import { LEVELS, getPositionList, getPitchXY } from "@/lib/playerPositions";
+import { LEVELS, getPositionList, getPitchXY, getPitchMarkers } from "@/lib/playerPositions";
 import { findRole } from "@/lib/competencyCatalog";
 import { FootIndicator } from "./PlayerPositionBadges";
 import { Phone, Mail, Calendar, Zap, MapPin, Hash } from "lucide-react";
@@ -43,10 +43,7 @@ function getPositionCoords(position, laterality) {
 function FootballField({ player }) {
   const laterality = player.laterality;
   const order = { competente: 0, secundaria: 1, natural: 2 };
-  const pts = getPositionList(player)
-    .map((x) => ({ ...x, c: getPitchXY(x.position, x.role, laterality) }))
-    .filter((x) => x.c)
-    .sort((a, b) => order[a.level] - order[b.level]);
+  const pts = getPitchMarkers(player, laterality).sort((a, b) => order[a.level] - order[b.level]);
 
   return (
     <svg viewBox="0 0 200 300" className="w-full h-full" style={{ display: "block" }}>
@@ -175,7 +172,7 @@ export default function PlayerInfoCards({ player }) {
               {player.laterality && (
                 <div>
                   <Label>Lateralidad</Label>
-                  <FootIndicator laterality={player.laterality} light />
+                  <div className="w-fit"><FootIndicator laterality={player.laterality} light /></div>
                 </div>
               )}
             </div>
