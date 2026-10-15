@@ -44,7 +44,7 @@ const GK_KITS = {
 const kitFor = (player, kit, gkKit) =>
   player?.position === "portero" ? (GK_KITS[gkKit] || GK_KITS.naranja) : (KITS[kit] || KITS["1"]);
 
-function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsChange, onSlotClick }) {
+function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsChange, onSlotClick, selectedIdx = null }) {
   const svgRef = useRef(null);
   const draggingIdx = useRef(null);
   const W = 300, H = 420;
@@ -133,6 +133,7 @@ function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsC
         const k = kitFor(player, kit, gkKit);
         return (
           <g key={i} onPointerDown={e => handlePointerDown(e, i)} style={{ cursor: "grab" }}>
+            {selectedIdx === i && <circle cx={cx} cy={cy} r="19" fill="rgba(252,221,9,0.18)" stroke="#FCDD09" strokeWidth="2.5" />}
             <circle cx={cx + 1} cy={cy + 1.5} r="13" fill="rgba(0,0,0,0.25)" />
             <circle cx={cx} cy={cy} r="13" fill={player ? k.fill : "rgba(255,255,255,0.15)"} stroke={player ? k.stroke : "white"} strokeWidth="2.2" strokeDasharray={player ? "0" : "4 3"} />
             <text x={cx} y={cy + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 17 : 13} fontWeight="400" style={{ fontFamily: "'Racing Sarria', sans-serif" }} fill={player ? k.num : "white"}>
@@ -231,7 +232,6 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const [formation, setFormation] = useState(validDefault);
   const [positions, setPositions] = useState(null);
   const [lineup, setLineup] = useState([]);       // ids por hueco (null = vacío)
-  const [bench, setBench] = useState([]);
   const [planAttack, setPlanAttack] = useState("");
   const [planDefense, setPlanDefense] = useState("");
   const [rival, setRival] = useState({ strengths: "", weaknesses: "", keys: "", notes: "" });
@@ -260,7 +260,6 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
       if (formations.includes(plan.formation)) setFormation(plan.formation);
       setPositions(plan.positions || null);
       setLineup(plan.lineup || []);
-      setBench(plan.bench || []);
       setPlanAttack(plan.plan_attack || "");
       setPlanDefense(plan.plan_defense || "");
       setRival({ strengths: "", weaknesses: "", keys: "", notes: "", ...(plan.rival || {}) });
@@ -289,7 +288,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const taken = new Set(slotIds.filter(Boolean));
 
   // Autoguardado (1,2 s después del último cambio)
-  const payload = { formation: validFormation, positions, lineup: slotIds, bench, plan_attack: planAttack, plan_defense: planDefense, rival, set_pieces: pieces, kit, gk_kit: gkKit, captain_id: slotIds.includes(captain) ? captain : "" };
+  const payload = { formation: validFormation, positions, lineup: slotIds, plan_attack: planAttack, plan_defense: planDefense, rival, set_pieces: pieces, kit, gk_kit: gkKit, captain_id: slotIds.includes(captain) ? captain : "" };
   const payloadKey = JSON.stringify(payload);
   const firstRun = useRef(true);
   useEffect(() => {
@@ -315,12 +314,30 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
     setLineup(l => l.slice(0, (FORMATION_POSITIONS[f] || []).length));
   };
   const setSlot = (i, id) => setLineup(() => { const n = [...slotIds]; n[i] = id; return n; });
+  // Banquillo: solo los convocados que no están en el once, ordenados por porteros, defensas, medios y delanteros
+  const GROUP = { portero: 0, central: 1, libre: 1, lateral: 1, mediocentro: 2, interior: 2, extremo: 3, delantero_centro: 3 };
+  const benchPlayers = [...new Set(convocadoIds || [])]
+    .filter(id => !taken.has(id))
+    .map(id => allPlayers.find(p => p.id === id) || players.find(p => p.id === id))
+    .filter(Boolean)
+    .sort((a, b) => ((GROUP[a.position] ?? 9) - (GROUP[b.position] ?? 9)) || ((Number(a.jersey_number) || 999) - (Number(b.jersey_number) || 999)) || (a.last_name || "").localeCompare(b.last_name || ""));
+  const [sel, setSel] = useState(null); // { kind: "slot", i } | { kind: "bench", id }
+  const selPlayer = sel?.kind === "slot" ? slots[sel.i] : sel?.kind === "bench" ? benchPlayers.find(p => p.id === sel.id) : null;
+  const onSlotTap = (i) => {
+    if (!sel) { if (slots[i]) setSel({ kind: "slot", i }); else setPickSlot(i); return; }
+    if (sel.kind === "bench") { setSlot(i, sel.id); setSel(null); return; }
+    if (sel.i === i) { setSel(null); return; }
+    const n = [...slotIds]; [n[i], n[sel.i]] = [n[sel.i], n[i]];
+    setLineup(n); setSel(null);
+  };
+  const onBenchTap = (p) => {
+    if (!sel || sel.kind === "bench") { setSel(sel?.id === p.id ? null : { kind: "bench", id: p.id }); return; }
+    setSlot(sel.i, p.id); setSel(null);
+  };
   const fillFromActa = () => {
     const ids = players.filter(p => starterIds.includes(p.id)).sort((a, b) => POS_ORDER.indexOf(a.position) - POS_ORDER.indexOf(b.position)).map(p => p.id);
     setLineup(Array.from({ length: nSlots }, (_, i) => ids[i] || null));
   };
-  const toggleBench = (id) => setBench(b => b.includes(id) ? b.filter(x => x !== id) : [...b, id]);
-  const benchCandidates = teamPlayers.filter(p => !taken.has(p.id));
   const filled = slotIds.filter(Boolean).length;
   const names = [...new Set(players.map(p => p.last_name).filter(Boolean))];
 
@@ -373,34 +390,59 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
               </Select>
             </div>
           )}
-          <p className="text-[10px] text-gray-400 text-center">Toca un hueco para elegir jugador (cualquiera del club) · arrastra para reposicionar</p>
-          <div style={{ maxWidth: 380, margin: "0 auto", aspectRatio: "300/420" }}>
-            <DraggableField
-              kit={kit}
-              gkKit={gkKit}
-              captainId={slotIds.includes(captain) ? captain : ""}
-              slots={slots}
-              positions={currentPositions}
-              onPositionsChange={(newPos) => setPositions(newPos)}
-              onSlotClick={(i) => setPickSlot(i)}
-            />
-          </div>
+          <p className="text-[10px] text-gray-400 text-center">Toca un jugador y luego otro (del campo o del banquillo) para intercambiarlos · toca un hueco vacío para elegir · arrastra para reposicionar</p>
+          <div className="flex flex-col sm:flex-row gap-3 items-start">
+            <div className="flex-1 min-w-0 w-full" style={{ maxWidth: 380 }}>
+              <div style={{ aspectRatio: "300/420" }}>
+                <DraggableField
+                  kit={kit}
+                  gkKit={gkKit}
+                  captainId={slotIds.includes(captain) ? captain : ""}
+                  slots={slots}
+                  positions={currentPositions}
+                  onPositionsChange={(newPos) => setPositions(newPos)}
+                  onSlotClick={onSlotTap}
+                  selectedIdx={sel?.kind === "slot" ? sel.i : null}
+                />
+              </div>
+            </div>
 
-          <div className="pt-2 border-t border-gray-100">
-            <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1.5">Banquillo <span className="font-normal normal-case">(toca para añadir o quitar)</span></p>
-            <div className="flex flex-wrap gap-1">
-              {benchCandidates.map(p => {
-                const on = bench.includes(p.id);
-                return (
-                  <button key={p.id} type="button" onClick={() => toggleBench(p.id)}
-                    className={`text-[11px] px-2 py-1 rounded-full border ${on ? "text-white border-transparent" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
-                    style={on ? { background: "var(--naranja)" } : {}}>
-                    {playerFullName(p)}
-                  </button>
-                );
-              })}
+            {/* Banquillo: solo convocados, por líneas */}
+            <div className="w-full sm:w-44 shrink-0">
+              <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1.5">Banquillo <span className="font-normal">({benchPlayers.length})</span></p>
+              {benchPlayers.length === 0 ? (
+                <p className="text-[11px] text-gray-400">{(convocadoIds || []).length === 0 ? "Aún no hay convocatoria." : "Todos los convocados están en el once."}</p>
+              ) : (
+                <div className="flex flex-row flex-wrap sm:flex-col gap-1">
+                  {benchPlayers.map((p, idx) => {
+                    const k = kitFor(p, kit, gkKit);
+                    const on = sel?.kind === "bench" && sel.id === p.id;
+                    const newGroup = idx > 0 && (GROUP[p.position] ?? 9) !== (GROUP[benchPlayers[idx - 1].position] ?? 9);
+                    return (
+                      <button key={p.id} type="button" onClick={() => onBenchTap(p)}
+                        className={`flex items-center gap-1.5 text-left rounded-md px-1 py-0.5 border ${on ? "bg-yellow-50 border-yellow-400" : "border-transparent hover:bg-gray-50"} ${newGroup ? "sm:mt-1.5" : ""}`}>
+                        <span className="w-[22px] h-[22px] rounded-full flex items-center justify-center shrink-0" style={{ background: k.fill, border: `2px solid ${k.stroke}`, color: k.num, fontFamily: "'Racing Sarria', sans-serif", fontSize: 11 }}>
+                          {p.jersey_number || p.first_name?.[0]}
+                        </span>
+                        <span className="text-[11px] font-medium text-gray-800 truncate">{playerFirstName(p)} {firstSurname(p.last_name)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
+
+          {sel && selPlayer && (
+            <div className="flex items-center justify-between gap-2 flex-wrap text-xs bg-yellow-50 border border-yellow-300 rounded-lg px-3 py-2">
+              <span className="text-gray-700"><b>{playerFullName(selPlayer)}</b> seleccionado · {sel.kind === "bench" ? "toca un hueco del once para meterlo" : "toca otro jugador para intercambiarlo"}</span>
+              <span className="flex items-center gap-1.5">
+                {sel.kind === "slot" && <button onClick={() => { setPickSlot(sel.i); }} className="px-2 py-1 rounded border border-gray-300 text-gray-700 hover:bg-white">Elegir otro jugador</button>}
+                {sel.kind === "slot" && <button onClick={() => { setSlot(sel.i, null); setSel(null); }} className="px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-white">Vaciar hueco</button>}
+                <button onClick={() => setSel(null)} className="px-2 py-1 rounded border border-gray-300 text-gray-500 hover:bg-white">Cancelar</button>
+              </span>
+            </div>
+          )}
         </div>
 
         {/* ── Planes ── */}
@@ -438,8 +480,8 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
         teamPlayers={teamPlayers}
         taken={taken}
         current={pickSlot !== null ? slots[pickSlot] : null}
-        onPick={(p) => { setSlot(pickSlot, p.id); setBench(b => b.filter(x => x !== p.id)); setPickSlot(null); }}
-        onClear={() => { setSlot(pickSlot, null); setPickSlot(null); }}
+        onPick={(p) => { setSlot(pickSlot, p.id); setSel(null); setPickSlot(null); }}
+        onClear={() => { setSlot(pickSlot, null); setSel(null); setPickSlot(null); }}
       />
     </div>
   );
