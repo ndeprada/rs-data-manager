@@ -4,6 +4,7 @@ const jsPDF = jspdfMod.jsPDF || jspdfMod.default?.jsPDF || jspdfMod.default;
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { playerFirstName, playerFullName } from "@/lib/playerName";
+import { drawRichText } from "@/lib/richTextPdf";
 
 const GRANATE = [115, 0, 10];
 const hex = (h) => { const n = parseInt(h.replace("#", ""), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
@@ -59,28 +60,6 @@ function drawPitch(doc, x0, y0, pw, ph) {
   doc.rect(x0 + pw * 0.34, y0 + m, pw * 0.32, 28 * s);
   doc.rect(x0 + pw * 0.22, y0 + ph - m - 72 * s, pw * 0.56, 72 * s);
   doc.rect(x0 + pw * 0.34, y0 + ph - m - 28 * s, pw * 0.32, 28 * s);
-}
-
-function boxedText(doc, text, x, y, w, h, { max = 10.5, min = 7 } = {}) {
-  const content = (text || "").trim();
-  if (!content) {
-    doc.setFont("helvetica", "italic"); doc.setFontSize(9); doc.setTextColor(170, 170, 170);
-    doc.text("Sin anotaciones.", x, y + 5);
-    return;
-  }
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(40, 40, 40);
-  let size = max, lines;
-  for (; size >= min; size -= 0.5) {
-    doc.setFontSize(size);
-    lines = doc.splitTextToSize(content, w);
-    if (lines.length * size * 0.42 <= h) break;
-  }
-  const lh = size * 0.42;
-  const fit = Math.max(1, Math.floor(h / lh));
-  doc.setFontSize(size);
-  doc.text(lines.slice(0, fit), x, y + lh * 0.8, { lineHeightFactor: 1.15 });
-  if (lines.length > fit) { doc.setFontSize(7); doc.setTextColor(150, 150, 150); doc.text("… (texto recortado, reduce las anotaciones para que quepa)", x, y + h + 2); }
 }
 
 export async function downloadMatchSheetPDF({ event, team, formation, positions, slots, captainId, kit, gkKit, kits, gkKits, benchPlayers, planAttack, planDefense, ourLogoUrl, opponentLogoUrl }) {
@@ -178,7 +157,7 @@ export async function downloadMatchSheetPDF({ event, team, formation, positions,
     doc.roundedRect(rx, y, 1.6, boxH, 0.8, 0.8, "F");
     doc.setTextColor(...GRANATE); doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
     doc.text(label, rx + 6, y + 6.5);
-    boxedText(doc, text, rx + 6, y + 10, rw - 12, boxH - 16);
+    drawRichText(doc, text, rx + 6, y + 10, rw - 12, boxH - 16);
   });
 
   // ── Pie ──

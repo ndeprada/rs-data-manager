@@ -9,6 +9,7 @@ import SetPieceBoard from "./SetPieceBoard";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextBox from "./RichTextBox";
 import { playerFirstName, playerFullName, playerSearchName } from "@/lib/playerName";
 
 const FORMATIONS_F11 = ["4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "3-4-3", "5-3-2", "4-5-1", "4-1-4-1"];
@@ -217,7 +218,7 @@ function Plan({ title, hint, value, onChange: set, placeholder }) {
     <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-2">
       <p className="text-sm font-bold text-gray-900">{title}</p>
       <p className="text-[10px] text-gray-400">{hint}</p>
-      <Textarea value={value} onChange={e => set(e.target.value)} rows={6} className="border-gray-200 text-sm" placeholder={placeholder} />
+      <RichTextBox value={value} onChange={set} placeholder={placeholder} minHeight={140} />
     </div>
   );
 }
@@ -479,13 +480,13 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
           {[["strengths", "Puntos fuertes", "Qué hacen bien, cómo atacan…"], ["weaknesses", "Puntos débiles", "Dónde les podemos hacer daño…"], ["keys", "Jugadores clave", "Dorsal, perfil, cómo frenarlo…"]].map(([k, label, ph]) => (
             <div key={k} className="space-y-1">
               <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{label}</p>
-              <Textarea rows={5} value={rival[k]} onChange={e => setRival(r => ({ ...r, [k]: e.target.value }))} className="border-gray-200 text-sm" placeholder={ph} />
+              <RichTextBox value={rival[k]} onChange={v => setRival(r => ({ ...r, [k]: v }))} placeholder={ph} minHeight={110} />
             </div>
           ))}
         </div>
         <div className="space-y-1">
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Comentarios</p>
-          <Textarea rows={3} value={rival.notes} onChange={e => setRival(r => ({ ...r, notes: e.target.value }))} className="border-gray-200 text-sm" placeholder="Sistema habitual, estilo, balón parado, resultados recientes…" />
+          <RichTextBox value={rival.notes} onChange={v => setRival(r => ({ ...r, notes: v }))} placeholder="Sistema habitual, estilo, balón parado, resultados recientes…" minHeight={70} />
         </div>
       </div>
 

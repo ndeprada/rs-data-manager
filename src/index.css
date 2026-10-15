@@ -117,3 +117,18 @@ h1, h2, .rs-title { letter-spacing: 0.05em !important; }
 [data-radix-collection-item][data-state="inactive"] {
   color: #9ca3af;
 }
+/* Editor de texto enriquecido (plan de partido, análisis del rival) */
+.rs-rich .ql-toolbar.ql-snow { border-color: #e5e7eb; border-radius: 8px 8px 0 0; padding: 4px 6px; }
+.rs-rich .ql-container.ql-snow { border-color: #e5e7eb; border-radius: 0 0 8px 8px; font-family: 'IBM Plex Sans Condensed', sans-serif; font-size: 14px; }
+.rs-rich .ql-editor { min-height: var(--rich-min, 120px); padding: 8px 12px; }
+.rs-rich .ql-editor.ql-blank::before { font-style: normal; color: #9ca3af; }
+.rs-rich .ql-snow .ql-picker.ql-font { width: 110px; }
+.rs-rich .ql-snow .ql-picker.ql-size { width: 96px; }
+.rs-rich .ql-snow .ql-picker.ql-font .ql-picker-label:not([data-value])::before, .rs-rich .ql-snow .ql-picker.ql-font .ql-picker-item:not([data-value])::before { content: 'IBM Plex'; }
+.rs-rich .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Arial"]::before, .rs-rich .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Arial"]::before { content: 'Arial'; }
+.rs-rich .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Georgia"]::before, .rs-rich .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Georgia"]::before { content: 'Georgia'; }
+.rs-rich .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Courier New"]::before, .rs-rich .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Courier New"]::before { content: 'Courier'; }
+.rs-rich .ql-snow .ql-picker.ql-size .ql-picker-label:not([data-value])::before, .rs-rich .ql-snow .ql-picker.ql-size .ql-picker-item:not([data-value])::before { content: 'Normal'; }
+.rs-rich .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before, .rs-rich .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before { content: 'Pequeño'; }
+.rs-rich .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before, .rs-rich .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: 'Grande'; }
+.rs-rich .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before, .rs-rich .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: 'Muy grande'; }
