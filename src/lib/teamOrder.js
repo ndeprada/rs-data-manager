@@ -20,3 +20,6 @@ export function compareTeams(a, b) {
 }
 
 export const sortTeams = (teams) => [...(teams || [])].sort(compareTeams);
+
+// En Racing Sarrià, de Aleví S12 hacia abajo (S12…S7, Escuela) se juega Fútbol 7; el Fútbol 11 empieza en Infantil S13.
+export const isF7Team = (team) => teamRank(team) >= GROUPS_N.indexOf(norm("Aleví S12")) && teamRank(team) < 99;

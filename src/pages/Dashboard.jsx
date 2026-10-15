@@ -1,4 +1,4 @@
-import { sortTeams, compareTeams } from "@/lib/teamOrder";
+import { sortTeams, compareTeams, isF7Team } from "@/lib/teamOrder";
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -179,7 +179,7 @@ export default function Dashboard() {
     .filter((e) => isMatch(e.type) && e.score_home != null && e.score_away != null && inScope(e.team_id)
       && new Date(e.date) >= weekendStart && new Date(e.date) <= endOfDay(lastSunday))
     .sort((a, b) => compareTeams(teams.find((t) => t.id === a.team_id) || {}, teams.find((t) => t.id === b.team_id) || {}) || new Date(a.date) - new Date(b.date));
-  const isF7 = (e) => e.football_format === "f7" || e.football_format === "f5";
+  const isF7 = (e) => { const t = teams.find((x) => x.id === e.team_id); return t ? isF7Team(t) : (e.football_format === "f7" || e.football_format === "f5"); };
   const weekendLabel = `${format(subDays(lastSunday, 1), "d", { locale: es })}–${format(lastSunday, "d MMM", { locale: es })}`;
 
   // Semana actual completa (lunes a domingo)
@@ -188,7 +188,7 @@ export default function Dashboard() {
   const weekEvents = events.filter((e) => inScope(e.team_id) && new Date(e.date) >= weekStart && new Date(e.date) < addDays(weekStart, 7)).sort((a, b) => new Date(a.date) - new Date(b.date));
 
   // Líderes por modalidad (F7 / F11)
-  const formatByEvent = useMemo(() => new Map(events.map((e) => [e.id, e.football_format === "f7" || e.football_format === "f5" ? "f7" : "f11"])), [events]);
+  const formatByEvent = useMemo(() => new Map(events.map((e) => [e.id, isF7(e) ? "f7" : "f11"])), [events, teams]);
   const leadersFor = (fmt) => {
     const acc = new Map();
     matchStats.forEach((ms) => {
