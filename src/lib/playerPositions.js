@@ -28,47 +28,58 @@ export function getPositionList(player) {
   return list.map((x, i) => ({ x, i })).sort((a, b) => rank[a.x.level] - rank[b.x.level] || a.i - b.i).map((o) => o.x);
 }
 
-// Un solo botón por posición en el campograma: el del nivel más alto (natural > secundaria > competente)
+// ── Ubicación en el campo (0-100; x = izquierda→derecha, y = 0 portería rival … 100 portería propia) ──
+// Cada rol tiene una altura (y) y un modo de reparto horizontal según la lateralidad:
+//  center = siempre en el centro · shift = algo hacia su pie natural (dx desde el centro)
+//  band = banda del pie natural (x desde el borde) · band_inv = banda contraria (pierna cambiada)
+// Ambidiestro: las posiciones lateralizadas (shift/band/band_inv) salen en ambos lados.
+const POS_DEFAULT = {
+  portero: { y: 96, mode: "center" },
+  central: { y: 69, mode: "shift", v: 4 },
+  lateral: { y: 66, mode: "band", v: 16 },
+  mediocentro: { y: 56, mode: "center" },
+  interior: { y: 41, mode: "shift", v: 12 },
+  extremo: { y: 25, mode: "band", v: 11 },
+  delantero_centro: { y: 12, mode: "center" },
+};
+const ROLE_POS = {
+  central_libre: { y: 80 }, central_marcador: { y: 69 }, central_con_salida: { y: 69 }, central_completo: { y: 69 },
+  lateral_defensivo: { y: 76 }, lateral_interior: { y: 66 }, lateral_completo: { y: 66 },
+  mediocentro_posicional: { y: 56 }, mediocentro_organizador: { y: 56 },
+  interior_mixto: { y: 41 }, interior_avanzado: { y: 31 },
+  extremo_apoyo: { y: 30, v: 13 }, extremo_profundo: { y: 19, v: 10 }, extremo_interior: { y: 19, v: 10, mode: "band_inv" },
+  falso_9: { y: 22 }, mediapunta: { y: 22 }, delantero_profundo: { y: 12 },
+  portero_defensivo: { y: 96 }, portero_completo: { y: 96 },
+};
+
+// Devuelve uno o dos puntos (dos si es ambidiestro y la posición es lateralizada)
+export function getPitchXYs(position, role, laterality) {
+  const key = position === "libre" ? "central" : position;
+  const base = POS_DEFAULT[key];
+  if (!base) return [];
+  const r = { ...base, ...(ROLE_POS[role] || (position === "libre" ? ROLE_POS.central_libre : {})) };
+  if (r.mode === "center") return [{ x: 50, y: r.y }];
+  const ambi = laterality === "ambidiestro";
+  const sides = ambi ? ["left", "right"] : [laterality === "zurdo" ? "left" : "right"];
+  return sides.map((side) => {
+    const sd = r.mode === "band_inv" && !ambi ? (side === "left" ? "right" : "left") : side;
+    const x = r.mode === "shift" ? (sd === "left" ? 50 - r.v : 50 + r.v) : (sd === "left" ? r.v : 100 - r.v);
+    return { x, y: r.y };
+  });
+}
+
+export function getPitchXY(position, role, laterality) {
+  return getPitchXYs(position, role, laterality)[0] || null;
+}
+
+// Un solo grupo de botones por posición: el del nivel más alto (natural > secundaria > competente)
 export function getPitchMarkers(player, laterality) {
   const seen = new Set();
   const out = [];
   getPositionList(player).forEach((x) => {
     if (seen.has(x.position)) return;
     seen.add(x.position);
-    const c = getPitchXY(x.position, x.role, laterality);
-    if (c) out.push({ ...x, c });
+    getPitchXYs(x.position, x.role, laterality).forEach((c) => out.push({ ...x, c }));
   });
   return out;
-}
-
-
-// ── Ubicación en el campo (0-100; x = izquierda→derecha, y = 0 portería rival … 100 portería propia) ──
-// Orden de profundidad: portero → centrales → laterales (algo más adelantados) → mediocentro → interiores → extremos → delantero.
-// El rol ajusta la altura: libre más atrás, delantero de referencia muy arriba, falso 9 / mediapunta más cerca de los medios.
-const BASE = {
-  portero: { x: 50, y: 93 },
-  central: { x: 50, y: 70 },
-  lateral: { x: 14, y: 65 },   // lado izquierdo (perfil del zurdo); se espeja para diestros
-  mediocentro: { x: 50, y: 52 },
-  interior: { x: 30, y: 42 },
-  extremo: { x: 12, y: 27 },
-  delantero_centro: { x: 50, y: 15 },
-};
-const ROLE_ADJUST = {
-  central_libre: { y: 74 }, central_marcador: { y: 70 }, central_con_salida: { y: 68 }, central_completo: { y: 69 },
-  lateral_defensivo: { y: 67 }, lateral_interior: { x: 26, y: 61 }, lateral_completo: { y: 63 },
-  mediocentro_posicional: { y: 58 }, mediocentro_organizador: { y: 49 },
-  interior_mixto: { y: 43 }, interior_avanzado: { y: 35 },
-  extremo_apoyo: { x: 14, y: 32 }, extremo_profundo: { x: 10, y: 21 }, extremo_interior: { x: 22, y: 28 },
-  falso_9: { y: 31 }, mediapunta: { y: 34 }, delantero_profundo: { y: 12 },
-  portero_defensivo: { y: 94 }, portero_completo: { y: 90 },
-};
-const MIRROR = new Set(["lateral", "extremo", "interior"]);
-
-export function getPitchXY(position, role, laterality) {
-  const key = position === "libre" ? "central" : position;
-  const base = BASE[key];
-  if (!base) return null;
-  const c = { ...base, ...(ROLE_ADJUST[role] || (position === "libre" ? ROLE_ADJUST.central_libre : {})) };
-  return laterality !== "zurdo" && MIRROR.has(key) ? { x: 100 - c.x, y: c.y } : c;
 }
