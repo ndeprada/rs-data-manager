@@ -179,6 +179,7 @@ export default function Dashboard() {
     .filter((e) => isMatch(e.type) && e.score_home != null && e.score_away != null && inScope(e.team_id)
       && new Date(e.date) >= weekendStart && new Date(e.date) <= endOfDay(lastSunday))
     .sort((a, b) => compareTeams(teams.find((t) => t.id === a.team_id) || {}, teams.find((t) => t.id === b.team_id) || {}) || new Date(a.date) - new Date(b.date));
+  const isF7 = (e) => e.football_format === "f7" || e.football_format === "f5";
   const weekendLabel = `${format(subDays(lastSunday, 1), "d", { locale: es })}–${format(lastSunday, "d MMM", { locale: es })}`;
 
   // Semana actual completa (lunes a domingo)
@@ -298,7 +299,7 @@ export default function Dashboard() {
         <Title right={<Link to="/Calendar" className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--granate)", ...display }}>Calendario completo →</Link>}>
           Planificación semanal{!isCoordinator && hasMine ? " · mis equipos" : ""} · {format(weekDays[0], "d MMM", { locale: es })} – {format(weekDays[6], "d MMM", { locale: es })}
         </Title>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 px-4 pb-4">
+        <div className="grid grid-cols-7 gap-1 sm:gap-3 px-2 sm:px-4 pb-4">
           {weekDays.map((d) => {
             const k = format(d, "yyyy-MM-dd");
             const evs = weekEvents.filter((e) => format(new Date(e.date), "yyyy-MM-dd") === k);
@@ -307,16 +308,17 @@ export default function Dashboard() {
             return (
               <div key={k} className="space-y-1.5 min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-widest capitalize" style={{ ...display, color: isToday ? "var(--naranja)" : "#6b7280" }}>
-                  {isToday ? "Hoy · " : ""}{format(d, "EEE d", { locale: es })}
+                  <span className="sm:hidden">{format(d, "EEEEE d", { locale: es })}</span>
+                  <span className="hidden sm:inline">{isToday ? "Hoy · " : ""}{format(d, "EEE d", { locale: es })}</span>
                 </p>
                 {sorted.length === 0 && <p className="text-[11px] text-gray-300 pl-1">—</p>}
                 {sorted.slice(0, 4).map((e) => {
                   const m = isMatch(e.type);
                   const content = (
-                    <div className="rounded-md px-2.5 py-1.5 hover:brightness-95 transition" style={{ background: m ? "var(--granate-pale)" : "#f9fafb" }}>
-                      <p className="text-[10px] font-bold" style={{ color: m ? "var(--granate)" : "var(--naranja)" }}>{format(new Date(e.date), "HH:mm")}</p>
-                      <p className="text-xs font-semibold text-gray-900 leading-tight line-clamp-2">{m ? (e.opponent ? `${teamName(e.team_id)} vs ${e.opponent}` : e.title) : (e.title || "Entrenamiento")}</p>
-                      {!m && <p className="text-[10px] text-gray-500">{teamName(e.team_id)}</p>}
+                    <div className="rounded-md px-1 sm:px-2.5 py-1 sm:py-1.5 hover:brightness-95 transition" style={{ background: m ? "var(--granate-pale)" : "#f9fafb", outline: isToday ? "1px solid var(--naranja)" : undefined }}>
+                      <p className="text-[9px] sm:text-[10px] font-bold" style={{ color: m ? "var(--granate)" : "var(--naranja)" }}>{format(new Date(e.date), "HH:mm")}</p>
+                      <p className="text-[9px] sm:text-xs font-semibold text-gray-900 leading-tight line-clamp-3 sm:line-clamp-2 break-words">{m ? (e.opponent ? `${teamName(e.team_id)} vs ${e.opponent}` : e.title) : (e.title || "Entrenamiento")}</p>
+                      {!m && <p className="text-[8px] sm:text-[10px] text-gray-500 leading-tight break-words">{teamName(e.team_id)}</p>}
                     </div>
                   );
                   return m ? <Link key={e.id} to={`/MatchDetail?id=${e.id}&teamId=${e.team_id}`} className="block">{content}</Link> : <div key={e.id}>{content}</div>;
@@ -332,21 +334,27 @@ export default function Dashboard() {
       <div className={`${card} overflow-hidden`} style={cardStyle}>
         <Title right={<span className="text-[11px] font-bold text-gray-400">{recent.length} partidos</span>}>Resultados del fin de semana · {weekendLabel}</Title>
         {recent.length === 0 ? <p className="px-4 pb-3 text-sm text-gray-400">Todavía no hay resultados de ese fin de semana.</p> : (
-          <div className="pb-2 columns-1 md:columns-2 xl:columns-3 gap-x-2">
-            {recent.map((m) => {
-              const win = m.score_home > m.score_away, draw = m.score_home === m.score_away;
-              const c = win ? "#16a34a" : draw ? "#6b7280" : "#dc2626";
-              return (
-                <Link key={m.id} to={`/MatchDetail?id=${m.id}&teamId=${m.team_id}`} className="break-inside-avoid px-4 py-1.5 flex items-center gap-3 hover:bg-gray-50 min-w-0">
-                  <span className="w-5 h-5 rounded text-[10px] font-black text-white flex items-center justify-center shrink-0" style={{ background: c }}>{win ? "V" : draw ? "E" : "D"}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold text-gray-900 truncate">{teamName(m.team_id)}</p>
-                    <p className="text-[11px] text-gray-500 truncate">vs {m.opponent || "—"}</p>
-                  </div>
-                  <span className="text-lg font-black shrink-0" style={{ ...display, color: c }}>{m.score_home}–{m.score_away}</span>
-                </Link>
-              );
-            })}
+          <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-gray-100">
+            {[["Fútbol 11", recent.filter((m) => !isF7(m))], ["Fútbol 7", recent.filter(isF7)]].map(([label, list]) => (
+              <div key={label} className="pb-2 min-w-0">
+                <p className="px-4 pt-1 pb-1 text-[10px] font-black uppercase tracking-widest text-gray-400" style={display}>{label} · {list.length}</p>
+                {list.length === 0 && <p className="px-4 pb-2 text-sm text-gray-300">—</p>}
+                {list.map((m) => {
+                  const win = m.score_home > m.score_away, draw = m.score_home === m.score_away;
+                  const c = win ? "#16a34a" : draw ? "#6b7280" : "#dc2626";
+                  return (
+                    <Link key={m.id} to={`/MatchDetail?id=${m.id}&teamId=${m.team_id}`} className="px-4 py-1.5 flex items-center gap-3 hover:bg-gray-50 min-w-0">
+                      <span className="w-5 h-5 rounded text-[10px] font-black text-white flex items-center justify-center shrink-0" style={{ background: c }}>{win ? "V" : draw ? "E" : "D"}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] font-semibold text-gray-900 truncate">{teamName(m.team_id)}</p>
+                        <p className="text-[11px] text-gray-500 truncate">vs {m.opponent || "—"}</p>
+                      </div>
+                      <span className="text-lg font-black shrink-0" style={{ ...display, color: c }}>{m.score_home}–{m.score_away}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         )}
       </div>
