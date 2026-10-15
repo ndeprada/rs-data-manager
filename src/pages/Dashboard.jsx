@@ -1,4 +1,4 @@
-import { sortTeams, compareTeams, isF7Team } from "@/lib/teamOrder";
+import { sortTeams, compareTeams, isF7Team, teamRank } from "@/lib/teamOrder";
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -88,17 +88,19 @@ function TeamCard({ team, count }) {
   const me = rows.find((r) => r.teamId === data?.ourTeamId);
   const form = (me?.form || []).slice().reverse().slice(-5);
   return (
-    <Link to={`/TeamDetail?id=${team.id}`} className="bg-white border border-gray-200 p-3 hover:shadow-md transition-shadow flex flex-col gap-1.5" style={{ borderRadius: "6px", borderLeft: "3px solid var(--granate)" }}>
-      <p className="font-black text-gray-900 uppercase text-[13px] leading-tight truncate" style={display}>{team.name}</p>
-      <div className="flex items-end gap-2">
-        <span className="text-2xl font-black leading-none" style={{ ...display, color: "var(--granate)" }}>{me ? `${me.pos}º` : "—"}</span>
-        <span className="text-[11px] text-gray-500 mb-0.5">{me ? `${me.pts} pts` : ""}</span>
-        <span className="ml-auto text-[10px] text-gray-400 mb-0.5">{count} jug.</span>
+    <Link to={`/TeamDetail?id=${team.id}`} className="bg-white border border-gray-200 px-2.5 py-1.5 hover:shadow-md transition-shadow flex flex-col gap-0.5 min-w-0" style={{ borderRadius: "6px", borderLeft: "3px solid var(--granate)" }}>
+      <div className="flex items-baseline gap-1.5 min-w-0">
+        <p className="font-black text-gray-900 uppercase text-[12px] leading-tight truncate" style={display}>{team.name}</p>
+        <span className="ml-auto text-[9px] text-gray-400 shrink-0">{count} jug.</span>
       </div>
-      <div className="flex gap-0.5 h-4">
-        {form.map((f, i) => (
-          <span key={i} className="w-4 h-4 rounded-[3px] text-[9px] font-black text-white flex items-center justify-center" style={{ background: (FORM[f] || ["?", "#9ca3af"])[1] }}>{(FORM[f] || ["?"])[0]}</span>
-        ))}
+      <div className="flex items-center gap-1.5">
+        <span className="text-lg font-black leading-none" style={{ ...display, color: "var(--granate)" }}>{me ? `${me.pos}º` : "—"}</span>
+        <span className="text-[10px] text-gray-500">{me ? `${me.pts} pts` : ""}</span>
+        <div className="ml-auto flex gap-0.5">
+          {form.map((f, i) => (
+            <span key={i} className="w-3.5 h-3.5 rounded-[3px] text-[8px] font-black text-white flex items-center justify-center" style={{ background: (FORM[f] || ["?", "#9ca3af"])[1] }}>{(FORM[f] || ["?"])[0]}</span>
+          ))}
+        </div>
       </div>
     </Link>
   );
@@ -180,6 +182,7 @@ export default function Dashboard() {
       && new Date(e.date) >= weekendStart && new Date(e.date) <= endOfDay(lastSunday))
     .sort((a, b) => compareTeams(teams.find((t) => t.id === a.team_id) || {}, teams.find((t) => t.id === b.team_id) || {}) || new Date(a.date) - new Date(b.date));
   const isF7 = (e) => { const t = teams.find((x) => x.id === e.team_id); return t ? isF7Team(t) : (e.football_format === "f7" || e.football_format === "f5"); };
+  const rankOf = (e) => teamRank(teams.find((x) => x.id === e.team_id));
   const weekendLabel = `${format(subDays(lastSunday, 1), "d", { locale: es })}–${format(lastSunday, "d MMM", { locale: es })}`;
 
   // Semana actual completa (lunes a domingo)
@@ -334,22 +337,19 @@ export default function Dashboard() {
       <div className={`${card} overflow-hidden`} style={cardStyle}>
         <Title right={<span className="text-[11px] font-bold text-gray-400">{recent.length} partidos</span>}>Resultados del fin de semana · {weekendLabel}</Title>
         {recent.length === 0 ? <p className="px-4 pb-3 text-sm text-gray-400">Todavía no hay resultados de ese fin de semana.</p> : (
-          <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-gray-100">
-            {[["Fútbol 11", recent.filter((m) => !isF7(m))], ["Fútbol 7", recent.filter(isF7)]].map(([label, list]) => (
-              <div key={label} className="pb-2 min-w-0">
-                <p className="px-4 pt-1 pb-1 text-[10px] font-black uppercase tracking-widest text-gray-400" style={display}>{label} · {list.length}</p>
-                {list.length === 0 && <p className="px-4 pb-2 text-sm text-gray-300">—</p>}
+          <div className="grid grid-cols-1 md:grid-cols-3 md:divide-x divide-gray-100">
+            {[["Primer Equipo y Juvenil", recent.filter((m) => !isF7(m) && rankOf(m) <= 1)], ["Cadete e Infantil · F11", recent.filter((m) => !isF7(m) && rankOf(m) > 1)], ["Fútbol 7", recent.filter(isF7)]].map(([label, list]) => (
+              <div key={label} className="pb-1.5 min-w-0">
+                <p className="px-3 pt-1 pb-0.5 text-[10px] font-black uppercase tracking-widest text-gray-400" style={display}>{label} · {list.length}</p>
+                {list.length === 0 && <p className="px-3 pb-1 text-sm text-gray-300">—</p>}
                 {list.map((m) => {
                   const win = m.score_home > m.score_away, draw = m.score_home === m.score_away;
                   const c = win ? "#16a34a" : draw ? "#6b7280" : "#dc2626";
                   return (
-                    <Link key={m.id} to={`/MatchDetail?id=${m.id}&teamId=${m.team_id}`} className="px-4 py-1.5 flex items-center gap-3 hover:bg-gray-50 min-w-0">
-                      <span className="w-5 h-5 rounded text-[10px] font-black text-white flex items-center justify-center shrink-0" style={{ background: c }}>{win ? "V" : draw ? "E" : "D"}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[13px] font-semibold text-gray-900 truncate">{teamName(m.team_id)}</p>
-                        <p className="text-[11px] text-gray-500 truncate">vs {m.opponent || "—"}</p>
-                      </div>
-                      <span className="text-lg font-black shrink-0" style={{ ...display, color: c }}>{m.score_home}–{m.score_away}</span>
+                    <Link key={m.id} to={`/MatchDetail?id=${m.id}&teamId=${m.team_id}`} className="px-3 py-[3px] flex items-center gap-2 hover:bg-gray-50 min-w-0">
+                      <span className="w-4 h-4 rounded-[3px] text-[9px] font-black text-white flex items-center justify-center shrink-0" style={{ background: c }}>{win ? "V" : draw ? "E" : "D"}</span>
+                      <p className="text-[12px] font-semibold text-gray-900 truncate min-w-0 flex-1">{teamName(m.team_id)} <span className="font-normal text-[10px] text-gray-400">vs {m.opponent || "—"}</span></p>
+                      <span className="text-[13px] font-black shrink-0" style={{ ...display, color: c }}>{m.score_home}–{m.score_away}</span>
                     </Link>
                   );
                 })}
@@ -381,7 +381,7 @@ export default function Dashboard() {
               ))}
               <Link to="/Teams" className="ml-auto text-[11px] font-bold uppercase tracking-wider self-center" style={{ color: "var(--granate)", ...display }}>Gestionar →</Link>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-1.5">
               {shownTeams.map((t) => <TeamCard key={t.id} team={t} count={players.filter((p) => p.team_id === t.id).length} />)}
             </div>
           </div>
