@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { RotateCcw, Eraser, Wand2, Search } from "lucide-react";
+import { RotateCcw, Eraser, Wand2, Search, FileDown } from "lucide-react";
+import { downloadMatchSheetPDF } from "@/lib/matchSheetPdf";
+import { CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import SetPieceBoard from "./SetPieceBoard";
 import { Button } from "@/components/ui/button";
@@ -221,7 +223,7 @@ function Plan({ title, hint, value, onChange: set, placeholder }) {
 }
 
 // ── Main Tab ────────────────────────────────────────────
-export default function TacticaTab({ event, players, convocadoIds, starterIds, footballFormat }) {
+export default function TacticaTab({ event, players, convocadoIds, starterIds, footballFormat, team }) {
   const qc = useQueryClient();
   const isF7 = footballFormat === "f7";
   const formations = isF7 ? FORMATIONS_F7 : FORMATIONS_F11;
@@ -338,12 +340,28 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
     const ids = players.filter(p => starterIds.includes(p.id)).sort((a, b) => POS_ORDER.indexOf(a.position) - POS_ORDER.indexOf(b.position)).map(p => p.id);
     setLineup(Array.from({ length: nSlots }, (_, i) => ids[i] || null));
   };
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const makePdf = async () => {
+    setPdfBusy(true);
+    try {
+      await downloadMatchSheetPDF({
+        event, team, formation: validFormation, positions: currentPositions, slots, captainId: slotIds.includes(captain) ? captain : "",
+        kit, gkKit, kits: KITS, gkKits: GK_KITS, benchPlayers, planAttack, planDefense,
+        ourLogoUrl: team?.logo_url || CLUB_LOGO_URL_WHITE, opponentLogoUrl: event?.opponent_logo_url,
+      });
+    } finally { setPdfBusy(false); }
+  };
   const filled = slotIds.filter(Boolean).length;
   const names = [...new Set(players.map(p => p.last_name).filter(Boolean))];
 
   return (
     <div className="space-y-5">
-      <div className="flex justify-end text-[11px] text-gray-400 h-4">{status}</div>
+      <div className="flex items-center justify-between gap-2">
+        <button type="button" disabled={pdfBusy} onClick={makePdf} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-60" style={{ background: "var(--granate)" }}>
+          <FileDown className="w-3.5 h-3.5" /> {pdfBusy ? "Generando…" : "Hoja del entrenador (PDF)"}
+        </button>
+        <span className="text-[11px] text-gray-400 h-4">{status}</span>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* ── Once inicial: libre, no depende de la convocatoria ── */}

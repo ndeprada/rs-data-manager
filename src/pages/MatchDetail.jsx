@@ -302,6 +302,7 @@ export default function MatchDetail() {
           convocadoIds={convocation?.player_ids || []}
           starterIds={convocation?.starters || []}
           footballFormat={event?.football_format}
+          team={team}
         />
       )}
 
