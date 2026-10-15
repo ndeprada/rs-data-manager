@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import TeamPageHeader from "@/components/myteam/TeamPageHeader";
 import { useSelectedTeam } from "@/lib/useSelectedTeam";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
+import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import GuestPlayerSelector from "@/components/common/GuestPlayerSelector";
 import { birthYearOf } from "@/lib/birthYear";
 import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
@@ -45,6 +46,7 @@ export default function TeamAttendance() {
 
   const { selectedTeamId, selectTeam, canSwitch, isCoordinator, teamIds: myTeamIds } = useSelectedTeam();
   const [editingEvent, setEditingEvent] = useState(null);
+  const [createEventDate, setCreateEventDate] = useState(null);
   const [trialName, setTrialName] = useState("");
   const [showGuests, setShowGuests] = useState(false);
   const [showExternal, setShowExternal] = useState(true);
@@ -253,6 +255,7 @@ export default function TeamAttendance() {
             teamId={selectedTeamId}
             title="Entrenamientos de la semana"
             forceGrid
+            onDayClick={(day) => setCreateEventDate(day)}
             onEventClick={(ev) => TRAINING_TYPES.includes(ev.type) ? navigate(`/MyTeam/Attendance?eventId=${ev.id}`) : setEditingEvent(ev)}
           />
 
@@ -352,6 +355,13 @@ export default function TeamAttendance() {
         open={!!editingEvent}
         onOpenChange={(open) => { if (!open) setEditingEvent(null); }}
         event={editingEvent}
+      />
+
+      <CreateEventDialog
+        open={!!createEventDate}
+        onOpenChange={(open) => { if (!open) setCreateEventDate(null); }}
+        date={createEventDate}
+        teamId={selectedTeamId}
       />
     </div>
   );
