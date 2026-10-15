@@ -155,9 +155,9 @@ export async function syncFcf() {
     playersByTeam.get(k).add(tokensKey(`${r.data.first_name || ''} ${r.data.last_name || ''}`));
   }
   const { rows: eventRows } = await query(
-    `select id, data ->> 'fcf_acta' as acta, data ->> 'opponent_logo_url' as logo from entities where entity_type = 'Event' and data ? 'fcf_acta'`
+    `select id, data ->> 'fcf_acta' as acta, data ->> 'opponent_logo_url' as logo, data ->> 'date_locked' as locked from entities where entity_type = 'Event' and data ? 'fcf_acta'`
   );
-  const eventByActa = new Map(eventRows.map((r) => [r.acta, { id: r.id, logo: r.logo }]));
+  const eventByActa = new Map(eventRows.map((r) => [r.acta, { id: r.id, logo: r.logo, locked: r.locked === 'true' }]));
 
   const eventInserts = [];
   const eventPatches = [];
@@ -254,6 +254,8 @@ export async function syncFcf() {
         if (played) { data.score_home = Number(home ? hg : ag); data.score_away = Number(home ? ag : hg); }
         const existing = eventByActa.get(String(m.CODACTA));
         if (existing) {
+          // Si has cambiado la fecha a mano (partido aplazado), la sincronización no la vuelve a pisar
+          if (existing.locked) { delete data.date; delete data.end_date; }
           // No pisar un escudo que hayas subido tú
           if (data.fcf_opponent_logo && (!existing.logo || existing.logo.startsWith('https://files.fcf.cat/'))) data.opponent_logo_url = data.fcf_opponent_logo;
           eventPatches.push({ id: existing.id, d: data });
@@ -273,10 +275,41 @@ export async function syncFcf() {
   await bulkInsert('Player', playerInserts);
   await bulkInsert('Event', eventInserts);
   await bulkPatch(eventPatches);
+  try { await linkPostponed(stats); } catch (e) { stats.errors.push(`aplazados: ${e.message}`); }
   try { await syncActas(stats); } catch (e) { stats.errors.push(`actas: ${e.message}`); }
   try { await syncDorsales(stats); } catch (e) { stats.errors.push(`dorsales: ${e.message}`); }
   try { await recalcPrimerEquipoMinutes(stats); } catch (e) { stats.errors.push(`minutos: ${e.message}`); }
   return stats;
+}
+
+// ── Partidos aplazados: la FCF crea un acta nueva para la fecha nueva; el partido antiguo (sin jugar) se marca
+// como aplazado y enlazado al nuevo para que no salga duplicado en las listas.
+async function linkPostponed(stats) {
+  const { rows } = await query(
+    `select id, data from entities where entity_type = 'Event' and data ->> 'type' = 'partido_liga' and data ? 'fcf_acta' and coalesce(data ->> 'fcf_jornada', '0') <> '0'`
+  );
+  const groups = new Map();
+  for (const r of rows) {
+    const k = `${r.data.team_id}|${r.data.fcf_jornada}|${norm(r.data.opponent || '')}`;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  }
+  const patches = [];
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    list.sort((a, b) => String(a.data.date).localeCompare(String(b.data.date)));
+    const newest = list[list.length - 1];
+    for (const old of list.slice(0, -1)) {
+      const played = old.data.score_home !== undefined && old.data.score_home !== null;
+      if (played || (old.data.match_events || []).length || old.data.postponed_to_event_id === newest.id) continue;
+      patches.push({ id: old.id, d: { postponed: true, postponed_to_event_id: newest.id, postponed_to: newest.data.date } });
+      if (!newest.data.postponed_from) patches.push({ id: newest.id, d: { postponed_from: old.data.date } });
+    }
+  }
+  const merged = new Map();
+  for (const p of patches) merged.set(p.id, { id: p.id, d: { ...(merged.get(p.id)?.d || {}), ...p.d } });
+  await bulkPatch([...merged.values()]);
+  stats.matches_postponed = patches.filter((p) => p.d.postponed).length;
 }
 
 // ── Actas: alineaciones, goles, tarjetas y cambios desde la FCF ──────────────

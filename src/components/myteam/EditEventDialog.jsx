@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { es } from "date-fns/locale";
 import { format, differenceInCalendarDays, startOfDay, parseISO } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -140,7 +141,10 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
   const buildData = () => {
     const dateStr = form.date;
     const endDate = form.end_time ? `${dateStr}T${form.end_time}:00` : undefined;
+    // Partido con la fecha cambiada = aplazado: se guarda la fecha original y se bloquea la fecha para que la sincronización con la FCF no la pise
+    const moved = isMatch && String(event.date || "").slice(0, 10) !== dateStr;
     return {
+      ...(moved ? { postponed_from: event.postponed_from || event.date, date_locked: true } : {}),
       type: form.type,
       title: form.title || (isMatch && form.opponent ? `vs ${form.opponent}` : EVENT_TYPES.find(t => t.value === form.type)?.label || ""),
       date: `${dateStr}T${form.time}:00`,
@@ -241,6 +245,12 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
                   className="w-full h-9 rounded-md border border-gray-200 bg-transparent text-sm shadow-sm px-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
               </div>
             </div>
+
+            {isMatch && String(event.date || "").slice(0, 10) !== form.date && form.date && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 -mt-2">
+                Se guardará como <b>partido aplazado</b> (fecha original: {format(new Date(event.postponed_from || event.date), "d MMM", { locale: es })}). Se mantiene todo lo anotado en el partido.
+              </p>
+            )}
 
             {/* Lugar y campo */}
             <div className="grid grid-cols-2 gap-3">

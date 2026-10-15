@@ -1,3 +1,4 @@
+import { sortTeams } from "@/lib/teamOrder";
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -201,7 +202,7 @@ export default function Dashboard() {
     ];
   };
 
-  const sortedTeams = useMemo(() => [...teams].sort((a, b) => (a.name || "").localeCompare(b.name || "", "es", { numeric: true })), [teams]);
+  const sortedTeams = useMemo(() => sortTeams(teams), [teams]);
   const shownTeams = sortedTeams.filter((t) => group === "Todos" || groupOf(t) === group);
 
   const calEvents = events.filter((e) => inScope(e.team_id));

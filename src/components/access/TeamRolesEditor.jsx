@@ -1,3 +1,4 @@
+import { sortTeams } from "@/lib/teamOrder";
 import React from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,7 +13,7 @@ export default function TeamRolesEditor({ value = [], onChange, teams = [], role
   const add = () => onChange([...value, { team_id: "", team_role: "" }]);
 
   const usedTeams = (i) => new Set(value.filter((a, idx) => idx !== i && a.team_id).map((a) => a.team_id));
-  const sortedTeams = [...teams].sort((a, b) => (a.name || "").localeCompare(b.name || "", "es", { numeric: true }));
+  const sortedTeams = sortTeams(teams);
 
   return (
     <div className="space-y-2">

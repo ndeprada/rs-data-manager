@@ -4,6 +4,8 @@
 // base44.integrations.Core.UploadFile/SendEmail/InvokeLLM)
 // para no tener que tocar el resto de la app.
 
+import { sortTeams } from '@/lib/teamOrder';
+
 async function apiFetch(path, { method = 'GET', body, query } = {}) {
   let url = path;
   if (query && Object.keys(query).length > 0) {
@@ -36,14 +38,22 @@ async function apiFetch(path, { method = 'GET', body, query } = {}) {
   return res.json();
 }
 
+// Los equipos siempre salen ordenados de mayores a menores (ver lib/teamOrder.js)
+const orderResult = (entityType, p, hideSuperseded = false) => {
+  if (entityType === 'Team') return p.then((r) => (Array.isArray(r) ? sortTeams(r) : r));
+  // Un partido aplazado que ya tiene su nueva fecha (otro evento) no se muestra en listados para no duplicarlo
+  if (entityType === 'Event' && hideSuperseded) return p.then((r) => (Array.isArray(r) ? r.filter((e) => !(e.postponed && e.postponed_to_event_id)) : r));
+  return p;
+};
+
 function makeEntityClient(entityType) {
   return {
     list: (sort, limit) =>
-      apiFetch(`/api/entities/${entityType}`, { query: { sort, limit } }),
+      orderResult(entityType, apiFetch(`/api/entities/${entityType}`, { query: { sort, limit } }), true),
     filter: (filterObj = {}, sort, limit) =>
-      apiFetch(`/api/entities/${entityType}`, {
+      orderResult(entityType, apiFetch(`/api/entities/${entityType}`, {
         query: { q: JSON.stringify(filterObj), sort, limit },
-      }),
+      }), !filterObj?.id),
     get: (id) => apiFetch(`/api/entities/${entityType}/${id}`),
     create: (data) => apiFetch(`/api/entities/${entityType}`, { method: 'POST', body: data }),
     update: (id, data) =>

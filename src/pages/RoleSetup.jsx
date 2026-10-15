@@ -1,3 +1,4 @@
+import { sortTeams } from "@/lib/teamOrder";
 import React, { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
@@ -172,7 +173,7 @@ export default function RoleSetup() {
           <Select value={playerTeam} onValueChange={setPlayerTeam}>
             <SelectTrigger className="border-gray-300"><SelectValue placeholder="Selecciona tu equipo" /></SelectTrigger>
             <SelectContent>
-              {[...teams].sort((a, b) => (a.name || "").localeCompare(b.name || "", "es", { numeric: true })).map((t) => (
+              {sortTeams(teams).map((t) => (
                 <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
               ))}
             </SelectContent>

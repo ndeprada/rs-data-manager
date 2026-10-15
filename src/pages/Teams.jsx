@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { sortTeams } from "@/lib/teamOrder";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Shield, Plus, List, Grid3x3, RefreshCw } from "lucide-react";
@@ -30,33 +31,7 @@ const extractNameParts = (name) => {
   return parts;
 };
 
-const sortTeamsByAge = (teams) => {
-  return [...teams].sort((a, b) => {
-    const indexA = CATEGORY_AGE_ORDER.indexOf(a.category);
-    const indexB = CATEGORY_AGE_ORDER.indexOf(b.category);
-    // Si no encuentra la categoría, la pone al final
-    if (indexA === -1) return 1;
-    if (indexB === -1) return -1;
-    // Si están en la misma categoría, ordena por nombre
-    if (indexA === indexB) {
-      const partsA = extractNameParts(a.name);
-      const partsB = extractNameParts(b.name);
-      // Compara parte a parte (números se comparan numéricamente)
-      for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
-        const partA = partsA[i] ?? '';
-        const partB = partsB[i] ?? '';
-        if (typeof partA === 'number' && typeof partB === 'number') {
-          if (partA !== partB) return partA - partB;
-        } else {
-          const cmp = String(partA).localeCompare(String(partB), 'es');
-          if (cmp !== 0) return cmp;
-        }
-      }
-      return 0;
-    }
-    return indexA - indexB;
-  });
-};
+const sortTeamsByAge = (teams) => sortTeams(teams);
 
 const AGE_GROUPS = {
   "SENIOR": ["primera_federacio", "segona_federacio", "tercera_federacio", "lliga_elit"],
