@@ -88,36 +88,31 @@ export async function downloadMatchSheetPDF({ event, team, formation, positions,
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
   const W = 297, H = 210;
 
-  // ── Cabecera ──
-  doc.setFillColor(...GRANATE);
-  doc.rect(0, 0, W, 30, "F");
-  doc.setFillColor(255, 255, 255);
-  addImageFit(doc, ourLogo, 10, 4, 22, 22);
+  // ── Cabecera (sin relleno, para gastar poca tinta) ──
+  addImageFit(doc, ourLogo, 10, 5, 22, 22);
   const date = event?.date ? new Date(event.date) : null;
   const isHome = event?.is_home !== false;
   const ours = team?.name || "Nuestro equipo";
   const opp = event?.opponent || "Rival";
   const typeLabel = event?.type === "partido_amistoso" ? "Amistoso" : event?.type === "torneo" ? "Torneo" : "Liga";
   const jornada = event?.fcf_jornada ? ` · Jornada ${event.fcf_jornada}` : "";
-  doc.setTextColor(255, 220, 200);
+  doc.setTextColor(...GRANATE);
   doc.setFont("helvetica", "bold"); doc.setFontSize(8.5);
-  doc.text(`HOJA DEL ENTRENADOR  ·  ${typeLabel.toUpperCase()}${jornada.toUpperCase()}`, 38, 9.5);
-  doc.setTextColor(255, 255, 255);
+  doc.text(`HOJA DEL ENTRENADOR  ·  ${typeLabel.toUpperCase()}${jornada.toUpperCase()}`, 38, 10.5);
+  doc.setTextColor(30, 30, 30);
   doc.setFontSize(19);
   const title = isHome ? `${ours}  vs  ${opp}` : `${opp}  vs  ${ours}`;
-  doc.text(doc.splitTextToSize(title, 205)[0], 38, 18.5);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+  doc.text(doc.splitTextToSize(title, 205)[0], 38, 19.5);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(90, 90, 90);
   const when = date ? format(date, "EEEE d 'de' MMMM 'de' yyyy · HH:mm 'h'", { locale: es }) : "";
-  doc.text([when, event?.location].filter(Boolean).join("   ·   "), 38, 25.5);
-  if (oppLogo) {
-    doc.setFillColor(255, 255, 255);
-    doc.circle(W - 21, 15, 12.5, "F");
-    addImageFit(doc, oppLogo, W - 31, 5, 20, 20);
-  }
+  doc.text([when, event?.location].filter(Boolean).join("   ·   "), 38, 26.5);
+  addImageFit(doc, oppLogo, W - 32, 5, 22, 22);
+  doc.setDrawColor(...GRANATE); doc.setLineWidth(0.6);
+  doc.line(10, 32, W - 10, 32);
 
   // ── Columna izquierda: alineación ──
-  const lx = 10, ly = 36;
-  const ph = 156, pw = ph * 300 / 420;
+  const lx = 10, ly = 44;
+  const ph = 148, pw = ph * 300 / 420;
   doc.setTextColor(...GRANATE);
   doc.setFont("helvetica", "bold"); doc.setFontSize(10);
   doc.text(`ONCE INICIAL  ·  ${formation}`, lx, ly - 1.5);

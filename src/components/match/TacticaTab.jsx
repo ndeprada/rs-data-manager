@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RotateCcw, Eraser, Wand2, Search, FileDown } from "lucide-react";
 import { downloadMatchSheetPDF } from "@/lib/matchSheetPdf";
-import { CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
+import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import SetPieceBoard from "./SetPieceBoard";
 import { Button } from "@/components/ui/button";
@@ -347,7 +347,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
       await downloadMatchSheetPDF({
         event, team, formation: validFormation, positions: currentPositions, slots, captainId: slotIds.includes(captain) ? captain : "",
         kit, gkKit, kits: KITS, gkKits: GK_KITS, benchPlayers, planAttack, planDefense,
-        ourLogoUrl: team?.logo_url || CLUB_LOGO_URL_WHITE, opponentLogoUrl: event?.opponent_logo_url,
+        ourLogoUrl: team?.logo_url || CLUB_LOGO_URL, opponentLogoUrl: event?.opponent_logo_url,
       });
     } finally { setPdfBusy(false); }
   };
