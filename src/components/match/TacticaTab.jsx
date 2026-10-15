@@ -213,12 +213,12 @@ function PlayerPicker({ open, onClose, teamPlayers, taken, onPick, onClear, curr
 const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CT", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
 const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
 
-function Plan({ title, hint, value, onChange: set, placeholder }) {
+function Plan({ title, hint, value, onChange: set, placeholder, minHeight = 140, small = false }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-2">
+    <div className={`bg-white border border-gray-200 rounded-xl space-y-2 ${small ? "p-4" : "p-5"}`}>
       <p className="text-sm font-bold text-gray-900">{title}</p>
       <p className="text-[10px] text-gray-400">{hint}</p>
-      <RichTextBox value={value} onChange={set} placeholder={placeholder} minHeight={140} />
+      <RichTextBox value={value} onChange={set} placeholder={placeholder} minHeight={minHeight} />
     </div>
   );
 }
@@ -237,6 +237,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const [lineup, setLineup] = useState([]);       // ids por hueco (null = vacío)
   const [planAttack, setPlanAttack] = useState("");
   const [planDefense, setPlanDefense] = useState("");
+  const [planSet, setPlanSet] = useState("");
   const [rival, setRival] = useState({ strengths: "", weaknesses: "", keys: "", notes: "" });
   const [pieces, setPieces] = useState([]);
   const [captain, setCaptain] = useState("");
@@ -266,6 +267,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
       setLineup(plan.lineup || []);
       setPlanAttack(plan.plan_attack || "");
       setPlanDefense(plan.plan_defense || "");
+      setPlanSet(plan.plan_setpieces || "");
       setRival({ strengths: "", weaknesses: "", keys: "", notes: "", ...(plan.rival || {}) });
       setPieces(plan.set_pieces || []);
       setCaptain(plan.captain_id || "");
@@ -293,7 +295,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const taken = new Set(slotIds.filter(Boolean));
 
   // Autoguardado (1,2 s después del último cambio)
-  const payload = { formation: validFormation, positions, lineup: slotIds, plan_attack: planAttack, plan_defense: planDefense, rival, set_pieces: pieces, kit, gk_kit: gkKit, gk_kit2: gkKit2, captain_id: slotIds.includes(captain) ? captain : "" };
+  const payload = { formation: validFormation, positions, lineup: slotIds, plan_attack: planAttack, plan_defense: planDefense, plan_setpieces: planSet, rival, set_pieces: pieces, kit, gk_kit: gkKit, gk_kit2: gkKit2, captain_id: slotIds.includes(captain) ? captain : "" };
   const payloadKey = JSON.stringify(payload);
   const firstRun = useRef(true);
   useEffect(() => {
@@ -349,7 +351,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
     try {
       await downloadMatchSheetPDF({
         event, team, formation: validFormation, positions: currentPositions, slots, captainId: slotIds.includes(captain) ? captain : "",
-        kit, gkKit, gkKitBench: gkKit2 || gkKit, kits: KITS, gkKits: GK_KITS, benchPlayers, planAttack, planDefense,
+        kit, gkKit, gkKitBench: gkKit2 || gkKit, kits: KITS, gkKits: GK_KITS, benchPlayers, planAttack, planDefense, planSet,
         ourLogoUrl: team?.logo_url || CLUB_LOGO_URL, opponentLogoUrl: event?.opponent_logo_url,
       });
     } finally { setPdfBusy(false); }
@@ -480,6 +482,8 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
             placeholder="Ej: Salida 3+1 con el mediocentro, progresar por banda derecha, extremos cerrando para el desmarque del 9…" />
           <Plan title="🛡️ Plan de partido en defensa" hint="Bloque, altura de presión, referencias de marcaje, transiciones defensivas…" value={planDefense} onChange={setPlanDefense}
             placeholder="Ej: Bloque medio 4-4-2, presión tras pase atrás, vigilar al 10 rival en el rechace, repliegue rápido…" />
+          <Plan small minHeight={56} title="⚑ Balón parado" hint="Córners, faltas, saques de banda: referencias y aspectos a tener en cuenta." value={planSet} onChange={setPlanSet}
+            placeholder="Ej: Córner a favor: 2 al primer palo; en contra: marcaje mixto, 9 rival vigilado…" />
         </div>
       </div>
 

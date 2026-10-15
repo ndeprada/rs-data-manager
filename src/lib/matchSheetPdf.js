@@ -62,7 +62,7 @@ function drawPitch(doc, x0, y0, pw, ph) {
   doc.rect(x0 + pw * 0.34, y0 + ph - m - 28 * s, pw * 0.32, 28 * s);
 }
 
-export async function downloadMatchSheetPDF({ event, team, formation, positions, slots, captainId, kit, gkKit, gkKitBench, kits, gkKits, benchPlayers, planAttack, planDefense, ourLogoUrl, opponentLogoUrl }) {
+export async function downloadMatchSheetPDF({ event, team, formation, positions, slots, captainId, kit, gkKit, gkKitBench, kits, gkKits, benchPlayers, planAttack, planDefense, planSet, ourLogoUrl, opponentLogoUrl }) {
   const [ourLogo, oppLogo] = await Promise.all([loadImage(ourLogoUrl), loadImage(opponentLogoUrl)]);
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
   const W = 297, H = 210;
@@ -149,15 +149,15 @@ export async function downloadMatchSheetPDF({ event, team, formation, positions,
 
   // ── Columna derecha: planes ──
   const rx = bx + 52, rw = W - rx - 10;
-  const boxH = (ph - 8) / 2;
-  [["PLAN DE PARTIDO EN ATAQUE", planAttack, ly], ["PLAN DE PARTIDO EN DEFENSA", planDefense, ly + boxH + 8]].forEach(([label, text, y]) => {
+  const gap = 6, spH = 30, boxH = (ph - spH - 2 * gap) / 2;
+  [["PLAN DE PARTIDO EN ATAQUE", planAttack, ly, boxH], ["PLAN DE PARTIDO EN DEFENSA", planDefense, ly + boxH + gap, boxH], ["BALÓN PARADO", planSet, ly + 2 * (boxH + gap), spH]].forEach(([label, text, y, bh]) => {
     doc.setFillColor(250, 246, 246); doc.setDrawColor(225, 210, 210); doc.setLineWidth(0.3);
-    doc.roundedRect(rx, y, rw, boxH, 2, 2, "FD");
+    doc.roundedRect(rx, y, rw, bh, 2, 2, "FD");
     doc.setFillColor(...GRANATE);
-    doc.roundedRect(rx, y, 1.6, boxH, 0.8, 0.8, "F");
+    doc.roundedRect(rx, y, 1.6, bh, 0.8, 0.8, "F");
     doc.setTextColor(...GRANATE); doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
     doc.text(label, rx + 6, y + 6.5);
-    drawRichText(doc, text, rx + 6, y + 10, rw - 12, boxH - 16);
+    drawRichText(doc, text, rx + 6, y + 10, rw - 12, bh - 13, bh === spH ? { base: 9.5 } : undefined);
   });
 
   // ── Pie ──
