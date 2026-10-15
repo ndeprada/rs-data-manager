@@ -332,12 +332,12 @@ export default function Dashboard() {
       <div className={`${card} overflow-hidden`} style={cardStyle}>
         <Title right={<span className="text-[11px] font-bold text-gray-400">{recent.length} partidos</span>}>Resultados del fin de semana · {weekendLabel}</Title>
         {recent.length === 0 ? <p className="px-4 pb-3 text-sm text-gray-400">Todavía no hay resultados de ese fin de semana.</p> : (
-          <div className="pb-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-2">
+          <div className="pb-2 columns-1 md:columns-2 xl:columns-3 gap-x-2">
             {recent.map((m) => {
               const win = m.score_home > m.score_away, draw = m.score_home === m.score_away;
               const c = win ? "#16a34a" : draw ? "#6b7280" : "#dc2626";
               return (
-                <Link key={m.id} to={`/MatchDetail?id=${m.id}&teamId=${m.team_id}`} className="px-4 py-1.5 flex items-center gap-3 hover:bg-gray-50 min-w-0">
+                <Link key={m.id} to={`/MatchDetail?id=${m.id}&teamId=${m.team_id}`} className="break-inside-avoid px-4 py-1.5 flex items-center gap-3 hover:bg-gray-50 min-w-0">
                   <span className="w-5 h-5 rounded text-[10px] font-black text-white flex items-center justify-center shrink-0" style={{ background: c }}>{win ? "V" : draw ? "E" : "D"}</span>
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-semibold text-gray-900 truncate">{teamName(m.team_id)}</p>
