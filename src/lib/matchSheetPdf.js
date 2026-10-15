@@ -62,7 +62,7 @@ function drawPitch(doc, x0, y0, pw, ph) {
   doc.rect(x0 + pw * 0.34, y0 + ph - m - 28 * s, pw * 0.32, 28 * s);
 }
 
-export async function downloadMatchSheetPDF({ event, team, formation, positions, slots, captainId, kit, gkKit, kits, gkKits, benchPlayers, planAttack, planDefense, ourLogoUrl, opponentLogoUrl }) {
+export async function downloadMatchSheetPDF({ event, team, formation, positions, slots, captainId, kit, gkKit, gkKitBench, kits, gkKits, benchPlayers, planAttack, planDefense, ourLogoUrl, opponentLogoUrl }) {
   const [ourLogo, oppLogo] = await Promise.all([loadImage(ourLogoUrl), loadImage(opponentLogoUrl)]);
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
   const W = 297, H = 210;
@@ -97,7 +97,7 @@ export async function downloadMatchSheetPDF({ event, team, formation, positions,
   doc.text(`ONCE INICIAL  ·  ${formation}`, lx, ly - 1.5);
   drawPitch(doc, lx, ly, pw, ph);
   const s = pw / 300;
-  const colorsFor = (p) => (p?.position === "portero" ? (gkKits[gkKit] || gkKits.naranja) : (kits[kit] || kits["1"]));
+  const colorsFor = (p, gk = gkKit) => (p?.position === "portero" ? (gkKits[gk] || gkKits.naranja) : (kits[kit] || kits["1"]));
   slots.forEach((p, i) => {
     const pos = positions[i];
     if (!pos) return;
@@ -133,7 +133,7 @@ export async function downloadMatchSheetPDF({ event, team, formation, positions,
   const step = Math.min(7.5, (ph - 6) / Math.max(benchPlayers.length + 1, 1));
   benchPlayers.forEach((p, i) => {
     if (i > 0 && (GROUP[p.position] ?? 9) !== (GROUP[benchPlayers[i - 1].position] ?? 9)) by += 2;
-    const k = colorsFor(p);
+    const k = colorsFor(p, gkKitBench || gkKit);
     doc.setFillColor(...hex(k.fill)); doc.setDrawColor(...hex(k.stroke)); doc.setLineWidth(0.5);
     doc.circle(bx + 3.2, by, 3.2, "FD");
     doc.setTextColor(...hex(k.num)); doc.setFont("helvetica", "bold"); doc.setFontSize(7.5);

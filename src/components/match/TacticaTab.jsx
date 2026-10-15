@@ -242,6 +242,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const [captain, setCaptain] = useState("");
   const [kit, setKit] = useState("1");
   const [gkKit, setGkKit] = useState("naranja");
+  const [gkKit2, setGkKit2] = useState(""); // portero suplente ("" = igual que el titular)
   const [pickSlot, setPickSlot] = useState(null);
   const [status, setStatus] = useState("");
   const loaded = useRef(false);
@@ -270,6 +271,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
       setCaptain(plan.captain_id || "");
       if (KITS[plan.kit]) setKit(plan.kit);
       if (GK_KITS[plan.gk_kit]) setGkKit(plan.gk_kit);
+      setGkKit2(GK_KITS[plan.gk_kit2] ? plan.gk_kit2 : "");
     } else {
       try {
         const old = JSON.parse(localStorage.getItem(`tactica_${event?.id}`) || "null");
@@ -291,7 +293,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const taken = new Set(slotIds.filter(Boolean));
 
   // Autoguardado (1,2 s después del último cambio)
-  const payload = { formation: validFormation, positions, lineup: slotIds, plan_attack: planAttack, plan_defense: planDefense, rival, set_pieces: pieces, kit, gk_kit: gkKit, captain_id: slotIds.includes(captain) ? captain : "" };
+  const payload = { formation: validFormation, positions, lineup: slotIds, plan_attack: planAttack, plan_defense: planDefense, rival, set_pieces: pieces, kit, gk_kit: gkKit, gk_kit2: gkKit2, captain_id: slotIds.includes(captain) ? captain : "" };
   const payloadKey = JSON.stringify(payload);
   const firstRun = useRef(true);
   useEffect(() => {
@@ -347,7 +349,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
     try {
       await downloadMatchSheetPDF({
         event, team, formation: validFormation, positions: currentPositions, slots, captainId: slotIds.includes(captain) ? captain : "",
-        kit, gkKit, kits: KITS, gkKits: GK_KITS, benchPlayers, planAttack, planDefense,
+        kit, gkKit, gkKitBench: gkKit2 || gkKit, kits: KITS, gkKits: GK_KITS, benchPlayers, planAttack, planDefense,
         ourLogoUrl: team?.logo_url || CLUB_LOGO_URL, opponentLogoUrl: event?.opponent_logo_url,
       });
     } finally { setPdfBusy(false); }
@@ -396,6 +398,14 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
                   style={{ background: v.fill, border: `2px solid ${v.stroke}`, color: v.num }}>P</button>
               ))}
             </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Portero suplente</span>
+              {Object.entries(GK_KITS).map(([k, v]) => (
+                <button key={k} type="button" onClick={() => setGkKit2(k)} title={v.label}
+                  className={`w-7 h-7 rounded-full text-[10px] font-black flex items-center justify-center ${(gkKit2 || gkKit) === k ? "ring-2 ring-offset-1 ring-gray-400" : ""}`}
+                  style={{ background: v.fill, border: `2px solid ${v.stroke}`, color: v.num }}>P</button>
+              ))}
+            </div>
           </div>
           {filled > 0 && (
             <div className="flex items-center justify-center gap-1.5">
@@ -434,7 +444,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
               ) : (
                 <div className="flex flex-row flex-wrap sm:flex-col gap-1">
                   {benchPlayers.map((p, idx) => {
-                    const k = kitFor(p, kit, gkKit);
+                    const k = kitFor(p, kit, gkKit2 || gkKit);
                     const on = sel?.kind === "bench" && sel.id === p.id;
                     const newGroup = idx > 0 && (GROUP[p.position] ?? 9) !== (GROUP[benchPlayers[idx - 1].position] ?? 9);
                     return (
