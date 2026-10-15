@@ -60,6 +60,7 @@ export function getPitchXYs(position, role, laterality) {
   const r = { ...base, ...(ROLE_POS[role] || (position === "libre" ? ROLE_POS.central_libre : {})) };
   if (r.mode === "center") return [{ x: 50, y: r.y }];
   const ambi = laterality === "ambidiestro";
+  if (ambi && key === "central") return [{ x: 50, y: r.y }];
   const sides = ambi ? ["left", "right"] : [laterality === "zurdo" ? "left" : "right"];
   return sides.map((side) => {
     const sd = r.mode === "band_inv" && !ambi ? (side === "left" ? "right" : "left") : side;
