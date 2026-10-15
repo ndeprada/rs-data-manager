@@ -24,54 +24,17 @@ export function getPositionList(player) {
   getExtraPositions(player).forEach((e) => {
     if (!list.some((x) => x.position === e.position && (x.role || "") === (e.role || ""))) list.push({ position: e.position, role: e.role || "", level: e.level === "competente" ? "competente" : "secundaria" });
   });
+  // Orden: natural primero; a continuación las demás entradas de su misma posición (otros roles);
+  // después el resto de posiciones agrupadas, de mejor a peor nivel (secundaria antes que competente).
   const rank = { natural: 0, secundaria: 1, competente: 2 };
-  return list.map((x, i) => ({ x, i })).sort((a, b) => rank[a.x.level] - rank[b.x.level] || a.i - b.i).map((o) => o.x);
-}
-
-// ── Ubicación en el campo (0-100; x = izquierda→derecha, y = 0 portería rival … 100 portería propia) ──
-// Regla: ningún central se dibuja por encima de un lateral: los laterales, como mucho, a la altura del central más adelantado (69).
-// Cada rol tiene una altura (y) y un modo de reparto horizontal según la lateralidad:
-//  center = siempre en el centro · shift = algo hacia su pie natural (dx desde el centro)
-//  band = banda del pie natural (x desde el borde) · band_inv = banda contraria (pierna cambiada)
-// Ambidiestro: las posiciones lateralizadas (shift/band/band_inv) salen en ambos lados.
-const POS_DEFAULT = {
-  portero: { y: 96, mode: "center" },
-  central: { y: 69, mode: "shift", v: 4 },
-  lateral: { y: 66, mode: "band", v: 16 },
-  mediocentro: { y: 56, mode: "center" },
-  interior: { y: 41, mode: "shift", v: 12 },
-  extremo: { y: 25, mode: "band", v: 11 },
-  delantero_centro: { y: 12, mode: "center" },
-};
-const ROLE_POS = {
-  central_libre: { y: 80 }, central_marcador: { y: 69 }, central_con_salida: { y: 69 }, central_completo: { y: 69 },
-  lateral_defensivo: { y: 69 }, lateral_interior: { y: 65 }, lateral_completo: { y: 66 },
-  mediocentro_posicional: { y: 56 }, mediocentro_organizador: { y: 56 },
-  interior_mixto: { y: 41 }, interior_avanzado: { y: 31 },
-  extremo_apoyo: { y: 30, v: 13 }, extremo_profundo: { y: 19, v: 10 }, extremo_interior: { y: 19, v: 10, mode: "band_inv" },
-  falso_9: { y: 22 }, mediapunta: { y: 22 }, delantero_profundo: { y: 12 },
-  portero_defensivo: { y: 96 }, portero_completo: { y: 96 },
-};
-
-// Devuelve uno o dos puntos (dos si es ambidiestro y la posición es lateralizada)
-export function getPitchXYs(position, role, laterality) {
-  const key = position === "libre" ? "central" : position;
-  const base = POS_DEFAULT[key];
-  if (!base) return [];
-  const r = { ...base, ...(ROLE_POS[role] || (position === "libre" ? ROLE_POS.central_libre : {})) };
-  if (r.mode === "center") return [{ x: 50, y: r.y }];
-  const ambi = laterality === "ambidiestro";
-  if (ambi && key === "central") return [{ x: 50, y: r.y }];
-  const sides = ambi ? ["left", "right"] : [laterality === "zurdo" ? "left" : "right"];
-  return sides.map((side) => {
-    const sd = r.mode === "band_inv" && !ambi ? (side === "left" ? "right" : "left") : side;
-    const x = r.mode === "shift" ? (sd === "left" ? 50 - r.v : 50 + r.v) : (sd === "left" ? r.v : 100 - r.v);
-    return { x, y: r.y };
-  });
-}
-
-export function getPitchXY(position, role, laterality) {
-  return getPitchXYs(position, role, laterality)[0] || null;
+  const best = {};
+  list.forEach((x) => { best[x.position] = Math.min(best[x.position] ?? 9, rank[x.level]); });
+  const first = {};
+  list.forEach((x, i) => { if (first[x.position] === undefined) first[x.position] = i; });
+  return list
+    .map((x, i) => ({ x, i }))
+    .sort((a, b) => best[a.x.position] - best[b.x.position] || first[a.x.position] - first[b.x.position] || rank[a.x.level] - rank[b.x.level] || a.i - b.i)
+    .map((o) => o.x);
 }
 
 // Un botón por posición y por lado: si la misma posición cae del mismo lado con distintos roles, se deja solo el del nivel más alto
