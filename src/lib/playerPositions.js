@@ -74,14 +74,18 @@ export function getPitchXY(position, role, laterality) {
   return getPitchXYs(position, role, laterality)[0] || null;
 }
 
-// Un solo grupo de botones por posición: el del nivel más alto (natural > secundaria > competente)
+// Un botón por posición y por lado: si la misma posición cae del mismo lado con distintos roles, se deja solo el del nivel más alto
+// (natural > secundaria > competente); si cae en lados distintos (p. ej. extremo interior y extremo de apoyo en un zurdo) salen los dos.
 export function getPitchMarkers(player, laterality) {
   const seen = new Set();
   const out = [];
   getPositionList(player).forEach((x) => {
-    if (seen.has(x.position)) return;
-    seen.add(x.position);
-    getPitchXYs(x.position, x.role, laterality).forEach((c) => out.push({ ...x, c }));
+    getPitchXYs(x.position, x.role, laterality).forEach((c) => {
+      const k = x.position + (c.x < 45 ? "L" : c.x > 55 ? "R" : "C");
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ ...x, c });
+    });
   });
   return out;
 }
