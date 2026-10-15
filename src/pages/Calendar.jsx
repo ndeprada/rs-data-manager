@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Plus, ChevronLeft, ChevronRight, Pencil, Trash2, MapPin, Users, ClipboardList, FileText, List, Home as HomeIcon, Plane as PlaneIcon } from "lucide-react";
 import EventAttendanceDialog from "@/components/calendar/EventAttendanceDialog";
 import ConvocatoriaDialog from "@/components/calendar/ConvocatoriaDialog";
+import EditEventDialog from "@/components/myteam/EditEventDialog";
 import SessionReportDialog from "@/components/calendar/SessionReportDialog";
 import SessionReportPanel from "@/components/calendar/SessionReportPanel";
 import EventListWithDragDrop from "@/components/calendar/EventListWithDragDrop";
@@ -54,6 +55,7 @@ export default function Calendar() {
   const [deleteId, setDeleteId] = useState(null);
   const [deleteSeriesId, setDeleteSeriesId] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [editDialogEvent, setEditDialogEvent] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [selectedDay, setSelectedDay] = useState(null);
   const [filterTeam, setFilterTeam] = useState("all");
@@ -210,17 +212,8 @@ export default function Calendar() {
     return { ...updatedForm, notification_message: msg };
   };
 
-  const openEdit = (event) => {
-    setEditingEvent(event);
-    const dateStr = event.date ? format(new Date(event.date), "yyyy-MM-dd'T'HH:mm") : "";
-    const endDateStr = event.end_date ? format(new Date(event.end_date), "yyyy-MM-dd'T'HH:mm") : "";
-    setForm({
-      title: event.title || "", type: event.type || "entrenamiento",
-      team_id: event.team_id || "", date: dateStr, end_date: endDateStr,
-      location: event.location || "", field_id: event.field_id || "", opponent: event.opponent || "", notes: event.notes || "",
-    });
-    setDialogOpen(true);
-  };
+  // Editar un evento (y, si es de una serie, ampliar o acortar sus fechas) con el editor completo
+  const openEdit = (event) => setEditDialogEvent(event);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -250,6 +243,7 @@ export default function Calendar() {
 
   return (
     <div className="space-y-5">
+      <EditEventDialog open={!!editDialogEvent} onOpenChange={(o) => { if (!o) setEditDialogEvent(null); }} event={editDialogEvent} />
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <p className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Administración</p>

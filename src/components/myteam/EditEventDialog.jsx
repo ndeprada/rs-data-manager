@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Upload } from "lucide-react";
+import { sortTeams } from "@/lib/teamOrder";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const EVENT_TYPES = [
@@ -52,6 +53,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
     if (seriesFirst) setForm((p) => ({ ...p, series_from: seriesFirst, series_until: seriesLast }));
   }, [seriesFirst, seriesLast]);
 
+  const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: fields = [] } = useQuery({
     queryKey: ["fields"],
     queryFn: () => base44.entities.Field.list(),
@@ -64,6 +66,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
       setForm((prev) => ({
         series_from: prev.series_from, series_until: prev.series_until,
         type: event.type || "entrenamiento",
+        team_id: event.team_id || "",
         title: event.title || "",
         date: format(dateObj, "yyyy-MM-dd"),
         time: format(dateObj, "HH:mm"),
@@ -177,6 +180,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
     return {
       ...(moved ? { postponed_from: event.postponed_from || event.date, date_locked: true } : {}),
       type: form.type,
+      ...(form.team_id ? { team_id: form.team_id } : {}),
       title: form.title || (isMatch && form.opponent ? `vs ${form.opponent}` : EVENT_TYPES.find(t => t.value === form.type)?.label || ""),
       date: `${dateStr}T${form.time}:00`,
       end_date: endDate,
@@ -251,6 +255,17 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
                 </div>
               </>
             )}
+
+            {/* Equipo */}
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Equipo</p>
+              <Select value={form.team_id || ""} onValueChange={v => set("team_id", v)}>
+                <SelectTrigger className="border-gray-200"><SelectValue placeholder="Equipo…" /></SelectTrigger>
+                <SelectContent>
+                  {sortTeams(teams).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Título */}
             <div>
