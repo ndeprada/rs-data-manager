@@ -141,7 +141,7 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
                       className="w-5 h-5 object-contain shrink-0"
                     />
                     <span className="flex items-center gap-1">
-                      <span className="font-semibold text-gray-900 group-hover:underline">{team.name}</span>
+                      <span className="text-sm font-semibold text-gray-900 group-hover:underline">{team.name}</span>
                       <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500" />
                     </span>
                   </Link>
