@@ -132,3 +132,7 @@ h1, h2, .rs-title { letter-spacing: 0.05em !important; }
 .rs-rich .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before, .rs-rich .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before { content: 'Pequeño'; }
 .rs-rich .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before, .rs-rich .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: 'Grande'; }
 .rs-rich .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before, .rs-rich .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: 'Muy grande'; }
+/* Listas pegadas al margen izquierdo y con poco hueco entre marcador y texto */
+.rs-rich .ql-editor ol, .rs-rich .ql-editor ul { padding-left: 0; }
+.rs-rich .ql-editor li:not(.ql-direction-rtl) { padding-left: 1.3em; }
+.rs-rich .ql-editor li:not(.ql-direction-rtl)::before { margin-left: -1.3em; margin-right: 0.15em; width: 1.15em; text-align: left; }

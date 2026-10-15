@@ -68,7 +68,7 @@ function layout(doc, blocks, w, scale, base) {
   let num = 0;
   blocks.forEach((b) => {
     if (b.list === "ol") num += 1; else num = 0;
-    const indent = b.list ? 5 : 0;
+    const indent = b.list === "ol" ? 4.2 : b.list ? 3.2 : 0;
     const maxW = w - indent;
     const toks = [];
     b.runs.forEach((r) => r.text.split(/(\s+)/).filter(Boolean).forEach((t) => toks.push({ ...r, text: t, size: base * scale * (r.px / BASE_PX) })));
@@ -118,7 +118,7 @@ export function drawRichText(doc, value, x, y, w, h, { base = 10.5, minScale = 0
     else if (l.align === "right") sx += avail - l.width;
     if (l.marker) {
       doc.setFont("helvetica", "normal"); doc.setFontSize(l.markerSize); doc.setTextColor(40, 40, 40);
-      doc.text(l.marker, x + (l.marker === "•" ? 1.2 : 0), baseline);
+      doc.text(l.marker, x, baseline);
     }
     let tx = sx;
     const extra = l.align === "justify" && l.toks.length > 1 ? Math.max(0, (avail - l.width)) / Math.max(1, l.toks.filter((t) => /^\s+$/.test(t.text)).length) : 0;
