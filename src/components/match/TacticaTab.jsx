@@ -147,7 +147,7 @@ function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsC
                 <rect x="-0.8" y="-0.8" width="15.6" height="11.6" rx="2" fill="#1f2937" opacity="0.55" />
                 <rect x="0" y="0" width="14" height="10" rx="1.5" fill="#FCDD09" />
                 {[1.4, 4.4, 7.4, 10.4].map(x => <rect key={x} x={x} y="0" width="1.7" height="10" fill="#DA121A" />)}
-                <text x="17" y="9" fontSize="10" style={{ fontFamily: "'Racing Sarria', sans-serif" }} fill="white" stroke="rgba(0,0,0,0.7)" strokeWidth="2" paintOrder="stroke" strokeLinejoin="round">C</text>
+                <text x="7" y="8.4" textAnchor="middle" fontSize="9" style={{ fontFamily: "'Racing Sarria', sans-serif" }} fill="white" stroke="rgba(0,0,0,0.8)" strokeWidth="1.8" paintOrder="stroke" strokeLinejoin="round">C</text>
               </g>
             )}
             {player && (
