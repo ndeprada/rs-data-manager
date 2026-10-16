@@ -26,7 +26,7 @@ const DURATIONS_F7 = [
   { value: "4x10", label: "4 cuartos de 10'" },
 ];
 
-function getMatchMinutes(format, duration) {
+export function getMatchMinutes(format, duration) {
   if (!format || !duration) return 90;
   const parts = duration.split("x");
   return Number(parts[0]) * Number(parts[1]);
@@ -64,7 +64,7 @@ function StarRating({ value, onChange }) {
 }
 
 // ── Calcular minutos jugados ─────────────────────────────
-function calcMinutesPlayed(playerId, starterIds, events, matchMinutes) {
+export function calcMinutesPlayed(playerId, starterIds, events, matchMinutes) {
   // Registramos intervalos de tiempo jugado: [{in: X, out: Y}]
   const intervals = [];
   const isStarter = starterIds.includes(playerId);
@@ -313,8 +313,6 @@ export default function ActaTab({ eventId, teamId, event, players }) {
       const yellows = matchEvents.filter(e => e.type === "card" && e.team === "home" && e.playerId === p.id && e.cardColor === "yellow").length;
       const yellow2 = matchEvents.filter(e => e.type === "card" && e.team === "home" && e.playerId === p.id && e.cardColor === "yellow2").length;
       const red = matchEvents.filter(e => e.type === "card" && e.team === "home" && e.playerId === p.id && e.cardColor === "red").length;
-      const rating = ratings[p.id]?.stars || null;
-      const notes = ratings[p.id]?.notes || "";
 
       const existing = await base44.entities.MatchStats.filter({ event_id: eventId, player_id: p.id }).then(r => r[0] || null);
       // Las asistencias y minutos se apuntan a mano: no se pisan con ceros
@@ -325,10 +323,11 @@ export default function ActaTab({ eventId, teamId, event, players }) {
         opponent: event?.opponent || "",
         starter: isStarter, minutes_played: mins || existing?.minutes_played || 0,
         goals, assists, yellow_cards: yellows, double_yellow_card: yellow2, red_cards: red,
-        rating, notes,
+        // La valoración y las correcciones se hacen en la pestaña Post-partido: aquí se conservan
+        rating: existing?.rating ?? null, notes: existing?.notes || "",
       };
       if (existing) await base44.entities.MatchStats.update(existing.id, payload);
-      else if (mins > 0 || goals > 0 || assists > 0 || rating) await base44.entities.MatchStats.create(payload);
+      else if (mins > 0 || goals > 0 || assists > 0) await base44.entities.MatchStats.create(payload);
     }
     setSavingStats(false);
   };
@@ -523,7 +522,7 @@ export default function ActaTab({ eventId, teamId, event, players }) {
       {convocados.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-gray-900">Rendimiento individual</p>
+            <p className="text-sm font-bold text-gray-900">Minutos y estadísticas</p>
             <Button size="sm" onClick={saveStats} disabled={savingStats} className="text-white text-xs h-7" style={{ background: "var(--granate)" }}>
               <Save className="w-3.5 h-3.5 mr-1" />{savingStats ? "Guardando…" : "Guardar estadísticas"}
             </Button>
@@ -534,8 +533,7 @@ export default function ActaTab({ eventId, teamId, event, players }) {
               const isStarter = starterIds.includes(p.id);
               const goals = matchEvents.filter(e => e.type === "goal" && e.team === "home" && e.playerId === p.id).length;
               const assists = matchEvents.filter(e => e.type === "goal" && e.team === "home" && e.assistId === p.id).length;
-              const showNotes = openNotes[p.id];
-              return (
+                            return (
                 <div key={p.id}>
                   <div className="flex items-center gap-2.5 px-3 py-1.5 bg-white hover:bg-gray-50/50 transition-colors">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
@@ -550,19 +548,7 @@ export default function ActaTab({ eventId, teamId, event, players }) {
                         {assists > 0 && ` · ${assists}🅰️`}
                       </p>
                     </div>
-                    <StarRating value={ratings[p.id]?.stars || 0} onChange={v => setRatings(prev => ({ ...prev, [p.id]: { ...prev[p.id], stars: v } }))} />
-                    <button onClick={() => setOpenNotes(prev => ({ ...prev, [p.id]: !prev[p.id] }))} className="text-gray-400 hover:text-gray-600">
-                      {showNotes ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                    </button>
                   </div>
-                  {showNotes && (
-                    <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/30">
-                      <Textarea
-                        value={ratings[p.id]?.notes || ""}
-                        onChange={e => setRatings(prev => ({ ...prev, [p.id]: { ...prev[p.id], notes: e.target.value } }))}
-                        rows={2} className="text-xs border-gray-200" placeholder="Observaciones del partido…" />
-                    </div>
-                  )}
                 </div>
               );
             })}

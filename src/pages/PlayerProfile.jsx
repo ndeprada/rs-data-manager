@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MatchStatsSection from "../components/player/MatchStatsSection";
+import PlayerCorrectionsSection from "../components/player/PlayerCorrectionsSection";
 import AttendanceHistorySection from "../components/player/AttendanceHistorySection";
 import PDISection from "../components/player/PDISection";
 import PDIPlanSection from "../components/player/PDIPlanSection";
@@ -271,6 +272,7 @@ export default function PlayerProfile() {
             <div className="space-y-4">
               <PlayerPerformancePanel playerId={playerId} />
               {playerMode ? <PlayerMatchesReadOnly playerId={playerId} /> : <MatchStatsSection playerId={playerId} isGoalkeeper={player.position === "portero"} />}
+              {!playerMode && <PlayerCorrectionsSection playerId={playerId} teamId={player.team_id} />}
             </div>
           </TabsContent>
 

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Trash2, Users, FileText, Map, Pencil, Upload, MapPin, Calendar } from "lucide-react";
+import { ArrowLeft, Trash2, Users, FileText, Map, Pencil, Upload, MapPin, Calendar, ClipboardCheck } from "lucide-react";
 import { CLUB_LOGO_URL, CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { es } from "date-fns/locale";
 import ConvocationTab from "@/components/match/ConvocationTab";
 import ActaTab from "@/components/match/ActaTab";
 import TacticaTab from "@/components/match/TacticaTab";
+import PostMatchTab from "@/components/match/PostMatchTab";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
 import { playerFullName } from "@/lib/playerName";
 
@@ -70,7 +71,7 @@ export default function MatchDetail() {
   const eventId = params.get("id");
   const teamId = params.get("teamId");
 
-  const [activeTab, setActiveTab] = useState(["convocatoria", "acta", "tactica"].includes(params.get("tab")) ? params.get("tab") : "convocatoria");
+  const [activeTab, setActiveTab] = useState(["convocatoria", "acta", "tactica", "postpartido"].includes(params.get("tab")) ? params.get("tab") : "convocatoria");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
@@ -157,6 +158,7 @@ export default function MatchDetail() {
     { key: "convocatoria", label: "Convocatoria",        icon: Users },
     { key: "acta",         label: "Acta",                icon: FileText },
     { key: "tactica",      label: "Preparación partido", icon: Map },
+    { key: "postpartido",  label: "Post-partido",        icon: ClipboardCheck },
   ];
 
   return (
@@ -304,6 +306,10 @@ export default function MatchDetail() {
           footballFormat={event?.football_format}
           team={team}
         />
+      )}
+
+      {activeTab === "postpartido" && (
+        <PostMatchTab eventId={eventId} teamId={teamId} event={event} players={players} convocation={convocation} />
       )}
 
       </div>
