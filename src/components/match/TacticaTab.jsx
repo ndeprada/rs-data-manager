@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import RichTextBox from "./RichTextBox";
-import { playerFirstName, playerFullName, playerSearchName } from "@/lib/playerName";
+import { playerFirstName, playerFullName, matchesPlayerSearch } from "@/lib/playerName";
 
 const FORMATIONS_F11 = ["4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "3-4-3", "5-3-2", "4-5-1", "4-1-4-1"];
 const FORMATIONS_F7 = ["3-2-1", "2-3-1", "2-2-2", "3-1-2", "1-3-2"];
@@ -181,7 +181,7 @@ function PlayerPicker({ open, onClose, teamPlayers, taken, onPick, onClear, curr
   const { data: allPlayers = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list(), enabled: open });
   useEffect(() => { if (open) setQ(""); }, [open]);
   const pool = q.trim()
-    ? allPlayers.filter(p => p.status !== "baja" && `${playerSearchName(p)}`.toLowerCase().includes(q.toLowerCase())).slice(0, 30)
+    ? allPlayers.filter(p => p.status !== "baja" && matchesPlayerSearch(p, q)).slice(0, 30)
     : teamPlayers;
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>

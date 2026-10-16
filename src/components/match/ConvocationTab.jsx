@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { playerFirstName, playerFullName, playerSearchName } from "@/lib/playerName";
+import { playerFirstName, playerFullName, matchesPlayerSearch } from "@/lib/playerName";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CT", libre: "LIB",
@@ -256,7 +256,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
   const guestPlayers = allPlayers.filter(p =>
     p.team_id !== teamId &&
     !activePlayers.find(sp => sp.id === p.id) &&
-    (guestSearch ? `${playerSearchName(p)}`.toLowerCase().includes(guestSearch.toLowerCase()) : false)
+    (guestSearch ? matchesPlayerSearch(p, guestSearch) : false)
   );
 
   // Seleccionar / quitar a todos los jugadores del equipo de golpe (luego se ajusta uno a uno)

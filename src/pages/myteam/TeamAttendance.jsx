@@ -226,13 +226,6 @@ export default function TeamAttendance() {
 
           {/* Añadir a prueba / convocar de otro equipo */}
           <div className="bg-white border border-gray-200 shadow-sm p-3 space-y-3" style={{ borderRadius: "4px" }}>
-            <div className="flex gap-2 items-center">
-              <UserPlus className="w-4 h-4 text-amber-600 shrink-0" />
-              <Input value={trialName} onChange={e => setTrialName(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && addTrial()}
-                placeholder="Jugador a prueba: escribe el nombre…" className="h-8 text-sm" />
-              <Button size="sm" className="h-8 text-white" style={{ background: "var(--granate)" }} onClick={addTrial} disabled={!trialName.trim()}>Añadir</Button>
-            </div>
             <button onClick={() => setShowGuests(s => !s)} className="text-xs font-bold text-blue-600 hover:underline">
               {showGuests ? "− Ocultar" : "+ Convocar jugador de otro equipo"}
             </button>
@@ -245,6 +238,13 @@ export default function TeamAttendance() {
                 type="training"
               />
             )}
+            <div className="flex gap-2 items-center">
+              <UserPlus className="w-4 h-4 text-amber-600 shrink-0" />
+              <Input value={trialName} onChange={e => setTrialName(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && addTrial()}
+                placeholder="Jugador a prueba: escribe el nombre…" className="h-8 text-sm" />
+              <Button size="sm" className="h-8 text-white" style={{ background: "var(--granate)" }} onClick={addTrial} disabled={!trialName.trim()}>Añadir</Button>
+            </div>
           </div>
         </div>
       ) : (

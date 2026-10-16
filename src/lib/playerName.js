@@ -5,3 +5,10 @@ export const playerFirstName = (p) => ((p?.nickname || "").trim() || (p?.first_n
 export const playerFullName = (p) => `${playerFirstName(p)} ${(p?.last_name || "").trim()}`.trim();
 // Texto para buscadores: incluye nombre real, apodo y apellidos.
 export const playerSearchName = (p) => `${p?.first_name || ""} ${p?.nickname || ""} ${p?.last_name || ""}`;
+const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+// Búsqueda por palabras: sin mayúsculas ni tildes, en cualquier orden y sin importar el apodo.
+// "javi gar" encuentra a "Javier García"; "garcia javier" también.
+export const matchesPlayerSearch = (p, q) => {
+  const hay = `${norm(playerSearchName(p))} ${norm(playerFullName(p))}`;
+  return norm(q).split(/\s+/).filter(Boolean).every((t) => hay.includes(t));
+};

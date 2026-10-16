@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { downloadProgressionPDF } from "./progressionPdfGenerator";
-import { playerSearchName } from "@/lib/playerName";
+import { matchesPlayerSearch } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
 
 const POSITION_LABELS = {
@@ -34,7 +34,7 @@ export default function ProgressionReportSection() {
     .filter(p => selectedTeamId === "all" || p.team_id === selectedTeamId)
     .filter(p => {
       const q = search.toLowerCase();
-      return !q || `${playerSearchName(p)}`.toLowerCase().includes(q);
+      return !q || matchesPlayerSearch(p, q);
     })
     .sort((a, b) => `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`));
 

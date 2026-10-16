@@ -5,7 +5,7 @@ import { X, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { playerFullName, playerSearchName } from "@/lib/playerName";
+import { playerFullName, matchesPlayerSearch } from "@/lib/playerName";
 
 const POSITION_LABELS = {
   portero: "Portero",
@@ -41,7 +41,7 @@ export default function GuestPlayerSelector({ teamId, selectedPlayers, onAdd, on
     if (p.status === "baja") return false; // Excluir bajas
     if (selectedTeamId && p.team_id !== selectedTeamId) return false; // Filtrar por equipo si está seleccionado
     if (selectedPlayers.includes(p.id)) return false; // Excluir ya seleccionados
-    if (searchTerm && !`${playerSearchName(p)}`.toLowerCase().includes(searchTerm.toLowerCase())) {
+    if (searchTerm && !matchesPlayerSearch(p, searchTerm)) {
       return false;
     }
     return true;
