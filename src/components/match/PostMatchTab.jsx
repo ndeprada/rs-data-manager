@@ -52,8 +52,10 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
     const ids = new Set(starterIds);
     (event?.match_events || []).forEach((e) => { if (e.type === "sub" && e.playerIn) ids.add(e.playerIn); });
     stats.forEach((s) => { if ((s.minutes_played || 0) > 0) ids.add(s.player_id); });
+    (event?.match_events || []).forEach((e) => { if (e.team === "home" && e.playerId) ids.add(e.playerId); });
     let list = players.filter((p) => ids.has(p.id));
-    if (!list.length) list = players.filter((p) => convocadoIds.includes(p.id)); // acta aún sin rellenar
+    // Sin once titular marcado (o acta sin rellenar): se muestran todos los convocados
+    if (!starterIds.length || !list.length) list = players.filter((p) => convocadoIds.includes(p.id) || ids.has(p.id));
     return list.sort((a, b) => {
       const ai = POSITION_ORDER.indexOf(a.position ?? ""), bi = POSITION_ORDER.indexOf(b.position ?? "");
       return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi) || (a.last_name || "").localeCompare(b.last_name || "");
@@ -208,7 +210,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
                 <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-2 px-3 py-2">
                   <div className="sm:w-48 shrink-0">
                     <p className="text-xs font-bold text-gray-900 truncate">{playerFullName(p)}</p>
-                    <p className="text-[10px] text-gray-400">{starterIds.includes(p.id) ? "Titular" : "Suplente"}</p>
+                    <p className="text-[10px] text-gray-400">{starterIds.length ? (starterIds.includes(p.id) ? "Titular" : "Suplente") : ""}</p>
                   </div>
                   <Stars value={row.rating || 0} onChange={(v) => setRow(p.id, { rating: v })} />
                   <Textarea value={row.notes || ""} onChange={(e) => setRow(p.id, { notes: e.target.value })} rows={1}
