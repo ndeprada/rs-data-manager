@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { Search, Plus, Check, Send, Eye, Clock, MapPin } from "lucide-react";
+import { Search, Plus, Check, Send, Eye, Clock, MapPin, MessageCircle, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -90,12 +90,40 @@ ${observations}
 El cuerpo técnico · ${team?.name || ""}`;
 }
 
+// Mensaje corto para pegar en el grupo de WhatsApp (negritas con *…*)
+function buildWhatsappText({ event, team, convocados, callupTime, observations }) {
+  const day = event?.date ? format(new Date(event.date), "EEEE d 'de' MMMM", { locale: es }) : "";
+  const time = event?.date ? format(new Date(event.date), "HH:mm") : "";
+  const where = [event?.location, event?.location_url].filter(Boolean).join(" · ");
+  const lines = [
+    `*CONVOCATORIA · ${team?.name || ""}*`,
+    event?.opponent ? `🆚 ${event.opponent}` : (event?.title ? `🏆 ${event.title}` : ""),
+    `📅 ${day}`,
+    `⏰ Partido: ${time}${callupTime ? ` · Convocatoria: ${callupTime}` : ""}`,
+    where ? `📍 ${where}` : "",
+    "",
+    `*Convocados (${convocados.length}):*`,
+    ...convocados.map((p, i) => `${i + 1}. ${playerFullName(p)}`),
+    observations ? `\n*Observaciones:*\n${observations}` : "",
+  ];
+  return lines.filter((l, i) => l !== "" || lines[i - 1] !== "").join("\n").trim();
+}
+
 // ── Preview / Notify Modal ───────────────────────────────
 function NotifyModal({ open, onClose, event, team, convocados, noConvocados, callupTime, observations, onSend, sending }) {
   const defaultMsg = buildEmailHtml({ player: { first_name: "[Jugador]" }, event, team, convocados, noConvocados, callupTime, observations });
   const [editableMsg, setEditableMsg] = useState(defaultMsg);
+  const waDefault = buildWhatsappText({ event, team, convocados, callupTime, observations });
+  const [waMsg, setWaMsg] = useState(waDefault);
+  const [copied, setCopied] = useState(false);
+  const copyWa = async () => {
+    try { await navigator.clipboard.writeText(waMsg); }
+    catch { const t = document.createElement("textarea"); t.value = waMsg; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
+    setCopied(true); setTimeout(() => setCopied(false), 2500);
+  };
 
   useEffect(() => {
+    if (open) setWaMsg(buildWhatsappText({ event, team, convocados, callupTime, observations }));
     if (open) setEditableMsg(buildEmailHtml({ player: { first_name: "[Jugador]" }, event, team, convocados, noConvocados, callupTime, observations }));
   }, [open]);
 
@@ -137,6 +165,14 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
               className="border-gray-200 text-xs font-mono leading-relaxed"
             />
             <p className="text-[10px] text-gray-400 mt-1">El saludo "Hola [nombre]," se personalizará automáticamente para cada jugador.</p>
+          </div>
+
+          <div className="rounded-lg border border-green-200 bg-green-50/60 p-3 space-y-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-green-800 flex items-center gap-1.5"><MessageCircle className="w-3.5 h-3.5" /> Para el grupo de WhatsApp</p>
+            <Textarea value={waMsg} onChange={e => setWaMsg(e.target.value)} rows={10} className="border-green-200 bg-white text-xs leading-relaxed" />
+            <Button type="button" onClick={copyWa} className="w-full text-white bg-green-600 hover:bg-green-700">
+              <Copy className="w-3.5 h-3.5 mr-1.5" />{copied ? "¡Copiado! Pégalo en WhatsApp" : "Copiar mensaje"}
+            </Button>
           </div>
 
           <div className="flex gap-3 pt-1">
