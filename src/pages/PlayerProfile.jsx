@@ -54,8 +54,11 @@ const STATUS_CONFIG = {
 
 export default function PlayerProfile() {
   const urlParams = new URLSearchParams(window.location.search);
-  const playerMode = usePlayerMode();
+  const isPlayerAccount = usePlayerMode();
   const { user: authUser } = useAuth();
+  // Cuerpo técnico que también es jugador: "Mi ficha de jugador" abre su propia ficha en vista de jugador
+  const ownPlayerView = !!authUser?.player_id && urlParams.get("as") === "player" && urlParams.get("id") === authUser.player_id;
+  const playerMode = isPlayerAccount || ownPlayerView;
   // El jugador solo puede ver su propia ficha
   const playerId = playerMode ? authUser?.player_id : urlParams.get("id");
   const navigate = useNavigate();

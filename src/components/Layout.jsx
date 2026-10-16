@@ -257,6 +257,9 @@ function StaffSidebar({ onClose = () => {} }) {
 
         <SectionLabel>Comunicación</SectionLabel>
         <NavItem item={{ label: "Avisos", path: "/Avisos", icon: Bell }} onClick={onClose} />
+        {user?.player_id && user.role !== "admin" && (
+          <NavItem item={{ label: "Mi ficha de jugador", path: `/PlayerProfile?id=${user.player_id}&as=player`, icon: UserCheck }} onClick={onClose} />
+        )}
 
         <SectionLabel>Mi Equipo</SectionLabel>
         <MyTeamNav onClose={onClose} notificationCount={notificationCount} />

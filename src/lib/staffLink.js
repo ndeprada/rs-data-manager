@@ -174,6 +174,8 @@ export async function saveUserAccess({ user, form, staffList, activeAssignments 
       });
     }
     patch.staff_member_id = staff.id;
+    // Cuerpo técnico que también juega: ficha de jugador opcional (acceso doble)
+    if ("player_id" in form) patch.player_id = form.player_id || null;
     const existing = activeAssignments.filter((a) => a.staff_member_id === staff.id);
     const saved = await syncAssignments(staff.id, form.assignments || [], existing);
     Object.assign(patch, userTeamFields(form.app_role, saved));

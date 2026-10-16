@@ -63,7 +63,8 @@ async function resolveRecipients(sender, audience = {}) {
   for (const u of users) {
     const d = u.data;
     if (!isApprovedUser(d)) continue;
-    if (groups.has('jugadores') && d.app_role === 'jugador' && d.player_id && targetPlayers.has(d.player_id)) out.add(u.id);
+    // También cuenta el cuerpo técnico que además es jugador (player_id vinculado)
+    if (groups.has('jugadores') && (d.app_role === 'jugador' || STAFF.includes(d.app_role)) && d.player_id && targetPlayers.has(d.player_id)) out.add(u.id);
     if (groups.has('tecnico') && (STAFF.includes(d.app_role) || d.role === 'admin')) {
       if (allClub) out.add(u.id);
       else if (teamIdsOfUser(d).some((t) => teamIds.has(t))) out.add(u.id);
@@ -242,7 +243,7 @@ export default async function handler(req, res) {
     // Vínculos de un jugador (admin, o el propio jugador)
     if (a === 'player_links') {
       const playerId = req.query.player_id;
-      if (!(isAdmin(user) || (user.app_role === 'jugador' && user.player_id === playerId))) return res.status(403).json({ error: 'forbidden' });
+      if (!(isAdmin(user) || (user.player_id && user.player_id === playerId))) return res.status(403).json({ error: 'forbidden' });
       const [{ rows: links }, users] = await Promise.all([
         query(`select id, data from entities where entity_type = 'GuardianLink' and data ->> 'player_id' = $1`, [playerId]), byType('User'),
       ]);
@@ -277,7 +278,7 @@ export default async function handler(req, res) {
       const { rows } = await query(`select id, data from entities where entity_type = 'GuardianLink' and id = $1`, [link_id]);
       const link = rows[0];
       if (!link) return res.status(404).json({ error: 'not_found' });
-      const isOwnPlayer = user.app_role === 'jugador' && user.player_id === link.data.player_id;
+      const isOwnPlayer = !!user.player_id && user.player_id === link.data.player_id;
       if (!isAdmin(user) && !isOwnPlayer) return res.status(403).json({ error: 'forbidden' });
       if (decision === 'remove' || decision === 'reject') {
         await query(`delete from entities where id = $1`, [link_id]);

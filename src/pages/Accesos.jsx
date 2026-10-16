@@ -181,7 +181,7 @@ export default function Accesos() {
       phone: u.phone || "",
       staff_member_id: linked?.id || NEW_STAFF,
       assignments: list,
-      player_id: player ? (u.player_id || suggestPlayer(u)) : "",
+      player_id: player ? (u.player_id || suggestPlayer(u)) : (u.player_id || ""),
     });
     setEditUser({ ...u, _approving: approving, _linked: linked || null });
   };
@@ -463,6 +463,23 @@ export default function Accesos() {
                   <Link2 className="w-3 h-3" />
                   {editUser?._linked ? "Vinculada automáticamente a su ficha existente." : "Si ya existe su ficha, elígela para no duplicar a la persona."}
                 </p>
+              </div>
+            )}
+
+            {isStaffForm && editForm.app_role && (
+              <div>
+                <Label>También es jugador (opcional)</Label>
+                <Select value={editForm.player_id || "__none__"} onValueChange={(v) => setEditForm((f) => ({ ...f, player_id: v === "__none__" ? "" : v }))}>
+                  <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    <SelectItem value="__none__">No, solo cuerpo técnico</SelectItem>
+                    {[...players]
+                      .filter((p) => p.status !== "baja")
+                      .sort((a, b) => playerLabel(a).localeCompare(playerLabel(b), "es"))
+                      .map((p) => <SelectItem key={p.id} value={p.id}>{playerLabel(p)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-1"><Link2 className="w-3 h-3" />Entra como cuerpo técnico y en el menú tiene "Mi ficha de jugador". También recibe los avisos dirigidos a jugadores.</p>
               </div>
             )}
 
