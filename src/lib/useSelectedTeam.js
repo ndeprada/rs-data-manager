@@ -1,5 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { useTeamAccess } from './TeamAccessContext';
+
+// Equipo seleccionado compartido por TODAS las instancias del hook (cabecera, tablas, etc.),
+// para que al cambiar de equipo en el selector se actualice toda la pantalla.
+let current = '';
+const listeners = new Set();
+const subscribe = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
+const getSnapshot = () => current;
+const setCurrent = (id) => {
+  if (id === current) return;
+  current = id;
+  listeners.forEach((fn) => fn());
+};
 
 /**
  * Hook for determining the "current working team" across Mi Equipo pages.
@@ -9,7 +21,7 @@ import { useTeamAccess } from './TeamAccessContext';
  */
 export function useSelectedTeam() {
   const { isCoordinator, teamId, teamIds, coachTeamIds } = useTeamAccess();
-  const [selectedTeamId, setSelectedTeamId] = useState('');
+  const selectedTeamId = useSyncExternalStore(subscribe, getSnapshot);
 
   // A coach with multiple teams also needs to be able to switch
   const isMultiTeamCoach = !isCoordinator && teamIds && teamIds.length > 1;
@@ -18,26 +30,27 @@ export function useSelectedTeam() {
   useEffect(() => {
     if (!isCoordinator && !isMultiTeamCoach && teamId) {
       // Single-team coach: always use their team
-      setSelectedTeamId(teamId);
-    } else if (canSwitch) {
-      // Coordinator or multi-team coach: restore from localStorage
-      const stored = localStorage.getItem('rs_selected_team');
+      setCurrent(teamId);
+    } else if (canSwitch && !current) {
+      // Coordinator or multi-team coach: restore from localStorage (solo la primera vez)
+      let stored = null;
+      try { stored = localStorage.getItem('rs_selected_team'); } catch { /* sin almacenamiento */ }
       if (stored) {
-        setSelectedTeamId(stored);
+        setCurrent(stored);
       } else if (isCoordinator && coachTeamIds && coachTeamIds.length > 0) {
         // Coordinación que además entrena: por defecto, su equipo
-        setSelectedTeamId(coachTeamIds[0]);
+        setCurrent(coachTeamIds[0]);
       } else if (!isCoordinator && teamIds && teamIds.length > 0) {
         // Default to first team for multi-team coach
-        setSelectedTeamId(teamIds[0]);
-        localStorage.setItem('rs_selected_team', teamIds[0]);
+        setCurrent(teamIds[0]);
+        try { localStorage.setItem('rs_selected_team', teamIds[0]); } catch { /* sin almacenamiento */ }
       }
     }
   }, [isCoordinator, teamId, teamIds?.join(',')]);
 
   const selectTeam = (id) => {
-    setSelectedTeamId(id);
-    if (canSwitch) localStorage.setItem('rs_selected_team', id);
+    setCurrent(id);
+    if (canSwitch) { try { localStorage.setItem('rs_selected_team', id); } catch { /* sin almacenamiento */ } }
   };
 
   return { selectedTeamId, selectTeam, isCoordinator, canSwitch, teamIds };
