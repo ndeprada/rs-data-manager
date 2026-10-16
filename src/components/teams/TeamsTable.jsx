@@ -39,6 +39,8 @@ function StandingCell({ teamId }) {
   return me ? <span className="text-sm font-black" style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}>{me.pos}º <span className="text-[10px] font-normal text-gray-400">{me.pts} pts</span></span> : <span className="text-xs text-gray-300">—</span>;
 }
 
+import { teamRoleRank } from "@/lib/staffRoles";
+
 export default function TeamsTable({ teams = [], players = [], events = [], staff = [], assignments = [], onEdit, onDelete }) {
   const getPlayerCount = (teamId) => {
     return players.filter((p) => p.team_id === teamId).length;
@@ -53,10 +55,7 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
         return { ...member, team_role: a.team_role };
       })
       .filter(Boolean)
-      .sort((a, b) => {
-        const order = Object.keys(TEAM_ROLE_SHORT);
-        return order.indexOf(a.team_role) - order.indexOf(b.team_role);
-      });
+      .sort((a, b) => teamRoleRank(a.team_role) - teamRoleRank(b.team_role));
   };
 
   const getTeamResults = (teamId) => {

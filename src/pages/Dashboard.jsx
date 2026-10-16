@@ -47,9 +47,9 @@ function Countdown({ date }) {
   return (
     <div className="flex gap-2 shrink-0">
       {[[d, "días"], [h, "horas"], [m, "min"]].map(([v, l]) => (
-        <div key={l} className="rounded-lg px-3.5 pt-2 pb-1.5 text-center" style={{ background: "rgba(255,255,255,0.12)" }}>
-          <p className="text-3xl font-black leading-none text-white" style={display}>{String(v).padStart(2, "0")}</p>
-          <p className="text-[9px] uppercase tracking-widest text-white/65 mt-1">{l}</p>
+        <div key={l} className="rounded-lg px-3 pt-1.5 pb-1 text-center" style={{ background: "rgba(255,255,255,0.12)" }}>
+          <p className="text-2xl font-black leading-none text-white" style={display}>{String(v).padStart(2, "0")}</p>
+          <p className="text-[9px] uppercase tracking-widest text-white/65 mt-0.5">{l}</p>
         </div>
       ))}
     </div>
@@ -64,11 +64,11 @@ function MatchButtons({ ev, mine, light }) {
     <div className="flex flex-wrap gap-2">
       {mine ? (
         <>
-          <Link to={`${base}&tab=tactica`} className="text-sm font-bold px-4 py-2 rounded-md" style={primary}>Preparar partido</Link>
-          <Link to={`${base}&tab=convocatoria`} className="text-sm font-semibold px-4 py-2 rounded-md" style={secondary}>Ver convocatoria</Link>
+          <Link to={`${base}&tab=tactica`} className="text-sm font-bold px-3.5 py-1.5 rounded-md" style={primary}>Preparar partido</Link>
+          <Link to={`${base}&tab=convocatoria`} className="text-sm font-semibold px-3.5 py-1.5 rounded-md" style={secondary}>Ver convocatoria</Link>
         </>
       ) : (
-        <Link to={base} className="text-sm font-semibold px-4 py-2 rounded-md" style={secondary}>Ver partido</Link>
+        <Link to={base} className="text-sm font-semibold px-3.5 py-1.5 rounded-md" style={secondary}>Ver partido</Link>
       )}
     </div>
   );
@@ -246,12 +246,12 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
           {nextClub ? (
-            <div className="rounded-xl p-5 md:p-6 flex flex-col md:flex-row md:items-center gap-5 on-dark" style={{ background: "linear-gradient(135deg, var(--granate) 0%, var(--granate-dark) 100%)" }}>
-              <div className="flex-1 min-w-0 space-y-3">
+            <div className="rounded-xl px-4 py-3 md:px-5 md:py-3 flex flex-col md:flex-row md:items-center gap-3 md:gap-5 on-dark" style={{ background: "linear-gradient(135deg, var(--granate) 0%, var(--granate-dark) 100%)" }}>
+              <div className="flex-1 min-w-0 space-y-1.5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70">{nextIsMine ? "Próximo partido del club · es de tus equipos" : "Próximo partido del club"}</p>
                 <div className="flex items-center gap-3 flex-wrap">
-                  <Swords className="w-7 h-7 text-white/80 shrink-0" />
-                  <p className="text-2xl font-black text-white leading-tight" style={display}>{nextClub.title}</p>
+                  <Swords className="w-5 h-5 text-white/80 shrink-0" />
+                  <p className="text-xl font-black text-white leading-tight" style={display}>{nextClub.title}</p>
                 </div>
                 <p className="text-sm text-white/85 flex items-center gap-4 flex-wrap">
                   <span className="font-bold capitalize">{format(new Date(nextClub.date), "EEE d MMM · HH:mm", { locale: es })}</span>

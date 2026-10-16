@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import AddStaffDialog from "@/components/team/AddStaffDialog";
 
-import { CURRENT_SEASON, TEAM_ROLES, teamRoleLabel } from "@/lib/staffRoles";
+import { CURRENT_SEASON, TEAM_ROLES, teamRoleLabel, teamRoleRank } from "@/lib/staffRoles";
 import { syncUserTeamsForStaff } from "@/lib/staffLink";
 
 export default function TeamStaffSection({ teamId }) {
@@ -67,7 +67,8 @@ export default function TeamStaffSection({ teamId }) {
       if (!staff) return null;
       return { ...staff, team_role: a.team_role, assignment_id: a.id };
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((a, b) => teamRoleRank(a.team_role) - teamRoleRank(b.team_role));
 
   // Staff available to add (not already assigned)
   const assignedStaffIds = new Set(assignments.map(a => a.staff_member_id));

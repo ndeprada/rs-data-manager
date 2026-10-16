@@ -45,6 +45,10 @@ export const COACH_TEAM_ROLES = TEAM_ROLES.filter((r) =>
   ["primer_entrenador", "segundo_entrenador", "asistente", "delegado", "analista"].includes(r.value)
 );
 
+// Orden de visualización del cuerpo técnico de un equipo
+const TEAM_ROLE_ORDER = ["primer_entrenador", "segundo_entrenador", "asistente", "preparador_fisico", "entrenador_porteros", "delegado", "fisio", "analista", "coordinador"];
+export const teamRoleRank = (v) => { const i = TEAM_ROLE_ORDER.indexOf(v); return i === -1 ? 99 : i; };
+
 export const teamRoleLabel = (v) => TEAM_ROLES.find((r) => r.value === v)?.label || v || "Sin rol";
 
 // Roles de equipo que implican entrenar (para el acceso "como entrenador")
