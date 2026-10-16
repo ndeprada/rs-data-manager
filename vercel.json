@@ -3,6 +3,10 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/icon",
+      "destination": "/api/upload"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

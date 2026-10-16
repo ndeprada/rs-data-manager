@@ -1,5 +1,6 @@
 import { put } from '@vercel/blob';
 import { requireUser } from './_lib/auth.js';
+import iconHandler from './_lib/icon.js';
 
 export const config = {
   api: {
@@ -8,6 +9,8 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  // GET /api/icon (rewrite en vercel.json) sirve el icono de la app instalable; se comparte función por el límite del plan.
+  if (req.method === 'GET') return iconHandler(req, res);
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'method_not_allowed' });
     return;
