@@ -60,7 +60,7 @@ export default function TeamSummary({ team, events, players, matchStats }) {
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-      <div className={`${box} lg:col-span-2 flex items-center gap-4`} style={{ ...boxStyle, borderLeft: "4px solid var(--naranja)" }}>
+      <div className={`${box} col-span-2 flex items-center gap-4`} style={{ ...boxStyle, borderLeft: "4px solid var(--naranja)" }}>
         <div className="min-w-0 flex-1">
           <Label>Próximo partido</Label>
           {next ? (

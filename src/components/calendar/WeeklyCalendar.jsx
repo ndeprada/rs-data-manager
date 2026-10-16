@@ -58,7 +58,8 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
       </div>
 
       {/* Day columns */}
-      <div className="grid grid-cols-7">
+      <div className="overflow-x-auto">
+      <div className="grid grid-cols-7 min-w-[640px]">
         {days.map((day, i) => {
           const dayEvts = getEventsForDay(day);
           const isToday = isSameDay(day, today);
@@ -106,6 +107,7 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
             </div>
           );
         })}
+      </div>
       </div>
 
       {/* Legend */}
