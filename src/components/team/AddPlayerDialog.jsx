@@ -116,7 +116,7 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
           </div>
           <div className="space-y-1">
             <Label className="text-gray-700">Apodo <span className="text-gray-400 font-normal">(opcional)</span></Label>
-            <Input value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} placeholder="Ej: Kiku" className="border-gray-200" />
+            <Input value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} className="border-gray-200" />
             <p className="text-[11px] text-gray-400">Se muestra en la app en lugar del nombre. El nombre y apellidos oficiales (FCF) no cambian.</p>
           </div>
           <div className="space-y-3 rounded-md border border-gray-200 p-3">
