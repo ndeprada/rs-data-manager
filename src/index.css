@@ -23,6 +23,19 @@ h1, h2, .rs-title { letter-spacing: 0.05em !important; }
 @font-face { font-family: 'IBM Plex Sans Condensed'; src: url('/fonts/IBMPlexSansCondensed-BoldItalic.ttf') format('truetype'); font-weight: 700 900; font-style: italic; font-display: swap; }
 
 
+/* ── Ajustes para la app instalada en el móvil ── */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+html, body { max-width: 100%; overflow-x: hidden; overscroll-behavior-y: none; touch-action: manipulation; }
+/* Altura real de la pantalla en el móvil (la barra del navegador ya no cuenta) */
+.min-h-screen { min-height: 100vh; min-height: 100dvh; }
+.h-screen { height: 100vh; height: 100dvh; }
+/* iPhone hace zoom al tocar un campo con letra menor de 16 px y luego no vuelve: se evita en móvil */
+@media (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px !important; }
+}
+/* Zonas seguras (muesca y barra inferior) cuando la app se abre a pantalla completa */
+body { padding-bottom: env(safe-area-inset-bottom); }
+
 @layer base {
   :root {
     --background: 0 0% 100%;
