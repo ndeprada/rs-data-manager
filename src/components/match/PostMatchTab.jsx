@@ -32,6 +32,10 @@ function embedOf(url) {
   if (/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(u)) return { kind: "file", src: u };
   return null;
 }
+const youtubeThumb = (url) => {
+  const m = String(url || "").match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{6,})/);
+  return m ? `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg` : null;
+};
 const platformOf = (url) => {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; }
 };
@@ -161,28 +165,31 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
           ) : null;
         })()}
         {links.length > 0 && (
-          <div className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
+          <div className="grid sm:grid-cols-2 gap-3">
             {links.map((l, i) => {
               const emb = embedOf(l.url);
+              const thumb = youtubeThumb(l.url);
+              const open = () => { if (emb) setPlaying(playing === i ? null : i); else window.open(l.url, "_blank", "noopener"); };
               return (
-                <div key={i} className="flex items-center gap-2 px-3 py-2">
-                  <LinkIcon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-gray-900 truncate">{l.title}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{platformOf(l.url)}</p>
-                  </div>
-                  {emb ? (
-                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setPlaying(playing === i ? null : i)}>
-                      <Play className="w-3 h-3 mr-1" />{playing === i ? "Cerrar" : "Ver aquí"}
-                    </Button>
-                  ) : null}
-                  <a href={l.url} target="_blank" rel="noopener noreferrer" title="Abrir en una pestaña nueva"
-                    className="h-7 px-2 inline-flex items-center gap-1 rounded-md border border-gray-200 text-xs text-gray-600 hover:bg-gray-50">
-                    <ExternalLink className="w-3 h-3" />{emb ? "" : "Abrir vídeo"}
-                  </a>
-                  <button type="button" onClick={() => { setLinks((x) => x.filter((_, j) => j !== i)); setPlaying(null); setSaved(false); }} className="p-1 text-gray-300 hover:text-red-500">
-                    <Trash2 className="w-3.5 h-3.5" />
+                <div key={i} className={`rounded-xl overflow-hidden border ${playing === i ? "border-[#6b1f28]" : "border-gray-200"} bg-white`}>
+                  <button type="button" onClick={open} className="relative block w-full aspect-video bg-gray-900 group" title={emb ? "Reproducir aquí" : "Abrir vídeo"}>
+                    {thumb && <img src={thumb} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" />}
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <span className="w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110" style={{ background: "var(--granate)" }}>
+                        <Play className="w-7 h-7 ml-0.5 fill-white" />
+                      </span>
+                    </span>
+                    <span className="absolute left-2 bottom-2 text-[10px] font-bold uppercase tracking-wide text-white/90 bg-black/50 rounded px-1.5 py-0.5">
+                      {playing === i ? "Reproduciendo" : emb ? "Ver partido" : `Abrir en ${platformOf(l.url) || "otra pestaña"}`}
+                    </span>
                   </button>
+                  <div className="flex items-center gap-2 px-3 py-2">
+                    <p className="flex-1 min-w-0 text-xs font-bold text-gray-900 truncate">{l.title}</p>
+                    <a href={l.url} target="_blank" rel="noopener noreferrer" title="Abrir en una pestaña nueva" className="p-1 text-gray-400 hover:text-gray-700"><ExternalLink className="w-3.5 h-3.5" /></a>
+                    <button type="button" onClick={() => { setLinks((x) => x.filter((_, j) => j !== i)); setPlaying(null); setSaved(false); }} className="p-1 text-gray-300 hover:text-red-500">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
