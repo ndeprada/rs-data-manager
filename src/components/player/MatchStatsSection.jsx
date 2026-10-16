@@ -21,7 +21,7 @@ function StarPicker({ value, onChange }) {
   const [hover, setHover] = useState(0);
   return (
     <div className="flex gap-1">
-      {[1, 2, 3, 4, 5].map((i) => (
+      {[1, 2, 3].map((i) => (
         <button
           key={i}
           type="button"
@@ -169,7 +169,7 @@ export default function MatchStatsSection({ playerId, isGoalkeeper = false }) {
                     <td className="px-2 py-3 text-center">
                       {s.rating ? (
                         <span className="inline-flex items-center gap-0.5">
-                          {[1,2,3,4,5].map(i => (
+                          {[1,2,3].map(i => (
                             <Star key={i} className={`w-3 h-3 ${i <= s.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200"}`} />
                           ))}
                         </span>
@@ -266,7 +266,7 @@ export default function MatchStatsSection({ playerId, isGoalkeeper = false }) {
               <StarPicker value={form.rating} onChange={(v) => setForm({ ...form, rating: v })} />
               {form.rating > 0 && (
                 <p className="text-xs text-gray-400">
-                  {["", "Muy malo", "Regular", "Aceptable", "Bueno", "Excelente"][form.rating]}
+                  {["", "Mal", "Bien", "Muy bien"][form.rating]}
                 </p>
               )}
             </div>

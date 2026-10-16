@@ -9,12 +9,12 @@ import { playerFullName } from "@/lib/playerName";
 import { calcMinutesPlayed, getMatchMinutes } from "@/components/match/ActaTab";
 
 const POSITION_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
-const STAR_LABELS = ["", "Muy mal", "Mal", "Aceptable", "Bien", "Excelente"];
+const STAR_LABELS = ["", "Mal", "Bien", "Muy bien"];
 
 function Stars({ value, onChange }) {
   return (
     <div className="flex items-center gap-0.5 shrink-0" title={STAR_LABELS[value || 0]}>
-      {[1, 2, 3, 4, 5].map((s) => (
+      {[1, 2, 3].map((s) => (
         <button key={s} type="button" onClick={() => onChange(value === s ? 0 : s)} className="p-0.5">
           <Star className={`w-4 h-4 ${s <= (value || 0) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
         </button>

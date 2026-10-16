@@ -30,7 +30,7 @@ export default function PlayerCorrectionsSection({ playerId, teamId }) {
               <p className="text-[11px] text-gray-400 truncate">{s.opponent ? `vs ${s.opponent}` : ""}</p>
               {s.rating > 0 && (
                 <span className="inline-flex mt-0.5">
-                  {[1, 2, 3, 4, 5].map((i) => <Star key={i} className={`w-3 h-3 ${i <= s.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200"}`} />)}
+                  {[1, 2, 3].map((i) => <Star key={i} className={`w-3 h-3 ${i <= s.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200"}`} />)}
                 </span>
               )}
             </div>

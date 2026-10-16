@@ -47,7 +47,7 @@ function Mini({ label, value }) {
 function StarRating({ value }) {
   return (
     <span className="inline-flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((i) => (
+      {[1, 2, 3].map((i) => (
         <Star
           key={i}
           className={`w-3.5 h-3.5 ${i <= value ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
@@ -162,7 +162,7 @@ export default function PlayerPerformancePanel({ playerId }) {
             <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9ca3af" }} />
-              <YAxis yAxisId="rating" hide={playerMode} domain={[0, 5]} tick={{ fontSize: 11, fill: "#9ca3af" }} />
+              <YAxis yAxisId="rating" hide={playerMode} domain={[0, 3]} tick={{ fontSize: 11, fill: "#9ca3af" }} />
               <YAxis yAxisId="asistencia" orientation="right" domain={[0, 100]} tick={{ fontSize: 11, fill: "#9ca3af" }} unit="%" />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }}
