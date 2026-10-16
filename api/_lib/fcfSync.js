@@ -328,8 +328,8 @@ const isPrimerEquipo = (team) => !!team && (PRIMER_EQUIPO_SLUGS.has(String(team.
 function totalMatchMinutes(d) {
   const x = d.match_duration;
   if (!x) return 90;
-  if (x === '4x15') return 60;
-  if (x === '4x12') return 48;
+  const m = String(x).match(/^(\d+)x(\d+)$/);   // "2x45" -> 90, "4x15" -> 60
+  if (m) return Number(m[1]) * Number(m[2]);
   return parseInt(x) || 90;
 }
 
