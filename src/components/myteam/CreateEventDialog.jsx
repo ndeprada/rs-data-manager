@@ -164,7 +164,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
       base44.integrations.Core.SendEmail({
         to: r.email,
         subject: `📅 Nuevo evento: ${title}`,
-        body: `Hola ${r.name},\n\n${message}\n\nRS Data Manager`,
+        body: `Hola ${r.name},\n\n${message}\n\nRS Manager`,
       }).catch(() => null)
     ));
   };
@@ -358,7 +358,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                     rows={5}
                     placeholder="Escribe el mensaje…"
                   />
-                  <p className="text-[10px] text-gray-400">El mensaje irá precedido de "Hola [nombre]," y finalizado con "RS Data Manager".</p>
+                  <p className="text-[10px] text-gray-400">El mensaje irá precedido de "Hola [nombre]," y finalizado con "RS Manager".</p>
                 </div>
               )}
             </div>

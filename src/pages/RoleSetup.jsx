@@ -21,7 +21,7 @@ function Shell({ children }) {
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
           <img src={CLUB_LOGO_URL} alt="RS Club" className="w-14 h-14 object-contain mx-auto mb-4" />
-          <h1 className="text-3xl font-black uppercase tracking-wider" style={{ color: "var(--granate)", ...FONT }}>RS Data Manager</h1>
+          <h1 className="text-3xl font-black uppercase tracking-wider" style={{ color: "var(--granate)", ...FONT }}>RS Manager</h1>
         </div>
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-6 sm:p-8">{children}</div>
       </div>

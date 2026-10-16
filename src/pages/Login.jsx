@@ -55,7 +55,7 @@ export default function Login() {
             className="text-3xl font-black uppercase tracking-wider"
             style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}
           >
-            RS Data Manager
+            RS Manager
           </h1>
         </div>
 

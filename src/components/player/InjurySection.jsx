@@ -132,7 +132,7 @@ export default function InjurySection({ playerId, playerName, playerEmail, staff
         await base44.integrations.Core.SendEmail({
           to: email,
           subject: `✅ Alta médica: ${playerName} regresa a la actividad`,
-          body: `Hola,\n\nEl jugador ${playerName} ha recibido el alta médica el ${format(new Date(), "d MMMM yyyy", { locale: es })} y puede reincorporarse a los entrenamientos.\n\nLesión: ${TYPE_LABELS[inj.type] || inj.type} en ${PART_LABELS[inj.body_part] || inj.body_part} (${inj.severity})\nFecha lesión: ${inj.injury_date}\n\nRS Data Manager`
+          body: `Hola,\n\nEl jugador ${playerName} ha recibido el alta médica el ${format(new Date(), "d MMMM yyyy", { locale: es })} y puede reincorporarse a los entrenamientos.\n\nLesión: ${TYPE_LABELS[inj.type] || inj.type} en ${PART_LABELS[inj.body_part] || inj.body_part} (${inj.severity})\nFecha lesión: ${inj.injury_date}\n\nRS Manager`
         });
       }
     }

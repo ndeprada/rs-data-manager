@@ -247,7 +247,7 @@ export function generatePlayerPDF(player, team, stats, attendance, month, year) 
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text(`RS Data Manager — Informe Mensual Confidencial — ${playerFullName(player)}`, margin, 294.5);
+    doc.text(`RS Manager — Informe Mensual Confidencial — ${playerFullName(player)}`, margin, 294.5);
     doc.text(`Pág. ${p} / ${total_pages}`, W - margin - 16, 294.5);
   }
 

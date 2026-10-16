@@ -218,7 +218,7 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
           ${rows || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#9ca3af;">Sin partidos este fin de semana</td></tr>'}
         </tbody>
       </table>
-      <div class="footer">Generado el ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es })} · RS Data Manager</div>
+      <div class="footer">Generado el ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es })} · RS Manager</div>
     `;
   };
 

@@ -14,7 +14,7 @@ export default function PlayerHome() {
       <div className="w-full max-w-md text-center">
         <img src={CLUB_LOGO_URL} alt="RS Club" className="w-14 h-14 object-contain mx-auto mb-4" />
         <h1 className="text-3xl font-black uppercase tracking-wider mb-6" style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}>
-          RS Data Manager
+          RS Manager
         </h1>
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-8">
           <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto mb-3" />

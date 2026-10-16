@@ -349,7 +349,7 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text(`RS Data Manager — Progresión Individual — ${playerFullName(player)}`, margin, 294.5);
+    doc.text(`RS Manager — Progresión Individual — ${playerFullName(player)}`, margin, 294.5);
     doc.text(`Pág. ${p} / ${totalPages}`, W - margin - 16, 294.5);
   }
 

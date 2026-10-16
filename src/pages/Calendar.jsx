@@ -105,7 +105,7 @@ export default function Calendar() {
       base44.integrations.Core.SendEmail({
         to: r.email,
         subject: `📅 Nuevo evento: ${event.title}`,
-        body: `Hola ${r.name},\n\n${message}\n\nRS Data Manager`,
+        body: `Hola ${r.name},\n\n${message}\n\nRS Manager`,
       }).catch(() => null)
     ));
   };
@@ -620,7 +620,7 @@ export default function Calendar() {
                       rows={5}
                       placeholder="Escribe el mensaje que recibirán los miembros del equipo..."
                     />
-                    <p className="text-xs text-gray-400">El mensaje irá precedido de "Hola [nombre]," y finalizado con "RS Data Manager".</p>
+                    <p className="text-xs text-gray-400">El mensaje irá precedido de "Hola [nombre]," y finalizado con "RS Manager".</p>
                   </div>
                 )}
               </div>

@@ -31,15 +31,15 @@ export default async function handler(req, res) {
     }
     if (!email) return res.status(200).json({ sent: false, reason: 'no_email' });
 
-    const from = process.env.NOTIFY_FROM || 'RS Data Manager <onboarding@resend.dev>';
+    const from = process.env.NOTIFY_FROM || 'RS Manager <onboarding@resend.dev>';
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from,
         to: [email],
-        subject: 'Tienes feedback nuevo en RS Data Manager',
-        html: `<p>Hola${name ? ' ' + name : ''},</p><p>${fb.author_name || 'Coordinación'} te ha enviado feedback${fb.date ? ' (' + fb.date + ')' : ''}. Entra en <a href="https://rs-dm.vercel.app">RS Data Manager</a> → Perfil y feedback para verlo.</p>`,
+        subject: 'Tienes feedback nuevo en RS Manager',
+        html: `<p>Hola${name ? ' ' + name : ''},</p><p>${fb.author_name || 'Coordinación'} te ha enviado feedback${fb.date ? ' (' + fb.date + ')' : ''}. Entra en <a href="https://rs-dm.vercel.app">RS Manager</a> → Perfil y feedback para verlo.</p>`,
       }),
     });
     res.status(200).json({ sent: r.ok });

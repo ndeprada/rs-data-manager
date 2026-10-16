@@ -100,7 +100,7 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
       await base44.integrations.Core.SendEmail({
         to: player.email,
         subject: `📋 Convocatoria: ${event?.title}`,
-        body: `Hola ${playerFirstName(player)},\n\nEstàs convocat/da per al següent partit:\n\n🏟️ ${event?.title}${event?.opponent ? ` vs ${event.opponent}` : ""}\n📅 ${eventDate}${event?.location ? `\n📍 ${event.location}` : ""}${notes ? `\n\n📝 Notes: ${notes}` : ""}\n\nConfirma la teva assistència amb el teu entrenador.\n\nRS Data Manager`,
+        body: `Hola ${playerFirstName(player)},\n\nEstàs convocat/da per al següent partit:\n\n🏟️ ${event?.title}${event?.opponent ? ` vs ${event.opponent}` : ""}\n📅 ${eventDate}${event?.location ? `\n📍 ${event.location}` : ""}${notes ? `\n\n📝 Notes: ${notes}` : ""}\n\nConfirma la teva assistència amb el teu entrenador.\n\nRS Manager`,
       });
     }
 

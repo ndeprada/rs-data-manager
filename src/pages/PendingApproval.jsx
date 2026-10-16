@@ -25,7 +25,7 @@ export default function PendingApproval() {
           alt="RS Club" className="w-14 h-14 object-contain mx-auto mb-6"
         />
         <h1 className="rs-font text-3xl font-black uppercase tracking-wider text-[#73000A] mb-2">
-          RS Data Manager
+          RS Manager
         </h1>
 
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-8 mt-6">

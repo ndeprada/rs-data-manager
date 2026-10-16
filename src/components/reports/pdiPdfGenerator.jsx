@@ -150,7 +150,7 @@ export function generatePDIPDF(player, team, pdiRecords) {
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text(`RS Data Manager — PDI Confidencial — ${playerFullName(player)}`, margin, 294.5);
+    doc.text(`RS Manager — PDI Confidencial — ${playerFullName(player)}`, margin, 294.5);
     doc.text(`Pág. ${p} / ${totalPages}`, W - margin - 16, 294.5);
   }
 

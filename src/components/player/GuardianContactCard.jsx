@@ -28,7 +28,7 @@ export default function GuardianContactCard({ player }) {
     await base44.integrations.Core.SendEmail({
       to: player.guardian_email,
       subject: `Contacto sobre ${playerFullName(player)}`,
-      body: `Estimado/a ${player.guardian_name || "tutor/a"},\n\nNos ponemos en contacto con usted en relación a ${playerFullName(player)}.\n\nQuedamos a su disposición.\n\nUn saludo,\nRS Data Manager`,
+      body: `Estimado/a ${player.guardian_name || "tutor/a"},\n\nNos ponemos en contacto con usted en relación a ${playerFullName(player)}.\n\nQuedamos a su disposición.\n\nUn saludo,\nRS Manager`,
     });
     setSending(false);
     toast({ title: "Email enviado", description: `Se ha enviado un email a ${player.guardian_email}` });

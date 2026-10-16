@@ -1,0 +1,17 @@
+{
+  "name": "RS Manager",
+  "short_name": "RS Manager",
+  "description": "Gestión del Racing Sarrià: convocatorias, calendario, partidos y avisos.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#73000A",
+  "theme_color": "#73000A",
+  "lang": "es",
+  "icons": [
+    { "src": "/api/icon", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/api/icon", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/api/icon", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

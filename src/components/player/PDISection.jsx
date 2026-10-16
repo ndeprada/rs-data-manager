@@ -93,7 +93,7 @@ export default function PDISection({ playerId, playerName, playerEmail, readOnly
         await base44.integrations.Core.SendEmail({
           to: playerEmail,
           subject: `📊 Nueva evaluación PDI publicada`,
-          body: `Hola ${playerName},\n\nTu entrenador ha publicado una nueva evaluación de rendimiento (PDI):\n\n📅 Período: ${period}${created.evaluator ? `\n👤 Evaluador: ${created.evaluator}` : ""}${rating}${created.strengths ? `\n\n✅ Puntos fuertes:\n${created.strengths}` : ""}${created.areas_to_improve ? `\n\n📈 Áreas de mejora:\n${created.areas_to_improve}` : ""}${created.objectives ? `\n\n🎯 Objetivos:\n${created.objectives}` : ""}\n\nAccede a tu perfil para ver la evaluación completa.\n\nRS Data Manager`,
+          body: `Hola ${playerName},\n\nTu entrenador ha publicado una nueva evaluación de rendimiento (PDI):\n\n📅 Período: ${period}${created.evaluator ? `\n👤 Evaluador: ${created.evaluator}` : ""}${rating}${created.strengths ? `\n\n✅ Puntos fuertes:\n${created.strengths}` : ""}${created.areas_to_improve ? `\n\n📈 Áreas de mejora:\n${created.areas_to_improve}` : ""}${created.objectives ? `\n\n🎯 Objetivos:\n${created.objectives}` : ""}\n\nAccede a tu perfil para ver la evaluación completa.\n\nRS Manager`,
         });
       }
     },

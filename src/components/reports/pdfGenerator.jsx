@@ -158,7 +158,7 @@ export function generatePDF(data) {
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text("RS Data Manager — Informe Confidencial", margin, 294.5);
+    doc.text("RS Manager — Informe Confidencial", margin, 294.5);
     doc.text("Pàgina " + p + " / " + total, W - margin - 20, 294.5);
   }
 

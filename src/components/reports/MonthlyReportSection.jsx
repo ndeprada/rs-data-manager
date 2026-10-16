@@ -124,7 +124,7 @@ export default function MonthlyReportSection() {
     ` : ""}
 
     <p style="color: #888; font-size: 12px; margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">
-      Este informe ha sido generado automáticamente por el sistema RS Data Manager del club.<br>
+      Este informe ha sido generado automáticamente por el sistema RS Manager del club.<br>
       Para cualquier consulta, contacte con el entrenador del equipo.
     </p>
   </div>

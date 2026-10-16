@@ -129,7 +129,7 @@ function PlayerSidebar({ onClose = () => {} }) {
       <div className="px-3 py-4 border-b border-white/10">
         <Link to="/PlayerTeam" onClick={onClose} className="flex items-center gap-2.5">
           <img src={CLUB_LOGO_URL_WHITE} alt="RS Club" className="w-7 h-7 object-contain" />
-          <h1 className="font-bold text-xl tracking-wider uppercase leading-none text-white" style={{ fontFamily: "var(--font-display)" }}>RS Data Manager</h1>
+          <h1 className="font-bold text-xl tracking-wider uppercase leading-none text-white" style={{ fontFamily: "var(--font-display)" }}>RS Manager</h1>
         </Link>
       </div>
       <nav className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5">
@@ -338,7 +338,7 @@ export default function Layout() {
           </button>
           <Link to={playerMode ? "/PlayerTeam" : "/Dashboard"} onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
             <img src={CLUB_LOGO_URL_WHITE} alt="RS Club" className="w-7 h-7 object-contain" />
-            <h1 className="font-bold text-xl tracking-wider uppercase leading-none" style={{ fontFamily: "var(--font-display)", color: "#ffffff" }}>RS Data Manager</h1>
+            <h1 className="font-bold text-xl tracking-wider uppercase leading-none" style={{ fontFamily: "var(--font-display)", color: "#ffffff" }}>RS Manager</h1>
           </Link>
         </div>
       </div>
