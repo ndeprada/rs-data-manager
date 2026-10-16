@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, addDays, addWeeks, parseISO } from "date-fns";
+import { format, addDays, parseISO, differenceInCalendarDays, startOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -48,13 +48,25 @@ const buildDefaultNotificationMessage = (form, teams) => {
   return `Se ha añadido un nuevo evento al calendario:\n\n📌 ${title}\n🏷️ Tipo: ${eventLabel}\n📅 Fecha: ${formattedDate}${form.location ? `\n📍 Lugar: ${form.location}` : ""}${team ? `\n🛡️ Equipo: ${team.name}` : ""}${form.notes ? `\n📝 Notas: ${form.notes}` : ""}`;
 };
 
-// Fechas de la serie: todos los días entre "desde" y "hasta" (ambos inclusive) que caigan en los días marcados
-function getOccurrenceDates(from, until, weekdays) {
+const FREQ_OPTIONS = [
+  { value: "weekly", label: "Cada semana" },
+  { value: "biweekly", label: "Cada 2 semanas" },
+  { value: "monthly", label: "Una vez al mes" },
+];
+const ORDINALS = ["primer", "segundo", "tercer", "cuarto", "quinto"];
+
+// Fechas de la serie entre "desde" y "hasta" (inclusive).
+// Semanal / cada 2 semanas: los días de la semana marcados. Mensual: el mismo día (p. ej. "segundo martes") que la fecha de inicio.
+function getOccurrenceDates(from, until, weekdays, freq = "weekly") {
   const dates = [];
-  if (!from || !until || !weekdays.length) return dates;
+  if (!from || !until) return dates;
+  const start = parseISO(from);
   const end = parseISO(until);
-  for (let d = parseISO(from); d <= end && dates.length < 366; d = addDays(d, 1)) {
-    if (weekdays.includes(d.getDay())) dates.push(d);
+  const nth = (d) => Math.floor((d.getDate() - 1) / 7);
+  const weekIdx = (d) => Math.floor(differenceInCalendarDays(d, startOfWeek(start, { weekStartsOn: 1 })) / 7);
+  for (let d = start; d <= end && dates.length < 366; d = addDays(d, 1)) {
+    if (freq === "monthly") { if (d.getDay() === start.getDay() && nth(d) === nth(start)) dates.push(d); }
+    else if (weekdays.includes(d.getDay()) && (freq === "weekly" || weekIdx(d) % 2 === 0)) dates.push(d);
   }
   return dates;
 }
@@ -81,6 +93,7 @@ const buildEmptyForm = (date, teamId) => ({
   notes: "",
   teamId: teamId || "",
   recurring: false,
+  frequency: "weekly",
   weekdays: [(date || new Date()).getDay()],
   series_from: date ? format(date, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
   recurrence_until: defaultSeasonEnd(date),
@@ -117,7 +130,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
   const parsedDate = form.date ? parseISO(form.date) : new Date();
 
   const allDates = form.recurring
-    ? getOccurrenceDates(form.series_from, form.recurrence_until, form.weekdays)
+    ? getOccurrenceDates(form.series_from, form.recurrence_until, form.weekdays, form.frequency)
     : [];
   const toggleWeekday = (dow) => setForm(prev => ({
     ...prev,
@@ -160,7 +173,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
     mutationFn: async (data) => {
       const seriesId = form.recurring ? crypto.randomUUID() : undefined;
       const occurrences = form.recurring
-        ? getOccurrenceDates(form.series_from, form.recurrence_until, form.weekdays).filter(d => !(form.excluded || []).includes(format(d, "yyyy-MM-dd")))
+        ? getOccurrenceDates(form.series_from, form.recurrence_until, form.weekdays, form.frequency).filter(d => !(form.excluded || []).includes(format(d, "yyyy-MM-dd")))
         : [parsedDate];
 
       const makeOne = (occDate) => {
@@ -364,6 +377,20 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
             {form.recurring && (
               <div className="space-y-3 pt-1">
                 <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Frecuencia</p>
+                  <Select value={form.frequency} onValueChange={v => set("frequency", v)}>
+                    <SelectTrigger className="border-gray-200 h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {FREQ_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.frequency === "monthly" ? (
+                  <p className="text-xs text-gray-600">
+                    Se repetirá el <b>{ORDINALS[Math.floor((parseISO(form.series_from).getDate() - 1) / 7)]} {WEEKDAYS.find(w => w.dow === parseISO(form.series_from).getDay())?.name.toLowerCase()}</b> de cada mes, a partir de «Empieza el».
+                  </p>
+                ) : (
+                <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Se repite en</p>
                   <div className="flex gap-1">
                     {WEEKDAYS.map(w => {
@@ -378,6 +405,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                     })}
                   </div>
                 </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Empieza el</p>
