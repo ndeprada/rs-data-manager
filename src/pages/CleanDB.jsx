@@ -79,9 +79,9 @@ export default function CleanDB() {
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Mantenimiento</p>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Mantenimiento</p>
         <h1>Limpieza de Duplicados</h1>
-        <p className="text-gray-400 text-xs uppercase tracking-widest" style={{ fontFamily: "var(--font-display)" }}>Eliminación automática de registros duplicados</p>
+        <p className="text-gray-400 text-xs mt-1">Eliminación automática de registros duplicados</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">

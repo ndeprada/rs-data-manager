@@ -131,9 +131,9 @@ export default function Tactics() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Herramientas</p>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Herramientas</p>
           <h1>Pizarra Táctica</h1>
-          <p className="text-gray-400 text-xs uppercase tracking-widest" style={{ fontFamily: "var(--font-display)" }}>Disposición táctica de los equipos</p>
+          <p className="text-gray-400 text-xs mt-1">Disposición táctica de los equipos</p>
         </div>
         <div className="flex gap-3 items-center">
           <Select value={selectedTeam} onValueChange={setSelectedTeam}>

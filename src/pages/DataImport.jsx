@@ -244,9 +244,9 @@ export default function DataImport() {
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Utilidades</p>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Utilidades</p>
         <h1>Importador de Datos</h1>
-        <p className="text-gray-400 text-xs uppercase tracking-widest" style={{ fontFamily: "var(--font-display)" }}>Importación automática de Teams, Players, Events y StaffMembers</p>
+        <p className="text-gray-400 text-xs mt-1">Importación automática de Teams, Players, Events y StaffMembers</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">

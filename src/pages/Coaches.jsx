@@ -147,9 +147,9 @@ export default function Coaches() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Administración</p>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Administración</p>
           <h1>Personal</h1>
-          <p className="text-gray-400 text-xs uppercase tracking-widest" style={{ fontFamily: "var(--font-display)" }}>Miembros del personal del club</p>
+          <p className="text-gray-400 text-xs mt-1">Miembros del personal del club</p>
         </div>
         <Select value={filterTeam} onValueChange={setFilterTeam}>
           <SelectTrigger className="w-48 border-gray-200 bg-white"><SelectValue placeholder="Todos los equipos" /></SelectTrigger>

@@ -169,9 +169,9 @@ export default function Teams() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
          <div>
-           <p className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Administración</p>
+           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Administración</p>
            <h1>Equipos</h1>
-           <p className="text-gray-400 text-xs uppercase tracking-widest" style={{ fontFamily: "var(--font-display)" }}>Gestión de equipos del club</p>
+           <p className="text-gray-400 text-xs mt-1">Gestión de equipos del club</p>
          </div>
          <div className="flex items-center gap-2">
            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">

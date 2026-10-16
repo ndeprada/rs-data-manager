@@ -117,9 +117,9 @@ export default function Attendance() {
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Gestión</p>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Gestión</p>
         <h1>Asistencia</h1>
-        <p className="text-gray-400 text-xs uppercase tracking-widest" style={{ fontFamily: "var(--font-display)" }}>Registra la asistencia a entrenamientos y partidos</p>
+        <p className="text-gray-400 text-xs mt-1">Registra la asistencia a entrenamientos y partidos</p>
       </div>
 
       {/* Filters */}

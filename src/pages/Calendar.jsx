@@ -248,9 +248,9 @@ export default function Calendar() {
       <EditEventDialog open={!!editDialogEvent} onOpenChange={(o) => { if (!o) setEditDialogEvent(null); }} event={editDialogEvent} />
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Administración</p>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Administración</p>
           <h1>Calendario</h1>
-          <p className="text-gray-400 text-xs uppercase tracking-widest" style={{ fontFamily: "var(--font-display)" }}>Entrenamientos y partidos</p>
+          <p className="text-gray-400 text-xs mt-1">Entrenamientos y partidos</p>
         </div>
         <div className="flex gap-2">
           <Select value={filterTeam} onValueChange={setFilterTeam}>

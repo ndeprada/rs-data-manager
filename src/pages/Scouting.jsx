@@ -8,9 +8,9 @@ export default function Scouting() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Herramientas</p>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Herramientas</p>
         <h1>Scouting</h1>
-        <p className="text-gray-400 text-xs uppercase tracking-widest" style={{ fontFamily: "var(--font-display)" }}>Observación y seguimiento de jugadores</p>
+        <p className="text-gray-400 text-xs mt-1">Observación y seguimiento de jugadores</p>
       </div>
 
       <Tabs defaultValue="players">
