@@ -34,31 +34,32 @@ export default function Material() {
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Material Deportivo</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Inventario, asignaciones, incidencias y control de equipaciones</p>
+      {/* Cabecera */}
+      <div className="mb-4">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Club</p>
+        <h1 className="text-3xl font-black leading-none" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Material</h1>
+        <p className="text-xs text-gray-400 mt-1">Inventario, asignaciones, incidencias y control de equipaciones</p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 mb-6 overflow-x-auto">
+      {/* Pestañas */}
+      <div className="flex gap-1.5 mb-4 overflow-x-auto">
         {TABS.map(tab => {
           const Icon = tab.icon;
           const badge = badges[tab.id];
+          const active = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors relative ${
-                activeTab === tab.id
-                  ? "border-gray-900 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-[13px] font-semibold whitespace-nowrap rounded-lg border transition-colors ${
+                active ? "text-white" : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
               }`}
+              style={active ? { background: "var(--granate)", borderColor: "var(--granate)" } : undefined}
             >
               <Icon className="w-4 h-4" />
               {tab.label}
               {badge > 0 && (
-                <span className={`text-xs rounded-full px-1.5 py-0.5 font-bold leading-none ${
+                <span className={`text-[11px] rounded-full px-1.5 py-0.5 font-bold leading-none ${
                   tab.id === "incidencias" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
                 }`}>
                   {badge}

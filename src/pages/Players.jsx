@@ -151,16 +151,26 @@ export default function Players() {
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <p className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Directorio</p>
-          <h1>Jugadores</h1>
-          <p className="text-xs text-gray-400">{players.length} jugadores registrados en el club</p>
+          <h1 className="text-3xl font-black leading-none" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Jugadores</h1>
+          <p className="text-xs text-gray-400 mt-1">Racing Sarrià · {players.length} jugadores registrados</p>
         </div>
         <Button onClick={() => { setEditingPlayer(null); setDialogOpen(true); }} className="text-white" style={{ background: "var(--granate)" }}>
           <Plus className="w-4 h-4 mr-1" /> Nuevo Jugador
         </Button>
       </div>
 
+      {/* Resumen */}
+      <div className="grid grid-cols-3 gap-3">
+        {[["Jugadores", players.length], ["Activos", players.filter(p => (p.status || "activo") === "activo").length], ["Lesionados", players.filter(p => p.status === "lesionado").length]].map(([l, v]) => (
+          <div key={l} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">{l}</p>
+            <p className="text-2xl font-black leading-none mt-1" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{v}</p>
+          </div>
+        ))}
+      </div>
+
       {/* Barra de búsqueda y filtros (sticky) */}
-      <div className="sticky top-[56px] lg:top-0 z-20 bg-white border border-gray-200 rounded-sm shadow-sm p-3 space-y-2.5">
+      <div className="sticky top-[56px] lg:top-0 z-20 bg-white border border-gray-200 rounded-xl shadow-sm p-3 space-y-2.5">
         <div className="flex flex-wrap gap-2 items-center">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -214,7 +224,7 @@ export default function Players() {
               <button
                 key={pos.value}
                 onClick={() => togglePositionFilter(pos.value)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all border ${
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border ${
                   filterPosition.has(pos.value) ? "text-white" : "text-gray-500 border-gray-200 hover:border-gray-300"
                 }`}
                 style={filterPosition.has(pos.value) ? { background: "var(--granate)", borderColor: "var(--granate)" } : {}}
@@ -250,7 +260,7 @@ export default function Players() {
           </p>
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
+        <div className="bg-white border border-gray-200 shadow-sm overflow-hidden rounded-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -285,7 +295,7 @@ export default function Players() {
                       <td className="px-3 py-1.5 hidden md:table-cell text-xs text-gray-500">{team?.name || "—"}</td>
                       <td className="px-3 py-1.5 text-center">
                         {player.position ? (
-                          <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-sm" style={{ background: "var(--granate-pale)", color: "var(--granate)", fontFamily: "var(--font-display)" }}>
+                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full" style={{ background: "var(--granate-pale)", color: "var(--granate)", fontFamily: "var(--font-display)" }}>
                             {POSITION_LABELS[player.position] || player.position}
                           </span>
                         ) : <span className="text-gray-300">—</span>}
@@ -293,7 +303,7 @@ export default function Players() {
                       <td className="px-3 py-1.5 text-center hidden lg:table-cell text-xs text-gray-500 capitalize">{player.laterality || "—"}</td>
                       <td className="px-3 py-1.5 text-center hidden sm:table-cell font-black text-gray-600" style={{ fontFamily: "var(--font-display)" }}>{player.jersey_number || "—"}</td>
                       <td className="px-3 py-1.5 text-center">
-                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-sm border ${
+                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
                           player.status === "activo" ? "bg-green-50 text-green-700 border-green-200" :
                           player.status === "lesionado" ? "bg-red-50 text-red-700 border-red-200" :
                           "bg-gray-100 text-gray-400 border-gray-200"
