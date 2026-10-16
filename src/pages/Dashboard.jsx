@@ -10,7 +10,8 @@ import FCFClassificationsPanel from "../components/dashboard/FCFClassificationsP
 import WeekendAgenda from "../components/dashboard/WeekendAgenda";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { playerFullName } from "@/lib/playerName";
-import { useCountedStats } from "@/lib/matchStatus";
+import { useCountedStats, STAT_SCOPES } from "@/lib/matchStatus";
+import StatsScopePills from "@/components/common/StatsScopePills";
 import { usePendingUsers } from "@/lib/pendingUsers";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
@@ -142,7 +143,8 @@ export default function Dashboard() {
   const { data: fields = [] } = useQuery({ queryKey: ["fields"], queryFn: () => base44.entities.Field.list() });
   const { data: attendance = [] } = useQuery({ queryKey: ["attendance"], queryFn: () => base44.entities.TrainingAttendance.list() });
   const { data: rawStats = [] } = useQuery({ queryKey: ["matchstats"], queryFn: () => base44.entities.MatchStats.list() });
-  const matchStats = useCountedStats(rawStats);
+  const [statScope, setStatScope] = useState("liga");
+  const matchStats = useCountedStats(rawStats, statScope);
 
   const myIds = useMemo(() => new Set(coachTeamIds || []), [coachTeamIds]);
   const hasMine = myIds.size > 0;
@@ -359,6 +361,10 @@ export default function Dashboard() {
         )}
       </div>
 
+      <div className="flex items-center justify-between gap-3 flex-wrap -mb-2">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={display}>Estadísticas de {STAT_SCOPES.find((x) => x.value === statScope)?.label.toLowerCase()}</p>
+        <StatsScopePills value={statScope} onChange={setStatScope} />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Leaders title="Líderes · Fútbol 7" items={leadersFor("f7")} />
         <Leaders title="Líderes · Fútbol 11" items={leadersFor("f11")} />

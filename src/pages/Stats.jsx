@@ -8,7 +8,8 @@ import AttendanceChart from "@/components/stats/AttendanceChart";
 import MatchResultsChart from "@/components/stats/MatchResultsChart";
 import MinutesDistributionChart from "@/components/stats/MinutesDistributionChart";
 import { playerFullName } from "@/lib/playerName";
-import { useCountedStats } from "@/lib/matchStatus";
+import { useCountedStats, STAT_SCOPES } from "@/lib/matchStatus";
+import StatsScopePills from "@/components/common/StatsScopePills";
 
 export default function Stats() {
   const [selectedTeam, setSelectedTeam] = useState("all");
@@ -33,7 +34,8 @@ export default function Stats() {
     queryKey: ["matchStats"],
     queryFn: () => base44.entities.MatchStats.list("-date", 500),
   });
-  const matchStats = useCountedStats(raw_matchStats);
+  const [statScope, setStatScope] = useState("liga");
+  const matchStats = useCountedStats(raw_matchStats, statScope);
 
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
@@ -58,9 +60,11 @@ export default function Stats() {
         return player?.team_id === selectedTeam;
       });
 
-  const filteredEvents = selectedTeam === "all"
+  const scopeTypes = (STAT_SCOPES.find((x) => x.value === statScope) || STAT_SCOPES[0]).types;
+  const filteredEvents = (selectedTeam === "all"
     ? events
-    : events.filter((e) => e.team_id === selectedTeam);
+    : events.filter((e) => e.team_id === selectedTeam)
+  ).filter((e) => !["partido_liga", "partido_amistoso", "torneo"].includes(e.type) || scopeTypes.includes(e.type));
 
   // Calcular máximo goleador, asistente y más minutos
   const playerStatsMap = new Map();
@@ -97,6 +101,8 @@ export default function Stats() {
           <h1>Estadísticas</h1>
           <p className="text-gray-400 text-xs mt-1">Rendimiento y análisis del equipo</p>
         </div>
+        <div className="flex items-center gap-3 flex-wrap">
+        <StatsScopePills value={statScope} onChange={setStatScope} />
         <Select value={selectedTeam} onValueChange={setSelectedTeam}>
           <SelectTrigger className="w-48 border-gray-200 bg-white">
             <SelectValue placeholder="Todos los equipos" />
@@ -108,6 +114,7 @@ export default function Stats() {
             ))}
           </SelectContent>
         </Select>
+        </div>
       </div>
 
       {/* ── TARJETAS DE ESTADÍSTICAS DESTACADAS ── */}

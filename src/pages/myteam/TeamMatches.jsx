@@ -24,7 +24,7 @@ export default function TeamMatches() {
   const navigate = useNavigate();
   const { selectedTeamId, selectTeam, isCoordinator, canSwitch, teamIds: myTeamIds } = useSelectedTeam();
   const [filterType, setFilterType] = useState("all");
-  const { pending } = useMatchStatus();
+  const { pending, soft } = useMatchStatus();
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
@@ -120,8 +120,9 @@ export default function TeamMatches() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400" style={{ fontFamily: "var(--font-display)" }}>{TYPE_LABELS[m.type]}</span>
-                        {m.type === "partido_amistoso" && isPast && <span className="text-[10px] text-gray-400" title="Los amistosos no suman a las estadísticas">· no cuenta en estadísticas</span>}
+                        {m.type === "partido_amistoso" && isPast && <span className="text-[10px] text-gray-400" title="Los amistosos tienen sus propias estadísticas, aparte de la liga">· estadísticas aparte</span>}
                         {pending.has(m.id) && <span title={pending.get(m.id).join(" · ")} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Pendiente de gestionar: {pending.get(m.id)[0]}</span>}
+                        {!pending.has(m.id) && soft.has(m.id) && <span title={soft.get(m.id).join(" · ")} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 border border-gray-200">Pendiente: {soft.get(m.id)[0]}</span>}
                       </div>
                       <p className="font-bold text-gray-900 truncate text-sm" style={{ fontFamily: "var(--font-display)" }}>{m.title}</p>
                       {m.location && <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3" />{m.location}</p>}
