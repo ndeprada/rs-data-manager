@@ -295,7 +295,7 @@ export default function MatchDetail() {
         <ConvocationTab eventId={eventId} teamId={teamId} event={event} players={players} team={team} />
       )}
       {activeTab === "acta" && (
-        <ActaTab eventId={eventId} teamId={teamId} event={event} players={players} />
+        <ActaTab eventId={eventId} teamId={teamId} event={event} players={players} team={team} />
       )}
       {activeTab === "tactica" && (
         <TacticaTab

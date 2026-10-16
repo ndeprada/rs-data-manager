@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { playerFullName } from "@/lib/playerName";
+import { isPrimerEquipo } from "@/lib/primerEquipo";
 import LineupSummary from "@/components/match/LineupSummary";
 
 // ── Formatos de partido ──────────────────────────────────
@@ -153,7 +154,8 @@ function Timeline({ events, players, opponent, onRemove, onEdit }) {
 }
 
 // ── Componente principal ─────────────────────────────────
-export default function ActaTab({ eventId, teamId, event, players }) {
+export default function ActaTab({ eventId, teamId, event, players, team }) {
+  const isPrimer = isPrimerEquipo(team);
   const queryClient = useQueryClient();
 
   const [format, setFormat] = useState(event?.football_format || "f11");
@@ -328,8 +330,8 @@ export default function ActaTab({ eventId, teamId, event, players }) {
         const yellows = mine.filter(e => e.type === "card" && e.playerId === p.id && e.cardColor === "yellow").length;
         const yellow2 = mine.filter(e => e.type === "card" && e.playerId === p.id && e.cardColor === "yellow2").length;
         const red = mine.filter(e => e.type === "card" && e.playerId === p.id && e.cardColor === "red").length;
-        // Minutos solo si hay cambios registrados; si no, se conserva lo que hubiera (sin inventar 90')
-        const minutes = hasSubs ? mins : (existing?.minutes_played || 0);
+        // Minutos automáticos solo en el primer equipo (o si hay cambios registrados); en el resto se conserva lo apuntado, sin inventar 90'
+        const minutes = isPrimer || hasSubs ? mins : (existing?.minutes_played || 0);
         const assists = assistsFromEvents || existing?.assists || 0;
         const payload = {
           player_id: p.id, event_id: eventId,
@@ -536,7 +538,7 @@ export default function ActaTab({ eventId, teamId, event, players }) {
 
       {/* ── Alineación y resumen por jugador ── */}
       <LineupSummary eventId={eventId} event={event} convocation={convocation} convocados={convocados} starterIds={starterIds}
-        matchEvents={matchEvents} matchMinutes={matchMinutes} onRecompute={() => saveStats(matchEvents, true)} />
+        matchEvents={matchEvents} matchMinutes={matchMinutes} isPrimer={isPrimer} onRecompute={() => saveStats(matchEvents, true)} />
 
       {/* ── Editar evento ── */}
       <Dialog open={!!editEv} onOpenChange={o => { if (!o) setEditEv(null); }}>

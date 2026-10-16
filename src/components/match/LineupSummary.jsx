@@ -12,7 +12,7 @@ import { calcMinutesPlayed } from "@/components/match/ActaTab";
 const POS = { portero: "POR", central: "DFC", libre: "LIB", lateral: "LAT", mediocentro: "MC", interior: "INT", extremo: "EXT", delantero_centro: "DC" };
 
 // Valores de un jugador: los que has corregido a mano, o los que salen de los eventos del acta.
-export function playerLine(p, stat, matchEvents, starterIds, matchMinutes) {
+export function playerLine(p, stat, matchEvents, starterIds, matchMinutes, isPrimer = false) {
   const mine = matchEvents.filter((e) => e.team === "home");
   const fromEvents = {
     goals: mine.filter((e) => e.type === "goal" && e.playerId === p.id).length,
@@ -34,7 +34,9 @@ export function playerLine(p, stat, matchEvents, starterIds, matchMinutes) {
     };
   }
   // Minutos: el dato guardado; si no, el calculado con los cambios. Sin cambios en el acta no se inventa nada.
-  let minutes = stat?.minutes_played > 0 ? stat.minutes_played : (hasSubs && computedMins > 0 ? computedMins : null);
+  // Primer equipo: el acta trae todos los cambios, así que el titular sin cambio juega todo el partido.
+  let minutes = isPrimer && (isStarter || hasSubs) ? computedMins : (stat?.minutes_played > 0 ? stat.minutes_played : (hasSubs && computedMins > 0 ? computedMins : null));
+  if (isPrimer && !minutes && !isStarter && !hasSubs) minutes = null;
   return {
     manual: false, starter: isStarter, minutes,
     goals: fromEvents.goals,
@@ -91,7 +93,7 @@ function Group({ title, rows, onEdit }) {
   );
 }
 
-export default function LineupSummary({ eventId, event, convocation, convocados, starterIds, matchEvents, matchMinutes, onRecompute }) {
+export default function LineupSummary({ eventId, event, convocation, convocados, starterIds, matchEvents, matchMinutes, isPrimer, onRecompute }) {
   const qc = useQueryClient();
   const { data: stats = [] } = useQuery({
     queryKey: ["matchstats-event", eventId],
@@ -101,7 +103,7 @@ export default function LineupSummary({ eventId, event, convocation, convocados,
   const [edit, setEdit] = useState(null); // { p, form }
   const [saving, setSaving] = useState(false);
 
-  const lines = convocados.map((p) => ({ p, line: playerLine(p, stats.find((s) => s.player_id === p.id), matchEvents, starterIds, matchMinutes) }));
+  const lines = convocados.map((p) => ({ p, line: playerLine(p, stats.find((s) => s.player_id === p.id), matchEvents, starterIds, matchMinutes, isPrimer) }));
   const titulares = lines.filter((r) => r.line.starter);
   const suplentes = lines.filter((r) => !r.line.starter);
   const tot = (k) => lines.reduce((a, r) => a + (r.line[k] || 0), 0);
