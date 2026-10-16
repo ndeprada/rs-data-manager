@@ -277,6 +277,7 @@ export async function syncFcf() {
   await bulkPatch(eventPatches);
   try { await linkPostponed(stats); } catch (e) { stats.errors.push(`aplazados: ${e.message}`); }
   try { await syncActas(stats); } catch (e) { stats.errors.push(`actas: ${e.message}`); }
+  try { await backfillStarters(stats); } catch (e) { stats.errors.push(`titulares: ${e.message}`); }
   try { await syncDorsales(stats); } catch (e) { stats.errors.push(`dorsales: ${e.message}`); }
   try { await recalcPrimerEquipoMinutes(stats); } catch (e) { stats.errors.push(`minutos: ${e.message}`); }
   return stats;
@@ -404,6 +405,59 @@ async function recalcPrimerEquipoMinutes(stats) {
   }
   await bulkPatch(patches);
   stats.minutes_recalc = patches.length;
+}
+
+// Titulares: partidos con acta ya sincronizada cuya convocatoria no tiene titulares (p. ej. la convocatoria se hizo a mano
+// antes de que llegara el acta). Se lee el acta de la FCF (solo lectura) y se rellenan titulares y convocados que falten;
+// lo que ya hubiera apuntado a mano no se toca. Después se recalculan los minutos del primer equipo.
+async function backfillStarters(stats) {
+  stats.starters_filled = 0;
+  const { rows: convRows } = await query(`select id, data from entities where entity_type = 'Convocatoria'`);
+  const convByEvent = new Map(convRows.map((r) => [r.data.event_id, r]));
+  const { rows: evRows } = await query(
+    `select id, data from entities where entity_type = 'Event' and data ->> 'type' = 'partido_liga' and data ? 'fcf_acta'
+       and coalesce(data ->> 'fcf_acta_synced', '') <> '' order by data ->> 'date' desc limit 400`
+  );
+  const todo = evRows.filter((ev) => { const c = convByEvent.get(ev.id); return !c || !(c.data.starters || []).length; }).slice(0, 40);
+  if (!todo.length) return;
+  const { rows: teamRows } = await query(`select id, data from entities where entity_type = 'Team'`);
+  const teamCode = new Map(teamRows.map((r) => [r.id, String(r.data.fcf_team_code || '')]));
+  const { rows: playerRows } = await query(`select id, data from entities where entity_type = 'Player'`);
+  const playersByTeam = new Map();
+  for (const r of playerRows) {
+    if (!playersByTeam.has(r.data.team_id)) playersByTeam.set(r.data.team_id, new Map());
+    playersByTeam.get(r.data.team_id).set(tokensKey(`${r.data.first_name || ''} ${r.data.last_name || ''}`), r.id);
+  }
+  const actas = await pool(todo, 6, async (ev) => {
+    try { return await getJson(`${ACTA_BASE}/${ev.data.fcf_acta}`); } catch (e) { stats.errors.push(`acta ${ev.data.fcf_acta}: ${e.message}`); return null; }
+  });
+  const convPatches = [], convInserts = [];
+  for (let i = 0; i < todo.length; i++) {
+    const ev = todo[i], a = actas[i];
+    if (!a || String(a.CERRADA) !== '1') continue;
+    const code = teamCode.get(ev.data.team_id);
+    const ourSide = String(a.CODEQUIPO_CASA) === code ? 'local' : String(a.CODEQUIPO_FUERA) === code ? 'visitante' : null;
+    if (!ourSide) continue;
+    const roster = playersByTeam.get(ev.data.team_id) || new Map();
+    const list = a[`jugadores_equipo_${ourSide}`] || [];
+    const called = [], starters = [];
+    for (const j of list) {
+      const pid = roster.get(fcfPlayerKey(j.nombre));
+      if (!pid) continue;
+      called.push(pid);
+      if (String(j.titular) === '1') starters.push(pid);
+    }
+    if (!starters.length) continue;
+    const conv = convByEvent.get(ev.id);
+    if (!conv) convInserts.push({ event_id: ev.id, team_id: ev.data.team_id, player_ids: called, starters, fcf_auto: true });
+    else {
+      const have = new Set(conv.data.player_ids || []);
+      convPatches.push({ id: conv.id, d: { starters, player_ids: [...have, ...called.filter((p) => !have.has(p))] } });
+    }
+    stats.starters_filled++;
+  }
+  await bulkInsert('Convocatoria', convInserts);
+  await bulkPatch(convPatches);
 }
 
 // Dorsales: rellena el dorsal de los jugadores que no lo tienen con el que figura en el acta (solo lectura de la FCF).
