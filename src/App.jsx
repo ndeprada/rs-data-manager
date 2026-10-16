@@ -38,6 +38,8 @@ import Fields from './pages/Fields';
 import CleanDB from './pages/CleanDB';
 import Material from './pages/Material';
 import Methodology from './pages/Methodology';
+import Avisos from './pages/Avisos';
+import FamilyHome from './pages/FamilyHome';
 import { TeamAccessProvider } from '@/lib/TeamAccessContext';
 import { useTeamAccess } from '@/lib/TeamAccessContext';
 
@@ -88,6 +90,11 @@ const AuthenticatedApp = () => {
     return <PendingApproval />;
   }
 
+  // Familiar con vínculo aprobado
+  if (user && !isAdminUser && user.app_role === 'familiar' && status === 'approved') {
+    return <FamilyHome />;
+  }
+
   // Jugador con acceso aprobado
   if (user && !isAdminUser && user.app_role === 'jugador' && status === 'approved') {
     return (
@@ -96,6 +103,7 @@ const AuthenticatedApp = () => {
           <Route element={<Layout />}>
             <Route path="/PlayerTeam" element={<PlayerTeam />} />
             <Route path="/PlayerProfile" element={<PlayerProfile />} />
+            <Route path="/Avisos" element={<Avisos />} />
           </Route>
           <Route path="*" element={<Navigate to="/PlayerTeam" replace />} />
         </Routes>
@@ -121,6 +129,7 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<RootRedirect />} />
       <Route element={<Layout />}>
         <Route path="/Dashboard" element={<Dashboard />} />
+        <Route path="/Avisos" element={<Avisos />} />
         <Route path="/Teams" element={<Teams />} />
         <Route path="/Players" element={<Players />} />
         <Route path="/Calendar" element={<Calendar />} />

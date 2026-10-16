@@ -15,6 +15,8 @@ const PROFILE_FIELDS = new Set(['phone', 'notes', 'birth_date', 'photo_url', 'fu
 // Campos de vinculación a equipos: además los puede tocar la coordinación
 const TEAM_LINK_FIELDS = new Set(['staff_member_id', 'team_id', 'team_ids', 'secondary_role', 'secondary_team_ids']);
 
+const CLUB_PRIVATE = new Set(['Notice', 'PushSubscription', 'GuardianLink', 'PushConfig']);
+
 const COORDINATOR_ROLES = ['director', 'director_deportivo', 'coordinador_general', 'coordinador_f7', 'coordinador_f11'];
 
 export const isAdmin = (u) => u.role === 'admin';
@@ -24,6 +26,14 @@ export const isApproved = (u) =>
 
 export function checkEntityAccess(user, entity, method, body = {}, targetId = null) {
   if (isAdmin(user)) return { ok: true };
+
+  // Avisos, suscripciones push y vínculos de familiares: solo a través de /api/club (cada persona ve lo suyo)
+  if (CLUB_PRIVATE.has(entity)) return { ok: false, error: 'club_private' };
+  // Familiares: aún sin acceso a datos del club (su vista limitada llegará aparte)
+  if (user.app_role === 'familiar') {
+    if (method === 'GET' && entity === 'Team') return { ok: true };
+    return { ok: false, error: 'guardian_forbidden' };
+  }
 
   // Jugador: solo lectura de sus datos (se filtra fila a fila en los handlers). Solo puede editar su propio perfil.
   if (isPlayerUser(user)) {

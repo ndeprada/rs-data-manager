@@ -1,4 +1,4 @@
-import { clearAuthCookie } from '../_lib/auth.js';
+import { clearAuthCookie } from '../auth.js';
 
 export default async function handler(req, res) {
   clearAuthCookie(res);

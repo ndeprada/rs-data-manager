@@ -3,11 +3,12 @@ import React, { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, UserRound, ClipboardList, ArrowLeft, Check } from "lucide-react";
+import { LogOut, Users, UserRound, ClipboardList, ArrowLeft, Check } from "lucide-react";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import { APP_FUNCTIONS, COACH_TEAM_ROLES, functionConfig } from "@/lib/staffRoles";
 import { COUNTRIES, PROVINCES, regionOfProvince } from "@/lib/countries";
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
+import PlayerPicker from "@/components/avisos/PlayerPicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const FONT = { fontFamily: "var(--font-display)" };
@@ -87,6 +88,19 @@ export default function RoleSetup() {
       requested_assignments: showTeams ? completeAssignments : [],
     });
 
+  const submitFamily = async ({ player, relationship }) => {
+    setSubmitting(true);
+    setError("");
+    try {
+      await base44.auth.updateMe({ person_type: "familiar", app_role_pending: "familiar", phone: phone || undefined, access_status: "pending" });
+      await base44.club.requestLink(player.id, relationship);
+      await refreshUser();
+    } catch {
+      setError("No se ha podido enviar la solicitud. Inténtalo de nuevo.");
+      setSubmitting(false);
+    }
+  };
+
   const submitPlayer = () =>
     submit({
       person_type: "jugador",
@@ -151,6 +165,13 @@ export default function RoleSetup() {
             </span>
           </button>
         </div>
+        <button onClick={() => setStep("familiar")} className={`${optionClass(false)} flex items-center gap-3 mb-6`}>
+          <Users className="w-6 h-6 shrink-0" style={{ color: "var(--granate)" }} />
+          <span>
+            <span className="block font-bold">Familiar de un jugador</span>
+            <span className="block text-xs text-gray-400 font-normal">Padre, madre, tutor u otro familiar</span>
+          </span>
+        </button>
         <LogoutButton logout={logout} />
       </Shell>
     );
@@ -161,6 +182,20 @@ export default function RoleSetup() {
       <ArrowLeft className="w-3.5 h-3.5" /> Volver
     </button>
   );
+
+  if (step === "familiar") {
+    return (
+      <Shell>
+        {back}
+        <h2 className="text-xl font-black uppercase mb-1" style={{ color: "var(--granate)", ...FONT }}>Soy familiar</h2>
+        <p className="text-gray-500 text-sm mb-5">Busca al jugador y dinos qué parentesco tienes. El club revisará la solicitud antes de activarla. Luego podrás vincular a más jugadores.</p>
+        {phoneField}
+        {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
+        <div className="mb-4"><PlayerPicker onPick={submitFamily} busy={submitting} buttonLabel="Solicitar acceso" /></div>
+        <LogoutButton logout={logout} />
+      </Shell>
+    );
+  }
 
   if (step === "jugador") {
     return (

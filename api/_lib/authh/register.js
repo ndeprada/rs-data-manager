@@ -1,5 +1,5 @@
-import { query } from '../_lib/db.js';
-import { hashPassword, signToken, setAuthCookie } from '../_lib/auth.js';
+import { query } from '../db.js';
+import { hashPassword, signToken, setAuthCookie } from '../auth.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

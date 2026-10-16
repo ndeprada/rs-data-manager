@@ -114,8 +114,30 @@ function fileToBase64(file) {
   });
 }
 
+// Avisos push y familiares (todo pasa por /api/club)
+const clubGet = (a, query = {}) => apiFetch('/api/club', { query: { a, ...query } });
+const clubPost = (a, body = {}) => apiFetch(`/api/club?a=${a}`, { method: 'POST', body });
+
 export const base44 = {
   entities: entitiesProxy,
+
+  club: {
+    vapid: () => clubGet('vapid'),
+    myPush: () => clubGet('my_push'),
+    subscribe: (subscription) => clubPost('subscribe', { subscription }),
+    unsubscribe: (endpoint) => clubPost('unsubscribe', { endpoint }),
+    inbox: () => clubGet('inbox'),
+    history: () => clubGet('history'),
+    preview: (audience) => clubPost('preview', { audience }),
+    send: (payload) => clubPost('send', payload),
+    searchPlayers: (q) => clubGet('players_search', { q }),
+    requestLink: (player_id, relationship) => clubPost('link_request', { player_id, relationship }),
+    myLinks: () => clubGet('my_links'),
+    playerLinks: (player_id) => clubGet('player_links', { player_id }),
+    pendingLinks: () => clubGet('pending_links'),
+    decideLink: (link_id, decision) => clubPost('link_decision', { link_id, decision }),
+    createLink: (user_id, player_id, relationship) => clubPost('link_create', { user_id, player_id, relationship }),
+  },
 
   auth: {
     me: () => apiFetch('/api/auth/me'),

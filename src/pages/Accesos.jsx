@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
+import { relLabel } from "@/components/avisos/PlayerPicker";
 import { APP_FUNCTIONS, FUNCTION_LABELS, TEAM_ROLES, teamRoleLabel, functionConfig } from "@/lib/staffRoles";
 import { buildLinks, saveUserAccess, staffFullName, userTeamFields } from "@/lib/staffLink";
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
@@ -114,6 +115,22 @@ export default function Accesos() {
       });
     },
     onError: (err) => toast({ title: "Error al guardar", description: err.message, variant: "destructive" }),
+  });
+
+  // Familiares: su acceso depende de que el club apruebe el vínculo con el jugador
+  const { data: pendingLinks = [] } = useQuery({ queryKey: ["pendingLinks"], queryFn: () => base44.club.pendingLinks(), refetchInterval: 60000 });
+  const isFamily = (u) => u.app_role === "familiar" || u.app_role_pending === "familiar" || u.person_type === "familiar";
+  const familyDecide = useMutation({
+    mutationFn: async ({ user, decision }) => {
+      const mine = pendingLinks.filter((l) => l.user_id === user.id);
+      for (const l of mine) await base44.club.decideLink(l.id, decision);
+      if (decision === "reject") await base44.entities.User.update(user.id, { access_status: "rejected", app_role_pending: null });
+    },
+    onSuccess: (_, { decision }) => {
+      ["users", "pendingLinks", "pending-users"].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+      toast({ title: decision === "approve" ? "Familiar vinculado" : "Solicitud rechazada" });
+    },
+    onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const rejectMutation = useMutation({
@@ -268,12 +285,15 @@ export default function Accesos() {
                       </td>
                       <td className="px-4 py-3">
                         <p className="font-medium" style={{ color: user.role === "admin" ? "var(--naranja)" : "var(--granate)" }}>
-                          {user.role === "admin" && !user.app_role ? "Admin" : FUNCTION_LABELS[user.app_role] || FUNCTION_LABELS[user.role] || user.role}
+                          {user.role === "admin" && !user.app_role ? "Admin" : user.app_role === "familiar" ? "Familiar" : FUNCTION_LABELS[user.app_role] || FUNCTION_LABELS[user.role] || user.role}
                           {user.role === "admin" && user.app_role && <span className="text-[10px] text-gray-400 font-normal"> · admin</span>}
                         </p>
                         {user.app_role_pending && (
-                          <p className="text-xs text-gray-500">Solicita: <b>{FUNCTION_LABELS[user.app_role_pending] || user.app_role_pending}</b></p>
+                          <p className="text-xs text-gray-500">Solicita: <b>{user.app_role_pending === "familiar" ? "Acceso como familiar" : FUNCTION_LABELS[user.app_role_pending] || user.app_role_pending}</b></p>
                         )}
+                        {isFamily(user) && pendingLinks.filter((l) => l.user_id === user.id).map((l) => (
+                          <p key={l.id} className="text-[11px] text-yellow-700 mt-0.5">{relLabel(l.relationship)} de <b>{l.player?.name}</b>{l.player?.team ? ` · ${l.player.team}` : ""}</p>
+                        ))}
                         <div className="flex flex-wrap gap-1 mt-1">
                           {list.map((a) => (
                             <span key={a.id} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
@@ -302,7 +322,13 @@ export default function Accesos() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {user.access_status === "pending" && (
+                          {isFamily(user) && pendingLinks.some((l) => l.user_id === user.id) && (
+                            <>
+                              <Button size="sm" variant="ghost" title="Aprobar vínculo" onClick={() => familyDecide.mutate({ user, decision: "approve" })} disabled={familyDecide.isPending} className="text-green-600 hover:bg-green-50 text-xs"><Check className="w-4 h-4" /></Button>
+                              <Button size="sm" variant="ghost" title="Rechazar" onClick={() => familyDecide.mutate({ user, decision: "reject" })} disabled={familyDecide.isPending} className="text-red-600 hover:bg-red-50 text-xs"><X className="w-4 h-4" /></Button>
+                            </>
+                          )}
+                          {!isFamily(user) && user.access_status === "pending" && (
                             <>
                               <Button size="sm" variant="ghost" title="Revisar y aprobar" onClick={() => openEdit(user, true)} className="text-green-600 hover:bg-green-50 text-xs">
                                 <Check className="w-4 h-4" />
@@ -312,9 +338,11 @@ export default function Accesos() {
                               </Button>
                             </>
                           )}
-                          <Button size="sm" variant="ghost" title="Editar" onClick={() => openEdit(user)} className="text-gray-600 hover:bg-gray-100 text-xs">
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
+                          {!isFamily(user) && (
+                            <Button size="sm" variant="ghost" title="Editar" onClick={() => openEdit(user)} className="text-gray-600 hover:bg-gray-100 text-xs">
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button size="sm" variant="ghost" title="Eliminar" onClick={() => setDeleteDialog(user.id)} className="text-red-500 hover:bg-red-50 text-xs">
                             <Trash2 className="w-4 h-4" />
                           </Button>

@@ -1,9 +1,9 @@
-import { query } from '../_lib/db.js';
-import { requireUser } from '../_lib/auth.js';
+import { query } from '../db.js';
+import { requireUser } from '../auth.js';
 
 const REQUESTABLE_FUNCTIONS = [
   'director', 'director_deportivo', 'coordinador_general', 'coordinador_f7', 'coordinador_f11', 'entrenador', 'entrenador_porteros',
-  'preparador_fisico', 'psicologo', 'fisioterapeuta', 'jugador',
+  'preparador_fisico', 'psicologo', 'fisioterapeuta', 'jugador', 'familiar',
 ];
 // Datos de perfil que cada persona puede cambiarse a sí misma
 const PROFILE_FIELDS = ['full_name', 'phone', 'photo_url', 'notes', 'birth_date', 'birth_country', 'birth_region', 'birth_province', 'birth_city'];
@@ -39,7 +39,7 @@ export default async function handler(req, res) {
         res.status(400).json({ error: 'invalid_role' });
         return;
       }
-      if (patch.person_type && !['jugador', 'cuerpo_tecnico'].includes(patch.person_type)) {
+      if (patch.person_type && !['jugador', 'cuerpo_tecnico', 'familiar'].includes(patch.person_type)) {
         res.status(400).json({ error: 'invalid_person_type' });
         return;
       }

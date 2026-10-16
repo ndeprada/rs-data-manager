@@ -25,7 +25,7 @@ export default function UserRequests() {
     queryFn: () => base44.entities.User.list(),
   });
 
-  const pendingUsers = users.filter(u => u.access_status === "pending" && u.app_role_pending);
+  const pendingUsers = users.filter(u => u.access_status === "pending" && u.app_role_pending && u.app_role_pending !== "familiar");
 
   const approveMutation = useMutation({
     mutationFn: async (user) => {

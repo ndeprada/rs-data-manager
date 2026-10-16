@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Shield, CalendarDays, Menu, X,
   FileText, BarChart2, Target, Binoculars, LogOut,
   ChevronDown, ChevronRight, ClipboardList, UserCog,
-  UserCheck, Layers, Trophy, Calendar, MapPin, Package, BookOpen
+  UserCheck, Layers, Trophy, Calendar, MapPin, Package, BookOpen, Bell
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
@@ -135,6 +135,7 @@ function PlayerSidebar({ onClose = () => {} }) {
       <nav className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5">
         <NavItem item={{ label: "Mi equipo", path: "/PlayerTeam", icon: Users }} onClick={onClose} />
         <NavItem item={{ label: "Mi ficha y estadísticas", path: "/PlayerProfile", icon: UserCheck }} onClick={onClose} />
+        <NavItem item={{ label: "Avisos", path: "/Avisos", icon: Bell }} onClick={onClose} />
       </nav>
       <div className="px-2 py-3 border-t border-white/10">
         <div className="flex items-center gap-2 px-1.5 py-1.5">
@@ -253,6 +254,9 @@ function StaffSidebar({ onClose = () => {} }) {
             </Link>
           </>
         )}
+
+        <SectionLabel>Comunicación</SectionLabel>
+        <NavItem item={{ label: "Avisos", path: "/Avisos", icon: Bell }} onClick={onClose} />
 
         <SectionLabel>Mi Equipo</SectionLabel>
         <MyTeamNav onClose={onClose} notificationCount={notificationCount} />

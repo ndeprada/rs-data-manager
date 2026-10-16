@@ -37,6 +37,7 @@ import { playerFirstName, playerFullName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
 import { usePlayerMode } from "@/lib/playerMode";
 import { useAuth } from "@/lib/AuthContext";
+import FamiliesSection from "@/components/player/FamiliesSection";
 import { PlayerMatchesReadOnly, PlayerInjuriesReadOnly, PlayerDocumentsReadOnly, PlayerHistoryReadOnly } from "@/components/player/PlayerReadOnlySections";
 
 const POSITION_LABELS = {
@@ -318,6 +319,7 @@ export default function PlayerProfile() {
             {playerMode ? <PlayerHistoryReadOnly playerId={playerId} /> : <PlayerSeasonHistorySection playerId={playerId} />}
           </TabsContent>
         </Tabs>
+        {(authUser?.role === "admin" || playerMode) && <div className="mt-4"><FamiliesSection playerId={playerId} /></div>}
       </div>
 
       {/* Dialogs */}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { Search, Plus, Check, Send, Eye, Clock, MapPin, MessageCircle, Copy } from "lucide-react";
+import { Search, Plus, Check, Send, Eye, Clock, MapPin, MessageCircle, Copy, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -91,6 +91,8 @@ El cuerpo técnico · ${team?.name || ""}`;
 }
 
 // Mensaje corto para pegar en el grupo de WhatsApp (negritas con *…*)
+import Composer from "@/components/avisos/Composer";
+
 function buildWhatsappText({ event, team, convocados, callupTime, observations }) {
   const day = event?.date ? format(new Date(event.date), "EEEE d 'de' MMMM", { locale: es }) : "";
   const time = event?.date ? format(new Date(event.date), "HH:mm") : "";
@@ -173,6 +175,16 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
             <Button type="button" onClick={copyWa} className="w-full text-white bg-green-600 hover:bg-green-700">
               <Copy className="w-3.5 h-3.5 mr-1.5" />{copied ? "¡Copiado! Pégalo en WhatsApp" : "Copiar mensaje"}
             </Button>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 p-3 space-y-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-600 flex items-center gap-1.5"><Bell className="w-3.5 h-3.5" /> Aviso al móvil (app)</p>
+            <Composer
+              key={open ? "open" : "closed"}
+              fixed={{ player_ids: convocados.map(p => p.id), label: `Convocados (${convocados.length})` }}
+              defaultTitle={`Convocatoria · ${team?.name || ""}`}
+              defaultBody={`${event?.opponent ? `vs ${event.opponent} · ` : ""}${event?.date ? format(new Date(event.date), "EEEE d MMM HH:mm", { locale: es }) : ""}${callupTime ? ` · Convocatoria ${callupTime}` : ""}\n${event?.location || ""}`.trim()}
+            />
           </div>
 
           <div className="flex gap-3 pt-1">
