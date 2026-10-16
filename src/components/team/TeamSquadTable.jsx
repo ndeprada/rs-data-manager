@@ -7,6 +7,7 @@ import { birthYearOf } from "@/lib/birthYear";
 import { Flag, countryOf } from "@/lib/countries";
 import { playerFullName } from "@/lib/playerName";
 import { useMatchStatus } from "@/lib/matchStatus";
+import { useTrainingStatus } from "@/lib/trainingStatus";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
@@ -45,6 +46,8 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
 
   const { counted, pending } = useMatchStatus();
   const pendingHere = events.filter((e) => e.team_id === teamId && pending.has(e.id)).length;
+  const { pending: pendingTr } = useTrainingStatus();
+  const trainingsHere = [...pendingTr.values()].filter((e) => e.team_id === teamId).sort((a, b) => new Date(b.date) - new Date(a.date));
   const { rows, guests } = useMemo(() => {
     const now = new Date();
     // Solo partidos de liga/torneo cerrados completamente (no amistosos ni pendientes de gestionar)
@@ -112,6 +115,11 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
           {pendingHere > 0 && (
             <Link to="/MyTeam/Matches" className="ml-3 mr-auto text-[11px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap" title="Estos partidos no suman a las estadísticas hasta completar convocatoria, alineación y minutos">
               {pendingHere} partido{pendingHere !== 1 ? "s" : ""} pendiente{pendingHere !== 1 ? "s" : ""} de gestionar
+            </Link>
+          )}
+          {trainingsHere.length > 0 && (
+            <Link to={`/MyTeam/Attendance?eventId=${trainingsHere[0].id}`} className="ml-3 mr-auto text-[11px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap" title="Entrenamientos ya hechos sin asistencia">
+              {trainingsHere.length} entreno{trainingsHere.length !== 1 ? "s" : ""} sin gestionar
             </Link>
           )}
           {onAddPlayer && (

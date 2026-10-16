@@ -2,7 +2,7 @@ import { sortTeams, compareTeams, isF7Team, teamRank } from "@/lib/teamOrder";
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, UserCog, Swords, MapPin, Trophy } from "lucide-react";
+import { Shield, UserCog, Swords, MapPin, Trophy, ClipboardCheck } from "lucide-react";
 import { format, startOfDay, addDays, isSameDay, differenceInMinutes, startOfWeek, endOfDay, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { Link } from "react-router-dom";
@@ -10,8 +10,8 @@ import FCFClassificationsPanel from "../components/dashboard/FCFClassificationsP
 import WeekendAgenda from "../components/dashboard/WeekendAgenda";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { playerFullName } from "@/lib/playerName";
-import { useCountedStats, STAT_SCOPES } from "@/lib/matchStatus";
-import StatsScopePills from "@/components/common/StatsScopePills";
+import { useCountedStats } from "@/lib/matchStatus";
+import { useTrainingStatus } from "@/lib/trainingStatus";
 import { usePendingUsers } from "@/lib/pendingUsers";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
@@ -143,14 +143,15 @@ export default function Dashboard() {
   const { data: fields = [] } = useQuery({ queryKey: ["fields"], queryFn: () => base44.entities.Field.list() });
   const { data: attendance = [] } = useQuery({ queryKey: ["attendance"], queryFn: () => base44.entities.TrainingAttendance.list() });
   const { data: rawStats = [] } = useQuery({ queryKey: ["matchstats"], queryFn: () => base44.entities.MatchStats.list() });
-  const [statScope, setStatScope] = useState("liga");
-  const matchStats = useCountedStats(rawStats, statScope);
+  const matchStats = useCountedStats(rawStats);
+  const { pending: pendingTrainings } = useTrainingStatus();
 
   const myIds = useMemo(() => new Set(coachTeamIds || []), [coachTeamIds]);
   const hasMine = myIds.size > 0;
   // Coordinación ve todo el club; el resto de la agenda/asistencia, solo sus equipos
   const scopeIds = isCoordinator || !hasMine ? null : myIds;
   const inScope = (teamId) => !scopeIds || scopeIds.has(teamId);
+  const myPendingTr = [...pendingTrainings.values()].filter((e) => inScope(e.team_id)).sort((a, b) => new Date(b.date) - new Date(a.date));
   const teamName = (id) => teams.find((t) => t.id === id)?.name || "";
   const now = new Date();
   const today = startOfDay(now);
@@ -225,6 +226,13 @@ export default function Dashboard() {
           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={display}>Temporada 2025–2026</p>
           <h1 className="text-3xl font-black leading-none" style={{ ...display, color: "var(--granate)" }}>Panel de control</h1>
         </div>
+        {myPendingTr.length > 0 && (
+          <Link to={`/MyTeam/Attendance?eventId=${myPendingTr[0].id}`} className={`${pendingUsers.length > 0 ? "" : "ml-auto"} flex items-center gap-2 px-3 py-2 border border-amber-300 bg-amber-50 hover:bg-amber-100 transition-colors`} style={{ borderRadius: "6px" }} title="Entrenamientos ya hechos sin asistencia">
+            <ClipboardCheck className="w-4 h-4 text-amber-600" />
+            <span className="text-sm font-bold text-amber-800">{myPendingTr.length} entreno{myPendingTr.length !== 1 ? "s" : ""} sin gestionar</span>
+            <span className="text-xs font-bold text-amber-700">Pasar lista →</span>
+          </Link>
+        )}
         {pendingUsers.length > 0 && (
           <Link to="/Accesos" className="ml-auto flex items-center gap-2 px-3 py-2 border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors" style={{ borderRadius: "6px" }}>
             <UserCog className="w-4 h-4 text-orange-600" />
@@ -361,10 +369,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-3 flex-wrap -mb-2">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={display}>Estadísticas de {STAT_SCOPES.find((x) => x.value === statScope)?.label.toLowerCase()}</p>
-        <StatsScopePills value={statScope} onChange={setStatScope} />
-      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Leaders title="Líderes · Fútbol 7" items={leadersFor("f7")} />
         <Leaders title="Líderes · Fútbol 11" items={leadersFor("f11")} />
