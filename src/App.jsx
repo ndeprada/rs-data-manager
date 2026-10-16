@@ -48,8 +48,9 @@ const STAFF_ROLES = STAFF_FUNCTION_VALUES;
 const RootRedirect = () => {
   const { user } = useAuth();
   const appRole = user?.app_role;
-  if (["director", "director_deportivo", "coordinador_general", "coordinador_f7", "coordinador_f11"].includes(appRole)) {
-    return <Navigate to="/Coaches" replace />;
+  // Dirección y coordinación abren en el panel del club; el resto de personal, en el panel de su equipo.
+  if (user?.role === "admin" || ["director", "director_deportivo", "coordinador_general", "coordinador_f7", "coordinador_f11"].includes(appRole)) {
+    return <Navigate to="/Dashboard" replace />;
   }
   if (STAFF_ROLES.includes(appRole)) {
     return <Navigate to="/MyTeam" replace />;
