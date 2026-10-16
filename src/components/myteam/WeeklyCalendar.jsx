@@ -128,10 +128,15 @@ function EventCard({ event, navigate, onEventClick }) {
         )}
 
         {/* Location (only for matches) */}
-        {isMatch && event.location && (
+        {(isMatch ? event.location : (event.location || event.location_url)) && (
           <div className="flex items-center gap-1 mt-0.5">
             <MapPin className="w-2.5 h-2.5 shrink-0 text-gray-400" />
-            <span className="text-[9px] text-gray-400 truncate">{event.location}</span>
+            {event.location_url ? (
+              <span role="link" onClick={(e) => { e.stopPropagation(); window.open(/^https?:\/\//i.test(event.location_url) ? event.location_url : `https://${event.location_url}`, "_blank", "noopener"); }}
+                className="text-[9px] text-sky-600 underline truncate cursor-pointer">{event.location || "Ver mapa"}</span>
+            ) : (
+              <span className="text-[9px] text-gray-400 truncate">{event.location}</span>
+            )}
           </div>
         )}
       </div>

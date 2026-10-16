@@ -5,6 +5,8 @@ import { CalendarDays, Plus, ChevronLeft, ChevronRight, Pencil, Trash2, MapPin, 
 import EventAttendanceDialog from "@/components/calendar/EventAttendanceDialog";
 import ConvocatoriaDialog from "@/components/calendar/ConvocatoriaDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
+import { sortTeams } from "@/lib/teamOrder";
+import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import SessionReportDialog from "@/components/calendar/SessionReportDialog";
 import SessionReportPanel from "@/components/calendar/SessionReportPanel";
 import EventListWithDragDrop from "@/components/calendar/EventListWithDragDrop";
@@ -56,6 +58,7 @@ export default function Calendar() {
   const [deleteSeriesId, setDeleteSeriesId] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
   const [editDialogEvent, setEditDialogEvent] = useState(null);
+  const [createDay, setCreateDay] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [selectedDay, setSelectedDay] = useState(null);
   const [filterTeam, setFilterTeam] = useState("all");
@@ -192,9 +195,7 @@ export default function Calendar() {
   const closeDialog = () => { setDialogOpen(false); setEditingEvent(null); setForm(emptyForm); };
 
   const openNewEvent = (day) => {
-    const dateStr = format(day, "yyyy-MM-dd") + "T18:00";
-    setForm({ ...emptyForm, date: dateStr, send_notification: false, notification_message: "" });
-    setDialogOpen(true);
+    setCreateDay(day);
   };
 
   // Genera el mensaje de notificación por defecto cuando cambian campos relevantes
@@ -243,6 +244,7 @@ export default function Calendar() {
 
   return (
     <div className="space-y-5">
+      <CreateEventDialog open={!!createDay} onOpenChange={(o) => { if (!o) setCreateDay(null); }} date={createDay} teams={sortTeams(teams)} />
       <EditEventDialog open={!!editDialogEvent} onOpenChange={(o) => { if (!o) setEditDialogEvent(null); }} event={editDialogEvent} />
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>

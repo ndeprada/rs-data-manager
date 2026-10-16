@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import EventPlaceFields from "@/components/myteam/EventPlaceFields";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Repeat } from "lucide-react";
 import { playerFullName } from "@/lib/playerName";
@@ -33,10 +34,9 @@ const EVENT_TYPES = [
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const MULTIDAY_TYPES = ["torneo", "stage", "concentracion"];
 
-const RECURRENCE_OPTIONS = [
-  { value: "daily",     label: "Cada día" },
-  { value: "weekly",    label: "Cada semana" },
-  { value: "biweekly",  label: "Cada 2 semanas" },
+const WEEKDAYS = [
+  { dow: 1, label: "L", name: "Lunes" }, { dow: 2, label: "M", name: "Martes" }, { dow: 3, label: "X", name: "Miércoles" },
+  { dow: 4, label: "J", name: "Jueves" }, { dow: 5, label: "V", name: "Viernes" }, { dow: 6, label: "S", name: "Sábado" }, { dow: 0, label: "D", name: "Domingo" },
 ];
 
 const buildDefaultNotificationMessage = (form, teams) => {
@@ -48,15 +48,13 @@ const buildDefaultNotificationMessage = (form, teams) => {
   return `Se ha añadido un nuevo evento al calendario:\n\n📌 ${title}\n🏷️ Tipo: ${eventLabel}\n📅 Fecha: ${formattedDate}${form.location ? `\n📍 Lugar: ${form.location}` : ""}${team ? `\n🛡️ Equipo: ${team.name}` : ""}${form.notes ? `\n📝 Notas: ${form.notes}` : ""}`;
 };
 
-// Fechas de cada ocurrencia desde la fecha de inicio hasta "until" (inclusive)
-function getOccurrenceDates(startDate, recurrence, until) {
-  const dates = [startDate];
-  const limit = until ? parseISO(until) : startDate;
-  const step = (d) => recurrence === "daily" ? addDays(d, 1) : recurrence === "biweekly" ? addWeeks(d, 2) : addWeeks(d, 1);
-  let next = step(startDate);
-  while (next <= limit && dates.length < 366) {
-    dates.push(next);
-    next = step(next);
+// Fechas de la serie: todos los días entre "desde" y "hasta" (ambos inclusive) que caigan en los días marcados
+function getOccurrenceDates(from, until, weekdays) {
+  const dates = [];
+  if (!from || !until || !weekdays.length) return dates;
+  const end = parseISO(until);
+  for (let d = parseISO(from); d <= end && dates.length < 366; d = addDays(d, 1)) {
+    if (weekdays.includes(d.getDay())) dates.push(d);
   }
   return dates;
 }
@@ -77,11 +75,14 @@ const buildEmptyForm = (date, teamId) => ({
   end_date_multiday: "",
   end_time_multiday: "20:00",
   location: "",
+  field_id: "",
+  location_url: "",
   opponent: "",
   notes: "",
   teamId: teamId || "",
   recurring: false,
-  recurrence: "weekly",
+  weekdays: [(date || new Date()).getDay()],
+  series_from: date ? format(date, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
   recurrence_until: defaultSeasonEnd(date),
   excluded: [],
   send_notification: false,
@@ -116,8 +117,12 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
   const parsedDate = form.date ? parseISO(form.date) : new Date();
 
   const allDates = form.recurring
-    ? getOccurrenceDates(parsedDate, form.recurrence, form.recurrence_until)
+    ? getOccurrenceDates(form.series_from, form.recurrence_until, form.weekdays)
     : [];
+  const toggleWeekday = (dow) => setForm(prev => ({
+    ...prev,
+    weekdays: prev.weekdays.includes(dow) ? prev.weekdays.filter(x => x !== dow) : [...prev.weekdays, dow],
+  }));
   const dKey = (d) => format(d, "yyyy-MM-dd");
   const excludedSet = new Set(form.excluded || []);
   const previewDates = allDates.filter(d => !excludedSet.has(dKey(d)));
@@ -155,7 +160,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
     mutationFn: async (data) => {
       const seriesId = form.recurring ? crypto.randomUUID() : undefined;
       const occurrences = form.recurring
-        ? getOccurrenceDates(parsedDate, form.recurrence, form.recurrence_until).filter(d => !(form.excluded || []).includes(format(d, "yyyy-MM-dd")))
+        ? getOccurrenceDates(form.series_from, form.recurrence_until, form.weekdays).filter(d => !(form.excluded || []).includes(format(d, "yyyy-MM-dd")))
         : [parsedDate];
 
       const makeOne = (occDate) => {
@@ -193,6 +198,8 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
       type: form.type,
       team_id: form.teamId || teamId,
       location: form.location || undefined,
+      field_id: form.field_id || undefined,
+      location_url: form.location_url.trim() || undefined,
       opponent: isMatch ? (form.opponent || undefined) : undefined,
       notes: form.notes || undefined,
     });
@@ -223,14 +230,6 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                   {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
-          )}
-
-          {/* Fecha (Calendar mode — editable) */}
-          {showTeamSelector && (
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Fecha *</p>
-              <Input type="date" value={form.date} onChange={e => set("date", e.target.value)} className="border-gray-200" required />
             </div>
           )}
 
@@ -266,16 +265,23 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
             />
           </div>
 
-          {/* Hora */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Fecha y hora */}
+          <div className="grid grid-cols-3 gap-2">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Hora inicio</p>
-              <Input type="time" value={form.time} onChange={e => set("time", e.target.value)} className="border-gray-200" />
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Fecha</p>
+              <input type="date" value={form.date} onChange={e => set("date", e.target.value)} required
+                className="w-full h-9 rounded-md border border-gray-200 bg-transparent text-sm shadow-sm px-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Inicio</p>
+              <input type="time" value={form.time} onChange={e => set("time", e.target.value)}
+                className="w-full h-9 rounded-md border border-gray-200 bg-transparent text-sm shadow-sm px-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
             </div>
             {!isMultiday && (
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Hora fin</p>
-                <Input type="time" value={form.end_time} onChange={e => set("end_time", e.target.value)} className="border-gray-200" />
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Fin</p>
+                <input type="time" value={form.end_time} onChange={e => set("end_time", e.target.value)}
+                  className="w-full h-9 rounded-md border border-gray-200 bg-transparent text-sm shadow-sm px-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
               </div>
             )}
           </div>
@@ -305,11 +311,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
             </div>
           )}
 
-          {/* Lugar */}
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Lugar</p>
-            <Input value={form.location} onChange={e => set("location", e.target.value)} placeholder="Campo, sala…" className="border-gray-200" />
-          </div>
+          <EventPlaceFields form={form} set={set} />
 
           {/* Notas */}
           <div>
@@ -361,24 +363,31 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
 
             {form.recurring && (
               <div className="space-y-3 pt-1">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Se repite en</p>
+                  <div className="flex gap-1">
+                    {WEEKDAYS.map(w => {
+                      const on = form.weekdays.includes(w.dow);
+                      return (
+                        <button type="button" key={w.dow} title={w.name} onClick={() => toggleWeekday(w.dow)}
+                          className={`w-9 h-8 rounded-md border text-sm font-bold transition-colors ${on ? "text-white border-transparent" : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                          style={on ? { background: "var(--granate)" } : undefined}>
+                          {w.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Frecuencia</p>
-                    <Select value={form.recurrence} onValueChange={v => set("recurrence", v)}>
-                      <SelectTrigger className="border-gray-200 h-8 text-sm"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {RECURRENCE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Empieza el</p>
+                    <input type="date" value={form.series_from} onChange={e => set("series_from", e.target.value)}
+                      className="w-full h-8 rounded-md border border-gray-200 bg-transparent text-sm px-1.5" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Repetir hasta</p>
-                    <Input
-                      type="date" min={form.date}
-                      value={form.recurrence_until}
-                      onChange={e => set("recurrence_until", e.target.value)}
-                      className="border-gray-200 h-8 text-sm"
-                    />
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Termina el</p>
+                    <input type="date" min={form.series_from} value={form.recurrence_until} onChange={e => set("recurrence_until", e.target.value)}
+                      className="w-full h-8 rounded-md border border-gray-200 bg-transparent text-sm px-1.5" />
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded p-2">

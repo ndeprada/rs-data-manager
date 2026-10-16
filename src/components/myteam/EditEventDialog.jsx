@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Upload } from "lucide-react";
 import { sortTeams } from "@/lib/teamOrder";
+import EventPlaceFields from "@/components/myteam/EventPlaceFields";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const EVENT_TYPES = [
@@ -73,6 +74,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
         end_time: endDateObj ? format(endDateObj, "HH:mm") : "",
         location: event.location || "",
         field_id: event.field_id || "",
+        location_url: event.location_url || "",
         opponent: event.opponent || "",
         opponent_logo_url: event.opponent_logo_url || "",
         notes: event.notes || "",
@@ -186,6 +188,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
       end_date: endDate,
       location: form.location || undefined,
       field_id: form.field_id || undefined,
+      location_url: form.location_url?.trim() || undefined,
       opponent: isMatch ? (form.opponent || undefined) : undefined,
       opponent_logo_url: isMatch ? (form.opponent_logo_url || undefined) : undefined,
       notes: form.notes || undefined,
@@ -320,24 +323,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
             )}
 
             {/* Lugar y campo */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Lugar</p>
-                <Input value={form.location} onChange={e => set("location", e.target.value)} placeholder="Dirección…" className="border-gray-200" />
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Campo registrado</p>
-                <Select value={form.field_id || "none"} onValueChange={v => set("field_id", v === "none" ? "" : v)}>
-                  <SelectTrigger className="border-gray-200"><SelectValue placeholder="Sin campo" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin campo asignado</SelectItem>
-                    {fields.filter(f => f.available !== false).map(f => (
-                      <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <EventPlaceFields form={form} set={set} />
 
             {/* Notas */}
             <div>
