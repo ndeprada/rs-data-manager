@@ -472,8 +472,9 @@ async function syncActas(stats) {
   }
   const { rows: convRows } = await query(`select id, data ->> 'event_id' as ev, data -> 'fcf_auto' as auto from entities where entity_type = 'Convocatoria'`);
   const convByEvent = new Map(convRows.map((r) => [r.ev, r]));
-  const { rows: msRows } = await query(`select id, data ->> 'event_id' as ev, data ->> 'player_id' as pl from entities where entity_type = 'MatchStats'`);
+  const { rows: msRows } = await query(`select id, data ->> 'event_id' as ev, data ->> 'player_id' as pl, data ->> 'manual' as man from entities where entity_type = 'MatchStats'`);
   const msByKey = new Map(msRows.map((r) => [`${r.ev}|${r.pl}`, r.id]));
+  const msManual = new Set(msRows.filter((r) => r.man === 'true').map((r) => `${r.ev}|${r.pl}`));
 
   const actas = await pool(evRows, 6, async (ev) => {
     try { return await getJson(`${ACTA_BASE}/${ev.data.fcf_acta}`); } catch (e) { stats.errors.push(`acta ${ev.data.fcf_acta}: ${e.message}`); return null; }
@@ -584,7 +585,8 @@ async function syncActas(stats) {
         fcf_auto: true,
       };
       const existing = msByKey.get(`${ev.id}|${pid}`);
-      if (existing) msPatches.push({ id: existing, d: data });   // minutos, asistencias y valoración se respetan
+      // Minutos, asistencias y valoración se respetan; lo corregido a mano o con el acta editada no se pisa
+      if (existing) { if (!msManual.has(`${ev.id}|${pid}`) && !p.manual) msPatches.push({ id: existing, d: data }); }
       else msInserts.push({ player_id: pid, event_id: ev.id, date: String(ev.data.date || '').slice(0, 10), opponent: ev.data.opponent || '', minutes_played: 0, assists: 0, ...data });
     }
     stats.actas_synced++;

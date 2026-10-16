@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { playerFullName } from "@/lib/playerName";
+import LineupSummary from "@/components/match/LineupSummary";
 
 // ── Formatos de partido ──────────────────────────────────
 const FOOTBALL_FORMATS = [
@@ -239,7 +240,9 @@ export default function ActaTab({ eventId, teamId, event, players }) {
     if (newEvType === "sub") { ev.playerIn = newEvPlayerIn; ev.playerOut = newEvPlayerOut; }
     if (newEvType === "card") { ev.playerId = newEvPlayerId; ev.cardColor = newEvCardColor; }
 
-    setMatchEvents(prev => [...prev, ev]);
+    const next = [...matchEvents, ev];
+    setMatchEvents(next);
+    persistEvents(next).then(() => saveStats(next, true));
     setEventWarning(warning);
     setNewEvMinute(""); setNewEvPlayerId(""); setNewEvAssistId(""); setNewEvPlayerIn(""); setNewEvPlayerOut("");
   };
@@ -256,7 +259,11 @@ export default function ActaTab({ eventId, teamId, event, players }) {
     queryClient.invalidateQueries({ queryKey: ["event", eventId] });
   };
 
-  const removeEvent = (id) => setMatchEvents(prev => prev.filter(e => e.id !== id));
+  const removeEvent = (id) => {
+    const next = matchEvents.filter(e => e.id !== id);
+    setMatchEvents(next);
+    persistEvents(next).then(() => saveStats(next, true));
+  };
 
   const [editEv, setEditEv] = useState(null);
   const [savingEv, setSavingEv] = useState(false);
@@ -264,12 +271,13 @@ export default function ActaTab({ eventId, teamId, event, players }) {
     setSavingEv(true);
     const next = matchEvents.map(e => e.id === editEv.id ? { ...editEv, edited: true } : e);
     setMatchEvents(next);
-    try { await persistEvents(next); } finally { setSavingEv(false); setEditEv(null); }
+    try { await persistEvents(next); await saveStats(next, true); } finally { setSavingEv(false); setEditEv(null); }
   };
   const deleteEdit = async () => {
     const next = matchEvents.filter(e => e.id !== editEv.id);
     setMatchEvents(next);
     await persistEvents(next);
+    await saveStats(next, true);
     setEditEv(null);
   };
   const playerOptions = convocados.length > 0 ? convocados : [...players].sort(sortByPosition);
@@ -303,33 +311,41 @@ export default function ActaTab({ eventId, teamId, event, players }) {
     setSavingScore(false);
   };
 
-  const saveStats = async () => {
-    setSavingStats(true);
-    for (const p of convocados) {
-      const mins = calcMinutesPlayed(p.id, starterIds, matchEvents, matchMinutes);
-      const isStarter = starterIds.includes(p.id);
-      const goals = matchEvents.filter(e => e.type === "goal" && e.team === "home" && e.playerId === p.id).length;
-      const assistsFromEvents = matchEvents.filter(e => e.type === "goal" && e.team === "home" && e.assistId === p.id).length;
-      const yellows = matchEvents.filter(e => e.type === "card" && e.team === "home" && e.playerId === p.id && e.cardColor === "yellow").length;
-      const yellow2 = matchEvents.filter(e => e.type === "card" && e.team === "home" && e.playerId === p.id && e.cardColor === "yellow2").length;
-      const red = matchEvents.filter(e => e.type === "card" && e.team === "home" && e.playerId === p.id && e.cardColor === "red").length;
-
-      const existing = await base44.entities.MatchStats.filter({ event_id: eventId, player_id: p.id }).then(r => r[0] || null);
-      // Las asistencias y minutos se apuntan a mano: no se pisan con ceros
-      const assists = assistsFromEvents || existing?.assists || 0;
-      const payload = {
-        player_id: p.id, event_id: eventId,
-        date: event?.date?.split("T")[0] || new Date().toISOString().split("T")[0],
-        opponent: event?.opponent || "",
-        starter: isStarter, minutes_played: mins || existing?.minutes_played || 0,
-        goals, assists, yellow_cards: yellows, double_yellow_card: yellow2, red_cards: red,
-        // La valoración y las correcciones se hacen en la pestaña Post-partido: aquí se conservan
-        rating: existing?.rating ?? null, notes: existing?.notes || "",
-      };
-      if (existing) await base44.entities.MatchStats.update(existing.id, payload);
-      else if (mins > 0 || goals > 0 || assists > 0) await base44.entities.MatchStats.create(payload);
-    }
-    setSavingStats(false);
+  // Guarda en MatchStats lo que sale de los eventos. Los jugadores corregidos a mano (manual) no se tocan.
+  const saveStats = async (evs = matchEvents, silent = false) => {
+    if (!silent) setSavingStats(true);
+    try {
+      const all = await base44.entities.MatchStats.filter({ event_id: eventId });
+      for (const p of convocados) {
+        const existing = all.find(r => r.player_id === p.id) || null;
+        if (existing?.manual) continue;
+        const mine = evs.filter(e => e.team === "home");
+        const isStarter = starterIds.includes(p.id);
+        const hasSubs = mine.some(e => e.type === "sub" && (e.playerIn === p.id || e.playerOut === p.id));
+        const mins = isStarter || hasSubs ? calcMinutesPlayed(p.id, starterIds, evs, matchMinutes) : 0;
+        const goals = mine.filter(e => e.type === "goal" && e.playerId === p.id).length;
+        const assistsFromEvents = mine.filter(e => e.type === "goal" && e.assistId === p.id).length;
+        const yellows = mine.filter(e => e.type === "card" && e.playerId === p.id && e.cardColor === "yellow").length;
+        const yellow2 = mine.filter(e => e.type === "card" && e.playerId === p.id && e.cardColor === "yellow2").length;
+        const red = mine.filter(e => e.type === "card" && e.playerId === p.id && e.cardColor === "red").length;
+        // Minutos solo si hay cambios registrados; si no, se conserva lo que hubiera (sin inventar 90')
+        const minutes = hasSubs ? mins : (existing?.minutes_played || 0);
+        const assists = assistsFromEvents || existing?.assists || 0;
+        const payload = {
+          player_id: p.id, event_id: eventId,
+          date: event?.date?.split("T")[0] || new Date().toISOString().split("T")[0],
+          opponent: event?.opponent || "",
+          starter: isStarter, minutes_played: minutes,
+          goals, assists, yellow_cards: yellows, double_yellow_card: yellow2, red_cards: red,
+          // La valoración y las correcciones se hacen en la pestaña Post-partido: aquí se conservan
+          rating: existing?.rating ?? null, notes: existing?.notes || "",
+        };
+        if (existing) await base44.entities.MatchStats.update(existing.id, { ...existing, ...payload });
+        else if (minutes > 0 || goals > 0 || assists > 0 || yellows + yellow2 + red > 0 || isStarter) await base44.entities.MatchStats.create(payload);
+      }
+      queryClient.invalidateQueries({ queryKey: ["matchstats-event", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["matchstats"] });
+    } finally { if (!silent) setSavingStats(false); }
   };
 
   // Score from events — sync marcador automáticamente
@@ -518,43 +534,9 @@ export default function ActaTab({ eventId, teamId, event, players }) {
         </div>
       )}
 
-      {/* ── Jugadores: minutos + valoración ── */}
-      {convocados.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-gray-900">Minutos y estadísticas</p>
-            <Button size="sm" onClick={saveStats} disabled={savingStats} className="text-white text-xs h-7" style={{ background: "var(--granate)" }}>
-              <Save className="w-3.5 h-3.5 mr-1" />{savingStats ? "Guardando…" : "Guardar estadísticas"}
-            </Button>
-          </div>
-          <div className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
-            {convocados.map(p => {
-              const mins = calcMinutesPlayed(p.id, starterIds, matchEvents, matchMinutes);
-              const isStarter = starterIds.includes(p.id);
-              const goals = matchEvents.filter(e => e.type === "goal" && e.team === "home" && e.playerId === p.id).length;
-              const assists = matchEvents.filter(e => e.type === "goal" && e.team === "home" && e.assistId === p.id).length;
-                            return (
-                <div key={p.id}>
-                  <div className="flex items-center gap-2.5 px-3 py-1.5 bg-white hover:bg-gray-50/50 transition-colors">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                      style={{ background: "var(--granate)" }}>
-                      {p.first_name?.[0]}{p.last_name?.[0]}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-gray-900 truncate leading-tight"><PlayerName player={p} /></p>
-                      <p className="text-[10px] text-gray-400 leading-tight">
-                        {isStarter ? "TIT" : "SUP"} · {mins}'
-                        {goals > 0 && ` · ${goals}⚽`}
-                        {assists > 0 && ` · ${assists}🅰️`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* ── Alineación y resumen por jugador ── */}
+      <LineupSummary eventId={eventId} event={event} convocation={convocation} convocados={convocados} starterIds={starterIds}
+        matchEvents={matchEvents} matchMinutes={matchMinutes} onRecompute={() => saveStats(matchEvents, true)} />
 
       {/* ── Editar evento ── */}
       <Dialog open={!!editEv} onOpenChange={o => { if (!o) setEditEv(null); }}>
