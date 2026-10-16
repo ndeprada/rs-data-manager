@@ -4,6 +4,15 @@ import { Send } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Textarea } from "@/components/ui/textarea";
+import { sortTeams, isF7Team } from "@/lib/teamOrder";
+
+const norm = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const STAGES = [
+  ["Primer equipo", "primer"], ["Juvenil", "juvenil"], ["Cadete", "cadet"], ["Infantil", "infantil"],
+  ["Aleví", "alevi"], ["Benjamín", "benjam"], ["Prebenjamín", "prebenjam"], ["Escuela", "escuela"],
+];
+// "benjam" también está dentro de "prebenjam": se distingue por el inicio del nombre
+const inStage = (team, key) => norm(team.name).startsWith(key);
 
 const GROUPS = [
   { key: "jugadores", label: "Jugadores" },
@@ -27,7 +36,17 @@ export default function Composer({ fixed = null, defaultTitle = "", defaultBody 
   const isCoord = user?.role === "admin" || ["director", "director_deportivo", "coordinador_general", "coordinador_f7", "coordinador_f11"].includes(user?.app_role);
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const myTeamIds = useMemo(() => new Set([...(user?.team_ids || []), ...(user?.team_id ? [user.team_id] : [])]), [user]);
-  const available = isCoord ? teams : teams.filter((t) => myTeamIds.has(t.id));
+  const available = sortTeams(isCoord ? teams : teams.filter((t) => myTeamIds.has(t.id)));
+
+  // Selecciones rápidas: por formato (F11 / F7) y por etapa
+  const quick = useMemo(() => {
+    const list = [
+      ["Fútbol 11", available.filter((t) => !isF7Team(t))],
+      ["Fútbol 7", available.filter((t) => isF7Team(t))],
+      ...STAGES.map(([label, key]) => [label, available.filter((t) => inStage(t, key))]),
+    ];
+    return list.filter(([, ts]) => ts.length > 0).map(([label, ts]) => ({ label, ids: ts.map((t) => t.id) }));
+  }, [available]);
 
   const [title, setTitle] = useState(defaultTitle);
   const [body, setBody] = useState(defaultBody);
@@ -37,6 +56,12 @@ export default function Composer({ fixed = null, defaultTitle = "", defaultBody 
   const [count, setCount] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
+
+  const quickOn = (ids) => !allClub && ids.every((id) => teamIds.includes(id));
+  const toggleQuick = (ids) => {
+    setAllClub(false);
+    setTeamIds(quickOn(ids) ? teamIds.filter((id) => !ids.includes(id)) : [...new Set([...teamIds, ...ids])]);
+  };
 
   const toggle = (arr, set, v) => set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
@@ -83,9 +108,12 @@ export default function Composer({ fixed = null, defaultTitle = "", defaultBody 
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
       {!fixed && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Equipos</p>
-          <div className="flex flex-wrap gap-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Equipos <span className="normal-case tracking-normal font-normal">· puedes combinar grupos y equipos sueltos</span></p>
+          <div className="flex flex-wrap gap-1.5 mb-2">
             {isCoord && <Chip on={allClub} onClick={() => setAllClub(!allClub)}>Todo el club</Chip>}
+            {quick.map((g) => <Chip key={g.label} on={quickOn(g.ids)} onClick={() => toggleQuick(g.ids)}>{g.label}</Chip>)}
+          </div>
+          <div className="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100">
             {available.map((t) => (
               <Chip key={t.id} on={!allClub && teamIds.includes(t.id)} onClick={() => { setAllClub(false); toggle(teamIds, setTeamIds, t.id); }}>{t.name}</Chip>
             ))}
