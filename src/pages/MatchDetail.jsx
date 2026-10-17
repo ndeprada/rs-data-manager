@@ -157,7 +157,7 @@ export default function MatchDetail() {
   const TABS = [
     { key: "convocatoria", label: "Convocatoria",        icon: Users },
     { key: "acta",         label: "Acta",                icon: FileText },
-    { key: "tactica",      label: "Preparación partido", icon: Map },
+    { key: "tactica",      label: "Preparación partido", short: "Preparación", icon: Map },
     { key: "postpartido",  label: "Post-partido",        icon: ClipboardCheck },
   ];
 
@@ -265,20 +265,20 @@ export default function MatchDetail() {
       </div>
 
       {/* ── TABS ── */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-4">
-        {TABS.map(({ key, label, icon: Icon }) => {
+      <div className="grid grid-cols-4 gap-1 bg-gray-100 p-1 rounded-xl mb-4">
+        {TABS.map(({ key, label, short, icon: Icon }) => {
           const isActive = activeTab === key;
           return (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all ${
+              className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-0.5 py-2 sm:py-2.5 rounded-lg text-[10px] sm:text-xs leading-tight font-bold whitespace-nowrap transition-all ${
                 isActive ? "text-white shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-white/60"
               }`}
               style={isActive ? { background: "var(--granate)" } : {}}
             >
-              <Icon className="w-3.5 h-3.5" />
-              {label}
+              <Icon className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0" />
+              <span className="sm:hidden">{short || label}</span><span className="hidden sm:inline">{label}</span>
             </button>
           );
         })}

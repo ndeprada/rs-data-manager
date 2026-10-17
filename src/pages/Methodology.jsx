@@ -35,7 +35,7 @@ export default function Methodology() {
       </div>
 
       <Tabs defaultValue="sessions">
-        <TabsList className="bg-gray-100 border border-gray-200">
+        <TabsList className="bg-gray-100 border border-gray-200 max-w-full overflow-x-auto justify-start">
           <TabsTrigger value="sessions" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
             <Layers className="w-3.5 h-3.5" /> Sesiones
           </TabsTrigger>

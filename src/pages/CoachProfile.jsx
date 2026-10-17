@@ -412,7 +412,7 @@ export default function CoachProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue={showFeedbackTab ? "feedback" : "notes"}>
-        <TabsList className="bg-gray-100 border border-gray-200">
+        <TabsList className="bg-gray-100 border border-gray-200 max-w-full overflow-x-auto justify-start">
           {showFeedbackTab && (
             <TabsTrigger value="feedback" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
               Feedback

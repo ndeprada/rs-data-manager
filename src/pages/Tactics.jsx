@@ -229,7 +229,7 @@ export default function Tactics() {
             )}
 
             <Tabs defaultValue="formation">
-              <TabsList className="bg-gray-100">
+              <TabsList className="bg-gray-100 max-w-full overflow-x-auto justify-start">
                 <TabsTrigger value="formation" className="gap-1.5 text-xs"><LayoutGrid className="w-3.5 h-3.5" /> Formación</TabsTrigger>
                 <TabsTrigger value="jugada" className="gap-1.5 text-xs"><Move className="w-3.5 h-3.5" /> Análisis de Jugadas</TabsTrigger>
               </TabsList>
