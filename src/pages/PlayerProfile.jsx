@@ -243,7 +243,7 @@ export default function PlayerProfile() {
       </div>
 
       {/* ── PESTAÑAS ── */}
-      <div className="px-4 sm:px-6 py-4">
+      <div className="px-0 sm:px-6 py-4">
         <Tabs value={tab} onValueChange={setTab}>
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-4">
             <TabsList className="w-full bg-transparent p-0 h-auto border-b border-gray-100 flex rounded-none overflow-x-auto">

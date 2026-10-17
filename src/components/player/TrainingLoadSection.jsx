@@ -139,15 +139,17 @@ export default function TrainingLoadSection({ playerId }) {
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-        <div className="flex items-start gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+          <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--naranja-pale, #fff7ed)" }}>
             <Zap className="w-5 h-5" style={{ color: "var(--naranja)" }} />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 mb-1">Carga de Entrenamiento (RPE)</h3>
             <p className="text-sm text-gray-500">Registra tu esfuerzo percibido tras cada sesión para monitorizar la carga semanal y evolución de la forma física.</p>
           </div>
-          <Button onClick={() => setDialogOpen(true)} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
+          </div>
+          <Button onClick={() => setDialogOpen(true)} className="text-white shrink-0 w-full sm:w-auto" style={{ background: "var(--granate)" }}>
             <Plus className="w-4 h-4 mr-2" /> Registrar RPE
           </Button>
         </div>
