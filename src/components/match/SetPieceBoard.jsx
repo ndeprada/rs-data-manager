@@ -265,12 +265,16 @@ function Board({ piece, onChange, candidates, kitOf }) {
           return (
             <div key={t.id} onPointerDown={(e) => tokenDown(e, t)} className="absolute touch-none"
               style={{ left, top, width: d, height: d, transform: "translate(-50%,-50%)", pointerEvents: interactiveTokens ? "auto" : "none", cursor: tool === "move" ? "grab" : "pointer", zIndex: selToken?.id === t.id ? 20 : 10 }}>
-              {t.role && <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-extrabold uppercase text-center" style={{ bottom: "100%", marginBottom: 1, fontSize: f * 0.85, color: "#fde68a", textShadow: shadow, letterSpacing: 0.3 }}>{t.role}</span>}
               <div className="w-full h-full rounded-full flex items-center justify-center font-black"
                 style={{ background: fill, color: num, border: `${Math.max(2, d / 9)}px solid ${stroke}`, fontSize: d * (String(shown).length > 2 ? 0.34 : 0.5), outline: selToken?.id === t.id ? "2px solid #facc15" : undefined, outlineOffset: 2, fontFamily: "var(--font-display)" }}>
                 {String(shown).slice(0, 4)}
               </div>
-              {nameTxt && <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-bold text-white text-center" style={{ top: "100%", marginTop: 1, fontSize: f, textShadow: shadow }}>{nameTxt}</span>}
+              {(nameTxt || t.role) && (
+                <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center whitespace-nowrap" style={{ top: "100%", marginTop: 1 }}>
+                  {nameTxt && <span className="font-bold text-white text-center leading-tight" style={{ fontSize: f, textShadow: shadow }}>{nameTxt}</span>}
+                  {t.role && <span className="font-extrabold uppercase text-center leading-tight" style={{ fontSize: f * 0.85, color: "#fde68a", textShadow: shadow, letterSpacing: 0.3 }}>{t.role}</span>}
+                </div>
+              )}
             </div>
           );
         })}
