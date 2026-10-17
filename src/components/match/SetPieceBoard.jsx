@@ -430,19 +430,25 @@ function pieceSvg(piece, candidates, kitOf) {
 }
 
 function printPieces(list, candidates, kitOf, perPage, title) {
-  const w = window.open("", "_blank");
-  if (!w) return false;
   const typeLabel = (v) => TYPES.find((t) => t.value === v)?.label || v;
   const cards = list.map((p) => `<section class="card"><h2>${esc(p.name)}</h2><p class="meta">${esc(typeLabel(p.type))}</p>${p.signal ? `<p class="sig"><b>Señal:</b> ${esc(p.signal)}</p>` : ""}${pieceSvg(p, candidates, kitOf)}${p.notes ? `<p class="notes">${esc(p.notes)}</p>` : ""}</section>`).join("");
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
     @page{size:A4;margin:12mm} body{font-family:Arial,sans-serif;color:#111;margin:0}
     .grid{display:grid;grid-template-columns:${perPage === 1 ? "1fr" : "1fr 1fr"};gap:8mm}
     .card{break-inside:avoid;page-break-inside:avoid;${perPage === 1 ? "page-break-after:always;" : ""}}
     ${perPage === 1 ? ".card:last-child{page-break-after:auto}" : ""}
     h1{font-size:14px;margin:0 0 6px;color:#73000A} h2{font-size:${perPage === 1 ? 20 : 14}px;margin:0} .meta{font-size:11px;color:#666;margin:2px 0 4px}
     .sig{font-size:${perPage === 1 ? 14 : 11}px;margin:2px 0 6px} .notes{font-size:${perPage === 1 ? 13 : 10}px;white-space:pre-wrap;margin:6px 0 0}
-  </style></head><body><h1>${esc(title)}</h1><div class="grid">${cards}</div><script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script></body></html>`);
-  w.document.close();
+  </style></head><body><h1>${esc(title)}</h1><div class="grid">${cards}</div></body></html>`;
+  const old = document.getElementById("sp-print-frame");
+  if (old) old.remove();
+  const fr = document.createElement("iframe");
+  fr.id = "sp-print-frame";
+  fr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0";
+  document.body.appendChild(fr);
+  const doc = fr.contentWindow.document;
+  doc.open(); doc.write(html); doc.close();
+  setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { window.print(); } }, 400);
   return true;
 }
 
@@ -460,7 +466,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], kitOf
   const doPrint = () => {
     const list = printList.filter((id) => !off.includes(id)).map((id) => pieces.find((p) => p.id === id));
     if (!list.length) return flash("Marca al menos una jugada");
-    if (!printPieces(list, candidates, kitOf, perPage, "Acciones a balón parado")) flash("El navegador ha bloqueado la ventana de impresión");
+    try { printPieces(list, candidates, kitOf, perPage, "Acciones a balón parado"); } catch (e) { flash("No se pudo imprimir: " + (e?.message || "error")); }
   };
   const active = pieces.find((p) => p.id === activeId) || pieces[0] || null;
 
