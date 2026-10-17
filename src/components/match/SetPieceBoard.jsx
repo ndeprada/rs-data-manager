@@ -389,13 +389,15 @@ function Board({ piece, onChange, candidates, kitOf }) {
 
 const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-// Dibujo estático (SVG como texto) de una jugada, para imprimir
+// Dibujo estático (SVG como texto) de una jugada para imprimir: fondo blanco y líneas claras (ahorra tinta)
 function pieceSvg(piece, candidates, kitOf) {
-  const l = "rgba(255,255,255,0.7)";
-  let o = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" style="width:100%;border:1px solid #999;border-radius:6px">`;
-  o += `<rect width="${W}" height="${H}" fill="#15803d"/><g fill="none" stroke="${l}" stroke-width="1.5"><rect x="10" y="10" width="${W - 20}" height="${H - 10}"/><rect x="66" y="10" width="168" height="72"/><rect x="112" y="10" width="76" height="26"/><rect x="132" y="4" width="36" height="6"/><path d="M 120 82 A 30 30 0 0 0 180 82"/><path d="M 110 ${H} A 40 40 0 0 1 190 ${H}"/></g><circle cx="150" cy="58" r="1.8" fill="${l}"/>`;
+  const l = "#b8b8b8";
+  let o = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" style="width:100%;display:block;font-family:Oswald,'Arial Narrow',Arial,sans-serif">`;
+  o += `<defs><pattern id="net" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 0L4 4M4 0L0 4" stroke="#d4d4d4" stroke-width=".5"/></pattern></defs>`;
+  o += `<rect x="132" y="2" width="36" height="9" fill="url(#net)" stroke="#9a9a9a" stroke-width="1"/>`;
+  o += `<g fill="none" stroke="${l}" stroke-width="1.2"><rect x="3" y="11" width="${W - 6}" height="${H - 12}"/><rect x="66" y="11" width="168" height="72"/><rect x="112" y="11" width="76" height="26"/><path d="M 120 83 A 30 30 0 0 0 180 83"/><path d="M 110 ${H - 1} A 40 40 0 0 1 190 ${H - 1}"/></g><circle cx="150" cy="58" r="1.6" fill="${l}"/>`;
   for (const a of piece.arrows || []) {
-    const { dashed, color, border, width, head: hasHead } = arrowStyle(a);
+    const { dashed, color, width, head: hasHead } = arrowStyle(a);
     const curved = a.cx != null && a.cy != null;
     const fx = curved ? a.cx : a.x1, fy = curved ? a.cy : a.y1;
     const ang = Math.atan2(a.y2 - fy, a.x2 - fx), L = 5 + width * 2, Wd = 2 + width * 1.2;
@@ -403,43 +405,59 @@ function pieceSvg(piece, candidates, kitOf) {
     const nx = -Math.sin(ang), ny = Math.cos(ang);
     const hd = `${a.x2},${a.y2} ${bx + nx * Wd},${by + ny * Wd} ${bx - nx * Wd},${by - ny * Wd}`;
     const d = curved ? `M ${a.x1} ${a.y1} Q ${a.cx} ${a.cy} ${bx} ${by}` : `M ${a.x1} ${a.y1} L ${bx} ${by}`;
-    const da = dashed ? ' stroke-dasharray="5 4"' : "";
-    if (border) { o += `<path d="${d}" fill="none" stroke="#fff" stroke-opacity=".9" stroke-width="${width + 1.8}" stroke-linecap="round"${da}/>`; if (hasHead) o += `<polygon points="${hd}" fill="#fff" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>`; }
-    o += `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round"${da}/>`;
+    o += `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round"${dashed ? ' stroke-dasharray="4 3"' : ""}/>`;
     if (hasHead) o += `<polygon points="${hd}" fill="${color}"/>`;
   }
-  const txt = (x, y, size, fill, str, weight = 700) => `<text x="${x}" y="${y}" text-anchor="middle" font-size="${size}" font-weight="${weight}" fill="${fill}" stroke="#000" stroke-width="${size * 0.28}" paint-order="stroke" font-family="Arial,sans-serif">${esc(str)}</text>`;
+  const txt = (x, y, size, fill, str, weight = 600) => `<text x="${x}" y="${y}" text-anchor="middle" font-size="${size}" font-weight="${weight}" fill="${fill}">${esc(str)}</text>`;
   for (const t of piece.tokens || []) {
     const sz = t.size || 1;
-    if (t.kind === "ball") { o += `<circle cx="${t.x}" cy="${t.y}" r="${6 * sz}" fill="#fff" stroke="#111" stroke-width="1.6"/>`; continue; }
+    if (t.kind === "ball") {
+      const r = 5 * sz;
+      o += `<circle cx="${t.x}" cy="${t.y}" r="${r}" fill="#fff" stroke="#111" stroke-width="1.2"/><circle cx="${t.x}" cy="${t.y}" r="${r * 0.38}" fill="#111"/>`;
+      continue;
+    }
     const pl = t.player_id ? candidates.find((p) => p.id === t.player_id) : null;
     const own = t.kind === "own";
-    const ks = own ? kitOf(pl) : { fill: RIVAL_COLOR, stroke: "#fff", num: "#fff" };
+    const gk = own && pl?.position === "portero";
+    const ks = own ? (gk ? kitOf(pl) : { fill: "#73000A", stroke: "#73000A", num: "#fff" }) : { fill: RIVAL_COLOR, stroke: RIVAL_COLOR, num: "#fff" };
     const fill = t.color || ks.fill;
-    const stroke = t.color ? (lightColor(t.color) ? "#73000A" : "#fff") : ks.stroke;
+    const stroke = t.color ? (lightColor(t.color) ? "#73000A" : fill) : ks.stroke;
     const num = t.color ? (lightColor(t.color) ? "#111827" : "#fff") : ks.num;
-    const r = 11 * sz;
+    const r = 8 * sz;
     const shown = String(own ? (pl ? pl.jersey_number || pl.first_name?.[0] || "" : t.label) : t.label).slice(0, 4);
-    o += `<circle cx="${t.x}" cy="${t.y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${Math.max(1.5, r / 4.5)}"/>`;
-    o += `<text x="${t.x}" y="${t.y + r * 0.36}" text-anchor="middle" font-size="${r * (shown.length > 2 ? 0.8 : 1.05)}" font-weight="900" fill="${num}" font-family="Arial,sans-serif">${esc(shown)}</text>`;
-    let yy = t.y + r + 7 * Math.min(sz, 1.3);
-    if (pl) { o += txt(t.x, yy, 6.5 * Math.min(sz, 1.3), "#fff", shortName(pl)); yy += 7 * Math.min(sz, 1.3); }
-    if (t.role) o += txt(t.x, yy, 5.6 * Math.min(sz, 1.3), "#fde68a", t.role.toUpperCase(), 800);
+    o += `<circle cx="${t.x}" cy="${t.y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="1.2"/>`;
+    o += `<text x="${t.x}" y="${t.y + r * 0.36}" text-anchor="middle" font-size="${r * (shown.length > 2 ? 0.85 : 1.1)}" font-weight="700" fill="${num}">${esc(shown)}</text>`;
+    const k = Math.min(sz, 1.3);
+    let yy = t.y + r + 7.5 * k;
+    if (pl) { o += txt(t.x, yy, 6.8 * k, own ? "#73000A" : RIVAL_COLOR, shortName(pl).toUpperCase(), 700); yy += 7 * k; }
+    if (t.role) o += txt(t.x, yy, 5.8 * k, "#ea580c", t.role.toUpperCase(), 700);
   }
   return o + "</svg>";
 }
 
-function printPieces(list, candidates, kitOf, perPage, title) {
+function printPieces(list, candidates, kitOf, perPage, teamName) {
   const typeLabel = (v) => TYPES.find((t) => t.value === v)?.label || v;
-  const cards = list.map((p) => `<section class="card"><h2>${esc(p.name)}</h2><p class="meta">${esc(typeLabel(p.type))}</p>${p.signal ? `<p class="sig"><b>Señal:</b> ${esc(p.signal)}</p>` : ""}${pieceSvg(p, candidates, kitOf)}${p.notes ? `<p class="notes">${esc(p.notes)}</p>` : ""}</section>`).join("");
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
-    @page{size:A4;margin:12mm} body{font-family:Arial,sans-serif;color:#111;margin:0}
-    .grid{display:grid;grid-template-columns:${perPage === 1 ? "1fr" : "1fr 1fr"};gap:8mm}
-    .card{break-inside:avoid;page-break-inside:avoid;${perPage === 1 ? "page-break-after:always;" : ""}}
-    ${perPage === 1 ? ".card:last-child{page-break-after:auto}" : ""}
-    h1{font-size:14px;margin:0 0 6px;color:#73000A} h2{font-size:${perPage === 1 ? 20 : 14}px;margin:0} .meta{font-size:11px;color:#666;margin:2px 0 4px}
-    .sig{font-size:${perPage === 1 ? 14 : 11}px;margin:2px 0 6px} .notes{font-size:${perPage === 1 ? 13 : 10}px;white-space:pre-wrap;margin:6px 0 0}
-  </style></head><body><h1>${esc(title)}</h1><div class="grid">${cards}</div></body></html>`;
+  const cards = list.map((p) => `<section class="card">
+    <header><div class="club"><img src="https://media.base44.com/images/public/69b72e4f23c3602504953d0d/442c01da9_Escudo_Granate.png" alt=""><div><b>RACING SARRIÀ</b><span>${esc(teamName || "")}</span></div></div>
+    <div class="ttl"><h2>${esc(p.name)}</h2><span>${esc(typeLabel(p.type))}</span></div></header>
+    ${p.signal ? `<div class="sig"><b>SEÑAL</b><span>${esc(p.signal)}</span></div>` : ""}
+    <div class="body"><div class="fld">${pieceSvg(p, candidates, kitOf)}</div>${p.notes ? `<div class="notes"><b>INSTRUCCIONES</b>${esc(p.notes)}</div>` : ""}</div></section>`).join("");
+  const one = perPage === 1;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Acciones a balón parado${teamName ? " · " + esc(teamName) : ""}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&display=swap" rel="stylesheet"><style>
+    @page{size:A4;margin:10mm} *{box-sizing:border-box} body{margin:0;font-family:Oswald,'Arial Narrow',Arial,sans-serif;color:#222}
+    .card{break-inside:avoid;page-break-inside:avoid;height:${one ? "275mm" : "134mm"};${one ? "" : "margin-bottom:6mm;"}overflow:hidden}
+    ${one ? "" : ".card:nth-child(2n){margin-bottom:0}"}
+    header{display:flex;justify-content:space-between;align-items:flex-start;gap:8mm;margin-bottom:3mm}
+    .club{display:flex;align-items:center;gap:2.5mm} .club img{height:${one ? 15 : 12}mm;width:auto}
+    .club b{display:block;font-size:${one ? 14 : 11}pt;color:#73000A;line-height:1.05;letter-spacing:.3px} .club span{display:block;font-size:${one ? 13 : 10}pt;color:#ea580c;font-weight:700;text-transform:uppercase;line-height:1.1}
+    .ttl{text-align:right} .ttl h2{margin:0;font-size:${one ? 26 : 19}pt;line-height:1;color:#73000A;text-transform:uppercase;letter-spacing:.3px} .ttl span{display:block;font-size:${one ? 15 : 11.5}pt;color:#ea580c;font-weight:700;text-transform:uppercase;margin-top:1mm}
+    .sig{display:flex;align-items:center;gap:3mm;border:.3mm solid #ea580c;border-radius:1.5mm;padding:1.2mm 3mm;margin-bottom:3mm;font-size:${one ? 12 : 10}pt}
+    .sig b{background:#ea580c;color:#fff;padding:.4mm 2mm;border-radius:1mm;font-size:${one ? 10 : 8.5}pt;letter-spacing:.5px} .sig span{color:#333;font-weight:500}
+    .body{display:flex;gap:4mm;align-items:flex-start} .fld{flex:1;min-width:0;${one ? "" : "max-width:132mm;"}}
+    .notes{width:${one ? "52mm" : "48mm"};font-size:${one ? 11 : 9.5}pt;white-space:pre-wrap;color:#333;border-left:.5mm solid #ea580c;padding-left:3mm;font-weight:500}
+    .notes b{display:block;color:#ea580c;font-size:${one ? 9.5 : 8.5}pt;letter-spacing:.5px;margin-bottom:1mm}
+  </style></head><body>${cards}</body></html>`;
   const old = document.getElementById("sp-print-frame");
   if (old) old.remove();
   const fr = document.createElement("iframe");
@@ -448,11 +466,13 @@ function printPieces(list, candidates, kitOf, perPage, title) {
   document.body.appendChild(fr);
   const doc = fr.contentWindow.document;
   doc.open(); doc.write(html); doc.close();
-  setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { window.print(); } }, 400);
+  const go = () => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { window.print(); } };
+  const ready = fr.contentWindow.document.fonts?.ready || Promise.resolve();
+  Promise.race([ready, new Promise((r) => setTimeout(r, 1800))]).then(() => setTimeout(go, 500));
   return true;
 }
 
-export default function SetPieceBoard({ pieces, onChange, candidates = [], kitOf = () => ({ fill: "#fff", stroke: "#73000A", num: "#73000A" }), teamId }) {
+export default function SetPieceBoard({ pieces, onChange, candidates = [], teamName = "", kitOf = () => ({ fill: "#fff", stroke: "#73000A", num: "#73000A" }), teamId }) {
   const qc = useQueryClient();
   const [activeId, setActiveId] = useState(null);
   const [libOpen, setLibOpen] = useState(false);
@@ -466,7 +486,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], kitOf
   const doPrint = () => {
     const list = printList.filter((id) => !off.includes(id)).map((id) => pieces.find((p) => p.id === id));
     if (!list.length) return flash("Marca al menos una jugada");
-    try { printPieces(list, candidates, kitOf, perPage, "Acciones a balón parado"); } catch (e) { flash("No se pudo imprimir: " + (e?.message || "error")); }
+    try { printPieces(list, candidates, kitOf, perPage, teamName); } catch (e) { flash("No se pudo imprimir: " + (e?.message || "error")); }
   };
   const active = pieces.find((p) => p.id === activeId) || pieces[0] || null;
 
