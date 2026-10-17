@@ -46,9 +46,10 @@ const lightColor = (c) => ["#ffffff", "#facc15"].includes(c);
 const shortName = (p) => (p ? `${playerFirstName(p)} ${(p.last_name || "").split(" ")[0]}`.trim() : "");
 
 // Compatibilidad con jugadas antiguas (flechas sin estilo, fichas sin tamaño)
+const teamColor = (team) => (team === "rival" ? RIVAL_COLOR : "#73000A");
 const arrowStyle = (a) => ({
   dashed: a.dashed ?? a.kind === "arrow_move",
-  color: a.color && a.color !== "#ffffff" || a.dashed !== undefined ? a.color || "#73000A" : "#73000A",
+  color: a.color || teamColor(a.team),
 });
 const defaultControl = (a) => {
   const mx = (a.x1 + a.x2) / 2, my = (a.y1 + a.y2) / 2;
@@ -116,7 +117,7 @@ function Board({ piece, onChange, candidates, kitOf }) {
   const [tool, setTool] = useState("move");
   const [sel, setSel] = useState(null); // { type: "token" | "arrow", id }
   const [draft, setDraft] = useState(null);
-  const [opts, setOpts] = useState({ curve: false, dashed: false, color: "#73000A" });
+  const [opts, setOpts] = useState({ curve: false, dashed: false, color: null, team: "own" });
   const drag = useRef(null);
 
   useEffect(() => {
@@ -166,7 +167,7 @@ function Board({ piece, onChange, candidates, kitOf }) {
   const onUp = () => {
     if (draft) {
       if (Math.hypot(draft.x2 - draft.x1, draft.y2 - draft.y1) > 8) {
-        const a = { id: uid(), ...draft, dashed: opts.dashed, color: opts.color };
+        const a = { id: uid(), ...draft, dashed: opts.dashed, color: opts.color, team: opts.team };
         if (opts.curve) Object.assign(a, defaultControl(a));
         set({ arrows: [...piece.arrows, a] });
         setSel({ type: "arrow", id: a.id });
@@ -196,7 +197,7 @@ function Board({ piece, onChange, candidates, kitOf }) {
 
   // Cambios de estilo de flecha: afectan a la flecha seleccionada y a las nuevas
   const changeArrow = (patch) => {
-    setOpts((o) => ({ ...o, ...("dashed" in patch ? { dashed: patch.dashed } : {}), ...("color" in patch ? { color: patch.color } : {}), ...("curve" in patch ? { curve: patch.curve } : {}) }));
+    setOpts((o) => ({ ...o, ...patch }));
     if (selArrow) {
       const { curve, ...rest } = patch;
       const next = { ...rest };
@@ -209,7 +210,8 @@ function Board({ piece, onChange, candidates, kitOf }) {
   const showArrowOpts = tool === "arrow" || selArrow;
   const arrowCurve = selArrow ? selArrow.cx != null : opts.curve;
   const arrowDashed = selArrow ? arrowStyle(selArrow).dashed : opts.dashed;
-  const arrowColor = selArrow ? arrowStyle(selArrow).color : opts.color;
+  const arrowTeam = selArrow ? selArrow.team || "own" : opts.team;
+  const arrowColor = selArrow ? selArrow.color || null : opts.color;
   const interactiveTokens = tool === "move" || tool === "erase";
 
   return (
@@ -234,7 +236,7 @@ function Board({ piece, onChange, candidates, kitOf }) {
         <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 w-full h-full" style={{ pointerEvents: "none" }}>
           <Pitch />
           {piece.arrows.map((a) => <ArrowShape key={a.id} a={a} hit={interactiveTokens} onHitDown={(e) => arrowHitDown(e, a)} selected={selArrow?.id === a.id} />)}
-          {draft && <ArrowShape a={{ ...draft, ...(opts.curve ? defaultControl(draft) : {}), dashed: opts.dashed, color: opts.color }} />}
+          {draft && <ArrowShape a={{ ...draft, ...(opts.curve ? defaultControl(draft) : {}), dashed: opts.dashed, color: opts.color, team: opts.team }} />}
         </svg>
 
         {/* Fichas (HTML, para que el nombre y el rol se lean bien y el dedo pueda arrastrarlas) */}
@@ -297,7 +299,12 @@ function Board({ piece, onChange, candidates, kitOf }) {
               <button key={l} type="button" onClick={() => changeArrow({ dashed: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowDashed === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowDashed === v ? { background: "var(--granate)" } : {}}>{l}</button>
             ))}
           </div>
-          <Swatches value={arrowColor} onPick={(c) => changeArrow({ color: c })} />
+          <div className="flex gap-1">
+            {[["own", "Nuestro"], ["rival", "Rival"]].map(([v, l]) => (
+              <button key={v} type="button" onClick={() => changeArrow({ team: v, color: null })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowTeam === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowTeam === v ? { background: teamColor(v) } : {}}>{l}</button>
+            ))}
+          </div>
+          <Swatches value={arrowColor} onPick={(c) => changeArrow({ color: c })} allowReset resetLabel="Del equipo" />
           {selArrow && <button type="button" onClick={() => { set({ arrows: piece.arrows.filter((a) => a.id !== selArrow.id) }); setSel(null); }} className="ml-auto p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title="Eliminar flecha"><Trash2 className="w-4 h-4" /></button>}
         </div>
       )}
