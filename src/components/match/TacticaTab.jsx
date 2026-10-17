@@ -506,7 +506,10 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
       </div>
 
       {/* ── Balón parado ── */}
-      <SetPieceBoard pieces={pieces} onChange={setPieces} names={names} />
+      <SetPieceBoard pieces={pieces} onChange={setPieces} teamId={team?.id || event?.team_id}
+        candidates={[...new Set([...(convocadoIds || [])])].map(id => allPlayers.find(p => p.id === id) || players.find(p => p.id === id)).filter(Boolean)
+          .sort((a, b) => ((Number(a.jersey_number) || 999) - (Number(b.jersey_number) || 999)))}
+        kitOf={(pl) => pl ? kitFor(pl, kit, gkKit) : KITS[kit] || KITS["1"]} />
 
       <PlayerPicker
         open={pickSlot !== null}
