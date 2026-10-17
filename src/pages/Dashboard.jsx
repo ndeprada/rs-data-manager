@@ -267,8 +267,8 @@ export default function Dashboard() {
           )}
 
           {nextMine && !nextIsMine && (
-            <div className={`${card} p-4 flex items-center gap-4 flex-wrap`} style={{ ...cardStyle, borderLeft: "4px solid var(--naranja)" }}>
-              <div className="flex-1 min-w-0">
+            <div className={`${card} p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4`} style={{ ...cardStyle, borderLeft: "4px solid var(--naranja)" }}>
+              <div className="flex-1 min-w-0 w-full">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Mi próximo partido · {teamName(nextMine.team_id)}</p>
                 <p className="font-black text-gray-900 text-lg leading-tight" style={display}>{nextMine.title}</p>
                 <p className="text-xs font-bold mt-0.5 capitalize" style={{ color: "var(--granate)" }}>{format(new Date(nextMine.date), "EEEE d MMM · HH:mm", { locale: es })}</p>
