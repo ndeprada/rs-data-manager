@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, MousePointer2, Circle, Eraser, MoveRight, BookmarkPlus, Library, X } from "lucide-react";
+import { Plus, Trash2, MousePointer2, Circle, Eraser, MoveRight, BookmarkPlus, Library, X, Printer, ArrowUp, ArrowDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,7 +50,16 @@ const teamColor = (team) => (team === "rival" ? RIVAL_COLOR : "#73000A");
 const arrowStyle = (a) => ({
   dashed: a.dashed ?? a.kind === "arrow_move",
   color: a.color || teamColor(a.team),
+  border: a.border !== false,
+  width: a.width || 1.4,
+  head: a.head !== false,
 });
+// Curvatura: el punto de control = punto medio + k · (perpendicular al trazo)
+const curvatureOf = (a) => {
+  const dx = a.x2 - a.x1, dy = a.y2 - a.y1, d2 = dx * dx + dy * dy || 1;
+  return (((a.cx - (a.x1 + a.x2) / 2) * -dy) + ((a.cy - (a.y1 + a.y2) / 2) * dx)) / d2;
+};
+const controlFromK = (a, k) => ({ cx: (a.x1 + a.x2) / 2 - (a.y2 - a.y1) * k, cy: (a.y1 + a.y2) / 2 + (a.x2 - a.x1) * k });
 const defaultControl = (a) => {
   const mx = (a.x1 + a.x2) / 2, my = (a.y1 + a.y2) / 2;
   const dx = a.x2 - a.x1, dy = a.y2 - a.y1;
@@ -78,21 +87,22 @@ function Pitch() {
 
 // Flecha fina con punta: línea (recta o curva) + triángulo calculado, con un halo blanco para que se lea sobre el césped
 function ArrowShape({ a, hit, onHitDown, selected }) {
-  const { dashed, color } = arrowStyle(a);
+  const { dashed, color, border, width, head: hasHead } = arrowStyle(a);
   const curved = a.cx != null && a.cy != null;
   const fromX = curved ? a.cx : a.x1, fromY = curved ? a.cy : a.y1;
   const ang = Math.atan2(a.y2 - fromY, a.x2 - fromX);
-  const L = 8, Wd = 3.4;
-  const bx = a.x2 - Math.cos(ang) * L, by = a.y2 - Math.sin(ang) * L;
+  const L = 5 + width * 2, Wd = 2 + width * 1.2;
+  const bx = hasHead ? a.x2 - Math.cos(ang) * L : a.x2, by = hasHead ? a.y2 - Math.sin(ang) * L : a.y2;
   const nx = -Math.sin(ang), ny = Math.cos(ang);
   const head = `${a.x2},${a.y2} ${bx + nx * Wd},${by + ny * Wd} ${bx - nx * Wd},${by - ny * Wd}`;
   const d = curved ? `M ${a.x1} ${a.y1} Q ${a.cx} ${a.cy} ${bx} ${by}` : `M ${a.x1} ${a.y1} L ${bx} ${by}`;
+  const halo = "rgba(255,255,255,0.9)";
   return (
     <g>
-      <path d={d} fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth={selected ? 4 : 3} strokeDasharray={dashed ? "5 4" : undefined} strokeLinecap="round" />
-      <polygon points={head} fill="rgba(255,255,255,0.85)" stroke="rgba(255,255,255,0.85)" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d={d} fill="none" stroke={color} strokeWidth="1.4" strokeDasharray={dashed ? "5 4" : undefined} strokeLinecap="round" />
-      <polygon points={head} fill={color} />
+      {border && <path d={d} fill="none" stroke={halo} strokeWidth={width + 1.8} strokeDasharray={dashed ? "5 4" : undefined} strokeLinecap="round" />}
+      {border && hasHead && <polygon points={head} fill={halo} stroke={halo} strokeWidth="1.6" strokeLinejoin="round" />}
+      <path d={d} fill="none" stroke={color} strokeWidth={selected ? width + 0.6 : width} strokeDasharray={dashed ? "5 4" : undefined} strokeLinecap="round" />
+      {hasHead && <polygon points={head} fill={color} />}
       {hit && <path d={d} fill="none" stroke="transparent" strokeWidth="14" style={{ pointerEvents: "stroke", cursor: "pointer" }} onPointerDown={onHitDown} />}
     </g>
   );
@@ -118,7 +128,7 @@ function Board({ piece, onChange, candidates, kitOf }) {
   const [sel, setSel] = useState(null); // { type: "token" | "arrow", id }
   const [draft, setDraft] = useState(null);
   const [allSize, setAllSize] = useState(false);
-  const [opts, setOpts] = useState({ curve: false, dashed: false, color: null, team: "own" });
+  const [opts, setOpts] = useState({ curve: false, dashed: false, color: null, team: "own", border: true, head: true, width: 1.4 });
   const drag = useRef(null);
 
   useEffect(() => {
@@ -168,7 +178,7 @@ function Board({ piece, onChange, candidates, kitOf }) {
   const onUp = () => {
     if (draft) {
       if (Math.hypot(draft.x2 - draft.x1, draft.y2 - draft.y1) > 8) {
-        const a = { id: uid(), ...draft, dashed: opts.dashed, color: opts.color, team: opts.team };
+        const a = { id: uid(), ...draft, dashed: opts.dashed, color: opts.color, team: opts.team, border: opts.border, head: opts.head, width: opts.width };
         if (opts.curve) Object.assign(a, defaultControl(a));
         set({ arrows: [...piece.arrows, a] });
         setSel({ type: "arrow", id: a.id });
@@ -209,6 +219,9 @@ function Board({ piece, onChange, candidates, kitOf }) {
   };
 
   const showArrowOpts = tool === "arrow" || selArrow;
+  const arrowBorder = selArrow ? arrowStyle(selArrow).border : opts.border;
+  const arrowHead = selArrow ? arrowStyle(selArrow).head : opts.head;
+  const arrowWidth = selArrow ? arrowStyle(selArrow).width : opts.width;
   const arrowCurve = selArrow ? selArrow.cx != null : opts.curve;
   const arrowDashed = selArrow ? arrowStyle(selArrow).dashed : opts.dashed;
   const arrowTeam = selArrow ? selArrow.team || "own" : opts.team;
@@ -237,7 +250,7 @@ function Board({ piece, onChange, candidates, kitOf }) {
         <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 w-full h-full" style={{ pointerEvents: "none" }}>
           <Pitch />
           {piece.arrows.map((a) => <ArrowShape key={a.id} a={a} hit={interactiveTokens} onHitDown={(e) => arrowHitDown(e, a)} selected={selArrow?.id === a.id} />)}
-          {draft && <ArrowShape a={{ ...draft, ...(opts.curve ? defaultControl(draft) : {}), dashed: opts.dashed, color: opts.color, team: opts.team }} />}
+          {draft && <ArrowShape a={{ ...draft, ...(opts.curve ? defaultControl(draft) : {}), dashed: opts.dashed, color: opts.color, team: opts.team, border: opts.border, head: opts.head, width: opts.width }} />}
         </svg>
 
         {/* Fichas (HTML, para que el nombre y el rol se lean bien y el dedo pueda arrastrarlas) */}
@@ -310,6 +323,24 @@ function Board({ piece, onChange, candidates, kitOf }) {
             ))}
           </div>
           <Swatches value={arrowColor} onPick={(c) => changeArrow({ color: c })} allowReset resetLabel="Del equipo" />
+          <div className="flex gap-1">
+            {[[true, "Con borde"], [false, "Sin borde"]].map(([v, l]) => (
+              <button key={l} type="button" onClick={() => changeArrow({ border: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowBorder === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowBorder === v ? { background: "var(--granate)" } : {}}>{l}</button>
+            ))}
+          </div>
+          <div className="flex gap-1">
+            {[[true, "Con punta"], [false, "Sin punta"]].map(([v, l]) => (
+              <button key={l} type="button" onClick={() => changeArrow({ head: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowHead === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowHead === v ? { background: "var(--granate)" } : {}}>{l}</button>
+            ))}
+          </div>
+          <label className="flex items-center gap-2 text-[11px] text-gray-500">Grosor
+            <input type="range" min="0.8" max="3.5" step="0.1" value={arrowWidth} onChange={(e) => changeArrow({ width: Number(e.target.value) })} className="w-24 accent-[#73000A]" />
+          </label>
+          {selArrow && selArrow.cx != null && (
+            <label className="flex items-center gap-2 text-[11px] text-gray-500">Curvatura
+              <input type="range" min="-0.8" max="0.8" step="0.02" value={curvatureOf(selArrow)} onChange={(e) => setArrow(selArrow.id, controlFromK(selArrow, Number(e.target.value)))} className="w-28 accent-[#73000A]" />
+            </label>
+          )}
           {selArrow && <button type="button" onClick={() => { set({ arrows: piece.arrows.filter((a) => a.id !== selArrow.id) }); setSel(null); }} className="ml-auto p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title="Eliminar flecha"><Trash2 className="w-4 h-4" /></button>}
         </div>
       )}
@@ -356,11 +387,81 @@ function Board({ piece, onChange, candidates, kitOf }) {
   );
 }
 
+const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// Dibujo estático (SVG como texto) de una jugada, para imprimir
+function pieceSvg(piece, candidates, kitOf) {
+  const l = "rgba(255,255,255,0.7)";
+  let o = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" style="width:100%;border:1px solid #999;border-radius:6px">`;
+  o += `<rect width="${W}" height="${H}" fill="#15803d"/><g fill="none" stroke="${l}" stroke-width="1.5"><rect x="10" y="10" width="${W - 20}" height="${H - 10}"/><rect x="66" y="10" width="168" height="72"/><rect x="112" y="10" width="76" height="26"/><rect x="132" y="4" width="36" height="6"/><path d="M 120 82 A 30 30 0 0 0 180 82"/><path d="M 110 ${H} A 40 40 0 0 1 190 ${H}"/></g><circle cx="150" cy="58" r="1.8" fill="${l}"/>`;
+  for (const a of piece.arrows || []) {
+    const { dashed, color, border, width, head: hasHead } = arrowStyle(a);
+    const curved = a.cx != null && a.cy != null;
+    const fx = curved ? a.cx : a.x1, fy = curved ? a.cy : a.y1;
+    const ang = Math.atan2(a.y2 - fy, a.x2 - fx), L = 5 + width * 2, Wd = 2 + width * 1.2;
+    const bx = hasHead ? a.x2 - Math.cos(ang) * L : a.x2, by = hasHead ? a.y2 - Math.sin(ang) * L : a.y2;
+    const nx = -Math.sin(ang), ny = Math.cos(ang);
+    const hd = `${a.x2},${a.y2} ${bx + nx * Wd},${by + ny * Wd} ${bx - nx * Wd},${by - ny * Wd}`;
+    const d = curved ? `M ${a.x1} ${a.y1} Q ${a.cx} ${a.cy} ${bx} ${by}` : `M ${a.x1} ${a.y1} L ${bx} ${by}`;
+    const da = dashed ? ' stroke-dasharray="5 4"' : "";
+    if (border) { o += `<path d="${d}" fill="none" stroke="#fff" stroke-opacity=".9" stroke-width="${width + 1.8}" stroke-linecap="round"${da}/>`; if (hasHead) o += `<polygon points="${hd}" fill="#fff" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>`; }
+    o += `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round"${da}/>`;
+    if (hasHead) o += `<polygon points="${hd}" fill="${color}"/>`;
+  }
+  const txt = (x, y, size, fill, str, weight = 700) => `<text x="${x}" y="${y}" text-anchor="middle" font-size="${size}" font-weight="${weight}" fill="${fill}" stroke="#000" stroke-width="${size * 0.28}" paint-order="stroke" font-family="Arial,sans-serif">${esc(str)}</text>`;
+  for (const t of piece.tokens || []) {
+    const sz = t.size || 1;
+    if (t.kind === "ball") { o += `<circle cx="${t.x}" cy="${t.y}" r="${6 * sz}" fill="#fff" stroke="#111" stroke-width="1.6"/>`; continue; }
+    const pl = t.player_id ? candidates.find((p) => p.id === t.player_id) : null;
+    const own = t.kind === "own";
+    const ks = own ? kitOf(pl) : { fill: RIVAL_COLOR, stroke: "#fff", num: "#fff" };
+    const fill = t.color || ks.fill;
+    const stroke = t.color ? (lightColor(t.color) ? "#73000A" : "#fff") : ks.stroke;
+    const num = t.color ? (lightColor(t.color) ? "#111827" : "#fff") : ks.num;
+    const r = 11 * sz;
+    const shown = String(own ? (pl ? pl.jersey_number || pl.first_name?.[0] || "" : t.label) : t.label).slice(0, 4);
+    o += `<circle cx="${t.x}" cy="${t.y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${Math.max(1.5, r / 4.5)}"/>`;
+    o += `<text x="${t.x}" y="${t.y + r * 0.36}" text-anchor="middle" font-size="${r * (shown.length > 2 ? 0.8 : 1.05)}" font-weight="900" fill="${num}" font-family="Arial,sans-serif">${esc(shown)}</text>`;
+    let yy = t.y + r + 7 * Math.min(sz, 1.3);
+    if (pl) { o += txt(t.x, yy, 6.5 * Math.min(sz, 1.3), "#fff", shortName(pl)); yy += 7 * Math.min(sz, 1.3); }
+    if (t.role) o += txt(t.x, yy, 5.6 * Math.min(sz, 1.3), "#fde68a", t.role.toUpperCase(), 800);
+  }
+  return o + "</svg>";
+}
+
+function printPieces(list, candidates, kitOf, perPage, title) {
+  const w = window.open("", "_blank");
+  if (!w) return false;
+  const typeLabel = (v) => TYPES.find((t) => t.value === v)?.label || v;
+  const cards = list.map((p) => `<section class="card"><h2>${esc(p.name)}</h2><p class="meta">${esc(typeLabel(p.type))}</p>${p.signal ? `<p class="sig"><b>Señal:</b> ${esc(p.signal)}</p>` : ""}${pieceSvg(p, candidates, kitOf)}${p.notes ? `<p class="notes">${esc(p.notes)}</p>` : ""}</section>`).join("");
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
+    @page{size:A4;margin:12mm} body{font-family:Arial,sans-serif;color:#111;margin:0}
+    .grid{display:grid;grid-template-columns:${perPage === 1 ? "1fr" : "1fr 1fr"};gap:8mm}
+    .card{break-inside:avoid;page-break-inside:avoid;${perPage === 1 ? "page-break-after:always;" : ""}}
+    ${perPage === 1 ? ".card:last-child{page-break-after:auto}" : ""}
+    h1{font-size:14px;margin:0 0 6px;color:#73000A} h2{font-size:${perPage === 1 ? 20 : 14}px;margin:0} .meta{font-size:11px;color:#666;margin:2px 0 4px}
+    .sig{font-size:${perPage === 1 ? 14 : 11}px;margin:2px 0 6px} .notes{font-size:${perPage === 1 ? 13 : 10}px;white-space:pre-wrap;margin:6px 0 0}
+  </style></head><body><h1>${esc(title)}</h1><div class="grid">${cards}</div><script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script></body></html>`);
+  w.document.close();
+  return true;
+}
+
 export default function SetPieceBoard({ pieces, onChange, candidates = [], kitOf = () => ({ fill: "#fff", stroke: "#73000A", num: "#73000A" }), teamId }) {
   const qc = useQueryClient();
   const [activeId, setActiveId] = useState(null);
   const [libOpen, setLibOpen] = useState(false);
   const [msg, setMsg] = useState("");
+  const [printOpen, setPrintOpen] = useState(false);
+  const [order, setOrder] = useState([]);
+  const [off, setOff] = useState([]);
+  const [perPage, setPerPage] = useState(1);
+  const printList = [...order.filter((id) => pieces.some((p) => p.id === id)), ...pieces.map((p) => p.id).filter((id) => !order.includes(id))];
+  const moveP = (id, dir) => { const i = printList.indexOf(id), j = i + dir; if (j < 0 || j >= printList.length) return; const n = [...printList]; [n[i], n[j]] = [n[j], n[i]]; setOrder(n); };
+  const doPrint = () => {
+    const list = printList.filter((id) => !off.includes(id)).map((id) => pieces.find((p) => p.id === id));
+    if (!list.length) return flash("Marca al menos una jugada");
+    if (!printPieces(list, candidates, kitOf, perPage, "Acciones a balón parado")) flash("El navegador ha bloqueado la ventana de impresión");
+  };
   const active = pieces.find((p) => p.id === activeId) || pieces[0] || null;
 
   const { data: library = [] } = useQuery({
@@ -413,10 +514,35 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], kitOf
           <p className="text-[10px] text-gray-400">Diseña las jugadas del partido y guárdalas para reutilizarlas.</p>
         </div>
         <div className="flex gap-2">
+          <button type="button" onClick={() => setPrintOpen((v) => !v)} disabled={!pieces.length} className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40"><Printer className="w-3.5 h-3.5" /> Imprimir</button>
           <button type="button" onClick={() => setLibOpen((v) => !v)} className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50"><Library className="w-3.5 h-3.5" /> Biblioteca{library.length ? ` (${library.length})` : ""}</button>
           <button type="button" onClick={add} className="inline-flex items-center gap-1 text-xs font-bold text-white px-2.5 py-1.5 rounded" style={{ background: "var(--granate)" }}><Plus className="w-3.5 h-3.5" /> Nueva jugada</button>
         </div>
       </div>
+
+      {printOpen && pieces.length > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Imprimir · elige jugadas y orden</p>
+            <button type="button" onClick={() => setPrintOpen(false)} className="text-gray-400 hover:text-gray-700"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="space-y-1">
+            {printList.map((id, i) => { const p = pieces.find((x) => x.id === id); return (
+              <div key={id} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5">
+                <input type="checkbox" checked={!off.includes(id)} onChange={(e) => setOff(e.target.checked ? off.filter((x) => x !== id) : [...off, id])} className="accent-[#73000A]" />
+                <span className="text-xs font-semibold text-gray-800 truncate flex-1 min-w-0">{i + 1}. {p.name || "Sin nombre"}</span>
+                <button type="button" onClick={() => moveP(id, -1)} className="p-1 text-gray-400 hover:text-gray-800"><ArrowUp className="w-3.5 h-3.5" /></button>
+                <button type="button" onClick={() => moveP(id, 1)} className="p-1 text-gray-400 hover:text-gray-800"><ArrowDown className="w-3.5 h-3.5" /></button>
+              </div>); })}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {[[1, "1 por página"], [2, "2 por página"]].map(([v, l]) => (
+              <button key={v} type="button" onClick={() => setPerPage(v)} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${perPage === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={perPage === v ? { background: "var(--granate)" } : {}}>{l}</button>
+            ))}
+            <button type="button" onClick={doPrint} className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-white px-3 py-1.5 rounded" style={{ background: "var(--granate)" }}><Printer className="w-3.5 h-3.5" /> Imprimir</button>
+          </div>
+        </div>
+      )}
 
       {libOpen && (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
