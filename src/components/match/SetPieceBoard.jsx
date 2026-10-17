@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, MousePointer2, Circle, Eraser, MoveRight, BookmarkPlus, Library, X, Printer, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash2, MousePointer2, Circle, Eraser, MoveRight, BookmarkPlus, Library, X, Printer, ArrowUp, ArrowDown, User, Type, Copy, FlipHorizontal, LayoutTemplate, Users, BookOpen } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,6 +27,8 @@ const TOOLS = [
   { key: "own", label: "Nuestro", icon: Circle, color: "#73000A" },
   { key: "rival", label: "Rival", icon: Circle, color: "#2563eb" },
   { key: "ball", label: "Balón", icon: Circle, color: "#f59e0b" },
+  { key: "signal", label: "Señal", icon: User },
+  { key: "text", label: "Texto", icon: Type },
   { key: "arrow", label: "Flecha", icon: MoveRight },
   { key: "erase", label: "Borrar", icon: Eraser },
 ];
@@ -35,9 +37,11 @@ const COLORS = [
   { v: "#2563eb", n: "Azul" },
   { v: "#ffffff", n: "Blanco" },
   { v: "#facc15", n: "Amarillo" },
+  { v: "#0a4bff", n: "Azul eléctrico" },
   { v: "#f97316", n: "Naranja" },
   { v: "#111827", n: "Negro" },
 ];
+const SIGNALS = [["head", "Mano a la cabeza"], ["arm", "Brazo extendido"], ["bounce", "Bota el balón"]];
 const ROLES = ["Lanzador", "Rematador 1er palo", "Rematador 2º palo", "Rematador", "Bloqueador", "Pantalla", "Referencia", "Rechace", "Segunda jugada", "Marca", "Zona", "Cobertura", "Pasador"];
 const RIVAL_COLOR = "#2563eb";
 const GRANATE = "#73000A", NARANJA = "#FF6E00";
@@ -67,6 +71,37 @@ const defaultControl = (a) => {
   const mx = (a.x1 + a.x2) / 2, my = (a.y1 + a.y2) / 2;
   const dx = a.x2 - a.x1, dy = a.y2 - a.y1;
   return { cx: mx - dy * 0.25, cy: my + dx * 0.25 };
+};
+
+// ── Plantillas de partida (coordenadas sobre el campo 300×240; se cambian los jugadores después) ──
+const mkOwn = (x, y, label, role = "") => ({ id: uid(), kind: "own", x, y, size: 1, label, role, player_id: null, color: null });
+const mkRiv = (x, y, label, role = "") => ({ id: uid(), kind: "rival", x, y, size: 1, label, role, player_id: null, color: null });
+const mkBall = (x, y) => ({ id: uid(), kind: "ball", x, y, size: 1, label: "", role: "", player_id: null, color: null });
+const mkArr = (x1, y1, x2, y2, o = {}) => ({ id: uid(), x1, y1, x2, y2, dashed: false, team: "own", ...o });
+const TEMPLATES = [
+  { key: "corner_favor", label: "Córner a favor", make: () => ({ tokens: [mkOwn(30, 26, "L", "Lanzador"), mkBall(14, 14), mkRiv(150, 18, "P"), mkOwn(104, 44, "1", "1er palo"), mkOwn(150, 62, "2", "Rematador"), mkOwn(198, 44, "3", "2º palo"), mkOwn(100, 112, "R", "Rechace"), mkOwn(200, 112, "R", "Rechace"), mkOwn(150, 175, "C", "Cobertura")],
+    arrows: [mkArr(38, 26, 132, 50, { cx: 80, cy: 22 }), mkArr(198, 96, 198, 64, { dashed: true }), mkArr(150, 86, 114, 52, { dashed: true })] }) },
+  { key: "corner_contra", label: "Córner en contra", make: () => ({ tokens: [mkRiv(284, 22, "X", "Lanzador"), mkBall(292, 12), mkOwn(150, 18, "P"), mkOwn(112, 30, "Z"), mkOwn(188, 30, "Z"), mkOwn(90, 62, "Z"), mkOwn(130, 70, "Z"), mkOwn(170, 70, "Z"), mkOwn(210, 62, "Z"), mkOwn(118, 100, "M", "Marca"), mkOwn(182, 100, "M", "Marca"), mkOwn(150, 128, "C", "Cobertura"), mkRiv(104, 48, "1"), mkRiv(150, 46, "2"), mkRiv(196, 48, "3"), mkRiv(232, 80, "4")], arrows: [] }) },
+  { key: "falta_lateral", label: "Falta lateral a favor", make: () => ({ tokens: [mkOwn(44, 158, "L", "Lanzador"), mkBall(52, 152), ...[75, 105, 135, 165, 195, 225].map((x, i) => mkOwn(x, 118, String(i + 1))), mkOwn(112, 162, "R", "Rechace"), mkOwn(188, 162, "R", "Rechace"), mkOwn(150, 200, "C", "Cobertura")],
+    arrows: [mkArr(58, 150, 158, 40, { cx: 70, cy: 70 }), ...[75, 105, 135, 165, 195, 225].map((x, i) => mkArr(x, 114, 108 + i * 17, 62, { dashed: true }))] }) },
+  { key: "falta_frontal", label: "Falta frontal a favor", make: () => ({ tokens: [mkOwn(138, 132, "L", "Lanzador"), mkOwn(164, 132, "L", "Lanzador"), mkBall(150, 124), mkRiv(150, 18, "P"), ...[130, 140, 150, 160, 170].map((x) => mkRiv(x, 102, "B")), mkOwn(120, 52, "1"), mkOwn(150, 56, "2"), mkOwn(182, 52, "3"), mkOwn(96, 120, "R", "Rechace"), mkOwn(204, 120, "R", "Rechace"), mkOwn(150, 182, "C", "Cobertura")], arrows: [mkArr(150, 118, 190, 36, { cx: 200, cy: 90 })] }) },
+  { key: "falta_contra", label: "Falta en contra (barrera + zona)", make: () => ({ tokens: [mkRiv(176, 132, "X", "Lanzador"), mkBall(166, 128), mkOwn(150, 18, "P"), ...[132, 141, 150, 159, 168].map((x, i) => mkOwn(x, 100, String(i + 1), i === 0 ? "Barrera" : "")), mkOwn(84, 62, "Z"), mkOwn(108, 64, "Z"), mkOwn(192, 64, "Z"), mkOwn(216, 62, "Z"), mkOwn(150, 72, "Z"), mkOwn(150, 150, "R", "Rechace")], arrows: [] }) },
+  { key: "saque_banda", label: "Saque de banda", make: () => ({ tokens: [mkOwn(8, 124, "L", "Saque"), mkBall(18, 124), mkOwn(44, 100, "1"), mkOwn(50, 148, "2"), mkOwn(86, 124, "3"), mkRiv(58, 116, "A"), mkRiv(72, 138, "B")], arrows: [mkArr(26, 124, 80, 124), mkArr(86, 124, 120, 100, { dashed: true }), mkArr(44, 100, 70, 80, { dashed: true })] }) },
+];
+const fromTemplate = (tpl, n) => ({ ...newPiece(n), name: tpl.label, type: tpl.key, ...tpl.make() });
+
+// Voltear izquierda/derecha
+const flipX = (x) => W - x;
+const flipPiece = (pc) => ({
+  ...pc,
+  tokens: pc.tokens.map((t) => ({ ...t, x: flipX(t.x) })),
+  arrows: pc.arrows.map((a) => ({ ...a, x1: flipX(a.x1), x2: flipX(a.x2), ...(a.cx != null ? { cx: flipX(a.cx) } : {}) })),
+});
+
+// Figurita de señal (gesto del lanzador)
+const signalPaths = (variant) => {
+  const arms = { head: "M12 13 L19 11 L15 5", arm: "M12 13 L23 12", bounce: "M12 13 L18 21" }[variant] || "M12 13 L19 11 L15 5";
+  return `<circle cx="12" cy="6" r="3.6" fill="#111"/><path d="M12 10 L12 22 M12 22 L8 31 M12 22 L16 31 M12 13 L6 21 ${arms}" fill="none" stroke="#111" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>${variant === "bounce" ? '<circle cx="20" cy="26" r="2.6" fill="#fff" stroke="#111" stroke-width="1.4"/>' : ""}`;
 };
 
 function Pitch() {
@@ -124,7 +159,7 @@ function Swatches({ value, onPick, allowReset, resetLabel = "Equipación" }) {
   );
 }
 
-function Board({ piece, onChange, candidates, kitOf, header, side }) {
+function Board({ piece, onChange, candidates, lookup, kitOf, header, side }) {
   const box = useRef(null);
   const [width, setWidth] = useState(520);
   const [tool, setTool] = useState("move");
@@ -162,6 +197,11 @@ function Board({ piece, onChange, candidates, kitOf, header, side }) {
       const t = { id: uid(), kind: tool, x: p.x, y: p.y, label: tool === "ball" ? "" : String(n), size: 1, role: "", player_id: null, color: null };
       set({ tokens: [...piece.tokens, t] });
       if (tool !== "ball") setSel({ type: "token", id: t.id });
+    } else if (tool === "signal" || tool === "text") {
+      const t = tool === "signal" ? { id: uid(), kind: "signal", x: p.x, y: p.y, size: 1, variant: "head" } : { id: uid(), kind: "text", x: p.x, y: p.y, size: 1, label: "Texto", color: null };
+      set({ tokens: [...piece.tokens, t] });
+      setSel({ type: "token", id: t.id });
+      setTool("move");
     } else if (tool === "arrow") {
       setDraft({ x1: p.x, y1: p.y, x2: p.x, y2: p.y });
     } else if (tool === "move") {
@@ -207,7 +247,14 @@ function Board({ piece, onChange, candidates, kitOf, header, side }) {
 
   const selToken = sel?.type === "token" ? piece.tokens.find((t) => t.id === sel.id) : null;
   const selArrow = sel?.type === "arrow" ? piece.arrows.find((a) => a.id === sel.id) : null;
-  const playerOf = (t) => (t.player_id ? candidates.find((p) => p.id === t.player_id) : null);
+  const playerOf = (t) => (t.player_id ? lookup.find((p) => p.id === t.player_id) : null);
+  const fillWithSquad = () => {
+    const GROUP = { portero: 0, central: 1, libre: 1, lateral: 1, mediocentro: 2, interior: 2, extremo: 3, delantero_centro: 3 };
+    const used = new Set(piece.tokens.map((t) => t.player_id).filter(Boolean));
+    const pool = candidates.filter((p) => !used.has(p.id)).sort((a, b) => ((GROUP[a.position] ?? 9) - (GROUP[b.position] ?? 9)) || ((Number(a.jersey_number) || 999) - (Number(b.jersey_number) || 999)));
+    let i = 0;
+    set({ tokens: piece.tokens.map((t) => (t.kind === "own" && !t.player_id && pool[i] ? { ...t, player_id: pool[i++].id } : t)) });
+  };
 
   // Cambios de estilo de flecha: afectan a la flecha seleccionada y a las nuevas
   const changeArrow = (patch) => {
@@ -245,6 +292,8 @@ function Board({ piece, onChange, candidates, kitOf, header, side }) {
             </button>
           );
         })}
+        <button type="button" onClick={fillWithSquad} disabled={!candidates.length} title="Asigna los convocados (porteros, defensas, medios, delanteros) a las fichas nuestras que no tienen jugador"
+          className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold border bg-white text-gray-600 border-gray-200 hover:bg-gray-50 disabled:opacity-40"><Users className="w-3.5 h-3.5" /> Rellenar con convocados</button>
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm space-y-3">
@@ -265,6 +314,23 @@ function Board({ piece, onChange, candidates, kitOf, header, side }) {
           const left = `${(t.x / W) * 100}%`, top = `${(t.y / H) * 100}%`;
           const size = t.size || 1;
           const ring = selToken?.id === t.id ? `2px solid ${NARANJA}` : undefined;
+          if (t.kind === "signal") {
+            const h = Math.max(24, 26 * scale * size);
+            return (
+              <div key={t.id} onPointerDown={(e) => tokenDown(e, t)} className="absolute touch-none"
+                style={{ left, top, width: h * 0.75, height: h, transform: "translate(-50%,-50%)", outline: ring, outlineOffset: 2, pointerEvents: interactiveTokens ? "auto" : "none", cursor: tool === "move" ? "grab" : "pointer", zIndex: 6 }}>
+                <svg viewBox="0 0 24 32" className="w-full h-full" dangerouslySetInnerHTML={{ __html: signalPaths(t.variant) }} />
+              </div>
+            );
+          }
+          if (t.kind === "text") {
+            return (
+              <div key={t.id} onPointerDown={(e) => tokenDown(e, t)} className="absolute touch-none text-center font-bold uppercase underline leading-tight"
+                style={{ left, top, transform: "translate(-50%,-50%)", fontFamily: F_TXT, fontSize: Math.max(8, 6.4 * scale * size), color: t.color || NARANJA, whiteSpace: "pre", outline: ring, outlineOffset: 2, pointerEvents: interactiveTokens ? "auto" : "none", cursor: tool === "move" ? "grab" : "pointer", zIndex: 6 }}>
+                {t.label || " "}
+              </div>
+            );
+          }
           if (t.kind === "ball") {
             const d = Math.max(10, 10 * scale * size);
             return (
@@ -359,7 +425,40 @@ function Board({ piece, onChange, candidates, kitOf, header, side }) {
         </div>
       )}
 
-      {selToken && selToken.kind !== "ball" && (
+      {selToken && selToken.kind === "signal" && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Señal</span>
+          <div className="flex gap-1 flex-wrap">
+            {SIGNALS.map(([v, l]) => (
+              <button key={v} type="button" onClick={() => setToken(selToken.id, { variant: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${selToken.variant === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={selToken.variant === v ? { background: "var(--granate)" } : {}}>{l}</button>
+            ))}
+          </div>
+          <label className="flex items-center gap-2 text-[11px] text-gray-500">Tamaño
+            <input type="range" min="0.6" max="1.8" step="0.1" value={selToken.size || 1} onChange={(e) => setToken(selToken.id, { size: Number(e.target.value) })} className="w-24 accent-[#73000A]" />
+          </label>
+          <button type="button" onClick={() => { set({ tokens: piece.tokens.filter((t) => t.id !== selToken.id) }); setSel(null); }} className="ml-auto p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title="Quitar"><Trash2 className="w-4 h-4" /></button>
+        </div>
+      )}
+      {selToken && selToken.kind === "text" && (
+        <div className="grid sm:grid-cols-2 gap-x-4 gap-y-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+          <div className="sm:col-span-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Texto (admite varias líneas)</p>
+            <Textarea rows={2} value={selToken.label} onChange={(e) => setToken(selToken.id, { label: e.target.value })} className="border-gray-200 text-sm bg-white" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Tamaño</p>
+            <input type="range" min="0.6" max="2.2" step="0.1" value={selToken.size || 1} onChange={(e) => setToken(selToken.id, { size: Number(e.target.value) })} className="w-full accent-[#73000A]" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Color</p>
+            <Swatches value={selToken.color} onPick={(c) => setToken(selToken.id, { color: c })} allowReset resetLabel="Naranja" />
+          </div>
+          <div className="sm:col-span-2 flex justify-end">
+            <button type="button" onClick={() => { set({ tokens: piece.tokens.filter((t) => t.id !== selToken.id) }); setSel(null); }} className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /> Quitar texto</button>
+          </div>
+        </div>
+      )}
+      {selToken && !["ball", "signal", "text"].includes(selToken.kind) && (
         <div className="grid sm:grid-cols-2 gap-x-4 gap-y-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
           {selToken.kind === "own" ? (
             <div>
@@ -431,6 +530,12 @@ function pieceSvg(piece, candidates, kitOf) {
       o += `<circle cx="${t.x}" cy="${t.y}" r="${r}" fill="#fff" stroke="#111" stroke-width="1.2"/><circle cx="${t.x}" cy="${t.y}" r="${r * 0.38}" fill="#111"/>`;
       continue;
     }
+    if (t.kind === "signal") { const h = 26 * sz; o += `<svg x="${t.x - h * 0.375}" y="${t.y - h / 2}" width="${h * 0.75}" height="${h}" viewBox="0 0 24 32">${signalPaths(t.variant)}</svg>`; continue; }
+    if (t.kind === "text") {
+      const fs = 6.4 * sz, lines = String(t.label || "").split("\n");
+      o += `<text x="${t.x}" y="${t.y - ((lines.length - 1) * fs * 1.15) / 2 + fs * 0.35}" text-anchor="middle" font-size="${fs}" font-weight="700" fill="${t.color || NARANJA}" text-decoration="underline">${lines.map((ln, i) => `<tspan x="${t.x}" dy="${i ? fs * 1.15 : 0}">${esc(ln.toUpperCase())}</tspan>`).join("")}</text>`;
+      continue;
+    }
     const pl = t.player_id ? candidates.find((p) => p.id === t.player_id) : null;
     const own = t.kind === "own";
     const gk = own && pl?.position === "portero";
@@ -450,11 +555,14 @@ function pieceSvg(piece, candidates, kitOf) {
   return o + "</svg>";
 }
 
-function printPieces(list, candidates, kitOf, perPage, teamName) {
+function printPieces(list, candidates, kitOf, perPage, teamName, book = false) {
+  const now = new Date(), y = now.getFullYear();
+  const season = now.getMonth() >= 6 ? `${y}-${String(y + 1).slice(2)}` : `${y - 1}-${String(y).slice(2)}`;
+  const cover = book ? `<div class="cover"><img src="${CLUB_LOGO_URL}" alt=""><h1>ESTRATEGIA<br>A BALÓN PARADO</h1><h3>${esc(teamName || "")}</h3><p>TEMPORADA ${season}</p></div>` : "";
   const typeLabel = (v) => TYPES.find((t) => t.value === v)?.label || v;
   const cards = list.map((p) => `<section class="card">
     <header><div class="club"><img src="${CLUB_LOGO_URL}" alt=""><div><b>RACING SARRIÀ</b><span>${esc(teamName || "")}</span></div></div>
-    <div class="ttl"><h2>${esc(p.name)}</h2><span>${esc(typeLabel(p.type))}</span></div></header>
+    <div class="ttl"><h2>${esc(p.name)}</h2>${(p.name || "").trim().toLowerCase() === typeLabel(p.type).toLowerCase() ? "" : `<span>${esc(typeLabel(p.type))}</span>`}</div></header>
     ${p.signal ? `<div class="sig"><b>SEÑAL</b><span>${esc(p.signal)}</span></div>` : ""}
     <div class="body"><div class="fld">${pieceSvg(p, candidates, kitOf)}</div>${p.notes ? `<div class="notes"><b>INSTRUCCIONES</b>${esc(p.notes)}</div>` : ""}</div></section>`).join("");
   const one = perPage === 1;
@@ -473,10 +581,13 @@ function printPieces(list, candidates, kitOf, perPage, teamName) {
     .ttl{text-align:right} .ttl h2{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:${one ? 26 : 19}pt;line-height:1;color:#73000A;text-transform:uppercase;letter-spacing:.3px} .ttl span{display:block;font-family:'Racing Sarria',sans-serif;font-weight:400;letter-spacing:.5px;font-size:${one ? 15 : 11.5}pt;color:#FF6E00;font-weight:700;text-transform:uppercase;margin-top:1mm}
     .sig{display:flex;align-items:center;gap:3mm;border:.3mm solid #FF6E00;border-radius:1.5mm;padding:1.2mm 3mm;margin-bottom:3mm;font-size:${one ? 12 : 10}pt}
     .sig b{background:#FF6E00;color:#fff;padding:.4mm 2mm;border-radius:1mm;font-size:${one ? 10 : 8.5}pt;letter-spacing:.5px} .sig span{color:#333;font-weight:500}
-    .body{display:flex;gap:4mm;align-items:flex-start} .fld{flex:1;min-width:0;${one ? "" : "max-width:132mm;"}}
+    .body{display:flex;gap:4mm;align-items:flex-start;justify-content:center} .fld{flex:1;min-width:0;${one ? "" : "max-width:132mm;"}}
     .notes{width:${one ? "52mm" : "48mm"};font-size:${one ? 11 : 9.5}pt;white-space:pre-wrap;color:#333;border-left:.5mm solid #FF6E00;padding-left:3mm;font-weight:500}
     .notes b{display:block;color:#FF6E00;font-size:${one ? 9.5 : 8.5}pt;letter-spacing:.5px;margin-bottom:1mm}
-  </style></head><body>${cards}</body></html>`;
+      .cover{height:275mm;page-break-after:always;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6mm}
+    .cover img{height:50mm;width:auto} .cover h1{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:40pt;line-height:1.05;color:#73000A;letter-spacing:.5px;border-bottom:1.2mm solid #FF6E00;padding-bottom:5mm}
+    .cover h3{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:24pt;color:#FF6E00;text-transform:uppercase;letter-spacing:.5px} .cover p{margin:0;font-size:13pt;color:#555;letter-spacing:2px}
+  </style></head><body>${cover}<div class="pages">${cards}</div></body></html>`;
   const old = document.getElementById("sp-print-frame");
   if (old) old.remove();
   const fr = document.createElement("iframe");
@@ -491,12 +602,13 @@ function printPieces(list, candidates, kitOf, perPage, teamName) {
   return true;
 }
 
-export default function SetPieceBoard({ pieces, onChange, candidates = [], teamName = "", kitOf = () => ({ fill: "#fff", stroke: "#73000A", num: "#73000A" }), teamId }) {
+export default function SetPieceBoard({ pieces, onChange, candidates = [], allPlayers = [], teamName = "", kitOf = () => ({ fill: "#fff", stroke: "#73000A", num: "#73000A" }), teamId }) {
   const qc = useQueryClient();
   const [activeId, setActiveId] = useState(null);
   const [libOpen, setLibOpen] = useState(false);
   const [msg, setMsg] = useState("");
   const [printOpen, setPrintOpen] = useState(false);
+  const [tplOpen, setTplOpen] = useState(false);
   const [order, setOrder] = useState([]);
   const [off, setOff] = useState([]);
   const [perPage, setPerPage] = useState(1);
@@ -505,7 +617,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], teamN
   const doPrint = () => {
     const list = printList.filter((id) => !off.includes(id)).map((id) => pieces.find((p) => p.id === id));
     if (!list.length) return flash("Marca al menos una jugada");
-    try { printPieces(list, candidates, kitOf, perPage, teamName); } catch (e) { flash("No se pudo imprimir: " + (e?.message || "error")); }
+    try { printPieces(list, lookup, kitOf, perPage, teamName); } catch (e) { flash("No se pudo imprimir: " + (e?.message || "error")); }
   };
   const active = pieces.find((p) => p.id === activeId) || pieces[0] || null;
 
@@ -515,7 +627,18 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], teamN
     enabled: !!teamId,
   });
 
-  const add = () => { const p = newPiece(pieces.length + 1); onChange([...pieces, p]); setActiveId(p.id); };
+  const lookup = [...candidates, ...allPlayers.filter((p) => !candidates.some((c) => c.id === p.id))];
+  const addPiece = (p) => { onChange([...pieces, p]); setActiveId(p.id); setTplOpen(false); };
+  const add = () => addPiece(newPiece(pieces.length + 1));
+  const addTemplate = (tpl) => addPiece(fromTemplate(tpl, pieces.length + 1));
+  const duplicate = () => { if (!active) return; const c = { ...active, id: uid(), name: `${active.name} (copia)`, lib_id: undefined, tokens: active.tokens.map((t) => ({ ...t, id: uid() })), arrows: active.arrows.map((a) => ({ ...a, id: uid() })) }; addPiece(c); };
+  const flip = () => { if (active) update(flipPiece(active)); };
+  const printBook = () => {
+    if (!library.length) return flash("La biblioteca está vacía");
+    const order = TYPES.map((t) => t.value);
+    const list = [...library].sort((a, b) => (order.indexOf(a.type) - order.indexOf(b.type)) || (a.name || "").localeCompare(b.name || ""));
+    try { printPieces(list, lookup, kitOf, perPage, teamName, true); } catch (e) { flash("No se pudo imprimir: " + (e?.message || "error")); }
+  };
   const update = (p) => onChange(pieces.map((x) => (x.id === p.id ? p : x)));
   const remove = (id) => { onChange(pieces.filter((x) => x.id !== id)); setActiveId(null); };
   const typeLabel = (v) => TYPES.find((t) => t.value === v)?.label || v;
@@ -561,9 +684,25 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], teamN
         <div className="flex gap-2">
           <button type="button" onClick={() => setPrintOpen((v) => !v)} disabled={!pieces.length} className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40"><Printer className="w-3.5 h-3.5" /> Imprimir</button>
           <button type="button" onClick={() => setLibOpen((v) => !v)} className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50"><Library className="w-3.5 h-3.5" /> Biblioteca{library.length ? ` (${library.length})` : ""}</button>
-          <button type="button" onClick={add} className="inline-flex items-center gap-1 text-xs font-bold text-white px-2.5 py-1.5 rounded" style={{ background: "var(--granate)" }}><Plus className="w-3.5 h-3.5" /> Nueva jugada</button>
+          <button type="button" onClick={() => setTplOpen((v) => !v)} className="inline-flex items-center gap-1 text-xs font-bold text-white px-2.5 py-1.5 rounded" style={{ background: "var(--granate)" }}><Plus className="w-3.5 h-3.5" /> Nueva jugada</button>
         </div>
       </div>
+
+      {tplOpen && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Empezar desde…</p>
+            <button type="button" onClick={() => setTplOpen(false)} className="text-gray-400 hover:text-gray-700"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-2">
+            <button type="button" onClick={add} className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"><Plus className="w-3.5 h-3.5" /> Campo en blanco</button>
+            {TEMPLATES.map((t) => (
+              <button key={t.key} type="button" onClick={() => addTemplate(t)} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-800 hover:bg-gray-50 text-left"><LayoutTemplate className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--granate)" }} /> {t.label}</button>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-400">Las fichas ya vienen colocadas. Después solo asignas los jugadores (o pulsas «Rellenar con convocados»).</p>
+        </div>
+      )}
 
       {printOpen && pieces.length > 0 && (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
@@ -584,6 +723,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], teamN
             {[[1, "1 por página"], [2, "2 por página"]].map(([v, l]) => (
               <button key={v} type="button" onClick={() => setPerPage(v)} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${perPage === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={perPage === v ? { background: "var(--granate)" } : {}}>{l}</button>
             ))}
+            <button type="button" onClick={printBook} disabled={!library.length} title="Imprime toda la biblioteca del equipo, con portada y agrupada por tipo" className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-white disabled:opacity-40"><BookOpen className="w-3.5 h-3.5" /> Libro del equipo</button>
             <button type="button" onClick={doPrint} className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-white px-3 py-1.5 rounded" style={{ background: "var(--granate)" }}><Printer className="w-3.5 h-3.5" /> Imprimir</button>
           </div>
         </div>
@@ -629,7 +769,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], teamN
           </div>
           {active && (
             <div className="space-y-3 min-w-0">
-              <Board key={active.id} piece={active} onChange={update} candidates={candidates} kitOf={kitOf}
+              <Board key={active.id} piece={active} onChange={update} candidates={candidates} lookup={lookup} kitOf={kitOf}
                 header={(
                   <>
                     <div className="flex items-start justify-between gap-3 border-b-2 pb-2" style={{ borderColor: GRANATE }}>
@@ -667,6 +807,8 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], teamN
                 <button type="button" onClick={saveToLibrary} disabled={!teamId} className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded border" style={{ borderColor: "var(--granate)", color: "var(--granate)" }}>
                   <BookmarkPlus className="w-3.5 h-3.5" /> {active.lib_id ? "Actualizar en la biblioteca" : "Guardar en biblioteca"}
                 </button>
+                <button type="button" onClick={duplicate} className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50"><Copy className="w-3.5 h-3.5" /> Duplicar</button>
+                <button type="button" onClick={flip} title="Voltea la jugada de izquierda a derecha (por ejemplo, un córner del otro lado)" className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50"><FlipHorizontal className="w-3.5 h-3.5" /> Voltear izq/der</button>
                 {msg && <span className="text-[11px] text-gray-500">{msg}</span>}
                 <button type="button" onClick={() => remove(active.id)} className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /> Quitar del partido</button>
               </div>
