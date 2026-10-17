@@ -25,7 +25,7 @@ h1, h2, .rs-title { letter-spacing: 0.05em !important; }
 
 /* ── Ajustes para la app instalada en el móvil ── */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
-html, body { max-width: 100%; overflow-x: hidden; overscroll-behavior-y: none; touch-action: manipulation; }
+html, body { max-width: 100%; overflow-x: hidden; overflow-x: clip; overscroll-behavior-y: none; touch-action: manipulation; }
 /* Altura real de la pantalla en el móvil (la barra del navegador ya no cuenta) */
 .min-h-screen { min-height: 100vh; min-height: 100dvh; }
 .h-screen { height: 100vh; height: 100dvh; }

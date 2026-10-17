@@ -39,7 +39,7 @@ function PlayerDragToken({ pos, player, onMouseDown, onTouchStart, isDragging })
   const initials = `${player?.first_name?.[0] || ""}${player?.last_name?.[0] || ""}`;
   return (
     <div
-      className="absolute flex flex-col items-center"
+      className="absolute flex flex-col items-center touch-none"
       style={{
         left: `${pos.x}%`,
         top: `${pos.y}%`,
@@ -128,7 +128,7 @@ function FreeDragDrawField({ fieldRef, positions, players, draggingId, setDraggi
   };
 
   return (
-    <div ref={fieldRef} className="relative w-full select-none touch-none"
+    <div ref={fieldRef} className={`relative w-full select-none ${mode === "draw" ? "touch-none" : "touch-pan-y"}`}
       style={{ aspectRatio: "2/3", cursor: mode === "draw" ? "crosshair" : draggingId ? "grabbing" : "default" }}>
       {/* BG */}
       <div className="absolute inset-0 rounded-xl overflow-hidden"

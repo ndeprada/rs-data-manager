@@ -43,7 +43,7 @@ export default function FreeDragField({ players = [], positions = [], onChange }
   return (
     <div
       ref={fieldRef}
-      className="relative w-full select-none touch-none"
+      className="relative w-full select-none touch-pan-y"
       style={{ aspectRatio: "2/3", cursor: draggingId ? "grabbing" : "default" }}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -97,7 +97,7 @@ export default function FreeDragField({ players = [], positions = [], onChange }
         return (
           <div
             key={pos.player_id}
-            className="absolute flex flex-col items-center"
+            className="absolute flex flex-col items-center touch-none"
             style={{
               left: `${pos.x}%`,
               top: `${pos.y}%`,

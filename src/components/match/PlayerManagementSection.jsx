@@ -64,7 +64,7 @@ export default function PlayerManagementSection({ eventId, teamId, players }) {
   };
 
   return (
-    <div className="space-y-4 max-h-[75vh] overflow-y-auto">
+    <div className="space-y-4 lg:max-h-[75vh] lg:overflow-y-auto">
       {players.map((player) => {
         const stats = matchStats.find(s => s.player_id === player.id);
         const participated = !!stats;
