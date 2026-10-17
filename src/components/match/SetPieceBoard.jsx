@@ -117,6 +117,7 @@ function Board({ piece, onChange, candidates, kitOf }) {
   const [tool, setTool] = useState("move");
   const [sel, setSel] = useState(null); // { type: "token" | "arrow", id }
   const [draft, setDraft] = useState(null);
+  const [allSize, setAllSize] = useState(false);
   const [opts, setOpts] = useState({ curve: false, dashed: false, color: null, team: "own" });
   const drag = useRef(null);
 
@@ -335,7 +336,8 @@ function Board({ piece, onChange, candidates, kitOf }) {
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Tamaño de la ficha</p>
-            <input type="range" min="0.6" max="1.8" step="0.1" value={selToken.size || 1} onChange={(e) => setToken(selToken.id, { size: Number(e.target.value) })} className="w-full accent-[#73000A]" />
+            <input type="range" min="0.6" max="1.8" step="0.1" value={selToken.size || 1} onChange={(e) => { const size = Number(e.target.value); if (allSize) set({ tokens: piece.tokens.map((t) => ({ ...t, size })) }); else setToken(selToken.id, { size }); }} className="w-full accent-[#73000A]" />
+            <label className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-600 cursor-pointer"><input type="checkbox" checked={allSize} onChange={(e) => { setAllSize(e.target.checked); if (e.target.checked) { const size = selToken.size || 1; set({ tokens: piece.tokens.map((t) => ({ ...t, size })) }); } }} className="accent-[#73000A]" /> Aplicar a todas las fichas y el balón</label>
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Color de la ficha</p>
