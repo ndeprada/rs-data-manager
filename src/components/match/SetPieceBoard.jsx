@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { playerFirstName } from "@/lib/playerName";
+import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 
 // Creador de jugadas a balón parado: medio campo (portería arriba), fichas propias/rivales con jugador, dorsal y rol,
 // balón y flechas finas (rectas o curvas, continuas o discontinuas). Las jugadas se pueden guardar en la biblioteca del
@@ -39,6 +40,8 @@ const COLORS = [
 ];
 const ROLES = ["Lanzador", "Rematador 1er palo", "Rematador 2º palo", "Rematador", "Bloqueador", "Pantalla", "Referencia", "Rechace", "Segunda jugada", "Marca", "Zona", "Cobertura", "Pasador"];
 const RIVAL_COLOR = "#2563eb";
+const GRANATE = "#73000A", NARANJA = "#FF6E00";
+const F_BIG = "'Racing Sarria', sans-serif", F_TXT = "'IBM Plex Sans Condensed', sans-serif";
 const uid = () => Math.random().toString(36).slice(2, 9);
 const newPiece = (n) => ({ id: uid(), name: `Jugada ${n}`, type: "corner_favor", signal: "", notes: "", tokens: [], arrows: [] });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -50,7 +53,7 @@ const teamColor = (team) => (team === "rival" ? RIVAL_COLOR : "#73000A");
 const arrowStyle = (a) => ({
   dashed: a.dashed ?? a.kind === "arrow_move",
   color: a.color || teamColor(a.team),
-  border: a.border !== false,
+  border: a.border === true,
   width: a.width || 1.4,
   head: a.head !== false,
 });
@@ -67,20 +70,20 @@ const defaultControl = (a) => {
 };
 
 function Pitch() {
-  const l = "rgba(255,255,255,0.55)";
+  const l = "#b8b8b8";
   return (
     <>
-      <rect x="0" y="0" width={W} height={H} fill="#15803d" />
-      {[0, 1, 2, 3].map((i) => <rect key={i} x="0" y={i * 60} width={W} height="30" fill="rgba(255,255,255,0.03)" />)}
-      <rect x="10" y="10" width={W - 20} height={H - 10} fill="none" stroke={l} strokeWidth="1.5" />
-      <rect x="66" y="10" width="168" height="72" fill="none" stroke={l} strokeWidth="1.5" />
-      <rect x="112" y="10" width="76" height="26" fill="none" stroke={l} strokeWidth="1.5" />
-      <rect x="132" y="4" width="36" height="6" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" />
-      <circle cx="150" cy="58" r="1.8" fill={l} />
-      <path d="M 120 82 A 30 30 0 0 0 180 82" fill="none" stroke={l} strokeWidth="1.5" />
-      <path d={`M 110 ${H} A 40 40 0 0 1 190 ${H}`} fill="none" stroke={l} strokeWidth="1.5" />
-      <path d="M10,18 A8,8 0 0 0 18,10" fill="none" stroke={l} />
-      <path d={`M${W - 10},18 A8,8 0 0 1 ${W - 18},10`} fill="none" stroke={l} />
+      <rect x="0" y="0" width={W} height={H} fill="#ffffff" />
+      <defs><pattern id="sp-net" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 0L4 4M4 0L0 4" stroke="#d4d4d4" strokeWidth=".5" /></pattern></defs>
+      <rect x="132" y="2" width="36" height="9" fill="url(#sp-net)" stroke="#9a9a9a" strokeWidth="1" />
+      <g fill="none" stroke={l} strokeWidth="1.2">
+        <rect x="3" y="11" width={W - 6} height={H - 12} />
+        <rect x="66" y="11" width="168" height="72" />
+        <rect x="112" y="11" width="76" height="26" />
+        <path d="M 120 83 A 30 30 0 0 0 180 83" />
+        <path d={`M 110 ${H - 1} A 40 40 0 0 1 190 ${H - 1}`} />
+      </g>
+      <circle cx="150" cy="58" r="1.6" fill={l} />
     </>
   );
 }
@@ -96,10 +99,10 @@ function ArrowShape({ a, hit, onHitDown, selected }) {
   const nx = -Math.sin(ang), ny = Math.cos(ang);
   const head = `${a.x2},${a.y2} ${bx + nx * Wd},${by + ny * Wd} ${bx - nx * Wd},${by - ny * Wd}`;
   const d = curved ? `M ${a.x1} ${a.y1} Q ${a.cx} ${a.cy} ${bx} ${by}` : `M ${a.x1} ${a.y1} L ${bx} ${by}`;
-  const halo = "rgba(255,255,255,0.9)";
+  const halo = "#111827";
   return (
     <g>
-      {border && <path d={d} fill="none" stroke={halo} strokeWidth={width + 1.8} strokeDasharray={dashed ? "5 4" : undefined} strokeLinecap="round" />}
+      {border && <path d={d} fill="none" stroke={halo} strokeWidth={width + 1.5} strokeDasharray={dashed ? "5 4" : undefined} strokeLinecap="round" />}
       {border && hasHead && <polygon points={head} fill={halo} stroke={halo} strokeWidth="1.6" strokeLinejoin="round" />}
       <path d={d} fill="none" stroke={color} strokeWidth={selected ? width + 0.6 : width} strokeDasharray={dashed ? "5 4" : undefined} strokeLinecap="round" />
       {hasHead && <polygon points={head} fill={color} />}
@@ -121,14 +124,14 @@ function Swatches({ value, onPick, allowReset, resetLabel = "Equipación" }) {
   );
 }
 
-function Board({ piece, onChange, candidates, kitOf }) {
+function Board({ piece, onChange, candidates, kitOf, header, side }) {
   const box = useRef(null);
   const [width, setWidth] = useState(520);
   const [tool, setTool] = useState("move");
   const [sel, setSel] = useState(null); // { type: "token" | "arrow", id }
   const [draft, setDraft] = useState(null);
   const [allSize, setAllSize] = useState(false);
-  const [opts, setOpts] = useState({ curve: false, dashed: false, color: null, team: "own", border: true, head: true, width: 1.4 });
+  const [opts, setOpts] = useState({ curve: false, dashed: false, color: null, team: "own", border: false, head: true, width: 1.4 });
   const drag = useRef(null);
 
   useEffect(() => {
@@ -244,8 +247,12 @@ function Board({ piece, onChange, candidates, kitOf }) {
         })}
       </div>
 
-      <div ref={box} className={`relative rounded-lg overflow-hidden border border-gray-200 select-none w-full ${tool === "move" ? "touch-pan-y" : "touch-none"}`}
-        style={{ maxWidth: 640, aspectRatio: `${W} / ${H}`, cursor: tool === "move" ? "default" : "crosshair" }}
+      <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm space-y-3">
+      {header}
+      <div className="flex flex-col md:flex-row gap-3 items-start">
+      <div className="flex-1 min-w-0 w-full">
+      <div ref={box} className={`relative overflow-hidden select-none w-full ${tool === "move" ? "touch-pan-y" : "touch-none"}`}
+        style={{ aspectRatio: `${W} / ${H}`, cursor: tool === "move" ? "default" : "crosshair" }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 w-full h-full" style={{ pointerEvents: "none" }}>
           <Pitch />
@@ -257,35 +264,38 @@ function Board({ piece, onChange, candidates, kitOf }) {
         {piece.tokens.map((t) => {
           const left = `${(t.x / W) * 100}%`, top = `${(t.y / H) * 100}%`;
           const size = t.size || 1;
+          const ring = selToken?.id === t.id ? `2px solid ${NARANJA}` : undefined;
           if (t.kind === "ball") {
-            const d = Math.max(10, 12 * scale * size);
+            const d = Math.max(10, 10 * scale * size);
             return (
-              <div key={t.id} onPointerDown={(e) => tokenDown(e, t)} className="absolute touch-none rounded-full"
-                style={{ left, top, width: d, height: d, transform: "translate(-50%,-50%)", background: "#fff", border: `${Math.max(1.5, d / 8)}px solid #111`, outline: selToken?.id === t.id ? "2px solid #facc15" : undefined, pointerEvents: interactiveTokens ? "auto" : "none", cursor: tool === "move" ? "grab" : "pointer", zIndex: 5 }} />
+              <div key={t.id} onPointerDown={(e) => tokenDown(e, t)} className="absolute touch-none rounded-full flex items-center justify-center"
+                style={{ left, top, width: d, height: d, transform: "translate(-50%,-50%)", background: "#fff", border: `${Math.max(1.2, d / 9)}px solid #111`, outline: ring, outlineOffset: 2, pointerEvents: interactiveTokens ? "auto" : "none", cursor: tool === "move" ? "grab" : "pointer", zIndex: 5 }}>
+                <span className="rounded-full" style={{ width: d * 0.38, height: d * 0.38, background: "#111" }} />
+              </div>
             );
           }
           const player = playerOf(t);
           const own = t.kind === "own";
-          const ks = own ? kitOf(player) : { fill: RIVAL_COLOR, stroke: "#ffffff", num: "#ffffff" };
+          const gk = own && player?.position === "portero";
+          const ks = own ? (gk ? kitOf(player) : { fill: GRANATE, stroke: GRANATE, num: "#ffffff" }) : { fill: RIVAL_COLOR, stroke: RIVAL_COLOR, num: "#ffffff" };
           const fill = t.color || ks.fill;
-          const stroke = t.color ? (lightColor(t.color) ? "#73000A" : "#ffffff") : ks.stroke;
+          const stroke = t.color ? (lightColor(t.color) ? GRANATE : fill) : ks.stroke;
           const num = t.color ? (lightColor(t.color) ? "#111827" : "#ffffff") : ks.num;
-          const d = Math.max(20, 22 * scale * size);
-          const f = Math.max(8, 6.5 * scale * Math.min(size, 1.3));
+          const d = Math.max(18, 16 * scale * size);
+          const f = Math.max(8, 6.8 * scale * Math.min(size, 1.3));
           const shown = own ? (player ? player.jersey_number || player.first_name?.[0] || "" : t.label) : t.label;
           const nameTxt = player ? shortName(player) : "";
-          const shadow = "0 0 2px #000, 0 0 3px #000, 0 1px 2px #000";
           return (
             <div key={t.id} onPointerDown={(e) => tokenDown(e, t)} className="absolute touch-none"
               style={{ left, top, width: d, height: d, transform: "translate(-50%,-50%)", pointerEvents: interactiveTokens ? "auto" : "none", cursor: tool === "move" ? "grab" : "pointer", zIndex: selToken?.id === t.id ? 20 : 10 }}>
-              <div className="w-full h-full rounded-full flex items-center justify-center font-black"
-                style={{ background: fill, color: num, border: `${Math.max(2, d / 9)}px solid ${stroke}`, fontSize: d * (String(shown).length > 2 ? 0.34 : 0.5), outline: selToken?.id === t.id ? "2px solid #facc15" : undefined, outlineOffset: 2, fontFamily: "var(--font-display)" }}>
+              <div className="w-full h-full rounded-full flex items-center justify-center"
+                style={{ background: fill, color: num, border: `${Math.max(1.5, d / 12)}px solid ${stroke}`, fontSize: d * (String(shown).length > 2 ? 0.42 : 0.58), outline: ring, outlineOffset: 2, fontFamily: F_BIG, letterSpacing: "0.03em" }}>
                 {String(shown).slice(0, 4)}
               </div>
               {(nameTxt || t.role) && (
-                <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center whitespace-nowrap" style={{ top: "100%", marginTop: 1 }}>
-                  {nameTxt && <span className="font-bold text-white text-center leading-tight" style={{ fontSize: f, textShadow: shadow }}>{nameTxt}</span>}
-                  {t.role && <span className="font-extrabold uppercase text-center leading-tight" style={{ fontSize: f * 0.85, color: "#fde68a", textShadow: shadow, letterSpacing: 0.3 }}>{t.role}</span>}
+                <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center whitespace-nowrap uppercase" style={{ top: "100%", marginTop: 1, fontFamily: F_TXT }}>
+                  {nameTxt && <span className="font-bold text-center leading-tight" style={{ fontSize: f, color: own ? GRANATE : RIVAL_COLOR }}>{nameTxt}</span>}
+                  {t.role && <span className="font-bold text-center leading-tight" style={{ fontSize: f * 0.85, color: NARANJA }}>{t.role}</span>}
                 </div>
               )}
             </div>
@@ -301,6 +311,10 @@ function Board({ piece, onChange, candidates, kitOf }) {
             ))}
           </>
         )}
+      </div>
+      </div>
+      {side}
+      </div>
       </div>
       <p className="text-[10px] text-gray-400">Elige una herramienta y toca el campo. Con «Flecha», arrastra de origen a destino. Con «Mover», toca una ficha o una flecha para editarla.</p>
 
@@ -392,7 +406,7 @@ const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 // Dibujo estático (SVG como texto) de una jugada para imprimir: fondo blanco y líneas claras (ahorra tinta)
 function pieceSvg(piece, candidates, kitOf) {
   const l = "#b8b8b8";
-  let o = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" style="width:100%;display:block;font-family:Oswald,'Arial Narrow',Arial,sans-serif">`;
+  let o = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" style="width:100%;display:block;font-family:'IBM Plex Sans Condensed',Arial,sans-serif">`;
   o += `<defs><pattern id="net" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 0L4 4M4 0L0 4" stroke="#d4d4d4" stroke-width=".5"/></pattern></defs>`;
   o += `<rect x="132" y="2" width="36" height="9" fill="url(#net)" stroke="#9a9a9a" stroke-width="1"/>`;
   o += `<g fill="none" stroke="${l}" stroke-width="1.2"><rect x="3" y="11" width="${W - 6}" height="${H - 12}"/><rect x="66" y="11" width="168" height="72"/><rect x="112" y="11" width="76" height="26"/><path d="M 120 83 A 30 30 0 0 0 180 83"/><path d="M 110 ${H - 1} A 40 40 0 0 1 190 ${H - 1}"/></g><circle cx="150" cy="58" r="1.6" fill="${l}"/>`;
@@ -405,6 +419,7 @@ function pieceSvg(piece, candidates, kitOf) {
     const nx = -Math.sin(ang), ny = Math.cos(ang);
     const hd = `${a.x2},${a.y2} ${bx + nx * Wd},${by + ny * Wd} ${bx - nx * Wd},${by - ny * Wd}`;
     const d = curved ? `M ${a.x1} ${a.y1} Q ${a.cx} ${a.cy} ${bx} ${by}` : `M ${a.x1} ${a.y1} L ${bx} ${by}`;
+    if (arrowStyle(a).border) { o += `<path d="${d}" fill="none" stroke="#111827" stroke-width="${width + 1.5}" stroke-linecap="round"${dashed ? ' stroke-dasharray="4 3"' : ""}/>`; if (hasHead) o += `<polygon points="${hd}" fill="#111827" stroke="#111827" stroke-width="1.2" stroke-linejoin="round"/>`; }
     o += `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round"${dashed ? ' stroke-dasharray="4 3"' : ""}/>`;
     if (hasHead) o += `<polygon points="${hd}" fill="${color}"/>`;
   }
@@ -426,11 +441,11 @@ function pieceSvg(piece, candidates, kitOf) {
     const r = 8 * sz;
     const shown = String(own ? (pl ? pl.jersey_number || pl.first_name?.[0] || "" : t.label) : t.label).slice(0, 4);
     o += `<circle cx="${t.x}" cy="${t.y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="1.2"/>`;
-    o += `<text x="${t.x}" y="${t.y + r * 0.36}" text-anchor="middle" font-size="${r * (shown.length > 2 ? 0.85 : 1.1)}" font-weight="700" fill="${num}">${esc(shown)}</text>`;
+    o += `<text x="${t.x}" y="${t.y + r * 0.36}" text-anchor="middle" font-size="${r * (shown.length > 2 ? 0.85 : 1.1)}" font-family="'Racing Sarria',sans-serif" fill="${num}">${esc(shown)}</text>`;
     const k = Math.min(sz, 1.3);
     let yy = t.y + r + 7.5 * k;
     if (pl) { o += txt(t.x, yy, 6.8 * k, own ? "#73000A" : RIVAL_COLOR, shortName(pl).toUpperCase(), 700); yy += 7 * k; }
-    if (t.role) o += txt(t.x, yy, 5.8 * k, "#ea580c", t.role.toUpperCase(), 700);
+    if (t.role) o += txt(t.x, yy, 5.8 * k, "#FF6E00", t.role.toUpperCase(), 700);
   }
   return o + "</svg>";
 }
@@ -438,25 +453,29 @@ function pieceSvg(piece, candidates, kitOf) {
 function printPieces(list, candidates, kitOf, perPage, teamName) {
   const typeLabel = (v) => TYPES.find((t) => t.value === v)?.label || v;
   const cards = list.map((p) => `<section class="card">
-    <header><div class="club"><img src="https://media.base44.com/images/public/69b72e4f23c3602504953d0d/442c01da9_Escudo_Granate.png" alt=""><div><b>RACING SARRIÀ</b><span>${esc(teamName || "")}</span></div></div>
+    <header><div class="club"><img src="${CLUB_LOGO_URL}" alt=""><div><b>RACING SARRIÀ</b><span>${esc(teamName || "")}</span></div></div>
     <div class="ttl"><h2>${esc(p.name)}</h2><span>${esc(typeLabel(p.type))}</span></div></header>
     ${p.signal ? `<div class="sig"><b>SEÑAL</b><span>${esc(p.signal)}</span></div>` : ""}
     <div class="body"><div class="fld">${pieceSvg(p, candidates, kitOf)}</div>${p.notes ? `<div class="notes"><b>INSTRUCCIONES</b>${esc(p.notes)}</div>` : ""}</div></section>`).join("");
   const one = perPage === 1;
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Acciones a balón parado${teamName ? " · " + esc(teamName) : ""}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&display=swap" rel="stylesheet"><style>
-    @page{size:A4;margin:10mm} *{box-sizing:border-box} body{margin:0;font-family:Oswald,'Arial Narrow',Arial,sans-serif;color:#222}
+  <style>
+    @font-face{font-family:'Racing Sarria';src:url('${location.origin}/fonts/RacingSarria.ttf') format('truetype')}
+    @font-face{font-family:'IBM Plex Sans Condensed';font-weight:400;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Regular.ttf') format('truetype')}
+    @font-face{font-family:'IBM Plex Sans Condensed';font-weight:500;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Medium.ttf') format('truetype')}
+    @font-face{font-family:'IBM Plex Sans Condensed';font-weight:700;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Bold.ttf') format('truetype')}
+    @page{size:A4;margin:10mm} *{box-sizing:border-box} body{margin:0;font-family:'IBM Plex Sans Condensed',Arial,sans-serif;color:#222}
     .card{break-inside:avoid;page-break-inside:avoid;height:${one ? "275mm" : "134mm"};${one ? "" : "margin-bottom:6mm;"}overflow:hidden}
     ${one ? "" : ".card:nth-child(2n){margin-bottom:0}"}
-    header{display:flex;justify-content:space-between;align-items:flex-start;gap:8mm;margin-bottom:3mm}
+    header{border-bottom:.6mm solid #73000A;padding-bottom:2mm;display:flex;justify-content:space-between;align-items:flex-start;gap:8mm;margin-bottom:3mm}
     .club{display:flex;align-items:center;gap:2.5mm} .club img{height:${one ? 15 : 12}mm;width:auto}
-    .club b{display:block;font-size:${one ? 14 : 11}pt;color:#73000A;line-height:1.05;letter-spacing:.3px} .club span{display:block;font-size:${one ? 13 : 10}pt;color:#ea580c;font-weight:700;text-transform:uppercase;line-height:1.1}
-    .ttl{text-align:right} .ttl h2{margin:0;font-size:${one ? 26 : 19}pt;line-height:1;color:#73000A;text-transform:uppercase;letter-spacing:.3px} .ttl span{display:block;font-size:${one ? 15 : 11.5}pt;color:#ea580c;font-weight:700;text-transform:uppercase;margin-top:1mm}
-    .sig{display:flex;align-items:center;gap:3mm;border:.3mm solid #ea580c;border-radius:1.5mm;padding:1.2mm 3mm;margin-bottom:3mm;font-size:${one ? 12 : 10}pt}
-    .sig b{background:#ea580c;color:#fff;padding:.4mm 2mm;border-radius:1mm;font-size:${one ? 10 : 8.5}pt;letter-spacing:.5px} .sig span{color:#333;font-weight:500}
+    .club b{display:block;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:${one ? 14 : 11}pt;color:#73000A;line-height:1.05;letter-spacing:.3px} .club span{display:block;font-size:${one ? 13 : 10}pt;color:#FF6E00;font-weight:700;text-transform:uppercase;line-height:1.1}
+    .ttl{text-align:right} .ttl h2{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:${one ? 26 : 19}pt;line-height:1;color:#73000A;text-transform:uppercase;letter-spacing:.3px} .ttl span{display:block;font-family:'Racing Sarria',sans-serif;font-weight:400;letter-spacing:.5px;font-size:${one ? 15 : 11.5}pt;color:#FF6E00;font-weight:700;text-transform:uppercase;margin-top:1mm}
+    .sig{display:flex;align-items:center;gap:3mm;border:.3mm solid #FF6E00;border-radius:1.5mm;padding:1.2mm 3mm;margin-bottom:3mm;font-size:${one ? 12 : 10}pt}
+    .sig b{background:#FF6E00;color:#fff;padding:.4mm 2mm;border-radius:1mm;font-size:${one ? 10 : 8.5}pt;letter-spacing:.5px} .sig span{color:#333;font-weight:500}
     .body{display:flex;gap:4mm;align-items:flex-start} .fld{flex:1;min-width:0;${one ? "" : "max-width:132mm;"}}
-    .notes{width:${one ? "52mm" : "48mm"};font-size:${one ? 11 : 9.5}pt;white-space:pre-wrap;color:#333;border-left:.5mm solid #ea580c;padding-left:3mm;font-weight:500}
-    .notes b{display:block;color:#ea580c;font-size:${one ? 9.5 : 8.5}pt;letter-spacing:.5px;margin-bottom:1mm}
+    .notes{width:${one ? "52mm" : "48mm"};font-size:${one ? 11 : 9.5}pt;white-space:pre-wrap;color:#333;border-left:.5mm solid #FF6E00;padding-left:3mm;font-weight:500}
+    .notes b{display:block;color:#FF6E00;font-size:${one ? 9.5 : 8.5}pt;letter-spacing:.5px;margin-bottom:1mm}
   </style></head><body>${cards}</body></html>`;
   const old = document.getElementById("sp-print-frame");
   if (old) old.remove();
@@ -610,29 +629,40 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], teamN
           </div>
           {active && (
             <div className="space-y-3 min-w-0">
-              <div className="grid sm:grid-cols-[1fr_200px] gap-2">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Título de la jugada</p>
-                  <Input value={active.name} onChange={(e) => update({ ...active, name: e.target.value })} className="h-9 text-sm font-semibold border-gray-200" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Tipo</p>
-                  <Select value={active.type} onValueChange={(v) => update({ ...active, type: v })}>
-                    <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue /></SelectTrigger>
-                    <SelectContent>{TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Señal de la jugada</p>
-                <Input value={active.signal || ""} onChange={(e) => update({ ...active, signal: e.target.value })} className="h-9 text-sm border-gray-200" />
-                <p className="text-[10px] text-gray-400 mt-1">Cómo se avisa al equipo (gesto del lanzador, palabra clave…).</p>
-              </div>
-              <Board key={active.id} piece={active} onChange={update} candidates={candidates} kitOf={kitOf} />
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Descripción / instrucciones</p>
-                <Textarea rows={3} value={active.notes} onChange={(e) => update({ ...active, notes: e.target.value })} className="border-gray-200 text-sm" placeholder="Quién saca, quién ataca el primer palo, señal de inicio, rechace…" />
-              </div>
+              <Board key={active.id} piece={active} onChange={update} candidates={candidates} kitOf={kitOf}
+                header={(
+                  <>
+                    <div className="flex items-start justify-between gap-3 border-b-2 pb-2" style={{ borderColor: GRANATE }}>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <img src={CLUB_LOGO_URL} alt="" className="h-9 sm:h-11 w-auto" />
+                        <div className="hidden sm:block leading-tight">
+                          <p className="text-sm" style={{ fontFamily: F_BIG, color: GRANATE, letterSpacing: "0.05em" }}>RACING SARRIÀ</p>
+                          <p className="text-xs uppercase font-semibold" style={{ fontFamily: F_TXT, color: NARANJA }}>{teamName}</p>
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1 flex flex-col items-end">
+                        <input value={active.name} onChange={(e) => update({ ...active, name: e.target.value })} placeholder="TÍTULO DE LA JUGADA"
+                          className="w-full text-right uppercase bg-transparent rounded px-1 outline-none hover:bg-gray-50 focus:bg-gray-50 focus:ring-1 focus:ring-[#FF6E00] text-xl sm:text-3xl leading-tight"
+                          style={{ fontFamily: F_BIG, color: GRANATE, letterSpacing: "0.05em" }} />
+                        <Select value={active.type} onValueChange={(v) => update({ ...active, type: v })}>
+                          <SelectTrigger className="h-7 w-auto max-w-full border-0 bg-transparent shadow-none px-1 gap-1 focus:ring-0 hover:bg-gray-50 text-sm sm:text-base uppercase" style={{ fontFamily: F_BIG, color: NARANJA, letterSpacing: "0.05em" }}><SelectValue /></SelectTrigger>
+                          <SelectContent>{TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-md border px-2 py-1" style={{ borderColor: NARANJA }}>
+                      <span className="text-[10px] font-bold text-white px-2 py-0.5 rounded shrink-0" style={{ background: NARANJA, fontFamily: F_TXT, letterSpacing: "0.08em" }}>SEÑAL</span>
+                      <input value={active.signal || ""} onChange={(e) => update({ ...active, signal: e.target.value })} placeholder="Cómo se avisa: el lanzador se toca la cabeza, bota el balón…"
+                        className="flex-1 min-w-0 bg-transparent outline-none text-sm text-gray-800" style={{ fontFamily: F_TXT }} />
+                    </div>
+                  </>
+                )}
+                side={(
+                  <div className="w-full md:w-48 shrink-0 md:border-l-2 md:pl-3" style={{ borderColor: NARANJA }}>
+                    <p className="text-[10px] font-bold mb-1" style={{ color: NARANJA, fontFamily: F_TXT, letterSpacing: "0.08em" }}>INSTRUCCIONES</p>
+                    <Textarea rows={5} value={active.notes} onChange={(e) => update({ ...active, notes: e.target.value })} className="border-gray-200 text-sm" style={{ fontFamily: F_TXT }} placeholder="Quién saca, quién ataca el primer palo, rechace…" />
+                  </div>
+                )} />
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={saveToLibrary} disabled={!teamId} className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded border" style={{ borderColor: "var(--granate)", color: "var(--granate)" }}>
                   <BookmarkPlus className="w-3.5 h-3.5" /> {active.lib_id ? "Actualizar en la biblioteca" : "Guardar en biblioteca"}
