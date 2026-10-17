@@ -30,11 +30,11 @@ function PDICard({ pdi, onEdit, onDelete, readOnly }) {
         className="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--granate-pale, #fdf2f4)" }}>
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--granate-pale, #fdf2f4)" }}>
             <BookOpen className="w-5 h-5" style={{ color: "var(--granate)" }} />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="font-semibold text-gray-900">{pdi.period || new Date(pdi.date).toLocaleDateString("es-ES", { month: "long", year: "numeric" })}</p>
             <p className="text-sm text-gray-500">
               {new Date(pdi.date).toLocaleDateString("es-ES")}
@@ -42,7 +42,7 @@ function PDICard({ pdi, onEdit, onDelete, readOnly }) {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {pdi.overall_rating && (
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold" style={{ background: "var(--naranja-pale, #fff7ed)", color: "var(--naranja)" }}>
               <Star className="w-3.5 h-3.5" />{pdi.overall_rating}/10
@@ -128,12 +128,12 @@ export default function PDISection({ playerId, playerName, playerEmail, readOnly
     <div className="space-y-6">
       {!readOnly && (
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-        <div className="flex items-start gap-4">
-          <div className="flex-1">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+          <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 mb-1">Evaluaciones PDI</h3>
             <p className="text-sm text-gray-500">Evaluaciones de <strong>{playerName}</strong>.</p>
           </div>
-          <Button onClick={() => setDialogOpen(true)} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
+          <Button onClick={() => setDialogOpen(true)} className="text-white shrink-0 w-full sm:w-auto" style={{ background: "var(--granate)" }}>
             <Plus className="w-4 h-4 mr-2" /> Nueva Evaluación
           </Button>
         </div>

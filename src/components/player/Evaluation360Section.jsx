@@ -193,7 +193,8 @@ export default function Evaluation360Section({ player, playerId }) {
   return (
     <div className="space-y-4">
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-        <div className="flex items-start gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+          <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--granate-pale, #fdf2f4)" }}>
             <Radar className="w-5 h-5" style={{ color: "var(--granate)" }} />
           </div>
@@ -201,7 +202,8 @@ export default function Evaluation360Section({ player, playerId }) {
             <h3 className="font-semibold text-gray-900">Evaluación 360</h3>
             <p className="text-sm text-gray-500">Perfil general de <strong>{playerFirstName(player)}</strong>: técnica, táctica, física y mental (1-10). Es el punto de partida; el trabajo concreto se planifica en el plan de desarrollo.</p>
           </div>
-          {!playerMode && <Button onClick={openNew} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
+          </div>
+          {!playerMode && <Button onClick={openNew} className="text-white shrink-0 w-full sm:w-auto" style={{ background: "var(--granate)" }}>
             <Plus className="w-4 h-4 mr-2" /> Nueva evaluación
           </Button>}
         </div>
