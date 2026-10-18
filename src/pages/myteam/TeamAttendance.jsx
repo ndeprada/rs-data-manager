@@ -4,8 +4,8 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { ArrowLeft, Pencil, X, UserPlus, Check } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft, Pencil, X, UserPlus, Check, MessageSquarePlus, HeartPulse } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,11 +17,12 @@ import GuestPlayerSelector from "@/components/common/GuestPlayerSelector";
 import { birthYearOf } from "@/lib/birthYear";
 import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
 import { playerFullName } from "@/lib/playerName";
+import QuickInjuryDialog from "@/components/myteam/QuickInjuryDialog";
 
 const STATUS_CONFIG = {
-  present: { label: "Asiste", cls: "bg-green-50 text-green-700 border-green-200" },
-  apart: { label: "A parte", cls: "bg-blue-50 text-blue-700 border-blue-200" },
-  absent: { label: "No asiste", cls: "bg-red-50 text-red-700 border-red-200" },
+  present: { label: "Asiste", short: "Asiste", cls: "bg-green-600 text-white border-green-600" },
+  apart: { label: "A parte", short: "A parte", cls: "bg-blue-600 text-white border-blue-600" },
+  absent: { label: "No asiste", short: "No", cls: "bg-red-600 text-white border-red-600" },
 };
 const ABSENCE_REASONS = [
   { value: "lesion", label: "Lesión" }, { value: "enfermo", label: "Enfermo" },
@@ -50,12 +51,16 @@ export default function TeamAttendance() {
   const [trialName, setTrialName] = useState("");
   const [showGuests, setShowGuests] = useState(false);
   const [showExternal, setShowExternal] = useState(true);
+  const [injuryFor, setInjuryFor] = useState(null); // jugador para el que se registra una lesión
+  const [noteOpen, setNoteOpen] = useState(() => new Set()); // filas con la nota desplegada
   const chain = useRef({}); // serializa guardados por jugador
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
   const { data: allAttendance = [] } = useQuery({ queryKey: ["attendance"], queryFn: () => base44.entities.TrainingAttendance.list() });
+  const { data: injuries = [] } = useQuery({ queryKey: ["injuries_open"], queryFn: () => base44.entities.Injury.list() });
+  const openInjury = useMemo(() => new Map(injuries.filter(i => i.status !== "alta").map(i => [i.player_id, i])), [injuries]);
 
   const trainings = useMemo(
     () => events.filter(e => e.team_id === selectedTeamId && TRAINING_TYPES.includes(e.type)),
@@ -115,6 +120,11 @@ export default function TeamAttendance() {
     .map(r => players.find(p => p.id === r.player_id)).filter(Boolean);
   const trials = eventRecords.filter(r => r.trial_name);
   const recFor = (pid) => eventRecords.find(a => a.player_id === pid) || {};
+  const sessionCounts = (() => {
+    const c = { present: 0, apart: 0, absent: 0, pending: 0 };
+    teamPlayers.forEach(p => { const st = recFor(p.id).status; if (st && c[st] !== undefined) c[st]++; else c.pending++; });
+    return c;
+  })();
 
   const addTrial = () => {
     const name = trialName.trim();
@@ -155,40 +165,66 @@ export default function TeamAttendance() {
     return Object.values(map).sort((a, b) => Number(a.isTrial) - Number(b.isTrial) || (b.present + b.apart) - (a.present + a.apart));
   })();
 
-  const renderRow = ({ pid, name, sub, tint, onRemove }) => {
+  const toggleNote = (pid) => setNoteOpen(prev => { const n = new Set(prev); n.has(pid) ? n.delete(pid) : n.add(pid); return n; });
+
+  // Una línea por jugador: nombre + tres botones. El motivo, la lesión y la nota aparecen solo cuando hacen falta.
+  const renderRow = ({ pid, name, sub, tint, onRemove, player }) => {
     const att = recFor(pid);
+    const injured = player && openInjury.get(player.id);
+    const canInjure = player && !injured && (att.status === "apart" || (att.status === "absent" && att.absence_reason === "lesion"));
+    const showNote = noteOpen.has(pid) || !!att.notes;
     return (
-      <div key={pid} className="px-3 py-2.5 border-b border-gray-100 last:border-b-0" style={{ background: tint }}>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <div className="w-44 min-w-0">
-            <p className="font-bold text-gray-900 text-xs truncate" style={{ fontFamily: "var(--font-display)" }}>{pid.startsWith("prueba_") ? name : <PlayerName id={pid}>{name}</PlayerName>}</p>
-            {sub && <p className="text-[10px] text-gray-400">{sub}</p>}
+      <div key={pid} className="px-3 py-2 border-b border-gray-100 last:border-b-0" style={{ background: tint }}>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-gray-900 text-[13px] leading-tight truncate" style={{ fontFamily: "var(--font-display)" }}>{pid.startsWith("prueba_") ? name : <PlayerName id={pid}>{name}</PlayerName>}</p>
+            {(sub || injured) && (
+              <p className="text-[10px] text-gray-400 truncate">
+                {sub}{injured && <span className="text-orange-600 font-bold">{sub ? " · " : ""}🩹 Lesionado</span>}
+              </p>
+            )}
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 shrink-0">
             {Object.entries(STATUS_CONFIG).map(([k, cfg]) => (
               <button key={k} onClick={() => setStatus(pid, k)}
-                className={`text-[10px] font-bold uppercase px-2 py-1 rounded border whitespace-nowrap ${att.status === k ? cfg.cls : "bg-white text-gray-400 border-gray-200 hover:bg-gray-50"}`}>
-                {cfg.label}
+                className={`h-9 min-w-[2.6rem] px-2.5 text-[11px] font-bold rounded-md border whitespace-nowrap ${att.status === k ? cfg.cls : "bg-white text-gray-500 border-gray-300 hover:bg-gray-50"}`}>
+                {cfg.short}
               </button>
             ))}
           </div>
-          {att.status === "absent" && (
-            <Select value={att.absence_reason || ""} onValueChange={v => save(pid, { absence_reason: v })}>
-              <SelectTrigger className="h-7 w-28 text-[11px] border-gray-200 bg-white"><SelectValue placeholder="Motivo" /></SelectTrigger>
-              <SelectContent>{ABSENCE_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
-            </Select>
-          )}
-          <Input
-            key={`${selectedEvent?.id}-${pid}-${att.id ? "s" : "n"}`}
-            defaultValue={att.notes || ""}
-            onBlur={e => { if ((e.target.value || "") !== (att.notes || "")) save(pid, { notes: e.target.value }); }}
-            placeholder="Observaciones…"
-            className="h-7 text-[11px] border-gray-200 flex-1 min-w-[140px]"
-          />
+          <button onClick={() => toggleNote(pid)} title="Observaciones"
+            className={`p-1.5 rounded shrink-0 ${att.notes ? "text-blue-600" : "text-gray-300 hover:text-gray-500"}`}>
+            <MessageSquarePlus className="w-4 h-4" />
+          </button>
           {onRemove && (
-            <button onClick={onRemove} className="p-1 text-gray-300 hover:text-red-600" title="Quitar de la sesión"><X className="w-3.5 h-3.5" /></button>
+            <button onClick={onRemove} className="p-1 text-gray-300 hover:text-red-600 shrink-0" title="Quitar de la sesión"><X className="w-3.5 h-3.5" /></button>
           )}
         </div>
+        {(att.status === "absent" || canInjure || showNote) && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            {att.status === "absent" && (
+              <Select value={att.absence_reason || ""} onValueChange={v => save(pid, { absence_reason: v })}>
+                <SelectTrigger className="h-8 w-32 text-[11px] border-gray-200 bg-white"><SelectValue placeholder="Motivo" /></SelectTrigger>
+                <SelectContent>{ABSENCE_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+              </Select>
+            )}
+            {canInjure && (
+              <button onClick={() => setInjuryFor(player)}
+                className="h-8 px-2.5 inline-flex items-center gap-1 text-[11px] font-bold rounded-md border border-orange-300 text-orange-700 bg-orange-50 hover:bg-orange-100">
+                <HeartPulse className="w-3.5 h-3.5" /> Registrar lesión
+              </button>
+            )}
+            {showNote && (
+              <Input
+                key={`${selectedEvent?.id}-${pid}-${att.id ? "s" : "n"}`}
+                defaultValue={att.notes || ""}
+                onBlur={e => { if ((e.target.value || "") !== (att.notes || "")) save(pid, { notes: e.target.value }); }}
+                placeholder="Observaciones…"
+                className="h-8 text-[12px] border-gray-200 flex-1 min-w-[160px]"
+              />
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -203,10 +239,16 @@ export default function TeamAttendance() {
           <button onClick={() => navigate("/MyTeam/Attendance")} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 font-medium">
             <ArrowLeft className="w-4 h-4" /> Volver a entrenamientos
           </button>
-          <div className="bg-white border border-gray-200 shadow-sm px-4 py-3 flex items-center gap-2" style={{ borderRadius: "4px", borderLeft: "3px solid var(--naranja)" }}>
-            <div className="flex-1 min-w-0">
+          <div className="bg-white border border-gray-200 shadow-sm px-4 py-3 flex flex-wrap items-center gap-x-2 gap-y-2" style={{ borderRadius: "4px", borderLeft: "3px solid var(--naranja)" }}>
+            <div className="flex-1 min-w-[160px]">
               <h2 className="font-black text-sm uppercase truncate" style={{ fontFamily: "var(--font-display)", color: "var(--naranja)" }}>{selectedEvent.title}</h2>
               <p className="text-xs text-gray-400 capitalize">{format(new Date(selectedEvent.date), "EEEE d MMMM · HH:mm", { locale: es })}</p>
+              <p className="text-[11px] mt-0.5">
+                <span className="font-bold text-green-700">{sessionCounts.present} asisten</span>
+                <span className="text-gray-300"> · </span><span className="font-bold text-blue-700">{sessionCounts.apart} a parte</span>
+                <span className="text-gray-300"> · </span><span className="font-bold text-red-600">{sessionCounts.absent} no</span>
+                {sessionCounts.pending > 0 && <><span className="text-gray-300"> · </span><span className="font-bold text-amber-600">{sessionCounts.pending} sin marcar</span></>}
+              </p>
             </div>
             <Button variant="outline" size="sm" className="text-xs h-7 border-green-200 text-green-700 hover:bg-green-50"
               onClick={() => teamPlayers.forEach(p => { if (!recFor(p.id).status) save(p.id, { status: "present" }); })}>
@@ -218,8 +260,8 @@ export default function TeamAttendance() {
           </div>
 
           <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
-            {teamPlayers.map(p => renderRow({ pid: p.id, name: `${playerFullName(p)}`, sub: POSITION_LABELS[p.position] }))}
-            {guests.map(p => renderRow({ pid: p.id, tint: "#eff6ff", name: `${playerFullName(p)}`,
+            {teamPlayers.map(p => renderRow({ pid: p.id, player: p, name: `${playerFullName(p)}`, sub: POSITION_LABELS[p.position] }))}
+            {guests.map(p => renderRow({ pid: p.id, player: p, tint: "#eff6ff", name: `${playerFullName(p)}`,
               sub: `Convocado · ${teams.find(t => t.id === p.team_id)?.name || "Otro equipo"}`, onRemove: () => removeRecord(p.id) }))}
             {trials.map(r => renderRow({ pid: r.player_id, tint: "#fffbeb", name: r.trial_name, sub: "A prueba", onRemove: () => removeRecord(r.player_id) }))}
           </div>
@@ -350,6 +392,13 @@ export default function TeamAttendance() {
           )}
         </>
       )}
+
+      <QuickInjuryDialog
+        open={!!injuryFor}
+        onOpenChange={(open) => { if (!open) setInjuryFor(null); }}
+        player={injuryFor}
+        date={selectedEvent?.date?.split("T")[0]}
+      />
 
       <EditEventDialog
         open={!!editingEvent}

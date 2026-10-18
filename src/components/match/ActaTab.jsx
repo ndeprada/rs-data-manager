@@ -388,22 +388,29 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <p className="text-xs text-gray-500 mb-1">Nuestro equipo</p>
-            <Input type="number" min="0" value={scoreHome} onChange={e => setScoreHome(e.target.value)}
-              className="text-2xl font-black text-center h-14 border-gray-200" />
-          </div>
-          <span className="text-3xl font-black text-gray-300 mt-4">–</span>
-          <div className="flex-1">
-            <p className="text-xs text-gray-500 mb-1">{event?.opponent || "Rival"}</p>
-            <Input type="number" min="0" value={scoreAway} onChange={e => setScoreAway(e.target.value)}
-              className="text-2xl font-black text-center h-14 border-gray-200" />
-          </div>
-          <Button variant="club" onClick={saveScore} disabled={savingScore} className="mt-4">
-            <Save className="w-4 h-4" />
-          </Button>
-        </div>
+        {/* Mismo orden que la cabecera del partido: el equipo local a la izquierda (el marcador guardado sigue siendo nuestros goles / goles del rival) */}
+        {(() => {
+          const us = { key: "us", label: "Nuestro equipo", value: scoreHome, set: setScoreHome };
+          const rival = { key: "rival", label: event?.opponent || "Rival", value: scoreAway, set: setScoreAway };
+          const [left, right] = event?.is_home === false ? [rival, us] : [us, rival];
+          return (
+            <div className="flex items-end gap-2 sm:gap-4">
+              {[left, right].map((t, i) => (
+                <React.Fragment key={t.key}>
+                  {i === 1 && <span className="text-3xl font-black text-gray-300 pb-3">–</span>}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500 mb-1 h-8 flex items-end leading-tight line-clamp-2">{t.label}</p>
+                    <Input type="number" min="0" inputMode="numeric" value={t.value} onChange={e => t.set(e.target.value)}
+                      className="text-2xl font-black text-center h-14 border-gray-200" />
+                  </div>
+                </React.Fragment>
+              ))}
+              <Button variant="club" onClick={saveScore} disabled={savingScore} className="h-14 px-4" title="Guardar marcador">
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+          );
+        })()}
         {matchEvents.length > 0 && (
           <p className="text-[10px] text-gray-400 text-center">Marcador actualizado según eventos · editable manualmente</p>
         )}
