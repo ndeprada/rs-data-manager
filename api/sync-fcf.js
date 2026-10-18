@@ -3,6 +3,7 @@ import { syncFcf } from './_lib/fcfSync.js';
 import { standingsHandler } from './_lib/fcfStandings.js';
 import { db } from './_lib/db.js';
 import { createBackup } from './_lib/backup.js';
+import { acquireSyncLock, releaseSyncLock } from './_lib/syncLock.js';
 
 export default async function handler(req, res) {
   if (req.query?.standings) { req.query.team_id = req.query.standings; return standingsHandler(req, res); }
@@ -19,11 +20,16 @@ export default async function handler(req, res) {
     try { await createBackup(db, { kind: 'auto', note: 'Copia diaria' }); }
     catch (e) { console.error('backup diario', e); }
   }
+  if (!(await acquireSyncLock(db))) {
+    return res.status(409).json({ ok: false, error: 'Ya hay una sincronización en marcha. Espera un par de minutos y vuelve a mirar.' });
+  }
   try {
     const stats = await syncFcf();
     res.status(200).json({ ok: true, ...stats });
   } catch (e) {
     console.error(e);
     res.status(500).json({ ok: false, error: e.message });
+  } finally {
+    try { await releaseSyncLock(db); } catch (e) { console.error('liberar candado', e); }
   }
 }
