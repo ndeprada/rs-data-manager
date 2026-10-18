@@ -10,9 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import EmptyState from "@/components/common/EmptyState";
 import { useSeasonPlan } from "./useSeasonPlan";
+import ProjectedSquad, { POS, POS_ORDER } from "./ProjectedSquad";
 
-const POS = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
-const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
 
 // Traspasos de fin de temporada: se eligen jugadores de un equipo y se decide, a bloques, adónde van el año que viene.
 export default function TransfersTab({ season, closed }) {
@@ -31,6 +30,25 @@ export default function TransfersTab({ season, closed }) {
 
   const valid = (mv) => mv && (mv.to === "baja" || mv.to === "stay" || teams.some((t) => t.id === mv.to));
   const decided = (p) => valid(moves[p.id]);
+
+  const [view, setView] = useState("decidir"); // decidir | prevista
+  const showPlan = view === "prevista" && !closed;
+  const nextLabel = `${Number(season.slice(0, 4)) + 1}–${Number(season.slice(0, 4)) + 2}`;
+  // Plantilla prevista de cada equipo según los destinos ya decididos (los sin decidir continúan donde están)
+  const projected = useMemo(() => {
+    const m = new Map(teams.map((t) => [t.id, { stay: [], undecided: [], arrive: [], leave: [] }]));
+    squad.forEach((p) => {
+      const cur = m.get(p.team_id);
+      if (!cur) return;
+      const mv = valid(moves[p.id]) ? moves[p.id] : null;
+      if (!mv) { cur.stay.push(p); cur.undecided.push(p); }
+      else if (mv.to === "stay" || mv.to === p.team_id) cur.stay.push(p);
+      else { cur.leave.push({ p, to: mv.to }); if (mv.to !== "baja") m.get(mv.to)?.arrive.push(p); }
+    });
+    return m;
+  }, [squad, moves, teams]);
+  const projSize = (id) => { const e = projected.get(id); return e ? e.stay.length + e.arrive.length : 0; };
+  const projTouches = (id) => { const e = projected.get(id); return !!e && e.stay.length + e.arrive.length + e.leave.length > 0; };
 
   const [teamId, setTeamId] = useState("");
   const [sel, setSel] = useState(new Set());
@@ -104,11 +122,20 @@ export default function TransfersTab({ season, closed }) {
         {error && <p className="text-xs font-semibold text-red-600">{error}</p>}
       </div>
 
+      {!closed && (
+        <div className="inline-flex border border-gray-200 rounded p-0.5 bg-white">
+          {[["decidir", "Decidir destinos"], ["prevista", `Plantilla prevista ${nextLabel}`]].map(([v, l]) => (
+            <button key={v} type="button" onClick={() => setView(v)}
+              className={`px-3 py-1.5 text-xs font-bold rounded transition-colors ${view === v ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700"}`}>{l}</button>
+          ))}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-3 items-start">
         {/* Equipos */}
         <div className="bg-white border border-gray-200 shadow-sm p-1.5 flex flex-wrap lg:flex-col gap-1 lg:max-h-[70vh] overflow-y-auto" style={{ borderRadius: "4px" }}>
-          {sortedTeams.filter((t) => byTeam.get(t.id)?.length).map((t) => {
-            const list = byTeam.get(t.id);
+          {sortedTeams.filter((t) => (showPlan ? projTouches(t.id) : byTeam.get(t.id)?.length)).map((t) => {
+            const list = byTeam.get(t.id) || [];
             const done = list.filter(decided).length;
             const active = t.id === teamId;
             return (
@@ -116,14 +143,18 @@ export default function TransfersTab({ season, closed }) {
                 className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded text-left text-xs font-bold transition-colors ${active ? "text-white" : "text-gray-700 hover:bg-gray-100"}`}
                 style={active ? { background: "var(--granate)" } : undefined}>
                 <span className="truncate">{t.name}</span>
-                <span className={`shrink-0 text-[10px] font-bold rounded-full px-1.5 py-0.5 ${active ? "bg-white/90 text-[var(--granate)]" : done === list.length ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{done}/{list.length}</span>
+                <span className={`shrink-0 text-[10px] font-bold rounded-full px-1.5 py-0.5 ${active ? "bg-white/90 text-[var(--granate)]" : showPlan ? "bg-gray-100 text-gray-600" : done === list.length ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{showPlan ? `${list.length}→${projSize(t.id)}` : `${done}/${list.length}`}</span>
               </button>
             );
           })}
         </div>
 
+        {showPlan && projected.get(teamId) && (
+          <ProjectedSquad title={teamName(teamId)} nextLabel={nextLabel} entry={projected.get(teamId)} teamName={teamName} />
+        )}
+
         {/* Plantilla del equipo elegido */}
-        <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
+        {!showPlan && <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
           <div className="px-4 py-2.5 border-b border-gray-100 flex flex-wrap items-center gap-x-3 gap-y-1">
             <h2 className="font-black text-sm uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{teamName(teamId)} <span className="text-gray-400 font-bold">({roster.length})</span></h2>
             <div className="ml-auto flex items-center gap-3 text-[11px] font-semibold text-gray-500">
@@ -167,7 +198,7 @@ export default function TransfersTab({ season, closed }) {
               })}
             </div>
           )}
-        </div>
+        </div>}
       </div>
     </div>
   );
