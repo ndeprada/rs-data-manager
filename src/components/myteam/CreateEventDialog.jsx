@@ -12,7 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import EventPlaceFields from "@/components/myteam/EventPlaceFields";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Repeat } from "lucide-react";
-import { playerFullName } from "@/lib/playerName";
+import { useToast } from "@/components/ui/use-toast";
+import { notifyTeamPush, pushResultText } from "@/lib/notifyTeam";
 
 const EVENT_TYPES = [
   { value: "entrenamiento",        label: "Entrenamiento" },
@@ -112,6 +113,7 @@ const buildEmptyForm = (date, teamId) => ({
  */
 export default function CreateEventDialog({ open, onOpenChange, date, teamId, teams }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [form, setForm] = useState(() => buildEmptyForm(date, teamId));
 
   // Reset form when dialog opens
@@ -148,25 +150,22 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
     });
   };
 
+  // Aviso al móvil del equipo (notificación de la app). Antes iba por email, pero no hay servicio de email conectado.
   const sendNotifications = async (createdEvent) => {
     if (!createdEvent?.team_id) return;
-    const [players, staff] = await Promise.all([
-      base44.entities.Player.filter({ team_id: createdEvent.team_id }),
-      base44.entities.StaffMember.filter({ team_id: createdEvent.team_id }),
-    ]);
-    const recipients = [
-      ...players.filter(p => p.email).map(p => ({ email: p.email, name: `${playerFullName(p)}` })),
-      ...staff.filter(s => s.email).map(s => ({ email: s.email, name: `${playerFullName(s)}` })),
-    ];
-    const message = form.notification_message || buildDefaultNotificationMessage(form, teams);
+    const team = teams?.find(t => t.id === createdEvent.team_id);
     const title = form.title?.trim() || (isMatch && form.opponent ? `vs ${form.opponent}` : typeLabel);
-    await Promise.all(recipients.map(r =>
-      base44.integrations.Core.SendEmail({
-        to: r.email,
-        subject: `📅 Nuevo evento: ${title}`,
-        body: `Hola ${r.name},\n\n${message}\n\nRS Manager`,
-      }).catch(() => null)
-    ));
+    try {
+      const r = await notifyTeamPush({
+        teamId: createdEvent.team_id,
+        teamName: team?.name,
+        title: `📅 Nuevo evento: ${title}`,
+        body: form.notification_message || buildDefaultNotificationMessage(form, teams),
+      });
+      toast({ title: "Aviso enviado al equipo", description: pushResultText(r) });
+    } catch (e) {
+      toast({ title: "El evento se ha creado, pero no se pudo enviar el aviso", description: e?.message || "Inténtalo desde Avisos.", variant: "destructive" });
+    }
   };
 
   const createMutation = useMutation({
@@ -345,12 +344,12 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                   }}
                 />
                 <label htmlFor="send_notif" className="text-sm font-medium text-gray-700 cursor-pointer">
-                  Enviar notificación por email al equipo
+                  Avisar al equipo en el móvil (notificación de la app)
                 </label>
               </div>
               {form.send_notification && (
                 <div className="pl-7 space-y-1">
-                  <p className="text-xs text-gray-500">Mensaje del email</p>
+                  <p className="text-xs text-gray-500">Mensaje del aviso</p>
                   <Textarea
                     value={form.notification_message}
                     onChange={e => set("notification_message", e.target.value)}
@@ -358,7 +357,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                     rows={5}
                     placeholder="Escribe el mensaje…"
                   />
-                  <p className="text-[10px] text-gray-400">El mensaje irá precedido de "Hola [nombre]," y finalizado con "RS Manager".</p>
+                  <p className="text-[10px] text-gray-400">Les llegará a quienes tengan activados los avisos en la app (máx. 600 caracteres).</p>
                 </div>
               )}
             </div>

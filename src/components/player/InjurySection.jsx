@@ -44,7 +44,7 @@ const emptyForm = {
 
 const emptyPhase = { id: "", phase_name: "", description: "", start_date: "", end_date: "", status: "pendiente", notes: "" };
 
-export default function InjurySection({ playerId, playerName, playerEmail, staffEmails }) {
+export default function InjurySection({ playerId }) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -125,17 +125,8 @@ export default function InjurySection({ playerId, playerName, playerEmail, staff
   const handleMarkAlta = async (inj) => {
     setSendingAlert(inj.id);
     const today = format(new Date(), "yyyy-MM-dd");
-    await base44.entities.Injury.update(inj.id, { status: "alta", actual_return: today, staff_notified: true });
+    await base44.entities.Injury.update(inj.id, { status: "alta", actual_return: today });
     await base44.entities.Player.update(playerId, { status: "activo" });
-    if (staffEmails?.length > 0) {
-      for (const email of staffEmails) {
-        await base44.integrations.Core.SendEmail({
-          to: email,
-          subject: `✅ Alta médica: ${playerName} regresa a la actividad`,
-          body: `Hola,\n\nEl jugador ${playerName} ha recibido el alta médica el ${format(new Date(), "d MMMM yyyy", { locale: es })} y puede reincorporarse a los entrenamientos.\n\nLesión: ${TYPE_LABELS[inj.type] || inj.type} en ${PART_LABELS[inj.body_part] || inj.body_part} (${inj.severity})\nFecha lesión: ${inj.injury_date}\n\nRS Manager`
-        });
-      }
-    }
     queryClient.invalidateQueries({ queryKey: ["injuries", playerId] });
     queryClient.invalidateQueries({ queryKey: ["players"] });
     setSendingAlert(null);

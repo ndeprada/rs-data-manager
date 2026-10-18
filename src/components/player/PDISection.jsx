@@ -70,7 +70,7 @@ function PDICard({ pdi, onEdit, onDelete, readOnly }) {
   );
 }
 
-export default function PDISection({ playerId, playerName, playerEmail, readOnly = false }) {
+export default function PDISection({ playerId, playerName, readOnly = false }) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
@@ -84,18 +84,9 @@ export default function PDISection({ playerId, playerName, playerEmail, readOnly
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.PDI.create({ ...data, player_id: playerId }),
-    onSuccess: async (created) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pdi", playerId] });
       closeDialog();
-      if (playerEmail) {
-        const period = created.period || new Date(created.date).toLocaleDateString("es-ES", { month: "long", year: "numeric" });
-        const rating = created.overall_rating ? `\n⭐ Valoración global: ${created.overall_rating}/10` : "";
-        await base44.integrations.Core.SendEmail({
-          to: playerEmail,
-          subject: `📊 Nueva evaluación PDI publicada`,
-          body: `Hola ${playerName},\n\nTu entrenador ha publicado una nueva evaluación de rendimiento (PDI):\n\n📅 Período: ${period}${created.evaluator ? `\n👤 Evaluador: ${created.evaluator}` : ""}${rating}${created.strengths ? `\n\n✅ Puntos fuertes:\n${created.strengths}` : ""}${created.areas_to_improve ? `\n\n📈 Áreas de mejora:\n${created.areas_to_improve}` : ""}${created.objectives ? `\n\n🎯 Objetivos:\n${created.objectives}` : ""}\n\nAccede a tu perfil para ver la evaluación completa.\n\nRS Manager`,
-        });
-      }
     },
   });
 

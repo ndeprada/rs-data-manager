@@ -1,13 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { Download, Mail, Send, CheckCircle2, AlertCircle, Loader2, Users, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Download, Mail, AlertCircle, Users } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { format, getMonth, getYear, startOfMonth, endOfMonth } from "date-fns";
+import { format, getMonth, getYear } from "date-fns";
 import { es } from "date-fns/locale";
-import { downloadPlayerPDF, generatePlayerPDF } from "./playerPdfGenerator";
+import { downloadPlayerPDF } from "./playerPdfGenerator";
 import { playerFullName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
 
@@ -16,7 +15,7 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => ({
   label: format(new Date(2000, i, 1), "MMMM", { locale: es }),
 }));
 
-const YEARS = [2024, 2025, 2026].map((y) => ({ value: String(y), label: String(y) }));
+const YEARS = Array.from({ length: new Date().getFullYear() - 2023 }, (_, i) => 2024 + i).map((y) => ({ value: String(y), label: String(y) }));
 
 function getPlayerStats(player, matchStats, attendance, month, year) {
   const stats = matchStats.filter((s) => {
@@ -37,8 +36,6 @@ export default function MonthlyReportSection() {
   const [selectedTeam, setSelectedTeam] = useState("");
   const [month, setMonth] = useState(String(getMonth(now) === 0 ? 12 : getMonth(now)));
   const [year, setYear] = useState(String(getMonth(now) === 0 ? getYear(now) - 1 : getYear(now)));
-  const [sendStatus, setSendStatus] = useState({});
-  const [isSendingAll, setIsSendingAll] = useState(false);
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
@@ -53,103 +50,18 @@ export default function MonthlyReportSection() {
 
   const team = teams.find((t) => t.id === selectedTeam);
 
-  const sendPlayerReport = async (player) => {
-    if (!player.guardian_email) return;
-    const m = parseInt(month);
-    const y = parseInt(year);
-    const { stats, att } = getPlayerStats(player, matchStats, attendance, m, y);
-    const periodLabel = format(new Date(y, m - 1, 1), "MMMM yyyy", { locale: es });
-
-    setSendStatus((prev) => ({ ...prev, [player.id]: "sending" }));
-
-    // Generate PDF blob and upload
-    const doc = generatePlayerPDF(player, team, stats, att, m, y);
-    const pdfBlob = doc.output("blob");
-    const pdfFile = new File([pdfBlob], `informe_${player.first_name}_${player.last_name}_${y}-${String(m).padStart(2, "0")}.pdf`, { type: "application/pdf" });
-
-    let pdfUrl = null;
-    try {
-      const uploaded = await base44.integrations.Core.UploadFile({ file: pdfFile });
-      pdfUrl = uploaded.file_url;
-    } catch (e) {
-      // continue without link
-    }
-
-    const totalGoals = stats.reduce((a, s) => a + (s.goals || 0), 0);
-    const totalAssists = stats.reduce((a, s) => a + (s.assists || 0), 0);
+  // Abre el correo del usuario con un resumen del mes (el PDF se descarga aparte y se adjunta a mano):
+  // la app no envía emails por sí misma.
+  const mailtoFor = (player, stats, att) => {
+    const periodLabel = format(new Date(parseInt(year), parseInt(month) - 1, 1), "MMMM yyyy", { locale: es });
+    const goals = stats.reduce((a, x) => a + (x.goals || 0), 0);
+    const assists = stats.reduce((a, x) => a + (x.assists || 0), 0);
     const present = att.filter((a) => a.status === "present" || a.status === "apart").length;
     const attRate = att.length > 0 ? Math.round((present / att.length) * 100) : null;
-    const ratingStats = stats.filter((s) => s.rating);
-    const avgRating = ratingStats.length > 0
-      ? (ratingStats.reduce((a, s) => a + s.rating, 0) / ratingStats.length).toFixed(1)
-      : null;
-
-    const emailBody = `
-<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a;">
-  <div style="background: #73000A; padding: 24px 28px; border-radius: 8px 8px 0 0;">
-    <h1 style="color: white; margin: 0; font-size: 20px;">Informe Mensual de Rendimiento</h1>
-    <p style="color: rgba(255,255,255,0.7); margin: 6px 0 0; font-size: 14px;">${periodLabel} · ${team?.name || ""}</p>
-  </div>
-  <div style="background: #fff; border: 1px solid #e5e7eb; border-top: none; padding: 24px 28px; border-radius: 0 0 8px 8px;">
-    <p style="font-size: 15px; margin-top: 0;">Estimado/a <strong>${player.guardian_name || "tutor/a"}</strong>,</p>
-    <p style="color: #555; font-size: 14px; line-height: 1.6;">
-      Le enviamos el informe mensual de rendimiento de <strong>${playerFullName(player)}</strong> correspondiente a <strong>${periodLabel}</strong>.
-    </p>
-
-    <div style="background: #f9f9f9; border-radius: 8px; padding: 20px; margin: 20px 0;">
-      <h3 style="margin: 0 0 14px; color: #73000A; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">Resumen del Mes</h3>
-      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-        <tr>
-          <td style="padding: 6px 0; color: #888;">Partidos jugados</td>
-          <td style="padding: 6px 0; font-weight: 600; text-align: right;">${stats.length}</td>
-        </tr>
-        <tr style="background: white;">
-          <td style="padding: 6px 8px; color: #888;">Goles / Asistencias</td>
-          <td style="padding: 6px 8px; font-weight: 600; text-align: right;">${totalGoals} / ${totalAssists}</td>
-        </tr>
-        <tr>
-          <td style="padding: 6px 0; color: #888;">Asistencia a entrenamientos</td>
-          <td style="padding: 6px 0; font-weight: 600; text-align: right;">${att.length > 0 ? `${attRate}% (${present}/${att.length})` : "Sin datos"}</td>
-        </tr>
-        ${avgRating ? `<tr style="background: white;"><td style="padding: 6px 8px; color: #888;">Valoración media</td><td style="padding: 6px 8px; font-weight: 600; text-align: right;">${avgRating}/10</td></tr>` : ""}
-      </table>
-    </div>
-
-    ${pdfUrl ? `
-    <div style="text-align: center; margin: 24px 0;">
-      <a href="${pdfUrl}" style="background: #73000A; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 600;">
-        📄 Descargar Informe PDF
-      </a>
-    </div>
-    ` : ""}
-
-    <p style="color: #888; font-size: 12px; margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">
-      Este informe ha sido generado automáticamente por el sistema RS Manager del club.<br>
-      Para cualquier consulta, contacte con el entrenador del equipo.
-    </p>
-  </div>
-</div>
-    `.trim();
-
-    await base44.integrations.Core.SendEmail({
-      to: player.guardian_email,
-      subject: `Informe mensual de ${playerFullName(player)} — ${periodLabel}`,
-      body: emailBody,
-    });
-
-    setSendStatus((prev) => ({ ...prev, [player.id]: "sent" }));
+    const body = `Estimado/a ${player.guardian_name || "tutor/a"},\n\nLe enviamos el resumen de ${periodLabel} de ${playerFullName(player)} (${team?.name || ""}):\n\n• Partidos jugados: ${stats.length}\n• Goles / asistencias: ${goals} / ${assists}${attRate !== null ? `\n• Asistencia a entrenos: ${attRate}%` : ""}\n\n(Adjuntamos el informe completo en PDF.)\n\nUn saludo,\nRacing Sarrià`;
+    return `mailto:${player.guardian_email}?subject=${encodeURIComponent(`Informe mensual de ${playerFullName(player)} — ${periodLabel}`)}&body=${encodeURIComponent(body)}`;
   };
 
-  const handleSendAll = async () => {
-    setIsSendingAll(true);
-    const withEmail = teamPlayers.filter((p) => p.guardian_email);
-    for (const player of withEmail) {
-      await sendPlayerReport(player);
-    }
-    setIsSendingAll(false);
-  };
-
-  const withEmail = teamPlayers.filter((p) => p.guardian_email);
   const withoutEmail = teamPlayers.filter((p) => !p.guardian_email);
 
   return (
@@ -187,20 +99,10 @@ export default function MonthlyReportSection() {
               </SelectContent>
             </Select>
           </div>
-          {selectedTeam && withEmail.length > 0 && (
-            <Button variant="club"
-              onClick={handleSendAll}
-              disabled={isSendingAll}
-              className="ml-auto"
-            >
-              {isSendingAll
-                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando todos...</>
-                : <><Send className="w-4 h-4 mr-2" /> Enviar a todos ({withEmail.length})</>
-              }
-            </Button>
-          )}
         </div>
       </div>
+
+      <p className="text-xs text-gray-400 -mt-3">Descarga el PDF de cada jugador y envíalo a su familia: el botón Email abre tu correo con el resumen preparado (la app no envía emails por sí misma).</p>
 
       {/* Players list */}
       {selectedTeam && teamPlayers.length === 0 && (
@@ -231,7 +133,6 @@ export default function MonthlyReportSection() {
               const present = att.filter((a) => a.status === "present" || a.status === "apart").length;
               const attRate = att.length > 0 ? Math.round((present / att.length) * 100) : null;
               const totalGoals = stats.reduce((a, s) => a + (s.goals || 0), 0);
-              const status = sendStatus[player.id];
 
               return (
                 <div key={player.id} className="px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors">
@@ -275,18 +176,13 @@ export default function MonthlyReportSection() {
                       <Download className="w-4 h-4" />
                     </button>
                     {player.guardian_email && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => sendPlayerReport(player)}
-                        disabled={status === "sending" || status === "sent"}
-                        className={`text-xs h-8 ${status === "sent" ? "border-green-300 text-green-600 bg-green-50" : ""}`}
+                      <a
+                        href={mailtoFor(player, stats, att)}
+                        className="inline-flex items-center gap-1 px-3 h-8 text-xs font-medium rounded border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
+                        title="Abre tu correo con el resumen preparado; adjunta el PDF descargado"
                       >
-                        {status === "sending" && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
-                        {status === "sent" && <CheckCircle2 className="w-3.5 h-3.5 mr-1" />}
-                        {!status && <Mail className="w-3.5 h-3.5 mr-1" />}
-                        {status === "sent" ? "Enviado" : status === "sending" ? "Enviando..." : "Enviar"}
-                      </Button>
+                        <Mail className="w-3.5 h-3.5" /> Email
+                      </a>
                     )}
                   </div>
                 </div>

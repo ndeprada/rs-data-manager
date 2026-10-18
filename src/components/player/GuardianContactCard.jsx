@@ -1,8 +1,5 @@
 import React, { useState } from "react";
-import { Phone, Mail, User, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { base44 } from "@/api/base44Client";
-import { useToast } from "@/components/ui/use-toast";
+import { Phone, Mail, User, ChevronDown, ChevronUp } from "lucide-react";
 import { playerFullName } from "@/lib/playerName";
 
 const RELATIONSHIP_LABELS = {
@@ -13,8 +10,6 @@ const RELATIONSHIP_LABELS = {
 };
 
 export default function GuardianContactCard({ player }) {
-  const { toast } = useToast();
-  const [sending, setSending] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
   const hasGuardian = player.guardian_name || player.guardian_phone || player.guardian_email;
@@ -22,17 +17,10 @@ export default function GuardianContactCard({ player }) {
 
   const relationship = RELATIONSHIP_LABELS[player.guardian_relationship] || "Tutor legal";
 
-  const handleEmail = async () => {
-    if (!player.guardian_email) return;
-    setSending(true);
-    await base44.integrations.Core.SendEmail({
-      to: player.guardian_email,
-      subject: `Contacto sobre ${playerFullName(player)}`,
-      body: `Estimado/a ${player.guardian_name || "tutor/a"},\n\nNos ponemos en contacto con usted en relación a ${playerFullName(player)}.\n\nQuedamos a su disposición.\n\nUn saludo,\nRS Manager`,
-    });
-    setSending(false);
-    toast({ title: "Email enviado", description: `Se ha enviado un email a ${player.guardian_email}` });
-  };
+  // Abre el programa de correo del usuario con el mensaje preparado (la app no envía emails por sí misma)
+  const emailHref = player.guardian_email
+    ? `mailto:${player.guardian_email}?subject=${encodeURIComponent(`Contacto sobre ${playerFullName(player)}`)}&body=${encodeURIComponent(`Estimado/a ${player.guardian_name || "tutor/a"},\n\nNos ponemos en contacto con usted en relación a ${playerFullName(player)}.\n\nQuedamos a su disposición.\n\nUn saludo`)}`
+    : null;
 
   return (
     <div className="bg-white border border-gray-200 shadow-sm" style={{ borderRadius: "4px", borderTop: "3px solid var(--naranja)" }}>
@@ -62,17 +50,14 @@ export default function GuardianContactCard({ player }) {
               <Phone className="w-3 h-3" /> Llamar
             </a>
           )}
-          {player.guardian_email && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs h-8 border-gray-200"
-              onClick={(e) => { e.stopPropagation(); handleEmail(); }}
-              disabled={sending}
+          {emailHref && (
+            <a
+              href={emailHref}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
             >
-              <Mail className="w-3 h-3 mr-1" />
-              {sending ? "Enviando..." : "Email"}
-            </Button>
+              <Mail className="w-3 h-3" /> Email
+            </a>
           )}
           {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
         </div>

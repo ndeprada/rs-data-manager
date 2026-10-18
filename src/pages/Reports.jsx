@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Download, Sparkles, Loader2, CalendarDays, Users, BookOpen, TrendingUp } from "lucide-react";
+import { FileText, Download, Sparkles, Loader2, Users, BookOpen, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import PDIReportSection from "@/components/reports/PDIReportSection";
 import ProgressionReportSection from "@/components/reports/ProgressionReportSection";
 import { playerFullName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
+import { buildExecutiveSummary } from "@/lib/reportSummary";
 
 import { PageTitle } from "@/components/common/PageHeader";
 import TabBar from "@/components/common/TabBar";
@@ -103,26 +104,10 @@ export default function Reports() {
         };
       });
 
-      // Generate executive summary via LLM
-      const summaryPrompt = `Eres el analista deportivo del club. Genera un resumen ejecutivo profesional en español basado en estos datos de la temporada:
-
-EQUIPOS ANALIZADOS:
-${JSON.stringify(teamSummaries, null, 2)}
-
-El resumen debe incluir:
-1. Una introducción general del estado del club (2-3 frases)
-2. Para cada equipo: rendimiento destacado, puntos fuertes y áreas de mejora
-3. Conclusión con recomendaciones generales (2-3 frases)
-
-Tono: profesional pero cercano, propio de un informe deportivo interno.
-Longitud: conciso pero completo (máx 400 palabras).`;
-
-      const summary = await base44.integrations.Core.InvokeLLM({ prompt: summaryPrompt });
-
       setReportData({
         generatedAt: new Date().toISOString(),
         teams: teamSummaries,
-        executiveSummary: summary,
+        executiveSummary: buildExecutiveSummary(teamSummaries, selectedTeamId === "all" ? "Club completo" : filteredTeams[0]?.name),
         scope: selectedTeamId === "all" ? "Club completo" : filteredTeams[0]?.name,
       });
     } finally {
@@ -189,7 +174,7 @@ Longitud: conciso pero completo (máx 400 palabras).`;
                 {isGenerating ? (
                   <><Loader2 className="w-5 h-5 mr-2.5 animate-spin" /> Generando...</>
                 ) : (
-                  <><Sparkles className="w-5 h-5 mr-2.5" /> Generar informe con IA</>
+                  <><Sparkles className="w-5 h-5 mr-2.5" /> Generar informe</>
                 )}
               </Button>
               {reportData && (
@@ -203,7 +188,7 @@ Longitud: conciso pero completo (máx 400 palabras).`;
           {isGenerating && (
             <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center shadow-sm">
               <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4" style={{ color: "var(--granate)" }} />
-              <p className="text-gray-600 font-medium">Analizando datos y generando resumen...</p>
+              <p className="text-gray-600 font-medium">Reuniendo los datos y preparando el resumen...</p>
               <p className="text-gray-400 text-sm mt-1">Esto puede tardar unos segundos</p>
             </div>
           )}

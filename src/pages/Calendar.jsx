@@ -22,7 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { playerFullName } from "@/lib/playerName";
+import { useToast } from "@/components/ui/use-toast";
+import { notifyTeamPush, pushResultText } from "@/lib/notifyTeam";
 
 import { PageTitle } from "@/components/common/PageHeader";
 const EVENT_TYPES = [
@@ -53,6 +54,7 @@ const MULTIDAY_TYPES = ["torneo", "stage", "concentracion"];
 export default function Calendar() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
@@ -91,24 +93,21 @@ export default function Calendar() {
     return `Se ha añadido un nuevo evento al calendario:\n\n📌 ${event.title}\n🏷️ Tipo: ${eventLabel}\n📅 Fecha: ${eventDate}${event.location ? `\n📍 Lugar: ${event.location}` : ""}${team ? `\n🛡️ Equipo: ${team.name}` : ""}${event.notes ? `\n📝 Notas: ${event.notes}` : ""}`;
   };
 
+  // Aviso al móvil del equipo (notificación de la app). Antes iba por email, pero no hay servicio de email conectado.
   const sendEventNotifications = async (event, customMessage) => {
     if (!event.team_id) return;
-    const [players, staff] = await Promise.all([
-      base44.entities.Player.filter({ team_id: event.team_id }),
-      base44.entities.StaffMember.filter({ team_id: event.team_id }),
-    ]);
-    const message = customMessage || buildDefaultNotificationMessage(event);
-    const recipients = [
-      ...players.filter(p => p.email).map(p => ({ email: p.email, name: `${playerFullName(p)}` })),
-      ...staff.filter(s => s.email).map(s => ({ email: s.email, name: `${playerFullName(s)}` })),
-    ];
-    await Promise.all(recipients.map(r =>
-      base44.integrations.Core.SendEmail({
-        to: r.email,
-        subject: `📅 Nuevo evento: ${event.title}`,
-        body: `Hola ${r.name},\n\n${message}\n\nRS Manager`,
-      }).catch(() => null)
-    ));
+    const team = teams.find(t => t.id === event.team_id);
+    try {
+      const r = await notifyTeamPush({
+        teamId: event.team_id,
+        teamName: team?.name,
+        title: `📅 Nuevo evento: ${event.title}`,
+        body: customMessage || buildDefaultNotificationMessage(event),
+      });
+      toast({ title: "Aviso enviado al equipo", description: pushResultText(r) });
+    } catch (e) {
+      toast({ title: "El evento se ha creado, pero no se pudo enviar el aviso", description: e?.message || "Inténtalo desde Avisos.", variant: "destructive" });
+    }
   };
 
   const createRecurringEvents = async (baseData) => {
@@ -604,12 +603,12 @@ export default function Calendar() {
                     }}
                   />
                   <Label htmlFor="send_notification" className="text-gray-700 cursor-pointer font-medium">
-                    Enviar notificación por email al equipo
+                    Avisar al equipo en el móvil (notificación de la app)
                   </Label>
                 </div>
                 {form.send_notification && (
                   <div className="space-y-2 pl-7">
-                    <Label className="text-gray-600 text-sm">Mensaje del email</Label>
+                    <Label className="text-gray-600 text-sm">Mensaje del aviso</Label>
                     <Textarea
                       value={form.notification_message}
                       onChange={(e) => setForm({ ...form, notification_message: e.target.value })}
@@ -617,7 +616,7 @@ export default function Calendar() {
                       rows={5}
                       placeholder="Escribe el mensaje que recibirán los miembros del equipo..."
                     />
-                    <p className="text-xs text-gray-400">El mensaje irá precedido de "Hola [nombre]," y finalizado con "RS Manager".</p>
+                    <p className="text-xs text-gray-400">Les llegará a quienes tengan activados los avisos en la app (máx. 600 caracteres).</p>
                   </div>
                 )}
               </div>

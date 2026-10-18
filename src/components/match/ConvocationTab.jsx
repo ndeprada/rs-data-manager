@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { Search, Plus, Check, Send, Eye, Clock, MapPin, MessageCircle, Copy, Bell } from "lucide-react";
+import { Search, Plus, Check, Eye, Clock, MapPin, MessageCircle, Copy, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { playerFirstName, playerFullName, matchesPlayerSearch } from "@/lib/playerName";
+import { playerFullName, matchesPlayerSearch } from "@/lib/playerName";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CT", libre: "LIB",
@@ -53,43 +53,6 @@ const NO_CONV_REASONS = [
   { value: "otro",             label: "Otro" },
 ];
 
-function buildEmailHtml({ player, event, team, convocados, noConvocados, callupTime, observations }) {
-  const eventDate = event?.date ? format(new Date(event.date), "EEEE d 'de' MMMM 'de' yyyy", { locale: es }) : "";
-  const matchTime = event?.date ? format(new Date(event.date), "HH:mm") : "";
-  const convList = convocados.map(p => `• ${playerFullName(p)}`).join("\n");
-  const noConvList = noConvocados.map(p => `• ${playerFullName(p)}`).join("\n");
-
-  return `Hola ${playerFirstName(player)},
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  CONVOCATORIA OFICIAL
-  ${team?.name || ""}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🏆 ${event?.title || (event?.opponent ? `vs ${event.opponent}` : "Partido")}
-
-📅 Fecha:     ${eventDate}
-⏰ Partido:   ${matchTime}${callupTime ? `\n🕐 Convocatoria: ${callupTime}` : ""}${event?.location ? `\n📍 Campo:     ${event.location}` : ""}${event?.opponent ? `\n🆚 Rival:     ${event.opponent}` : ""}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  JUGADORES CONVOCADOS (${convocados.length})
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${convList || "—"}
-
-${noConvocados.length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  NO CONVOCADOS (${noConvocados.length})
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${noConvList}
-
-` : ""}${observations ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  OBSERVACIONES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${observations}
-
-` : ""}━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-El cuerpo técnico · ${team?.name || ""}`;
-}
-
 // Mensaje corto para pegar en el grupo de WhatsApp (negritas con *…*)
 import Composer from "@/components/avisos/Composer";
 
@@ -112,9 +75,7 @@ function buildWhatsappText({ event, team, convocados, callupTime, observations }
 }
 
 // ── Preview / Notify Modal ───────────────────────────────
-function NotifyModal({ open, onClose, event, team, convocados, noConvocados, callupTime, observations, onSend, sending }) {
-  const defaultMsg = buildEmailHtml({ player: { first_name: "[Jugador]" }, event, team, convocados, noConvocados, callupTime, observations });
-  const [editableMsg, setEditableMsg] = useState(defaultMsg);
+function NotifyModal({ open, onClose, event, team, convocados, noConvocados, callupTime, observations, onMarkNotified, sending }) {
   const waDefault = buildWhatsappText({ event, team, convocados, callupTime, observations });
   const [waMsg, setWaMsg] = useState(waDefault);
   const [copied, setCopied] = useState(false);
@@ -126,14 +87,13 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
 
   useEffect(() => {
     if (open) setWaMsg(buildWhatsappText({ event, team, convocados, callupTime, observations }));
-    if (open) setEditableMsg(buildEmailHtml({ player: { first_name: "[Jugador]" }, event, team, convocados, noConvocados, callupTime, observations }));
   }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="bg-white border-gray-200 max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-black text-gray-900">Previsualización y envío</DialogTitle>
+          <DialogTitle className="font-black text-gray-900">Avisar de la convocatoria</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5">
@@ -157,18 +117,6 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
             </div>
           </div>
 
-          {/* Mensaje editable */}
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Mensaje que se enviará <span className="font-normal text-gray-400">(editable)</span></p>
-            <Textarea
-              value={editableMsg}
-              onChange={e => setEditableMsg(e.target.value)}
-              rows={18}
-              className="border-gray-200 text-xs font-mono leading-relaxed"
-            />
-            <p className="text-[10px] text-gray-400 mt-1">El saludo "Hola [nombre]," se personalizará automáticamente para cada jugador.</p>
-          </div>
-
           <div className="rounded-lg border border-green-200 bg-green-50/60 p-3 space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-green-800 flex items-center gap-1.5"><MessageCircle className="w-3.5 h-3.5" /> Para el grupo de WhatsApp</p>
             <Textarea value={waMsg} onChange={e => setWaMsg(e.target.value)} rows={10} className="border-green-200 bg-white text-xs leading-relaxed" />
@@ -188,16 +136,13 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
           </div>
 
           <div className="flex gap-3 pt-1">
-            <Button variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
-            <Button variant="club"
-              onClick={() => onSend(editableMsg)}
-              disabled={sending}
-              className="flex-1"
-            >
-              <Send className="w-3.5 h-3.5 mr-1.5" />
-              {sending ? "Enviando…" : `Enviar a ${convocados.filter(p => p.email).length} jugadores`}
+            <Button variant="outline" onClick={onClose} className="flex-1">Cerrar</Button>
+            <Button variant="club" onClick={onMarkNotified} disabled={sending} className="flex-1">
+              <Check className="w-3.5 h-3.5 mr-1.5" />
+              {sending ? "Guardando…" : "Marcar como notificada"}
             </Button>
           </div>
+          <p className="text-[10px] text-gray-400 -mt-2">Copia el mensaje al grupo de WhatsApp y/o envía el aviso al móvil; después márcala como notificada para que quede constancia.</p>
         </div>
       </DialogContent>
     </Dialog>
@@ -257,23 +202,18 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
     setShowNotifyModal(true);
   };
 
-  const handleSend = async (message) => {
+  // Deja constancia de que el entrenador ya ha avisado (WhatsApp y/o aviso al móvil)
+  const handleMarkNotified = async () => {
     setSending(true);
-    const convPlayers = allPlayers.filter(p => convocadoIds.includes(p.id) && p.email);
-    await Promise.all(convPlayers.map(p => {
-      const personalizedMsg = message.replace("[Jugador]", p.first_name);
-      return base44.integrations.Core.SendEmail({
-        to: p.email,
-        subject: `Convocatoria: ${event?.opponent ? `vs ${event.opponent}` : event?.title || "Partido"}`,
-        body: personalizedMsg,
-      });
-    }));
-    if (convocation) {
-      await base44.entities.Convocatoria.update(convocation.id, { notified: true, notified_at: new Date().toISOString() });
+    try {
+      if (convocation) {
+        await base44.entities.Convocatoria.update(convocation.id, { notified: true, notified_at: new Date().toISOString() });
+      }
+      queryClient.invalidateQueries({ queryKey: ["convocatoria", eventId] });
+      setShowNotifyModal(false);
+    } finally {
+      setSending(false);
     }
-    queryClient.invalidateQueries({ queryKey: ["convocatoria", eventId] });
-    setSending(false);
-    setShowNotifyModal(false);
   };
 
   const toggleConvocado = (pid) => {
@@ -383,7 +323,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
           </Button>
           <Button size="sm" variant="outline" onClick={handleSaveAndNotify} disabled={saveMutation.isPending || convocadosCount === 0}
             className="text-xs border-blue-200 text-blue-700 hover:bg-blue-50">
-            <Eye className="w-3.5 h-3.5 mr-1" /> Vista previa y enviar
+            <Eye className="w-3.5 h-3.5 mr-1" /> Avisar convocatoria
           </Button>
         </div>
       </div>
@@ -500,7 +440,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
         noConvocados={noConvocados}
         callupTime={callupTime}
         observations={observations}
-        onSend={handleSend}
+        onMarkNotified={handleMarkNotified}
         sending={sending}
       />
     </div>

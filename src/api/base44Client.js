@@ -179,14 +179,13 @@ export const base44 = {
           body: { filename: file.name || 'archivo', contentType: file.type, base64 },
         });
       },
-      // Sin proveedor de email/LLM configurado todavía: no-op seguro.
+      // No hay servicio de email ni de IA conectado. Fallan a la vista (en vez de fingir que han enviado nada)
+      // para que ninguna pantalla vuelva a marcar como "enviado" algo que no ha salido.
       SendEmail: async () => {
-        console.warn('SendEmail no está configurado todavía.');
-        return { ok: false };
+        throw new Error('El envío de emails no está activado en la app.');
       },
       InvokeLLM: async () => {
-        console.warn('InvokeLLM no está configurado todavía.');
-        return null;
+        throw new Error('La IA no está conectada en la app.');
       },
     },
   },

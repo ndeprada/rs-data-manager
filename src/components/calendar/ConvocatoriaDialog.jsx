@@ -5,10 +5,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, Circle, Send, Users, AlertTriangle, Activity } from "lucide-react";
+import { CheckCircle, Circle, Users, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { playerFirstName, playerFullName } from "@/lib/playerName";
+import { playerFullName } from "@/lib/playerName";
 
 const STATUS_STYLES = {
   activo:   { label: "Activo",    dot: "bg-green-400" },
@@ -25,8 +25,6 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
   const queryClient = useQueryClient();
   const [selectedIds, setSelectedIds] = useState([]);
   const [notes, setNotes] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
 
   const { data: players = [] } = useQuery({
     queryKey: ["players"],
@@ -52,11 +50,9 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
     if (existing) {
       setSelectedIds(existing.player_ids || []);
       setNotes(existing.notes || "");
-      setSent(existing.notified || false);
     } else {
       setSelectedIds([]);
       setNotes("");
-      setSent(false);
     }
   }, [existing, open]);
 
@@ -80,33 +76,6 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
   const selectAll = () => {
     const available = teamPlayers.filter((p) => p.status === "activo").map((p) => p.id);
     setSelectedIds(available);
-  };
-
-  const handleSaveAndNotify = async () => {
-    setSending(true);
-    const convData = {
-      player_ids: selectedIds,
-      notes,
-      notified: true,
-      notified_at: new Date().toISOString(),
-    };
-    await saveMutation.mutateAsync(convData);
-
-    // Send emails to selected players with email
-    const convocados = teamPlayers.filter((p) => selectedIds.includes(p.id) && p.email);
-    const eventDate = event?.date ? format(new Date(event.date), "EEEE d 'de' MMMM 'a las' HH:mm", { locale: es }) : "";
-
-    for (const player of convocados) {
-      await base44.integrations.Core.SendEmail({
-        to: player.email,
-        subject: `📋 Convocatoria: ${event?.title}`,
-        body: `Hola ${playerFirstName(player)},\n\nEstàs convocat/da per al següent partit:\n\n🏟️ ${event?.title}${event?.opponent ? ` vs ${event.opponent}` : ""}\n📅 ${eventDate}${event?.location ? `\n📍 ${event.location}` : ""}${notes ? `\n\n📝 Notes: ${notes}` : ""}\n\nConfirma la teva assistència amb el teu entrenador.\n\nRS Manager`,
-      });
-    }
-
-    setSending(false);
-    setSent(true);
-    queryClient.invalidateQueries({ queryKey: ["convocatorias", event?.id] });
   };
 
   const handleSave = async () => {
@@ -233,27 +202,11 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
           />
         </div>
 
-        {/* Status */}
-        {sent && (
-          <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl border border-green-200">
-            <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-            <p className="text-sm text-green-700 font-medium">
-              Notificaciones enviadas a {teamPlayers.filter(p => selectedIds.includes(p.id) && p.email).length} jugadores
-            </p>
-          </div>
-        )}
-
         {/* Actions */}
-        <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="outline" onClick={handleSave} disabled={sending}>
-            Guardar
-          </Button>
-          <Button variant="club"
-            onClick={handleSaveAndNotify}
-            disabled={sending || selectedIds.length === 0}
-          >
-            <Send className="w-4 h-4 mr-2" />
-            {sending ? "Enviando..." : "Guardar y Notificar"}
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <p className="text-[11px] text-gray-400">Para avisar a los jugadores usa la pestaña Convocatoria del partido (WhatsApp y aviso al móvil).</p>
+          <Button variant="club" onClick={handleSave} disabled={saveMutation.isPending || selectedIds.length === 0}>
+            {saveMutation.isPending ? "Guardando…" : "Guardar"}
           </Button>
         </div>
       </DialogContent>
