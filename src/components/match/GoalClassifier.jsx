@@ -1,6 +1,6 @@
 import React from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GOAL_PHASES, GOAL_AREAS, GOAL_SECTORS, SP_TYPES, SP_HOW } from "@/lib/goalTypes";
+import { GOAL_PHASES, GOAL_AREAS, GOAL_SECTORS, SP_TYPES, SP_HOW, CREATE_ORG, CREATE_TRANS, FINISHES } from "@/lib/goalTypes";
 
 // Clasificación de un gol: fase de juego + (zona y sector) o (tipo de balón parado, cómo y lado)
 function Field({ label, value, onChange, options, placeholder = "—", w = "w-36" }) {
@@ -24,9 +24,10 @@ export default function GoalClassifier({ value = {}, onChange }) {
   const normal = value.phase === "ataque_organizado" || value.phase === "transicion";
   return (
     <>
-      <Field label="Tipo de gol" value={value.phase} onChange={(v) => set({ phase: v, ...(v === "balon_parado" ? { area: "" } : { sp: "", how: "" }) })} options={GOAL_PHASES} placeholder="Tipo…" w="w-40" />
+      <Field label="Tipo de gol" value={value.phase} onChange={(v) => set({ phase: v, create: "", ...(v === "balon_parado" ? { area: "" } : { sp: "", how: "" }) })} options={GOAL_PHASES} placeholder="Tipo…" w="w-40" />
       {normal && (
         <>
+          <Field label="Cómo se creó" value={value.create} onChange={(v) => set({ create: v })} options={value.phase === "transicion" ? CREATE_TRANS : CREATE_ORG} w="w-48" />
           <Field label="Zona" value={value.area} onChange={(v) => set({ area: v })} options={GOAL_AREAS} w="w-36" />
           <Field label="Sector" value={value.sector} onChange={(v) => set({ sector: v })} options={GOAL_SECTORS} w="w-28" />
         </>
@@ -41,6 +42,9 @@ export default function GoalClassifier({ value = {}, onChange }) {
             </>
           )}
         </>
+      )}
+      {(normal || (bp && value.sp !== "penalti")) && (
+        <Field label="Remate" value={value.finish} onChange={(v) => set({ finish: v })} options={FINISHES} w="w-44" />
       )}
     </>
   );

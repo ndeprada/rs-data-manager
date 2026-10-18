@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { fromStored, matchTotal, GOAL_PHASES, GOAL_AREAS, GOAL_SECTORS, SP_TYPES, SP_HOW } from "@/lib/goalTypes";
+import { fromStored, matchTotal, GOAL_PHASES, GOAL_AREAS, GOAL_SECTORS, SP_TYPES, SP_HOW, CREATE_ALL, FINISHES } from "@/lib/goalTypes";
+import { playerFullName } from "@/lib/playerName";
 
 const BUCKETS = ["1-15'", "16-30'", "31-45'", "46-60'", "61-75'", "76-90'", "+90'"];
 
@@ -36,7 +37,33 @@ function Card({ title, sub, children }) {
 }
 
 // Estadísticas de goles marcados y encajados: minutos (tramos de 15' y partes), tipo, zona/sector y balón parado
-export default function GoalStatsPanel({ events = [] }) {
+// Campo (ataque hacia arriba): 6 zonas = dentro/fuera del área × izquierda/centro/derecha
+function GoalMap({ title, color, cells }) {
+  const max = Math.max(1, ...Object.values(cells));
+  const xs = [10, 103, 197], w = 93;
+  const zones = [["dentro", 12, 78], ["fuera", 90, 78]];
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-700 mb-1">{title}</p>
+      <svg viewBox="0 0 300 172" className="w-full rounded-lg border border-gray-200 bg-white">
+        {zones.flatMap(([a, y, h]) => ["izquierda", "centro", "derecha"].map((sct, i) => {
+          const v = cells[`${a}_${sct}`] || 0;
+          return (
+            <g key={a + sct}>
+              <rect x={xs[i]} y={y} width={w} height={h} fill={color} fillOpacity={v ? 0.12 + 0.7 * (v / max) : 0} stroke="#e5e7eb" strokeWidth="1" />
+              {v > 0 && <text x={xs[i] + w / 2} y={y + h / 2 + 7} textAnchor="middle" fontSize="22" fontWeight="700" fill={v / max > 0.55 ? "#fff" : "#374151"}>{v}</text>}
+            </g>
+          );
+        }))}
+        <rect x="10" y="12" width="280" height="156" fill="none" stroke="#9ca3af" strokeWidth="1.5" />
+        <rect x="75" y="12" width="150" height="78" fill="none" stroke="#9ca3af" strokeWidth="1.5" />
+        <rect x="125" y="4" width="50" height="8" fill="none" stroke="#9ca3af" strokeWidth="1.5" />
+      </svg>
+    </div>
+  );
+}
+
+export default function GoalStatsPanel({ events = [], players = [] }) {
   const d = useMemo(() => {
     const goals = [];
     let matches = 0;
@@ -44,7 +71,15 @@ export default function GoalStatsPanel({ events = [] }) {
       if (!e.goal_events?.length) continue;
       matches++;
       const total = matchTotal(e.match_duration);
-      for (const g of e.goal_events) goals.push({ f: g.team === "home", minute: Number(g.minute) || 0, total, c: fromStored(g) });
+      const sorted = [...e.goal_events].sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0));
+      const subs = (e.match_events || []).filter((m) => m.type === "sub");
+      let diff = 0;
+      for (const g of sorted) {
+        const f = g.team === "home", minute = Number(g.minute) || 0;
+        const afterSub = subs.some((sb) => sb.team === g.team && minute > Number(sb.minute) && minute - Number(sb.minute) <= 10);
+        goals.push({ f, minute, total, c: fromStored(g), state: diff < 0 ? "perdiendo" : diff > 0 ? "ganando" : "empatando", afterSub, scorer: g.player_id, assist: g.assist_player_id });
+        diff += f ? 1 : -1;
+      }
     }
     const count = (keyFn, list) => list.map((l) => ({ label: l.label, f: goals.filter((g) => g.f && keyFn(g) === l.value).length, a: goals.filter((g) => !g.f && keyFn(g) === l.value).length }));
     const bucket = (g) => Math.min(6, Math.max(0, Math.ceil(g.minute / 15) - 1));
@@ -58,11 +93,30 @@ export default function GoalStatsPanel({ events = [] }) {
     const area = cnt2(open, "area", GOAL_AREAS);
     const sector = cnt2(open, "sector", GOAL_SECTORS);
     const bp = goals.filter((g) => g.c.phase === "balon_parado");
-    return { goals, matches, minutes, parts, phase, area, sector, bp: { type: cnt2(bp, "sp", SP_TYPES).filter((r) => r.f || r.a), how: cnt2(bp, "how", SP_HOW), side: cnt2(bp, "sector", GOAL_SECTORS) }, total: { f: goals.filter((g) => g.f).length, a: goals.filter((g) => !g.f).length }, unclassified: goals.filter((g) => !g.c.phase).length };
+    const create = cnt2(goals, "create", CREATE_ALL).filter((r) => r.f || r.a);
+    const finish = cnt2(goals, "finish", FINISHES).filter((r) => r.f || r.a);
+    const stateRows = [["perdiendo", "Yendo perdiendo"], ["empatando", "Con empate"], ["ganando", "Yendo ganando"]].map(([k, label]) => ({ label, f: goals.filter((g) => g.f && g.state === k).length, a: goals.filter((g) => !g.f && g.state === k).length }));
+    const afterSub = { f: goals.filter((g) => g.f && g.afterSub).length, a: goals.filter((g) => !g.f && g.afterSub).length };
+    const tally = (list, keyFn) => { const m = new Map(); list.forEach((g) => { const k = keyFn(g); if (k) m.set(k, (m.get(k) || 0) + 1); }); return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5); };
+    const ours = goals.filter((g) => g.f);
+    const scorers = tally(ours, (g) => g.scorer);
+    const assisters = tally(ours, (g) => g.assist);
+    const pairs = tally(ours, (g) => g.scorer && g.assist ? `${g.assist}>${g.scorer}` : "");
+    const mapCells = (isOurs) => { const m = {}; goals.filter((g) => g.f === isOurs && g.c.phase !== "balon_parado" && g.c.area && g.c.sector).forEach((g) => { const k = `${g.c.area}_${g.c.sector}`; m[k] = (m[k] || 0) + 1; }); return m; };
+    return { create, finish, stateRows, afterSub, scorers, assisters, pairs, mapF: mapCells(true), mapA: mapCells(false), goals, matches, minutes, parts, phase, area, sector, bp: { type: cnt2(bp, "sp", SP_TYPES).filter((r) => r.f || r.a), how: cnt2(bp, "how", SP_HOW), side: cnt2(bp, "sector", GOAL_SECTORS) }, total: { f: goals.filter((g) => g.f).length, a: goals.filter((g) => !g.f).length }, unclassified: goals.filter((g) => !g.c.phase).length };
   }, [events]);
 
   if (!d.goals.length) return <p className="text-sm text-gray-400 text-center py-10">Aún no hay goles registrados con minuto. Se rellenan en cada partido (Acta o Estadísticas).</p>;
   const hasBp = d.bp.type.length > 0;
+  const pname = (id) => { const p = players.find((x) => x.id === id); return p ? playerFullName(p) : "—"; };
+  const List = ({ title, items, fmt }) => (
+    <div>
+      <p className="text-xs font-semibold text-gray-700 mb-1">{title}</p>
+      {items.length ? items.map(([k, n]) => (
+        <div key={k} className="flex items-center justify-between text-xs py-0.5"><span className="text-gray-600 truncate">{fmt(k)}</span><b className="text-gray-800 tabular-nums">{n}</b></div>
+      )) : <p className="text-[11px] text-gray-400">Sin datos</p>}
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -86,6 +140,33 @@ export default function GoalStatsPanel({ events = [] }) {
         <Card title="Dónde (juego no parado)" sub="Zona y sector del campo">
           <DualBars rows={d.area} />
           <div className="mt-4 pt-3 border-t border-gray-100"><DualBars rows={d.sector} /></div>
+        </Card>
+        <Card title="Fábrica de goles" sub="Cómo se crean y cómo acaban">
+          {d.create.length || d.finish.length ? (
+            <>
+              <DualBars rows={d.create} />
+              {d.finish.length > 0 && <div className="mt-4 pt-3 border-t border-gray-100"><DualBars rows={d.finish} /></div>}
+            </>
+          ) : <p className="text-xs text-gray-400">Aún no hay goles con «cómo se creó» o «remate».</p>}
+        </Card>
+        <Card title="Marcador y cambios" sub="Cuándo marcamos y encajamos según el momento del partido">
+          <DualBars rows={d.stateRows} />
+          <div className="mt-4 pt-3 border-t border-gray-100">
+            <DualBars rows={[{ label: "Tras un cambio (10')", f: d.afterSub.f, a: d.afterSub.a }]} />
+          </div>
+        </Card>
+        <Card title="Mapa de goles" sub="Dónde marcamos y dónde encajamos (juego no parado; ataque hacia arriba)">
+          <div className="grid grid-cols-2 gap-3">
+            <GoalMap title="Marcamos" color="#73000A" cells={d.mapF} />
+            <GoalMap title="Encajamos" color="#4b5563" cells={d.mapA} />
+          </div>
+        </Card>
+        <Card title="Quién marca y quién asiste" sub="Solo goles nuestros con jugador indicado">
+          <div className="grid sm:grid-cols-3 gap-4">
+            <List title="Goleadores" items={d.scorers} fmt={pname} />
+            <List title="Asistentes" items={d.assisters} fmt={pname} />
+            <List title="Parejas" items={d.pairs} fmt={(k) => { const [a, s] = k.split(">"); return `${pname(a)} → ${pname(s)}`; }} />
+          </div>
         </Card>
         <Card title="Balón parado" sub="Tipo, cómo y por qué lado">
           {hasBp ? (
