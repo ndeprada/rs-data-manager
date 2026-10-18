@@ -402,19 +402,42 @@ export default function Calendar() {
                       style={isToday ? { background: "var(--granate)" } : isSelected ? { background: "var(--granate)", opacity: 0.7 } : {}}>
                       {format(day, "d")}
                     </span>
-                    {dayEvts.slice(0, 2).map((evt) => {
-                      const isMatch = isMatchType(evt.type);
-                      const eventColor = isMatch ? "var(--granate)" : "var(--naranja)";
-                      return (
-                        <div key={evt.id}
-                          onClick={(e) => { e.stopPropagation(); isMatch ? navigate(`/MatchDetail?id=${evt.id}&teamId=${evt.team_id}`) : navigate(`/MyTeam/Attendance?eventId=${evt.id}`); }}
-                          className="text-[9px] truncate px-1.5 py-0.5 rounded-full font-bold text-white hover:opacity-80 transition-opacity cursor-pointer leading-tight w-full"
-                          style={{ background: eventColor }}>
-                          {isMatch && evt.is_home === true && <HomeIcon className="inline w-2.5 h-2.5 mr-0.5 -mt-0.5" />}{isMatch && evt.is_home === false && <PlaneIcon className="inline w-2.5 h-2.5 mr-0.5 -mt-0.5" />}{isMatch && evt.opponent_logo_url && <img src={evt.opponent_logo_url} alt="" className="inline w-3 h-3 object-contain bg-white rounded-full mr-0.5 -mt-0.5" referrerPolicy="no-referrer" />}{evt.title}
+                    {filterTeam === "all" ? (
+                      // Vista de todo el club: un resumen por día (si no, un fin de semana tiene decenas de partidos). Al pulsar se ve el detalle debajo.
+                      dayEvts.length > 0 && (() => {
+                        const nm = dayEvts.filter((e) => isMatchType(e.type)).length, nt = dayEvts.length - nm;
+                        const chip = "text-[10px] font-bold text-white rounded-full px-1.5 py-0.5 leading-tight w-fit sm:w-full sm:text-center";
+                        return (
+                          <div className="flex flex-col gap-0.5 w-full">
+                            {nm > 0 && <span className={chip} style={{ background: "var(--granate)" }}>{nm}<span className="hidden sm:inline"> {nm === 1 ? "partido" : "partidos"}</span></span>}
+                            {nt > 0 && <span className={chip} style={{ background: "var(--naranja)" }}>{nt}<span className="hidden sm:inline"> {nt === 1 ? "entreno" : "entrenos"}</span></span>}
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <>
+                        <div className="hidden sm:flex flex-col gap-0.5 w-full">
+                          {dayEvts.slice(0, 2).map((evt) => {
+                            const isMatch = isMatchType(evt.type);
+                            const eventColor = isMatch ? "var(--granate)" : "var(--naranja)";
+                            return (
+                              <div key={evt.id}
+                                onClick={(e) => { e.stopPropagation(); isMatch ? navigate(`/MatchDetail?id=${evt.id}&teamId=${evt.team_id}`) : navigate(`/MyTeam/Attendance?eventId=${evt.id}`); }}
+                                className="text-[9px] truncate px-1.5 py-0.5 rounded-full font-bold text-white hover:opacity-80 transition-opacity cursor-pointer leading-tight w-full"
+                                style={{ background: eventColor }}>
+                                <span className="opacity-80 mr-0.5">{format(new Date(evt.date), "HH:mm")}</span>
+                                {isMatch && evt.is_home === true && <HomeIcon className="inline w-2.5 h-2.5 mr-0.5 -mt-0.5" />}{isMatch && evt.is_home === false && <PlaneIcon className="inline w-2.5 h-2.5 mr-0.5 -mt-0.5" />}{isMatch && evt.opponent_logo_url && <img src={evt.opponent_logo_url} alt="" className="inline w-3 h-3 object-contain bg-white rounded-full mr-0.5 -mt-0.5" referrerPolicy="no-referrer" />}{evt.title}
+                              </div>
+                            );
+                          })}
+                          {dayEvts.length > 2 && <p className="text-[9px] text-gray-500 px-0.5 font-medium">+{dayEvts.length - 2}</p>}
                         </div>
-                      );
-                    })}
-                    {dayEvts.length > 2 && <p className="text-[9px] text-gray-400 px-0.5 font-medium">+{dayEvts.length - 2}</p>}
+                        {/* En el móvil, puntos de color: no caben textos */}
+                        <div className="flex sm:hidden flex-wrap gap-0.5 px-0.5">
+                          {dayEvts.slice(0, 6).map((evt) => <span key={evt.id} className="w-2 h-2 rounded-full" style={{ background: isMatchType(evt.type) ? "var(--granate)" : "var(--naranja)" }} />)}
+                        </div>
+                      </>
+                    )}
                   </button>
                 );
               })}

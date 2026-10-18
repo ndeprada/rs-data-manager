@@ -158,3 +158,8 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 .rs-rich .ql-editor ol, .rs-rich .ql-editor ul { padding-left: 0; }
 .rs-rich .ql-editor li:not(.ql-direction-rtl) { padding-left: 1.3em; }
 .rs-rich .ql-editor li:not(.ql-direction-rtl)::before { margin-left: -1.3em; margin-right: 0.15em; width: 1.15em; text-align: left; }
+
+/* Contraste de los grises claros: se usaban para texto y no se leían bien (lo recomendado es 4,5:1 como mínimo).
+   Los iconos y separadores decorativos que los usan quedan un poco más marcados, sin cambiar el estilo. */
+.text-gray-300 { color: #8b92a0; }
+.text-gray-400 { color: #6f7684; }

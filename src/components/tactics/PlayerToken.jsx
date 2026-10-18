@@ -39,14 +39,15 @@ export default function PlayerToken({ position, assignment, players, onAssign, r
             ? `${assignedPlayer.first_name?.[0]}${assignedPlayer.last_name?.[0]}`
             : position.label}
         </div>
-        <span
-          className="text-[9px] font-bold px-1 py-0.5 rounded text-white shadow"
-          style={{ background: "rgba(0,0,0,0.55)" }}
-        >
-          {assignedPlayer
-            ? `${playerFirstName(assignedPlayer)?.split(" ")[0]} ${assignedPlayer.last_name?.split(" ")[0]}`
-            : position.label}
-        </span>
+        {/* Sin jugador, el círculo ya dice la posición: no se repite debajo */}
+        {assignedPlayer && (
+          <span
+            className="text-[9px] font-bold px-1 py-0.5 rounded text-white shadow"
+            style={{ background: "rgba(0,0,0,0.55)" }}
+          >
+            {`${playerFirstName(assignedPlayer)?.split(" ")[0]} ${assignedPlayer.last_name?.split(" ")[0]}`}
+          </span>
+        )}
       </button>
 
       {/* Dropdown to assign player */}

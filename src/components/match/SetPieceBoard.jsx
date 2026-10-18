@@ -51,6 +51,12 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 const newPiece = (n) => ({ id: uid(), name: `Jugada ${n}`, type: "corner_favor", signal: "", notes: "", tokens: [], arrows: [] });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lightColor = (c) => ["#ffffff", "#facc15"].includes(c);
+// Dos fichas pegadas con el mismo rol (p. ej. dos "Lanzador") no repiten la etiqueta: se escribe una sola vez, en la primera
+const roleDuplicated = (t, tokens) => {
+  if (!t.role) return false;
+  const i = tokens.indexOf(t);
+  return tokens.some((o, j) => j < i && o.role === t.role && o.kind === t.kind && Math.abs(o.x - t.x) < 36 && Math.abs(o.y - t.y) < 16);
+};
 const shortName = (p) => (p ? `${playerFirstName(p)} ${(p.last_name || "").split(" ")[0]}`.trim() : "");
 
 // Compatibilidad con jugadas antiguas (flechas sin estilo, fichas sin tamaño)
@@ -85,8 +91,8 @@ const TEMPLATES = [
   { key: "corner_contra", label: "Córner en contra", make: () => ({ tokens: [mkRiv(284, 22, "X", "Lanzador"), mkBall(292, 12), mkOwn(150, 18, "P"), mkOwn(112, 30, "Z"), mkOwn(188, 30, "Z"), mkOwn(90, 62, "Z"), mkOwn(130, 70, "Z"), mkOwn(170, 70, "Z"), mkOwn(210, 62, "Z"), mkOwn(118, 100, "M", "Marca"), mkOwn(182, 100, "M", "Marca"), mkOwn(150, 128, "C", "Cobertura"), mkRiv(104, 48, "1"), mkRiv(150, 46, "2"), mkRiv(196, 48, "3"), mkRiv(232, 80, "4")], arrows: [] }) },
   { key: "falta_lateral", label: "Falta lateral a favor", make: () => ({ tokens: [mkOwn(44, 158, "L", "Lanzador"), mkBall(52, 152), ...[75, 105, 135, 165, 195, 225].map((x, i) => mkOwn(x, 118, String(i + 1))), mkOwn(112, 162, "R", "Rechace"), mkOwn(188, 162, "R", "Rechace"), mkOwn(150, 200, "C", "Cobertura")],
     arrows: [mkArr(58, 150, 158, 40, { cx: 70, cy: 70 }), ...[75, 105, 135, 165, 195, 225].map((x, i) => mkArr(x, 114, 108 + i * 17, 62, { dashed: true }))] }) },
-  { key: "falta_frontal", label: "Falta frontal a favor", make: () => ({ tokens: [mkOwn(138, 132, "L", "Lanzador"), mkOwn(164, 132, "L", "Lanzador"), mkBall(150, 124), mkRiv(150, 18, "P"), ...[130, 140, 150, 160, 170].map((x) => mkRiv(x, 102, "B")), mkOwn(120, 52, "1"), mkOwn(150, 56, "2"), mkOwn(182, 52, "3"), mkOwn(96, 120, "R", "Rechace"), mkOwn(204, 120, "R", "Rechace"), mkOwn(150, 182, "C", "Cobertura")], arrows: [mkArr(150, 118, 190, 36, { cx: 200, cy: 90 })] }) },
-  { key: "falta_contra", label: "Falta en contra (barrera + zona)", make: () => ({ tokens: [mkRiv(176, 132, "X", "Lanzador"), mkBall(166, 128), mkOwn(150, 18, "P"), ...[132, 141, 150, 159, 168].map((x, i) => mkOwn(x, 100, String(i + 1), i === 0 ? "Barrera" : "")), mkOwn(84, 62, "Z"), mkOwn(108, 64, "Z"), mkOwn(192, 64, "Z"), mkOwn(216, 62, "Z"), mkOwn(150, 72, "Z"), mkOwn(150, 150, "R", "Rechace")], arrows: [] }) },
+  { key: "falta_frontal", label: "Falta frontal a favor", make: () => ({ tokens: [mkOwn(138, 132, "T", "Toque"), mkOwn(164, 132, "L", "Lanzador"), mkBall(150, 124), mkRiv(150, 18, "P"), ...[122, 136, 150, 164, 178].map((x) => ({ ...mkRiv(x, 102, "B"), size: 0.75 })), mkOwn(120, 52, "1"), mkOwn(150, 56, "2"), mkOwn(182, 52, "3"), mkOwn(96, 120, "R", "Rechace"), mkOwn(204, 120, "R", "Rechace"), mkOwn(150, 182, "C", "Cobertura")], arrows: [mkArr(150, 118, 190, 36, { cx: 200, cy: 90 })] }) },
+  { key: "falta_contra", label: "Falta en contra (barrera + zona)", make: () => ({ tokens: [mkRiv(176, 132, "X", "Lanzador"), mkBall(166, 128), mkOwn(150, 18, "P"), ...[122, 136, 150, 164, 178].map((x, i) => ({ ...mkOwn(x, 100, String(i + 1), i === 0 ? "Barrera" : ""), size: 0.75 })), mkOwn(84, 62, "Z"), mkOwn(108, 64, "Z"), mkOwn(192, 64, "Z"), mkOwn(216, 62, "Z"), mkOwn(150, 72, "Z"), mkOwn(150, 150, "R", "Rechace")], arrows: [] }) },
   { key: "saque_banda", label: "Saque de banda", make: () => ({ tokens: [mkOwn(8, 124, "L", "Saque"), mkBall(18, 124), mkOwn(44, 100, "1"), mkOwn(50, 148, "2"), mkOwn(86, 124, "3"), mkRiv(58, 116, "A"), mkRiv(72, 138, "B")], arrows: [mkArr(26, 124, 80, 124), mkArr(86, 124, 120, 100, { dashed: true }), mkArr(44, 100, 70, 80, { dashed: true })] }) },
 ];
 const fromTemplate = (tpl, n) => ({ ...newPiece(n), name: tpl.label, type: tpl.key, ...tpl.make() });
@@ -352,6 +358,7 @@ function Board({ piece, onChange, candidates, lookup, kitOf, header, side }) {
           const f = Math.max(8, 6.8 * scale * Math.min(size, 1.3));
           const shown = own ? (player ? player.jersey_number || player.first_name?.[0] || "" : t.label) : t.label;
           const nameTxt = player ? shortName(player) : "";
+          const roleTxt = roleDuplicated(t, piece.tokens) ? "" : t.role;
           return (
             <div key={t.id} onPointerDown={(e) => tokenDown(e, t)} className="absolute touch-none"
               style={{ left, top, width: d, height: d, transform: "translate(-50%,-50%)", pointerEvents: interactiveTokens ? "auto" : "none", cursor: tool === "move" ? "grab" : "pointer", zIndex: selToken?.id === t.id ? 20 : 10 }}>
@@ -359,10 +366,10 @@ function Board({ piece, onChange, candidates, lookup, kitOf, header, side }) {
                 style={{ background: fill, color: num, border: `${Math.max(1.5, d / 12)}px solid ${stroke}`, fontSize: d * (String(shown).length > 2 ? 0.42 : 0.58), outline: ring, outlineOffset: 2, fontFamily: F_BIG, letterSpacing: "0.03em" }}>
                 {String(shown).slice(0, 4)}
               </div>
-              {(nameTxt || t.role) && (
+              {(nameTxt || roleTxt) && (
                 <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center whitespace-nowrap uppercase" style={{ top: "100%", marginTop: 1, fontFamily: F_TXT }}>
                   {nameTxt && <span className="font-bold text-center leading-tight" style={{ fontSize: f, color: own ? GRANATE : RIVAL_COLOR }}>{nameTxt}</span>}
-                  {t.role && <span className="font-bold text-center leading-tight" style={{ fontSize: f * 0.85, color: NARANJA }}>{t.role}</span>}
+                  {roleTxt && <span className="font-bold text-center leading-tight" style={{ fontSize: f * 0.85, color: NARANJA }}>{roleTxt}</span>}
                 </div>
               )}
             </div>
@@ -551,7 +558,7 @@ function pieceSvg(piece, candidates, kitOf) {
     const k = Math.min(sz, 1.3);
     let yy = t.y + r + 7.5 * k;
     if (pl) { o += txt(t.x, yy, 6.8 * k, own ? "#73000A" : RIVAL_COLOR, shortName(pl).toUpperCase(), 700); yy += 7 * k; }
-    if (t.role) o += txt(t.x, yy, 5.8 * k, "#FF6E00", t.role.toUpperCase(), 700);
+    if (t.role && !roleDuplicated(t, piece.tokens)) o += txt(t.x, yy, 5.8 * k, "#FF6E00", t.role.toUpperCase(), 700);
   }
   return o + "</svg>";
 }

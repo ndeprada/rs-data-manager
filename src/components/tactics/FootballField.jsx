@@ -3,16 +3,18 @@ import React from "react";
 export default function FootballField({ children }) {
   return (
     <div
-      className="relative w-full select-none"
+      className="relative w-full max-w-md mx-auto select-none"
       style={{
-        aspectRatio: "100 / 65",
-        background: "linear-gradient(90deg, #3d7d4e 0%, #4a9a5f 8%, #3d7d4e 8%, #3d7d4e 16%, #4a9a5f 16%, #4a9a5f 24%, #3d7d4e 24%, #3d7d4e 32%, #4a9a5f 32%, #4a9a5f 40%, #3d7d4e 40%, #3d7d4e 48%, #4a9a5f 48%, #4a9a5f 56%, #3d7d4e 56%, #3d7d4e 64%, #4a9a5f 64%, #4a9a5f 72%, #3d7d4e 72%, #3d7d4e 80%, #4a9a5f 80%, #4a9a5f 88%, #3d7d4e 88%)",
+        aspectRatio: "65 / 100",
+        background: "linear-gradient(180deg, #3d7d4e 0%, #4a9a5f 8%, #3d7d4e 8%, #3d7d4e 16%, #4a9a5f 16%, #4a9a5f 24%, #3d7d4e 24%, #3d7d4e 32%, #4a9a5f 32%, #4a9a5f 40%, #3d7d4e 40%, #3d7d4e 48%, #4a9a5f 48%, #4a9a5f 56%, #3d7d4e 56%, #3d7d4e 64%, #4a9a5f 64%, #4a9a5f 72%, #3d7d4e 72%, #3d7d4e 80%, #4a9a5f 80%, #4a9a5f 88%, #3d7d4e 88%)",
         borderRadius: "4px",
         overflow: "hidden",
       }}
     >
       {/* Field lines SVG overlay */}
-      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1000 650" preserveAspectRatio="none">
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 650 1000" preserveAspectRatio="none">
+        {/* El campo se dibujó en horizontal; se gira para que la portería propia quede arriba, como en las posiciones de las formaciones */}
+        <g transform="matrix(0 1 1 0 0 0)">
         {/* Outer border - con esquinas redondeadas */}
         <rect x="30" y="30" width="940" height="590" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2.5" rx="8" ry="8" />
         
@@ -58,6 +60,7 @@ export default function FootballField({ children }) {
         <path d="M 962 30 A 8 8 0 0 1 970 38" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2.5" />
         <path d="M 970 612 A 8 8 0 0 1 962 620" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2.5" />
         <path d="M 38 620 A 8 8 0 0 1 30 612" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2.5" />
+      </g>
       </svg>
 
       {/* Player tokens */}
