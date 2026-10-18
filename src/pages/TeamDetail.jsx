@@ -1,5 +1,6 @@
 import TeamMatchesColumns from "@/components/team/TeamMatchesColumns";
 import TeamSquadTable from "@/components/team/TeamSquadTable";
+import TeamSeasonHistory from "@/components/team/TeamSeasonHistory";
 import React, { useState } from "react";
 import { getCategoryLabel } from "@/components/fcfCategories";
 import { base44 } from "@/api/base44Client";
@@ -213,6 +214,8 @@ export default function TeamDetail() {
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
         <TeamStaffSection teamId={teamId} />
       </div>
+
+      <TeamSeasonHistory teamId={teamId} />
 
 
 

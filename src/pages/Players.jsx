@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
+import PlayerArchive from "@/components/players/PlayerArchive";
+import TabBar from "@/components/common/TabBar";
 import { format } from "date-fns";
 import { playerSearchName } from "@/lib/playerName";
 
@@ -71,6 +73,7 @@ export default function Players() {
   const [filterNat, setFilterNat] = useState("all");
   const [sortKey, setSortKey] = useState("last_name");
   const [sortDir, setSortDir] = useState("asc");
+  const [view, setView] = useState("current"); // current | history
 
   const togglePositionFilter = (pos) => {
     const newSet = new Set(filterPosition);
@@ -101,6 +104,12 @@ export default function Players() {
     queryKey: ["teams"],
     queryFn: () => base44.entities.Team.list(),
   });
+
+  const { data: archivedPlayers = [] } = useQuery({
+    queryKey: ["players_archived"],
+    queryFn: () => base44.entities.Player.archived({}, "only"),
+  });
+  const historyCount = new Set([...archivedPlayers.map((p) => p.id), ...players.filter((p) => p.status === "baja").map((p) => p.id)]).size;
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Player.delete(id),
@@ -156,6 +165,14 @@ export default function Players() {
         </Button>
       </div>
 
+      <TabBar
+        value={view}
+        onChange={setView}
+        items={[{ value: "current", label: "Plantilla actual" }, { value: "history", label: "Histórico", badge: historyCount }]}
+      />
+      {view === "history" && <PlayerArchive players={players} teams={teams} />}
+
+      {view === "current" && (<>
       {/* Resumen */}
       <div className="grid grid-cols-3 gap-3">
         {[["Jugadores", players.length], ["Activos", players.filter(p => (p.status || "activo") === "activo").length], ["Lesionados", players.filter(p => p.status === "lesionado").length]].map(([l, v]) => (
@@ -324,6 +341,8 @@ export default function Players() {
           </div>
         </div>
       )}
+
+      </>)}
 
       <AddPlayerDialog
         open={dialogOpen}

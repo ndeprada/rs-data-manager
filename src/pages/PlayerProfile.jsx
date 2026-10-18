@@ -72,7 +72,14 @@ export default function PlayerProfile() {
   const [injuryDialogOpen, setInjuryDialogOpen] = useState(false);
   const [tab, setTab] = useState("resumen");
 
-  const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
+  const { data: players = [], isFetched: playersFetched } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
+  // Un jugador dado de baja en un cierre de temporada no sale en el listado general: se pide su ficha directamente
+  const inList = players.some((p) => p.id === playerId);
+  const { data: archivedPlayer = null, isLoading: archLoading } = useQuery({
+    queryKey: ["player_by_id", playerId],
+    queryFn: async () => (await base44.entities.Player.filter({ id: playerId }))[0] || null,
+    enabled: !!playerId && playersFetched && !inList,
+  });
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: staffList = [] } = useQuery({ queryKey: ["staff"], queryFn: () => base44.entities.StaffMember.list() });
   const { data: attendance = [] } = useQuery({ queryKey: ["attendance"], queryFn: () => base44.entities.TrainingAttendance.list() });
@@ -81,7 +88,7 @@ export default function PlayerProfile() {
   const matchStats = useCountedStats(raw_matchStats);
   const { data: convocatorias = [] } = useQuery({ queryKey: ["convocatorias"], queryFn: () => base44.entities.Convocatoria.list() });
 
-  const player = players.find((p) => p.id === playerId);
+  const player = players.find((p) => p.id === playerId) || archivedPlayer;
   const { events: allEvents, allStats: allMatchStats } = useCleanSheetData(player?.position === "portero");
   const team = teams.find((t) => t.id === player?.team_id);
   const teamStaff = staffList.filter((s) => s.team_id === player?.team_id && s.email);
@@ -109,6 +116,7 @@ export default function PlayerProfile() {
     // return resolved so ImageCropDialog can close after completion
   };
 
+  if (!player && archLoading) return <p className="text-center py-20 text-sm text-gray-400">Cargando…</p>;
   if (!player) return (
     <div className="text-center py-20">
       <p className="text-gray-500">Jugador no encontrado</p>
