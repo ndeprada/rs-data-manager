@@ -144,6 +144,8 @@ export const base44 = {
     seasonStatus: (season) => clubGet('season_status', { season }),
     seasonClose: (season, standings = {}, dry = false) => clubPost('season_close', { season, standings, dry }),
     seasonReopen: (season) => clubPost('season_reopen', { season }),
+    // Informe del rival de un partido de liga (datos públicos de la FCF)
+    rivalReport: (event_id) => clubGet('rival', { event_id }),
     // Copias de seguridad (coordinación)
     backupList: () => clubGet('backup_list'),
     backupCreate: () => clubPost('backup_create'),

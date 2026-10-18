@@ -4,6 +4,7 @@ import webpush from 'web-push';
 import { query, db } from './_lib/db.js';
 import { seasonStatus, closeSeason, reopenSeason, HttpError } from './_lib/season.js';
 import { createBackup, listBackups, getBackupGz, snapshotNow, gzipSnapshot } from './_lib/backup.js';
+import { rivalReport } from './_lib/fcfRival.js';
 import { requireUser } from './_lib/auth.js';
 import { isAdmin, coachTeamIdsOf } from './_lib/access.js';
 
@@ -328,6 +329,15 @@ export default async function handler(req, res) {
     if (a === 'season_reopen' && req.method === 'POST') {
       if (!isCoord(user)) return res.status(403).json({ error: 'forbidden' });
       return res.status(200).json(await reopenSeason(db, { season: String(body.season || '') }));
+    }
+
+    // ── Informe del rival (cuerpo técnico) ──────────────────────
+    if (a === 'rival') {
+      if (!isAdmin(user) && !STAFF.includes(user.app_role)) return res.status(403).json({ error: 'forbidden' });
+      const id = String(req.query.event_id || '');
+      if (!id) return res.status(400).json({ error: 'event_id' });
+      try { return res.status(200).json(await rivalReport(id)); }
+      catch (e) { console.error('rival', e); return res.status(200).json({ available: false, reason: 'fcf_error' }); }
     }
 
     // ── Copias de seguridad (coordinación) ──────────────────────

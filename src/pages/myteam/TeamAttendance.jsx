@@ -250,13 +250,15 @@ export default function TeamAttendance() {
                 {sessionCounts.pending > 0 && <><span className="text-gray-300"> · </span><span className="font-bold text-amber-600">{sessionCounts.pending} sin marcar</span></>}
               </p>
             </div>
-            <Button variant="outline" size="sm" className="text-xs h-7 border-green-200 text-green-700 hover:bg-green-50"
-              onClick={() => teamPlayers.forEach(p => { if (!recFor(p.id).status) save(p.id, { status: "present" }); })}>
-              <Check className="w-3 h-3 mr-1" /> Todos asisten
-            </Button>
-            <button onClick={() => setEditingEvent(selectedEvent)} className="p-1.5 rounded hover:bg-orange-50 text-gray-400 hover:text-orange-600" title="Editar evento">
-              <Pencil className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button variant="outline" size="sm" className="text-xs h-7 border-green-200 text-green-700 hover:bg-green-50"
+                onClick={() => teamPlayers.forEach(p => { if (!recFor(p.id).status) save(p.id, { status: "present" }); })}>
+                <Check className="w-3 h-3 mr-1" /> Todos asisten
+              </Button>
+              <button onClick={() => setEditingEvent(selectedEvent)} className="p-1.5 rounded hover:bg-orange-50 text-gray-400 hover:text-orange-600" title="Editar evento">
+                <Pencil className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>

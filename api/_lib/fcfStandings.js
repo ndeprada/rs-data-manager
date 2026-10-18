@@ -5,7 +5,7 @@ const API = 'https://www.fcf.cat/api/competition';
 const UA = 'Mozilla/5.0 (compatible; RSDataManager/1.0)';
 const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
-async function getJson(path) {
+export async function getJson(path) {
   const r = await fetch(`${API}/${path}`, { headers: { 'user-agent': UA, accept: 'application/json' } });
   if (!r.ok) throw new Error(`FCF ${r.status} ${path}`);
   const j = await r.json();
@@ -38,27 +38,36 @@ async function discoverGroup(team) {
   return null;
 }
 
+// Encuentra (y guarda en el equipo la primera vez) el grupo de la FCF en el que juega y devuelve su clasificación.
+export async function resolveGroup(teamId) {
+  const { rows } = await query(`select id, data from entities where id = $1 and entity_type = 'Team'`, [teamId]);
+  if (!rows[0]) return { notFound: true };
+  const team = rows[0].data;
+  let grupId = team.fcf_group_id, table = null, competition = team.fcf_competition_label || '', group = team.fcf_group_label || '';
+  if (grupId) {
+    table = await getJson(`classificacio?grupId=${grupId}`).catch(() => null);
+    if (!has(table, team.fcf_team_code)) { grupId = null; table = null; }
+  }
+  if (!grupId) {
+    const found = await discoverGroup(team);
+    if (!found) return { team, available: false };
+    ({ grupId, table, competition, group } = found);
+    await query(`update entities set data = data || $1::jsonb, updated_at = now() where id = $2`,
+      [JSON.stringify({ fcf_group_id: grupId, fcf_competition_label: competition, fcf_group_label: group }), teamId]);
+  }
+  return { team, available: true, grupId, table, competition, group };
+}
+
 export async function standingsHandler(req, res) {
   const user = await getCurrentUser(req);
   if (!user) return res.status(401).json({ error: 'auth_required' });
   const teamId = String(req.query.team_id || '');
   if (!teamId) return res.status(400).json({ error: 'team_id' });
   try {
-    const { rows } = await query(`select id, data from entities where id = $1 and entity_type = 'Team'`, [teamId]);
-    if (!rows[0]) return res.status(404).json({ error: 'not_found' });
-    const team = rows[0].data;
-    let grupId = team.fcf_group_id, table = null, competition = team.fcf_competition_label || '', group = team.fcf_group_label || '';
-    if (grupId) {
-      table = await getJson(`classificacio?grupId=${grupId}`).catch(() => null);
-      if (!has(table, team.fcf_team_code)) { grupId = null; table = null; }
-    }
-    if (!grupId) {
-      const found = await discoverGroup(team);
-      if (!found) return res.status(200).json({ available: false });
-      ({ grupId, table, competition, group } = found);
-      await query(`update entities set data = data || $1::jsonb, updated_at = now() where id = $2`,
-        [JSON.stringify({ fcf_group_id: grupId, fcf_competition_label: competition, fcf_group_label: group }), teamId]);
-    }
+    const g = await resolveGroup(teamId);
+    if (g.notFound) return res.status(404).json({ error: 'not_found' });
+    if (!g.available) return res.status(200).json({ available: false });
+    const { team, grupId, table, competition, group } = g;
     const out = rowsOf(table).map((r) => ({
       pos: Number(r.position), team: r.team?.name || '', logo: r.team?.logo || '', teamId: String(r.team?.teamId || ''),
       pts: Number(r.points), pj: r.played, g: r.won, e: r.drawn, p: r.lost, gf: Number(r.goalsFor), gc: Number(r.goalsAgainst),

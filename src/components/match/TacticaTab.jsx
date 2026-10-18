@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import RichTextBox from "./RichTextBox";
+import RivalReport from "./RivalReport";
 import { playerFirstName, playerFullName, matchesPlayerSearch } from "@/lib/playerName";
 
 const FORMATIONS_F11 = ["4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "3-4-3", "5-3-2", "4-5-1", "4-1-4-1"];
@@ -487,6 +488,9 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
             placeholder="Ej: Córner a favor: 2 al primer palo; en contra: marcaje mixto, 9 rival vigilado…" />
         </div>
       </div>
+
+      {/* ── Ficha del rival (datos de la FCF) ── */}
+      <RivalReport eventId={event?.id} enabled={event?.type === "partido_liga" && !!event?.opponent} />
 
       {/* ── Análisis del rival ── */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
