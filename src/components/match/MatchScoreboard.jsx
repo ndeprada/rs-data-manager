@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Upload, Shield } from "lucide-react";
+import { Upload } from "lucide-react";
 
 /**
  * Muestra el marcador con los escudos de ambos equipos.

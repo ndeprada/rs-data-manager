@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
-import { Trophy, Clock, Target, Star, Square } from "lucide-react";
+import { Trophy, Star } from "lucide-react";
 import { useCountedStats } from "@/lib/matchStatus";
 import { usePlayerMode } from "@/lib/playerMode";
 

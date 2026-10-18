@@ -1,7 +1,7 @@
 import React from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Download, Trophy, Users, Target, AlertCircle } from "lucide-react";
+import { Download, Target, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function ReportPreview({ data, onDownload }) {

@@ -3,9 +3,8 @@ import { Suspense } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Shield, CalendarDays, Menu, X,
-  FileText, BarChart2, Target, Binoculars, LogOut,
-  ChevronDown, ChevronRight, ClipboardList, UserCog,
-  UserCheck, Layers, Trophy, Calendar, MapPin, Package, BookOpen, Bell, CalendarRange
+  FileText, BarChart2, Target, Binoculars, LogOut, ChevronRight, ClipboardList, UserCog,
+  UserCheck, Trophy, Calendar, MapPin, Package, BookOpen, Bell, CalendarRange
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";

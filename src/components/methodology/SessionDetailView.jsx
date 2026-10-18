@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { GAME_MOMENTS, SESSION_PHASES, getGameMoment, getSessionPhase } from "./methodologyConfig";
-import { Clock, Printer, ChevronLeft, Upload, X } from "lucide-react";
+import { SESSION_PHASES, getGameMoment } from "./methodologyConfig";
+import { Clock, Printer, ChevronLeft, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";

@@ -5,11 +5,26 @@ const API = 'https://www.fcf.cat/api/competition';
 const UA = 'Mozilla/5.0 (compatible; RSDataManager/1.0)';
 const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
-export async function getJson(path) {
+async function fetchJson(path) {
   const r = await fetch(`${API}/${path}`, { headers: { 'user-agent': UA, accept: 'application/json' } });
   if (!r.ok) throw new Error(`FCF ${r.status} ${path}`);
   const j = await r.json();
   return j.data !== undefined ? j.data : j;
+}
+
+// Las clasificaciones se guardan 5 minutos en memoria: el Panel pide la de cada equipo y no hace falta ir a la FCF cada vez.
+// Los datos son públicos y solo se guardan las respuestas correctas; las peticiones iguales simultáneas comparten una sola consulta.
+const TTL = 5 * 60 * 1000;
+const cache = new Map();
+export async function getJson(path) {
+  if (!path.startsWith('classificacio?')) return fetchJson(path);
+  const hit = cache.get(path);
+  if (hit && hit.exp > Date.now()) return hit.p;
+  const p = fetchJson(path);
+  cache.set(path, { p, exp: Date.now() + TTL });
+  p.catch(() => { if (cache.get(path)?.p === p) cache.delete(path); });
+  if (cache.size > 300) for (const [k, v] of cache) if (v.exp < Date.now()) cache.delete(k);
+  return p;
 }
 
 const rowsOf = (g) => (Array.isArray(g) ? g : []);

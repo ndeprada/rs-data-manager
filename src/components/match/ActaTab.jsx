@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from "react";
-import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Save, Star, ChevronDown, ChevronUp, AlertTriangle, Pencil } from "lucide-react";
+import { Plus, Trash2, Save, Star, AlertTriangle, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { playerFullName } from "@/lib/playerName";
 import { isPrimerEquipo } from "@/lib/primerEquipo";
 import LineupSummary from "@/components/match/LineupSummary";

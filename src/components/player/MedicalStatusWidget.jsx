@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { HeartPulse, Activity, CheckCircle } from "lucide-react";
+import { HeartPulse, Activity } from "lucide-react";
 import { differenceInDays, format } from "date-fns";
 import { es } from "date-fns/locale";
 

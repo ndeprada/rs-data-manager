@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, StickyNote, Move, LayoutGrid, Link as LinkIcon, Pencil, MousePointer, Eraser, Undo2 } from "lucide-react";
+import { Plus, Trash2, StickyNote, Move, LayoutGrid, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

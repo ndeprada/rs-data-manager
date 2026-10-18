@@ -1,5 +1,5 @@
 import React from "react";
-import { TrendingUp, ExternalLink } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import FCFTeamStanding from "./FCFTeamStanding";
 
 export default function FCFClassificationsPanel({ teams }) {

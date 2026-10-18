@@ -5,7 +5,6 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Users, Plus, Pencil, Trash2, Search, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,7 +12,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import PlayerArchive from "@/components/players/PlayerArchive";
 import TabBar from "@/components/common/TabBar";
-import { format } from "date-fns";
 import { playerSearchName } from "@/lib/playerName";
 
 import { PageTitle } from "@/components/common/PageHeader";

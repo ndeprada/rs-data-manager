@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -7,10 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
-  Plus, Trash2, Save, Pencil, Eraser, MousePointer,
-  StickyNote, ChevronDown, LayoutGrid, Move, Undo2
+  Plus, Trash2, Pencil, Eraser, MousePointer,
+  StickyNote, LayoutGrid, Move, Undo2
 } from "lucide-react";
-import DrawableField from "@/components/tactics/DrawableField";
 import FootballField from "@/components/tactics/FootballField";
 import PlayerToken from "@/components/tactics/PlayerToken";
 import { FORMATIONS, FORMATION_KEYS } from "@/components/tactics/formations";

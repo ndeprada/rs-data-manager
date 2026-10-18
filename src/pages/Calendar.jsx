@@ -1,14 +1,13 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, Plus, ChevronLeft, ChevronRight, Pencil, Trash2, MapPin, Users, ClipboardList, FileText, List, Home as HomeIcon, Plane as PlaneIcon } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Pencil, Trash2, MapPin, Users, ClipboardList, FileText, Home as HomeIcon, Plane as PlaneIcon } from "lucide-react";
 import EventAttendanceDialog from "@/components/calendar/EventAttendanceDialog";
 import ConvocatoriaDialog from "@/components/calendar/ConvocatoriaDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
 import { sortTeams } from "@/lib/teamOrder";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import SessionReportDialog from "@/components/calendar/SessionReportDialog";
-import SessionReportPanel from "@/components/calendar/SessionReportPanel";
 import EventListWithDragDrop from "@/components/calendar/EventListWithDragDrop";
 import WeeklyCalendar from "@/components/calendar/WeeklyCalendar";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, startOfDay } from "date-fns";

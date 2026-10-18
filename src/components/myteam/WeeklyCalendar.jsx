@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, isSameDay, isToday } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, MapPin, Clock, Plus, Home, Plane } from "lucide-react";
 import { useNavigate } from "react-router-dom";

@@ -668,7 +668,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
     } catch (e) { flash("No se pudo guardar: " + (e?.message || "error")); }
   };
   // Usar una jugada guardada: se mantiene todo, y los jugadores solo si siguen disponibles; si no, queda vacío para reasignar
-  const useFromLibrary = (l) => {
+  const addFromLibrary = (l) => {
     const ok = new Set(candidates.map((p) => p.id));
     const p = {
       ...newPiece(pieces.length + 1), name: l.name, type: l.type, signal: l.signal || "", notes: l.notes || "", lib_id: l.id,
@@ -753,7 +753,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
                     <p className="text-xs font-bold text-gray-900 truncate">{l.name || "Sin nombre"}</p>
                     <p className="text-[10px] text-gray-400 truncate">{typeLabel(l.type)}{l.signal ? ` · Señal: ${l.signal}` : ""}</p>
                   </div>
-                  <button type="button" onClick={() => useFromLibrary(l)} className="text-[11px] font-bold text-white px-2 py-1 rounded shrink-0" style={{ background: "var(--granate)" }}>Usar</button>
+                  <button type="button" onClick={() => addFromLibrary(l)} className="text-[11px] font-bold text-white px-2 py-1 rounded shrink-0" style={{ background: "var(--granate)" }}>Usar</button>
                   <button type="button" onClick={() => removeFromLibrary(l)} className="p-1 text-gray-300 hover:text-red-500 shrink-0" title="Quitar de la biblioteca"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               ))}

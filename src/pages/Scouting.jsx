@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ScoutedPlayersList from "@/components/scouting/ScoutedPlayersList.jsx";
 import ObservedTeamsList from "@/components/scouting/ObservedTeamsList";

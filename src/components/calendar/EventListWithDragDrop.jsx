@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { MapPin, Clock, Pencil, Trash2, Users, FileText, ClipboardList, Home as HomeIcon, Plane as PlaneIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 const EVENT_TYPES = [
   { value: "partido_amistoso", label: "Partido amistoso", isMatch: true },

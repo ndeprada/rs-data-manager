@@ -2,7 +2,7 @@ import { sortTeams, compareTeams, isF7Team, teamRank } from "@/lib/teamOrder";
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, UserCog, Swords, MapPin, Trophy, ClipboardCheck, Users, Target } from "lucide-react";
+import { UserCog, Swords, MapPin, Trophy, ClipboardCheck, Users, Target } from "lucide-react";
 import { format, startOfDay, addDays, isSameDay, differenceInMinutes, startOfWeek, endOfDay, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { Link } from "react-router-dom";

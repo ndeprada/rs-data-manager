@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Swords, ChevronRight, MapPin, Filter, Home, Plane } from "lucide-react";
+import { Swords, ChevronRight, MapPin, Home, Plane } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import { useCountedStats } from "@/lib/matchStatus";

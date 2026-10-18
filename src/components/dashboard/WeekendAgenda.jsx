@@ -1,9 +1,9 @@
 import React, { useState, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { format, startOfWeek, endOfWeek, addDays, isWithinInterval, parseISO, nextSaturday, nextSunday, isSaturday, isSunday, startOfDay } from "date-fns";
+import { format, addDays, parseISO, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
-import { Download, ChevronLeft, ChevronRight, Home, MapPin, Clock, Edit2, Check, X, Shirt } from "lucide-react";
+import { Download, ChevronLeft, ChevronRight, Edit2, Check, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";

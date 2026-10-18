@@ -1,10 +1,10 @@
 import { birthYearOf } from "@/lib/birthYear";
 import { Flag, countryOf } from "@/lib/countries";
 import React from "react";
-import { LEVELS, getPositionList, getPitchXY, getPitchMarkers } from "@/lib/playerPositions";
+import { LEVELS, getPositionList, getPitchMarkers } from "@/lib/playerPositions";
 import { findRole } from "@/lib/competencyCatalog";
 import { FootIndicator } from "./PlayerPositionBadges";
-import { Phone, Mail, Calendar, Zap, MapPin, Hash } from "lucide-react";
+import { Phone, Mail } from "lucide-react";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CT", libre: "LIB",

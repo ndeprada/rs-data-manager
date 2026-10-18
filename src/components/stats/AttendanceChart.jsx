@@ -1,6 +1,6 @@
 import React from "react";
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { format, parseISO, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from "date-fns";
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { format, subMonths, eachMonthOfInterval } from "date-fns";
 import { es } from "date-fns/locale";
 
 export default function AttendanceChart({ attendance }) {

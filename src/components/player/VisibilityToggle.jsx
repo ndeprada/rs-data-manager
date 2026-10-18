@@ -1,6 +1,5 @@
 import React from "react";
 import { Eye, Lock } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
 
 // Selector obligatorio: ¿lo puede ver el jugador? value: true | false | null (sin decidir)
 export function VisibilityField({ value, onChange, error }) {

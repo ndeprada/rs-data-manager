@@ -1,11 +1,9 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { Users, ArrowLeft } from "lucide-react";
+import { Users } from "lucide-react";
 import TeamPageHeader from "@/components/myteam/TeamPageHeader";
 import { useSelectedTeam } from "@/lib/useSelectedTeam";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import TeamSquadTable from "@/components/team/TeamSquadTable";
 

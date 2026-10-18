@@ -7,8 +7,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, BarChart2, BookOpen, Clock, HeartPulse,
   Camera, Loader2, Pencil, Trash2, User,
-  Shield, Phone, Mail,
-  Plus, LayoutGrid, IdCard, FileText, History
+  Shield,
+  Plus, LayoutGrid, FileText, History
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -22,14 +22,12 @@ import PDIPlanSection from "../components/player/PDIPlanSection";
 import Evaluation360Section from "../components/player/Evaluation360Section";
 import InjurySection from "../components/player/InjurySection";
 import PlayerPerformancePanel from "../components/player/PlayerPerformancePanel";
-import GuardianContactCard from "../components/player/GuardianContactCard";
 import DocumentsSection from "../components/player/DocumentsSection";
 import TrainingLoadSection from "../components/player/TrainingLoadSection";
 import PlayerSeasonHistorySection from "../components/player/PlayerSeasonHistorySection";
 import { getExtraPositions } from "@/lib/playerPositions";
 import { MiniPitch, FootIndicator } from "../components/player/PlayerPositionBadges";
 import PlayerSummaryTab from "../components/player/PlayerSummaryTab";
-import PlayerInfoCards from "../components/player/PlayerInfoCards";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import InjuryRegistrationDialog from "@/components/player/InjuryRegistrationDialog";

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, AlertTriangle, CheckCircle } from "lucide-react";
+import { Plus, CheckCircle } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 

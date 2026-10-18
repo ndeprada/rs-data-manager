@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useRef, useState, useCallback } from "react";
 
 const DRAW_COLORS = [
   { label: "Blanco", value: "#ffffff" },

@@ -4,7 +4,7 @@ import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Trash2, Users, FileText, Map, Pencil, Upload, MapPin, Calendar, ClipboardCheck } from "lucide-react";
-import { CLUB_LOGO_URL, CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
+import { CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";

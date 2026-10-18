@@ -1,5 +1,4 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
 import { Trash2, Undo2, Download, Pencil, Circle, Minus, ArrowRight } from "lucide-react";
 
 const COLORS = ["#e11d48", "#2563eb", "#16a34a", "#f59e0b", "#7c3aed", "#000000", "#ffffff"];
