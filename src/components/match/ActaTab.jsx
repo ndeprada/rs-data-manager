@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { playerFullName } from "@/lib/playerName";
 import { isPrimerEquipo } from "@/lib/primerEquipo";
 import LineupSummary from "@/components/match/LineupSummary";
+import GoalClassifier from "@/components/match/GoalClassifier";
+import { toStored, fromStored, goalLabel } from "@/lib/goalTypes";
 
 // ── Formatos de partido ──────────────────────────────────
 const FOOTBALL_FORMATS = [
@@ -137,7 +139,7 @@ function Timeline({ events, players, opponent, onRemove, onEdit }) {
           <div className="flex items-baseline gap-1.5 flex-1 min-w-0">
             <span className="text-xs font-black text-gray-500 w-7 shrink-0" style={{ fontFamily: "var(--font-display)" }}>{ev.minute}'</span>
             <span className="text-xs text-gray-700 truncate">{getDesc(ev)}</span>
-            {ev.type === "goal" && <span className="text-[9px] text-gray-400 shrink-0">{GOAL_TYPES.find(g => g.value === ev.goalType)?.label}</span>}
+            {ev.type === "goal" && <span className="text-[9px] text-gray-400 shrink-0">{goalLabel(ev.goalDetail || fromStored({ goal_type: ev.goalType })) || GOAL_TYPES.find(g => g.value === ev.goalType)?.label}</span>}
             {String(ev.id).startsWith("fcf_") && !ev.edited && <span className="text-[8px] font-bold text-blue-500 bg-blue-50 rounded px-1 shrink-0">FCF</span>}
             {ev.edited && <span className="text-[8px] font-bold text-green-600 bg-green-50 rounded px-1 shrink-0">editado</span>}
           </div>
@@ -174,7 +176,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
   const [newEvMinute, setNewEvMinute] = useState("");
   const [newEvPlayerId, setNewEvPlayerId] = useState("");
   const [newEvAssistId, setNewEvAssistId] = useState("");
-  const [newEvGoalType, setNewEvGoalType] = useState("dentro_area");
+  const [newEvGoal, setNewEvGoal] = useState({});
   const [newEvPlayerIn, setNewEvPlayerIn] = useState("");
   const [newEvPlayerOut, setNewEvPlayerOut] = useState("");
   const [newEvCardColor, setNewEvCardColor] = useState("yellow");
@@ -216,6 +218,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
         playerId: g.player_id,
         assistId: g.assist_player_id,
         goalType: g.goal_type,
+        goalDetail: fromStored(g),
       }));
       setMatchEvents(loaded);
     }
@@ -238,7 +241,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
     }
 
     const ev = { id: Date.now().toString(), type: newEvType, team: newEvTeam, minute };
-    if (newEvType === "goal") { ev.playerId = newEvPlayerId; ev.assistId = newEvAssistId; ev.goalType = newEvGoalType; }
+    if (newEvType === "goal") { ev.playerId = newEvPlayerId; ev.assistId = newEvAssistId; ev.goalDetail = newEvGoal; ev.goalType = toStored(newEvGoal).goal_type; }
     if (newEvType === "sub") { ev.playerIn = newEvPlayerIn; ev.playerOut = newEvPlayerOut; }
     if (newEvType === "card") { ev.playerId = newEvPlayerId; ev.cardColor = newEvCardColor; }
 
@@ -246,7 +249,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
     setMatchEvents(next);
     persistEvents(next).then(() => saveStats(next, true));
     setEventWarning(warning);
-    setNewEvMinute(""); setNewEvPlayerId(""); setNewEvAssistId(""); setNewEvPlayerIn(""); setNewEvPlayerOut("");
+    setNewEvGoal({}); setNewEvMinute(""); setNewEvPlayerId(""); setNewEvAssistId(""); setNewEvPlayerIn(""); setNewEvPlayerOut("");
   };
 
   const persistEvents = async (next) => {
@@ -255,7 +258,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
       goal_events_source: "manual",
       goal_events: next.filter(e => e.type === "goal").map(e => ({
         id: e.id, team: e.team, minute: e.minute,
-        player_id: e.playerId, assist_player_id: e.assistId, goal_type: e.goalType,
+        player_id: e.playerId, assist_player_id: e.assistId, goal_type: e.goalType, ...toStored(e.goalDetail || fromStored({ goal_type: e.goalType })),
       })),
     });
     queryClient.invalidateQueries({ queryKey: ["event", eventId] });
@@ -306,7 +309,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
       goal_events_source: "manual",
       goal_events: matchEvents.filter(e => e.type === "goal").map(e => ({
         id: e.id, team: e.team, minute: e.minute,
-        player_id: e.playerId, assist_player_id: e.assistId, goal_type: e.goalType,
+        player_id: e.playerId, assist_player_id: e.assistId, goal_type: e.goalType, ...toStored(e.goalDetail || fromStored({ goal_type: e.goalType })),
       })),
     });
     queryClient.invalidateQueries({ queryKey: ["event", eventId] });
@@ -460,24 +463,10 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <p className="text-[10px] text-gray-400 mb-1">Tipo de gol</p>
-                <Select value={newEvGoalType} onValueChange={setNewEvGoalType}>
-                  <SelectTrigger className="h-8 w-44 text-xs border-gray-200"><SelectValue /></SelectTrigger>
-                  <SelectContent>{GOAL_TYPES.map(g => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
+              <GoalClassifier value={newEvGoal} onChange={setNewEvGoal} />
             </>
           )}
-          {newEvType === "goal" && newEvTeam === "away" && (
-            <div>
-              <p className="text-[10px] text-gray-400 mb-1">Tipo de gol encajado</p>
-              <Select value={newEvGoalType} onValueChange={setNewEvGoalType}>
-                <SelectTrigger className="h-8 w-44 text-xs border-gray-200"><SelectValue /></SelectTrigger>
-                <SelectContent>{GOAL_TYPES.map(g => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          )}
+          {newEvType === "goal" && newEvTeam === "away" && <GoalClassifier value={newEvGoal} onChange={setNewEvGoal} />}
           {newEvType === "sub" && (
             <>
               <div>
@@ -583,15 +572,8 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
                       <Input value={editEv.fcfName || ""} onChange={e => setE("fcfName", e.target.value)} className="h-9 border-gray-200" placeholder="Nombre (opcional)" />
                     </div>
                   )}
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Tipo de gol</p>
-                    <Select value={editEv.goalType || "none"} onValueChange={v => setE("goalType", v === "none" ? "" : v)}>
-                      <SelectTrigger className="h-9 text-sm border-gray-200"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">— Sin indicar —</SelectItem>
-                        {GOAL_TYPES.map(g => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex flex-wrap gap-2">
+                    <GoalClassifier value={editEv.goalDetail || fromStored({ goal_type: editEv.goalType })} onChange={d => setEditEv(prev => ({ ...prev, goalDetail: d, goalType: toStored(d).goal_type }))} />
                   </div>
                 </>
               )}

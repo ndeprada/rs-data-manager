@@ -3,7 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart2, Users } from "lucide-react";
+import { BarChart2, Users, Target } from "lucide-react";
+import GoalStatsPanel from "@/components/stats/GoalStatsPanel";
 import AttendanceChart from "@/components/stats/AttendanceChart";
 import MatchResultsChart from "@/components/stats/MatchResultsChart";
 import MinutesDistributionChart from "@/components/stats/MinutesDistributionChart";
@@ -150,6 +151,9 @@ export default function Stats() {
           <TabsTrigger value="matches" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-medium">
             <BarChart2 className="w-4 h-4 mr-2" /> Partidos
           </TabsTrigger>
+          <TabsTrigger value="goals" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-medium">
+            <Target className="w-4 h-4 mr-2" /> Goles
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="attendance" className="mt-6">
@@ -161,6 +165,10 @@ export default function Stats() {
 
         <TabsContent value="matches" className="mt-6">
           <MatchResultsChart events={filteredEvents} />
+        </TabsContent>
+
+        <TabsContent value="goals" className="mt-6">
+          <GoalStatsPanel events={filteredEvents} />
         </TabsContent>
       </Tabs>
     </div>

@@ -13,6 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { playerFirstName, playerFullName } from "@/lib/playerName";
+import GoalClassifier from "@/components/match/GoalClassifier";
+import { toStored, fromStored, goalLabel } from "@/lib/goalTypes";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
@@ -138,7 +140,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
   const [convocNotes, setConvocNotes] = useState("");
   const [pendingConvocIds, setPendingConvocIds] = useState([]);
   const [noConvocReasons, setNoConvocReasons] = useState({});
-  const [newGoal, setNewGoal] = useState({ team: "home", minute: "", player_id: "", assist_player_id: "", goal_type: "" });
+  const [newGoal, setNewGoal] = useState({ team: "home", minute: "", player_id: "", assist_player_id: "", goal: {} });
 
   const { data: convocation } = useQuery({
     queryKey: ["convocation", eventId],
@@ -233,7 +235,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
       minute: parseInt(newGoal.minute),
       player_id: newGoal.player_id||null,
       assist_player_id: newGoal.assist_player_id||null,
-      goal_type: newGoal.goal_type||null,
+      ...toStored(newGoal.goal),
     }].sort((a,b)=>a.minute-b.minute);
     const newHome = events.filter(g=>g.team==="home").length;
     const newAway = events.filter(g=>g.team==="away").length;
@@ -245,7 +247,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
       queryClient.invalidateQueries({queryKey:["event",eventId]});
       setMatchData(prev=>({...prev, team_goals: newHome, opponent_goals: newAway}));
     });
-    setNewGoal({team:"home",minute:"",player_id:"",assist_player_id:"",goal_type:""});
+    setNewGoal({team:"home",minute:"",player_id:"",assist_player_id:"",goal:{}});
   };
 
   const removeGoalEvent = (id) => {
@@ -347,15 +349,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
               </div>
             </>
           )}
-          <div>
-            <p className="text-xs text-gray-500 mb-1">Tipo de gol</p>
-            <Select value={newGoal.goal_type} onValueChange={v=>setNewGoal(g=>({...g,goal_type:v}))}>
-              <SelectTrigger className="h-8 w-44 text-xs border-gray-200 bg-white"><SelectValue placeholder="Tipo…"/></SelectTrigger>
-              <SelectContent>
-                {Object.entries(GOAL_TYPES).map(([k,v])=><SelectItem key={k} value={k}>{v}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+          <GoalClassifier value={newGoal.goal} onChange={goal=>setNewGoal(g=>({...g,goal}))} />
           <Button size="sm" onClick={addGoalEvent} disabled={!newGoal.minute} className="text-white h-8" style={{background:"var(--granate)"}}>
             <Plus className="w-3.5 h-3.5 mr-1"/>Añadir gol
           </Button>
@@ -380,7 +374,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
                     ):(
                       <span className="text-gray-500 italic">{event?.opponent||"Rival"}</span>
                     )}
-                    {g.goal_type&&<span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium">{GOAL_TYPES[g.goal_type]||g.goal_type}</span>}
+                    {(goalLabel(fromStored(g))||g.goal_type)&&<span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium">{goalLabel(fromStored(g))||GOAL_TYPES[g.goal_type]||g.goal_type}</span>}
                   </span>
                   <button onClick={()=>removeGoalEvent(g.id)} className="text-gray-300 hover:text-red-400 transition-colors">
                     <Trash2 className="w-3.5 h-3.5"/>
