@@ -32,7 +32,7 @@ export default function TabBar({ items, value, onChange, fill = false, className
             className={cn(
               "min-w-0 flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-colors",
               fill && "flex-col sm:flex-row px-0.5 py-2 sm:py-2 text-[10px] sm:text-xs leading-tight gap-0.5 sm:gap-1.5",
-              active ? "text-white shadow-sm" : "text-gray-500 hover:text-gray-800 hover:bg-white/60"
+              active ? "text-white shadow-sm" : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
             )}
             style={active ? { background: "var(--granate)" } : undefined}
           >
