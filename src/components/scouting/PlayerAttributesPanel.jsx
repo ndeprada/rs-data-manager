@@ -221,12 +221,10 @@ export default function PlayerAttributesPanel({ player }) {
             <button onClick={cancelEdit} className="p-2 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-700 transition-colors">
               <X className="w-4 h-4" />
             </button>
-            <Button
+            <Button variant="club"
               onClick={handleSave}
               disabled={saveMutation.isPending}
               size="sm"
-              className="text-white"
-              style={{ background: "var(--granate)" }}
             >
               <Check className="w-3.5 h-3.5 mr-1" />
               {saveMutation.isPending ? "Guardando..." : "Guardar"}

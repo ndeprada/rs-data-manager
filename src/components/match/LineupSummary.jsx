@@ -215,7 +215,7 @@ export default function LineupSummary({ eventId, event, convocation, convocados,
                 )}
                 <div className="flex-1" />
                 <Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button>
-                <Button onClick={save} disabled={saving} className="text-white" style={{ background: "var(--granate)" }}>{saving ? "Guardando…" : "Guardar"}</Button>
+                <Button variant="club" onClick={save} disabled={saving}>{saving ? "Guardando…" : "Guardar"}</Button>
               </div>
             </div>
           )}

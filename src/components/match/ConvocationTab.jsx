@@ -189,11 +189,10 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
 
           <div className="flex gap-3 pt-1">
             <Button variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
-            <Button
+            <Button variant="club"
               onClick={() => onSend(editableMsg)}
               disabled={sending}
-              className="flex-1 text-white"
-              style={{ background: "var(--granate)" }}
+              className="flex-1"
             >
               <Send className="w-3.5 h-3.5 mr-1.5" />
               {sending ? "Enviando…" : `Enviar a ${convocados.filter(p => p.email).length} jugadores`}
@@ -379,7 +378,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
           <Button size="sm" variant="outline" onClick={() => setShowGuestSearch(!showGuestSearch)} className="text-xs border-gray-200">
             <Plus className="w-3.5 h-3.5 mr-1" /> Añadir de otro equipo
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="text-white text-xs" style={{ background: "var(--granate)" }}>
+          <Button variant="club" size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="text-xs">
             <Check className="w-3.5 h-3.5 mr-1" /> {saveMutation.isPending ? "Guardando…" : "Guardar"}
           </Button>
           <Button size="sm" variant="outline" onClick={handleSaveAndNotify} disabled={saveMutation.isPending || convocadosCount === 0}

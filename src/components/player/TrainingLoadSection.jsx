@@ -149,7 +149,7 @@ export default function TrainingLoadSection({ playerId }) {
             <p className="text-sm text-gray-500">Registra tu esfuerzo percibido tras cada sesión para monitorizar la carga semanal y evolución de la forma física.</p>
           </div>
           </div>
-          <Button onClick={() => setDialogOpen(true)} className="text-white shrink-0 w-full sm:w-auto" style={{ background: "var(--granate)" }}>
+          <Button variant="club" onClick={() => setDialogOpen(true)} className="shrink-0 w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" /> Registrar RPE
           </Button>
         </div>
@@ -307,7 +307,7 @@ export default function TrainingLoadSection({ playerId }) {
 
             <div className="flex justify-end gap-3 pt-1">
               <Button type="button" variant="outline" onClick={() => { setDialogOpen(false); setForm(emptyForm); }}>Cancelar</Button>
-              <Button type="submit" disabled={!form.rpe} className="text-white" style={{ background: "var(--granate)" }}>Guardar</Button>
+              <Button variant="club" type="submit" disabled={!form.rpe}>Guardar</Button>
             </div>
           </form>
         </DialogContent>

@@ -9,7 +9,7 @@ const BG_COLORS = [
   { label: "Blanco", value: "#ffffff" },
   { label: "Gris claro", value: "#f3f4f6" },
   { label: "Negro", value: "#000000" },
-  { label: "Granate", value: "#6b1f28" },
+  { label: "Granate", value: "#73000A" },
   { label: "Azul marino", value: "#1e3a5f" },
   { label: "Transparente", value: "transparent" },
 ];
@@ -133,11 +133,9 @@ export default function ImageCropDialog({ open, onOpenChange, imageSrc, onConfir
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button
+          <Button variant="club"
             onClick={handleConfirm}
             disabled={isLoading}
-            style={{ background: "var(--granate)" }}
-            className="text-white"
           >
             {isLoading ? "Guardando..." : "Guardar"}
           </Button>

@@ -219,7 +219,7 @@ export default function SessionList({ teams = [], isCoordinator, defaultTeamId }
           </SelectContent>
         </Select>
         <div className="flex-1" />
-        <Button onClick={() => { setEditingSession(null); setDialogOpen(true); }} className="text-white gap-1.5" style={{ background: "var(--granate)" }}>
+        <Button variant="club" onClick={() => { setEditingSession(null); setDialogOpen(true); }} className="gap-1.5">
           <Plus className="w-4 h-4" /> Nueva Sesión
         </Button>
       </div>
@@ -228,7 +228,7 @@ export default function SessionList({ teams = [], isCoordinator, defaultTeamId }
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="w-6 h-6 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
+          <div className="w-6 h-6 border-4 border-gray-200 border-t-[var(--granate)] rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-gray-400">

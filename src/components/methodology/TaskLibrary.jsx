@@ -84,7 +84,7 @@ export default function TaskLibrary({ teams = [], isCoordinator }) {
             {SESSION_PHASES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button onClick={handleNew} className="text-white gap-1.5" style={{ background: "var(--granate)" }}>
+        <Button variant="club" onClick={handleNew} className="gap-1.5">
           <Plus className="w-4 h-4" /> Nueva Tarea
         </Button>
       </div>
@@ -95,7 +95,7 @@ export default function TaskLibrary({ teams = [], isCoordinator }) {
       {/* Tasks grouped by phase */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="w-6 h-6 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
+          <div className="w-6 h-6 border-4 border-gray-200 border-t-[var(--granate)] rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-gray-400">

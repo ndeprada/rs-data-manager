@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { CheckCircle, Loader2 } from "lucide-react";
 
+import { PageTitle } from "@/components/common/PageHeader";
 // Hardcoded data
 const TEAMS_DATA = [
   { "name": "Primer Equipo", "category": "primera_federacio" },
@@ -242,12 +243,8 @@ export default function DataImport() {
   }, []);
 
   return (
-    <div className="space-y-8">
-      <div>
-        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Utilidades</p>
-        <h1>Importador de Datos</h1>
-        <p className="text-gray-400 text-xs mt-1">Importación automática de Teams, Players, Events y StaffMembers</p>
-      </div>
+    <div className="space-y-4">
+      <PageTitle kicker="Utilidades" title="Importador de Datos" subtitle="Importación automática de Teams, Players, Events y StaffMembers" />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {["Teams", "Players", "Events", "StaffMembers", "MatchStats"].map((item, idx) => (

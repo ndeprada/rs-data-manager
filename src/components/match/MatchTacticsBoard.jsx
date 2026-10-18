@@ -391,7 +391,7 @@ export default function MatchTacticsBoard({ eventId, teamId, players }) {
             ))}
           </SelectContent>
         </Select>
-        <Button size="sm" onClick={() => setNewBoardDialog(true)} className="text-white h-9" style={{ background: "var(--granate)" }}>
+        <Button variant="club" size="sm" onClick={() => setNewBoardDialog(true)} className="h-9">
           <Plus className="w-3.5 h-3.5 mr-1" /> Nueva pizarra
         </Button>
         {activeBoard && (
@@ -406,7 +406,7 @@ export default function MatchTacticsBoard({ eventId, teamId, players }) {
           <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-4 text-3xl">⚽</div>
           <p className="font-semibold text-gray-500 uppercase tracking-wide text-sm" style={{ fontFamily: "var(--font-display)" }}>Sin pizarra activa</p>
           <p className="text-xs text-gray-400 mt-1">Crea una pizarra para este partido</p>
-          <Button onClick={() => setNewBoardDialog(true)} size="sm" className="mt-4 text-white" style={{ background: "var(--granate)" }}>
+          <Button variant="club" onClick={() => setNewBoardDialog(true)} size="sm" className="mt-4">
             <Plus className="w-3.5 h-3.5 mr-1" /> Crear pizarra
           </Button>
         </div>
@@ -636,8 +636,7 @@ export default function MatchTacticsBoard({ eventId, teamId, players }) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewBoardDialog(false)}>Cancelar</Button>
-            <Button onClick={() => createMutation.mutate({ ...newForm, team_id: teamId, event_id: eventId, assignments: {}, draw_paths: [], free_positions: [] })}
-              className="text-white" style={{ background: "var(--granate)" }}>
+            <Button variant="club" onClick={() => createMutation.mutate({ ...newForm, team_id: teamId, event_id: eventId, assignments: {}, draw_paths: [], free_positions: [] })}>
               Crear pizarra
             </Button>
           </DialogFooter>

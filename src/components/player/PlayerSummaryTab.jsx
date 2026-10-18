@@ -35,7 +35,7 @@ function Card({ title, onMore, children, className = "" }) {
       <div className="flex items-center justify-between mb-2">
         <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{title}</p>
         {onMore && (
-          <button onClick={onMore} className="text-[11px] font-semibold flex items-center gap-0.5" style={{ color: "#6b1f28" }}>
+          <button onClick={onMore} className="text-[11px] font-semibold flex items-center gap-0.5" style={{ color: "#73000A" }}>
             Ver más <ChevronRight className="w-3 h-3" />
           </button>
         )}

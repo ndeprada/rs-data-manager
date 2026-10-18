@@ -86,7 +86,7 @@ export default function CoachMatchNotesSection({ staffId, teamId, isCoordinator 
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-black uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Observaciones de partido</h2>
         {isCoordinator && (
-          <Button size="sm" onClick={openCreate} className="text-white text-xs" style={{ background: "var(--granate)" }}>
+          <Button variant="club" size="sm" onClick={openCreate} className="text-xs">
             <Plus className="w-3.5 h-3.5 mr-1" /> Añadir nota
           </Button>
         )}
@@ -209,9 +209,9 @@ export default function CoachMatchNotesSection({ staffId, teamId, isCoordinator 
             ))}
             <div className="flex gap-3 pt-2 border-t border-gray-100">
               <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">Cancelar</Button>
-              <Button onClick={() => saveMutation.mutate(form)}
+              <Button variant="club" onClick={() => saveMutation.mutate(form)}
                 disabled={saveMutation.isPending || (!editing && !selectedEventId)}
-                className="flex-1 text-white" style={{ background: "var(--granate)" }}>
+                className="flex-1">
                 {saveMutation.isPending ? "Guardando..." : "Guardar"}
               </Button>
             </div>

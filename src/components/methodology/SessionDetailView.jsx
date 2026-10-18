@@ -196,7 +196,7 @@ export default function SessionDetailView({ session, allTasks, allPlayers = [], 
           <Printer className="w-3.5 h-3.5" /> Imprimir / PDF
         </Button>
         {onEdit && (
-          <Button onClick={onEdit} className="gap-1.5 text-xs text-white" style={{ background: "var(--granate)" }}>
+          <Button variant="club" onClick={onEdit} className="gap-1.5 text-xs">
             Editar Sesión
           </Button>
         )}

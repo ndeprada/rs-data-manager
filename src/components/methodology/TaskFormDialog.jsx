@@ -325,7 +325,7 @@ export default function TaskFormDialog({ open, onOpenChange, task, onSave, teams
           {/* Acciones */}
           <div className="flex gap-3 pt-2 border-t border-gray-100">
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancelar</Button>
-            <Button onClick={handleSave} className="flex-1 text-white" style={{ background: "var(--granate)" }} disabled={uploading}>
+            <Button variant="club" onClick={handleSave} className="flex-1" disabled={uploading}>
               {task ? "Guardar cambios" : "Crear tarea"}
             </Button>
           </div>

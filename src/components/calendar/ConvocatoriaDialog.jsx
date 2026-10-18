@@ -248,11 +248,9 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
           <Button type="button" variant="outline" onClick={handleSave} disabled={sending}>
             Guardar
           </Button>
-          <Button
+          <Button variant="club"
             onClick={handleSaveAndNotify}
             disabled={sending || selectedIds.length === 0}
-            className="text-white"
-            style={{ background: "var(--granate)" }}
           >
             <Send className="w-4 h-4 mr-2" />
             {sending ? "Enviando..." : "Guardar y Notificar"}

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 
+import EmptyState from "@/components/common/EmptyState";
 function getYouTubeId(url) {
   const match = url?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
   return match ? match[1] : null;
@@ -63,7 +64,7 @@ export default function PlayerVideoTab({ playerId }) {
     createMutation.mutate(form);
   };
 
-  if (isLoading) return <div className="flex justify-center p-8"><div className="w-6 h-6 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin" /></div>;
+  if (isLoading) return <div className="flex justify-center p-8"><div className="w-6 h-6 border-4 border-gray-200 border-t-[var(--granate)] rounded-full animate-spin" /></div>;
 
   return (
     <div className="space-y-4">
@@ -71,16 +72,13 @@ export default function PlayerVideoTab({ playerId }) {
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
           {videos.length} vídeo{videos.length !== 1 ? "s" : ""}
         </p>
-        <Button size="sm" onClick={() => setFormOpen(true)} className="text-white" style={{ background: "var(--granate)" }}>
+        <Button variant="club" size="sm" onClick={() => setFormOpen(true)}>
           <Plus className="w-3.5 h-3.5 mr-1" /> Añadir vídeo
         </Button>
       </div>
 
       {videos.length === 0 ? (
-        <div className="text-center py-10 text-gray-400">
-          <Film className="w-10 h-10 mx-auto mb-2 text-gray-200" />
-          <p className="text-sm">No hay vídeos registrados</p>
-        </div>
+        <EmptyState icon={Film} title="No hay vídeos registrados" />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {videos.map(v => {
@@ -177,7 +175,7 @@ export default function PlayerVideoTab({ playerId }) {
             </div>
             <div className="flex gap-3 pt-1">
               <Button type="button" variant="outline" onClick={() => setFormOpen(false)} className="flex-1">Cancelar</Button>
-              <Button type="submit" disabled={createMutation.isPending} className="flex-1 text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" type="submit" disabled={createMutation.isPending} className="flex-1">
                 {createMutation.isPending ? "Guardando..." : "Añadir"}
               </Button>
             </div>

@@ -134,7 +134,7 @@ export default function PlayerSeasonHistoryTab({ playerId }) {
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
           {seasons.length} temporada{seasons.length !== 1 ? "s" : ""}
         </p>
-        <Button size="sm" onClick={openNew} className="text-white" style={{ background: "var(--granate)" }}>
+        <Button variant="club" size="sm" onClick={openNew}>
           <Plus className="w-3.5 h-3.5 mr-1" /> Añadir temporada
         </Button>
       </div>
@@ -264,10 +264,10 @@ export default function PlayerSeasonHistoryTab({ playerId }) {
             <div><Label className="text-xs">Notas / Resumen</Label><Textarea rows={3} value={form.notes} onChange={e => set("notes", e.target.value)} /></div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" onClick={() => { setFormOpen(false); setEditing(null); }} className="flex-1">Cancelar</Button>
-              <Button
+              <Button variant="club"
                 onClick={handleSave}
                 disabled={!form.season || createMutation.isPending || updateMutation.isPending}
-                className="flex-1 text-white" style={{ background: "var(--granate)" }}
+                className="flex-1"
               >
                 {createMutation.isPending || updateMutation.isPending ? "Guardando..." : "Guardar"}
               </Button>

@@ -261,7 +261,7 @@ export default function ScoutedPlayerForm({ open, onOpenChange, player, onSave, 
 
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={isLoading} className="text-white" style={{ background: "var(--granate)" }}>
+            <Button variant="club" type="submit" disabled={isLoading}>
               {isLoading ? "Guardando..." : player ? "Guardar cambios" : "Añadir jugador"}
             </Button>
           </div>

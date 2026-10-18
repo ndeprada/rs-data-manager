@@ -142,7 +142,7 @@ export default function TeamStaffSection({ teamId }) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-gray-900">Cuerpo Técnico del Equipo</h3>
-          <Button size="sm" onClick={() => setAddDialogOpen(true)} className="text-white" style={{ background: "var(--granate)" }}>
+          <Button variant="club" size="sm" onClick={() => setAddDialogOpen(true)}>
             <Plus className="w-3.5 h-3.5 mr-1" /> Añadir miembro
           </Button>
         </div>
@@ -239,10 +239,9 @@ export default function TeamStaffSection({ teamId }) {
               <Button variant="outline" onClick={() => { setAddDialogOpen(false); setForm({ staff_member_id: "", team_role: "" }); }}>
                 Cancelar
               </Button>
-              <Button
+              <Button variant="club"
                 onClick={() => addMutation.mutate(form)}
                 disabled={!form.staff_member_id || !form.team_role || addMutation.isPending}
-                className="text-white" style={{ background: "var(--granate)" }}
               >
                 {addMutation.isPending ? "Añadiendo..." : "Añadir"}
               </Button>
@@ -273,10 +272,9 @@ export default function TeamStaffSection({ teamId }) {
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button variant="outline" onClick={() => setEditDialog(null)}>Cancelar</Button>
-              <Button
+              <Button variant="club"
                 onClick={() => editRoleMutation.mutate(editDialog)}
                 disabled={!editDialog?.team_role || editRoleMutation.isPending}
-                className="text-white" style={{ background: "var(--granate)" }}
               >
                 {editRoleMutation.isPending ? "Guardando..." : "Guardar"}
               </Button>

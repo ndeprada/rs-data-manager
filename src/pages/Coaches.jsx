@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { buildLinks } from "@/lib/staffLink";
 import { STAFF_FUNCTION_VALUES, teamRoleLabel } from "@/lib/staffRoles";
 
+import { PageTitle } from "@/components/common/PageHeader";
 const ROLE_LABELS = {
   entrenador: "Entrenador",
   ayudante: "Ayudante",
@@ -144,13 +145,9 @@ export default function Coaches() {
   const getTeam = (id) => teams.find(t => t.id === id);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Administración</p>
-          <h1>Personal</h1>
-          <p className="text-gray-400 text-xs mt-1">Miembros del personal del club</p>
-        </div>
+        <PageTitle kicker="Administración" title="Personal" subtitle="Miembros del personal del club" />
         <Select value={filterTeam} onValueChange={setFilterTeam}>
           <SelectTrigger className="w-48 border-gray-200 bg-white"><SelectValue placeholder="Todos los equipos" /></SelectTrigger>
           <SelectContent>

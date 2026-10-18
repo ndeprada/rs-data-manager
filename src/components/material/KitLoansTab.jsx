@@ -12,6 +12,7 @@ import { toast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { playerFullName } from "@/lib/playerName";
 
+import EmptyState from "@/components/common/EmptyState";
 const KIT_LABELS = { segunda: "2ª Equipación", tercera: "3ª Equipación" };
 const KIT_COLORS = { segunda: "bg-amber-100 text-amber-800", tercera: "bg-purple-100 text-purple-800" };
 const STATUS_COLORS = {
@@ -121,10 +122,7 @@ export default function KitLoansTab() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <Shirt className="w-10 h-10 mx-auto mb-2 opacity-40" />
-          <p>No hay préstamos registrados</p>
-        </div>
+        <EmptyState icon={Shirt} title="No hay préstamos registrados" />
       ) : (
         <div className="space-y-2">
           {filtered.map(loan => (

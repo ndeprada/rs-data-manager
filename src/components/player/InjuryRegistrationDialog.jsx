@@ -180,11 +180,10 @@ export default function InjuryRegistrationDialog({ playerId, onClose }) {
           <Button variant="outline" onClick={onClose} className="flex-1">
             Cancelar
           </Button>
-          <Button
+          <Button variant="club"
             onClick={handleSubmit}
             disabled={createMutation.isPending}
-            className="flex-1 text-white"
-            style={{ background: "var(--granate)" }}
+            className="flex-1"
           >
             <Plus className="w-4 h-4 mr-2" /> Registrar
           </Button>

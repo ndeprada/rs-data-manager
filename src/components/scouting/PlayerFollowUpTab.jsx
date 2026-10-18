@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 
+import EmptyState from "@/components/common/EmptyState";
 const STATUS_CONFIG = {
   pendiente: { label: "Pendiente", cls: "bg-yellow-100 text-yellow-700", icon: Clock },
   completado: { label: "Completado", cls: "bg-green-100 text-green-700", icon: Check },
@@ -85,7 +86,7 @@ export default function PlayerFollowUpTab({ playerId }) {
 
   const markCancelled = (id) => updateMutation.mutate({ id, data: { status: "cancelado" } });
 
-  if (isLoading) return <div className="flex justify-center p-8"><div className="w-6 h-6 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin" /></div>;
+  if (isLoading) return <div className="flex justify-center p-8"><div className="w-6 h-6 border-4 border-gray-200 border-t-[var(--granate)] rounded-full animate-spin" /></div>;
 
   const pending = followUps.filter(f => f.status === "pendiente");
   const rest = followUps.filter(f => f.status !== "pendiente");
@@ -96,16 +97,13 @@ export default function PlayerFollowUpTab({ playerId }) {
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
           {pending.length} pendiente{pending.length !== 1 ? "s" : ""}
         </p>
-        <Button size="sm" onClick={() => setFormOpen(true)} className="text-white" style={{ background: "var(--granate)" }}>
+        <Button variant="club" size="sm" onClick={() => setFormOpen(true)}>
           <Plus className="w-3.5 h-3.5 mr-1" /> Programar seguimiento
         </Button>
       </div>
 
       {followUps.length === 0 ? (
-        <div className="text-center py-10 text-gray-400">
-          <CalendarClock className="w-10 h-10 mx-auto mb-2 text-gray-200" />
-          <p className="text-sm">No hay seguimientos programados</p>
-        </div>
+        <EmptyState icon={CalendarClock} title="No hay seguimientos programados" />
       ) : (
         <div className="space-y-3">
           {[...pending, ...rest].map(fu => {
@@ -169,7 +167,7 @@ export default function PlayerFollowUpTab({ playerId }) {
             <div><Label className="text-xs">Notas previas</Label><Textarea rows={2} value={form.notes} onChange={e => set("notes", e.target.value)} placeholder="Partido a observar, objetivo del seguimiento..." /></div>
             <div className="flex gap-3 pt-1">
               <Button type="button" variant="outline" onClick={() => setFormOpen(false)} className="flex-1">Cancelar</Button>
-              <Button type="submit" disabled={createMutation.isPending} className="flex-1 text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" type="submit" disabled={createMutation.isPending} className="flex-1">
                 {createMutation.isPending ? "Guardando..." : "Programar"}
               </Button>
             </div>
@@ -194,7 +192,7 @@ export default function PlayerFollowUpTab({ playerId }) {
             </div>
             <div className="flex gap-3">
               <Button type="button" variant="outline" onClick={() => setCompleteDialog(null)} className="flex-1">Cancelar</Button>
-              <Button onClick={markComplete} disabled={updateMutation.isPending} className="flex-1 text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" onClick={markComplete} disabled={updateMutation.isPending} className="flex-1">
                 {updateMutation.isPending ? "Guardando..." : "Confirmar completado"}
               </Button>
             </div>

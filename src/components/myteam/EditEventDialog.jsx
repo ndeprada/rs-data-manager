@@ -336,7 +336,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
                 <Trash2 className="w-4 h-4" />
               </Button>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancelar</Button>
-              <Button type="submit" disabled={updateMutation.isPending} className="flex-1 text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" type="submit" disabled={updateMutation.isPending} className="flex-1">
                 {updateMutation.isPending ? "Guardando…" : "Guardar"}
               </Button>
             </div>
@@ -383,11 +383,9 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
             >
               Solo este evento
             </Button>
-            <Button
+            <Button variant="club"
               onClick={() => updateSeriesMutation.mutate(pendingData)}
               disabled={updateSeriesMutation.isPending}
-              className="text-white"
-              style={{ background: "var(--granate)" }}
             >
               {updateSeriesMutation.isPending ? "Guardando…" : "Todos los eventos de la serie"}
             </Button>

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 
+import EmptyState from "@/components/common/EmptyState";
 function skillColor(value) {
   if (!value) return "#e5e7eb";
   if (value <= 3) return "#ef4444";
@@ -60,17 +61,17 @@ function generatePDF(report, player) {
       <div style="margin:4px 0;display:flex;align-items:center;gap:8px;">
         <span style="width:100px;font-size:11px;color:#555;">${label}</span>
         <div style="flex:1;background:#eee;height:8px;border-radius:4px;overflow:hidden;">
-          <div style="width:${(value||0)*10}%;height:8px;background:#6b1f28;border-radius:4px;"></div>
+          <div style="width:${(value||0)*10}%;height:8px;background:#73000A;border-radius:4px;"></div>
         </div>
-        <span style="font-size:11px;font-weight:bold;color:#6b1f28;width:24px;text-align:right;">${value||0}</span>
+        <span style="font-size:11px;font-weight:bold;color:#73000A;width:24px;text-align:right;">${value||0}</span>
       </div>`;
     const stars = (v) => [1,2,3,4,5].map(i => `<span style="color:${i<=(v||0)?'#f59e0b':'#e5e7eb'};font-size:18px;">★</span>`).join("");
     win.document.write(`
       <!DOCTYPE html><html><head><meta charset="UTF-8"><title>Informe Scouting</title>
-      <style>body{font-family:Arial,sans-serif;padding:32px;color:#111;}h1{color:#6b1f28;margin:0;}h2{color:#6b1f28;font-size:14px;margin:20px 0 8px;border-bottom:1px solid #eee;padding-bottom:4px;}p{margin:4px 0;font-size:13px;color:#444;}.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:bold;background:#dbeafe;color:#1d4ed8;}</style>
+      <style>body{font-family:Arial,sans-serif;padding:32px;color:#111;}h1{color:#73000A;margin:0;}h2{color:#73000A;font-size:14px;margin:20px 0 8px;border-bottom:1px solid #eee;padding-bottom:4px;}p{margin:4px 0;font-size:13px;color:#444;}.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:bold;background:#dbeafe;color:#1d4ed8;}</style>
       </head><body>
-        <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;border-bottom:2px solid #6b1f28;padding-bottom:16px;">
-          ${player?.photo_url ? `<img src="${player.photo_url}" style="width:80px;height:80px;object-fit:cover;border-radius:50%;">` : `<div style="width:80px;height:80px;border-radius:50%;background:#6b1f28;display:flex;align-items:center;justify-content:center;color:white;font-size:28px;font-weight:bold;">${player?.first_name?.[0]||""}${player?.last_name?.[0]||""}</div>`}
+        <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;border-bottom:2px solid #73000A;padding-bottom:16px;">
+          ${player?.photo_url ? `<img src="${player.photo_url}" style="width:80px;height:80px;object-fit:cover;border-radius:50%;">` : `<div style="width:80px;height:80px;border-radius:50%;background:#73000A;display:flex;align-items:center;justify-content:center;color:white;font-size:28px;font-weight:bold;">${player?.first_name?.[0]||""}${player?.last_name?.[0]||""}</div>`}
           <div>
             <h1>${player?.first_name || ""} ${player?.last_name || ""}</h1>
             <p>${player?.position || ""} · ${player?.current_club || ""}</p>
@@ -170,7 +171,7 @@ export default function PlayerReportTab({ playerId, player }) {
     else createMutation.mutate(data);
   };
 
-  if (isLoading) return <div className="flex justify-center p-8"><div className="w-6 h-6 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin" /></div>;
+  if (isLoading) return <div className="flex justify-center p-8"><div className="w-6 h-6 border-4 border-gray-200 border-t-[var(--granate)] rounded-full animate-spin" /></div>;
 
   return (
     <div className="space-y-4">
@@ -178,16 +179,13 @@ export default function PlayerReportTab({ playerId, player }) {
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
           {reports.length} informe{reports.length !== 1 ? "s" : ""}
         </p>
-        <Button size="sm" onClick={openNew} className="text-white" style={{ background: "var(--granate)" }}>
+        <Button variant="club" size="sm" onClick={openNew}>
           <Plus className="w-3.5 h-3.5 mr-1" /> Nuevo informe
         </Button>
       </div>
 
       {reports.length === 0 ? (
-        <div className="text-center py-10 text-gray-400">
-          <FileText className="w-10 h-10 mx-auto mb-2 text-gray-200" />
-          <p className="text-sm">No hay informes registrados</p>
-        </div>
+        <EmptyState icon={FileText} title="No hay informes registrados" />
       ) : (
         <div className="space-y-3">
           {reports.map(r => {
@@ -282,7 +280,7 @@ export default function PlayerReportTab({ playerId, player }) {
             </div>
             <div className="flex gap-3 pt-1">
               <Button type="button" variant="outline" onClick={closeForm} className="flex-1">Cancelar</Button>
-              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="flex-1 text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="flex-1">
                 {createMutation.isPending || updateMutation.isPending ? "Guardando..." : editingId ? "Guardar cambios" : "Crear informe"}
               </Button>
             </div>

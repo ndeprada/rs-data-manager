@@ -87,7 +87,7 @@ export default function PlayerFollowUpsTab({ playerId }) {
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
           {followups.length} seguimiento{followups.length !== 1 ? "s" : ""}
         </p>
-        <Button size="sm" onClick={() => setFormOpen(true)} className="text-white" style={{ background: "var(--granate)" }}>
+        <Button variant="club" size="sm" onClick={() => setFormOpen(true)}>
           <Plus className="w-3.5 h-3.5 mr-1" /> Programar seguimiento
         </Button>
       </div>
@@ -161,10 +161,10 @@ export default function PlayerFollowUpsTab({ playerId }) {
             <div><Label className="text-xs">Notas previas</Label><Textarea rows={3} value={form.notes} onChange={e => set("notes", e.target.value)} placeholder="¿Qué se quiere observar?" /></div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" onClick={() => setFormOpen(false)} className="flex-1">Cancelar</Button>
-              <Button
+              <Button variant="club"
                 onClick={() => createMutation.mutate(form)}
                 disabled={!form.scheduled_date || createMutation.isPending}
-                className="flex-1 text-white" style={{ background: "var(--granate)" }}
+                className="flex-1"
               >
                 {createMutation.isPending ? "Guardando..." : "Programar"}
               </Button>
@@ -184,10 +184,10 @@ export default function PlayerFollowUpsTab({ playerId }) {
             <div><Label className="text-xs">Notas de finalización</Label><Textarea rows={3} value={completeForm.completion_notes} onChange={e => setCompleteForm(f => ({ ...f, completion_notes: e.target.value }))} placeholder="Resumen de lo observado..." /></div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" onClick={() => setCompleteDialog(null)} className="flex-1">Cancelar</Button>
-              <Button
+              <Button variant="club"
                 onClick={() => completeMutation.mutate({ id: completeDialog, data: completeForm })}
                 disabled={completeMutation.isPending}
-                className="flex-1 text-white" style={{ background: "var(--granate)" }}
+                className="flex-1"
               >
                 {completeMutation.isPending ? "Guardando..." : "Completar"}
               </Button>

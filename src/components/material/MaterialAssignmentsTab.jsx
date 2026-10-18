@@ -12,6 +12,7 @@ import { Plus, ArrowLeftRight, CheckCircle, XCircle, Undo2 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 
+import EmptyState from "@/components/common/EmptyState";
 const STATUS_COLORS = {
   activo: "bg-blue-100 text-blue-700",
   devuelto: "bg-green-100 text-green-700",
@@ -91,10 +92,7 @@ export default function MaterialAssignmentsTab() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <ArrowLeftRight className="w-10 h-10 mx-auto mb-2 opacity-40" />
-          <p>No hay asignaciones</p>
-        </div>
+        <EmptyState icon={ArrowLeftRight} title="No hay asignaciones" />
       ) : (
         <div className="space-y-2">
           {filtered.map(a => (

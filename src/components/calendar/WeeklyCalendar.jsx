@@ -4,17 +4,17 @@ import { es } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const EVENT_TYPE_COLORS = {
-  partido_amistoso: "#6b1f28",   // granate
-  partido_liga: "#6b1f28",       // granate
-  torneo: "#6b1f28",             // granate
-  entrenamiento_fisico: "#e67e22", // naranja
-  entrenamiento: "#e67e22",        // naranja
-  sesion_teorica: "#e67e22",       // naranja
-  sesion_video: "#e67e22",         // naranja
+  partido_amistoso: "#73000A",   // granate
+  partido_liga: "#73000A",       // granate
+  torneo: "#73000A",             // granate
+  entrenamiento_fisico: "#FF6E00", // naranja
+  entrenamiento: "#FF6E00",        // naranja
+  sesion_teorica: "#FF6E00",       // naranja
+  sesion_video: "#FF6E00",         // naranja
   reunion_equipo: "#64748b",       // slate
   reunion_jugador: "#64748b",      // slate
   reunion_capitanes: "#64748b",    // slate
-  stage: "#e67e22",              // naranja
+  stage: "#FF6E00",              // naranja
   concentracion: "#64748b",       // slate
   cena_equipo: "#64748b",         // slate
   comida_equipo: "#64748b",       // slate
@@ -113,11 +113,11 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
       {/* Legend */}
       <div className="px-4 py-2 border-t border-gray-100 grid grid-cols-3 gap-3 bg-gray-50">
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full" style={{ background: "#6b1f28" }} />
+          <div className="w-2 h-2 rounded-full" style={{ background: "#73000A" }} />
           <span className="text-[10px] text-gray-400">Partido oficial</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full" style={{ background: "#e67e22" }} />
+          <div className="w-2 h-2 rounded-full" style={{ background: "#FF6E00" }} />
           <span className="text-[10px] text-gray-400">Entrenamiento</span>
         </div>
         <div className="flex items-center gap-1.5">

@@ -13,7 +13,7 @@ export default function PlayerName({ player, id, children, className = "", stop 
     <Link
       to={`/PlayerProfile?id=${pid}`}
       onClick={stop ? (e) => e.stopPropagation() : undefined}
-      className={`hover:underline hover:text-[#6b1f28] transition-colors ${className}`}
+      className={`hover:underline hover:text-[#73000A] transition-colors ${className}`}
     >
       {label}
     </Link>

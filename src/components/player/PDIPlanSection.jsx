@@ -249,7 +249,7 @@ export default function PDIPlanSection({ player, team }) {
             )}
             {roleInfo && !isF7 && <p className="text-xs text-gray-500 mt-1.5 max-w-2xl">{roleInfo.role.description}</p>}
           </div>
-          {!playerMode && <Button onClick={() => { setTab(roleInfo && !isF7 ? "role" : "general"); setOpen(true); }} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
+          {!playerMode && <Button variant="club" onClick={() => { setTab(roleInfo && !isF7 ? "role" : "general"); setOpen(true); }} className="shrink-0">
             <Plus className="w-4 h-4 mr-2" /> Añadir aspecto
           </Button>}
         </div>
@@ -353,7 +353,7 @@ export default function PDIPlanSection({ player, team }) {
             <VisibilityField value={visible} onChange={setVisible} error={visError} />
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={!picked || create.isPending} className="text-white" style={{ background: "var(--granate)" }}>Añadir</Button>
+              <Button variant="club" type="submit" disabled={!picked || create.isPending}>Añadir</Button>
             </div>
           </form>
         </DialogContent>

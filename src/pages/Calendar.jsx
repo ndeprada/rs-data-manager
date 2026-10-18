@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { playerFullName } from "@/lib/playerName";
 
+import { PageTitle } from "@/components/common/PageHeader";
 const EVENT_TYPES = [
   { value: "partido_amistoso", label: "Partido amistoso", isMatch: true },
   { value: "partido_liga", label: "Partido de liga", isMatch: true },
@@ -243,15 +244,11 @@ export default function Calendar() {
   const dayEvents = selectedDay ? getEventsForDay(selectedDay) : [];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <CreateEventDialog open={!!createDay} onOpenChange={(o) => { if (!o) setCreateDay(null); }} date={createDay} teams={sortTeams(teams)} />
       <EditEventDialog open={!!editDialogEvent} onOpenChange={(o) => { if (!o) setEditDialogEvent(null); }} event={editDialogEvent} />
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Administración</p>
-          <h1>Calendario</h1>
-          <p className="text-gray-400 text-xs mt-1">Entrenamientos y partidos</p>
-        </div>
+        <PageTitle kicker="Administración" title="Calendario" subtitle="Entrenamientos y partidos" />
         <div className="flex gap-2">
           <Select value={filterTeam} onValueChange={setFilterTeam}>
             <SelectTrigger className="w-40 h-8 text-sm border-gray-200 bg-white"><SelectValue placeholder="Equipo" /></SelectTrigger>
@@ -265,7 +262,7 @@ export default function Calendar() {
             <button onClick={() => setViewMode("week")} className={`px-2.5 py-1.5 text-xs font-bold rounded transition-colors ${viewMode === "week" ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700"}`} title="Semana">Semana</button>
             <button onClick={() => setViewMode("list")} className={`px-2.5 py-1.5 text-xs font-bold rounded transition-colors ${viewMode === "list" ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700"}`} title="Lista">Lista</button>
           </div>
-          <Button size="sm" onClick={() => openNewEvent(today)} className="text-white h-8 text-xs" style={{ background: "var(--granate)" }}>
+          <Button variant="club" size="sm" onClick={() => openNewEvent(today)} className="h-8 text-xs">
             <Plus className="w-3.5 h-3.5 mr-1" /> Nuevo
           </Button>
         </div>
@@ -311,7 +308,7 @@ export default function Calendar() {
                 <p className="font-bold text-sm text-gray-800 capitalize" style={{ fontFamily: "var(--font-display)" }}>
                   {format(selectedDay, "EEEE d 'de' MMMM", { locale: es })}
                 </p>
-                <Button size="sm" onClick={() => openNewEvent(selectedDay)} className="text-white h-7 text-xs" style={{ background: "var(--granate)" }}>
+                <Button variant="club" size="sm" onClick={() => openNewEvent(selectedDay)} className="h-7 text-xs">
                   <Plus className="w-3 h-3 mr-1" /> Añadir
                 </Button>
               </div>
@@ -437,7 +434,7 @@ export default function Calendar() {
                 <p className="font-bold text-sm text-gray-800 capitalize" style={{ fontFamily: "var(--font-display)" }}>
                   {format(selectedDay, "EEEE d 'de' MMMM", { locale: es })}
                 </p>
-                <Button size="sm" onClick={() => openNewEvent(selectedDay)} className="text-white h-7 text-xs" style={{ background: "var(--granate)" }}>
+                <Button variant="club" size="sm" onClick={() => openNewEvent(selectedDay)} className="h-7 text-xs">
                   <Plus className="w-3 h-3 mr-1" /> Añadir
                 </Button>
               </div>
@@ -670,7 +667,7 @@ export default function Calendar() {
 
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
-              <Button type="submit" className="text-white" style={{ background: "var(--granate)" }}>{editingEvent ? "Guardar" : "Crear"}</Button>
+              <Button variant="club" type="submit">{editingEvent ? "Guardar" : "Crear"}</Button>
             </div>
           </form>
         </DialogContent>

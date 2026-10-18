@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 
+import { PageTitle } from "@/components/common/PageHeader";
 const SURFACE_LABELS = {
   cesped_natural: "Césped natural",
   cesped_artificial: "Césped artificial",
@@ -117,16 +118,10 @@ export default function Fields() {
   const unavailable = fields.filter(f => f.available === false);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Administración</p>
-          <h1>Campos</h1>
-          <p className="text-gray-400 text-xs mt-1">
-            Gestión de instalaciones y espacios de entrenamiento
-          </p>
-        </div>
+        <PageTitle kicker="Administración" title="Campos" subtitle="Gestión de instalaciones y espacios de entrenamiento" />
         <div className="flex items-center gap-2">
           <div className="flex border border-gray-200 rounded-sm overflow-hidden bg-white">
             {[["cards", LayoutGrid, "Tarjetas"], ["list", List, "Lista"]].map(([v, Icon, t]) => (
@@ -137,7 +132,7 @@ export default function Fields() {
               </button>
             ))}
           </div>
-          <Button onClick={openNew} className="text-white h-8 text-xs" style={{ background: "var(--granate)" }}>
+          <Button variant="club" onClick={openNew} className="h-8 text-xs">
             <Plus className="w-3.5 h-3.5 mr-1" /> Nuevo campo
           </Button>
         </div>
@@ -166,7 +161,7 @@ export default function Fields() {
           <p className="text-gray-400 text-sm uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
             No hay campos registrados
           </p>
-          <Button onClick={openNew} className="mt-4 text-white text-xs" style={{ background: "var(--granate)" }}>
+          <Button variant="club" onClick={openNew} className="mt-4 text-xs">
             <Plus className="w-3.5 h-3.5 mr-1" /> Añadir primer campo
           </Button>
         </div>
@@ -362,7 +357,7 @@ export default function Fields() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
-              <Button type="submit" className="text-white" style={{ background: "var(--granate)" }}
+              <Button variant="club" type="submit"
                 disabled={createMutation.isPending || updateMutation.isPending}>
                 {editingField ? "Guardar" : "Crear campo"}
               </Button>

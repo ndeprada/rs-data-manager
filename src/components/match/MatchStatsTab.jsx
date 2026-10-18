@@ -350,7 +350,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
             </>
           )}
           <GoalClassifier value={newGoal.goal} onChange={goal=>setNewGoal(g=>({...g,goal}))} />
-          <Button size="sm" onClick={addGoalEvent} disabled={!newGoal.minute} className="text-white h-8" style={{background:"var(--granate)"}}>
+          <Button variant="club" size="sm" onClick={addGoalEvent} disabled={!newGoal.minute} className="h-8">
             <Plus className="w-3.5 h-3.5 mr-1"/>Añadir gol
           </Button>
         </div>
@@ -446,7 +446,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
             <Button size="sm" variant="outline" onClick={()=>{setPendingConvocIds(convocation?.player_ids||[]);setShowConvocDialog(true);}} className="text-xs border-gray-200">
               <Users className="w-3.5 h-3.5 mr-1"/>Gestionar convocatoria
             </Button>
-            <Button size="sm" onClick={onSave} className="text-white text-xs" style={{background:"var(--granate)"}}>
+            <Button variant="club" size="sm" onClick={onSave} className="text-xs">
               Guardar partido
             </Button>
           </div>
@@ -566,7 +566,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
             </div>
             <div className="flex gap-3 pt-2 border-t border-gray-100 flex-wrap">
               <Button variant="outline" onClick={()=>setShowConvocDialog(false)} className="flex-1">Cancelar</Button>
-              <Button onClick={handleSaveConvocDialog} className="flex-1 text-white" style={{background:"var(--granate)"}}>
+              <Button variant="club" onClick={handleSaveConvocDialog} className="flex-1">
                 Guardar ({pendingConvocIds.length} convocados)
               </Button>
               {convocadosCount>0&&(
@@ -588,7 +588,7 @@ export default function MatchStatsTab({ eventId, teamId, players, event, matchDa
           </DialogHeader>
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={()=>setShowNotifDialog(false)} className="flex-1">Cancelar</Button>
-            <Button onClick={()=>sendNotifMutation.mutate()} disabled={sendNotifMutation.isPending} className="flex-1 text-white" style={{background:"var(--granate)"}}>
+            <Button variant="club" onClick={()=>sendNotifMutation.mutate()} disabled={sendNotifMutation.isPending} className="flex-1">
               {sendNotifMutation.isPending?"Enviando…":"Enviar notificaciones"}
             </Button>
           </div>

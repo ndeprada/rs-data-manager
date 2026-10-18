@@ -149,7 +149,7 @@ export default function CoachPDISection({ staffId, canEvaluate, canView, isOwnPr
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-black uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>PDI – Plan de Desarrollo Individual</h2>
         {canEvaluate && (
-          <Button size="sm" onClick={openCreate} className="text-white text-xs" style={{ background: "var(--granate)" }}>
+          <Button variant="club" size="sm" onClick={openCreate} className="text-xs">
             <Plus className="w-3.5 h-3.5 mr-1" /> Nueva evaluación
           </Button>
         )}
@@ -388,8 +388,8 @@ export default function CoachPDISection({ staffId, canEvaluate, canView, isOwnPr
 
             <div className="flex gap-3 pt-2 border-t border-gray-100">
               <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">Cancelar</Button>
-              <Button onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}
-                className="flex-1 text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}
+                className="flex-1">
                 {saveMutation.isPending ? "Guardando..." : "Guardar"}
               </Button>
             </div>

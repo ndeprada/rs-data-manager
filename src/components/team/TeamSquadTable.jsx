@@ -9,6 +9,7 @@ import { playerFullName } from "@/lib/playerName";
 import { useMatchStatus } from "@/lib/matchStatus";
 import { useTrainingStatus } from "@/lib/trainingStatus";
 
+import { Button } from "@/components/ui/button";
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
 const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
@@ -123,7 +124,7 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
             </Link>
           )}
           {onAddPlayer && (
-            <button onClick={onAddPlayer} className="inline-flex items-center gap-1 text-xs font-bold text-white px-2.5 py-1.5 rounded" style={{ background: "var(--granate)" }}><Plus className="w-3.5 h-3.5" /> Jugador</button>
+            <Button variant="club" size="sm" onClick={onAddPlayer} className="gap-1"><Plus className="w-3.5 h-3.5" /> Jugador</Button>
           )}
         </div>
         {rows.length === 0 ? <p className="p-6 text-center text-gray-400 text-sm">No hay jugadores en este equipo</p> : (

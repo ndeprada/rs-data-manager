@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { RELATIONS, relLabel } from "@/components/avisos/PlayerPicker";
 
+import { Button } from "@/components/ui/button";
 // Familiares vinculados a un jugador. El admin gestiona todo; el propio jugador solo puede aceptar/rechazar solicitudes.
 export default function FamiliesSection({ playerId }) {
   const { user } = useAuth();
@@ -91,7 +92,7 @@ export default function FamiliesSection({ playerId }) {
           </div>
           {err && <p className="text-xs text-red-600">{err}</p>}
           <div className="flex gap-2">
-            <button disabled={!pick || !rel || busy} onClick={create} className="flex-1 py-2 rounded-full text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40" style={{ background: "var(--granate)" }}>{busy ? "..." : "Vincular"}</button>
+            <Button variant="club" size="sm" disabled={!pick || !rel || busy} onClick={create} className="flex-1">{busy ? "..." : "Vincular"}</Button>
             <button onClick={() => { setAdding(false); setPick(null); setQ(""); setRel(""); }} className="px-4 py-2 rounded-full border border-gray-200 text-xs text-gray-500">Cancelar</button>
           </div>
         </div>

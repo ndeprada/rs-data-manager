@@ -102,7 +102,7 @@ export default function ObservedTeamsList() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={openTeamNew} className="text-white" style={{ background: "var(--granate)" }}>
+        <Button variant="club" onClick={openTeamNew}>
           <Plus className="w-4 h-4 mr-2" /> Añadir equipo
         </Button>
       </div>
@@ -208,7 +208,7 @@ export default function ObservedTeamsList() {
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setTeamFormOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={teamCreate.isPending || teamUpdate.isPending} className="text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" type="submit" disabled={teamCreate.isPending || teamUpdate.isPending}>
                 {(teamCreate.isPending || teamUpdate.isPending) ? "Guardando..." : editingTeam ? "Guardar" : "Añadir"}
               </Button>
             </div>
@@ -252,7 +252,7 @@ export default function ObservedTeamsList() {
             <div><Label className="text-xs">Notas</Label><Textarea rows={2} value={playerForm.notes} onChange={e => setP("notes", e.target.value)} /></div>
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setPlayerFormOpen(null)}>Cancelar</Button>
-              <Button type="submit" disabled={playerCreate.isPending || playerUpdate.isPending} className="text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" type="submit" disabled={playerCreate.isPending || playerUpdate.isPending}>
                 {(playerCreate.isPending || playerUpdate.isPending) ? "Guardando..." : editingPlayer ? "Guardar" : "Añadir"}
               </Button>
             </div>

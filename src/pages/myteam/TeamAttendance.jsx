@@ -243,7 +243,7 @@ export default function TeamAttendance() {
               <Input value={trialName} onChange={e => setTrialName(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && addTrial()}
                 placeholder="Jugador a prueba: escribe el nombre…" className="h-8 text-sm" />
-              <Button size="sm" className="h-8 text-white" style={{ background: "var(--granate)" }} onClick={addTrial} disabled={!trialName.trim()}>Añadir</Button>
+              <Button variant="club" size="sm" className="h-8" onClick={addTrial} disabled={!trialName.trim()}>Añadir</Button>
             </div>
           </div>
         </div>

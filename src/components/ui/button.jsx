@@ -18,6 +18,12 @@ const buttonVariants = cva(
         secondary:
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
+        // Botón principal del club (granate, texto blanco)
+        club:
+          "bg-[var(--granate)] text-white shadow-sm hover:bg-[var(--granate-dark)]",
+        // Botón secundario del club (borde granate)
+        clubOutline:
+          "border border-[var(--granate)] bg-white text-[var(--granate)] hover:bg-[var(--granate-pale)]",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

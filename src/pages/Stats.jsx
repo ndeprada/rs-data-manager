@@ -12,6 +12,7 @@ import { playerFullName } from "@/lib/playerName";
 import { useCountedStats, STAT_SCOPES } from "@/lib/matchStatus";
 import StatsScopePills from "@/components/common/StatsScopePills";
 
+import { PageTitle } from "@/components/common/PageHeader";
 export default function Stats() {
   const [selectedTeam, setSelectedTeam] = useState("all");
   const [activeTab, setActiveTab] = useState("attendance");
@@ -95,13 +96,9 @@ export default function Stats() {
     .sort((a, b) => b.minutes - a.minutes)[0];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Herramientas</p>
-          <h1>Estadísticas</h1>
-          <p className="text-gray-400 text-xs mt-1">Rendimiento y análisis del equipo</p>
-        </div>
+        <PageTitle kicker="Herramientas" title="Estadísticas" subtitle="Rendimiento y análisis del equipo" />
         <div className="flex items-center gap-3 flex-wrap">
         <StatsScopePills value={statScope} onChange={setStatScope} />
         <Select value={selectedTeam} onValueChange={setSelectedTeam}>
@@ -144,14 +141,14 @@ export default function Stats() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="attendance">
-        <TabsList className="bg-gray-100 p-1 rounded-xl flex-wrap h-auto gap-1">
-          <TabsTrigger value="attendance" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-medium">
+        <TabsList>
+          <TabsTrigger value="attendance">
             <Users className="w-4 h-4 mr-2" /> Asistencia
           </TabsTrigger>
-          <TabsTrigger value="matches" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-medium">
+          <TabsTrigger value="matches">
             <BarChart2 className="w-4 h-4 mr-2" /> Partidos
           </TabsTrigger>
-          <TabsTrigger value="goals" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-medium">
+          <TabsTrigger value="goals">
             <Target className="w-4 h-4 mr-2" /> Goles
           </TabsTrigger>
         </TabsList>

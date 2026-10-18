@@ -49,7 +49,7 @@ function InfoRow({ label, value }) {
   );
 }
 
-const TAB_TRIGGER_CLS = "data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-red-800 rounded-none text-xs font-bold uppercase tracking-wide py-3 whitespace-nowrap";
+const TAB_TRIGGER_CLS = "data-[state=active]:bg-transparent data-[state=active]:text-[var(--granate)] data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-[var(--granate)] rounded-none text-xs font-bold uppercase tracking-wide py-3 whitespace-nowrap";
 const FONT_DISPLAY = { fontFamily: "var(--font-display)" };
 
 export default function ScoutedPlayersList() {
@@ -155,7 +155,7 @@ export default function ScoutedPlayersList() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre o club..." className="pl-9" />
           </div>
-          <Button onClick={openNew} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
+          <Button variant="club" onClick={openNew} className="shrink-0">
             <Plus className="w-4 h-4 mr-2" /> Añadir jugador
           </Button>
         </div>

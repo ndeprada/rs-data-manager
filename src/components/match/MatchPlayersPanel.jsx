@@ -174,7 +174,7 @@ export default function MatchPlayersPanel({ eventId, teamId, players, event }) {
             <Users className="w-3.5 h-3.5 mr-1" />Gestionar convocatoria
           </Button>
           {convocadosCount > 0 && (
-            <Button size="sm" onClick={() => setShowNotifDialog(true)} disabled={convocation?.notified} className="text-white text-xs" style={{ background: "var(--granate)" }}>
+            <Button variant="club" size="sm" onClick={() => setShowNotifDialog(true)} disabled={convocation?.notified} className="text-xs">
               <Send className="w-3.5 h-3.5 mr-1" />{convocation?.notified ? "Notificado" : "Notificar"}
             </Button>
           )}
@@ -347,7 +347,7 @@ export default function MatchPlayersPanel({ eventId, teamId, players, event }) {
             </div>
             <div className="flex gap-3 pt-2 border-t border-gray-100">
               <Button variant="outline" onClick={() => setShowConvocDialog(false)} className="flex-1">Cancelar</Button>
-              <Button onClick={handleSaveConvocDialog} className="flex-1 text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" onClick={handleSaveConvocDialog} className="flex-1">
                 Guardar ({pendingConvocIds.length} convocados)
               </Button>
             </div>
@@ -364,7 +364,7 @@ export default function MatchPlayersPanel({ eventId, teamId, players, event }) {
           </DialogHeader>
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={() => setShowNotifDialog(false)} className="flex-1">Cancelar</Button>
-            <Button onClick={() => sendNotifMutation.mutate()} disabled={sendNotifMutation.isPending} className="flex-1 text-white" style={{ background: "var(--granate)" }}>
+            <Button variant="club" onClick={() => sendNotifMutation.mutate()} disabled={sendNotifMutation.isPending} className="flex-1">
               {sendNotifMutation.isPending ? "Enviando…" : "Enviar notificaciones"}
             </Button>
           </div>

@@ -4,24 +4,21 @@ import ScoutedPlayersList from "@/components/scouting/ScoutedPlayersList.jsx";
 import ObservedTeamsList from "@/components/scouting/ObservedTeamsList";
 import FollowUpsList from "@/components/scouting/FollowUpsList";
 
+import { PageTitle } from "@/components/common/PageHeader";
 export default function Scouting() {
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Herramientas</p>
-        <h1>Scouting</h1>
-        <p className="text-gray-400 text-xs mt-1">Observación y seguimiento de jugadores</p>
-      </div>
+    <div className="space-y-4">
+      <PageTitle kicker="Herramientas" title="Scouting" subtitle="Observación y seguimiento de jugadores" />
 
       <Tabs defaultValue="players">
-        <TabsList className="bg-gray-100 border border-gray-200 h-auto flex-wrap">
-          <TabsTrigger value="players" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
+        <TabsList>
+          <TabsTrigger value="players"  style={{ fontFamily: "var(--font-display)" }}>
             Jugadores
           </TabsTrigger>
-          <TabsTrigger value="teams" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
+          <TabsTrigger value="teams"  style={{ fontFamily: "var(--font-display)" }}>
             Equipos Observados
           </TabsTrigger>
-          <TabsTrigger value="followups" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
+          <TabsTrigger value="followups"  style={{ fontFamily: "var(--font-display)" }}>
             Seguimientos
           </TabsTrigger>
         </TabsList>

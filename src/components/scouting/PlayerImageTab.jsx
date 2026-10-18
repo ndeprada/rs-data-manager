@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 
+import EmptyState from "@/components/common/EmptyState";
 const EMPTY_FORM = { image_url: "", caption: "", uploaded_date: new Date().toISOString().split("T")[0], match_context: "" };
 
 export default function PlayerImageTab({ playerId }) {
@@ -64,7 +65,7 @@ export default function PlayerImageTab({ playerId }) {
     createMutation.mutate(form);
   };
 
-  if (isLoading) return <div className="flex justify-center p-8"><div className="w-6 h-6 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin" /></div>;
+  if (isLoading) return <div className="flex justify-center p-8"><div className="w-6 h-6 border-4 border-gray-200 border-t-[var(--granate)] rounded-full animate-spin" /></div>;
 
   return (
     <div className="space-y-4">
@@ -72,16 +73,13 @@ export default function PlayerImageTab({ playerId }) {
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
           {images.length} imagen{images.length !== 1 ? "es" : ""}
         </p>
-        <Button size="sm" onClick={() => setFormOpen(true)} className="text-white" style={{ background: "var(--granate)" }}>
+        <Button variant="club" size="sm" onClick={() => setFormOpen(true)}>
           <Plus className="w-3.5 h-3.5 mr-1" /> Subir imagen
         </Button>
       </div>
 
       {images.length === 0 ? (
-        <div className="text-center py-10 text-gray-400">
-          <Image className="w-10 h-10 mx-auto mb-2 text-gray-200" />
-          <p className="text-sm">No hay imágenes registradas</p>
-        </div>
+        <EmptyState icon={Image} title="No hay imágenes registradas" />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {images.map(img => (
@@ -158,7 +156,7 @@ export default function PlayerImageTab({ playerId }) {
 
             <div className="flex gap-3 pt-1">
               <Button type="button" variant="outline" onClick={() => setFormOpen(false)} className="flex-1">Cancelar</Button>
-              <Button type="submit" disabled={createMutation.isPending || uploading || !form.image_url} className="flex-1 text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" type="submit" disabled={createMutation.isPending || uploading || !form.image_url} className="flex-1">
                 {createMutation.isPending ? "Guardando..." : "Añadir"}
               </Button>
             </div>

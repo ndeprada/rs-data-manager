@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useNavigate } from "react-router-dom";
 import { useCountedStats } from "@/lib/matchStatus";
 
+import { PageTitle } from "@/components/common/PageHeader";
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TYPE_LABELS = {
   partido_amistoso: "Amistoso",
@@ -58,13 +59,9 @@ export default function Matches() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Gestión</p>
-          <h1>Partidos</h1>
-          <p className="text-gray-400 text-xs mt-1">Historial y gestión de partidos</p>
-        </div>
+        <PageTitle kicker="Gestión" title="Partidos" subtitle="Historial y gestión de partidos" />
         <div className="flex gap-3 flex-wrap">
           <Select value={filterTeam} onValueChange={setFilterTeam}>
             <SelectTrigger className="w-44 border-gray-200 bg-white"><SelectValue placeholder="Equipo" /></SelectTrigger>

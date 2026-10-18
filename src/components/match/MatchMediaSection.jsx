@@ -254,11 +254,10 @@ export default function MatchMediaSection({ eventId, event }) {
             >
               Cancelar
             </Button>
-            <Button
+            <Button variant="club"
               onClick={handleUpload}
               disabled={uploading}
-              className="flex-1 text-white"
-              style={{ background: "var(--granate)" }}
+              className="flex-1"
             >
               {uploading ? (
                 <>
@@ -406,10 +405,9 @@ export default function MatchMediaSection({ eventId, event }) {
                 >
                   Cancelar
                 </Button>
-                <Button
+                <Button variant="club"
                   onClick={handleAddVideoLink}
-                  className="flex-1 text-white"
-                  style={{ background: "var(--granate)" }}
+                  className="flex-1"
                 >
                   <LinkIcon className="w-4 h-4 mr-2" /> Agregar
                 </Button>

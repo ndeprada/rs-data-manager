@@ -145,7 +145,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-gray-500">Las valoraciones y correcciones de cada jugador quedan guardadas en su ficha, en Estadísticas → Correcciones.</p>
-        <Button onClick={save} disabled={saving} className="text-white shrink-0" style={{ background: "var(--granate)" }}>
+        <Button variant="club" onClick={save} disabled={saving} className="shrink-0">
           {saved ? <Check className="w-4 h-4 mr-1.5" /> : <Save className="w-4 h-4 mr-1.5" />}
           {saving ? "Guardando…" : saved ? "Guardado" : "Guardar análisis"}
         </Button>
@@ -171,7 +171,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
               const thumb = youtubeThumb(l.url);
               const open = () => { if (emb) setPlaying(playing === i ? null : i); else window.open(l.url, "_blank", "noopener"); };
               return (
-                <div key={i} className={`rounded-xl overflow-hidden border ${playing === i ? "border-[#6b1f28]" : "border-gray-200"} bg-white`}>
+                <div key={i} className={`rounded-xl overflow-hidden border ${playing === i ? "border-[#73000A]" : "border-gray-200"} bg-white`}>
                   <button type="button" onClick={open} className="relative block w-full aspect-video bg-gray-900 group" title={emb ? "Reproducir aquí" : "Abrir vídeo"}>
                     {thumb && <img src={thumb} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" />}
                     <span className="absolute inset-0 flex items-center justify-center">

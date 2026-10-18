@@ -448,7 +448,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
 
           <div className="flex gap-3 pt-1">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancelar</Button>
-            <Button type="submit" disabled={createMutation.isPending || (form.recurring && previewDates.length === 0)} className="flex-1 text-white" style={{ background: "var(--granate)" }}>
+            <Button variant="club" type="submit" disabled={createMutation.isPending || (form.recurring && previewDates.length === 0)} className="flex-1">
               {createMutation.isPending
                 ? "Guardando…"
                 : form.recurring

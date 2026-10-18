@@ -128,11 +128,9 @@ export default function MatchRecordTab({ eventId, teamId, event, players, onScor
               className="border-gray-200"
             />
           </div>
-          <Button
+          <Button variant="club"
             onClick={() => saveScoreMutation.mutate({ score_home: score.home, score_away: score.away })}
             disabled={!hasScore || saveScoreMutation.isPending}
-            className="text-white"
-            style={{ background: "var(--granate)" }}
           >
             <Save className="w-4 h-4 mr-1" /> Guardar
           </Button>
@@ -288,11 +286,10 @@ export default function MatchRecordTab({ eventId, teamId, event, players, onScor
 
           {/* Save all button */}
           {(goals.length > 0 || yellows.length > 0 || reds.length > 0) && (
-            <Button
+            <Button variant="club"
               onClick={() => saveMatchStatsMutation.mutate()}
               disabled={saveMatchStatsMutation.isPending}
-              className="w-full text-white"
-              style={{ background: "var(--granate)" }}
+              className="w-full"
             >
               <Save className="w-4 h-4 mr-2" /> Guardar acta
             </Button>

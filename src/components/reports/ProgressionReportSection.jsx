@@ -159,12 +159,11 @@ export default function ProgressionReportSection() {
                       ) : <span className="text-xs text-gray-300">—</span>}
                     </td>
                     <td className="px-5 py-3 text-right">
-                      <Button
+                      <Button variant="club"
                         size="sm"
                         onClick={() => handleDownload(player)}
                         disabled={downloading === player.id}
-                        className="text-white text-xs"
-                        style={{ background: "var(--granate)" }}
+                        className="text-xs"
                       >
                         {downloading === player.id
                           ? <Loader2 className="w-3.5 h-3.5 animate-spin" />

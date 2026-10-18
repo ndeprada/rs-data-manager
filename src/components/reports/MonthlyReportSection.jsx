@@ -188,11 +188,10 @@ export default function MonthlyReportSection() {
             </Select>
           </div>
           {selectedTeam && withEmail.length > 0 && (
-            <Button
+            <Button variant="club"
               onClick={handleSendAll}
               disabled={isSendingAll}
-              className="text-white ml-auto"
-              style={{ background: "var(--granate)" }}
+              className="ml-auto"
             >
               {isSendingAll
                 ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando todos...</>

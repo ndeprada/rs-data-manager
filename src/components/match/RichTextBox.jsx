@@ -8,7 +8,7 @@ const Size = Quill.import("attributors/style/size"); Size.whitelist = SIZES.filt
 const Font = Quill.import("attributors/style/font"); Font.whitelist = FONT_FAMILIES.slice(1).map((f) => f.value); Quill.register(Font, true);
 Quill.register(Quill.import("attributors/style/align"), true);
 
-const COLORS = ["#1f2937", "#6b1f28", "#dc2626", "#ea580c", "#16a34a", "#2563eb", "#7c3aed", "#6b7280"];
+const COLORS = ["#1f2937", "#73000A", "#dc2626", "#ea580c", "#16a34a", "#2563eb", "#7c3aed", "#6b7280"];
 
 export default function RichTextBox({ value, onChange, placeholder, minHeight = 120 }) {
   const modules = useMemo(() => ({

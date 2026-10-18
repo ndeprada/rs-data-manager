@@ -14,6 +14,7 @@ import TeamStaffSection from "@/components/team/TeamStaffSection";
 import { buildLinks } from "@/lib/staffLink";
 import { FCF_CATEGORIES, FCF_CATEGORY_GROUPS, getCategoryLabel } from "@/components/fcfCategories";
 
+import { PageTitle } from "@/components/common/PageHeader";
 const emptyForm = { name: "", category: "", coach_id: "", season: "", fcf_group_url: "" };
 
 // Orden de categorías por edad (mayor a menor) usando FCF_CATEGORIES
@@ -166,13 +167,9 @@ export default function Teams() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
-         <div>
-           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Administración</p>
-           <h1>Equipos</h1>
-           <p className="text-gray-400 text-xs mt-1">Gestión de equipos del club</p>
-         </div>
+         <PageTitle kicker="Administración" title="Equipos" subtitle="Gestión de equipos del club" />
          <div className="flex items-center gap-2">
            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
              <button
@@ -198,10 +195,9 @@ export default function Teams() {
            >
              <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} /> {syncing ? "Sincronizando..." : "Sincronizar con FCF"}
            </Button>
-           <Button
+           <Button variant="club"
              onClick={() => { setForm(emptyForm); setDialogOpen(true); }}
-             className="text-white shadow-sm"
-             style={{ background: "var(--granate)" }}
+             className="shadow-sm"
            >
              <Plus className="w-4 h-4 mr-2" /> Nuevo Equipo
            </Button>
@@ -312,7 +308,7 @@ export default function Teams() {
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
-              <Button type="submit" className="text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" type="submit">
                 {editingTeam ? "Guardar datos" : "Crear"}
               </Button>
             </div>

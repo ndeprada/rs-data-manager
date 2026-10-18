@@ -159,9 +159,9 @@ export default function PlayerProfile() {
   const tabContentClass = "mt-0 focus-visible:outline-none focus-visible:ring-0";
 
   return (
-    <div className="min-h-screen" style={{ background: "#f8f7f5" }}>
+    <div className="min-h-screen" style={{ background: "#f5f5f5" }}>
       {/* ── CABECERA COMPACTA ── */}
-      <div style={{ background: "linear-gradient(135deg, #6b1f28 0%, #3d0d13 100%)" }}>
+      <div style={{ background: "linear-gradient(135deg, #73000A 0%, #36000D 100%)" }}>
         <div className="px-4 sm:px-6 pt-3 pb-4">
           <div className="flex items-center justify-between mb-3">
             <Link to="/Players" onClick={(e) => { if (!playerMode && window.history.state?.idx > 0) { e.preventDefault(); navigate(-1); } }} className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm font-medium">
@@ -199,11 +199,11 @@ export default function PlayerProfile() {
 
               <div className="min-w-0">
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
-                  <span style={{ color: "#e67e22" }}>{playerFirstName(player)}</span>{" "}
+                  <span style={{ color: "#FF6E00" }}>{playerFirstName(player)}</span>{" "}
                   <span className="text-white">{player.last_name}</span>
                 </h1>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-white/70">
-                  {team && <span className="inline-flex items-center gap-1"><Shield className="w-3 h-3" style={{ color: "#e67e22" }} />{team.name}</span>}
+                  {team && <span className="inline-flex items-center gap-1"><Shield className="w-3 h-3" style={{ color: "#FF6E00" }} />{team.name}</span>}
                   {player.position && <span>· {POSITION_LABELS[player.position] || player.position}{getExtraPositions(player).map((e) => ` / ${POSITION_LABELS[e.position] || e.position}`).join("")}</span>}
                   {age && <span>· Nac. {age}</span>}
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${st.bg} ${st.text}`}>
@@ -251,7 +251,7 @@ export default function PlayerProfile() {
                 <TabsTrigger
                   key={t.value}
                   value={t.value}
-                  className="flex-1 min-w-0 rounded-none border-b-2 border-transparent px-1.5 sm:px-2 py-3 text-xs font-semibold text-gray-500 transition-all gap-1.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-[#6b1f28] data-[state=active]:text-[#6b1f28]"
+                  className="flex-1 min-w-0 rounded-none border-b-2 border-transparent px-1.5 sm:px-2 py-3 text-xs font-semibold text-gray-500 transition-all gap-1.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-[#73000A] data-[state=active]:text-[#73000A]"
                 >
                   {t.icon}
                   <span className="hidden md:inline">{t.label}</span>
@@ -302,7 +302,7 @@ export default function PlayerProfile() {
 
           <TabsContent value="injuries" className={tabContentClass}>
             {playerMode ? <PlayerInjuriesReadOnly playerId={playerId} /> : <div className="space-y-4">
-              <Button onClick={() => setInjuryDialogOpen(true)} className="text-white w-full" style={{ background: "var(--granate)" }}>
+              <Button variant="club" onClick={() => setInjuryDialogOpen(true)} className="w-full">
                 <Plus className="w-4 h-4 mr-2" /> Registrar lesión
               </Button>
               <InjurySection

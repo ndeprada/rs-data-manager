@@ -153,7 +153,7 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
             </Button>
           )}
           {canEvaluate && (
-            <Button size="sm" onClick={() => openCreate("evaluacion")} className="text-white text-xs" style={{ background: "var(--granate)" }}>
+            <Button variant="club" size="sm" onClick={() => openCreate("evaluacion")} className="text-xs">
               <Plus className="w-3.5 h-3.5 mr-1" /> Nueva evaluación
             </Button>
           )}
@@ -254,7 +254,7 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
                 : <Button variant="outline" size="icon" onClick={() => setConfirmDelete(true)}><Trash2 className="w-4 h-4 text-gray-400" /></Button>)}
               <div className="flex-1" />
               <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? "Guardando…" : "Guardar"}
               </Button>
             </div>

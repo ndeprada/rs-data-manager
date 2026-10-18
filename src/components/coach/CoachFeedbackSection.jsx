@@ -170,7 +170,7 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
             <Button size="sm" variant="outline" onClick={openQuick} className="text-xs">
               <Zap className="w-3.5 h-3.5 mr-1" /> Nota rápida
             </Button>
-            <Button size="sm" onClick={openCreate} className="text-white text-xs" style={{ background: "var(--granate)" }}>
+            <Button variant="club" size="sm" onClick={openCreate} className="text-xs">
               <Plus className="w-3.5 h-3.5 mr-1" /> Nuevo feedback
             </Button>
           </div>
@@ -248,9 +248,9 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
                           <div className="flex gap-2">
                             <Textarea rows={1} placeholder="Escribe una respuesta…" value={replyText[i.id] || ""}
                               onChange={(e) => setReplyText((p) => ({ ...p, [i.id]: e.target.value }))} className="border-gray-200 text-sm" />
-                            <Button size="sm" disabled={!(replyText[i.id] || "").trim() || replyMutation.isPending}
+                            <Button variant="club" size="sm" disabled={!(replyText[i.id] || "").trim() || replyMutation.isPending}
                               onClick={() => replyMutation.mutate({ i, text: replyText[i.id].trim() })}
-                              className="text-white self-end" style={{ background: "var(--granate)" }}>Responder</Button>
+                              className="self-end">Responder</Button>
                           </div>
                         )}
                       </div>
@@ -288,8 +288,7 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
             <div className="flex items-center gap-2">
               <p className="text-xs text-green-600 flex-1">{quickDone > 0 ? `✓ ${quickDone} añadida${quickDone > 1 ? "s" : ""} al borrador` : "Se guarda en el borrador del partido"}</p>
               <Button variant="outline" onClick={() => setQuickOpen(false)}>Cerrar</Button>
-              <Button disabled={!quick.text.trim() || quickMutation.isPending} onClick={() => quickMutation.mutate()}
-                className="text-white" style={{ background: "var(--granate)" }}>Añadir</Button>
+              <Button variant="club" disabled={!quick.text.trim() || quickMutation.isPending} onClick={() => quickMutation.mutate()}>Añadir</Button>
             </div>
           </div>
         </DialogContent>
@@ -330,8 +329,7 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
                   Guardar borrador
                 </Button>
               )}
-              <Button disabled={!hasContent || saveMutation.isPending} onClick={() => saveMutation.mutate({ send: true })}
-                className="text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" disabled={!hasContent || saveMutation.isPending} onClick={() => saveMutation.mutate({ send: true })}>
                 <Send className="w-3.5 h-3.5 mr-1.5" />
                 {editing?.status === "enviado" ? "Guardar y reenviar" : "Guardar y enviar"}
               </Button>

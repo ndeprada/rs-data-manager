@@ -279,7 +279,7 @@ export default function SessionFormDialog({ open, onOpenChange, session, onSave,
 
             <div className="flex gap-3 pt-2 border-t border-gray-100">
               <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancelar</Button>
-              <Button onClick={handleSave} className="flex-1 text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" onClick={handleSave} className="flex-1">
                 {session ? "Guardar cambios" : "Crear sesión"}
               </Button>
             </div>

@@ -118,7 +118,7 @@ export default function MatchStatsSection({ playerId, isGoalkeeper = false }) {
               </span>
             )}
           </div>
-          <Button size="sm" onClick={() => setDialogOpen(true)} className="text-white" style={{ background: "var(--granate)" }}>
+          <Button variant="club" size="sm" onClick={() => setDialogOpen(true)}>
             <Plus className="w-3.5 h-3.5 mr-1" /> Añadir
           </Button>
         </div>
@@ -278,7 +278,7 @@ export default function MatchStatsSection({ playerId, isGoalkeeper = false }) {
 
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
-              <Button type="submit" className="text-white" style={{ background: "var(--granate)" }}>{editingItem ? "Guardar" : "Registrar"}</Button>
+              <Button variant="club" type="submit">{editingItem ? "Guardar" : "Registrar"}</Button>
             </div>
           </form>
         </DialogContent>

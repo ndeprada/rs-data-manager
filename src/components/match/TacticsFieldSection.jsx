@@ -157,7 +157,7 @@ export default function TacticsFieldSection({ eventId, teamId, players }) {
         <Button onClick={() => setPlayerPositions({})} variant="outline" size="sm" className="h-8">
           Limpiar
         </Button>
-        <Button onClick={() => setSavingTactic(!savingTactic)} size="sm" className="h-8 text-white" style={{ background: "var(--granate)" }}>
+        <Button variant="club" onClick={() => setSavingTactic(!savingTactic)} size="sm" className="h-8">
           <Save className="w-3.5 h-3.5 mr-1" /> Guardar táctica
         </Button>
       </div>
@@ -171,7 +171,7 @@ export default function TacticsFieldSection({ eventId, teamId, players }) {
             placeholder="Ej: Defensa 4-4-2"
             className="border-gray-300 h-8 text-sm"
           />
-          <Button onClick={handleSaveTactic} size="sm" className="h-8 text-white" style={{ background: "var(--granate)" }}>
+          <Button variant="club" onClick={handleSaveTactic} size="sm" className="h-8">
             Crear
           </Button>
           <Button onClick={() => setSavingTactic(false)} variant="outline" size="sm" className="h-8">

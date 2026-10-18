@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { playerFirstName } from "@/lib/playerName";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 
+import { Button } from "@/components/ui/button";
 // Creador de jugadas a balón parado: medio campo (portería arriba), fichas propias/rivales con jugador, dorsal y rol,
 // balón y flechas finas (rectas o curvas, continuas o discontinuas). Las jugadas se pueden guardar en la biblioteca del
 // equipo y reutilizar otra semana cambiando solo los jugadores.
@@ -724,7 +725,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
               <button key={v} type="button" onClick={() => setPerPage(v)} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${perPage === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={perPage === v ? { background: "var(--granate)" } : {}}>{l}</button>
             ))}
             <button type="button" onClick={printBook} disabled={!library.length} title="Imprime toda la biblioteca del equipo, con portada y agrupada por tipo" className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-white disabled:opacity-40"><BookOpen className="w-3.5 h-3.5" /> Libro del equipo</button>
-            <button type="button" onClick={doPrint} className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-white px-3 py-1.5 rounded" style={{ background: "var(--granate)" }}><Printer className="w-3.5 h-3.5" /> Imprimir</button>
+            <Button type="button" variant="club" size="sm" onClick={doPrint} className="ml-auto gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir</Button>
           </div>
         </div>
       )}

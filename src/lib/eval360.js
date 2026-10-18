@@ -107,7 +107,7 @@ export function computeAverages(scores = {}) {
 export function scoreColor(v) {
   if (v == null) return "#9ca3af";
   if (v >= 8) return "#16a34a";
-  if (v >= 6) return "#6b1f28";
+  if (v >= 6) return "#73000A";
   if (v >= 4) return "#ea580c";
   return "#dc2626";
 }

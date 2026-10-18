@@ -136,11 +136,10 @@ export default function ConvocationPanel({ eventId, teamId, onClose }) {
           <Button variant="outline" onClick={onClose} className="flex-1">
             Cancelar
           </Button>
-          <Button
+          <Button variant="club"
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending}
-            className="flex-1 text-white"
-            style={{ background: "var(--granate)" }}
+            className="flex-1"
           >
             <Save className="w-4 h-4 mr-2" /> Guardar
           </Button>

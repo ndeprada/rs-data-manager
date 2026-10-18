@@ -40,7 +40,7 @@ export default function PlayerAttributesBar({ playerId }) {
       <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Atributos</span>
-          <span className="inline-flex items-center justify-center min-w-7 h-7 px-1 rounded-lg text-xs font-black text-white shadow-sm" style={{ background: "linear-gradient(135deg, #6b1f28, #3d0d13)" }}>
+          <span className="inline-flex items-center justify-center min-w-7 h-7 px-1 rounded-lg text-xs font-black text-white shadow-sm" style={{ background: "linear-gradient(135deg, #73000A, #36000D)" }}>
             {avg.overall ?? "—"}
           </span>
         </div>

@@ -14,6 +14,7 @@ import { useCountedStats } from "@/lib/matchStatus";
 import { useTrainingStatus } from "@/lib/trainingStatus";
 import { usePendingUsers } from "@/lib/pendingUsers";
 
+import { PageTitle } from "@/components/common/PageHeader";
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
 const isMatch = (t) => MATCH_TYPES.includes(t);
@@ -222,10 +223,7 @@ export default function Dashboard() {
     <div className="space-y-4">
       {/* Cabecera */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={display}>Temporada 2025–2026</p>
-          <h1 className="text-3xl font-black leading-none" style={{ ...display, color: "var(--granate)" }}>Panel de control</h1>
-        </div>
+        <PageTitle kicker="Temporada 2025–2026" title="Panel de control" />
         {myPendingTr.length > 0 && (
           <Link to={`/MyTeam/Attendance?eventId=${myPendingTr[0].id}`} className={`${pendingUsers.length > 0 ? "" : "ml-auto"} flex items-center gap-2 px-3 py-2 border border-amber-300 bg-amber-50 hover:bg-amber-100 transition-colors`} style={{ borderRadius: "6px" }} title="Entrenamientos ya hechos sin asistencia">
             <ClipboardCheck className="w-4 h-4 text-amber-600" />

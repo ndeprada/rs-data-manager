@@ -309,7 +309,7 @@ export default function InjurySection({ playerId, playerName, playerEmail, staff
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold text-white bg-red-500">{active.length}</span>
             )}
           </div>
-          <Button size="sm" onClick={() => { setEditing(null); setForm(emptyForm); setDialogOpen(true); }} className="text-white" style={{ background: "var(--granate)" }}>
+          <Button variant="club" size="sm" onClick={() => { setEditing(null); setForm(emptyForm); setDialogOpen(true); }}>
             <Plus className="w-3.5 h-3.5 mr-1" /> Reportar Lesión
           </Button>
         </div>
@@ -518,7 +518,7 @@ export default function InjurySection({ playerId, playerName, playerEmail, staff
 
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
-              <Button type="submit" className="text-white" style={{ background: "var(--granate)" }}>{editing ? "Guardar cambios" : "Reportar lesión"}</Button>
+              <Button variant="club" type="submit">{editing ? "Guardar cambios" : "Reportar lesión"}</Button>
             </div>
           </form>
         </DialogContent>

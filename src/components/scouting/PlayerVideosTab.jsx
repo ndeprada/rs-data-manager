@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 
+import EmptyState from "@/components/common/EmptyState";
 function getYouTubeId(url) {
   const m = url?.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([^&?/\s]+)/);
   return m ? m[1] : null;
@@ -67,16 +68,13 @@ export default function PlayerVideosTab({ playerId }) {
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
           {videos.length} vídeo{videos.length !== 1 ? "s" : ""}
         </p>
-        <Button size="sm" onClick={() => setFormOpen(true)} className="text-white" style={{ background: "var(--granate)" }}>
+        <Button variant="club" size="sm" onClick={() => setFormOpen(true)}>
           <Plus className="w-3.5 h-3.5 mr-1" /> Añadir vídeo
         </Button>
       </div>
 
       {videos.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <Play className="w-10 h-10 mx-auto mb-2 text-gray-200" />
-          <p className="text-sm">No hay vídeos registrados</p>
-        </div>
+        <EmptyState icon={Play} title="No hay vídeos registrados" />
       ) : (
         <div className="grid gap-4">
           {videos.map(v => {
@@ -162,10 +160,10 @@ export default function PlayerVideosTab({ playerId }) {
             <div><Label className="text-xs">Notas</Label><Textarea rows={2} value={form.notes} onChange={e => set("notes", e.target.value)} /></div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" onClick={() => setFormOpen(false)} className="flex-1">Cancelar</Button>
-              <Button
+              <Button variant="club"
                 onClick={() => createMutation.mutate(form)}
                 disabled={!form.title || !form.url || createMutation.isPending}
-                className="flex-1 text-white" style={{ background: "var(--granate)" }}
+                className="flex-1"
               >
                 {createMutation.isPending ? "Guardando..." : "Guardar"}
               </Button>

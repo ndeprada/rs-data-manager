@@ -8,6 +8,8 @@ import PushToggle from "@/components/avisos/PushToggle";
 import Inbox from "@/components/avisos/Inbox";
 import Composer from "@/components/avisos/Composer";
 
+import { PageTitle } from "@/components/common/PageHeader";
+import TabBar from "@/components/common/TabBar";
 const SENDER_ROLES = ["director", "director_deportivo", "coordinador_general", "coordinador_f7", "coordinador_f11", "entrenador"];
 
 function History() {
@@ -38,21 +40,11 @@ export default function Avisos() {
   const tabs = canSend ? [["recibidos", "Recibidos"], ["enviar", "Enviar"], ["historial", "Historial"]] : [["recibidos", "Recibidos"]];
 
   return (
-    <div className="space-y-5 max-w-2xl">
-      <div>
-        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Comunicación</p>
-        <h1>Avisos</h1>
-        <p className="text-gray-400 text-xs mt-1">{canSend ? "Envía avisos al móvil de jugadores, familias y cuerpo técnico" : "Los avisos que te envía el club"}</p>
-      </div>
+    <div className="space-y-4 max-w-2xl">
+      <PageTitle kicker="Comunicación" title="Avisos" subtitle={<>{canSend ? "Envía avisos al móvil de jugadores, familias y cuerpo técnico" : "Los avisos que te envía el club"}</>} />
       <PushToggle />
       {tabs.length > 1 && (
-        <div className="flex gap-1.5">
-          {tabs.map(([k, l]) => (
-            <button key={k} onClick={() => setTab(k)}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold border ${tab === k ? "text-white border-transparent" : "bg-white text-gray-500 border-gray-200"}`}
-              style={tab === k ? { background: "var(--granate)" } : undefined}>{l}</button>
-          ))}
-        </div>
+        <TabBar value={tab} onChange={setTab} items={tabs.map(([k, l]) => ({ value: k, label: l }))} />
       )}
       {tab === "recibidos" && <Inbox />}
       {tab === "enviar" && canSend && <Composer onSent={() => setTab("historial")} />}

@@ -106,7 +106,7 @@ export default function AddStaffDialog({ open, onOpenChange, teamId, editingStaf
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" className="text-white" style={{ background: "var(--granate)" }}>
+            <Button variant="club" type="submit">
               {editingStaff ? "Guardar" : "Añadir"}
             </Button>
           </div>

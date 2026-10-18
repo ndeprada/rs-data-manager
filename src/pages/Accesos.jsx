@@ -14,6 +14,7 @@ import { APP_FUNCTIONS, FUNCTION_LABELS, TEAM_ROLES, teamRoleLabel, functionConf
 import { buildLinks, saveUserAccess, staffFullName, userTeamFields } from "@/lib/staffLink";
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 
+import { PageTitle } from "@/components/common/PageHeader";
 const STATUS_LABELS = { pending: "Pendiente", approved: "Aprobado", rejected: "Rechazado" };
 const NEW_STAFF = "__new__";
 
@@ -217,12 +218,8 @@ export default function Accesos() {
     !(editForm.assignments || []).some((a) => a.team_id && a.team_role);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Administración</p>
-        <h1>Accesos</h1>
-        <p className="text-gray-400 text-xs mt-1">Gestión de usuarios del sistema</p>
-      </div>
+    <div className="space-y-4">
+      <PageTitle kicker="Administración" title="Accesos" subtitle="Gestión de usuarios del sistema" />
 
       <div className="flex gap-3 flex-wrap">
         <div className="flex-1 min-w-48">
@@ -254,7 +251,7 @@ export default function Accesos() {
 
       {isLoading ? (
         <div className="flex justify-center p-12">
-          <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-gray-200 border-t-[var(--granate)] rounded-full animate-spin" />
         </div>
       ) : filteredUsers.length === 0 ? (
         <div className="bg-white border border-gray-200 p-12 text-center" style={{ borderRadius: "4px" }}>
@@ -508,11 +505,10 @@ export default function Accesos() {
 
             <div className="flex gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setEditUser(null)} className="flex-1">Cancelar</Button>
-              <Button
+              <Button variant="club"
                 onClick={handleSave}
                 disabled={saveMutation.isPending || incomplete || needsTeam || (isStaffForm && !editForm.app_role && editForm.access_status === "approved")}
-                className="flex-1 text-white"
-                style={{ background: "var(--granate)" }}
+                className="flex-1"
               >
                 {saveMutation.isPending ? "Guardando..." : editUser?._approving ? "Aprobar y guardar" : "Guardar cambios"}
               </Button>

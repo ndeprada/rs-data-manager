@@ -158,7 +158,7 @@ export default function TeamDetail() {
         <div className="flex items-center gap-4">
           <img src="https://media.base44.com/images/public/69b72e4f23c3602504953d0d/442c01da9_Escudo_Granate.png" alt="Escudo" className="w-14 h-14 object-contain shrink-0" />
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">{team.name}</h1>
+            <h1 className="text-3xl leading-none">{team.name}</h1>
             <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mt-1">
               <span>{getCategoryLabel(team.category)}</span>
               {team.coach && <span>· Entrenador: {team.coach}</span>}
@@ -252,7 +252,7 @@ export default function TeamDetail() {
             )}
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setNewEventOpen(false)}>Cancelar</Button>
-              <Button type="submit" className="text-white" style={{ background: "var(--granate)" }}>Crear evento</Button>
+              <Button variant="club" type="submit">Crear evento</Button>
             </div>
           </form>
         </DialogContent>

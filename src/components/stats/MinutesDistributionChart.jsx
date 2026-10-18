@@ -8,9 +8,9 @@ const POSITION_COLORS = {
   lateral: "#14b8a6",           // teal
   central: "#22c55e",           // verde
   libre: "#dc2626",             // rojo oscuro
-  mediocentro: "#e67e22",       // naranja
-  interior: "#e67e22",          // naranja
-  extremo: "#6b1f28",           // granate
+  mediocentro: "#FF6E00",       // naranja
+  interior: "#FF6E00",          // naranja
+  extremo: "#73000A",           // granate
 };
 
 export default function MinutesDistributionChart({ matchStats, players }) {
@@ -78,8 +78,8 @@ export default function MinutesDistributionChart({ matchStats, players }) {
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#3b82f6" }}></span>Portero</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#22c55e" }}></span>Central</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#14b8a6" }}></span>Lateral</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#e67e22" }}></span>Mediocentro/Interior</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#6b1f28" }}></span>Extremo</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#FF6E00" }}></span>Mediocentro/Interior</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#73000A" }}></span>Extremo</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#ef4444" }}></span>Delantero</span>
             </div>
           </>

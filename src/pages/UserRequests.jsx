@@ -5,6 +5,7 @@ import { Check, X, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/AuthContext";
 
+import { PageTitle } from "@/components/common/PageHeader";
 const ROLE_LABELS = {
   entrenador: "Entrenador",
   preparador_fisico: "Preparador Físico",
@@ -57,16 +58,12 @@ export default function UserRequests() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Administración</p>
-        <h1>Solicitudes de acceso</h1>
-        <p className="text-gray-400 text-xs mt-1">Usuarios pendientes de aprobación</p>
-      </div>
+    <div className="space-y-4">
+      <PageTitle kicker="Administración" title="Solicitudes de acceso" subtitle="Usuarios pendientes de aprobación" />
 
       {isLoading ? (
         <div className="flex justify-center p-12">
-          <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-gray-200 border-t-[var(--granate)] rounded-full animate-spin" />
         </div>
       ) : pendingUsers.length === 0 ? (
         <div className="bg-white border border-gray-200 p-12 text-center" style={{ borderRadius: "4px" }}>
@@ -96,12 +93,10 @@ export default function UserRequests() {
                 >
                   <X className="w-4 h-4" />
                 </Button>
-                <Button
+                <Button variant="club"
                   size="sm"
                   onClick={() => approveMutation.mutate(u)}
                   disabled={approveMutation.isPending}
-                  className="text-white"
-                  style={{ background: "var(--granate)" }}
                 >
                   <Check className="w-4 h-4" />
                 </Button>

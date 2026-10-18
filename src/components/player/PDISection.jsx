@@ -133,7 +133,7 @@ export default function PDISection({ playerId, playerName, playerEmail, readOnly
             <h3 className="font-semibold text-gray-900 mb-1">Evaluaciones PDI</h3>
             <p className="text-sm text-gray-500">Evaluaciones de <strong>{playerName}</strong>.</p>
           </div>
-          <Button onClick={() => setDialogOpen(true)} className="text-white shrink-0 w-full sm:w-auto" style={{ background: "var(--granate)" }}>
+          <Button variant="club" onClick={() => setDialogOpen(true)} className="shrink-0 w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" /> Nueva Evaluación
           </Button>
         </div>
@@ -194,7 +194,7 @@ export default function PDISection({ playerId, playerName, playerEmail, readOnly
 
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
-              <Button type="submit" className="text-white" style={{ background: "var(--granate)" }}>{editingItem ? "Guardar" : "Crear Evaluación"}</Button>
+              <Button variant="club" type="submit">{editingItem ? "Guardar" : "Crear Evaluación"}</Button>
             </div>
           </form>
         </DialogContent>

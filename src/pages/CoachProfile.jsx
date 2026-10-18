@@ -312,7 +312,7 @@ export default function CoachProfile() {
 
   if (isLoading) return (
     <div className="flex items-center justify-center p-12">
-      <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
+      <div className="w-8 h-8 border-4 border-gray-200 border-t-[var(--granate)] rounded-full animate-spin" />
     </div>
   );
 
@@ -330,7 +330,7 @@ export default function CoachProfile() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Back */}
       <Link to="/Coaches" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors">
         <ArrowLeft className="w-4 h-4" /> Volver a Entrenadores
@@ -412,29 +412,29 @@ export default function CoachProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue={showFeedbackTab ? "feedback" : "notes"}>
-        <TabsList className="bg-gray-100 border border-gray-200 max-w-full overflow-x-auto justify-start">
+        <TabsList>
           {showFeedbackTab && (
-            <TabsTrigger value="feedback" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
+            <TabsTrigger value="feedback"  style={{ fontFamily: "var(--font-display)" }}>
               Feedback
             </TabsTrigger>
           )}
           {showFeedbackTab && (
-            <TabsTrigger value="eval360" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
+            <TabsTrigger value="eval360"  style={{ fontFamily: "var(--font-display)" }}>
               Evaluación 360
             </TabsTrigger>
           )}
           {showPDITab && (
-            <TabsTrigger value="pdi" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
+            <TabsTrigger value="pdi"  style={{ fontFamily: "var(--font-display)" }}>
               PDI · Plan Desarrollo Individual
             </TabsTrigger>
           )}
           {canViewReports && (
-            <TabsTrigger value="matches" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
+            <TabsTrigger value="matches"  style={{ fontFamily: "var(--font-display)" }}>
               Notas privadas
             </TabsTrigger>
           )}
           {member.notes && (
-            <TabsTrigger value="notes" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
+            <TabsTrigger value="notes"  style={{ fontFamily: "var(--font-display)" }}>
               Info
             </TabsTrigger>
           )}
@@ -581,11 +581,10 @@ export default function CoachProfile() {
               <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} className="flex-1">
                 Cancelar
               </Button>
-              <Button
+              <Button variant="club"
                 onClick={handleSaveEdit}
                 disabled={updateInfoMutation.isPending}
-                className="flex-1 text-white"
-                style={{ background: "var(--granate)" }}
+                className="flex-1"
               >
                 {updateInfoMutation.isPending ? "Guardando..." : "Guardar cambios"}
               </Button>

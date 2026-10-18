@@ -126,7 +126,7 @@ export default function SessionReportDialog({ open, onOpenChange, event, teamId,
             <Button type="button" variant="outline" onClick={handleClose}>
               Cancelar
             </Button>
-            <Button type="submit" className="text-white" style={{ background: "var(--granate)" }}>
+            <Button variant="club" type="submit">
               Guardar Informe
             </Button>
           </div>

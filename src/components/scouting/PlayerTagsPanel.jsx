@@ -113,12 +113,10 @@ export default function PlayerTagsPanel({ player }) {
 
       {dirty && (
         <div className="pt-2">
-          <Button
+          <Button variant="club"
             onClick={() => saveMutation.mutate(draftTags)}
             disabled={saveMutation.isPending}
             size="sm"
-            className="text-white"
-            style={{ background: "var(--granate)" }}
           >
             <Check className="w-3.5 h-3.5 mr-1" />
             {saveMutation.isPending ? "Guardando..." : "Guardar atributos"}

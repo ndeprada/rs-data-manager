@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Star } from "lucide-react";
 import { playerFullName } from "@/lib/playerName";
 
+import EmptyState from "@/components/common/EmptyState";
 function StarDisplay({ value, max = 5 }) {
   return (
     <span className="inline-flex gap-0.5">
@@ -279,16 +280,13 @@ export default function PlayerReportsTab({ playerId, player }) {
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
           {reports.length} informe{reports.length !== 1 ? "s" : ""}
         </p>
-        <Button size="sm" onClick={openNew} className="text-white" style={{ background: "var(--granate)" }}>
+        <Button variant="club" size="sm" onClick={openNew}>
           <Plus className="w-3.5 h-3.5 mr-1" /> Nuevo informe
         </Button>
       </div>
 
       {sorted.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <FileText className="w-10 h-10 mx-auto mb-2 text-gray-200" />
-          <p className="text-sm">No hay informes registrados</p>
-        </div>
+        <EmptyState icon={FileText} title="No hay informes registrados" />
       ) : (
         <div className="space-y-3">
           {sorted.map(r => (
@@ -379,10 +377,10 @@ export default function PlayerReportsTab({ playerId, player }) {
             <div><Label className="text-xs">Áreas de mejora</Label><Textarea rows={2} value={form.weaknesses} onChange={e => set("weaknesses", e.target.value)} /></div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" onClick={() => { setFormOpen(false); setEditing(null); }} className="flex-1">Cancelar</Button>
-              <Button
+              <Button variant="club"
                 onClick={handleSave}
                 disabled={!form.report_date || !form.scout_name || createMutation.isPending || updateMutation.isPending}
-                className="flex-1 text-white" style={{ background: "var(--granate)" }}
+                className="flex-1"
               >
                 {createMutation.isPending || updateMutation.isPending ? "Guardando..." : "Guardar"}
               </Button>

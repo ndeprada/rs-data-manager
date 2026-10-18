@@ -400,7 +400,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
             <Input type="number" min="0" value={scoreAway} onChange={e => setScoreAway(e.target.value)}
               className="text-2xl font-black text-center h-14 border-gray-200" />
           </div>
-          <Button onClick={saveScore} disabled={savingScore} className="text-white mt-4" style={{ background: "var(--granate)" }}>
+          <Button variant="club" onClick={saveScore} disabled={savingScore} className="mt-4">
             <Save className="w-4 h-4" />
           </Button>
         </div>
@@ -504,7 +504,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
             </div>
           )}
 
-          <Button onClick={addEvent} size="sm" className="text-white h-8 mt-auto" style={{ background: "var(--granate)" }}>
+          <Button variant="club" onClick={addEvent} size="sm" className="h-8 mt-auto">
             <Plus className="w-3.5 h-3.5 mr-1" /> Añadir
           </Button>
         </div>
@@ -610,7 +610,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
                 <Button variant="outline" size="icon" onClick={deleteEdit} title="Eliminar evento"><Trash2 className="w-4 h-4 text-gray-400" /></Button>
                 <div className="flex-1" />
                 <Button variant="outline" onClick={() => setEditEv(null)}>Cancelar</Button>
-                <Button onClick={saveEdit} disabled={savingEv} className="text-white" style={{ background: "var(--granate)" }}>
+                <Button variant="club" onClick={saveEdit} disabled={savingEv}>
                   {savingEv ? "Guardando…" : "Guardar"}
                 </Button>
               </div>

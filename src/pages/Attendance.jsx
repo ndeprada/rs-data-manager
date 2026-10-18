@@ -9,6 +9,7 @@ import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { playerFullName } from "@/lib/playerName";
 
+import { PageTitle } from "@/components/common/PageHeader";
 const STATUS_CONFIG = {
   present: { label: "Asistió", color: "green", icon: CheckCircle2 },
   apart: { label: "Trabajo aparté", color: "blue", icon: AlertCircle },
@@ -115,12 +116,8 @@ export default function Attendance() {
   };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Gestión</p>
-        <h1>Asistencia</h1>
-        <p className="text-gray-400 text-xs mt-1">Registra la asistencia a entrenamientos y partidos</p>
-      </div>
+    <div className="space-y-4">
+      <PageTitle kicker="Gestión" title="Asistencia" subtitle="Registra la asistencia a entrenamientos y partidos" />
 
       {/* Filters */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
@@ -250,11 +247,9 @@ export default function Attendance() {
             <Button variant="outline" onClick={() => { setAttendanceData({}); setAbsenceReasons({}); }}>
               Cancelar
             </Button>
-            <Button
+            <Button variant="club"
               onClick={handleSaveAttendance}
               disabled={Object.keys(attendanceData).length === 0}
-              className="text-white"
-              style={{ background: "var(--granate)" }}
             >
               {createAttendanceMutation.isPending || updateAttendanceMutation.isPending ? (
                 <>

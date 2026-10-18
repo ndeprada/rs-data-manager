@@ -277,10 +277,8 @@ El cuerpo técnico
           {selectedPlayers.length > 0 ? "Modificar convocatoria" : "Crear convocatoria"}
         </Button>
         {selectedPlayers.length > 0 && (
-          <Button
+          <Button variant="club"
             onClick={() => setShowConfirm(true)}
-            className="text-white"
-            style={{ background: "var(--granate)" }}
             disabled={convocation?.notified}
           >
             <Send className="w-4 h-4 mr-2" />
@@ -393,11 +391,10 @@ El cuerpo técnico
               >
                 Cancelar
               </Button>
-              <Button
+              <Button variant="club"
                 type="button"
                 onClick={handleSaveConvocation}
-                className="flex-1 text-white"
-                style={{ background: "var(--granate)" }}
+                className="flex-1"
               >
                 Guardar convocatoria
               </Button>
@@ -428,11 +425,10 @@ El cuerpo técnico
               >
                 Cancelar
               </Button>
-              <Button
+              <Button variant="club"
                 type="button"
                 onClick={() => sendNotificationsMutation.mutate()}
-                className="flex-1 text-white"
-                style={{ background: "var(--granate)" }}
+                className="flex-1"
                 disabled={sendNotificationsMutation.isPending}
               >
                 {sendNotificationsMutation.isPending ? "Enviando..." : "Enviar notificaciones"}

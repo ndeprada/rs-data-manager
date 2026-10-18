@@ -80,7 +80,7 @@ export default function FollowUpsList() {
             <SelectItem value="cancelado">Cancelado</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={openNew} className="text-white" style={{ background: "var(--granate)" }}>
+        <Button variant="club" onClick={openNew}>
           <Plus className="w-4 h-4 mr-2" /> Nuevo seguimiento
         </Button>
       </div>
@@ -155,7 +155,7 @@ export default function FollowUpsList() {
             )}
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={create.isPending || update.isPending} className="text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" type="submit" disabled={create.isPending || update.isPending}>
                 {(create.isPending || update.isPending) ? "Guardando..." : editing ? "Guardar" : "Crear"}
               </Button>
             </div>

@@ -94,7 +94,7 @@ export default function PlayerSeasonHistorySection({ playerId }) {
           <p className="text-xs text-gray-400 uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
             {sorted.length} temporada{sorted.length !== 1 ? "s" : ""}
           </p>
-          <Button size="sm" onClick={openNew} className="text-white text-xs h-8" style={{ background: "var(--granate)" }}>
+          <Button variant="club" size="sm" onClick={openNew} className="text-xs h-8">
             <Plus className="w-3.5 h-3.5 mr-1" /> Añadir temporada
           </Button>
         </div>
@@ -117,7 +117,7 @@ export default function PlayerSeasonHistorySection({ playerId }) {
               <div key={s.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
                 {/* Header */}
                 <div className="px-5 py-3 flex items-center justify-between gap-3 border-b border-gray-100"
-                  style={{ background: s.is_current ? "linear-gradient(135deg, #6b1f28 0%, #3d0d13 100%)" : "#f9fafb" }}>
+                  style={{ background: s.is_current ? "linear-gradient(135deg, #73000A 0%, #36000D 100%)" : "#f9fafb" }}>
                   <div className="flex items-center gap-3">
                     <div className="text-center">
                       <p className={`text-lg font-black leading-none ${s.is_current ? "text-white" : "text-gray-900"}`}
@@ -274,8 +274,7 @@ export default function PlayerSeasonHistorySection({ playerId }) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setDialogOpen(false); setEditingRecord(null); setForm(EMPTY_FORM); }}>Cancelar</Button>
-            <Button onClick={() => saveMutation.mutate(form)} disabled={!form.season || saveMutation.isPending}
-              className="text-white" style={{ background: "var(--granate)" }}>
+            <Button variant="club" onClick={() => saveMutation.mutate(form)} disabled={!form.season || saveMutation.isPending}>
               {saveMutation.isPending ? "Guardando..." : "Guardar"}
             </Button>
           </DialogFooter>

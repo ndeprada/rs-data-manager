@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Package, Edit, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
+import EmptyState from "@/components/common/EmptyState";
 const CATEGORIES = {
   balon: "Balón",
   peto: "Peto",
@@ -134,10 +135,7 @@ export default function MaterialInventoryTab() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
-          <p>No hay material registrado</p>
-        </div>
+        <EmptyState icon={Package} title="No hay material registrado" />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map(item => {

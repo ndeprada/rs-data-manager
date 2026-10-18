@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 
+import EmptyState from "@/components/common/EmptyState";
 const EMPTY_FORM = { image_url: "", caption: "", uploaded_date: "", match_context: "" };
 
 export default function PlayerImagesTab({ playerId }) {
@@ -67,16 +68,13 @@ export default function PlayerImagesTab({ playerId }) {
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
           {images.length} imagen{images.length !== 1 ? "es" : ""}
         </p>
-        <Button size="sm" onClick={() => setFormOpen(true)} className="text-white" style={{ background: "var(--granate)" }}>
+        <Button variant="club" size="sm" onClick={() => setFormOpen(true)}>
           <Plus className="w-3.5 h-3.5 mr-1" /> Añadir imagen
         </Button>
       </div>
 
       {images.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <Image className="w-10 h-10 mx-auto mb-2 text-gray-200" />
-          <p className="text-sm">No hay imágenes registradas</p>
-        </div>
+        <EmptyState icon={Image} title="No hay imágenes registradas" />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {images.map(img => (
@@ -122,10 +120,10 @@ export default function PlayerImagesTab({ playerId }) {
             <div><Label className="text-xs">Fecha</Label><Input type="date" value={form.uploaded_date} onChange={e => set("uploaded_date", e.target.value)} /></div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" onClick={() => setFormOpen(false)} className="flex-1">Cancelar</Button>
-              <Button
+              <Button variant="club"
                 onClick={() => createMutation.mutate(form)}
                 disabled={!form.image_url || createMutation.isPending}
-                className="flex-1 text-white" style={{ background: "var(--granate)" }}
+                className="flex-1"
               >
                 {createMutation.isPending ? "Guardando..." : "Guardar"}
               </Button>

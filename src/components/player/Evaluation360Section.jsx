@@ -203,7 +203,7 @@ export default function Evaluation360Section({ player, playerId }) {
             <p className="text-sm text-gray-500">Perfil general de <strong>{playerFirstName(player)}</strong>: técnica, táctica, física y mental (1-10). Es el punto de partida; el trabajo concreto se planifica en el plan de desarrollo.</p>
           </div>
           </div>
-          {!playerMode && <Button onClick={openNew} className="text-white shrink-0 w-full sm:w-auto" style={{ background: "var(--granate)" }}>
+          {!playerMode && <Button variant="club" onClick={openNew} className="shrink-0 w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" /> Nueva evaluación
           </Button>}
         </div>
@@ -260,7 +260,7 @@ export default function Evaluation360Section({ player, playerId }) {
                     key={t.key}
                     type="button"
                     onClick={() => setTab(t.key)}
-                    className={`px-3 py-2 text-sm font-semibold border-b-2 whitespace-nowrap ${tab === t.key ? "border-[#6b1f28] text-[#6b1f28]" : "border-transparent text-gray-500"}`}
+                    className={`px-3 py-2 text-sm font-semibold border-b-2 whitespace-nowrap ${tab === t.key ? "border-[#73000A] text-[#73000A]" : "border-transparent text-gray-500"}`}
                   >
                     {t.label}{v != null ? <span className="ml-1.5 text-xs font-black" style={{ color: scoreColor(v) }}>{v}</span> : null}
                   </button>
@@ -297,7 +297,7 @@ export default function Evaluation360Section({ player, playerId }) {
 
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={close}>Cancelar</Button>
-              <Button type="submit" disabled={save.isPending} className="text-white" style={{ background: "var(--granate)" }}>{editing ? "Guardar" : "Crear evaluación"}</Button>
+              <Button variant="club" type="submit" disabled={save.isPending}>{editing ? "Guardar" : "Crear evaluación"}</Button>
             </div>
           </form>
         </DialogContent>

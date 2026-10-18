@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Paleta oficial del club (disponible también fuera del Layout: login, registro...) */
+:root {
+  --granate: #73000A; --granate-dark: #36000D; --granate-hover: #36000D;
+  --granate-pale: #fdf2f4; --naranja: #FF6E00; --naranja-pale: #fff7ed;
+}
+
 
 /* Racing Sarria solo en títulos y textos grandes; el resto, IBM Plex */
 :is([style*="font-display"], .font-display, .rs-font):is(.text-xl, .text-2xl, .text-3xl, .text-4xl, .text-5xl, .text-6xl, .text-7xl, .text-8xl) {
@@ -123,8 +129,8 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 
 /* Player profile tabs */
 [data-radix-collection-item][data-state="active"][data-active-color] {
-  color: #6b1f28;
-  border-bottom-color: #6b1f28;
+  color: #73000A;
+  border-bottom-color: #73000A;
   border-bottom-width: 2px;
 }
 [data-radix-collection-item][data-state="inactive"] {

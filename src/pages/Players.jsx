@@ -14,6 +14,7 @@ import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import { format } from "date-fns";
 import { playerSearchName } from "@/lib/playerName";
 
+import { PageTitle } from "@/components/common/PageHeader";
 const POSITIONS = [
   { value: "portero", label: "Portero" },
   { value: "lateral", label: "Lateral" },
@@ -149,12 +150,8 @@ export default function Players() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <p className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Directorio</p>
-          <h1 className="text-3xl font-black leading-none" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Jugadores</h1>
-          <p className="text-xs text-gray-400 mt-1">Racing Sarrià · {players.length} jugadores registrados</p>
-        </div>
-        <Button onClick={() => { setEditingPlayer(null); setDialogOpen(true); }} className="text-white" style={{ background: "var(--granate)" }}>
+        <PageTitle kicker="Directorio" title="Jugadores" subtitle={<>Racing Sarrià · {players.length} jugadores registrados</>} />
+        <Button variant="club" onClick={() => { setEditingPlayer(null); setDialogOpen(true); }}>
           <Plus className="w-4 h-4 mr-1" /> Nuevo Jugador
         </Button>
       </div>

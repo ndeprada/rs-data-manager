@@ -16,6 +16,7 @@ import PostMatchTab from "@/components/match/PostMatchTab";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
 import { playerFullName } from "@/lib/playerName";
 
+import TabBar from "@/components/common/TabBar";
 function Shield({ src, name, canUpload, onUpload }) {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
@@ -115,7 +116,7 @@ export default function MatchDetail() {
   if (eventLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-gray-200 border-t-[var(--granate)] rounded-full animate-spin" />
       </div>
     );
   }
@@ -165,7 +166,7 @@ export default function MatchDetail() {
     <div className="space-y-0">
       {/* ── HERO HEADER ── */}
       <div className="relative overflow-hidden rounded-2xl mb-4" style={{ background: "linear-gradient(160deg, #4a1219 0%, #2a0a0e 60%, #1a0608 100%)" }}>
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-40 rounded-full blur-3xl opacity-15" style={{ background: "radial-gradient(circle, #e67e22, transparent)" }} />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-40 rounded-full blur-3xl opacity-15" style={{ background: "radial-gradient(circle, #FF6E00, transparent)" }} />
         <div className="absolute inset-0" style={{ backgroundImage: "radial-gradient(circle at 15% 85%, rgba(107,31,40,0.35) 0%, transparent 55%)" }} />
 
         <div className="relative px-4 pt-3 pb-3">
@@ -265,24 +266,13 @@ export default function MatchDetail() {
       </div>
 
       {/* ── TABS ── */}
-      <div className="grid grid-cols-4 gap-1 bg-gray-100 p-1 rounded-xl mb-4">
-        {TABS.map(({ key, label, short, icon: Icon }) => {
-          const isActive = activeTab === key;
-          return (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-0.5 py-2 sm:py-2.5 rounded-lg text-[10px] sm:text-xs leading-tight font-bold whitespace-nowrap transition-all ${
-                isActive ? "text-white shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-white/60"
-              }`}
-              style={isActive ? { background: "var(--granate)" } : {}}
-            >
-              <Icon className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0" />
-              <span className="sm:hidden">{short || label}</span><span className="hidden sm:inline">{label}</span>
-            </button>
-          );
-        })}
-      </div>
+      <TabBar
+        fill
+        className="mb-4"
+        value={activeTab}
+        onChange={setActiveTab}
+        items={TABS.map(({ key, label, short, icon }) => ({ value: key, label, short, icon }))}
+      />
 
       {/* ── CONTENT ── */}
       {!canManageTeam(teamId) && (

@@ -14,6 +14,8 @@ import ProgressionReportSection from "@/components/reports/ProgressionReportSect
 import { playerFullName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
 
+import { PageTitle } from "@/components/common/PageHeader";
+import TabBar from "@/components/common/TabBar";
 export default function Reports() {
   const [selectedTeamId, setSelectedTeamId] = useState("all");
   const [reportData, setReportData] = useState(null);
@@ -140,44 +142,20 @@ Longitud: conciso pero completo (máx 400 palabras).`;
   const hasProgressionData = players.length > 0; // Always show if there are players
 
   return (
-    <div className="space-y-8">
-      <div>
-        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Herramientas</p>
-        <h1>Informes</h1>
-        <p className="text-gray-400 text-xs mt-1">Informes del club y jugadores</p>
-      </div>
+    <div className="space-y-4">
+      <PageTitle kicker="Herramientas" title="Informes" subtitle="Informes del club y jugadores" />
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded flex-wrap" style={{ width: "fit-content" }}>
-        <button
-          onClick={() => setActiveTab("executive")}
-          className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-colors ${activeTab === "executive" ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
-        >
-          <FileText className="w-4 h-4" /> Informe Ejecutivo
-        </button>
-        <button
-          onClick={() => setActiveTab("monthly")}
-          className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-colors ${activeTab === "monthly" ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
-        >
-          <Users className="w-4 h-4" /> Informes Mensuales
-        </button>
-        {hasPDIData && hasActivePlayers && (
-          <button
-            onClick={() => setActiveTab("pdi")}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-colors ${activeTab === "pdi" ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            <BookOpen className="w-4 h-4" /> Informes PDI
-          </button>
-        )}
-        {hasProgressionData && hasActivePlayers && (
-          <button
-            onClick={() => setActiveTab("progression")}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-colors ${activeTab === "progression" ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            <TrendingUp className="w-4 h-4" /> Progresión Individual
-          </button>
-        )}
-      </div>
+      <TabBar
+        value={activeTab}
+        onChange={setActiveTab}
+        items={[
+          { value: "executive", label: "Informe Ejecutivo", icon: FileText },
+          { value: "monthly", label: "Informes Mensuales", icon: Users },
+          hasPDIData && hasActivePlayers && { value: "pdi", label: "Informes PDI", icon: BookOpen },
+          hasProgressionData && hasActivePlayers && { value: "progression", label: "Progresión Individual", icon: TrendingUp },
+        ]}
+      />
 
       {activeTab === "monthly" && <MonthlyReportSection />}
       {activeTab === "pdi" && <PDIReportSection />}
@@ -202,11 +180,10 @@ Longitud: conciso pero completo (máx 400 palabras).`;
                   </SelectContent>
                 </Select>
               </div>
-              <Button
+              <Button variant="club"
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="text-white shrink-0 px-6 py-2.5 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
-                style={{ background: "var(--granate)" }}
+                className="shrink-0 px-6 py-2.5 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
                 size="lg"
               >
                 {isGenerating ? (

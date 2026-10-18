@@ -16,6 +16,7 @@ import FreeDragField from "@/components/tactics/FreeDragField";
 import { FORMATIONS, FORMATION_KEYS } from "@/components/tactics/formations";
 import { playerFullName } from "@/lib/playerName";
 
+import { PageTitle } from "@/components/common/PageHeader";
 export default function Tactics() {
   const queryClient = useQueryClient();
   const [selectedTeam, setSelectedTeam] = useState("all");
@@ -127,14 +128,10 @@ export default function Tactics() {
     : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400" style={{ fontFamily: "var(--font-display)" }}>Herramientas</p>
-          <h1>Pizarra Táctica</h1>
-          <p className="text-gray-400 text-xs mt-1">Disposición táctica de los equipos</p>
-        </div>
+        <PageTitle kicker="Herramientas" title="Pizarra Táctica" subtitle="Disposición táctica de los equipos" />
         <div className="flex gap-3 items-center">
           <Select value={selectedTeam} onValueChange={setSelectedTeam}>
             <SelectTrigger className="w-44 border-gray-200 bg-white"><SelectValue placeholder="Equipo" /></SelectTrigger>
@@ -143,7 +140,7 @@ export default function Tactics() {
               {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button onClick={() => setNewBoardDialog(true)} className="text-white shadow-md hover:shadow-lg transition-shadow" style={{ background: "var(--granate)" }} size="lg">
+          <Button variant="club" onClick={() => setNewBoardDialog(true)} className="shadow-md hover:shadow-lg transition-shadow" size="lg">
             <Plus className="w-5 h-5 mr-2" /> Nueva pizarra
           </Button>
         </div>
@@ -229,9 +226,9 @@ export default function Tactics() {
             )}
 
             <Tabs defaultValue="formation">
-              <TabsList className="bg-gray-100 max-w-full overflow-x-auto justify-start">
-                <TabsTrigger value="formation" className="gap-1.5 text-xs"><LayoutGrid className="w-3.5 h-3.5" /> Formación</TabsTrigger>
-                <TabsTrigger value="jugada" className="gap-1.5 text-xs"><Move className="w-3.5 h-3.5" /> Análisis de Jugadas</TabsTrigger>
+              <TabsList>
+                <TabsTrigger value="formation" className="gap-1.5"><LayoutGrid className="w-3.5 h-3.5" /> Formación</TabsTrigger>
+                <TabsTrigger value="jugada" className="gap-1.5"><Move className="w-3.5 h-3.5" /> Análisis de Jugadas</TabsTrigger>
               </TabsList>
 
               {/* ---- TAB: FORMATION ---- */}
@@ -347,7 +344,7 @@ export default function Tactics() {
               </div>
               <p className="font-semibold text-gray-500">Selecciona o crea una pizarra</p>
               <p className="text-sm text-gray-400 mt-1">Elige una pizarra de la lista o crea una nueva</p>
-              <Button onClick={() => setNewBoardDialog(true)} className="mt-4 text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" onClick={() => setNewBoardDialog(true)} className="mt-4">
                 <Plus className="w-4 h-4 mr-2" /> Nueva pizarra
               </Button>
             </div>
@@ -399,7 +396,7 @@ export default function Tactics() {
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setNewBoardDialog(false)}>Cancelar</Button>
-              <Button type="submit" disabled={!newForm.team_id} className="text-white" style={{ background: "var(--granate)" }}>
+              <Button variant="club" type="submit" disabled={!newForm.team_id}>
                 Crear pizarra
               </Button>
             </div>

@@ -20,6 +20,8 @@ import { getCategoryLabel } from "@/components/fcfCategories";
 import TeamSummary from "@/components/myteam/TeamSummary";
 import { useCountedStats } from "@/lib/matchStatus";
 
+import PageHeader, { PageTitle } from "@/components/common/PageHeader";
+import { TeamSelectTrigger } from "@/components/myteam/TeamPageHeader";
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
 const RESULT_COLORS = {
@@ -105,7 +107,7 @@ export default function MyTeam() {
   if (!selectedTeamId) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-black uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Mi Equipo</h1>
+        <PageTitle kicker="Club" title="Mi Equipo" />
         {isCoordinator ? (
           <div className="bg-white border border-gray-200 rounded p-8 text-center">
             <Shield className="w-10 h-10 mx-auto mb-3 text-gray-300" />
@@ -127,21 +129,17 @@ export default function MyTeam() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div>
-        <p className="text-xs uppercase tracking-widest text-gray-400 mb-1" style={{ fontFamily: "var(--font-display)" }}>Mi Equipo</p>
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <h1 className="text-3xl md:text-4xl font-black uppercase leading-tight" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
-            {selectedTeam?.name || "—"}
-          </h1>
-      {canSwitch && (
-        <Select value={selectedTeamId} onValueChange={selectTeam}>
-          <SelectTrigger className="w-52 h-9 font-bold text-[13px] text-[#73000A] border border-[#73000A] bg-white hover:bg-[#FDF2F4] [&>span]:text-[#73000A] [&>svg]:text-[#73000A] [&>svg]:opacity-100"><SelectValue /></SelectTrigger>
-          <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-        </Select>
-      )}
-        </div>
-        <p className="text-xs text-gray-400 mt-1">{[getCategoryLabel(selectedTeam?.category), selectedTeam?.coach].filter(Boolean).join(" · ")}</p>
-      </div>
+      <PageHeader
+        kicker="Mi Equipo"
+        title={selectedTeam?.name || "—"}
+        subtitle={[getCategoryLabel(selectedTeam?.category), selectedTeam?.coach].filter(Boolean).join(" · ")}
+        actions={canSwitch && (
+          <Select value={selectedTeamId} onValueChange={selectTeam}>
+            <TeamSelectTrigger />
+            <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+          </Select>
+        )}
+      />
 
       <BirthdayAlert players={teamPlayers} />
 

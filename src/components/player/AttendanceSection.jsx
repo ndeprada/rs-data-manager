@@ -133,7 +133,7 @@ export default function AttendanceSection({ playerId }) {
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
         <div className="p-5 border-b border-gray-100 flex items-center justify-between">
           <h3 className="font-semibold text-gray-900">Registro de Asistencia</h3>
-          <Button size="sm" onClick={() => setDialogOpen(true)} className="text-white" style={{ background: "var(--granate)" }}>
+          <Button variant="club" size="sm" onClick={() => setDialogOpen(true)}>
             <Plus className="w-3.5 h-3.5 mr-1" /> Añadir
           </Button>
         </div>
@@ -235,7 +235,7 @@ export default function AttendanceSection({ playerId }) {
 
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
-              <Button type="submit" className="text-white" style={{ background: "var(--granate)" }}>{editingItem ? "Guardar" : "Registrar"}</Button>
+              <Button variant="club" type="submit">{editingItem ? "Guardar" : "Registrar"}</Button>
             </div>
           </form>
         </DialogContent>

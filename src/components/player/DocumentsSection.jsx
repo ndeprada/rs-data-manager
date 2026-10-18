@@ -104,10 +104,8 @@ export default function DocumentsSection({ playerId }) {
           <h3 className="text-lg font-semibold text-gray-900">Documentos</h3>
           <p className="text-sm text-gray-500 mt-1">Gestiona exámenes médicos y documentación legal</p>
         </div>
-        <Button
+        <Button variant="club"
           onClick={() => setDialogOpen(true)}
-          className="text-white"
-          style={{ background: "var(--granate)" }}
         >
           <FileUp className="w-4 h-4 mr-2" /> Subir
         </Button>
@@ -270,11 +268,9 @@ export default function DocumentsSection({ playerId }) {
               >
                 Cancelar
               </Button>
-              <Button
+              <Button variant="club"
                 type="submit"
                 disabled={uploading || !form.file || !form.document_type || !form.title}
-                className="text-white"
-                style={{ background: "var(--granate)" }}
               >
                 {uploading ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Subiendo...</>

@@ -10,6 +10,7 @@ import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 
+import { PageTitle } from "@/components/common/PageHeader";
 export default function Methodology() {
   const { isCoordinator, teamIds, selectedTeamId } = useTeamAccess();
 
@@ -25,24 +26,26 @@ export default function Methodology() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <Link to="/MyTeam" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium mb-2">
-          <ArrowLeft className="w-4 h-4" /> Volver a Mi Equipo
-        </Link>
-        <p className="text-xs uppercase tracking-widest text-gray-400 mb-1" style={{ fontFamily: "var(--font-display)" }}>Mi Equipo</p>
-        <h1 className="text-3xl md:text-4xl font-black uppercase leading-tight" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Metodología</h1>
-        <p className="text-xs text-gray-400 mt-1">Biblioteca de tareas, planificación de sesiones y análisis del trabajo</p>
-      </div>
+      <PageTitle
+        before={
+          <Link to="/MyTeam" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium mb-2">
+            <ArrowLeft className="w-4 h-4" /> Volver a Mi Equipo
+          </Link>
+        }
+        kicker="Mi Equipo"
+        title="Metodología"
+        subtitle="Biblioteca de tareas, planificación de sesiones y análisis del trabajo"
+      />
 
       <Tabs defaultValue="sessions">
-        <TabsList className="bg-gray-100 border border-gray-200 max-w-full overflow-x-auto justify-start">
-          <TabsTrigger value="sessions" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
+        <TabsList>
+          <TabsTrigger value="sessions" className="gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
             <Layers className="w-3.5 h-3.5" /> Sesiones
           </TabsTrigger>
-          <TabsTrigger value="tasks" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
+          <TabsTrigger value="tasks" className="gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
             <BookOpen className="w-3.5 h-3.5" /> Biblioteca de Tareas
           </TabsTrigger>
-          <TabsTrigger value="stats" className="data-[state=active]:bg-white text-xs font-bold uppercase tracking-wide gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
+          <TabsTrigger value="stats" className="gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
             <BarChart2 className="w-3.5 h-3.5" /> Análisis
           </TabsTrigger>
         </TabsList>

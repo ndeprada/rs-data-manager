@@ -363,9 +363,9 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-2">
-        <button type="button" disabled={pdfBusy} onClick={makePdf} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-60" style={{ background: "var(--granate)" }}>
+        <Button type="button" variant="club" size="sm" disabled={pdfBusy} onClick={makePdf} className="gap-1.5">
           <FileDown className="w-3.5 h-3.5" /> {pdfBusy ? "Generando…" : "Hoja del entrenador (PDF)"}
-        </button>
+        </Button>
         <span className="text-[11px] text-gray-400 h-4">{status}</span>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
