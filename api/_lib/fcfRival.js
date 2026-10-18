@@ -70,8 +70,12 @@ export function buildReport({ table, matches, scorers, ourCode, rivalCode, compe
   const away = record(rm.filter((x) => !x.home));
   const cleanSheets = rm.filter((x) => x.gc === 0).length;
 
+  // Próximos partidos del rival: solo futuros y sin contar el que jugará contra nosotros (ya es el de esta ficha)
+  const today = new Date().toISOString().slice(0, 10);
   const upcoming = flat
-    .filter((m) => num(m.GOLES_CASA) === null && m.COMIENZO1 && (String(m.CODEQUIPO_CASA) === rivalCode || String(m.CODEQUIPO_FUERA) === rivalCode))
+    .filter((m) => num(m.GOLES_CASA) === null && m.COMIENZO1 && String(m.COMIENZO1).slice(0, 10) >= today
+      && (String(m.CODEQUIPO_CASA) === rivalCode || String(m.CODEQUIPO_FUERA) === rivalCode)
+      && String(m.CODEQUIPO_CASA) !== ourCode && String(m.CODEQUIPO_FUERA) !== ourCode)
     .sort((a, b) => (a.COMIENZO1 < b.COMIENZO1 ? -1 : 1))
     .slice(0, 2)
     .map((m) => { const h = String(m.CODEQUIPO_CASA) === rivalCode; return { date: m.COMIENZO1, home: h, vs: title(h ? m.NOMBRE_FUERA : m.NOMBRE_CASA) }; });
