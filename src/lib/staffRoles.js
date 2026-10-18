@@ -1,6 +1,11 @@
 // Roles y funciones del cuerpo técnico — fuente única para registro, accesos y personal.
 
-export const CURRENT_SEASON = "2025-2026";
+// La temporada empieza en agosto: de agosto de 2026 a julio de 2027 es "2026-2027".
+export function seasonFor(date = new Date()) {
+  const start = date.getMonth() >= 7 ? date.getFullYear() : date.getFullYear() - 1;
+  return `${start}-${start + 1}`;
+}
+export const CURRENT_SEASON = seasonFor();
 
 // Función de una persona en el club (campo app_role del usuario).
 // teams: "required" = hay que indicar equipo(s) y rol en cada uno;

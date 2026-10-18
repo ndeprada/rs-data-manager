@@ -161,7 +161,7 @@ export default function PlayerProfile() {
   return (
     <div className="min-h-screen" style={{ background: "#f5f5f5" }}>
       {/* ── CABECERA COMPACTA ── */}
-      <div style={{ background: "linear-gradient(135deg, #73000A 0%, #36000D 100%)" }}>
+      <div className="bg-club-banner">
         <div className="px-4 sm:px-6 pt-3 pb-4">
           <div className="flex items-center justify-between mb-3">
             <Link to="/Players" onClick={(e) => { if (!playerMode && window.history.state?.idx > 0) { e.preventDefault(); navigate(-1); } }} className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm font-medium">

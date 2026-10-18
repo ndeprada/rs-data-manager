@@ -165,9 +165,7 @@ export default function MatchDetail() {
   return (
     <div className="space-y-0">
       {/* ── HERO HEADER ── */}
-      <div className="relative overflow-hidden rounded-2xl mb-4" style={{ background: "linear-gradient(160deg, #4a1219 0%, #2a0a0e 60%, #1a0608 100%)" }}>
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-40 rounded-full blur-3xl opacity-15" style={{ background: "radial-gradient(circle, #FF6E00, transparent)" }} />
-        <div className="absolute inset-0" style={{ backgroundImage: "radial-gradient(circle at 15% 85%, rgba(107,31,40,0.35) 0%, transparent 55%)" }} />
+      <div className="relative overflow-hidden rounded-2xl mb-4 bg-club-banner">
 
         <div className="relative px-4 pt-3 pb-3">
           {/* Top bar */}

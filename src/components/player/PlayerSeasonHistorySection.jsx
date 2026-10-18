@@ -117,7 +117,7 @@ export default function PlayerSeasonHistorySection({ playerId }) {
               <div key={s.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
                 {/* Header */}
                 <div className="px-5 py-3 flex items-center justify-between gap-3 border-b border-gray-100"
-                  style={{ background: s.is_current ? "linear-gradient(135deg, #73000A 0%, #36000D 100%)" : "#f9fafb" }}>
+                  style={{ background: s.is_current ? "linear-gradient(135deg, var(--granate) 0%, var(--granate-dark) 100%)" : "#f9fafb" }}>
                   <div className="flex items-center gap-3">
                     <div className="text-center">
                       <p className={`text-lg font-black leading-none ${s.is_current ? "text-white" : "text-gray-900"}`}

@@ -15,6 +15,7 @@ import { buildLinks } from "@/lib/staffLink";
 import { FCF_CATEGORIES, FCF_CATEGORY_GROUPS, getCategoryLabel } from "@/components/fcfCategories";
 
 import { PageTitle } from "@/components/common/PageHeader";
+import { CURRENT_SEASON } from "@/lib/staffRoles";
 const emptyForm = { name: "", category: "", coach_id: "", season: "", fcf_group_url: "" };
 
 // Orden de categorías por edad (mayor a menor) usando FCF_CATEGORIES
@@ -299,7 +300,7 @@ export default function Teams() {
             </div>
             <div className="space-y-2">
               <Label className="text-gray-700">Temporada</Label>
-              <Input value={form.season} onChange={(e) => setForm({ ...form, season: e.target.value })} placeholder="2025-2026" className="border-gray-200" />
+              <Input value={form.season} onChange={(e) => setForm({ ...form, season: e.target.value })} placeholder={CURRENT_SEASON} className="border-gray-200" />
             </div>
             <div className="space-y-2">
               <Label className="text-gray-700">Enlace grup FCF (resultats / classificació)</Label>

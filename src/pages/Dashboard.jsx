@@ -2,7 +2,7 @@ import { sortTeams, compareTeams, isF7Team, teamRank } from "@/lib/teamOrder";
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, UserCog, Swords, MapPin, Trophy, ClipboardCheck } from "lucide-react";
+import { Shield, UserCog, Swords, MapPin, Trophy, ClipboardCheck, Users, Target } from "lucide-react";
 import { format, startOfDay, addDays, isSameDay, differenceInMinutes, startOfWeek, endOfDay, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { Link } from "react-router-dom";
@@ -15,6 +15,9 @@ import { useTrainingStatus } from "@/lib/trainingStatus";
 import { usePendingUsers } from "@/lib/pendingUsers";
 
 import { PageTitle } from "@/components/common/PageHeader";
+import PendingStrip from "@/components/dashboard/PendingStrip";
+import { fromStored } from "@/lib/goalTypes";
+import { CURRENT_SEASON } from "@/lib/staffRoles";
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
 const isMatch = (t) => MATCH_TYPES.includes(t);
@@ -144,6 +147,7 @@ export default function Dashboard() {
   const { data: fields = [] } = useQuery({ queryKey: ["fields"], queryFn: () => base44.entities.Field.list() });
   const { data: attendance = [] } = useQuery({ queryKey: ["attendance"], queryFn: () => base44.entities.TrainingAttendance.list() });
   const { data: rawStats = [] } = useQuery({ queryKey: ["matchstats"], queryFn: () => base44.entities.MatchStats.list() });
+  const { data: convocs = [] } = useQuery({ queryKey: ["convocatorias_all"], queryFn: () => base44.entities.Convocatoria.list() });
   const matchStats = useCountedStats(rawStats);
   const { pending: pendingTrainings } = useTrainingStatus();
 
@@ -177,6 +181,24 @@ export default function Dashboard() {
 
   const activePlayers = players.filter((p) => p.status === "activo").length;
   const injured = players.filter((p) => p.status === "lesionado").length;
+
+  // Pendientes (mis equipos si entreno; todo el club si no)
+  const [seasonYear] = CURRENT_SEASON.split("-");
+  const seasonStart = new Date(Number(seasonYear), 7, 1);
+  const matchLink = (e, tab) => `/MatchDetail?id=${e.id}&teamId=${e.team_id}${tab ? `&tab=${tab}` : ""}`;
+  const pendMatch = (e) => isMatch(e.type) && (!recordIds || recordIds.has(e.team_id));
+  const withConv = new Set(convocs.filter((c) => (c.player_ids || []).length > 0).map((c) => c.event_id));
+  const noConv = upcoming.filter((e) => pendMatch(e) && new Date(e.date) <= addDays(now, 7) && !withConv.has(e.id));
+  const playedOver = events.filter((e) => pendMatch(e) && new Date(e.date) >= seasonStart && new Date(e.date).getTime() < now.getTime() - 2 * 3600 * 1000);
+  const noResult = playedOver.filter((e) => e.score_home == null || e.score_away == null);
+  const noClass = playedOver.filter((e) => (e.goal_events || []).some((g) => !fromStored(g).phase));
+  const pendingItems = [
+    { key: "att", icon: ClipboardCheck, count: myPendingTr.length, label: myPendingTr.length === 1 ? "entreno sin asistencia" : "entrenos sin asistencia", cta: "Pasar lista", to: myPendingTr[0] ? `/MyTeam/Attendance?eventId=${myPendingTr[0].id}` : "/MyTeam/Attendance", tone: "#d97706" },
+    { key: "conv", icon: Users, count: noConv.length, label: noConv.length === 1 ? "partido (7 días) sin convocatoria" : "partidos (7 días) sin convocatoria", cta: "Convocar", to: noConv[0] ? matchLink(noConv[0], "convocatoria") : "/Calendar" },
+    { key: "res", icon: Trophy, count: noResult.length, label: noResult.length === 1 ? "partido jugado sin resultado" : "partidos jugados sin resultado", cta: "Revisar", to: noResult[0] ? matchLink(noResult[noResult.length - 1]) : "/Calendar" },
+    { key: "goals", icon: Target, count: noClass.length, label: noClass.length === 1 ? "partido con goles sin clasificar" : "partidos con goles sin clasificar", cta: "Clasificar", to: noClass[0] ? matchLink(noClass[0], "acta") : "/Calendar", tone: "var(--granate)" },
+    isCoordinator && { key: "users", icon: UserCog, count: pendingUsers.length, label: pendingUsers.length === 1 ? "usuario por aprobar" : "usuarios por aprobar", cta: "Revisar", to: "/Accesos" },
+  ];
 
   // Resultados del último fin de semana (viernes a domingo ya jugados), de todos los equipos en su ámbito
   const lastSunday = (() => { const d = startOfDay(now), w = d.getDay(); return w === 0 ? d : w === 6 ? addDays(d, 1) : subDays(d, w); })();
@@ -222,29 +244,14 @@ export default function Dashboard() {
   return (
     <div className="space-y-4">
       {/* Cabecera */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <PageTitle kicker="Temporada 2025–2026" title="Panel de control" />
-        {myPendingTr.length > 0 && (
-          <Link to={`/MyTeam/Attendance?eventId=${myPendingTr[0].id}`} className={`${pendingUsers.length > 0 ? "" : "ml-auto"} flex items-center gap-2 px-3 py-2 border border-amber-300 bg-amber-50 hover:bg-amber-100 transition-colors`} style={{ borderRadius: "6px" }} title="Entrenamientos ya hechos sin asistencia">
-            <ClipboardCheck className="w-4 h-4 text-amber-600" />
-            <span className="text-sm font-bold text-amber-800">{myPendingTr.length} entreno{myPendingTr.length !== 1 ? "s" : ""} sin gestionar</span>
-            <span className="text-xs font-bold text-amber-700">Pasar lista →</span>
-          </Link>
-        )}
-        {pendingUsers.length > 0 && (
-          <Link to="/Accesos" className="ml-auto flex items-center gap-2 px-3 py-2 border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors" style={{ borderRadius: "6px" }}>
-            <UserCog className="w-4 h-4 text-orange-600" />
-            <span className="text-sm font-bold text-orange-800">{pendingUsers.length} usuario{pendingUsers.length !== 1 ? "s" : ""} pendiente{pendingUsers.length !== 1 ? "s" : ""}</span>
-            <span className="text-xs font-bold text-orange-700">Revisar →</span>
-          </Link>
-        )}
-      </div>
+      <PageTitle kicker={`Temporada ${CURRENT_SEASON.replace("-", "–")}`} title="Panel de control" />
+      <PendingStrip items={pendingItems} />
 
       {/* Próximo partido + temporada/asistencia */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
           {nextClub ? (
-            <div className="rounded-xl px-4 py-3 md:px-5 md:py-3 flex flex-col md:flex-row md:items-center gap-3 md:gap-5 on-dark" style={{ background: "linear-gradient(135deg, var(--granate) 0%, var(--granate-dark) 100%)" }}>
+            <div className="rounded-xl px-4 py-3 md:px-5 md:py-3 flex flex-col md:flex-row md:items-center gap-3 md:gap-5 on-dark bg-club-banner">
               <div className="flex-1 min-w-0 space-y-1.5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70">{nextIsMine ? "Próximo partido del club · es de tus equipos" : "Próximo partido del club"}</p>
                 <div className="flex items-center gap-3 flex-wrap">

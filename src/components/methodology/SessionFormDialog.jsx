@@ -13,10 +13,11 @@ import TaskCard from "./TaskCard";
 import TaskFormDialog from "./TaskFormDialog";
 import { useToast } from "@/components/ui/use-toast";
 
+import { CURRENT_SEASON } from "@/lib/staffRoles";
 const EMPTY_SESSION = {
   title: "", team_id: "", date: new Date().toISOString().split("T")[0],
   objectives: "", main_game_moment: "mixto", notes: "",
-  status: "planificada", tasks: [], season: "2025-2026"
+  status: "planificada", tasks: [], season: CURRENT_SEASON
 };
 
 export default function SessionFormDialog({ open, onOpenChange, session, onSave, teams = [] }) {
