@@ -1,7 +1,8 @@
 // Avisos push, historial de avisos y vinculación de familiares.
 // Una sola función (el plan de Vercel limita el número de funciones). Se elige la acción con ?a=...
 import webpush from 'web-push';
-import { query } from './_lib/db.js';
+import { query, db } from './_lib/db.js';
+import { seasonStatus, closeSeason, reopenSeason, HttpError } from './_lib/season.js';
 import { requireUser } from './_lib/auth.js';
 import { isAdmin, coachTeamIdsOf } from './_lib/access.js';
 
@@ -308,8 +309,24 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    // ── Cierre de temporada (coordinación) ──────────────────────
+    if (a === 'season_status') {
+      if (!isCoord(user)) return res.status(403).json({ error: 'forbidden' });
+      return res.status(200).json(await seasonStatus(db, String(req.query.season || '')));
+    }
+    if (a === 'season_close' && req.method === 'POST') {
+      if (!isCoord(user)) return res.status(403).json({ error: 'forbidden' });
+      const out = await closeSeason(db, { season: String(body.season || ''), standings: body.standings || {}, dry: !!body.dry, userName: user.full_name || user.email || '' });
+      return res.status(200).json(out);
+    }
+    if (a === 'season_reopen' && req.method === 'POST') {
+      if (!isCoord(user)) return res.status(403).json({ error: 'forbidden' });
+      return res.status(200).json(await reopenSeason(db, { season: String(body.season || '') }));
+    }
+
     return res.status(404).json({ error: 'unknown_action' });
   } catch (err) {
+    if (err instanceof HttpError) return res.status(err.status).json({ error: err.code, message: err.message });
     console.error(err);
     return res.status(500).json({ error: 'club_failed', message: err.message });
   }

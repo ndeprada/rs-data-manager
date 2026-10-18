@@ -1,5 +1,6 @@
 import { query } from '../_lib/db.js';
 import { requireUser } from '../_lib/auth.js';
+import { ARCHIVABLE } from '../_lib/season.js';
 import { checkEntityAccess, checkTeamWrite, isPlayerUser, playerFilterDocs } from '../_lib/access.js';
 
 function rowToDoc(row) {
@@ -55,6 +56,14 @@ export default async function handler(req, res) {
         params.push(JSON.stringify(value));
         where += ` and data -> '${key.replace(/[^a-zA-Z0-9_]/g, '')}' = $${params.length}::jsonb`;
       });
+
+      // Datos de temporadas cerradas: no salen en los listados normales (archived=only|all para verlos;
+      // si se pide un registro concreto —id, partido o temporada— tampoco se ocultan)
+      if (ARCHIVABLE.has(entity)) {
+        const mode = req.query.archived;
+        if (mode === 'only') where += ` and coalesce(data->>'archived_season', '') <> ''`;
+        else if (mode !== 'all' && !['id', 'event_id', 'archived_season'].some((k) => k in filter)) where += ` and coalesce(data->>'archived_season', '') = ''`;
+      }
 
       let orderBy = 'created_at desc';
       if (sortSpec) {

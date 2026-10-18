@@ -54,6 +54,9 @@ function makeEntityClient(entityType) {
       orderResult(entityType, apiFetch(`/api/entities/${entityType}`, {
         query: { q: JSON.stringify(filterObj), sort, limit },
       }), !filterObj?.id),
+    // Datos de temporadas cerradas / jugadores dados de baja en un cierre (los listados normales no los incluyen)
+    archived: (filterObj = {}, mode = 'only', sort, limit) =>
+      apiFetch(`/api/entities/${entityType}`, { query: { q: JSON.stringify(filterObj), archived: mode, sort, limit } }),
     get: (id) => apiFetch(`/api/entities/${entityType}/${id}`),
     create: (data) => apiFetch(`/api/entities/${entityType}`, { method: 'POST', body: data }),
     update: (id, data) =>
@@ -137,6 +140,10 @@ export const base44 = {
     pendingLinks: () => clubGet('pending_links'),
     decideLink: (link_id, decision) => clubPost('link_decision', { link_id, decision }),
     createLink: (user_id, player_id, relationship) => clubPost('link_create', { user_id, player_id, relationship }),
+    // Cierre de temporada (coordinación)
+    seasonStatus: (season) => clubGet('season_status', { season }),
+    seasonClose: (season, standings = {}, dry = false) => clubPost('season_close', { season, standings, dry }),
+    seasonReopen: (season) => clubPost('season_reopen', { season }),
   },
 
   auth: {
