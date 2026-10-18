@@ -4,33 +4,74 @@ import { playerFullName } from "@/lib/playerName";
 
 const BUCKETS = ["1-15'", "16-30'", "31-45'", "46-60'", "61-75'", "76-90'", "+90'"];
 
+// Filas compactas: etiqueta a la izquierda (centrada con las barras), dos barras finas (marcamos / encajamos) y su número
 function DualBars({ rows }) {
   const max = Math.max(1, ...rows.flatMap((r) => [r.f, r.a]));
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {rows.map((r) => (
-        <div key={r.label} className="grid grid-cols-[88px_1fr] sm:grid-cols-[120px_1fr] gap-2 items-center">
-          <span className="text-xs text-gray-600 truncate">{r.label}</span>
-          <div className="space-y-0.5">
-            {[["f", "var(--granate)", r.f], ["a", "#9ca3af", r.a]].map(([k, color, v]) => (
-              <div key={k} className="flex items-center gap-2">
-                <div className="h-2.5 rounded-sm" style={{ width: `${(v / max) * 100}%`, minWidth: v ? 3 : 0, background: color }} />
-                <span className="text-[11px] font-bold text-gray-700 tabular-nums">{v || ""}</span>
-              </div>
+        <div key={r.label} className="flex items-center gap-2 h-[20px]">
+          <span className="w-[104px] sm:w-[128px] shrink-0 text-[11px] leading-none text-gray-600 truncate">{r.label}</span>
+          <div className="flex-1 min-w-0 flex flex-col justify-center gap-[3px]">
+            {[["var(--granate)", r.f], ["#9ca3af", r.a]].map(([color, v], i) => (
+              <div key={i} className="h-[6px] rounded-sm" style={{ width: `${(v / max) * 100}%`, minWidth: v ? 3 : 0, background: color }} />
             ))}
           </div>
+          <span className="w-10 shrink-0 text-right text-[11px] leading-none tabular-nums">
+            <b style={{ color: "var(--granate)" }}>{r.f || "·"}</b><span className="text-gray-300"> / </span><b className="text-gray-500">{r.a || "·"}</b>
+          </span>
         </div>
       ))}
     </div>
   );
 }
 
+// Línea del tiempo horizontal del partido: una columna de puntos por tramo de 15' (arriba lo que marcamos, abajo lo que encajamos)
+function Timeline({ rows, parts }) {
+  const n = rows.length, X0 = 36, Wd = 640, bw = (Wd - X0 - 10) / n;
+  const DOT = 11, CAP = 9;
+  const m = Math.min(CAP, Math.max(2, ...rows.flatMap((r) => [r.f, r.a])));
+  const side = m * DOT + 30, mid = side + 4, H = side * 2 + 8;
+  const halfX = X0 + 3 * bw;
+  return (
+    <div>
+      <div className="overflow-x-auto -mx-1 px-1">
+      <svg viewBox={`0 0 ${Wd} ${H}`} className="w-full min-w-[520px]">
+        {rows.map((r, i) => (
+          <g key={r.label}>
+            <rect x={X0 + i * bw} y="0" width={bw} height={H} fill={i % 2 ? "#ffffff" : "#f9fafb"} />
+            {Array.from({ length: Math.min(r.f, CAP) }).map((_, k) => <circle key={"f" + k} cx={X0 + i * bw + bw / 2} cy={mid - 18 - k * DOT} r="4.4" fill="#73000A" />)}
+            {Array.from({ length: Math.min(r.a, CAP) }).map((_, k) => <circle key={"a" + k} cx={X0 + i * bw + bw / 2} cy={mid + 18 + k * DOT} r="4.4" fill="#9ca3af" />)}
+            {r.f > 0 && <text x={X0 + i * bw + bw / 2} y={mid - 18 - Math.min(r.f, CAP) * DOT + 2} textAnchor="middle" fontSize="11" fontWeight="700" fill="#73000A">{r.f}</text>}
+            {r.a > 0 && <text x={X0 + i * bw + bw / 2} y={mid + 18 + Math.min(r.a, CAP) * DOT + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="#6b7280">{r.a}</text>}
+            <text x={X0 + i * bw + bw / 2} y={mid + 3.5} textAnchor="middle" fontSize="9.5" fill="#6b7280">{r.label}</text>
+          </g>
+        ))}
+        <line x1={X0} y1={mid - 7} x2={Wd - 6} y2={mid - 7} stroke="#d1d5db" strokeWidth="1" />
+        <line x1={X0} y1={mid + 7} x2={Wd - 6} y2={mid + 7} stroke="#d1d5db" strokeWidth="1" />
+        {n >= 4 && <line x1={halfX} y1="0" x2={halfX} y2={H} stroke="#73000A" strokeOpacity=".45" strokeDasharray="3 3" />}
+        <text x="4" y="14" fontSize="9" fontWeight="700" fill="#73000A">+</text>
+        <text x="4" y={H - 6} fontSize="9" fontWeight="700" fill="#6b7280">−</text>
+      </svg>
+      </div>
+      <div className="flex items-center justify-center gap-4 text-[11px] text-gray-500 mt-1">
+        {parts.map((p) => (
+          <span key={p.label} className="inline-flex items-center gap-1.5">
+            <b className="text-gray-700">{p.label}</b>
+            <span style={{ color: "var(--granate)" }} className="font-bold">{p.f}</span><span>/</span><span className="font-bold text-gray-500">{p.a}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Card({ title, sub, children }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4">
+    <div className="bg-white border border-gray-200 rounded-xl p-3 sm:p-4">
       <p className="text-sm font-bold text-gray-900">{title}</p>
-      {sub && <p className="text-[10px] text-gray-400 mb-3">{sub}</p>}
-      {!sub && <div className="mb-3" />}
+      {sub && <p className="text-[10px] text-gray-400 mb-2">{sub}</p>}
+      {!sub && <div className="mb-2" />}
       {children}
     </div>
   );
@@ -130,28 +171,29 @@ export default function GoalStatsPanel({ events = [], players = [] }) {
         </span>
       </div>
       <div className="grid md:grid-cols-2 gap-4">
-        <Card title="¿En qué minutos?" sub="Tramos de 15 minutos y por parte">
-          <DualBars rows={d.minutes} />
-          <div className="mt-4 pt-3 border-t border-gray-100"><DualBars rows={d.parts} /></div>
-        </Card>
+        <div className="md:col-span-2">
+          <Card title="¿En qué minutos?" sub="Línea del tiempo por tramos de 15' · arriba marcamos, abajo encajamos · debajo, por partes (marcados / encajados)">
+            <Timeline rows={d.minutes} parts={d.parts} />
+          </Card>
+        </div>
         <Card title="Tipo de gol" sub="Ataque organizado, transición o balón parado">
           <DualBars rows={d.phase} />
         </Card>
         <Card title="Dónde (juego no parado)" sub="Zona y sector del campo">
           <DualBars rows={d.area} />
-          <div className="mt-4 pt-3 border-t border-gray-100"><DualBars rows={d.sector} /></div>
+          <div className="mt-2.5 pt-2.5 border-t border-gray-100"><DualBars rows={d.sector} /></div>
         </Card>
         <Card title="Fábrica de goles" sub="Cómo se crean y cómo acaban">
           {d.create.length || d.finish.length ? (
             <>
               <DualBars rows={d.create} />
-              {d.finish.length > 0 && <div className="mt-4 pt-3 border-t border-gray-100"><DualBars rows={d.finish} /></div>}
+              {d.finish.length > 0 && <div className="mt-2.5 pt-2.5 border-t border-gray-100"><DualBars rows={d.finish} /></div>}
             </>
           ) : <p className="text-xs text-gray-400">Aún no hay goles con «cómo se creó» o «remate».</p>}
         </Card>
         <Card title="Marcador y cambios" sub="Cuándo marcamos y encajamos según el momento del partido">
           <DualBars rows={d.stateRows} />
-          <div className="mt-4 pt-3 border-t border-gray-100">
+          <div className="mt-2.5 pt-2.5 border-t border-gray-100">
             <DualBars rows={[{ label: "Tras un cambio (10')", f: d.afterSub.f, a: d.afterSub.a }]} />
           </div>
         </Card>
@@ -172,8 +214,8 @@ export default function GoalStatsPanel({ events = [], players = [] }) {
           {hasBp ? (
             <>
               <DualBars rows={d.bp.type} />
-              <div className="mt-4 pt-3 border-t border-gray-100"><DualBars rows={d.bp.how.filter((r) => r.f || r.a)} /></div>
-              <div className="mt-4 pt-3 border-t border-gray-100"><DualBars rows={d.bp.side} /></div>
+              <div className="mt-2.5 pt-2.5 border-t border-gray-100"><DualBars rows={d.bp.how.filter((r) => r.f || r.a)} /></div>
+              <div className="mt-2.5 pt-2.5 border-t border-gray-100"><DualBars rows={d.bp.side} /></div>
             </>
           ) : <p className="text-xs text-gray-400">Sin goles de balón parado clasificados.</p>}
         </Card>
