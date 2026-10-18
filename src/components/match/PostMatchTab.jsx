@@ -74,16 +74,17 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
   }, [players, starterIds, convocadoIds, stats, event?.match_events]);
 
   // Valoraciones del equipo en los demás partidos, para comparar con la media
-  const { data: allEvents = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date"), enabled: !!teamId });
+  const tid = teamId || event?.team_id;
+  const { data: allEvents = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date"), enabled: !!tid });
   const evalAvg = useMemo(() => {
-    const prev = allEvents.filter((e) => e.team_id === teamId && e.id !== eventId && e.team_eval);
+    const prev = allEvents.filter((e) => e.team_id === tid && e.id !== eventId && e.team_eval);
     const out = { n: prev.length };
     for (const [k] of TEAM_EVAL) {
       const vals = prev.map((e) => e.team_eval[k]).filter((v) => v > 0);
       out[k] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
     }
     return out;
-  }, [allEvents, teamId, eventId]);
+  }, [allEvents, tid, eventId]);
 
   const [teamEval, setTeamEval] = useState({});
   const [rows, setRows] = useState({}); // playerId -> { rating, notes }
@@ -177,7 +178,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
       <div className={card}>
         <div className="flex items-baseline justify-between gap-2">
           <p className={h}>Cómo ha jugado el equipo</p>
-          {evalAvg.n > 0 && <p className="text-[10px] text-gray-400">Entre paréntesis, la media de los otros {evalAvg.n} {evalAvg.n === 1 ? "partido" : "partidos"} valorados</p>}
+          {evalAvg.n > 0 && <p className="text-[10px] text-gray-400">Entre paréntesis, la media {evalAvg.n === 1 ? "del otro partido valorado" : `de los otros ${evalAvg.n} partidos valorados`}</p>}
         </div>
         <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5">
           {TEAM_EVAL.map(([k, label]) => (
