@@ -26,35 +26,28 @@ function DualBars({ rows }) {
   );
 }
 
-// Línea del tiempo horizontal del partido: una columna de puntos por tramo de 15' (arriba lo que marcamos, abajo lo que encajamos)
+// Columnas por tramo de 15': granate = marcamos, gris = encajamos (compacto)
 function Timeline({ rows, parts }) {
-  const n = rows.length, X0 = 36, Wd = 640, bw = (Wd - X0 - 10) / n;
-  const DOT = 11, CAP = 9;
-  const m = Math.min(CAP, Math.max(2, ...rows.flatMap((r) => [r.f, r.a])));
-  const side = m * DOT + 30, mid = side + 4, H = side * 2 + 8;
-  const halfX = X0 + 3 * bw;
+  const max = Math.max(1, ...rows.flatMap((r) => [r.f, r.a]));
+  const H = 64;
   return (
     <div>
-      <div className="overflow-x-auto -mx-1 px-1">
-      <svg viewBox={`0 0 ${Wd} ${H}`} className="w-full min-w-[520px]">
+      <div className="flex items-end gap-1">
         {rows.map((r, i) => (
-          <g key={r.label}>
-            <rect x={X0 + i * bw} y="0" width={bw} height={H} fill={i % 2 ? "#ffffff" : "#f9fafb"} />
-            {Array.from({ length: Math.min(r.f, CAP) }).map((_, k) => <circle key={"f" + k} cx={X0 + i * bw + bw / 2} cy={mid - 18 - k * DOT} r="4.4" fill="#73000A" />)}
-            {Array.from({ length: Math.min(r.a, CAP) }).map((_, k) => <circle key={"a" + k} cx={X0 + i * bw + bw / 2} cy={mid + 18 + k * DOT} r="4.4" fill="#9ca3af" />)}
-            {r.f > 0 && <text x={X0 + i * bw + bw / 2} y={mid - 18 - Math.min(r.f, CAP) * DOT + 2} textAnchor="middle" fontSize="11" fontWeight="700" fill="#73000A">{r.f}</text>}
-            {r.a > 0 && <text x={X0 + i * bw + bw / 2} y={mid + 18 + Math.min(r.a, CAP) * DOT + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="#6b7280">{r.a}</text>}
-            <text x={X0 + i * bw + bw / 2} y={mid + 3.5} textAnchor="middle" fontSize="9.5" fill="#6b7280">{r.label}</text>
-          </g>
+          <div key={r.label} className={`flex-1 min-w-0 ${i === 3 ? "border-l border-dashed border-gray-300 pl-1" : ""}`}>
+            <div className="flex items-end justify-center gap-[3px]" style={{ height: H + 14 }}>
+              {[[r.f, "var(--granate)", "#73000A"], [r.a, "#9ca3af", "#6b7280"]].map(([v, bg, tx], k) => (
+                <div key={k} className="flex flex-col items-center justify-end w-[40%] max-w-[22px]">
+                  <span className="text-[10px] leading-none font-bold mb-0.5" style={{ color: tx }}>{v || ""}</span>
+                  <div className="w-full rounded-t-sm" style={{ height: v ? Math.max(3, (v / max) * H) : 1, background: v ? bg : "#e5e7eb" }} />
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-500 text-center mt-1 leading-none">{r.label}</p>
+          </div>
         ))}
-        <line x1={X0} y1={mid - 7} x2={Wd - 6} y2={mid - 7} stroke="#d1d5db" strokeWidth="1" />
-        <line x1={X0} y1={mid + 7} x2={Wd - 6} y2={mid + 7} stroke="#d1d5db" strokeWidth="1" />
-        {n >= 4 && <line x1={halfX} y1="0" x2={halfX} y2={H} stroke="#73000A" strokeOpacity=".45" strokeDasharray="3 3" />}
-        <text x="4" y="14" fontSize="9" fontWeight="700" fill="#73000A">+</text>
-        <text x="4" y={H - 6} fontSize="9" fontWeight="700" fill="#6b7280">−</text>
-      </svg>
       </div>
-      <div className="flex items-center justify-center gap-4 text-[11px] text-gray-500 mt-1">
+      <div className="flex items-center justify-center gap-4 text-[11px] text-gray-500 mt-2">
         {parts.map((p) => (
           <span key={p.label} className="inline-flex items-center gap-1.5">
             <b className="text-gray-700">{p.label}</b>
@@ -171,11 +164,9 @@ export default function GoalStatsPanel({ events = [], players = [] }) {
         </span>
       </div>
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="md:col-span-2">
-          <Card title="¿En qué minutos?" sub="Línea del tiempo por tramos de 15' · arriba marcamos, abajo encajamos · debajo, por partes (marcados / encajados)">
-            <Timeline rows={d.minutes} parts={d.parts} />
-          </Card>
-        </div>
+        <Card title="¿En qué minutos?" sub="Por tramos de 15' · la línea discontinua marca el descanso">
+          <Timeline rows={d.minutes} parts={d.parts} />
+        </Card>
         <Card title="Tipo de gol" sub="Ataque organizado, transición o balón parado">
           <DualBars rows={d.phase} />
         </Card>
