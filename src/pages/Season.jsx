@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import TransfersTab from "@/components/season/TransfersTab";
 import CloseTab from "@/components/season/CloseTab";
 import HistoryTab from "@/components/season/HistoryTab";
+import BackupTab from "@/components/season/BackupTab";
 
 const prevOf = (s) => { const y = Number(s.slice(0, 4)) - 1; return `${y}-${y + 1}`; };
 const lbl = (s) => s.replace("-", "–");
@@ -37,7 +38,7 @@ export default function Season() {
       <PageHeader
         kicker="Administración"
         title="Temporada"
-        subtitle={`${lbl(season)}: traspasos de jugadores, cierre y historial`}
+        subtitle={`${lbl(season)}: traspasos de jugadores, cierre, historial y copias de seguridad`}
         actions={
           <Select value={season} onValueChange={setSeason}>
             <SelectTrigger className="h-9 w-40 text-xs font-bold bg-white"><SelectValue /></SelectTrigger>
@@ -54,11 +55,13 @@ export default function Season() {
           { value: "transfers", label: "Traspasos" },
           { value: "close", label: "Nueva temporada" },
           { value: "history", label: "Historial" },
+          { value: "backup", label: "Copias" },
         ]}
       />
       {tab === "transfers" && <TransfersTab season={season} closed={closed} />}
       {tab === "close" && <CloseTab season={season} />}
       {tab === "history" && <HistoryTab />}
+      {tab === "backup" && <BackupTab />}
     </div>
   );
 }

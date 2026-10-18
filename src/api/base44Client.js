@@ -144,6 +144,21 @@ export const base44 = {
     seasonStatus: (season) => clubGet('season_status', { season }),
     seasonClose: (season, standings = {}, dry = false) => clubPost('season_close', { season, standings, dry }),
     seasonReopen: (season) => clubPost('season_reopen', { season }),
+    // Copias de seguridad (coordinación)
+    backupList: () => clubGet('backup_list'),
+    backupCreate: () => clubPost('backup_create'),
+    // Descarga una copia guardada (id) o los datos de ahora mismo (sin id) como archivo
+    backupDownload: async (id) => {
+      const res = await fetch(`/api/club?a=backup_download${id ? `&id=${id}` : ''}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('No se pudo descargar la copia');
+      const blob = await res.blob();
+      const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || 'rs-manager-copia.json';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      return name;
+    },
   },
 
   auth: {

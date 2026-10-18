@@ -3,6 +3,7 @@
 import webpush from 'web-push';
 import { query, db } from './_lib/db.js';
 import { seasonStatus, closeSeason, reopenSeason, HttpError } from './_lib/season.js';
+import { createBackup, listBackups, getBackupGz, snapshotNow, gzipSnapshot } from './_lib/backup.js';
 import { requireUser } from './_lib/auth.js';
 import { isAdmin, coachTeamIdsOf } from './_lib/access.js';
 
@@ -316,12 +317,44 @@ export default async function handler(req, res) {
     }
     if (a === 'season_close' && req.method === 'POST') {
       if (!isCoord(user)) return res.status(403).json({ error: 'forbidden' });
+      // Antes de cerrar de verdad se guarda una copia completa; si no se puede guardar, no se cierra.
+      if (!body.dry) {
+        try { await createBackup(db, { kind: 'pre_close', note: `Antes de cerrar ${String(body.season || '')}` }); }
+        catch (e) { console.error(e); return res.status(500).json({ error: 'backup_failed', message: 'No se pudo guardar la copia de seguridad previa, así que no se ha cerrado nada.' }); }
+      }
       const out = await closeSeason(db, { season: String(body.season || ''), standings: body.standings || {}, dry: !!body.dry, userName: user.full_name || user.email || '' });
       return res.status(200).json(out);
     }
     if (a === 'season_reopen' && req.method === 'POST') {
       if (!isCoord(user)) return res.status(403).json({ error: 'forbidden' });
       return res.status(200).json(await reopenSeason(db, { season: String(body.season || '') }));
+    }
+
+    // ── Copias de seguridad (coordinación) ──────────────────────
+    if (a === 'backup_list') {
+      if (!isCoord(user)) return res.status(403).json({ error: 'forbidden' });
+      return res.status(200).json(await listBackups(db));
+    }
+    if (a === 'backup_create' && req.method === 'POST') {
+      if (!isCoord(user)) return res.status(403).json({ error: 'forbidden' });
+      return res.status(200).json(await createBackup(db, { kind: 'manual', note: user.full_name || user.email || '' }));
+    }
+    if (a === 'backup_download') {
+      if (!isCoord(user)) return res.status(403).json({ error: 'forbidden' });
+      // Con id: una copia guardada. Sin id: los datos de ahora mismo.
+      let gz, day = new Date().toISOString().slice(0, 10);
+      if (req.query.id) {
+        const row = await getBackupGz(db, Number(req.query.id));
+        if (!row) return res.status(404).json({ error: 'not_found' });
+        gz = row.data; day = new Date(row.created_at).toISOString().slice(0, 10);
+      } else {
+        gz = await gzipSnapshot(await snapshotNow(db));
+      }
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Encoding', 'gzip');
+      res.setHeader('Content-Disposition', `attachment; filename="rs-manager-copia-${day}.json"`);
+      res.setHeader('Content-Length', gz.length);
+      return res.status(200).end(gz);
     }
 
     return res.status(404).json({ error: 'unknown_action' });

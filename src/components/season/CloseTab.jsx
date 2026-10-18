@@ -161,6 +161,7 @@ export default function CloseTab({ season }) {
                 {noTable.length > 0 && <Warn>Sin clasificación de la FCF para {noTable.length} equipo{noTable.length !== 1 ? "s" : ""} ({noTable.slice(0, 6).map((t) => t.name).join(", ")}{noTable.length > 6 ? "…" : ""}): su historial se guardará sin posición.</Warn>}
               </div>
               <div className="pt-1 space-y-2">
+                <p className="text-xs text-gray-500">Al cerrar, se guarda antes una copia de seguridad completa de los datos (la encuentras en la pestaña Copias).</p>
                 <p className="text-sm text-gray-700">Para confirmar, escribe <b className="font-mono">{word}</b></p>
                 <div className="flex flex-wrap gap-2">
                   <Input value={text} onChange={(e) => setText(e.target.value)} placeholder={word} className="w-56" disabled={phase === "closing"} />
