@@ -15,7 +15,7 @@ import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
-import BirthdayAlert from "@/components/myteam/BirthdayAlert";
+import TeamAlerts from "@/components/myteam/TeamAlerts";
 import { getCategoryLabel } from "@/components/fcfCategories";
 import TeamSummary from "@/components/myteam/TeamSummary";
 import { useCountedStats } from "@/lib/matchStatus";
@@ -141,7 +141,7 @@ export default function MyTeam() {
         )}
       />
 
-      <BirthdayAlert players={teamPlayers} />
+      <TeamAlerts teamId={selectedTeamId} players={teamPlayers} />
 
       {selectedTeam && <TeamSummary team={selectedTeam} events={teamEvents} players={players} matchStats={matchStats} />}
 
