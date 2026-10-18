@@ -1,47 +1,50 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
+import { Suspense } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Login from './pages/Login';
 import Layout from './components/Layout';
-import Dashboard from './pages/Dashboard';
-import Teams from './pages/Teams';
-import Players from './pages/Players';
-import Calendar from './pages/Calendar';
-import TeamDetail from './pages/TeamDetail';
-import PlayerProfile from './pages/PlayerProfile';
-import Reports from './pages/Reports';
-import Stats from './pages/Stats';
-import Tactics from './pages/Tactics';
-import Attendance from './pages/Attendance';
-import MatchDetail from './pages/MatchDetail';
-import Matches from './pages/Matches';
-import Scouting from './pages/Scouting.jsx';
-import Coaches from './pages/Coaches';
-import CoachProfile from './pages/CoachProfile';
-import MyTeam from './pages/MyTeam';
-import DataImport from './pages/DataImport';
-import Squad from './pages/myteam/Squad';
-import TeamMatches from './pages/myteam/TeamMatches';
-import TeamAttendance from './pages/myteam/TeamAttendance';
-import Development from './pages/myteam/Development';
+const Dashboard = lazyPage(() => import('./pages/Dashboard'));
+const Teams = lazyPage(() => import('./pages/Teams'));
+const Players = lazyPage(() => import('./pages/Players'));
+const Calendar = lazyPage(() => import('./pages/Calendar'));
+const TeamDetail = lazyPage(() => import('./pages/TeamDetail'));
+const PlayerProfile = lazyPage(() => import('./pages/PlayerProfile'));
+const Reports = lazyPage(() => import('./pages/Reports'));
+const Stats = lazyPage(() => import('./pages/Stats'));
+const Tactics = lazyPage(() => import('./pages/Tactics'));
+const Attendance = lazyPage(() => import('./pages/Attendance'));
+const MatchDetail = lazyPage(() => import('./pages/MatchDetail'));
+const Matches = lazyPage(() => import('./pages/Matches'));
+const Scouting = lazyPage(() => import('./pages/Scouting.jsx'));
+const Coaches = lazyPage(() => import('./pages/Coaches'));
+const CoachProfile = lazyPage(() => import('./pages/CoachProfile'));
+const MyTeam = lazyPage(() => import('./pages/MyTeam'));
+const DataImport = lazyPage(() => import('./pages/DataImport'));
+const Squad = lazyPage(() => import('./pages/myteam/Squad'));
+const TeamMatches = lazyPage(() => import('./pages/myteam/TeamMatches'));
+const TeamAttendance = lazyPage(() => import('./pages/myteam/TeamAttendance'));
+const Development = lazyPage(() => import('./pages/myteam/Development'));
 import { Navigate } from 'react-router-dom';
-import RoleSetup from './pages/RoleSetup';
-import PendingApproval from './pages/PendingApproval';
-import PlayerTeam from './pages/PlayerTeam';
+const RoleSetup = lazyPage(() => import('./pages/RoleSetup'));
+const PendingApproval = lazyPage(() => import('./pages/PendingApproval'));
+const PlayerTeam = lazyPage(() => import('./pages/PlayerTeam'));
 import { STAFF_FUNCTION_VALUES } from '@/lib/staffRoles';
-import Accesos from './pages/Accesos';
-import Season from './pages/Season';
-import Fields from './pages/Fields';
-import CleanDB from './pages/CleanDB';
-import Material from './pages/Material';
-import Methodology from './pages/Methodology';
-import Avisos from './pages/Avisos';
-import FamilyHome from './pages/FamilyHome';
+const Accesos = lazyPage(() => import('./pages/Accesos'));
+const Season = lazyPage(() => import('./pages/Season'));
+const Fields = lazyPage(() => import('./pages/Fields'));
+const CleanDB = lazyPage(() => import('./pages/CleanDB'));
+const Material = lazyPage(() => import('./pages/Material'));
+const Methodology = lazyPage(() => import('./pages/Methodology'));
+const Avisos = lazyPage(() => import('./pages/Avisos'));
+const FamilyHome = lazyPage(() => import('./pages/FamilyHome'));
 import { TeamAccessProvider } from '@/lib/TeamAccessContext';
+import { lazyPage } from '@/lib/lazyPage';
+import UpdateNotice from '@/components/common/UpdateNotice';
 import { useTeamAccess } from '@/lib/TeamAccessContext';
 
 const STAFF_ROLES = STAFF_FUNCTION_VALUES;
@@ -166,15 +169,24 @@ const AuthenticatedApp = () => {
 };
 
 
+const PageSpinner = () => (
+  <div className="flex items-center justify-center py-24">
+    <div className="w-8 h-8 border-4 border-slate-200 border-t-[var(--granate)] rounded-full animate-spin"></div>
+  </div>
+);
+
 function App() {
 
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
-          <AuthenticatedApp />
+          <Suspense fallback={<PageSpinner />}>
+            <AuthenticatedApp />
+          </Suspense>
         </Router>
         <Toaster />
+        <UpdateNotice />
       </QueryClientProvider>
     </AuthProvider>
   )

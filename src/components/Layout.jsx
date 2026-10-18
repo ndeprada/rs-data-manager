@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { Suspense } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Shield, CalendarDays, Menu, X,
@@ -375,7 +376,9 @@ export default function Layout() {
       {/* Main */}
       <main className="flex-1 lg:ml-40 pt-16 lg:pt-0 bg-[#f5f5f5] min-w-0 overflow-x-clip">
         <div className="p-3 md:p-4 max-w-[1600px] mx-auto w-full min-w-0">
-          <Outlet />
+          <Suspense fallback={<div className="flex items-center justify-center py-24"><div className="w-8 h-8 border-4 border-slate-200 border-t-[var(--granate)] rounded-full animate-spin"></div></div>}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
     </div>
