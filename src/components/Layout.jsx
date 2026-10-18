@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Shield, CalendarDays, Menu, X,
   FileText, BarChart2, Target, Binoculars, LogOut,
   ChevronDown, ChevronRight, ClipboardList, UserCog,
-  UserCheck, Layers, Trophy, Calendar, MapPin, Package, BookOpen, Bell
+  UserCheck, Layers, Trophy, Calendar, MapPin, Package, BookOpen, Bell, CalendarRange
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
@@ -197,6 +197,7 @@ function StaffSidebar({ onClose = () => {} }) {
     { label: "Jugadores", path: "/Players", icon: Users },
     { label: "Personal", path: "/Coaches", icon: UserCheck },
     { label: "Accesos", path: "/Accesos", icon: UserCog },
+    { label: "Temporada", path: "/Season", icon: CalendarRange },
     { label: "Campos", path: "/Fields", icon: MapPin },
   ];
 

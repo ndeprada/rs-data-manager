@@ -34,6 +34,7 @@ import PendingApproval from './pages/PendingApproval';
 import PlayerTeam from './pages/PlayerTeam';
 import { STAFF_FUNCTION_VALUES } from '@/lib/staffRoles';
 import Accesos from './pages/Accesos';
+import Season from './pages/Season';
 import Fields from './pages/Fields';
 import CleanDB from './pages/CleanDB';
 import Material from './pages/Material';
@@ -151,6 +152,7 @@ const AuthenticatedApp = () => {
         <Route path="/MyTeam/Attendance" element={<TeamAttendance />} />
         <Route path="/MyTeam/Development" element={<Development />} />
         <Route path="/Accesos" element={<Accesos />} />
+        <Route path="/Season" element={<Season />} />
         <Route path="/Fields" element={<Fields />} />
         <Route path="/DataImport" element={<DataImport />} />
         <Route path="/CleanDB" element={<CleanDB />} />
