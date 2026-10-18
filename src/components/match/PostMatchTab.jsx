@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Star, Save, Check, Plus, Trash2, ExternalLink, Play, Link as LinkIcon } from "lucide-react";
+import { Star, Save, Check, Plus, Trash2, ExternalLink, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +10,13 @@ import { calcMinutesPlayed, getMatchMinutes } from "@/components/match/ActaTab";
 
 const POSITION_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
 const STAR_LABELS = ["", "Mal", "Bien", "Muy bien"];
+// Valoración rápida del equipo en el partido (misma escala de 3 estrellas que la de jugadores)
+const TEAM_EVAL = [
+  ["actitud", "Actitud y compromiso"],
+  ["organizacion", "Organización sin balón"],
+  ["juego", "Juego con balón"],
+  ["intensidad", "Intensidad y ritmo"],
+];
 
 function Stars({ value, onChange }) {
   return (
@@ -66,6 +73,19 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
     });
   }, [players, starterIds, convocadoIds, stats, event?.match_events]);
 
+  // Valoraciones del equipo en los demás partidos, para comparar con la media
+  const { data: allEvents = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date"), enabled: !!teamId });
+  const evalAvg = useMemo(() => {
+    const prev = allEvents.filter((e) => e.team_id === teamId && e.id !== eventId && e.team_eval);
+    const out = { n: prev.length };
+    for (const [k] of TEAM_EVAL) {
+      const vals = prev.map((e) => e.team_eval[k]).filter((v) => v > 0);
+      out[k] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    }
+    return out;
+  }, [allEvents, teamId, eventId]);
+
+  const [teamEval, setTeamEval] = useState({});
   const [rows, setRows] = useState({}); // playerId -> { rating, notes }
   const [team_notes, setTeamNotes] = useState("");
   const [rival_notes, setRivalNotes] = useState("");
@@ -82,6 +102,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
     const r = {};
     stats.forEach((s) => { r[s.player_id] = { rating: s.rating || 0, notes: s.notes || "" }; });
     setRows(r);
+    setTeamEval(event.team_eval || {});
     setTeamNotes(event.analysis_notes_team || "");
     setRivalNotes(event.analysis_notes_rival || "");
     setLinks(event.video_links || []);
@@ -124,8 +145,9 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
         }
       }
       await base44.entities.Event.update(eventId, {
-        analysis_notes_team: team_notes.trim() || undefined,
-        analysis_notes_rival: rival_notes.trim() || undefined,
+        team_eval: Object.values(teamEval).some(Boolean) ? teamEval : null,
+        analysis_notes_team: team_notes.trim() || null,
+        analysis_notes_rival: rival_notes.trim() || null,
         video_links: links,
       });
       qc.invalidateQueries({ queryKey: ["matchstats-event", eventId] });
@@ -149,6 +171,25 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
           {saved ? <Check className="w-4 h-4 mr-1.5" /> : <Save className="w-4 h-4 mr-1.5" />}
           {saving ? "Guardando…" : saved ? "Guardado" : "Guardar análisis"}
         </Button>
+      </div>
+
+      {/* Valoración rápida del equipo */}
+      <div className={card}>
+        <div className="flex items-baseline justify-between gap-2">
+          <p className={h}>Cómo ha jugado el equipo</p>
+          {evalAvg.n > 0 && <p className="text-[10px] text-gray-400">Entre paréntesis, la media de los otros {evalAvg.n} {evalAvg.n === 1 ? "partido" : "partidos"} valorados</p>}
+        </div>
+        <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5">
+          {TEAM_EVAL.map(([k, label]) => (
+            <div key={k} className="flex items-center justify-between gap-2">
+              <p className="text-xs text-gray-700 min-w-0">{label}</p>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {evalAvg[k] != null && <span className="text-[10px] text-gray-400 tabular-nums">({evalAvg[k].toFixed(1).replace(".", ",")})</span>}
+                <Stars value={teamEval[k] || 0} onChange={(v) => { setSaved(false); setTeamEval((t) => ({ ...t, [k]: v })); }} />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Vídeo */}
