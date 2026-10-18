@@ -5,6 +5,7 @@ import { query, db } from './_lib/db.js';
 import { seasonStatus, closeSeason, reopenSeason, HttpError } from './_lib/season.js';
 import { createBackup, listBackups, getBackupGz, snapshotNow, gzipSnapshot } from './_lib/backup.js';
 import { rivalReport } from './_lib/fcfRival.js';
+import { feedFor, readConfig, tokenFor, rotateToken, isUuid } from './_lib/ics.js';
 import { requireUser } from './_lib/auth.js';
 import { isAdmin, coachTeamIdsOf } from './_lib/access.js';
 
@@ -125,7 +126,25 @@ const playerCard = (p, teams) => ({
 });
 const teamMap = async () => new Map((await byType('Team')).map((t) => [t.id, t.data.name]));
 
+const originOf = (req) => `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
+
+// Calendario suscribible: lo piden las apps de calendario, sin sesión; el código secreto del enlace hace de llave.
+async function icsFeed(req, res) {
+  try {
+    const out = await feedFor(db, String(req.query.team || ''), String(req.query.t || '').replace(/\.ics$/i, ''), originOf(req));
+    if (!out) return res.status(404).send('Not found');
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', 'inline; filename="calendario.ics"');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    return res.status(200).send(out.text);
+  } catch (e) {
+    console.error('ics', e);
+    return res.status(500).send('Error');
+  }
+}
+
 export default async function handler(req, res) {
+  if (req.query.a === 'ics') return icsFeed(req, res);
   const user = await requireUser(req, res);
   if (!user) return;
   const a = req.query.a;
@@ -338,6 +357,16 @@ export default async function handler(req, res) {
       if (!id) return res.status(400).json({ error: 'event_id' });
       try { return res.status(200).json(await rivalReport(id)); }
       catch (e) { console.error('rival', e); return res.status(200).json({ available: false, reason: 'fcf_error' }); }
+    }
+
+    // ── Calendario suscribible por equipo (cuerpo técnico del equipo y coordinación) ──
+    if (a === 'ics_link' || (a === 'ics_rotate' && req.method === 'POST')) {
+      const teamId = String(req.query.team_id || body.team_id || '');
+      if (!isUuid(teamId)) return res.status(400).json({ error: 'team_id' });
+      const mine = isCoord(user) || (STAFF.includes(user.app_role) && teamIdsOfUser(user).includes(teamId)) || coachTeamIdsOf(user).includes(teamId);
+      if (!mine) return res.status(403).json({ error: 'forbidden' });
+      const cfg = a === 'ics_rotate' ? await rotateToken(db, teamId) : await readConfig(db);
+      return res.status(200).json({ url: `${originOf(req)}/cal/${teamId}/${tokenFor(cfg, teamId)}.ics` });
     }
 
     // ── Copias de seguridad (coordinación) ──────────────────────

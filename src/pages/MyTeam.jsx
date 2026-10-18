@@ -16,6 +16,7 @@ import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
 import TeamAlerts from "@/components/myteam/TeamAlerts";
+import CalendarSubscribe from "@/components/calendar/CalendarSubscribe";
 import { getCategoryLabel } from "@/components/fcfCategories";
 import TeamSummary from "@/components/myteam/TeamSummary";
 import { useCountedStats } from "@/lib/matchStatus";
@@ -133,12 +134,17 @@ export default function MyTeam() {
         kicker="Mi Equipo"
         title={selectedTeam?.name || "—"}
         subtitle={[getCategoryLabel(selectedTeam?.category), selectedTeam?.coach].filter(Boolean).join(" · ")}
-        actions={canSwitch && (
-          <Select value={selectedTeamId} onValueChange={selectTeam}>
-            <TeamSelectTrigger />
-            <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-          </Select>
-        )}
+        actions={
+          <>
+            <CalendarSubscribe teamId={selectedTeamId} teamName={selectedTeam?.name} />
+            {canSwitch && (
+              <Select value={selectedTeamId} onValueChange={selectTeam}>
+                <TeamSelectTrigger />
+                <SelectContent>{teams.filter(t => isCoordinator || (myTeamIds || []).includes(t.id)).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+              </Select>
+            )}
+          </>
+        }
       />
 
       <TeamAlerts teamId={selectedTeamId} players={teamPlayers} />

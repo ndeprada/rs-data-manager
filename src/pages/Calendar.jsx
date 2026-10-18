@@ -26,6 +26,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { notifyTeamPush, pushResultText } from "@/lib/notifyTeam";
 
 import { PageTitle } from "@/components/common/PageHeader";
+import CalendarSubscribe from "@/components/calendar/CalendarSubscribe";
 const EVENT_TYPES = [
   { value: "partido_amistoso", label: "Partido amistoso", isMatch: true },
   { value: "partido_liga", label: "Partido de liga", isMatch: true },
@@ -261,6 +262,7 @@ export default function Calendar() {
             <button onClick={() => setViewMode("week")} className={`px-2.5 py-1.5 text-xs font-bold rounded transition-colors ${viewMode === "week" ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700"}`} title="Semana">Semana</button>
             <button onClick={() => setViewMode("list")} className={`px-2.5 py-1.5 text-xs font-bold rounded transition-colors ${viewMode === "list" ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700"}`} title="Lista">Lista</button>
           </div>
+          {filterTeam !== "all" && <CalendarSubscribe teamId={filterTeam} teamName={teams.find((t) => t.id === filterTeam)?.name} />}
           <Button variant="club" size="sm" onClick={() => openNewEvent(today)} className="h-8 text-xs">
             <Plus className="w-3.5 h-3.5 mr-1" /> Nuevo
           </Button>

@@ -3,6 +3,10 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/cal/:team/:file",
+      "destination": "/api/club?a=ics&team=:team&t=:file"
+    },
+    {
       "source": "/api/icon",
       "destination": "/api/upload"
     },
