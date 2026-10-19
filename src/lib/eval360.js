@@ -3,6 +3,7 @@
 //  - 4.5.1 Perfil general del jugador (técnico, táctico, físico, mental)
 //  - 4.6 Currículum por etapas (técnica ofensiva/defensiva, bases del juego, hábitos de juego)
 // No reordenar ni cambiar los ids: se guardan en las evaluaciones.
+import { POSITION_CATALOG } from "./competencyCatalog.js";
 
 export const AREAS = [
   {
@@ -74,29 +75,49 @@ export const AREAS = [
   },
 ];
 
-// Portero: sustituye los ítems técnicos por los de su perfil (catálogo de competencias técnicas del portero).
+// Portero: ítems técnicos y tácticos propios, tomados del catálogo de competencias del portero
+// (los ítems tácticos de jugador de campo —presión, marcaje, transiciones…— no se aplican a su puesto).
+const GK = POSITION_CATALOG.portero.groups;
 export const GK_TECH_ITEMS = [
-  { id: "gk_bajo_palos", label: "Acciones defensivas bajo palos" },
-  { id: "gk_salidas", label: "Salidas (seguridad y precisión)" },
-  { id: "gk_juego_aereo", label: "Juego aéreo" },
-  { id: "gk_pies", label: "Juego con los pies (construcción y reinicio)" },
-  { id: "gk_posicionamiento", label: "Posicionamiento y coordinación con la línea defensiva" },
-  { id: "gk_reinicio", label: "Reinicio rápido del juego" },
+  { id: "gk_bajo_palos", label: "Acciones defensivas bajo palos", competency: GK.tecnicas[0] },
+  { id: "gk_salidas", label: "Salidas (seguridad y precisión)", competency: GK.tecnicas[1] },
+  { id: "gk_juego_aereo", label: "Juego aéreo", competency: GK.tecnicas[2] },
+  { id: "gk_pies", label: "Juego con los pies (construcción y reinicio)", competency: GK.tecnicas[3] },
+];
+
+// PENDIENTE DE REVISIÓN (Nacho): lista provisional; se ajustará con calma.
+// "gk_posicionamiento" y "gk_reinicio" pasan aquí desde Técnica (en el catálogo son competencias defensiva y ofensiva).
+export const GK_TACTICAL_ITEMS = [
+  { id: "gk_t_salida", label: "Ofrecerse en la salida: línea de pase segura y hombre libre", competency: `${GK.ofensivas[0]} ${GK.ofensivas[1]}` },
+  { id: "gk_t_corto_largo", label: "Corto o largo según la presión del rival", competency: GK.ofensivas[3] },
+  { id: "gk_reinicio", label: "Reinicio rápido del juego", competency: GK.ofensivas[4] },
+  { id: "gk_posicionamiento", label: "Posicionamiento y distancia con la línea defensiva", competency: GK.defensivas[0] },
+  { id: "gk_t_area", label: "Control del área y de la espalda de la defensa", competency: GK.defensivas[1] },
+  { id: "gk_t_salir_quedarse", label: "Cuándo salir y cuándo quedarse (resolver de pie antes que ir al suelo)", competency: `${GK.defensivas[2]} ${GK.defensivas[3]}` },
+  { id: "gk_t_libre_presion", label: "Hacer de libre cuando el equipo presiona alto", competency: GK.defensivas[4] },
+  { id: "gk_t_comunicacion", label: "Comunicación y mando para organizar la defensa", competency: GK.mentales[1] },
 ];
 
 export function areasFor(position) {
   if (position !== "portero") return AREAS;
-  return AREAS.map((a) => (a.key === "tecnica" ? { ...a, items: GK_TECH_ITEMS } : a));
+  return AREAS.map((a) => {
+    if (a.key === "tecnica") return { ...a, items: GK_TECH_ITEMS };
+    if (a.key === "tactica") return { ...a, items: GK_TACTICAL_ITEMS, hint: "Competencias tácticas del portero", pendingReview: true };
+    return a;
+  });
 }
 
 const round1 = (n) => Math.round(n * 10) / 10;
 
 // scores: { tecnica: { itemId: 1..10 }, ... } -> { tecnica: media | null, ..., overall }
-export function computeAverages(scores = {}) {
+// `areas` = las áreas del puesto (areasFor): solo cuentan las notas de ítems que existen en él;
+// las de criterios anteriores (p. ej. táctica de jugador de campo en un portero) se conservan pero no puntúan.
+export function computeAverages(scores = {}, areas = AREAS) {
   const out = {};
   const vals = [];
   AREAS.forEach((a) => {
-    const nums = Object.values(scores[a.key] || {}).map(Number).filter((n) => n >= 1 && n <= 10);
+    const ids = new Set((areas.find((x) => x.key === a.key) || a).items.map((it) => it.id));
+    const nums = Object.entries(scores[a.key] || {}).filter(([id]) => ids.has(id)).map(([, v]) => Number(v)).filter((n) => n >= 1 && n <= 10);
     out[a.key] = nums.length ? round1(nums.reduce((s, n) => s + n, 0) / nums.length) : null;
     if (out[a.key] !== null) vals.push(out[a.key]);
   });

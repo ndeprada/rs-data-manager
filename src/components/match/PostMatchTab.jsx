@@ -123,7 +123,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
   const save = async () => {
     setSaving(true);
     try {
-      const matchMinutes = getMatchMinutes(event?.football_format, event?.match_duration || "2x45");
+      const matchMinutes = getMatchMinutes(event?.football_format, event?.match_duration);
       for (const p of played) {
         const row = rows[p.id] || {};
         const existing = stats.find((s) => s.player_id === p.id);

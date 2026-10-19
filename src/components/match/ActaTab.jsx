@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { playerFullName } from "@/lib/playerName";
-import { isPrimerEquipo } from "@/lib/primerEquipo";
+import { calcMinutesPlayed, actaMinutes, totalMinutes, defaultDuration } from "@/lib/matchDuration";
 import LineupSummary from "@/components/match/LineupSummary";
 import GoalClassifier from "@/components/match/GoalClassifier";
 import { toStored, fromStored, goalLabel } from "@/lib/goalTypes";
@@ -29,10 +29,10 @@ const DURATIONS_F7 = [
 ];
 
 export function getMatchMinutes(format, duration) {
-  if (!format || !duration) return 90;
-  const parts = duration.split("x");
-  return Number(parts[0]) * Number(parts[1]);
+  return totalMinutes(duration || defaultDuration(format));
 }
+
+export { calcMinutesPlayed };
 
 // ── Tipos de evento ──────────────────────────────────────
 const GOAL_TYPES = [
@@ -63,35 +63,6 @@ function StarRating({ value, onChange }) {
       ))}
     </div>
   );
-}
-
-// ── Calcular minutos jugados ─────────────────────────────
-export function calcMinutesPlayed(playerId, starterIds, events, matchMinutes) {
-  // Registramos intervalos de tiempo jugado: [{in: X, out: Y}]
-  const intervals = [];
-  const isStarter = starterIds.includes(playerId);
-  let currentIn = isStarter ? 0 : null;
-
-  // Ordenar subs por minuto
-  const subs = events.filter(e => e.type === "sub" && (e.playerIn === playerId || e.playerOut === playerId))
-    .sort((a, b) => Number(a.minute) - Number(b.minute));
-
-  subs.forEach(sub => {
-    if (sub.playerIn === playerId) {
-      if (currentIn === null) currentIn = Number(sub.minute);
-    }
-    if (sub.playerOut === playerId) {
-      if (currentIn !== null) {
-        intervals.push({ in: currentIn, out: Number(sub.minute) });
-        currentIn = null;
-      }
-    }
-  });
-
-  // Si sigue en campo al final
-  if (currentIn !== null) intervals.push({ in: currentIn, out: matchMinutes });
-
-  return intervals.reduce((acc, { in: i, out: o }) => acc + (o - i), 0);
 }
 
 // ── Verificar si un jugador está en campo en un minuto ───
@@ -154,12 +125,11 @@ function Timeline({ events, players, opponent, onRemove, onEdit }) {
 }
 
 // ── Componente principal ─────────────────────────────────
-export default function ActaTab({ eventId, teamId, event, players, team }) {
-  const isPrimer = isPrimerEquipo(team);
+export default function ActaTab({ eventId, teamId, event, players }) {
   const queryClient = useQueryClient();
 
   const [format, setFormat] = useState(event?.football_format || "f11");
-  const [duration, setDuration] = useState(event?.match_duration || "2x45");
+  const [duration, setDuration] = useState(event?.match_duration || defaultDuration(event?.football_format));
   const [scoreHome, setScoreHome] = useState(event?.score_home ?? "");
   const [scoreAway, setScoreAway] = useState(event?.score_away ?? "");
   const [matchEvents, setMatchEvents] = useState([]); // goals, subs, cards
@@ -311,6 +281,8 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
       })),
     });
     queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+    // La duración puede haber cambiado: los minutos de los jugadores se recalculan con ella
+    await saveStats(matchEvents, true);
     setSavingScore(false);
   };
 
@@ -324,15 +296,13 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
         if (existing?.manual) continue;
         const mine = evs.filter(e => e.team === "home");
         const isStarter = starterIds.includes(p.id);
-        const hasSubs = mine.some(e => e.type === "sub" && (e.playerIn === p.id || e.playerOut === p.id));
-        const mins = isStarter || hasSubs ? calcMinutesPlayed(p.id, starterIds, evs, matchMinutes) : 0;
         const goals = mine.filter(e => e.type === "goal" && e.playerId === p.id).length;
         const assistsFromEvents = mine.filter(e => e.type === "goal" && e.assistId === p.id).length;
         const yellows = mine.filter(e => e.type === "card" && e.playerId === p.id && e.cardColor === "yellow").length;
         const yellow2 = mine.filter(e => e.type === "card" && e.playerId === p.id && e.cardColor === "yellow2").length;
         const red = mine.filter(e => e.type === "card" && e.playerId === p.id && e.cardColor === "red").length;
-        // Minutos automáticos solo en el primer equipo (o si hay cambios registrados); en el resto se conserva lo apuntado, sin inventar 90'
-        const minutes = isPrimer || hasSubs ? mins : (existing?.minutes_played || 0);
+        // Titular sin cambios = partido completo; suplente sin cambios = 0 (si aún no hay titulares marcados, se conserva lo apuntado)
+        const minutes = actaMinutes(p.id, starterIds, evs, matchMinutes, existing?.minutes_played || 0);
         const assists = assistsFromEvents || existing?.assists || 0;
         const payload = {
           player_id: p.id, event_id: eventId,
@@ -532,7 +502,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
 
       {/* ── Alineación y resumen por jugador ── */}
       <LineupSummary eventId={eventId} event={event} convocation={convocation} convocados={convocados} starterIds={starterIds}
-        matchEvents={matchEvents} matchMinutes={matchMinutes} isPrimer={isPrimer} onRecompute={() => saveStats(matchEvents, true)} />
+        matchEvents={matchEvents} matchMinutes={matchMinutes} onRecompute={() => saveStats(matchEvents, true)} />
 
       {/* ── Editar evento ── */}
       <Dialog open={!!editEv} onOpenChange={o => { if (!o) setEditEv(null); }}>

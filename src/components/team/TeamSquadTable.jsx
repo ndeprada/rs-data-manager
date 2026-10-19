@@ -9,17 +9,12 @@ import { playerFullName } from "@/lib/playerName";
 import { useMatchStatus } from "@/lib/matchStatus";
 
 import { Button } from "@/components/ui/button";
+import { eventMinutes } from "@/lib/matchDuration";
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
 const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
 
-const matchMinutes = (ev) => {
-  const d = ev.match_duration;
-  if (!d) return 90;
-  if (d === "4x15") return 60;
-  if (d === "4x12") return 48;
-  return parseInt(d) || 90;
-};
+const matchMinutes = (ev) => eventMinutes(ev);
 
 const pctColor = (p) => (p == null ? "#9ca3af" : p >= 80 ? "#16a34a" : p >= 60 ? "#ea580c" : "#dc2626");
 

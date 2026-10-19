@@ -38,10 +38,12 @@ function AreaBars({ avg }) {
   );
 }
 
-function ScoreRow({ label, value, onChange }) {
+function ScoreRow({ label, hint, value, onChange }) {
   return (
     <div className="py-2 border-b border-gray-100 last:border-b-0">
-      <p className="text-sm text-gray-800 mb-1.5">{label}</p>
+      <p className="text-sm text-gray-800">{label}</p>
+      {hint && <p className="text-[11px] text-gray-400 leading-snug mt-0.5">{hint}</p>}
+      <div className="mb-1.5" />
       <div className="flex gap-1 flex-wrap">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
           const active = value === n;
@@ -64,7 +66,9 @@ function ScoreRow({ label, value, onChange }) {
 
 function EvalCard({ ev, areas, onEdit, onDelete, onToggleVisible, readOnly }) {
   const [open, setOpen] = useState(false);
-  const avg = computeAverages(ev.scores);
+  const avg = computeAverages(ev.scores, areas);
+  // Notas de criterios que ya no existen para este puesto (se conservan, pero no cuentan en la media)
+  const legacy = areas.some((a) => Object.keys(ev.scores?.[a.key] || {}).some((id) => !a.items.some((it) => it.id === id)));
   return (
     <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
       <div className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50" onClick={() => setOpen(!open)}>
@@ -97,7 +101,7 @@ function EvalCard({ ev, areas, onEdit, onDelete, onToggleVisible, readOnly }) {
               if (!rated.length) return null;
               return (
                 <div key={a.key}>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">{a.label} · {avg[a.key]}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">{a.label} · {avg[a.key]}{a.pendingReview && <span className="ml-1.5 normal-case tracking-normal text-orange-600">(en revisión)</span>}</p>
                   <div className="space-y-1">
                     {rated.map((it) => {
                       const v = ev.scores[a.key][it.id];
@@ -113,6 +117,7 @@ function EvalCard({ ev, areas, onEdit, onDelete, onToggleVisible, readOnly }) {
               );
             })}
           </div>
+          {legacy && <p className="text-[11px] text-gray-400">Evaluación hecha con criterios anteriores de este puesto: las notas que ya no existen se conservan, pero no cuentan en las medias.</p>}
           {[["Puntos fuertes", ev.strengths], ["A mejorar", ev.improve], ["Observaciones", ev.notes]].map(([t, v]) => v ? (
             <div key={t}>
               <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">{t}</p>
@@ -175,7 +180,7 @@ export default function Evaluation360Section({ player, playerId }) {
   const submit = (e) => {
     e.preventDefault();
     if (form.visible == null) { setVisError(true); setTab("cierre"); return; }
-    const avg = computeAverages(form.scores);
+    const avg = computeAverages(form.scores, areas);
     save.mutate({
       visible_to_player: form.visible,
       date: form.date, period: form.period, evaluator: form.evaluator, scores: form.scores,
@@ -184,10 +189,10 @@ export default function Evaluation360Section({ player, playerId }) {
     });
   };
 
-  const live = computeAverages(form.scores);
+  const live = computeAverages(form.scores, areas);
   const latest = evals[0];
-  const latestAvg = latest ? computeAverages(latest.scores) : null;
-  const tabs = [...areas.map((a) => ({ key: a.key, label: a.label })), { key: "cierre", label: "Cierre" }];
+  const latestAvg = latest ? computeAverages(latest.scores, areas) : null;
+  const tabs = [...areas.map((a) => ({ key: a.key, label: a.label, pending: !!a.pendingReview })), { key: "cierre", label: "Cierre" }];
   const curArea = areas.find((a) => a.key === tab);
 
   return (
@@ -262,7 +267,7 @@ export default function Evaluation360Section({ player, playerId }) {
                     onClick={() => setTab(t.key)}
                     className={`px-3 py-2 text-sm font-semibold border-b-2 whitespace-nowrap ${tab === t.key ? "border-[#73000A] text-[#73000A]" : "border-transparent text-gray-500"}`}
                   >
-                    {t.label}{v != null ? <span className="ml-1.5 text-xs font-black" style={{ color: scoreColor(v) }}>{v}</span> : null}
+                    {t.label}{t.pending ? <span className="ml-1 text-[10px] font-semibold text-orange-600" title="Ítems pendientes de revisión">· en revisión</span> : null}{v != null ? <span className="ml-1.5 text-xs font-black" style={{ color: scoreColor(v) }}>{v}</span> : null}
                   </button>
                 );
               })}
@@ -271,8 +276,13 @@ export default function Evaluation360Section({ player, playerId }) {
             {curArea && (
               <div>
                 <p className="text-xs text-gray-400 mb-1">{curArea.hint}. Toca una nota; vuelve a tocarla para quitarla.</p>
+                {curArea.pendingReview && (
+                  <p className="text-[11px] text-orange-700 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2 my-2">
+                    Ítems pendientes de revisión: lista provisional basada en las competencias del portero. Pueden cambiar.
+                  </p>
+                )}
                 {curArea.items.map((it) => (
-                  <ScoreRow key={it.id} label={it.label} value={form.scores[curArea.key]?.[it.id] ?? null} onChange={(v) => setScore(curArea.key, it.id, v)} />
+                  <ScoreRow key={it.id} label={it.label} hint={it.competency} value={form.scores[curArea.key]?.[it.id] ?? null} onChange={(v) => setScore(curArea.key, it.id, v)} />
                 ))}
               </div>
             )}

@@ -7,12 +7,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { calcMinutesPlayed } from "@/components/match/ActaTab";
+import { actaMinutes } from "@/lib/matchDuration";
 
 const POS = { portero: "POR", central: "DFC", libre: "LIB", lateral: "LAT", mediocentro: "MC", interior: "INT", extremo: "EXT", delantero_centro: "DC" };
 
 // Valores de un jugador: los que has corregido a mano, o los que salen de los eventos del acta.
-export function playerLine(p, stat, matchEvents, starterIds, matchMinutes, isPrimer = false) {
+export function playerLine(p, stat, matchEvents, starterIds, matchMinutes) {
   const mine = matchEvents.filter((e) => e.team === "home");
   const fromEvents = {
     goals: mine.filter((e) => e.type === "goal" && e.playerId === p.id).length,
@@ -21,9 +21,7 @@ export function playerLine(p, stat, matchEvents, starterIds, matchMinutes, isPri
     yellow2: mine.filter((e) => e.type === "card" && e.playerId === p.id && e.cardColor === "yellow2").length,
     red: mine.filter((e) => e.type === "card" && e.playerId === p.id && e.cardColor === "red").length,
   };
-  const hasSubs = mine.some((e) => e.type === "sub" && (e.playerIn === p.id || e.playerOut === p.id));
   const isStarter = starterIds.includes(p.id);
-  const computedMins = isStarter || hasSubs ? calcMinutesPlayed(p.id, starterIds, matchEvents, matchMinutes) : 0;
 
   if (stat?.manual) {
     return {
@@ -33,10 +31,8 @@ export function playerLine(p, stat, matchEvents, starterIds, matchMinutes, isPri
       yellow: stat.yellow_cards || 0, yellow2: stat.double_yellow_card || 0, red: stat.red_cards || 0,
     };
   }
-  // Minutos: el dato guardado; si no, el calculado con los cambios. Sin cambios en el acta no se inventa nada.
-  // Primer equipo: el acta trae todos los cambios, así que el titular sin cambio juega todo el partido.
-  let minutes = isPrimer && (isStarter || hasSubs) ? computedMins : (stat?.minutes_played > 0 ? stat.minutes_played : (hasSubs && computedMins > 0 ? computedMins : null));
-  if (isPrimer && !minutes && !isStarter && !hasSubs) minutes = null;
+  // Minutos según el acta: titular sin cambios = partido completo, suplente sin cambios = 0 (sin guion: 0 minutos)
+  const minutes = actaMinutes(p.id, starterIds, matchEvents, matchMinutes, stat?.minutes_played || 0);
   return {
     manual: false, starter: isStarter, minutes,
     goals: fromEvents.goals,
@@ -59,7 +55,7 @@ function Row({ p, line, onEdit }) {
         <p className="text-xs font-bold text-gray-900 truncate leading-tight"><PlayerName player={p} /></p>
         <p className="text-[10px] text-gray-400 leading-tight">{POS[p.position] || "—"}{line.manual && <span className="ml-1.5 text-green-600 font-bold">editado</span>}</p>
       </div>
-      <span className={`w-10 text-center text-xs tabular-nums ${line.minutes ? "font-bold text-gray-800" : "text-gray-300"}`} title={line.minutes ? "" : "Sin datos de minutos: pulsa el lápiz para apuntarlos"}>
+      <span className={`w-10 text-center text-xs tabular-nums ${line.minutes ? "font-bold text-gray-800" : "text-gray-300"}`} title={line.minutes ? "" : line.starter ? "Sin minutos: pulsa el lápiz para apuntarlos" : "No ha entrado en ningún cambio: 0 minutos"}>
         {line.minutes ? `${line.minutes}'` : "—"}
       </span>
       <Num v={line.goals} icon="⚽" />
@@ -93,7 +89,7 @@ function Group({ title, rows, onEdit }) {
   );
 }
 
-export default function LineupSummary({ eventId, event, convocation, convocados, starterIds, matchEvents, matchMinutes, isPrimer, onRecompute }) {
+export default function LineupSummary({ eventId, event, convocation, convocados, starterIds, matchEvents, matchMinutes, onRecompute }) {
   const qc = useQueryClient();
   const { data: stats = [] } = useQuery({
     queryKey: ["matchstats-event", eventId],
@@ -103,7 +99,7 @@ export default function LineupSummary({ eventId, event, convocation, convocados,
   const [edit, setEdit] = useState(null); // { p, form }
   const [saving, setSaving] = useState(false);
 
-  const lines = convocados.map((p) => ({ p, line: playerLine(p, stats.find((s) => s.player_id === p.id), matchEvents, starterIds, matchMinutes, isPrimer) }));
+  const lines = convocados.map((p) => ({ p, line: playerLine(p, stats.find((s) => s.player_id === p.id), matchEvents, starterIds, matchMinutes) }));
   const titulares = lines.filter((r) => r.line.starter);
   const suplentes = lines.filter((r) => !r.line.starter);
   const tot = (k) => lines.reduce((a, r) => a + (r.line[k] || 0), 0);
@@ -171,10 +167,23 @@ export default function LineupSummary({ eventId, event, convocation, convocados,
       <div className="px-5 pt-4 pb-3 flex items-center justify-between gap-3 flex-wrap">
         <div>
           <p className="text-sm font-bold text-gray-900">Alineación y resumen por jugador</p>
-          <p className="text-[11px] text-gray-400">Los datos salen de los eventos del acta. Con el lápiz puedes corregir cualquier dato de un jugador a mano.</p>
+          <p className="text-[11px] text-gray-400">Los datos salen del acta: el titular sin cambios juega el partido completo y el suplente que no entra suma 0'. Con el lápiz puedes corregir cualquier dato a mano.</p>
         </div>
-        <p className="text-[11px] text-gray-500 tabular-nums">{tot("goals")} ⚽ · {tot("assists")} 🅰️ · {tot("yellow")} 🟨 · {tot("red") + tot("yellow2")} 🟥</p>
+        <div className="flex items-center gap-3">
+          <p className="text-[11px] text-gray-500 tabular-nums">{tot("goals")} ⚽ · {tot("assists")} 🅰️ · {tot("yellow")} 🟨 · {tot("red") + tot("yellow2")} 🟥</p>
+          {starterIds.length > 0 && onRecompute && (
+            <Button variant="outline" size="sm" className="h-7 text-xs border-gray-200" disabled={saving} title="Volver a calcular los minutos de todos desde el acta (lo corregido a mano no se toca)"
+              onClick={async () => { setSaving(true); try { await onRecompute(); refresh(); } finally { setSaving(false); } }}>
+              <RotateCcw className="w-3 h-3 mr-1" /> Recalcular minutos
+            </Button>
+          )}
+        </div>
       </div>
+      {!event?.match_duration && (
+        <p className="px-5 py-2 text-[11px] text-orange-700 bg-orange-50 border-y border-orange-100">
+          Duración supuesta: {matchMinutes}' (la habitual de este formato). Si no es esa, cámbiala en «Formato y resultado» y pulsa Guardar: los minutos se recalculan.
+        </p>
+      )}
       <Group title="Titulares" rows={titulares} onEdit={openEdit} />
       <Group title="Suplentes" rows={suplentes} onEdit={openEdit} />
       {titulares.length === 0 && (

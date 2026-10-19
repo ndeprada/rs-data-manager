@@ -84,7 +84,7 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
     <div className="space-y-3">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <PlayerInfoCards player={player} />
-        <PlayerAttributesBar playerId={playerId} />
+        <PlayerAttributesBar playerId={playerId} position={player.position} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {/* Forma */}

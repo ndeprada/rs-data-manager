@@ -1,7 +1,7 @@
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { AREAS, computeAverages, scoreColor } from "@/lib/eval360";
+import { AREAS, areasFor, computeAverages, scoreColor } from "@/lib/eval360";
 
 // Círculo estilo FIFA; value en escala 1-10
 function StatCircle({ label, value }) {
@@ -27,13 +27,13 @@ function StatCircle({ label, value }) {
   );
 }
 
-export default function PlayerAttributesBar({ playerId }) {
+export default function PlayerAttributesBar({ playerId, position }) {
   const { data: evals = [] } = useQuery({
     queryKey: ["eval360", playerId],
     queryFn: () => base44.entities.Evaluation360.filter({ player_id: playerId }, "-date"),
   });
   const latest = evals[0] ?? null;
-  const avg = computeAverages(latest?.scores);
+  const avg = computeAverages(latest?.scores, areasFor(position));
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
