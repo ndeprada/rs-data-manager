@@ -14,8 +14,6 @@ const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
 const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
 
-const matchMinutes = (ev) => eventMinutes(ev);
-
 const pctColor = (p) => (p == null ? "#9ca3af" : p >= 80 ? "#16a34a" : p >= 60 ? "#ea580c" : "#dc2626");
 
 function Th({ label, k, sort, setSort, className = "" }) {
@@ -42,6 +40,8 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
   const { counted } = useMatchStatus();
   const { rows, guests } = useMemo(() => {
     const now = new Date();
+    const team = teams.find((t) => t.id === teamId);
+    const matchMinutes = (ev) => eventMinutes(ev, team);   // la duración del partido, o la habitual del equipo
     // Solo partidos de liga/torneo cerrados completamente (no amistosos ni pendientes de gestionar)
     const played = events.filter((e) => e.team_id === teamId && counted.has(e.id));
     const playedIds = new Set(played.map((e) => e.id));

@@ -165,7 +165,7 @@ export default function Stats() {
         </TabsContent>
 
         <TabsContent value="goals" className="mt-6">
-          <GoalStatsPanel events={filteredEvents} players={players} />
+          <GoalStatsPanel events={filteredEvents} players={players} teams={teams} />
         </TabsContent>
       </Tabs>
     </div>

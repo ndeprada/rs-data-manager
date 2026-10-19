@@ -297,7 +297,7 @@ export default function MatchDetail() {
       )}
 
       {activeTab === "postpartido" && (
-        <PostMatchTab eventId={eventId} teamId={teamId} event={event} players={players} convocation={convocation} />
+        <PostMatchTab eventId={eventId} teamId={teamId} event={event} players={players} convocation={convocation} team={team} />
       )}
 
       </div>

@@ -325,8 +325,8 @@ function fcfPlayerKey(nombre) {
 const PRIMER_EQUIPO_SLUGS = new Set(['primera_federacio', 'segona_federacio', 'tercera_federacio', 'lliga_elit', 'copa_catalunya_masculina_24_25', 'copa_catalunya_masculina', 'copa_lleida', 'primera_catalana', 'segona_catalana', 'tercera_catalana', 'quarta_catalana']);
 const isPrimerEquipo = (team) => !!team && (PRIMER_EQUIPO_SLUGS.has(String(team.category || '')) || /^primer equip/i.test(String(team.name || '')));
 
-function totalMatchMinutes(d) {
-  const x = d.match_duration;
+function totalMatchMinutes(d, team) {
+  const x = d.match_duration || (/^\d+x\d+$/.test(String(team?.default_match_duration || '')) ? team.default_match_duration : '');
   if (!x) return 90;
   const m = String(x).match(/^(\d+)x(\d+)$/);   // "2x45" -> 90, "4x15" -> 60
   if (m) return Number(m[1]) * Number(m[2]);
@@ -391,7 +391,7 @@ async function recalcPrimerEquipoMinutes(stats) {
     const conv = convByEvent.get(ev.id);
     const events = Array.isArray(ev.data.match_events) ? ev.data.match_events : [];
     if (!conv || !(conv.starters || []).length) continue;
-    const total = totalMatchMinutes(ev.data);
+    const total = totalMatchMinutes(ev.data, teams.get(ev.data.team_id));
     for (const r of msByEvent.get(ev.id) || []) {
       const mins = minutesFromActa(r.data.player_id, conv.starters || [], events, total);
       const d = {};

@@ -7,6 +7,7 @@ import {
 import { Trophy, Star } from "lucide-react";
 import { useCountedStats } from "@/lib/matchStatus";
 import { usePlayerMode } from "@/lib/playerMode";
+import { eventMinutes } from "@/lib/matchDuration";
 
 function StatBox({ label, value, sub, color = "gray" }) {
   const colors = {
@@ -74,16 +75,24 @@ export default function PlayerPerformancePanel({ playerId }) {
     queryFn: () => base44.entities.Convocatoria.list(),
   });
 
-  const totalConvocatorias = convocatorias.filter(
+  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
+  const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
+
+  const misConvocatorias = convocatorias.filter(
     (c) => Array.isArray(c.player_ids) && c.player_ids.includes(playerId)
-  ).length;
+  );
+  const totalConvocatorias = misConvocatorias.length;
 
   const playerMode = usePlayerMode();
   const partidos = stats.length;
   const titular = stats.filter((s) => s.starter !== false).length;
   const suplente = stats.filter((s) => s.starter === false).length;
   const totalMins = stats.reduce((s, r) => s + (r.minutes_played || 0), 0);
-  const maxMins = totalConvocatorias * 90;
+  // Minutos posibles = suma de la duración de cada partido al que fue convocado (cada categoría juega lo suyo)
+  const maxMins = misConvocatorias.reduce((sum, c) => {
+    const ev = events.find((e) => e.id === c.event_id);
+    return sum + eventMinutes(ev, teams.find((t) => t.id === (ev?.team_id || c.team_id)));
+  }, 0);
   const minsPct = maxMins > 0 ? Math.round((totalMins / maxMins) * 100) : 0;
   const totalGoals = stats.reduce((s, r) => s + (r.goals || 0), 0);
   const totalAssists = stats.reduce((s, r) => s + (r.assists || 0), 0);

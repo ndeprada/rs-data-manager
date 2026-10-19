@@ -47,7 +47,7 @@ const platformOf = (url) => {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; }
 };
 
-export default function PostMatchTab({ eventId, teamId, event, players, convocation }) {
+export default function PostMatchTab({ eventId, teamId, event, players, convocation, team }) {
   const qc = useQueryClient();
   const starterIds = convocation?.starters || [];
   const convocadoIds = convocation?.player_ids || [];
@@ -123,7 +123,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
   const save = async () => {
     setSaving(true);
     try {
-      const matchMinutes = getMatchMinutes(event?.football_format, event?.match_duration);
+      const matchMinutes = getMatchMinutes(event?.football_format, event?.match_duration, team);
       for (const p of played) {
         const row = rows[p.id] || {};
         const existing = stats.find((s) => s.player_id === p.id);

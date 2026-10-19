@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { playerFullName } from "@/lib/playerName";
-import { calcMinutesPlayed, actaMinutes, totalMinutes, defaultDuration } from "@/lib/matchDuration";
+import { calcMinutesPlayed, actaMinutes, totalMinutes, defaultDuration, teamDefaultDuration, durationLabel, DURATIONS } from "@/lib/matchDuration";
 import LineupSummary from "@/components/match/LineupSummary";
 import GoalClassifier from "@/components/match/GoalClassifier";
 import { toStored, fromStored, goalLabel } from "@/lib/goalTypes";
@@ -17,19 +17,8 @@ const FOOTBALL_FORMATS = [
   { value: "f11", label: "Fútbol 11" },
   { value: "f7", label: "Fútbol 7" },
 ];
-const DURATIONS_F11 = [
-  { value: "2x45", label: "2 partes de 45'" },
-  { value: "2x40", label: "2 partes de 40'" },
-  { value: "2x35", label: "2 partes de 35'" },
-];
-const DURATIONS_F7 = [
-  { value: "4x15", label: "4 cuartos de 15'" },
-  { value: "4x12", label: "4 cuartos de 12'" },
-  { value: "4x10", label: "4 cuartos de 10'" },
-];
-
-export function getMatchMinutes(format, duration) {
-  return totalMinutes(duration || defaultDuration(format));
+export function getMatchMinutes(format, duration, team) {
+  return totalMinutes(duration || defaultDuration(format, team));
 }
 
 export { calcMinutesPlayed };
@@ -125,11 +114,14 @@ function Timeline({ events, players, opponent, onRemove, onEdit }) {
 }
 
 // ── Componente principal ─────────────────────────────────
-export default function ActaTab({ eventId, teamId, event, players }) {
+export default function ActaTab({ eventId, teamId, event, players, team }) {
   const queryClient = useQueryClient();
 
   const [format, setFormat] = useState(event?.football_format || "f11");
-  const [duration, setDuration] = useState(event?.match_duration || defaultDuration(event?.football_format));
+  const [duration, setDuration] = useState(event?.match_duration || defaultDuration(event?.football_format, team));
+  const [durationTouched, setDurationTouched] = useState(false); // el entrenador ya ha elegido: no se le cambia sola
+  const [defaultSaved, setDefaultSaved] = useState(false);
+  const [savingDefault, setSavingDefault] = useState(false);
   const [scoreHome, setScoreHome] = useState(event?.score_home ?? "");
   const [scoreAway, setScoreAway] = useState(event?.score_away ?? "");
   const [matchEvents, setMatchEvents] = useState([]); // goals, subs, cards
@@ -171,7 +163,27 @@ export default function ActaTab({ eventId, teamId, event, players }) {
   const starters = players.filter(p => starterIds.includes(p.id)).sort(sortByPosition);
   const suplentes = convocados.filter(p => !starterIds.includes(p.id));
 
-  const matchMinutes = getMatchMinutes(format, duration);
+  const matchMinutes = getMatchMinutes(format, duration, team);
+
+  // Si el equipo llega después de abrir el acta, un partido sin duración propia toma la del equipo
+  useEffect(() => {
+    if (!durationTouched && !event?.match_duration) setDuration(defaultDuration(format, team));
+  }, [team?.default_match_duration, team?.category, team?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Duración habitual del equipo: la que haya guardado el entrenador o, si no, la de su categoría
+  const teamDuration = teamDefaultDuration(team);
+  const pickDuration = (v) => { setDuration(v); setDurationTouched(true); setDefaultSaved(false); };
+  const saveTeamDefault = async () => {
+    if (!team?.id) return;
+    setSavingDefault(true);
+    try {
+      await base44.entities.Team.update(team.id, { default_match_duration: duration });
+      await queryClient.invalidateQueries({ queryKey: ["teams"] });
+      setDefaultSaved(true);
+    } finally { setSavingDefault(false); }
+  };
+  // Duraciones que se ofrecen; si el partido trae un valor antiguo se añade para no perderlo
+  const durationOptions = DURATIONS.some((d) => d.value === duration) ? DURATIONS : [...DURATIONS, { value: duration, label: durationLabel(duration) }];
 
   // Cargar eventos guardados desde Event.goal_events si existen
   useEffect(() => {
@@ -340,20 +352,27 @@ export default function ActaTab({ eventId, teamId, event, players }) {
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Formato</p>
-            <Select value={format} onValueChange={v => { setFormat(v); setDuration(v === "f11" ? "2x45" : "4x15"); }}>
+            <Select value={format} onValueChange={v => { setFormat(v); if (!durationTouched && !event?.match_duration) setDuration(defaultDuration(v, team)); }}>
               <SelectTrigger className="w-36 border-gray-200 h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>{FOOTBALL_FORMATS.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Duración</p>
-            <Select value={duration} onValueChange={setDuration}>
+            <Select value={duration} onValueChange={pickDuration}>
               <SelectTrigger className="w-44 border-gray-200 h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {(format === "f11" ? DURATIONS_F11 : DURATIONS_F7).map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
+                {durationOptions.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
+          {team?.id && (duration !== teamDuration || defaultSaved) && (
+            <button type="button" onClick={saveTeamDefault} disabled={savingDefault || defaultSaved}
+              className={`h-8 text-xs rounded-md border px-2.5 ${defaultSaved ? "border-green-200 bg-green-50 text-green-700 font-semibold" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+              title="Los próximos partidos de este equipo empezarán con esta duración">
+              {defaultSaved ? "✓ Habitual del equipo" : savingDefault ? "Guardando…" : `Guardar como habitual de ${team.name}`}
+            </button>
+          )}
         </div>
 
         {/* Mismo orden que la cabecera del partido: el equipo local a la izquierda (el marcador guardado sigue siendo nuestros goles / goles del rival) */}

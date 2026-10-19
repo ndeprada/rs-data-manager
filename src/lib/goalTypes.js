@@ -92,9 +92,3 @@ export const goalLabel = (c = {}) => {
   if (c.phase === "gol_propio") return "Gol en propia";
   return [find(GOAL_PHASES, c.phase), find(CREATE_ALL, c.create), c.area && (c.area === "dentro" ? "Dentro" : "Fuera"), find(GOAL_SECTORS, c.sector), find(FINISHES, c.finish)].filter(Boolean).join(" · ");
 };
-
-// Duración total del partido en minutos a partir de "2x45", "4x10"… (90 por defecto)
-export const matchTotal = (duration) => {
-  const m = /^(\d+)x(\d+)$/.exec(duration || "");
-  return m ? Number(m[1]) * Number(m[2]) : 90;
-};

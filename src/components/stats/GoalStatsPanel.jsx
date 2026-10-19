@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { fromStored, matchTotal, GOAL_PHASES, GOAL_AREAS, GOAL_SECTORS, SP_TYPES, SP_HOW, CREATE_ALL, FINISHES } from "@/lib/goalTypes";
+import { eventMinutes } from "@/lib/matchDuration";
+import { fromStored, GOAL_PHASES, GOAL_AREAS, GOAL_SECTORS, SP_TYPES, SP_HOW, CREATE_ALL, FINISHES } from "@/lib/goalTypes";
 import { playerFullName } from "@/lib/playerName";
 
 const BUCKETS = ["1-15'", "16-30'", "31-45'", "46-60'", "61-75'", "76-90'", "+90'"];
@@ -97,14 +98,14 @@ function GoalMap({ title, color, cells }) {
   );
 }
 
-export default function GoalStatsPanel({ events = [], players = [] }) {
+export default function GoalStatsPanel({ events = [], players = [], teams = [] }) {
   const d = useMemo(() => {
     const goals = [];
     let matches = 0;
     for (const e of events) {
       if (!e.goal_events?.length) continue;
       matches++;
-      const total = matchTotal(e.match_duration);
+      const total = eventMinutes(e, teams.find((t) => t.id === e.team_id));
       const sorted = [...e.goal_events].sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0));
       const subs = (e.match_events || []).filter((m) => m.type === "sub");
       let diff = 0;
@@ -138,7 +139,7 @@ export default function GoalStatsPanel({ events = [], players = [] }) {
     const pairs = tally(ours, (g) => g.scorer && g.assist ? `${g.assist}>${g.scorer}` : "");
     const mapCells = (isOurs) => { const m = {}; goals.filter((g) => g.f === isOurs && g.c.phase !== "balon_parado" && g.c.area && g.c.sector).forEach((g) => { const k = `${g.c.area}_${g.c.sector}`; m[k] = (m[k] || 0) + 1; }); return m; };
     return { create, finish, stateRows, afterSub, scorers, assisters, pairs, mapF: mapCells(true), mapA: mapCells(false), goals, matches, minutes, parts, phase, area, sector, bp: { type: cnt2(bp, "sp", SP_TYPES).filter((r) => r.f || r.a), how: cnt2(bp, "how", SP_HOW), side: cnt2(bp, "sector", GOAL_SECTORS) }, total: { f: goals.filter((g) => g.f).length, a: goals.filter((g) => !g.f).length }, unclassified: goals.filter((g) => !g.c.phase).length };
-  }, [events]);
+  }, [events, teams]);
 
   if (!d.goals.length) return <p className="text-sm text-gray-400 text-center py-10">Aún no hay goles registrados con minuto. Se rellenan en cada partido (Acta o Estadísticas).</p>;
   const hasBp = d.bp.type.length > 0;
