@@ -1,5 +1,5 @@
 import React from "react";
-import { REASON_ORDER, reasonShort, NO_REASON } from "@/lib/participation";
+import { REASON_ORDER, reasonShort, NO_REASON, FORMAT_LABEL } from "@/lib/participation";
 
 const REASON_STYLE = {
   lesion: "bg-red-50 text-red-700 border-red-200",
@@ -28,30 +28,24 @@ export function ReasonChips({ reasons = {} }) {
   );
 }
 
-// De más a menos cuartos jugados; el gris es «convocado y no jugó»
-export const QUARTER_COLORS = { 4: "var(--granate)", 3: "#a8444d", 2: "#d58a90", 1: "#efc4c7", 0: "#d1d5db" };
-const quarterWord = (q) => (q === 1 ? "1 cuarto" : `${q} cuartos`);
+// Colores del nivel de minutos: rojo = por debajo del mínimo, ámbar = por debajo del objetivo (solo F11), verde = bien
+export const LEVEL_STYLE = {
+  alert: "bg-red-50 text-red-700 border-red-200",
+  warn: "bg-amber-50 text-amber-700 border-amber-200",
+  ok: "bg-green-50 text-green-700 border-green-200",
+};
 
-export function quartersTitle(b) {
-  const parts = [4, 3, 2, 1].filter((q) => b.qHist[q] > 0).map((q) => `${quarterWord(q)}: ${b.qHist[q]}`);
-  if (b.qHist[0] > 0) parts.push(`sin jugar: ${b.qHist[0]}`);
-  return parts.join(" · ");
-}
-
-// Barra con la proporción de partidos según los cuartos que jugó (cuanto más oscura, más cuartos)
-export function QuartersBar({ b, width = 88 }) {
-  if (!b.qMatches) return <span className="text-gray-300">—</span>;
+// Porcentaje de minutos con el color de su nivel (sin nivel, solo el número)
+export function PctPill({ value, level, title }) {
+  if (value == null) return <span className="text-gray-300">—</span>;
+  if (!level) return <b title={title}>{value}%</b>;
   return (
-    <span className="inline-flex items-center gap-1.5" title={quartersTitle(b)}>
-      <span className="flex h-2.5 rounded-sm overflow-hidden bg-gray-100" style={{ width }}>
-        {[4, 3, 2, 1, 0].map((q) => b.qHist[q] > 0 && (
-          <span key={q} style={{ width: `${(b.qHist[q] / b.qMatches) * 100}%`, background: QUARTER_COLORS[q] }} />
-        ))}
-      </span>
-      <span className="text-[11px] font-bold text-gray-700 tabular-nums">{b.qAvg != null ? b.qAvg.toFixed(1).replace(".", ",") : "—"}</span>
-    </span>
+    <span title={title} className={`inline-block min-w-9 px-1.5 py-0.5 rounded-sm border text-[11px] font-black tabular-nums ${LEVEL_STYLE[level]}`}>{value}%</span>
   );
 }
+
+// Texto de una alerta: «Fútbol 11: 29 % de los minutos disponibles (mínimo 35 %)»
+export const alertText = (a) => `${FORMAT_LABEL[a.format]}: ${a.pct} % de los minutos disponibles (mínimo ${a.min} %)`;
 
 export function FormatPills({ value, onChange, options }) {
   return (

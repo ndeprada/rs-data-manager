@@ -7,6 +7,9 @@ import { birthYearOf } from "@/lib/birthYear";
 import { Flag, countryOf } from "@/lib/countries";
 import { playerFullName } from "@/lib/playerName";
 import { useMatchStatus } from "@/lib/matchStatus";
+import { participationOf, playerLevel } from "@/lib/participation";
+import { useParticipationContext } from "@/lib/useParticipation";
+import { PctPill } from "@/components/stats/ParticipationBits";
 
 import { Button } from "@/components/ui/button";
 import { eventMinutes } from "@/lib/matchDuration";
@@ -33,11 +36,13 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
   const { data: allStats = [] } = useQuery({ queryKey: ["matchstats_all"], queryFn: () => base44.entities.MatchStats.list() });
-  const { data: convocs = [] } = useQuery({ queryKey: ["convocatorias_all"], queryFn: () => base44.entities.Convocatoria.list() });
   const { data: attendance = [] } = useQuery({ queryKey: ["attendance_all"], queryFn: () => base44.entities.TrainingAttendance.list() });
   const { data: injuries = [] } = useQuery({ queryKey: ["injuries_all"], queryFn: () => base44.entities.Injury.list() });
 
   const { counted } = useMatchStatus();
+  // Participación (minutos disponibles) solo en los partidos de este equipo, igual que el resto de columnas
+  const partCtx = useParticipationContext("liga");
+  const teamCtx = useMemo(() => ({ ...partCtx, events: partCtx.events.filter((e) => e.team_id === teamId) }), [partCtx, teamId]);
   const { rows, guests } = useMemo(() => {
     const now = new Date();
     const team = teams.find((t) => t.id === teamId);
@@ -46,24 +51,26 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
     const played = events.filter((e) => e.team_id === teamId && counted.has(e.id));
     const playedIds = new Set(played.map((e) => e.id));
     const totalMin = played.reduce((a, e) => a + matchMinutes(e), 0);
-    const convByEvent = new Map(convocs.map((c) => [c.event_id, new Set(c.player_ids || [])]));
     const statsOf = (pid) => allStats.filter((s) => s.player_id === pid && playedIds.has(s.event_id));
-    const agg = (pid) => {
+    const agg = (pl) => {
+      const pid = pl.id;
       const st = statsOf(pid);
       const rated = st.filter((s) => s.rating);
       const mins = st.reduce((a, s) => a + (s.minutes_played || 0), 0);
-      // Minutos disponibles: partidos disputados en los que estuvo convocado (o con estadísticas)
-      const withStats = new Set(st.map((s) => s.event_id));
-      const availMin = played.reduce((a, e) => a + (convByEvent.get(e.id)?.has(pid) || withStats.has(e.id) ? matchMinutes(e) : 0), 0);
+      // Minutos disponibles: los partidos en que estaba a disposición del entrenador (convocado o dejado fuera por él;
+      // no cuentan lesión, viaje, sanción…). Mismo cálculo que en Estadísticas.
+      const part = participationOf(pl, teamCtx);
+      const availMin = part.all.availMin;
       return {
         totalMin, availMin,
+        level: playerLevel(part),
         pj: st.length,
         goals: st.reduce((a, s) => a + (s.goals || 0), 0),
         conceded: st.reduce((a, s) => a + (s.goals_conceded || 0), 0),
         assists: st.reduce((a, s) => a + (s.assists || 0), 0),
         mins,
         minPJ: st.length ? Math.round(mins / st.length) : null,
-        pctMin: availMin ? Math.min(100, Math.round((mins / availMin) * 100)) : null,
+        pctMin: part.all.pctAvail,
         rating: rated.length ? rated.reduce((a, s) => a + s.rating, 0) / rated.length : null,
         ta: st.reduce((a, s) => a + (s.yellow_cards || 0), 0),
         tr: st.reduce((a, s) => a + (s.red_cards || 0), 0),
@@ -73,14 +80,14 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
       const att = attendance.filter((a) => a.player_id === p.id && a.status);
       const ok = att.filter((a) => a.status === "present" || a.status === "apart").length;
       const active = injuries.filter((i) => i.player_id === p.id && i.status !== "alta");
-      return { p, ...agg(p.id), attPct: att.length ? Math.round((ok / att.length) * 100) : null, attN: att.length, injury: active[0] || null, year: birthYearOf(p) };
+      return { p, ...agg(p), attPct: att.length ? Math.round((ok / att.length) * 100) : null, attN: att.length, injury: active[0] || null, year: birthYearOf(p) };
     });
     // Jugadores de otros equipos con minutos/estadísticas en partidos de este equipo
     const ids = new Set(rows.map((r) => r.p.id));
     const guestIds = [...new Set(allStats.filter((s) => playedIds.has(s.event_id) && !ids.has(s.player_id)).map((s) => s.player_id))];
-    const guests = guestIds.map((id) => players.find((p) => p.id === id)).filter(Boolean).map((p) => ({ p, ...agg(p.id), year: birthYearOf(p), team: teams.find((t) => t.id === p.team_id) }));
+    const guests = guestIds.map((id) => players.find((p) => p.id === id)).filter(Boolean).map((p) => ({ p, ...agg(p), year: birthYearOf(p), team: teams.find((t) => t.id === p.team_id) }));
     return { rows, guests };
-  }, [players, teams, events, allStats, convocs, attendance, injuries, teamId, counted]);
+  }, [players, teams, events, allStats, attendance, injuries, teamId, counted, teamCtx]);
 
   const sorted = useMemo(() => {
     const val = (r) => {
@@ -159,7 +166,7 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
                     <td className={`${num} font-bold text-gray-600`}>{r.assists}</td>
                     <td className={`${num} text-gray-700`} title={`${r.mins}' de ${r.totalMin}' de partidos jugados`}>{r.mins > 0 ? `${r.mins}'` : "—"}</td>
                     <td className={`${num} text-gray-600`}>{r.minPJ ? `${r.minPJ}'` : "—"}</td>
-                    <td className={`${num} font-bold`} style={{ color: "var(--granate)" }} title={`${r.mins}' de ${r.availMin}' disponibles (convocado)`}>{r.pctMin != null && r.mins > 0 ? `${r.pctMin}%` : "—"}</td>
+                    <td className={num}><PctPill value={r.pctMin} level={r.level} title={`${r.mins}' de ${r.availMin}' disponibles (no cuentan los partidos de lesión, viaje, sanción…)`} /></td>
                     <td className={`${num} font-bold`}>{r.rating != null ? r.rating.toFixed(1) : "—"}</td>
                     <td className={num}>{r.ta > 0 ? <span className="inline-block min-w-4 px-1 rounded-sm bg-yellow-400 text-[10px] font-bold text-yellow-900">{r.ta}</span> : <span className="text-gray-300">—</span>}</td>
                     <td className={num}>{r.tr > 0 ? <span className="inline-block min-w-4 px-1 rounded-sm bg-red-500 text-[10px] font-bold text-white">{r.tr}</span> : <span className="text-gray-300">—</span>}</td>

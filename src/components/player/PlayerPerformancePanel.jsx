@@ -4,13 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
-import { Trophy, Star } from "lucide-react";
+import { Trophy, Star, AlertTriangle } from "lucide-react";
 import { useCountedStats } from "@/lib/matchStatus";
 import { usePlayerMode } from "@/lib/playerMode";
 import { eventMinutes } from "@/lib/matchDuration";
-import { participationOf } from "@/lib/participation";
+import { participationOf, minutesAlerts, playerLevel } from "@/lib/participation";
 import { useParticipationContext } from "@/lib/useParticipation";
-import { ReasonChips, FormatPills, FORMAT_OPTIONS } from "@/components/stats/ParticipationBits";
+import { ReasonChips, FormatPills, FORMAT_OPTIONS, PctPill, alertText } from "@/components/stats/ParticipationBits";
 
 function StatBox({ label, value, sub, color = "gray" }) {
   const colors = {
@@ -88,7 +88,7 @@ export default function PlayerPerformancePanel({ playerId }) {
 
   const playerMode = usePlayerMode();
 
-  // Participación en los partidos cerrados de liga: titular, suplente, no convocado (y por qué), minutos y cuartos
+  // Participación en los partidos cerrados de liga: titular, suplente, no convocado (y por qué), minutos y alertas
   const partCtx = useParticipationContext("liga");
   const { data: allPlayers = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
   const me = allPlayers.find((p) => p.id === playerId);
@@ -96,7 +96,10 @@ export default function PlayerPerformancePanel({ playerId }) {
   const [fmt, setFmt] = useState("all");
   const hasFmt = (k) => !!part && part[k].conv + part[k].noConv > 0;
   const fmtOptions = FORMAT_OPTIONS.filter((o) => o.value === "all" || hasFmt(o.value));
-  const pb = part ? part[fmtOptions.some((o) => o.value === fmt) ? fmt : "all"] : null;
+  const fmtSel = fmtOptions.some((o) => o.value === fmt) ? fmt : "all";
+  const pb = part ? part[fmtSel] : null;
+  const level = part ? playerLevel(part, fmtSel) : null;
+  const alerts = part ? minutesAlerts(part).filter((a) => fmtSel === "all" || a.format === fmtSel) : [];
   const partidos = stats.length;
   const titular = stats.filter((s) => s.starter !== false).length;
   const suplente = stats.filter((s) => s.starter === false).length;
@@ -169,15 +172,19 @@ export default function PlayerPerformancePanel({ playerId }) {
             )}
             <MiniRow title="Minutos">
               <Mini label="Totales" value={`${pb.mins}'`} />
-              <Mini label={`de ${pb.availMin}' convocado`} value={pb.pctMin != null ? `${pb.pctMin}%` : "—"} />
-              <Mini label="Media/partido" value={pb.played > 0 ? `${Math.round(pb.mins / pb.played)}'` : "—"} />
+              <Mini label={`partidos disponibles (de ${pb.totalMatches})`} value={pb.availMatches} />
             </MiniRow>
-            {pb.qMatches > 0 && (
-              <MiniRow title="Cuartos">
-                {[4, 3, 2, 1].map((q) => <Mini key={q} label={q === 1 ? "1 cuarto" : `${q} cuartos`} value={pb.qHist[q]} />)}
-                <Mini label="sin jugar" value={pb.qHist[0]} />
-                <Mini label="media/partido jugado" value={pb.qAvg != null ? pb.qAvg.toFixed(1).replace(".", ",") : "—"} />
-              </MiniRow>
+            <MiniRow title="% y media">
+              <Mini label={`de ${pb.availMin}' disponibles`} value={<PctPill value={pb.pctAvail} level={level} />} />
+              <Mini label="media/part. disponible" value={pb.avgAvail != null ? `${pb.avgAvail}'` : "—"} />
+              <Mini label={`de ${pb.totalMin}' totales`} value={pb.pctTotal != null ? `${pb.pctTotal}%` : "—"} />
+              <Mini label="media/part. total" value={pb.avgTotal != null ? `${pb.avgTotal}'` : "—"} />
+            </MiniRow>
+            {alerts.length > 0 && (
+              <div className="px-4 py-2 bg-red-50 text-[11px] text-red-800 flex items-start gap-2 first:rounded-t-2xl last:rounded-b-2xl">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <p><b>Por debajo del mínimo de minutos.</b> {alerts.map(alertText).join(" · ")}</p>
+              </div>
             )}
           </>
         ) : (
