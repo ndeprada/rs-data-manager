@@ -8,6 +8,7 @@ import GoalStatsPanel from "@/components/stats/GoalStatsPanel";
 import AttendanceChart from "@/components/stats/AttendanceChart";
 import MatchResultsChart from "@/components/stats/MatchResultsChart";
 import MinutesDistributionChart from "@/components/stats/MinutesDistributionChart";
+import PlayerParticipationTable from "@/components/stats/PlayerParticipationTable";
 import { playerFullName } from "@/lib/playerName";
 import { useCountedStats, STAT_SCOPES } from "@/lib/matchStatus";
 import StatsScopePills from "@/components/common/StatsScopePills";
@@ -160,7 +161,8 @@ export default function Stats() {
           </div>
         </TabsContent>
 
-        <TabsContent value="matches" className="mt-6">
+        <TabsContent value="matches" className="mt-6 space-y-6">
+          <PlayerParticipationTable teamId={selectedTeam === "all" ? null : selectedTeam} players={players} scope={statScope} />
           <MatchResultsChart events={filteredEvents} />
         </TabsContent>
 

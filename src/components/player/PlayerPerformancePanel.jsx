@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -8,6 +8,9 @@ import { Trophy, Star } from "lucide-react";
 import { useCountedStats } from "@/lib/matchStatus";
 import { usePlayerMode } from "@/lib/playerMode";
 import { eventMinutes } from "@/lib/matchDuration";
+import { participationOf } from "@/lib/participation";
+import { useParticipationContext } from "@/lib/useParticipation";
+import { ReasonChips, FormatPills, FORMAT_OPTIONS } from "@/components/stats/ParticipationBits";
 
 function StatBox({ label, value, sub, color = "gray" }) {
   const colors = {
@@ -84,6 +87,16 @@ export default function PlayerPerformancePanel({ playerId }) {
   const totalConvocatorias = misConvocatorias.length;
 
   const playerMode = usePlayerMode();
+
+  // Participación en los partidos cerrados de liga: titular, suplente, no convocado (y por qué), minutos y cuartos
+  const partCtx = useParticipationContext("liga");
+  const { data: allPlayers = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
+  const me = allPlayers.find((p) => p.id === playerId);
+  const part = useMemo(() => (me ? participationOf(me, partCtx) : null), [me, partCtx]);
+  const [fmt, setFmt] = useState("all");
+  const hasFmt = (k) => !!part && part[k].conv + part[k].noConv > 0;
+  const fmtOptions = FORMAT_OPTIONS.filter((o) => o.value === "all" || hasFmt(o.value));
+  const pb = part ? part[fmtOptions.some((o) => o.value === fmt) ? fmt : "all"] : null;
   const partidos = stats.length;
   const titular = stats.filter((s) => s.starter !== false).length;
   const suplente = stats.filter((s) => s.starter === false).length;
@@ -139,17 +152,49 @@ export default function PlayerPerformancePanel({ playerId }) {
     <div className="space-y-6">
       {/* Resumen compacto de estadísticas */}
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm divide-y divide-gray-100">
-        <MiniRow title="Participación">
-          <Mini label="Convoc." value={totalConvocatorias} />
-          <Mini label="Jugados" value={partidos} />
-          <Mini label="Titular" value={titular} />
-          <Mini label="Suplente" value={suplente} />
-        </MiniRow>
-        <MiniRow title="Minutos">
-          <Mini label="Totales" value={`${totalMins}'`} />
-          <Mini label={`de ${maxMins}'`} value={`${minsPct}%`} />
-          <Mini label="Media/partido" value={partidos > 0 ? `${Math.round(totalMins / partidos)}'` : "—"} />
-        </MiniRow>
+        {!playerMode && pb ? (
+          <>
+            {fmtOptions.length > 2 && (
+              <div className="px-4 py-2"><FormatPills value={fmt} onChange={setFmt} options={fmtOptions} /></div>
+            )}
+            <MiniRow title="Participación">
+              <Mini label="Convoc." value={pb.conv} />
+              <Mini label="Jugó" value={pb.played} />
+              <Mini label="Titular" value={pb.titular} />
+              <Mini label={pb.suplenteSin > 0 ? `Suplente (${pb.suplenteSin} sin jugar)` : "Suplente"} value={pb.suplente} />
+              <Mini label="No convocado" value={pb.noConv} />
+            </MiniRow>
+            {pb.noConv > 0 && (
+              <MiniRow title="Ausencias"><ReasonChips reasons={pb.reasons} /></MiniRow>
+            )}
+            <MiniRow title="Minutos">
+              <Mini label="Totales" value={`${pb.mins}'`} />
+              <Mini label={`de ${pb.availMin}' convocado`} value={pb.pctMin != null ? `${pb.pctMin}%` : "—"} />
+              <Mini label="Media/partido" value={pb.played > 0 ? `${Math.round(pb.mins / pb.played)}'` : "—"} />
+            </MiniRow>
+            {pb.qMatches > 0 && (
+              <MiniRow title="Cuartos">
+                {[4, 3, 2, 1].map((q) => <Mini key={q} label={q === 1 ? "1 cuarto" : `${q} cuartos`} value={pb.qHist[q]} />)}
+                <Mini label="sin jugar" value={pb.qHist[0]} />
+                <Mini label="media/partido jugado" value={pb.qAvg != null ? pb.qAvg.toFixed(1).replace(".", ",") : "—"} />
+              </MiniRow>
+            )}
+          </>
+        ) : (
+          <>
+            <MiniRow title="Participación">
+              <Mini label="Convoc." value={totalConvocatorias} />
+              <Mini label="Jugados" value={partidos} />
+              <Mini label="Titular" value={titular} />
+              <Mini label="Suplente" value={suplente} />
+            </MiniRow>
+            <MiniRow title="Minutos">
+              <Mini label="Totales" value={`${totalMins}'`} />
+              <Mini label={`de ${maxMins}'`} value={`${minsPct}%`} />
+              <Mini label="Media/partido" value={partidos > 0 ? `${Math.round(totalMins / partidos)}'` : "—"} />
+            </MiniRow>
+          </>
+        )}
         <MiniRow title="Ofensiva">
           <Mini label="Goles" value={totalGoals} />
           <Mini label="Asist." value={totalAssists} />

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { playerFullName, matchesPlayerSearch } from "@/lib/playerName";
+import { NO_CONV_REASONS } from "@/lib/participation";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CT", libre: "LIB",
@@ -41,17 +42,6 @@ const GROUP_COLORS = {
   Delanteros:      { bg: "bg-red-50",    border: "border-red-200",    text: "text-red-800" },
   "Sin posición":  { bg: "bg-gray-50",   border: "border-gray-200",   text: "text-gray-700" },
 };
-
-const NO_CONV_REASONS = [
-  { value: "lesion",           label: "Lesión" },
-  { value: "enfermo",          label: "Enfermo (cuenta como lesión)" },
-  { value: "sancion",          label: "Sanción" },
-  { value: "descanso",         label: "Descanso" },
-  { value: "decision_tecnica", label: "Dec. técnica" },
-  { value: "viaje",            label: "Viaje" },
-  { value: "estudios",         label: "Estudios" },
-  { value: "otro",             label: "Otro" },
-];
 
 // Mensaje corto para pegar en el grupo de WhatsApp (negritas con *…*)
 import Composer from "@/components/avisos/Composer";
@@ -179,6 +169,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
       setNotes(convocation.notes || "");
       setCallupTime(convocation.callup_time || "");
       setObservations(convocation.observations || "");
+      setReasons(convocation.absence_reasons || {});
     }
   }, [convocation?.id]);
 
@@ -192,13 +183,16 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
     },
   });
 
+  // Motivo de cada jugador no convocado (queda guardado para las estadísticas de ausencias)
+  const absenceReasons = () => Object.fromEntries(Object.entries(reasons).filter(([id, r]) => r && !convocadoIds.includes(id)));
+
   const handleSave = () => {
-    saveMutation.mutate({ player_ids: convocadoIds, notes, callup_time: callupTime, observations });
+    saveMutation.mutate({ player_ids: convocadoIds, notes, callup_time: callupTime, observations, absence_reasons: absenceReasons() });
   };
 
   const handleSaveAndNotify = async () => {
     // First save, then show modal
-    await saveMutation.mutateAsync({ player_ids: convocadoIds, notes, callup_time: callupTime, observations });
+    await saveMutation.mutateAsync({ player_ids: convocadoIds, notes, callup_time: callupTime, observations, absence_reasons: absenceReasons() });
     setShowNotifyModal(true);
   };
 
