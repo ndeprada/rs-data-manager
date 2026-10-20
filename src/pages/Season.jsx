@@ -12,6 +12,7 @@ import TransfersTab from "@/components/season/TransfersTab";
 import CloseTab from "@/components/season/CloseTab";
 import HistoryTab from "@/components/season/HistoryTab";
 import BackupTab from "@/components/season/BackupTab";
+import DuplicatesTab from "@/components/season/DuplicatesTab";
 
 const prevOf = (s) => { const y = Number(s.slice(0, 4)) - 1; return `${y}-${y + 1}`; };
 const lbl = (s) => s.replace("-", "–");
@@ -56,12 +57,14 @@ export default function Season() {
           { value: "close", label: "Nueva temporada" },
           { value: "history", label: "Historial" },
           { value: "backup", label: "Copias" },
+          { value: "dupes", label: "Duplicados" },
         ]}
       />
       {tab === "transfers" && <TransfersTab season={season} closed={closed} />}
       {tab === "close" && <CloseTab season={season} />}
       {tab === "history" && <HistoryTab />}
       {tab === "backup" && <BackupTab />}
+      {tab === "dupes" && <DuplicatesTab />}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { query, db } from './_lib/db.js';
 import { seasonStatus, closeSeason, reopenSeason, HttpError } from './_lib/season.js';
 import { createBackup, listBackups, getBackupGz, snapshotNow, gzipSnapshot } from './_lib/backup.js';
 import { rivalReport } from './_lib/fcfRival.js';
+import { cleanDuplicates } from './_lib/dedupe.js';
 import { feedFor, readConfig, tokenFor, rotateToken, isUuid } from './_lib/ics.js';
 import { requireUser } from './_lib/auth.js';
 import { isAdmin, coachTeamIdsOf } from './_lib/access.js';
@@ -411,6 +412,18 @@ export default async function handler(req, res) {
       res.setHeader('Content-Disposition', `attachment; filename="rs-manager-copia-${day}.json"`);
       res.setHeader('Content-Length', gz.length);
       return res.status(200).end(gz);
+    }
+
+    // ── Limpieza de duplicados (coordinación): vista previa y aplicar, siempre con copia de seguridad antes ──
+    if (a === 'dupes_preview') {
+      if (!isCoord(user)) return res.status(403).json({ error: 'forbidden' });
+      return res.status(200).json(await cleanDuplicates(db, { dry: true }));
+    }
+    if (a === 'dupes_apply' && req.method === 'POST') {
+      if (!isCoord(user)) return res.status(403).json({ error: 'forbidden' });
+      try { await createBackup(db, { kind: 'manual', note: `Antes de limpiar duplicados (${user.full_name || user.email || ''})` }); }
+      catch (e) { console.error(e); return res.status(500).json({ error: 'backup_failed', message: 'No se pudo guardar la copia de seguridad previa, así que no se ha cambiado nada.' }); }
+      return res.status(200).json(await cleanDuplicates(db, { dry: false }));
     }
 
     return res.status(404).json({ error: 'unknown_action' });

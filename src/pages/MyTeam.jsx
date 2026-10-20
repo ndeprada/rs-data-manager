@@ -20,6 +20,7 @@ import CalendarSubscribe from "@/components/calendar/CalendarSubscribe";
 import { getCategoryLabel } from "@/components/fcfCategories";
 import TeamSummary from "@/components/myteam/TeamSummary";
 import { useCountedStats } from "@/lib/matchStatus";
+import { statTeamResolver, statsOfTeam } from "@/lib/teamStats";
 
 import PageHeader, { PageTitle } from "@/components/common/PageHeader";
 import { TeamSelectTrigger } from "@/components/myteam/TeamPageHeader";
@@ -97,8 +98,10 @@ export default function MyTeam() {
   };
 
   // Player stats aggregation
+  // Solo cuentan los partidos jugados con este equipo (lo que hagan como invitados en otro equipo cuenta allí)
+  const teamOf = statTeamResolver(events, players);
   const playerWithStats = teamPlayers.map(p => {
-    const stats = matchStats.filter(s => s.player_id === p.id);
+    const stats = statsOfTeam(matchStats.filter(s => s.player_id === p.id), selectedTeamId, teamOf);
     const goals = stats.reduce((acc, s) => acc + (s.goals || 0), 0);
     const assists = stats.reduce((acc, s) => acc + (s.assists || 0), 0);
     const matches = stats.length;

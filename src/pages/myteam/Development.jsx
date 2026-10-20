@@ -7,6 +7,7 @@ import TeamPageHeader from "@/components/myteam/TeamPageHeader";
 import { useSelectedTeam } from "@/lib/useSelectedTeam";
 import { playerFullName, playerSearchName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
+import { statTeamResolver, statsOfTeam } from "@/lib/teamStats";
 
 export default function Development() {
   const { selectedTeamId, selectTeam, isCoordinator, canSwitch, teamIds: myTeamIds } = useSelectedTeam();
@@ -18,6 +19,8 @@ export default function Development() {
   const { data: injuries = [] } = useQuery({ queryKey: ["injuries"], queryFn: () => base44.entities.Injury.list() });
   const { data: raw_matchStats = [] } = useQuery({ queryKey: ["matchStats"], queryFn: () => base44.entities.MatchStats.list("-date", 500) });
   const matchStats = useCountedStats(raw_matchStats);
+  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
+  const teamOf = statTeamResolver(events, players);
 
   const teamPlayers = players.filter(p =>
     p.team_id === selectedTeamId && p.status !== "baja" &&
@@ -27,7 +30,7 @@ export default function Development() {
   const playerData = teamPlayers.map(p => {
     const lastPdi = pdis.filter(d => d.player_id === p.id).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
     const activeInjury = injuries.find(i => i.player_id === p.id && i.status !== "alta");
-    const stats = matchStats.filter(s => s.player_id === p.id);
+    const stats = statsOfTeam(matchStats.filter(s => s.player_id === p.id), selectedTeamId, teamOf);
     const goals = stats.reduce((acc, s) => acc + (s.goals || 0), 0);
     const assists = stats.reduce((acc, s) => acc + (s.assists || 0), 0);
     return { ...p, lastPdi, activeInjury, goals, assists, matches: stats.length };

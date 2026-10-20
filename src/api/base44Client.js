@@ -152,6 +152,9 @@ export const base44 = {
     // Copias de seguridad (coordinación)
     backupList: () => clubGet('backup_list'),
     backupCreate: () => clubPost('backup_create'),
+    // Limpieza de duplicados: vista previa (no cambia nada) y aplicar (guarda antes una copia de seguridad)
+    dupesPreview: () => clubGet('dupes_preview'),
+    dupesApply: () => clubPost('dupes_apply'),
     // Descarga una copia guardada (id) o los datos de ahora mismo (sin id) como archivo
     backupDownload: async (id) => {
       const res = await fetch(`/api/club?a=backup_download${id ? `&id=${id}` : ''}`, { credentials: 'include' });

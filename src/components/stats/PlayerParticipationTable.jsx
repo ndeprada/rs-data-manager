@@ -25,7 +25,9 @@ const mins = (n) => (n == null ? "—" : `${n}'`);
 // Participación de cada jugador del equipo en los partidos: titular, suplente, no convocado (y por qué), minutos,
 // porcentaje y media sobre los partidos disponibles y sobre los totales, y alerta si juega por debajo del mínimo.
 export default function PlayerParticipationTable({ teamId, players, scope }) {
-  const ctx = useParticipationContext(scope);
+  const allCtx = useParticipationContext(scope);
+  // Solo cuentan los partidos del propio equipo (lo que juegan como invitados en otro equipo cuenta en ese equipo)
+  const ctx = useMemo(() => ({ ...allCtx, events: allCtx.events.filter((e) => e.team_id === teamId) }), [allCtx, teamId]);
   const [format, setFormat] = useState("all");
   const [sort, setSort] = useState({ key: "pos", dir: "asc" });
 

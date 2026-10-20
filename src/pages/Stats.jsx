@@ -11,6 +11,7 @@ import MinutesDistributionChart from "@/components/stats/MinutesDistributionChar
 import PlayerParticipationTable from "@/components/stats/PlayerParticipationTable";
 import { playerFullName } from "@/lib/playerName";
 import { useCountedStats, STAT_SCOPES } from "@/lib/matchStatus";
+import { statTeamResolver, statsOfTeam } from "@/lib/teamStats";
 import StatsScopePills from "@/components/common/StatsScopePills";
 
 import { PageTitle } from "@/components/common/PageHeader";
@@ -56,12 +57,11 @@ export default function Stats() {
         return player?.team_id === selectedTeam;
       });
 
+  // Las estadísticas de un equipo son las de sus partidos: un invitado de otro equipo suma aquí, y lo que hacen
+  // sus jugadores como invitados en otros equipos no suma aquí.
   const filteredMatchStats = selectedTeam === "all"
     ? matchStats
-    : matchStats.filter((ms) => {
-        const player = players.find((p) => p.id === ms.player_id);
-        return player?.team_id === selectedTeam;
-      });
+    : statsOfTeam(matchStats, selectedTeam, statTeamResolver(events, players));
 
   const scopeTypes = (STAT_SCOPES.find((x) => x.value === statScope) || STAT_SCOPES[0]).types;
   const filteredEvents = (selectedTeam === "all"
@@ -82,17 +82,17 @@ export default function Stats() {
   });
 
   const topScorer = Array.from(playerStatsMap.entries())
-    .map(([playerId, stats]) => ({ playerId, ...stats, player: filteredPlayers.find(p => p.id === playerId) }))
+    .map(([playerId, stats]) => ({ playerId, ...stats, player: players.find(p => p.id === playerId) }))
     .filter(p => p.player)
     .sort((a, b) => b.goals - a.goals)[0];
 
   const topAssister = Array.from(playerStatsMap.entries())
-    .map(([playerId, stats]) => ({ playerId, ...stats, player: filteredPlayers.find(p => p.id === playerId) }))
+    .map(([playerId, stats]) => ({ playerId, ...stats, player: players.find(p => p.id === playerId) }))
     .filter(p => p.player)
     .sort((a, b) => b.assists - a.assists)[0];
 
   const topMinutes = Array.from(playerStatsMap.entries())
-    .map(([playerId, stats]) => ({ playerId, ...stats, player: filteredPlayers.find(p => p.id === playerId) }))
+    .map(([playerId, stats]) => ({ playerId, ...stats, player: players.find(p => p.id === playerId) }))
     .filter(p => p.player)
     .sort((a, b) => b.minutes - a.minutes)[0];
 

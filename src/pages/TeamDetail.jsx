@@ -22,6 +22,7 @@ import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
 import { useCountedStats } from "@/lib/matchStatus";
+import { statTeamResolver, statsOfTeam } from "@/lib/teamStats";
 
 const EVENT_TYPES = [
   { value: "entrenamiento", label: "Entrenamiento" },
@@ -117,9 +118,11 @@ export default function TeamDetail() {
     .filter((e) => e.team_id === teamId && ["partido_liga", "partido_amistoso", "torneo"].includes(e.type));
 
   // Estadísticas por jugador
+  // Solo cuentan los partidos jugados con este equipo (lo que hagan como invitados en otro equipo cuenta allí)
   const playerStatsMap = {};
+  const teamOf = statTeamResolver(events, players);
   teamPlayers.forEach((p) => {
-    const stats = matchStats.filter((ms) => ms.player_id === p.id);
+    const stats = statsOfTeam(matchStats.filter((ms) => ms.player_id === p.id), teamId, teamOf);
     playerStatsMap[p.id] = {
       matches: stats.length,
       goals: stats.reduce((sum, s) => sum + (s.goals || 0), 0),
