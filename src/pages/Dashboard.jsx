@@ -188,7 +188,8 @@ export default function Dashboard() {
   const [seasonYear] = CURRENT_SEASON.split("-");
   const seasonStart = new Date(Number(seasonYear), 7, 1);
   const matchLink = (e, tab) => `/MatchDetail?id=${e.id}&teamId=${e.team_id}${tab ? `&tab=${tab}` : ""}`;
-  const pendMatch = (e) => isMatch(e.type) && (!recordIds || recordIds.has(e.team_id));
+  // Los amistosos sin gestionar no generan alerta (en la lista de partidos sí aparecen marcados como pendientes)
+  const pendMatch = (e) => isMatch(e.type) && e.type !== "partido_amistoso" && (!recordIds || recordIds.has(e.team_id));
   const withConv = new Set(convocs.filter((c) => (c.player_ids || []).length > 0).map((c) => c.event_id));
   // Convocatoria: se avisa solo cuando faltan 24 h o menos, o si el partido ya se jugó sin convocar
   const convAlert = (e) => (pendMatch(e) ? convocatoriaAlert(e, withConv.has(e.id), now) : null);
