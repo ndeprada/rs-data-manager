@@ -162,12 +162,16 @@ export async function saveUserAccess({ user, form, staffList, activeAssignments 
     };
     if (staff) {
       if (!staff.email) staffData.email = user.email;
+      // Solo se completan los datos que la ficha no tenga: nunca se pisa lo que ya había
+      if (!staff.birth_date && user.birth_date) staffData.birth_date = user.birth_date;
       await base44.entities.StaffMember.update(staff.id, staffData);
     } else {
+      // Nombre y apellidos tal como los escribió al registrarse (si no, se parte el nombre completo)
       const parts = (user.full_name || "").trim().split(/\s+/);
       staff = await base44.entities.StaffMember.create({
-        first_name: parts[0] || "",
-        last_name: parts.slice(1).join(" "),
+        first_name: user.first_name || parts[0] || "",
+        last_name: user.last_name || parts.slice(1).join(" "),
+        birth_date: user.birth_date || null,
         email: user.email,
         ...staffData,
         team_id: "",

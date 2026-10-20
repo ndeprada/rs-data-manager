@@ -7,6 +7,7 @@ import { LogOut, Users, UserRound, ClipboardList, ArrowLeft, Check } from "lucid
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import { APP_FUNCTIONS, COACH_TEAM_ROLES, functionConfig } from "@/lib/staffRoles";
 import { COUNTRIES, PROVINCES, regionOfProvince } from "@/lib/countries";
+import { invalidStaffFields, joinFullName, splitFullName, STAFF_REQUIRED_LABELS } from "@/lib/registration";
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 import PlayerPicker from "@/components/avisos/PlayerPicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,6 +56,11 @@ export default function RoleSetup() {
   const [moreTeams, setMoreTeams] = useState(false);
   const [playerTeam, setPlayerTeam] = useState("");
   const [phone, setPhone] = useState("");
+  // Cuerpo técnico: nombre, apellidos, fecha de nacimiento y teléfono obligatorios (se propone el nombre con el que se registró)
+  const [firstName, setFirstName] = useState(() => splitFullName(user?.full_name).first_name);
+  const [lastName, setLastName] = useState(() => splitFullName(user?.full_name).last_name);
+  const [birthDate, setBirthDate] = useState("");
+  const [touched, setTouched] = useState({});
   const [country, setCountry] = useState("");
   const [province, setProvince] = useState("");
   const [city, setCity] = useState("");
@@ -68,6 +74,10 @@ export default function RoleSetup() {
   const completeAssignments = assignments.filter((a) => a.team_id && a.team_role);
   const teamsOk = !cfg || cfg.teams !== "required" || completeAssignments.length > 0;
   const halfFilled = showTeams && assignments.some((a) => (a.team_id && !a.team_role) || (!a.team_id && a.team_role));
+  const staffBad = invalidStaffFields({ first_name: firstName, last_name: lastName, birth_date: birthDate, phone });
+  const touch = (k) => setTouched((t) => ({ ...t, [k]: true }));
+  const fieldBad = (k) => touched[k] && staffBad.includes(k);
+  const inputCls = (k) => `w-full border rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 ${fieldBad(k) ? "border-red-400" : "border-gray-300"}`;
 
   const submit = async (payload) => {
     setSubmitting(true);
@@ -75,14 +85,20 @@ export default function RoleSetup() {
     try {
       await base44.auth.updateMe({ ...payload, phone: phone || undefined, birth_country: country, birth_province: country === "ESP" ? province : "", birth_city: city.trim(), birth_region: country === "ESP" ? regionOfProvince(province) : "", access_status: "pending" });
       await refreshUser();
-    } catch {
-      setError("No se ha podido enviar la solicitud. Inténtalo de nuevo.");
+    } catch (e) {
+      setError(e?.data?.error === "missing_fields"
+        ? `Revisa estos datos: ${(e.data.fields || []).map((k) => (STAFF_REQUIRED_LABELS[k] || k).toLowerCase()).join(", ")}.`
+        : "No se ha podido enviar la solicitud. Inténtalo de nuevo.");
       setSubmitting(false);
     }
   };
 
   const submitStaff = () =>
     submit({
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      full_name: joinFullName(firstName, lastName),
+      birth_date: birthDate,
       person_type: "cuerpo_tecnico",
       app_role_pending: fn,
       requested_assignments: showTeams ? completeAssignments : [],
@@ -233,7 +249,31 @@ export default function RoleSetup() {
     <Shell>
       {back}
       <h2 className="text-xl font-black uppercase mb-1" style={{ color: "var(--granate)", ...FONT }}>Cuerpo técnico</h2>
-      <p className="text-gray-500 text-sm mb-4">¿Cuál es tu función en el club?</p>
+      <p className="text-gray-500 text-sm mb-4">Tus datos y tu función en el club. Todos los datos marcados con * son obligatorios.</p>
+
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Nombre *</label>
+          <input type="text" value={firstName} autoComplete="given-name" onChange={(e) => setFirstName(e.target.value)} onBlur={() => touch("first_name")} className={inputCls("first_name")} />
+        </div>
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Apellidos *</label>
+          <input type="text" value={lastName} autoComplete="family-name" onChange={(e) => setLastName(e.target.value)} onBlur={() => touch("last_name")} className={inputCls("last_name")} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 mb-1">
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Fecha de nacimiento *</label>
+          <input type="date" value={birthDate} autoComplete="bday" max={new Date().toISOString().slice(0, 10)} onChange={(e) => setBirthDate(e.target.value)} onBlur={() => touch("birth_date")} className={inputCls("birth_date")} />
+        </div>
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Teléfono *</label>
+          <input type="tel" value={phone} autoComplete="tel" onChange={(e) => setPhone(e.target.value)} onBlur={() => touch("phone")} className={inputCls("phone")} />
+        </div>
+      </div>
+      <p className="text-xs text-gray-400 mb-5">Teléfono con prefijo si no es de España (p. ej. +34 600 111 222).</p>
+
+      <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Tu función en el club *</p>
 
       <div className="space-y-2 mb-5">
         {APP_FUNCTIONS.map((f) => (
@@ -278,13 +318,13 @@ export default function RoleSetup() {
         </div>
       )}
 
-      {phoneField}
       {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
+      {staffBad.length > 0 && <p className="text-xs text-orange-600 mb-3">Para enviar la solicitud faltan: {staffBad.map((k) => STAFF_REQUIRED_LABELS[k].toLowerCase()).join(", ")}.</p>}
       {fn && !teamsOk && <p className="text-xs text-orange-600 mb-3">Añade al menos un equipo con su rol.</p>}
       {halfFilled && <p className="text-xs text-orange-600 mb-3">Completa equipo y rol en cada fila (o quita la fila).</p>}
       <button
         onClick={submitStaff}
-        disabled={!fn || !teamsOk || halfFilled || submitting}
+        disabled={!fn || !teamsOk || halfFilled || staffBad.length > 0 || submitting}
         className="w-full py-2.5 rounded-sm text-white font-bold uppercase text-sm tracking-wider disabled:opacity-40 mb-3"
         style={{ background: "var(--granate)", ...FONT }}
       >

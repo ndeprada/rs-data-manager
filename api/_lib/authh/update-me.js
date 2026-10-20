@@ -1,12 +1,13 @@
 import { query } from '../db.js';
 import { requireUser } from '../auth.js';
+import { invalidStaffFields } from '../registration.js';
 
 const REQUESTABLE_FUNCTIONS = [
   'director', 'director_deportivo', 'coordinador_general', 'coordinador_f7', 'coordinador_f11', 'entrenador', 'entrenador_porteros',
   'preparador_fisico', 'psicologo', 'fisioterapeuta', 'jugador', 'familiar',
 ];
 // Datos de perfil que cada persona puede cambiarse a sí misma
-const PROFILE_FIELDS = ['full_name', 'phone', 'photo_url', 'notes', 'birth_date', 'birth_country', 'birth_region', 'birth_province', 'birth_city'];
+const PROFILE_FIELDS = ['full_name', 'first_name', 'last_name', 'phone', 'photo_url', 'notes', 'birth_date', 'birth_country', 'birth_region', 'birth_province', 'birth_city'];
 // Datos de la solicitud de acceso (solo mientras no tenga acceso aprobado)
 const REQUEST_FIELDS = ['person_type', 'app_role_pending', 'requested_assignments', 'requested_team_id'];
 
@@ -42,6 +43,14 @@ export default async function handler(req, res) {
       if (patch.person_type && !['jugador', 'cuerpo_tecnico', 'familiar'].includes(patch.person_type)) {
         res.status(400).json({ error: 'invalid_person_type' });
         return;
+      }
+      // Cuerpo técnico: nombre, apellidos, fecha de nacimiento y teléfono son obligatorios para pedir acceso
+      if (body.access_status === 'pending' && patch.person_type === 'cuerpo_tecnico') {
+        const bad = invalidStaffFields({ ...user, ...patch });
+        if (bad.length > 0) {
+          res.status(400).json({ error: 'missing_fields', fields: bad });
+          return;
+        }
       }
       if (body.access_status === 'pending' && user.access_status !== 'rejected') {
         patch.access_status = 'pending';
