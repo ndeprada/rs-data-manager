@@ -2,6 +2,7 @@ import React from "react";
 import { Home, Plane, ChevronRight, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { scoreText, scoreTitle } from "@/lib/matchScore";
 
 // Convención de la app: score_home = goles de NUESTRO equipo, score_away = goles del rival.
 export function resultOf(m) {
@@ -49,7 +50,7 @@ function Row({ m, onOpen }) {
       <div className="text-right shrink-0">
         {result ? (
           <>
-            <p className="text-xl font-black leading-none" style={{ fontFamily: "var(--font-display)" }}>{m.score_home} - {m.score_away}</p>
+            <p className="text-xl font-black leading-none" style={{ fontFamily: "var(--font-display)" }} title={scoreTitle(m)}>{scoreText(m)}</p>
             <span className={`inline-block mt-1 text-[10px] font-bold uppercase border px-2 py-0.5 rounded-sm ${BADGE[result]}`}>{result}</span>
           </>
         ) : (

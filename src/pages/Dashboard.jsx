@@ -17,6 +17,7 @@ import { usePendingUsers } from "@/lib/pendingUsers";
 import { PageTitle } from "@/components/common/PageHeader";
 import PendingStrip from "@/components/dashboard/PendingStrip";
 import { fromStored } from "@/lib/goalTypes";
+import { scoreText, scoreTitle, playsAway } from "@/lib/matchScore";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
@@ -363,8 +364,12 @@ export default function Dashboard() {
                   return (
                     <Link key={m.id} to={`/MatchDetail?id=${m.id}&teamId=${m.team_id}`} className="px-3 py-[3px] flex items-center gap-2 hover:bg-gray-50 min-w-0">
                       <span className="w-4 h-4 rounded-[3px] text-[9px] font-black text-white flex items-center justify-center shrink-0" style={{ background: c }}>{win ? "V" : draw ? "E" : "D"}</span>
-                      <p className="text-[12px] font-semibold text-gray-900 truncate min-w-0 flex-1">{teamName(m.team_id)} <span className="font-normal text-[10px] text-gray-400">vs {m.opponent || "—"}</span></p>
-                      <span className="text-[13px] font-black shrink-0" style={{ ...display, color: c }}>{m.score_home}–{m.score_away}</span>
+                      <p className="text-[12px] font-semibold text-gray-900 truncate min-w-0 flex-1">
+                        {playsAway(m)
+                          ? <><span className="font-normal text-[10px] text-gray-400">{m.opponent || "—"} vs</span> {teamName(m.team_id)}</>
+                          : <>{teamName(m.team_id)} <span className="font-normal text-[10px] text-gray-400">vs {m.opponent || "—"}</span></>}
+                      </p>
+                      <span className="text-[13px] font-black shrink-0" style={{ ...display, color: c }} title={scoreTitle(m, teamName(m.team_id))}>{scoreText(m, "–")}</span>
                     </Link>
                   );
                 })}

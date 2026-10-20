@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { scoreParts, scoreText, playsAway } from '../src/lib/matchScore.js';
+import { scoreParts, scoreText, scoreTitle, playsAway } from '../src/lib/matchScore.js';
 
 // Jugamos fuera: Bufalá (local) 2 - 1 Racing Sarrià. En los datos, nuestros goles = 1 y los del rival = 2.
 const fuera = { is_home: false, score_home: 1, score_away: 2 };
@@ -25,3 +25,9 @@ assert.equal(scoreText({ score_home: null, score_away: null }), null);
 assert.equal(scoreText(null), null);
 // Si solo falta un lado se toma como 0 (igual que el resto de la app)
 assert.equal(scoreText({ is_home: false, score_home: 2, score_away: null }), '0 - 2');
+
+// Texto del tooltip: quién es local y quién visitante
+assert.equal(scoreTitle({ is_home: false, score_home: 1, score_away: 2, opponent: 'Bufalà' }, 'Juvenil A'), 'Bufalà 2 - 1 Juvenil A');
+assert.equal(scoreTitle({ is_home: true, score_home: 3, score_away: 1, opponent: 'Gavà' }, 'Juvenil A'), 'Juvenil A 3 - 1 Gavà');
+assert.equal(scoreTitle({ is_home: false, score_home: 0, score_away: 0 }), 'Rival 0 - 0 Nosotros');
+assert.equal(scoreTitle({ is_home: false }), undefined);

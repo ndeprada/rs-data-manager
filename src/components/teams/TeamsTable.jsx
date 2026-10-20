@@ -40,6 +40,7 @@ function StandingCell({ teamId }) {
 }
 
 import { teamRoleRank } from "@/lib/staffRoles";
+import { scoreText } from "@/lib/matchScore";
 
 export default function TeamsTable({ teams = [], players = [], events = [], staff = [], assignments = [], onEdit, onDelete }) {
   const getPlayerCount = (teamId) => {
@@ -70,7 +71,7 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
         if (e.score_home > e.score_away) result = "win";
         else if (e.score_home < e.score_away) result = "loss";
         else result = "draw";
-        return { result, score: `${e.score_home}-${e.score_away}`, date: e.date };
+        return { result, score: scoreText(e, "-"), date: e.date };
       });
   };
 

@@ -9,6 +9,7 @@ import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import PlayerAttributesBar from "./PlayerAttributesBar";
 import GuardianContactCard from "./GuardianContactCard";
 import PlayerInfoCards from "./PlayerInfoCards";
+import { scoreText } from "@/lib/matchScore";
 
 const REASON_LABEL = {
   lesion: "Lesión", enfermo: "Enfermo", clase: "Clase", examen: "Examen",
@@ -24,9 +25,10 @@ function resultOf(stat, events) {
   const ev = stat.event_id ? events.find((e) => e.id === stat.event_id) : null;
   if (!ev || ev.score_home == null || ev.score_away == null) return null;
   const my = ev.score_home, their = ev.score_away;
-  if (my > their) return { label: "V", bg: "#16a34a", score: `${my}-${their}` };
-  if (my < their) return { label: "D", bg: "#dc2626", score: `${my}-${their}` };
-  return { label: "E", bg: "#ea580c", score: `${my}-${their}` };
+  const score = scoreText(ev, "-");
+  if (my > their) return { label: "V", bg: "#16a34a", score };
+  if (my < their) return { label: "D", bg: "#dc2626", score };
+  return { label: "E", bg: "#ea580c", score };
 }
 
 function Card({ title, onMore, children, className = "" }) {
@@ -111,7 +113,7 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
                     ? <img src={ev.opponent_logo_url} alt="" className={crest} loading="lazy" referrerPolicy="no-referrer" />
                     : <span className={crest} />;
                   const score = ev && ev.score_home != null && ev.score_away != null
-                    ? (away ? `${ev.score_away}-${ev.score_home}` : `${ev.score_home}-${ev.score_away}`)
+                    ? scoreText(ev, "-")
                     : "—";
                   return (
                     <div key={s.id} className="flex items-center py-1 text-xs gap-1.5">

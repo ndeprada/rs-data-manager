@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { resultOf, HomeAwayIcon } from "@/components/match/MatchesTimeline";
 import { useMatchStatus } from "@/lib/matchStatus";
 import { usePlayerMode } from "@/lib/playerMode";
+import { scoreText, scoreTitle } from "@/lib/matchScore";
 
 const CHIP = { victoria: ["V", "#16a34a"], empate: ["E", "#ea580c"], derrota: ["D", "#dc2626"] };
 
@@ -23,7 +24,7 @@ function Row({ m, onOpen, reasons, soft }) {
       {!reasons && soft && <span title={soft.join(" · ")} className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 border border-gray-200">Pendiente</span>}
       {r ? (
         <span className="flex items-center gap-1.5 shrink-0">
-          <span className="text-sm font-black" style={{ fontFamily: "var(--font-display)" }}>{m.score_home}-{m.score_away}</span>
+          <span className="text-sm font-black" style={{ fontFamily: "var(--font-display)" }} title={scoreTitle(m)}>{scoreText(m, "-")}</span>
           <span className="w-5 h-5 rounded text-[10px] font-black text-white flex items-center justify-center" style={{ background: CHIP[r][1] }}>{CHIP[r][0]}</span>
         </span>
       ) : (
