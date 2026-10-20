@@ -181,7 +181,7 @@ export default function LineupSummary({ eventId, event, convocation, convocados,
       </div>
       {!event?.match_duration && (
         <p className="px-5 py-2 text-[11px] text-orange-700 bg-orange-50 border-y border-orange-100">
-          Duración supuesta: {matchMinutes}' (la habitual de este equipo). Si este partido ha sido distinto, cámbiala en «Formato y resultado» y pulsa Guardar: los minutos se recalculan.
+          Duración supuesta: {matchMinutes}' (la habitual de este equipo). Si este partido ha sido distinto, cámbiala en «Formato y resultado»: se guarda sola y los minutos se recalculan.
         </p>
       )}
       <Group title="Titulares" rows={titulares} onEdit={openEdit} />

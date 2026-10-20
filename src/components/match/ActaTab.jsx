@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Save, Star, AlertTriangle, Pencil } from "lucide-react";
+import { Plus, Trash2, Star, AlertTriangle, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,6 +113,20 @@ function Timeline({ events, players, opponent, onRemove, onEdit }) {
   );
 }
 
+// ── Estado del guardado automático ───────────────────────
+function SaveIndicator({ state, onRetry }) {
+  if (state === "error") {
+    return (
+      <span className="ml-auto text-[11px] text-red-600 flex items-center gap-1.5">
+        <AlertTriangle className="w-3 h-3" /> No se ha podido guardar
+        <button type="button" onClick={onRetry} className="underline font-semibold">Reintentar</button>
+      </span>
+    );
+  }
+  const text = state === "saving" || state === "pending" ? "Guardando…" : state === "saved" ? "✓ Guardado" : "Se guarda solo";
+  return <span className={`ml-auto text-[11px] ${state === "saved" ? "text-green-600 font-semibold" : "text-gray-400"}`} aria-live="polite">{text}</span>;
+}
+
 // ── Componente principal ─────────────────────────────────
 export default function ActaTab({ eventId, teamId, event, players, team }) {
   const queryClient = useQueryClient();
@@ -127,8 +141,9 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
   const [matchEvents, setMatchEvents] = useState([]); // goals, subs, cards
   const [ratings, setRatings] = useState({}); // playerId -> {stars, notes}
   const [openNotes, setOpenNotes] = useState({}); // playerId -> bool
-  const [savingScore, setSavingScore] = useState(false);
   const [savingStats, setSavingStats] = useState(false);
+  // Guardado automático: idle (nada que guardar) · pending (esperando a que deje de teclear) · saving · saved · error
+  const [saveState, setSaveState] = useState("idle");
 
   // New event form state
   const [newEvType, setNewEvType] = useState("goal");
@@ -172,7 +187,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
 
   // Duración habitual del equipo: la que haya guardado el entrenador o, si no, la de su categoría
   const teamDuration = teamDefaultDuration(team);
-  const pickDuration = (v) => { setDuration(v); setDurationTouched(true); setDefaultSaved(false); };
+  const pickDuration = (v) => { setDuration(v); setDurationTouched(true); setDefaultSaved(false); queueSave({ match_duration: v }); };
   const saveTeamDefault = async () => {
     if (!team?.id) return;
     setSavingDefault(true);
@@ -225,46 +240,148 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
     if (newEvType === "sub") { ev.playerIn = newEvPlayerIn; ev.playerOut = newEvPlayerOut; }
     if (newEvType === "card") { ev.playerId = newEvPlayerId; ev.cardColor = newEvCardColor; }
 
-    const next = [...matchEvents, ev];
-    setMatchEvents(next);
-    persistEvents(next).then(() => saveStats(next, true));
+    commitEvents([...matchEventsRef.current, ev]);
     setEventWarning(warning);
     setNewEvGoal({}); setNewEvMinute(""); setNewEvPlayerId(""); setNewEvAssistId(""); setNewEvPlayerIn(""); setNewEvPlayerOut("");
   };
 
-  const persistEvents = async (next) => {
-    await base44.entities.Event.update(eventId, {
-      match_events: next,
-      goal_events_source: "manual",
-      goal_events: next.filter(e => e.type === "goal").map(e => ({
-        id: e.id, team: e.team, minute: e.minute,
-        player_id: e.playerId, assist_player_id: e.assistId, goal_type: e.goalType, ...toStored(e.goalDetail || fromStored({ goal_type: e.goalType })),
-      })),
-    });
+  // Campos del partido que se guardan con los eventos (el marcador solo si cambia el número de goles)
+  const eventFields = (evs) => ({
+    match_events: evs,
+    goal_events_source: "manual",
+    goal_events: evs.filter(e => e.type === "goal").map(e => ({
+      id: e.id, team: e.team, minute: e.minute,
+      player_id: e.playerId, assist_player_id: e.assistId, goal_type: e.goalType, ...toStored(e.goalDetail || fromStored({ goal_type: e.goalType })),
+    })),
+  });
+  const refreshEvent = () => {
     queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+    queryClient.invalidateQueries({ queryKey: ["events"] });
   };
 
-  const removeEvent = (id) => {
-    const next = matchEvents.filter(e => e.id !== id);
+  // Todo lo que se guarda va en cola, de uno en uno y en orden, para que dos cambios seguidos no se pisen
+  const chainRef = useRef(Promise.resolve());
+  const inflightRef = useRef(0);
+  const failedRef = useRef(false);
+  const mountedRef = useRef(true);
+  const timerRef = useRef(null);
+  const pendingRef = useRef({}); // campos del partido (marcador, formato, duración) esperando a guardarse
+  const matchEventsRef = useRef([]);
+  const saveStatsRef = useRef(null);
+  matchEventsRef.current = matchEvents;
+
+  const runSave = (job) => {
+    inflightRef.current += 1;
+    if (mountedRef.current) setSaveState("saving");
+    chainRef.current = chainRef.current.then(job).then(
+      () => {},
+      (err) => { failedRef.current = true; console.error("Autoguardado del acta:", err); },
+    ).then(() => {
+      inflightRef.current -= 1;
+      if (inflightRef.current > 0 || !mountedRef.current) return;
+      if (Object.keys(pendingRef.current).length) { setSaveState("pending"); return; }
+      setSaveState(failedRef.current ? "error" : "saved");
+      failedRef.current = false;
+    });
+    return chainRef.current;
+  };
+
+  // Marcador, formato y duración: se guardan solos 0,7 s después del último cambio (y al salir de la pestaña)
+  const flushPending = () => {
+    clearTimeout(timerRef.current);
+    const fields = pendingRef.current;
+    if (!Object.keys(fields).length) return Promise.resolve();
+    pendingRef.current = {};
+    return runSave(async () => {
+      try {
+        await base44.entities.Event.update(eventId, fields);
+      } catch (err) {
+        pendingRef.current = { ...fields, ...pendingRef.current }; // se conserva para reintentar
+        throw err;
+      }
+      refreshEvent();
+      // Si cambia el formato o la duración, los minutos de los jugadores se recalculan con ella
+      if ("match_duration" in fields || "football_format" in fields) await saveStatsRef.current(matchEventsRef.current, true);
+    });
+  };
+  function queueSave(fields) {
+    pendingRef.current = { ...pendingRef.current, ...fields };
+    setSaveState("pending");
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(flushPending, 700);
+  }
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; flushPending(); };
+  }, []);
+
+  const goalCount = (evs, side) => evs.filter(e => e.type === "goal" && e.team === side).length;
+
+  // Añadir, quitar o editar un evento: se guarda al momento. Si cambian los goles de un equipo, su marcador se actualiza
+  // y se guarda con ellos (el del otro equipo no se toca, salvo que aún estuviera vacío).
+  const commitEvents = (next) => {
+    const prev = matchEventsRef.current;
+    matchEventsRef.current = next;
     setMatchEvents(next);
-    persistEvents(next).then(() => saveStats(next, true));
+    const fields = eventFields(next);
+    for (const [side, key, current, set] of [["home", "score_home", scoreHome, setScoreHome], ["away", "score_away", scoreAway, setScoreAway]]) {
+      if (goalCount(prev, side) !== goalCount(next, side) || current === "" || current == null) {
+        fields[key] = goalCount(next, side);
+        set(fields[key]);
+        delete pendingRef.current[key]; // ya va en este guardado
+      }
+    }
+    return runSave(async () => {
+      await base44.entities.Event.update(eventId, fields);
+      refreshEvent();
+      await saveStatsRef.current(next, true);
+    });
+  };
+
+  // Escribir a mano el marcador (no se guarda mientras falte uno de los dos números)
+  const changeScore = (side, raw) => {
+    const home = side === "us" ? raw : scoreHome;
+    const away = side === "rival" ? raw : scoreAway;
+    (side === "us" ? setScoreHome : setScoreAway)(raw);
+    if (home === "" || away === "") return;
+    const n = (v) => Math.max(0, Math.floor(Number(v)) || 0);
+    queueSave({ score_home: n(home), score_away: n(away) });
+  };
+  const changeFormat = (v) => {
+    setFormat(v);
+    if (!durationTouched && !event?.match_duration) setDuration(defaultDuration(v, team));
+    queueSave({ football_format: v });
+  };
+
+  // Reintento manual tras un error: se guarda todo el acta de nuevo
+  const saveAll = () => {
+    clearTimeout(timerRef.current);
+    pendingRef.current = {};
+    const n = (v) => Math.max(0, Math.floor(Number(v)) || 0);
+    return runSave(async () => {
+      await base44.entities.Event.update(eventId, {
+        ...(scoreHome !== "" && scoreAway !== "" ? { score_home: n(scoreHome), score_away: n(scoreAway) } : {}),
+        football_format: format,
+        ...(durationTouched || event?.match_duration ? { match_duration: duration } : {}),
+        ...eventFields(matchEventsRef.current),
+      });
+      refreshEvent();
+      await saveStatsRef.current(matchEventsRef.current, true);
+    });
   };
 
   const [editEv, setEditEv] = useState(null);
   const [savingEv, setSavingEv] = useState(false);
   const saveEdit = async () => {
     setSavingEv(true);
-    const next = matchEvents.map(e => e.id === editEv.id ? { ...editEv, edited: true } : e);
-    setMatchEvents(next);
-    try { await persistEvents(next); await saveStats(next, true); } finally { setSavingEv(false); setEditEv(null); }
+    try { await commitEvents(matchEventsRef.current.map(e => e.id === editEv.id ? { ...editEv, edited: true } : e)); }
+    finally { setSavingEv(false); setEditEv(null); }
   };
   const deleteEdit = async () => {
-    const next = matchEvents.filter(e => e.id !== editEv.id);
-    setMatchEvents(next);
-    await persistEvents(next);
-    await saveStats(next, true);
+    await commitEvents(matchEventsRef.current.filter(e => e.id !== editEv.id));
     setEditEv(null);
   };
+  const removeEvent = (id) => { commitEvents(matchEventsRef.current.filter(e => e.id !== id)); };
   const playerOptions = convocados.length > 0 ? convocados : [...players].sort(sortByPosition);
   const setE = (k, v) => setEditEv(prev => ({ ...prev, [k]: v }));
   const PlayerSelect = ({ value, onChange, placeholder, allowNone }) => (
@@ -277,26 +394,6 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
       </SelectContent>
     </Select>
   );
-
-  const saveScore = async () => {
-    setSavingScore(true);
-    await base44.entities.Event.update(eventId, {
-      score_home: Number(scoreHome),
-      score_away: Number(scoreAway),
-      football_format: format,
-      match_duration: duration,
-      match_events: matchEvents,
-      goal_events_source: "manual",
-      goal_events: matchEvents.filter(e => e.type === "goal").map(e => ({
-        id: e.id, team: e.team, minute: e.minute,
-        player_id: e.playerId, assist_player_id: e.assistId, goal_type: e.goalType, ...toStored(e.goalDetail || fromStored({ goal_type: e.goalType })),
-      })),
-    });
-    queryClient.invalidateQueries({ queryKey: ["event", eventId] });
-    // La duración puede haber cambiado: los minutos de los jugadores se recalculan con ella
-    await saveStats(matchEvents, true);
-    setSavingScore(false);
-  };
 
   // Guarda en MatchStats lo que sale de los eventos. Los jugadores corregidos a mano (manual) no se tocan.
   const saveStats = async (evs = matchEvents, silent = false) => {
@@ -333,16 +430,19 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
     } finally { if (!silent) setSavingStats(false); }
   };
 
-  // Score from events — sync marcador automáticamente
-  const homeGoals = matchEvents.filter(e => e.type === "goal" && e.team === "home").length;
-  const awayGoals = matchEvents.filter(e => e.type === "goal" && e.team === "away").length;
+  saveStatsRef.current = saveStats;
 
+  // Partido con goles apuntados pero sin marcador guardado: el marcador sale de los goles y se guarda (solo esta vez)
+  const healedRef = useRef(false);
   useEffect(() => {
-    if (matchEvents.length > 0) {
-      setScoreHome(homeGoals);
-      setScoreAway(awayGoals);
-    }
-  }, [homeGoals, awayGoals]);
+    if (healedRef.current || !event?.id || (event.score_home ?? null) !== null || (event.score_away ?? null) !== null) return;
+    const goals = event.match_events?.length ? event.match_events.filter(e => e.type === "goal") : (event.goal_events || []);
+    const home = goals.filter(e => e.team === "home").length, away = goals.filter(e => e.team === "away").length;
+    if (home + away === 0) return;
+    healedRef.current = true;
+    setScoreHome(home); setScoreAway(away);
+    queueSave({ score_home: home, score_away: away });
+  }, [event?.id, event?.score_home, event?.score_away]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-5">
@@ -352,7 +452,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Formato</p>
-            <Select value={format} onValueChange={v => { setFormat(v); if (!durationTouched && !event?.match_duration) setDuration(defaultDuration(v, team)); }}>
+            <Select value={format} onValueChange={changeFormat}>
               <SelectTrigger className="w-36 border-gray-200 h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>{FOOTBALL_FORMATS.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
             </Select>
@@ -373,6 +473,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
               {defaultSaved ? "✓ Habitual del equipo" : savingDefault ? "Guardando…" : `Guardar como habitual de ${team.name}`}
             </button>
           )}
+          <SaveIndicator state={saveState} onRetry={saveAll} />
         </div>
 
         {/* Mismo orden que la cabecera del partido: el equipo local a la izquierda (el marcador guardado sigue siendo nuestros goles / goles del rival) */}
@@ -387,14 +488,11 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
                   {i === 1 && <span className="text-3xl font-black text-gray-300 pb-3">–</span>}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500 mb-1 h-8 flex items-end leading-tight line-clamp-2">{t.label}</p>
-                    <Input type="number" min="0" inputMode="numeric" value={t.value} onChange={e => t.set(e.target.value)}
+                    <Input type="number" min="0" inputMode="numeric" value={t.value} onChange={e => changeScore(t.key, e.target.value)}
                       className="text-2xl font-black text-center h-14 border-gray-200" />
                   </div>
                 </React.Fragment>
               ))}
-              <Button variant="club" onClick={saveScore} disabled={savingScore} className="h-14 px-4" title="Guardar marcador">
-                <Save className="w-4 h-4" />
-              </Button>
             </div>
           );
         })()}
