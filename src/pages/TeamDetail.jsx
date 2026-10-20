@@ -1,4 +1,5 @@
 import TeamMatchesColumns from "@/components/team/TeamMatchesColumns";
+import { isCancelled } from "@/lib/eventCancel";
 import TeamSquadTable from "@/components/team/TeamSquadTable";
 import TeamSeasonHistory from "@/components/team/TeamSeasonHistory";
 import React, { useState } from "react";
@@ -137,7 +138,7 @@ export default function TeamDetail() {
   // Todos los eventos del equipo (la previsión semanal navega por cualquier semana)
   const allTeamEvents = events.filter((e) => e.team_id === teamId);
   const teamEvents = allTeamEvents
-    .filter((e) => isAfter(new Date(e.date), startOfDay(new Date())))
+    .filter((e) => isAfter(new Date(e.date), startOfDay(new Date())) && !isCancelled(e))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   if (!team) {

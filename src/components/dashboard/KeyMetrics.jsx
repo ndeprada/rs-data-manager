@@ -1,4 +1,5 @@
 import React from "react";
+import { isCancelled } from "@/lib/eventCancel";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, isAfter, startOfDay } from "date-fns";
@@ -20,7 +21,7 @@ export default function KeyMetrics({ events = [], teams = [] }) {
 
   // Próximo partido
   const nextMatch = events
-    .filter(e => MATCH_TYPES.includes(e.type) && isAfter(new Date(e.date), today))
+    .filter(e => MATCH_TYPES.includes(e.type) && !isCancelled(e) && isAfter(new Date(e.date), today))
     .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
 
   const nextMatchTeam = nextMatch ? teams.find(t => t.id === nextMatch.team_id) : null;

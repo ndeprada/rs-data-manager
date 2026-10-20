@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Upload } from "lucide-react";
+import { Trash2, Upload, Ban } from "lucide-react";
 import { sortTeams } from "@/lib/teamOrder";
+import { isCancelled, cancelText } from "@/lib/eventCancel";
+import CancelEventDialog from "@/components/myteam/CancelEventDialog";
 import EventPlaceFields from "@/components/myteam/EventPlaceFields";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -38,6 +40,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [seriesConfirm, setSeriesConfirm] = useState(false);
   const [pendingData, setPendingData] = useState(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
@@ -138,7 +141,8 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
         }));
       }
       for (let i = 0; i < toDelete.length; i += 10) await Promise.all(toDelete.slice(i, i + 10).map((e) => base44.entities.Event.delete(e.id)));
-      const { id: _i, created_date: _c, updated_date: _u, created_at: _ca, updated_at: _ua, score_home: _sh, score_away: _sa, ...tpl } = allEvents[0];
+      // Los eventos nuevos de la serie no heredan el marcado de cancelado del primero
+      const { id: _i, created_date: _c, updated_date: _u, created_at: _ca, updated_at: _ua, score_home: _sh, score_away: _sa, cancelled: _cx, cancel_reason: _cr, ...tpl } = allEvents[0];
       for (let i = 0; i < toCreate.length; i += 10) {
         await Promise.all(toCreate.slice(i, i + 10).map((day) => base44.entities.Event.create({ ...tpl, ...common, ...mk(day), series_id: event.series_id })));
       }
@@ -222,6 +226,12 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {isCancelled(event) && (
+              <button type="button" onClick={() => setCancelOpen(true)}
+                className="w-full flex items-center gap-2 rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-200">
+                <Ban className="w-4 h-4 shrink-0" /> <span className="flex-1">{cancelText(event)}</span> <span className="font-normal text-gray-500">Restaurar</span>
+              </button>
+            )}
             {/* Tipo */}
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Tipo de evento</p>
@@ -332,8 +342,13 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
             </div>
 
             <div className="flex gap-3 pt-1">
-              <Button type="button" variant="outline" size="icon" onClick={() => setConfirmDelete(true)} className="text-red-400 hover:text-red-600 hover:bg-red-50 border-red-200">
+              <Button type="button" variant="outline" size="icon" onClick={() => setConfirmDelete(true)} className="text-red-400 hover:text-red-600 hover:bg-red-50 border-red-200" title="Eliminar evento">
                 <Trash2 className="w-4 h-4" />
+              </Button>
+              <Button type="button" variant="outline" size="icon" onClick={() => setCancelOpen(true)}
+                className={isCancelled(event) ? "text-gray-700 border-gray-400 bg-gray-100" : "text-gray-500 hover:text-gray-800"}
+                title={isCancelled(event) ? "Evento cancelado: restaurar" : "Marcar como cancelado o suspendido (lluvia, festivo…)"}>
+                <Ban className="w-4 h-4" />
               </Button>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancelar</Button>
               <Button variant="club" type="submit" disabled={updateMutation.isPending} className="flex-1">
@@ -343,6 +358,8 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
           </form>
         </DialogContent>
       </Dialog>
+
+      <CancelEventDialog open={cancelOpen} onOpenChange={setCancelOpen} event={event} onDone={() => onOpenChange(false)} />
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent className="bg-white border-gray-200">

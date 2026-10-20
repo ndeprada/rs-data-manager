@@ -26,4 +26,10 @@ assert.equal(view('TrainingAttendance', att).status, 'present');
 // Partidos de su equipo: sin notas internas
 assert.equal(view('Event', { id: 'e1', team_id: 'T1', type: 'partido_liga', notes: 'interno' }).notes, undefined);
 
+// Eventos cancelados: el jugador sí ve que se han cancelado y el motivo (lluvia, festivo…)
+const off = view('Event', { id: 'e2', team_id: 'T1', type: 'entrenamiento', cancelled: true, cancel_reason: 'lluvia', notes: 'interno' });
+assert.equal(off.cancelled, true);
+assert.equal(off.cancel_reason, 'lluvia');
+assert.equal(off.notes, undefined);
+
 console.log('playerView ok');

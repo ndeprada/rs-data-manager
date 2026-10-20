@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { usePlayerMode } from "@/lib/playerMode";
+import { isCancelled } from "@/lib/eventCancel";
 
 export const TRAINING_TYPES = ["entrenamiento"];
 
@@ -18,6 +19,7 @@ export function useTrainingStatus() {
     const legacyDays = new Set(attendance.filter((a) => !a.event_id).map((a) => a.date));
     for (const ev of events) {
       if (!TRAINING_TYPES.includes(ev.type) || !ev.date) continue;
+      if (isCancelled(ev)) continue; // cancelado (lluvia, festivo…): no hay lista que pasar
       const end = ev.end_date ? new Date(ev.end_date) : new Date(new Date(ev.date).getTime() + 2 * 3600 * 1000);
       if (end >= now) continue;
       if (withRecords.has(ev.id) || legacyDays.has(String(ev.date).split("T")[0])) continue;

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
+import { isCancelled, cancelText } from "@/lib/eventCancel";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 
@@ -181,7 +182,7 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
         <tr>
           <td>${dayBadge}</td>
           <td class="team-name">${team?.name || "—"}</td>
-          <td>${ev.opponent || "—"}</td>
+          <td>${ev.opponent || "—"}${isCancelled(ev) ? ` <strong style="color:#b91c1c">· ${cancelText(ev).toUpperCase()}</strong>` : ""}</td>
           <td><strong>${format(parseISO(ev.date), "HH:mm")}</strong></td>
           <td>${locBadge}</td>
           <td>${field?.name || ev.location || "—"}</td>
@@ -324,7 +325,10 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
                       <span className="font-bold text-gray-900 text-xs" style={{ fontFamily: "var(--font-display)" }}>{team?.name || "—"}</span>
                     </td>
                     {/* Rival */}
-                    <td className="px-3 py-2 whitespace-nowrap text-gray-700">{ev.opponent || <span className="text-gray-300">—</span>}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-700">
+                      <span className={isCancelled(ev) ? "line-through text-gray-400" : ""}>{ev.opponent || <span className="text-gray-300">—</span>}</span>
+                      {isCancelled(ev) && <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300">{cancelText(ev)}</span>}
+                    </td>
                     {/* Hour */}
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className="font-bold text-gray-900">{format(parseISO(ev.date), "HH:mm")}</span>

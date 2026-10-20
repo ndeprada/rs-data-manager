@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { isCancelled, cancelText } from "@/lib/eventCancel";
 
 const EVENT_TYPE_COLORS = {
   partido_amistoso: "#73000A",   // granate
@@ -92,9 +93,9 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
                     <div
                       key={evt.id}
                       onClick={e => { e.stopPropagation(); onEventClick(evt); }}
-                      className="text-[9px] px-1.5 py-1 rounded font-bold text-white truncate hover:opacity-75 transition-opacity cursor-pointer leading-tight whitespace-normal"
-                      style={{ background: getEventColor(evt.type), minHeight: "20px" }}
-                      title={evt.title}
+                      className={`text-[9px] px-1.5 py-1 rounded font-bold text-white truncate hover:opacity-75 transition-opacity cursor-pointer leading-tight whitespace-normal ${isCancelled(evt) ? "line-through" : ""}`}
+                      style={{ background: isCancelled(evt) ? "#9ca3af" : getEventColor(evt.type), minHeight: "20px" }}
+                      title={isCancelled(evt) ? `${evt.title} · ${cancelText(evt)}` : evt.title}
                     >
                       {evt.opponent_logo_url && ["partido_liga","partido_amistoso","torneo"].includes(evt.type) && (
                         <img src={evt.opponent_logo_url} alt="" loading="lazy" className="inline-block w-4 h-4 object-contain bg-white rounded-sm mr-1 align-middle" />

@@ -11,6 +11,7 @@ import TeamMatchesColumns from "@/components/team/TeamMatchesColumns";
 import FCFClassificationsPanel from "@/components/dashboard/FCFClassificationsPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { scoreText } from "@/lib/matchScore";
+import { isCancelled, cancelText } from "@/lib/eventCancel";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TYPE_LABEL = { partido_amistoso: "Amistoso", partido_liga: "Liga", torneo: "Torneo", entrenamiento: "Entrenamiento", reunion: "Reunión" };
@@ -37,7 +38,7 @@ export default function PlayerTeam() {
     const now = new Date();
     return events.filter((e) => new Date(e.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 8);
   }, [events]);
-  const nextMatch = upcoming.find((e) => MATCH_TYPES.includes(e.type));
+  const nextMatch = upcoming.find((e) => MATCH_TYPES.includes(e.type) && !isCancelled(e));
   const nextConv = nextMatch ? convBy.get(nextMatch.id) : null;
   const called = nextConv ? (nextConv.player_ids || []).includes(playerId) : null;
 
@@ -91,10 +92,11 @@ export default function PlayerTeam() {
                     <div className="w-20 shrink-0 text-xs font-bold text-gray-500 capitalize">{dayLabel(d)}<span className="block text-[10px] font-normal text-gray-400">{format(d, "HH:mm")}</span></div>
                     {isMatch ? <Swords className="w-4 h-4 shrink-0 text-[#73000A]" /> : <Dumbbell className="w-4 h-4 shrink-0 text-orange-500" />}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-900 truncate">{isMatch ? (e.title || `vs ${e.opponent}`) : (e.title || TYPE_LABEL[e.type] || "Evento")}</p>
-                      {e.location && <p className="text-[11px] text-gray-400 truncate">{e.location}</p>}
+                      <p className={`text-sm truncate ${isCancelled(e) ? "text-gray-400 line-through" : "text-gray-900"}`}>{isMatch ? (e.title || `vs ${e.opponent}`) : (e.title || TYPE_LABEL[e.type] || "Evento")}</p>
+                      {e.location && !isCancelled(e) && <p className="text-[11px] text-gray-400 truncate">{e.location}</p>}
                     </div>
-                    {isMatch && inConv != null && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${inConv ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{inConv ? "Convocado" : "No conv."}</span>}
+                    {isCancelled(e) && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300 shrink-0">{cancelText(e)}</span>}
+                    {isMatch && !isCancelled(e) && inConv != null && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${inConv ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{inConv ? "Convocado" : "No conv."}</span>}
                   </button>
                 );
               })}

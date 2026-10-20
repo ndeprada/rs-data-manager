@@ -14,6 +14,7 @@ import ActaTab from "@/components/match/ActaTab";
 import TacticaTab from "@/components/match/TacticaTab";
 import PostMatchTab from "@/components/match/PostMatchTab";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
+import { isCancelled, cancelText } from "@/lib/eventCancel";
 import { playerFullName } from "@/lib/playerName";
 import { matchPlayerIds, withGuests } from "@/lib/matchPlayers";
 
@@ -191,6 +192,11 @@ export default function MatchDetail() {
               {event.postponed_from && (
                 <span className="text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider bg-amber-400/15 border border-amber-300/40 text-amber-200" title="Partido aplazado">
                   Aplazado · antes {format(new Date(event.postponed_from), "d MMM", { locale: es })}
+                </span>
+              )}
+              {isCancelled(event) && (
+                <span className="text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider bg-white/15 border border-white/30 text-white" title="Para restaurarlo: Editar → botón de cancelado">
+                  {cancelText(event)}
                 </span>
               )}
               {canManageTeam(teamId) && <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white/60 hover:text-white border border-white/15 hover:border-white/30 transition-all">

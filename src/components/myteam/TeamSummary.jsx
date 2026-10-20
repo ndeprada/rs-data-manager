@@ -1,4 +1,5 @@
 import React from "react";
+import { isCancelled } from "@/lib/eventCancel";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -28,7 +29,7 @@ export default function TeamSummary({ team, events, players, matchStats }) {
 
   const now = new Date();
   const matches = events.filter((e) => MATCH_TYPES.includes(e.type));
-  const next = matches.filter((e) => new Date(e.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+  const next = matches.filter((e) => new Date(e.date) >= now && !isCancelled(e)).sort((a, b) => new Date(a.date) - new Date(b.date))[0];
   const played = matches.filter((e) => e.score_home != null && e.score_away != null);
   const w = played.filter((m) => m.score_home > m.score_away).length;
   const d = played.filter((m) => m.score_home === m.score_away).length;

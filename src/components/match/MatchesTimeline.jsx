@@ -3,6 +3,7 @@ import { Home, Plane, ChevronRight, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { scoreText, scoreTitle } from "@/lib/matchScore";
+import { isCancelled, cancelText } from "@/lib/eventCancel";
 
 // Convención de la app: score_home = goles de NUESTRO equipo, score_away = goles del rival.
 export function resultOf(m) {
@@ -54,7 +55,9 @@ function Row({ m, onOpen }) {
             <span className={`inline-block mt-1 text-[10px] font-bold uppercase border px-2 py-0.5 rounded-sm ${BADGE[result]}`}>{result}</span>
           </>
         ) : (
-          <span className="text-xs text-gray-400">{past ? "Sin resultado" : "Próximo"}</span>
+          isCancelled(m)
+          ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300" title={cancelText(m)}>{cancelText(m)}</span>
+          : <span className="text-xs text-gray-400">{past ? "Sin resultado" : "Próximo"}</span>
         )}
       </div>
       <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0" />
@@ -65,7 +68,7 @@ function Row({ m, onOpen }) {
 export default function MatchesTimeline({ matches, onOpen, title = "Partidos", count = 3 }) {
   const now = new Date();
   const upcoming = matches.filter((m) => new Date(m.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, count);
-  const last = matches.filter((m) => new Date(m.date) < now).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, count);
+  const last = matches.filter((m) => new Date(m.date) < now && !isCancelled(m)).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, count);
   if (upcoming.length === 0 && last.length === 0) return null;
   return (
     <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>

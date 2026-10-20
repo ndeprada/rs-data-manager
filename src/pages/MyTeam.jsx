@@ -1,4 +1,5 @@
 import TeamMatchesColumns from "@/components/team/TeamMatchesColumns";
+import { isCancelled } from "@/lib/eventCancel";
 import TeamSquadTable from "@/components/team/TeamSquadTable";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
@@ -83,7 +84,7 @@ export default function MyTeam() {
   ).sort((a, b) => new Date(a.date) - new Date(b.date));
 
   const nextMatch = teamEvents
-    .filter(e => MATCH_TYPES.includes(e.type) && isAfter(new Date(e.date), today))
+    .filter(e => MATCH_TYPES.includes(e.type) && !isCancelled(e) && isAfter(new Date(e.date), today))
     .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
 
   const recentMatches = teamEvents

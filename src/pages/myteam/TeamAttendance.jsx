@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { ArrowLeft, Pencil, X, UserPlus, Check, MessageSquarePlus, HeartPulse } from "lucide-react";
+import { ArrowLeft, Pencil, X, UserPlus, Check, MessageSquarePlus, HeartPulse, Ban, RotateCcw } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import { birthYearOf } from "@/lib/birthYear";
 import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
 import { playerFullName } from "@/lib/playerName";
 import QuickInjuryDialog from "@/components/myteam/QuickInjuryDialog";
+import CancelEventDialog from "@/components/myteam/CancelEventDialog";
+import { isCancelled, cancelText } from "@/lib/eventCancel";
 
 const STATUS_CONFIG = {
   present: { label: "Asiste", short: "Asiste", cls: "bg-green-600 text-white border-green-600" },
@@ -50,6 +52,7 @@ export default function TeamAttendance() {
   // Un enlace a un entrenamiento de otro equipo (p. ej. desde el listado de pendientes de coordinación) abre ese equipo
   useEffect(() => { if (urlTeamId && canSwitch && urlTeamId !== selectedTeamId) selectTeam(urlTeamId); }, [urlTeamId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [editingEvent, setEditingEvent] = useState(null);
+  const [cancelFor, setCancelFor] = useState(null); // evento que se marca/restaura como cancelado
   const [createEventDate, setCreateEventDate] = useState(null);
   const [trialName, setTrialName] = useState("");
   const [showGuests, setShowGuests] = useState(false);
@@ -86,6 +89,7 @@ export default function TeamAttendance() {
   }, [players, selectedTeamId]);
 
   const selectedEvent = trainings.find(e => e.id === eventId);
+  const offSel = isCancelled(selectedEvent);
   const recordsOf = (ev) => allAttendance.filter(a =>
     a.event_id === ev.id || (!a.event_id && a.date === ev.date?.split("T")[0])
   );
@@ -146,7 +150,7 @@ export default function TeamAttendance() {
   };
 
   // ── Resumen por jugador ──
-  const doneSessions = trainings.filter(e => recordsOf(e).some(r => r.status)); // sesiones con asistencia anotada
+  const doneSessions = trainings.filter(e => !isCancelled(e) && recordsOf(e).some(r => r.status)); // sesiones con asistencia anotada (las canceladas no cuentan)
   const doneIds = new Set(doneSessions.map(e => e.id));
   const summary = teamPlayers.map(p => {
     const recs = allAttendance.filter(a => a.player_id === p.id && doneIds.has(a.event_id));
@@ -251,28 +255,50 @@ export default function TeamAttendance() {
           <button onClick={() => navigate("/MyTeam/Attendance")} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 font-medium">
             <ArrowLeft className="w-4 h-4" /> Volver a entrenamientos
           </button>
-          <div className="bg-white border border-gray-200 shadow-sm px-4 py-3 flex flex-wrap items-center gap-x-2 gap-y-2" style={{ borderRadius: "4px", borderLeft: "3px solid var(--naranja)" }}>
+          <div className="bg-white border border-gray-200 shadow-sm px-4 py-3 flex flex-wrap items-center gap-x-2 gap-y-2" style={{ borderRadius: "4px", borderLeft: `3px solid ${offSel ? "#9ca3af" : "var(--naranja)"}` }}>
             <div className="flex-1 min-w-[160px]">
-              <h2 className="font-black text-sm uppercase truncate" style={{ fontFamily: "var(--font-display)", color: "var(--naranja)" }}>{selectedEvent.title}</h2>
-              <p className="text-xs text-gray-400 capitalize">{format(new Date(selectedEvent.date), "EEEE d MMMM · HH:mm", { locale: es })}</p>
-              <p className="text-[11px] mt-0.5">
-                <span className="font-bold text-green-700">{sessionCounts.present} asisten</span>
-                <span className="text-gray-300"> · </span><span className="font-bold text-blue-700">{sessionCounts.apart} a parte</span>
-                <span className="text-gray-300"> · </span><span className="font-bold text-red-600">{sessionCounts.absent} no</span>
-                {sessionCounts.pending > 0 && <><span className="text-gray-300"> · </span><span className="font-bold text-amber-600">{sessionCounts.pending} sin marcar</span></>}
-              </p>
+              <h2 className={`font-black text-sm uppercase truncate ${offSel ? "line-through" : ""}`} style={{ fontFamily: "var(--font-display)", color: offSel ? "#6b7280" : "var(--naranja)" }}>{selectedEvent.title}</h2>
+              <p className={`text-xs text-gray-400 capitalize ${offSel ? "line-through" : ""}`}>{format(new Date(selectedEvent.date), "EEEE d MMMM · HH:mm", { locale: es })}</p>
+              {offSel ? (
+                <p className="text-[11px] mt-0.5 font-black uppercase tracking-wide text-gray-600 inline-flex items-center gap-1"><Ban className="w-3 h-3" /> {cancelText(selectedEvent)}</p>
+              ) : (
+                <p className="text-[11px] mt-0.5">
+                  <span className="font-bold text-green-700">{sessionCounts.present} asisten</span>
+                  <span className="text-gray-300"> · </span><span className="font-bold text-blue-700">{sessionCounts.apart} a parte</span>
+                  <span className="text-gray-300"> · </span><span className="font-bold text-red-600">{sessionCounts.absent} no</span>
+                  {sessionCounts.pending > 0 && <><span className="text-gray-300"> · </span><span className="font-bold text-amber-600">{sessionCounts.pending} sin marcar</span></>}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-1 shrink-0">
-              <Button variant="outline" size="sm" className="text-xs h-7 border-green-200 text-green-700 hover:bg-green-50"
-                onClick={() => teamPlayers.forEach(p => { if (!recFor(p.id).status) save(p.id, { status: "present" }); })}>
-                <Check className="w-3 h-3 mr-1" /> Todos asisten
-              </Button>
+              {!offSel && (
+                <Button variant="outline" size="sm" className="text-xs h-7 border-green-200 text-green-700 hover:bg-green-50"
+                  onClick={() => teamPlayers.forEach(p => { if (!recFor(p.id).status) save(p.id, { status: "present" }); })}>
+                  <Check className="w-3 h-3 mr-1" /> Todos asisten
+                </Button>
+              )}
+              {offSel ? (
+                <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setCancelFor(selectedEvent)}>
+                  <RotateCcw className="w-3 h-3 mr-1" /> Restaurar
+                </Button>
+              ) : (
+                <button onClick={() => setCancelFor(selectedEvent)} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700" title="Marcar como cancelado (lluvia, festivo…)">
+                  <Ban className="w-4 h-4" />
+                </button>
+              )}
               <button onClick={() => setEditingEvent(selectedEvent)} className="p-1.5 rounded hover:bg-orange-50 text-gray-400 hover:text-orange-600" title="Editar evento">
                 <Pencil className="w-4 h-4" />
               </button>
             </div>
           </div>
 
+          {offSel && (
+            <div className="bg-gray-50 border border-gray-200 px-4 py-6 text-center text-sm text-gray-500" style={{ borderRadius: "4px" }}>
+              Este entreno estaba previsto pero no se ha celebrado, así que no hay lista que pasar.
+            </div>
+          )}
+
+          {!offSel && (<>
           <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
             {teamPlayers.map(p => renderRow({ pid: p.id, player: p, name: `${playerFullName(p)}`, sub: POSITION_LABELS[p.position] }))}
             {guests.map(p => renderRow({ pid: p.id, player: p, tint: "#eff6ff", name: `${playerFullName(p)}`,
@@ -302,6 +328,7 @@ export default function TeamAttendance() {
               <Button variant="club" size="sm" className="h-8" onClick={addTrial} disabled={!trialName.trim()}>Añadir</Button>
             </div>
           </div>
+          </>)}
         </div>
       ) : (
         /* ───────── LÍNEA TEMPORAL + RESUMEN ───────── */
@@ -418,6 +445,12 @@ export default function TeamAttendance() {
         open={!!editingEvent}
         onOpenChange={(open) => { if (!open) setEditingEvent(null); }}
         event={editingEvent}
+      />
+
+      <CancelEventDialog
+        open={!!cancelFor}
+        onOpenChange={(open) => { if (!open) setCancelFor(null); }}
+        event={cancelFor}
       />
 
       <CreateEventDialog

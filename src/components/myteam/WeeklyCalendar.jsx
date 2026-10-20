@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, MapPin, Clock, Plus, Home, Plane } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, Clock, Plus, Home, Plane, Ban } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { isCancelled, cancelText } from "@/lib/eventCancel";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 
@@ -59,9 +60,13 @@ function getWeekNumber(date) {
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 }
 
+// Cancelado o suspendido: gris, texto tachado y el motivo debajo
+const OFF_STYLES = { bar: "#9ca3af", bg: "#f9fafb", pill: "#e5e7eb", pillText: "#6b7280", accent: "#6b7280", border: "#e5e7eb" };
+
 function EventCard({ event, navigate, onEventClick }) {
   const meta = EVENT_META[event.type] || { label: event.type, color: "slate" };
-  const styles = COLOR_STYLES[meta.color];
+  const off = isCancelled(event);
+  const styles = off ? OFF_STYLES : COLOR_STYLES[meta.color];
   const isMatch = MATCH_TYPES.includes(event.type);
 
   const onClick = () => {
@@ -110,7 +115,7 @@ function EventCard({ event, navigate, onEventClick }) {
             <img src={event.opponent_logo_url} alt="" loading="lazy" className="w-6 h-6 object-contain shrink-0" />
           )}
           <p
-            className="text-[11px] font-black leading-tight line-clamp-2 text-gray-900"
+            className={`text-[11px] font-black leading-tight line-clamp-2 ${off ? "text-gray-500 line-through" : "text-gray-900"}`}
             style={{ fontFamily: "var(--font-display)" }}
           >
             {isMatch && event.opponent ? `vs ${event.opponent}` : event.title}
@@ -121,10 +126,16 @@ function EventCard({ event, navigate, onEventClick }) {
         {timeStr && (
           <div className="flex items-center gap-1 mt-1.5">
             <Clock className="w-2.5 h-2.5 shrink-0" style={{ color: styles.accent }} />
-            <span className="text-[9px] font-semibold" style={{ color: styles.accent }}>
+            <span className={`text-[9px] font-semibold ${off ? "line-through" : ""}`} style={{ color: styles.accent }}>
               {timeStr}{endTimeStr ? ` – ${endTimeStr}` : ""}
             </span>
           </div>
+        )}
+
+        {off && (
+          <p className="mt-1 flex items-center gap-1 text-[9px] font-black uppercase tracking-wide text-gray-500" title={cancelText(event)}>
+            <Ban className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">{cancelText(event)}</span>
+          </p>
         )}
 
         {/* Location (only for matches) */}
@@ -244,7 +255,8 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
                   ) : (
                     dayEvents.map(ev => {
                       const meta = EVENT_META[ev.type] || { label: ev.type, color: "slate" };
-                      const styles = COLOR_STYLES[meta.color];
+                      const off = isCancelled(ev);
+                      const styles = off ? OFF_STYLES : COLOR_STYLES[meta.color];
                       const isMatch = MATCH_TYPES.includes(ev.type);
                       const timeStr = ev.date ? format(new Date(ev.date), "HH:mm") : null;
                       return (
@@ -261,12 +273,12 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
                           {isMatch && (ev.is_home === false ? <Plane className="w-4 h-4 text-sky-600 shrink-0" /> : <Home className="w-4 h-4 text-emerald-600 shrink-0" />)}
                           {isMatch && ev.opponent_logo_url && <img src={ev.opponent_logo_url} alt="" loading="lazy" className="w-6 h-6 object-contain shrink-0" />}
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-black truncate text-gray-900" style={{ fontFamily: "var(--font-display)" }}>
+                            <p className={`text-xs font-black truncate ${off ? "text-gray-500 line-through" : "text-gray-900"}`} style={{ fontFamily: "var(--font-display)" }}>
                               {isMatch && ev.opponent ? `vs ${ev.opponent}` : ev.title}
                             </p>
                             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              <span className="text-[9px] font-bold uppercase" style={{ color: styles.pillText }}>{meta.label}</span>
-                              {timeStr && <span className="text-[9px] text-gray-400">{timeStr}</span>}
+                              <span className="text-[9px] font-bold uppercase" style={{ color: styles.pillText }}>{off ? cancelText(ev) : meta.label}</span>
+                              {timeStr && <span className={`text-[9px] text-gray-400 ${off ? "line-through" : ""}`}>{timeStr}</span>}
                               {ev.location && <span className="text-[9px] text-gray-400 truncate max-w-[120px]">{ev.location}</span>}
                             </div>
                           </div>

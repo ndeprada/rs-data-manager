@@ -3,6 +3,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { MapPin, Clock, Pencil, Trash2, Users, FileText, ClipboardList, Home as HomeIcon, Plane as PlaneIcon } from "lucide-react";
+import { isCancelled, cancelText } from "@/lib/eventCancel";
 
 const EVENT_TYPES = [
   { value: "partido_amistoso", label: "Partido amistoso", isMatch: true },
@@ -127,8 +128,9 @@ export default function EventListWithDragDrop({
                                         }
                                       }}
                                     >
-                                      <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                                      <p className={`font-semibold transition-colors ${isCancelled(event) ? "text-gray-400 line-through" : "text-gray-900 group-hover:text-blue-600"}`}>
                                         {event.title}
+                                        {isCancelled(event) && <span className="ml-2 inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300">{cancelText(event)}</span>}
                                       </p>
                                       <p className="text-sm text-gray-500 mt-1">
                                         {getEventLabel(event.type)}

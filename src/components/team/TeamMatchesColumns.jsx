@@ -6,6 +6,7 @@ import { resultOf, HomeAwayIcon } from "@/components/match/MatchesTimeline";
 import { useMatchStatus } from "@/lib/matchStatus";
 import { usePlayerMode } from "@/lib/playerMode";
 import { scoreText, scoreTitle } from "@/lib/matchScore";
+import { isCancelled, cancelText, cancelWord } from "@/lib/eventCancel";
 
 const CHIP = { victoria: ["V", "#16a34a"], empate: ["E", "#ea580c"], derrota: ["D", "#dc2626"] };
 
@@ -20,6 +21,7 @@ function Row({ m, onOpen, reasons, soft }) {
       <HomeAwayIcon match={m} className="w-4 h-4 shrink-0" />
       {m.opponent_logo_url ? <img src={m.opponent_logo_url} alt="" loading="lazy" className="w-5 h-5 object-contain shrink-0" /> : <span className="w-5 shrink-0" />}
       <span className="flex-1 min-w-0 truncate text-sm font-normal text-gray-900">{m.opponent || m.title || "Rival"}</span>
+      {isCancelled(m) && <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300" title={cancelText(m)}>{cancelWord(m)}</span>}
       {reasons && <span title={reasons.join(" · ")} className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Pendiente</span>}
       {!reasons && soft && <span title={soft.join(" · ")} className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 border border-gray-200">Pendiente</span>}
       {r ? (
@@ -52,7 +54,7 @@ export default function TeamMatchesColumns({ matches, onOpen, count = 3 }) {
   const pending = usePlayerMode() ? undefined : allPending;
   const soft = usePlayerMode() ? undefined : allSoft;
   const now = new Date();
-  const last = matches.filter((m) => new Date(m.date) < now).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, count);
+  const last = matches.filter((m) => new Date(m.date) < now && !isCancelled(m)).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, count);
   const next = matches.filter((m) => new Date(m.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, count);
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

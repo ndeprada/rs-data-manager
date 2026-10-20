@@ -6,6 +6,7 @@ import EventAttendanceDialog from "@/components/calendar/EventAttendanceDialog";
 import ConvocatoriaDialog from "@/components/calendar/ConvocatoriaDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
 import { sortTeams } from "@/lib/teamOrder";
+import { isCancelled, cancelText } from "@/lib/eventCancel";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import SessionReportDialog from "@/components/calendar/SessionReportDialog";
 import EventListWithDragDrop from "@/components/calendar/EventListWithDragDrop";
@@ -329,7 +330,7 @@ export default function Calendar() {
                             {getEventLabel(event.type).slice(0, 2).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-gray-900 truncate">{event.title}</p>
+                            <p className={`text-sm font-bold truncate ${isCancelled(event) ? "text-gray-400 line-through" : "text-gray-900"}`}>{event.title}{isCancelled(event) && <span className="ml-2 inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300">{cancelText(event)}</span>}</p>
                             <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-400 mt-0.5">
                               <span>{getEventLabel(event.type)}</span>
                               {team && <span>· {team.name}</span>}
@@ -422,8 +423,9 @@ export default function Calendar() {
                             return (
                               <div key={evt.id}
                                 onClick={(e) => { e.stopPropagation(); isMatch ? navigate(`/MatchDetail?id=${evt.id}&teamId=${evt.team_id}`) : navigate(`/MyTeam/Attendance?eventId=${evt.id}`); }}
-                                className="text-[9px] truncate px-1.5 py-0.5 rounded-full font-bold text-white hover:opacity-80 transition-opacity cursor-pointer leading-tight w-full"
-                                style={{ background: eventColor }}>
+                                className={`text-[9px] truncate px-1.5 py-0.5 rounded-full font-bold text-white hover:opacity-80 transition-opacity cursor-pointer leading-tight w-full ${isCancelled(evt) ? "line-through" : ""}`}
+                                title={isCancelled(evt) ? cancelText(evt) : undefined}
+                                style={{ background: isCancelled(evt) ? "#9ca3af" : eventColor }}>
                                 <span className="opacity-80 mr-0.5">{format(new Date(evt.date), "HH:mm")}</span>
                                 {isMatch && evt.is_home === true && <HomeIcon className="inline w-2.5 h-2.5 mr-0.5 -mt-0.5" />}{isMatch && evt.is_home === false && <PlaneIcon className="inline w-2.5 h-2.5 mr-0.5 -mt-0.5" />}{isMatch && evt.opponent_logo_url && <img src={evt.opponent_logo_url} alt="" className="inline w-3 h-3 object-contain bg-white rounded-full mr-0.5 -mt-0.5" referrerPolicy="no-referrer" />}{evt.title}
                               </div>
@@ -478,7 +480,7 @@ export default function Calendar() {
                             {getEventLabel(event.type).slice(0, 2).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-gray-900 truncate">{event.title}</p>
+                            <p className={`text-sm font-bold truncate ${isCancelled(event) ? "text-gray-400 line-through" : "text-gray-900"}`}>{event.title}{isCancelled(event) && <span className="ml-2 inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300">{cancelText(event)}</span>}</p>
                             <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-400 mt-0.5">
                               <span>{getEventLabel(event.type)}</span>
                               {team && <span>· {team.name}</span>}

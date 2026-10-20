@@ -11,6 +11,7 @@ import TeamPageHeader from "@/components/myteam/TeamPageHeader";
 import { useSelectedTeam } from "@/lib/useSelectedTeam";
 import { useMatchStatus } from "@/lib/matchStatus";
 import { scoreText } from "@/lib/matchScore";
+import { isCancelled, cancelText } from "@/lib/eventCancel";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TYPE_LABELS = { partido_amistoso: "Amistoso", partido_liga: "Liga", torneo: "Torneo" };
@@ -59,7 +60,7 @@ export default function TeamMatches() {
       {/* Summary */}
       <div className="grid grid-cols-4 gap-2">
         {[
-          { label: "Partidos", value: matches.length, color: "var(--granate)" },
+          { label: "Partidos", value: matches.filter(m => !isCancelled(m)).length, color: "var(--granate)" },
           { label: "Victorias", value: wins, color: "#16a34a" },
           { label: "Empates", value: draws, color: "#b45309" },
           { label: "Derrotas", value: losses, color: "#dc2626" },
@@ -121,6 +122,7 @@ export default function TeamMatches() {
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400" style={{ fontFamily: "var(--font-display)" }}>{TYPE_LABELS[m.type]}</span>
                         {m.type === "partido_amistoso" && isPast && <span className="text-[10px] text-gray-400" title="Los amistosos tienen sus propias estadísticas, aparte de la liga">· estadísticas aparte</span>}
+                        {isCancelled(m) && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300">{cancelText(m)}</span>}
                         {pending.has(m.id) && <span title={pending.get(m.id).join(" · ")} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Pendiente de gestionar: {pending.get(m.id)[0]}</span>}
                         {!pending.has(m.id) && soft.has(m.id) && <span title={soft.get(m.id).join(" · ")} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 border border-gray-200">Pendiente: {soft.get(m.id)[0]}</span>}
                       </div>
@@ -138,6 +140,8 @@ export default function TeamMatches() {
                           <span className="text-[10px] text-green-600 font-semibold">Gestionado</span>
                         </div>
                       </div>
+                    ) : isCancelled(m) ? (
+                      <p className="text-sm text-gray-400 line-through">{format(new Date(m.date), "HH:mm")}</p>
                     ) : isPast ? (
                       <div className="text-right">
                         <p className="text-sm text-gray-400">{format(new Date(m.date), "HH:mm")}</p>

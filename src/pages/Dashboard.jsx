@@ -12,6 +12,7 @@ import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { playerFullName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
 import { convocatoriaAlert } from "@/lib/matchTiming";
+import { isCancelled, cancelText } from "@/lib/eventCancel";
 import { groupPendingByTeam } from "@/lib/pendingByTeam";
 import PendingByTeamDialog from "@/components/dashboard/PendingByTeamDialog";
 import { useTrainingStatus } from "@/lib/trainingStatus";
@@ -165,7 +166,7 @@ export default function Dashboard() {
   const now = new Date();
   const today = startOfDay(now);
 
-  const upcoming = events.filter((e) => new Date(e.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date));
+  const upcoming = events.filter((e) => new Date(e.date) >= now && !isCancelled(e)).sort((a, b) => new Date(a.date) - new Date(b.date));
   const nextClub = upcoming.find((e) => isMatch(e.type));
   const nextMine = hasMine ? upcoming.find((e) => isMatch(e.type) && myIds.has(e.team_id)) : null;
   const nextIsMine = nextClub && nextMine && nextClub.id === nextMine.id;
@@ -178,7 +179,8 @@ export default function Dashboard() {
   const losses = played.length - wins - draws;
   const recordLabel = hasMine ? (myIds.size === 1 ? teamName([...myIds][0]) : "Mis equipos") : "Todo el club";
 
-  const attScope = attendance.filter((a) => !scopeIds || events.find((e) => e.id === a.event_id && scopeIds.has(e.team_id)) || (a.team_id && scopeIds.has(a.team_id)));
+  const cancelledIds = new Set(events.filter(isCancelled).map((e) => e.id));
+  const attScope = attendance.filter((a) => !cancelledIds.has(a.event_id)).filter((a) => !scopeIds || events.find((e) => e.id === a.event_id && scopeIds.has(e.team_id)) || (a.team_id && scopeIds.has(a.team_id)));
   const present = attScope.filter((a) => a.status !== "absent").length;
   const attRate = attScope.length ? Math.round((present / attScope.length) * 100) : null;
   const attColor = attRate >= 80 ? "#16a34a" : attRate >= 60 ? "var(--naranja)" : "#dc2626";
@@ -194,7 +196,7 @@ export default function Dashboard() {
   // Partidos pendientes de los equipos que cumplan "teamOk". Los amistosos sin gestionar no generan alerta
   // (en la lista de partidos sí aparecen marcados como pendientes).
   const pendingMatchLists = (teamOk) => {
-    const pendMatch = (e) => isMatch(e.type) && e.type !== "partido_amistoso" && teamOk(e.team_id);
+    const pendMatch = (e) => isMatch(e.type) && e.type !== "partido_amistoso" && !isCancelled(e) && teamOk(e.team_id);
     // Convocatoria: se avisa solo cuando faltan 24 h o menos, o si el partido ya se jugó sin convocar
     const convAlert = (e) => (pendMatch(e) ? convocatoriaAlert(e, withConv.has(e.id), now) : null);
     const byDate = (a, b) => new Date(a.date) - new Date(b.date);
@@ -356,11 +358,13 @@ export default function Dashboard() {
                 {sorted.length === 0 && <p className="text-[11px] text-gray-300 pl-1">—</p>}
                 {sorted.slice(0, 4).map((e) => {
                   const m = isMatch(e.type);
+                  const off = isCancelled(e);
                   const content = (
-                    <div className="rounded-md px-1 sm:px-2.5 py-1 sm:py-1.5 hover:brightness-95 transition" style={{ background: m ? "var(--granate-pale)" : "#f9fafb", outline: isToday ? "1px solid var(--naranja)" : undefined }}>
-                      <p className="text-[9px] sm:text-[10px] font-bold" style={{ color: m ? "var(--granate)" : "var(--naranja)" }}>{format(new Date(e.date), "HH:mm")}</p>
-                      <p className="text-[9px] sm:text-xs font-semibold text-gray-900 leading-tight line-clamp-3 sm:line-clamp-2 break-words">{m ? (e.opponent ? `${teamName(e.team_id)} vs ${e.opponent}` : e.title) : (e.title || "Entrenamiento")}</p>
+                    <div className={`rounded-md px-1 sm:px-2.5 py-1 sm:py-1.5 hover:brightness-95 transition ${off ? "opacity-60" : ""}`} style={{ background: off ? "#f3f4f6" : m ? "var(--granate-pale)" : "#f9fafb", outline: isToday ? "1px solid var(--naranja)" : undefined }}>
+                      <p className={`text-[9px] sm:text-[10px] font-bold ${off ? "line-through" : ""}`} style={{ color: m ? "var(--granate)" : "var(--naranja)" }}>{format(new Date(e.date), "HH:mm")}</p>
+                      <p className={`text-[9px] sm:text-xs font-semibold text-gray-900 leading-tight line-clamp-3 sm:line-clamp-2 break-words ${off ? "line-through" : ""}`}>{m ? (e.opponent ? `${teamName(e.team_id)} vs ${e.opponent}` : e.title) : (e.title || "Entrenamiento")}</p>
                       {!m && <p className="text-[8px] sm:text-[10px] text-gray-500 leading-tight break-words">{teamName(e.team_id)}</p>}
+                      {off && <p className="text-[8px] sm:text-[10px] font-bold text-gray-500 leading-tight break-words" title={cancelText(e)}>{cancelText(e)}</p>}
                     </div>
                   );
                   return m ? <Link key={e.id} to={`/MatchDetail?id=${e.id}&teamId=${e.team_id}`} className="block">{content}</Link> : <div key={e.id}>{content}</div>;

@@ -1,4 +1,5 @@
 import React from "react";
+import { isCancelled } from "@/lib/eventCancel";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -78,7 +79,7 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
   const getNext = (teamId) => {
     const now = new Date();
     return events
-      .filter((e) => e.team_id === teamId && e.type?.includes("partido") && new Date(e.date) >= now && !e.postponed)
+      .filter((e) => e.team_id === teamId && e.type?.includes("partido") && new Date(e.date) >= now && !e.postponed && !isCancelled(e))
       .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
   };
 

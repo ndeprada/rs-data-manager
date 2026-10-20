@@ -2,6 +2,7 @@
 // El enlace lleva un código secreto por equipo (no hace falta iniciar sesión, los calendarios no pueden).
 // El secreto se genera una vez y se guarda en la base (entidad IcsConfig, privada); "revs" permite cambiar el enlace de un equipo.
 import crypto from 'node:crypto';
+import { isCancelled, cancelText, cancelWord } from '../../src/lib/eventCancel.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MATCHES = ['partido_liga', 'partido_amistoso', 'torneo'];
@@ -91,10 +92,14 @@ export function buildIcs({ team, events, base, now = new Date() }) {
     let end = parseLocal(d.end_date);
     if (end === null || end <= start) end = start + (isMatch ? 120 : 90) * 60000;
 
-    const title = isMatch
+    const off = isCancelled(d);
+    const baseTitle = isMatch
       ? `⚽ ${d.title || `${TYPE_LABEL[d.type]} vs ${d.opponent || 'rival'}`}`
       : (d.title || TYPE_LABEL[d.type] || 'Evento');
+    // Cancelado o suspendido: sigue en el calendario del móvil, avisando del motivo
+    const title = off ? `${cancelWord(d).toUpperCase()}: ${baseTitle}` : baseTitle;
     const desc = [];
+    if (off) desc.push(cancelText(d));
     if (isMatch) {
       desc.push([d.fcf_competition, d.fcf_group, d.fcf_jornada ? `Jornada ${d.fcf_jornada}` : null].filter(Boolean).join(' · ') || TYPE_LABEL[d.type]);
       if (d.opponent) desc.push(`Rival: ${d.opponent}${d.is_home === true ? ' (en casa)' : d.is_home === false ? ' (fuera)' : ''}`);
@@ -113,7 +118,7 @@ export function buildIcs({ team, events, base, now = new Date() }) {
     );
     if (d.location) lines.push(`LOCATION:${esc(d.location)}`);
     if (desc.length) lines.push(`DESCRIPTION:${esc(desc.join('\n'))}`);
-    lines.push('STATUS:CONFIRMED', 'TRANSP:OPAQUE', 'END:VEVENT');
+    lines.push(off ? 'STATUS:CANCELLED' : 'STATUS:CONFIRMED', off ? 'TRANSP:TRANSPARENT' : 'TRANSP:OPAQUE', 'END:VEVENT');
     n++;
   }
   lines.push('END:VCALENDAR');

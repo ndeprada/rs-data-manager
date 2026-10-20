@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { usePlayerMode } from "@/lib/playerMode";
 import { isFinished } from "@/lib/matchTiming";
+import { isCancelled } from "@/lib/eventCancel";
 
 // Las estadísticas principales y las alertas de "pendiente de gestionar" son solo de partidos de liga
 // (competición oficial), ya disputados y completamente cerrados (convocatoria, alineación y minutos).
@@ -48,6 +49,7 @@ export function useMatchStatus() {
     for (const s of stats) { if (!statsBy.has(s.event_id)) statsBy.set(s.event_id, []); statsBy.get(s.event_id).push(s); }
     const counted = new Set(), pending = new Map(), soft = new Map(), countedOther = new Set();
     for (const ev of events) {
+      if (isCancelled(ev)) continue; // partido suspendido: ni pendiente ni cuenta en estadísticas
       if (!isFinished(ev, now)) continue;
       if (ev.type === "torneo" || ev.type === "partido_amistoso") {
         // Sin alerta: cuentan en sus propias estadísticas y, si falta algo, solo se avisa en gris
