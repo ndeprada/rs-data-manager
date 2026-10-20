@@ -1,6 +1,6 @@
 import { query } from '../../_lib/db.js';
 import { requireUser } from '../../_lib/auth.js';
-import { checkEntityAccess, checkTeamWrite, isPlayerUser, playerFilterDocs } from '../../_lib/access.js';
+import { checkEntityAccess, checkTeamWrite, checkRoleWriteAccess, roleFilterDocs, isPlayerUser, playerFilterDocs } from '../../_lib/access.js';
 
 function rowToDoc(row) {
   return {
@@ -26,6 +26,9 @@ export default async function handler(req, res) {
   const tw = await checkTeamWrite(user, entity, req.method, req.body || {}, id);
   if (!tw.ok) { res.status(403).json({ error: tw.error }); return; }
 
+  const rw = await checkRoleWriteAccess(user, entity, req.method, req.body || {}, id);
+  if (!rw.ok) { res.status(403).json({ error: rw.error }); return; }
+
   if (req.method === 'GET') {
     const { rows } = await query(
       `select id, data, created_at, updated_at from entities where entity_type = $1 and id = $2`,
@@ -36,6 +39,7 @@ export default async function handler(req, res) {
       return;
     }
     let doc = rowToDoc(rows[0]);
+    if (!(await roleFilterDocs(user, entity, [doc])).length) { res.status(404).json({ error: 'not_found' }); return; }
     if (isPlayerUser(user)) {
       doc = (await playerFilterDocs(user, entity, [doc]))[0];
       if (!doc) { res.status(404).json({ error: 'not_found' }); return; }

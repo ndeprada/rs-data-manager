@@ -5,6 +5,10 @@
 //   (para elegir el suyo al registrarse). Nada de datos de jugadores.
 
 import { query } from './db.js';
+import {
+  permissionsOf, canManageTeamWith, checkRoleWrite, filterRoleRead, staffIdsOfUser,
+  MEDICAL_ENTITIES, PLAYER_EVAL_ENTITIES, COACH_EVAL_ENTITIES,
+} from '../../src/lib/permissions.js';
 
 const PERMISSION_FIELDS = new Set([
   'role', 'app_role', 'player_id', 'app_role_pending', 'access_status', 'person_type',
@@ -146,7 +150,7 @@ export async function playerFilterDocs(user, entity, docs) {
   return out;
 }
 
-// ── Gestión de convocatorias: solo admin y entrenadores del propio equipo ─────
+// ── Gestión de convocatorias: administración, Dirección Deportiva y entrenadores del propio equipo ─────
 export function coachTeamIdsOf(u) {
   if (u.app_role === 'entrenador') return [...(u.team_ids || []), ...(u.team_id ? [u.team_id] : [])];
   if (u.secondary_role === 'entrenador') return u.secondary_team_ids || [];
@@ -168,5 +172,51 @@ export async function checkTeamWrite(user, entity, method, body, id) {
     teamId = rows[0]?.data?.team_id || null;
   }
   if (!teamId) return { ok: true };
-  return coachTeamIdsOf(user).includes(teamId) ? { ok: true } : { ok: false, error: 'not_team_coach' };
+  return canManageTeamWith(permissionsOf(user), teamId, coachTeamIdsOf(user)) ? { ok: true } : { ok: false, error: 'not_team_coach' };
 }
+
+// ── Datos sensibles por función: médicos, evaluaciones de jugadores y evaluaciones de entrenadores ─────
+const ROLE_ENTITIES = new Set([...MEDICAL_ENTITIES, ...PLAYER_EVAL_ENTITIES, ...COACH_EVAL_ENTITIES]);
+
+const isStaffUser = (user) => !isAdmin(user) && !isPlayerUser(user) && user.app_role !== 'familiar';
+
+// Se construye sobre una función de consulta para poder probarlo con una base local
+export function makeRoleAccess(run) {
+  // Fichas de personal que son de esta persona (para que vea lo que se le ha enviado a ella y nada más)
+  async function ownStaffIds(user) {
+    const [u, s] = await Promise.all([
+      run(`select e.id, e.data, a.email from entities e join auth_users a on a.id = e.id where e.entity_type = 'User'`),
+      run(`select id, data from entities where entity_type = 'StaffMember'`),
+    ]);
+    const users = u.rows.map((r) => ({ id: r.id, email: r.email, ...r.data }));
+    const staff = s.rows.map((r) => ({ id: r.id, ...r.data }));
+    return staffIdsOfUser(user, users, staff);
+  }
+
+  return {
+    // Escrituras: cada función solo puede tocar lo suyo
+    async checkRoleWriteAccess(user, entity, method, body, id) {
+      if (method === 'GET' || !ROLE_ENTITIES.has(entity) || !isStaffUser(user)) return { ok: true };
+      const perms = permissionsOf(user);
+      let existing = null, ownIds = new Set();
+      if (COACH_EVAL_ENTITIES.has(entity) && !perms.evalCoaches) {
+        if (id) {
+          const { rows } = await run(`select data from entities where entity_type = $1 and id = $2`, [entity, id]);
+          existing = rows[0]?.data || null;
+        }
+        ownIds = await ownStaffIds(user);
+      }
+      return checkRoleWrite({ perms, entity, method, body: body || {}, existing, ownIds });
+    },
+
+    // Lecturas: lo que no corresponde a su función simplemente no sale
+    async roleFilterDocs(user, entity, docs) {
+      if (!ROLE_ENTITIES.has(entity) || !isStaffUser(user)) return docs;
+      const perms = permissionsOf(user);
+      const ownIds = COACH_EVAL_ENTITIES.has(entity) && perms.coaches === 'own' ? await ownStaffIds(user) : new Set();
+      return filterRoleRead({ perms, entity, docs, ownIds });
+    },
+  };
+}
+
+export const { checkRoleWriteAccess, roleFilterDocs } = makeRoleAccess(query);

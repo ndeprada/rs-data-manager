@@ -1,7 +1,7 @@
 import { query } from '../_lib/db.js';
 import { requireUser } from '../_lib/auth.js';
 import { ARCHIVABLE } from '../_lib/season.js';
-import { checkEntityAccess, checkTeamWrite, isPlayerUser, playerFilterDocs } from '../_lib/access.js';
+import { checkEntityAccess, checkTeamWrite, checkRoleWriteAccess, roleFilterDocs, isPlayerUser, playerFilterDocs } from '../_lib/access.js';
 
 function rowToDoc(row) {
   return {
@@ -37,6 +37,9 @@ export default async function handler(req, res) {
 
   const tw = await checkTeamWrite(user, entity, req.method, req.body || {}, null);
   if (!tw.ok) { res.status(403).json({ error: tw.error }); return; }
+
+  const rw = await checkRoleWriteAccess(user, entity, req.method, req.body || {}, null);
+  if (!rw.ok) { res.status(403).json({ error: rw.error }); return; }
 
   if (req.method === 'GET') {
     try {
@@ -83,6 +86,7 @@ export default async function handler(req, res) {
 
       const { rows } = await query(sql, params);
       let docs = rows.map(rowToDoc);
+      docs = await roleFilterDocs(user, entity, docs);
       if (player) {
         docs = await playerFilterDocs(user, entity, docs);
         if (limit) docs = docs.slice(0, parseInt(limit, 10));

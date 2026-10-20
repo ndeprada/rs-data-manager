@@ -35,6 +35,7 @@ import { playerFirstName, playerFullName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
 import { usePlayerMode } from "@/lib/playerMode";
 import { useAuth } from "@/lib/AuthContext";
+import { useTeamAccess } from "@/lib/TeamAccessContext";
 import FamiliesSection from "@/components/player/FamiliesSection";
 import { PlayerMatchesReadOnly, PlayerInjuriesReadOnly, PlayerDocumentsReadOnly, PlayerHistoryReadOnly } from "@/components/player/PlayerReadOnlySections";
 
@@ -54,6 +55,7 @@ export default function PlayerProfile() {
   const urlParams = new URLSearchParams(window.location.search);
   const isPlayerAccount = usePlayerMode();
   const { user: authUser } = useAuth();
+  const { perms } = useTeamAccess();
   // Cuerpo técnico que también es jugador: "Mi ficha de jugador" abre su propia ficha en vista de jugador
   const ownPlayerView = !!authUser?.player_id && urlParams.get("as") === "player" && urlParams.get("id") === authUser.player_id;
   const playerMode = isPlayerAccount || ownPlayerView;
@@ -163,6 +165,10 @@ export default function PlayerProfile() {
     { value: "historial", icon: <History className="w-3.5 h-3.5" />, label: "Historial" },
   ];
   const tabContentClass = "mt-0 focus-visible:outline-none focus-visible:ring-0";
+  // Qué ve y qué puede cambiar cada función (el jugador ve su propia ficha como siempre)
+  const can = (tab) => playerMode || perms.canSeePlayerTab(tab);
+  const visibleTabs = tabs.filter((t) => can(t.value));
+  const staffEdit = !playerMode && perms.editPlayers;
 
   return (
     <div className="min-h-screen" style={{ background: "#f5f5f5" }}>
@@ -170,10 +176,10 @@ export default function PlayerProfile() {
       <div className="bg-club-banner">
         <div className="px-4 sm:px-6 pt-3 pb-4">
           <div className="flex items-center justify-between mb-3">
-            <Link to="/Players" onClick={(e) => { if (!playerMode && window.history.state?.idx > 0) { e.preventDefault(); navigate(-1); } }} className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm font-medium">
+            <Link to={perms.players === "all" || playerMode ? "/Players" : "/MyTeam/Squad"} onClick={(e) => { if (!playerMode && window.history.state?.idx > 0) { e.preventDefault(); navigate(-1); } }} className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm font-medium">
               <ArrowLeft className="w-4 h-4" /> Volver
             </Link>
-            <div className={`flex gap-2 ${playerMode ? "hidden" : ""}`}>
+            <div className={`flex gap-2 ${staffEdit ? "" : "hidden"}`}>
               <button onClick={() => setEditDialogOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-white/80 hover:text-white border border-white/20 hover:border-white/40 transition-all">
                 <Pencil className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Editar</span>
               </button>
@@ -195,7 +201,7 @@ export default function PlayerProfile() {
                     </div>
                   )}
                 </div>
-                <button onClick={() => !playerMode && fileInputRef.current?.click()} className={`${playerMode ? "hidden" : ""} absolute inset-0 rounded-xl flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer`} aria-label="Cambiar foto">
+                <button onClick={() => staffEdit && fileInputRef.current?.click()} className={`${staffEdit ? "" : "hidden"} absolute inset-0 rounded-xl flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer`} aria-label="Cambiar foto">
                   {uploading ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Camera className="w-5 h-5 text-white" />}
                 </button>
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
@@ -253,7 +259,7 @@ export default function PlayerProfile() {
         <Tabs value={tab} onValueChange={setTab}>
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-4">
             <TabsList className="w-full bg-transparent p-0 h-auto border-b border-gray-100 flex rounded-none overflow-x-auto">
-              {tabs.map((t) => (
+              {visibleTabs.map((t) => (
                 <TabsTrigger
                   key={t.value}
                   value={t.value}
@@ -274,14 +280,14 @@ export default function PlayerProfile() {
               matchStats={matchStats}
               attendance={playerAttendance}
               injuries={playerInjuries}
-              onGoTab={setTab}
+              onGoTab={(t) => can(t) && setTab(t)}
             />
           </TabsContent>
 
           <TabsContent value="stats" className={tabContentClass}>
             <div className="space-y-4">
               <PlayerPerformancePanel playerId={playerId} />
-              {playerMode ? <PlayerMatchesReadOnly playerId={playerId} /> : <MatchStatsSection playerId={playerId} isGoalkeeper={player.position === "portero"} />}
+              {playerMode ? <PlayerMatchesReadOnly playerId={playerId} /> : <MatchStatsSection playerId={playerId} isGoalkeeper={player.position === "portero"} readOnly={!staffEdit} />}
               {!playerMode && <PlayerCorrectionsSection playerId={playerId} teamId={player.team_id} />}
             </div>
           </TabsContent>
@@ -289,11 +295,11 @@ export default function PlayerProfile() {
           <TabsContent value="entrenos" className={tabContentClass}>
             <div className="space-y-4">
               <AttendanceHistorySection attendance={playerAttendance} injuries={playerInjuries} />
-              {!playerMode && <TrainingLoadSection playerId={playerId} />}
+              {!playerMode && perms.load !== "none" && <TrainingLoadSection playerId={playerId} />}
             </div>
           </TabsContent>
 
-          <TabsContent value="pdi" className={tabContentClass}>
+          {can("pdi") && <TabsContent value="pdi" className={tabContentClass}>
             <div className="space-y-6">
               <Evaluation360Section player={player} playerId={playerId} />
               <PDIPlanSection player={player} team={team} />
@@ -304,10 +310,10 @@ export default function PlayerProfile() {
                 </div>
               </details>}
             </div>
-          </TabsContent>
+          </TabsContent>}
 
-          <TabsContent value="injuries" className={tabContentClass}>
-            {playerMode ? <PlayerInjuriesReadOnly playerId={playerId} /> : <div className="space-y-4">
+          {can("injuries") && <TabsContent value="injuries" className={tabContentClass}>
+            {playerMode || perms.medical !== "edit" ? <PlayerInjuriesReadOnly playerId={playerId} /> : <div className="space-y-4">
               <Button variant="club" onClick={() => setInjuryDialogOpen(true)} className="w-full">
                 <Plus className="w-4 h-4 mr-2" /> Registrar lesión
               </Button>
@@ -318,14 +324,14 @@ export default function PlayerProfile() {
                 staffEmails={staffEmails}
               />
             </div>}
-          </TabsContent>
+          </TabsContent>}
 
-          <TabsContent value="documents" className={tabContentClass}>
-            {playerMode ? <PlayerDocumentsReadOnly playerId={playerId} /> : <DocumentsSection playerId={playerId} />}
-          </TabsContent>
+          {can("documents") && <TabsContent value="documents" className={tabContentClass}>
+            {playerMode || perms.medical !== "edit" ? <PlayerDocumentsReadOnly playerId={playerId} /> : <DocumentsSection playerId={playerId} />}
+          </TabsContent>}
 
           <TabsContent value="historial" className={tabContentClass}>
-            {playerMode ? <PlayerHistoryReadOnly playerId={playerId} /> : <PlayerSeasonHistorySection playerId={playerId} />}
+            {!staffEdit ? <PlayerHistoryReadOnly playerId={playerId} /> : <PlayerSeasonHistorySection playerId={playerId} />}
           </TabsContent>
         </Tabs>
         {(authUser?.role === "admin" || playerMode) && <div className="mt-4"><FamiliesSection playerId={playerId} /></div>}

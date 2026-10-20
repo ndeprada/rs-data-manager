@@ -28,7 +28,7 @@ const ROLE_LABELS = {
   coordinador_f7: "Coord. F7",
   coordinador_f11: "Coord. F11",
   entrenador_porteros: "Entren. Porteros",
-  psicologo: "Psicólogo",
+  psicologo: "Técnico · Área psicología",
   admin: "Director / Admin",
 };
 
@@ -47,7 +47,7 @@ export default function Coaches() {
     setViewState(v);
     try { localStorage.setItem(VIEW_KEY, v); } catch { /* sin almacenamiento: no se recuerda */ }
   };
-  const { isCoordinator, coordType, isCoordinatorGeneral } = useTeamAccess();
+  const { isCoordinator, coordType, isCoordinatorGeneral, perms } = useTeamAccess();
   const { user: currentUser } = useAuth();
   const [filterTeam, setFilterTeam] = useState("all");
 
@@ -59,7 +59,7 @@ export default function Coaches() {
     queryFn: () => base44.entities.TeamStaffAssignment.filter({ active: true }),
   });
 
-  if (!isCoordinator) {
+  if (!isCoordinator && !perms.canViewCoachProfiles) {
     return (
       <div className="p-12 text-center">
         <p className="text-gray-400">No tienes acceso a esta sección.</p>

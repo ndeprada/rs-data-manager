@@ -20,7 +20,7 @@ export const APP_FUNCTIONS = [
   { value: "entrenador", label: "Entrenador", teams: "required" },
   { value: "entrenador_porteros", label: "Entrenador de Porteros", teams: "none", hint: "Rol general para todos los equipos" },
   { value: "preparador_fisico", label: "Preparador Físico", teams: "optional" },
-  { value: "psicologo", label: "Psicólogo", teams: "optional" },
+  { value: "psicologo", label: "Técnico · Área psicología", teams: "optional", hint: "Ve a todos los jugadores y entrenadores; evalúa y da feedback" },
   { value: "fisioterapeuta", label: "Fisioterapeuta", teams: "optional" },
 ];
 

@@ -15,10 +15,13 @@ import PlayerToken from "@/components/tactics/PlayerToken";
 import FreeDragField from "@/components/tactics/FreeDragField";
 import { FORMATIONS, FORMATION_KEYS } from "@/components/tactics/formations";
 import { playerFullName } from "@/lib/playerName";
+import { useTeamAccess } from "@/lib/TeamAccessContext";
 
 import { PageTitle } from "@/components/common/PageHeader";
 export default function Tactics() {
   const queryClient = useQueryClient();
+  // Las pizarras las crean y cambian los entrenadores del equipo, la Dirección Deportiva y la administración; el resto las consulta
+  const { canManageTeam, perms } = useTeamAccess();
   const [selectedTeam, setSelectedTeam] = useState("all");
   const [activeBoardId, setActiveBoardId] = useState(null);
   const [newBoardDialog, setNewBoardDialog] = useState(false);
@@ -140,9 +143,11 @@ export default function Tactics() {
               {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="club" onClick={() => setNewBoardDialog(true)} className="shadow-md hover:shadow-lg transition-shadow" size="lg">
-            <Plus className="w-5 h-5 mr-2" /> Nueva pizarra
-          </Button>
+          {perms.manage !== "none" && (
+            <Button variant="club" onClick={() => setNewBoardDialog(true)} className="shadow-md hover:shadow-lg transition-shadow" size="lg">
+              <Plus className="w-5 h-5 mr-2" /> Nueva pizarra
+            </Button>
+          )}
         </div>
       </div>
 
@@ -173,12 +178,14 @@ export default function Tactics() {
                         <p className="font-semibold text-gray-900 text-sm truncate">{board.name || board.formation}</p>
                         <p className="text-xs text-gray-400 truncate">{team?.name || "—"} · {board.formation}</p>
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteId(board.id); }}
-                        className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors shrink-0"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {canManageTeam(board.team_id) && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDeleteId(board.id); }}
+                          className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -190,6 +197,12 @@ export default function Tactics() {
         {/* Main: Tactics board */}
         {activeBoard ? (
           <div className="flex-1 space-y-4">
+            {!canManageTeam(activeBoard.team_id) && (
+              <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-3 py-2" style={{ borderRadius: "4px" }}>
+                Solo lectura: las pizarras de este equipo las cambian sus entrenadores y la Dirección Deportiva.
+              </p>
+            )}
+            <div className="space-y-4" {...(!canManageTeam(activeBoard.team_id) ? { inert: "", style: { opacity: 0.92 } } : {})}>
             {/* Toolbar */}
             <div className="bg-white border border-gray-200 shadow-sm flex flex-wrap items-center gap-4 px-5 py-3" style={{ borderRadius: "4px" }}>
               <div className="flex items-center gap-2">
@@ -335,6 +348,7 @@ export default function Tactics() {
                 <p className="text-xs text-gray-400 text-center">Haz clic en un jugador para añadirlo al campo. Arrástralo para posicionarlo.</p>
               </TabsContent>
             </Tabs>
+            </div>
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center min-h-64">
@@ -344,9 +358,11 @@ export default function Tactics() {
               </div>
               <p className="font-semibold text-gray-500">Selecciona o crea una pizarra</p>
               <p className="text-sm text-gray-400 mt-1">Elige una pizarra de la lista o crea una nueva</p>
-              <Button variant="club" onClick={() => setNewBoardDialog(true)} className="mt-4">
-                <Plus className="w-4 h-4 mr-2" /> Nueva pizarra
-              </Button>
+              {perms.manage !== "none" && (
+                <Button variant="club" onClick={() => setNewBoardDialog(true)} className="mt-4">
+                  <Plus className="w-4 h-4 mr-2" /> Nueva pizarra
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -379,7 +395,7 @@ export default function Tactics() {
               <Select value={newForm.team_id} onValueChange={(v) => setNewForm({ ...newForm, team_id: v })}>
                 <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar equipo" /></SelectTrigger>
                 <SelectContent>
-                  {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                  {teams.filter((t) => canManageTeam(t.id)).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

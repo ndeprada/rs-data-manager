@@ -36,7 +36,7 @@ const ROLE_LABELS = {
   coordinador_f7: "Coordinador F7",
   coordinador_f11: "Coordinador F11",
   entrenador_porteros: "Entrenador de Porteros",
-  psicologo: "Psicólogo",
+  psicologo: "Técnico · Área psicología",
 };
 
 export default function CoachProfile() {
@@ -45,7 +45,7 @@ export default function CoachProfile() {
   const staffId = urlParams.get("id");
   const userId = urlParams.get("userId"); // Usuario registrado con rol de staff
 
-  const { isCoordinator, isCoordinatorGeneral, coordType, teamIds } = useTeamAccess();
+  const { isCoordinator, isCoordinatorGeneral, coordType, teamIds, perms } = useTeamAccess();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -181,12 +181,14 @@ export default function CoachProfile() {
     (!!targetUser && targetUser.role !== "admin")
   );
 
-  const canView = isOwnProfile || coordCanSeeTeam();
+  // Área de psicología: ve a todos los entrenadores y les da feedback y evaluaciones (sin tocar sus datos personales)
+  const reviewsAllCoaches = perms.coaches === 'all' && perms.evalCoaches;
+  const canView = isOwnProfile || coordCanSeeTeam() || reviewsAllCoaches;
   const canEdit = isOwnProfile || coordCanSeeTeam();
   // Coordinadores ven PDI y obs. de partidos
-  const canViewReports = isCoordinatorGeneral || (isCoordinator && coordCanSeeTeam());
-  // Solo coordinador de la etapa correspondiente (o general/admin) puede crear evaluaciones
-  const canEvaluate = isCoordinatorGeneral || (isCoordinator && coordCanSeeTeam());
+  const canViewReports = isCoordinatorGeneral || (isCoordinator && coordCanSeeTeam()) || reviewsAllCoaches;
+  // Solo coordinador de la etapa correspondiente (o general/admin, o el área de psicología) puede crear evaluaciones
+  const canEvaluate = isCoordinatorGeneral || (isCoordinator && coordCanSeeTeam()) || reviewsAllCoaches;
   // El entrenador siempre ve su propia pestaña PDI (para ver informes publicados y dejar feedback)
   const showPDITab = canViewReports || isOwnProfile;
   const showFeedbackTab = canViewReports || isOwnProfile;

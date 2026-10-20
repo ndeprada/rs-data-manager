@@ -12,17 +12,24 @@ import PlayerParticipationTable from "@/components/stats/PlayerParticipationTabl
 import { playerFullName } from "@/lib/playerName";
 import { useCountedStats, STAT_SCOPES } from "@/lib/matchStatus";
 import { statTeamResolver, statsOfTeam } from "@/lib/teamStats";
+import { useTeamAccess } from "@/lib/TeamAccessContext";
 import StatsScopePills from "@/components/common/StatsScopePills";
 
 import { PageTitle } from "@/components/common/PageHeader";
 export default function Stats() {
-  const [selectedTeam, setSelectedTeam] = useState("all");
+  const [pickedTeam, setSelectedTeam] = useState("all");
   const [activeTab, setActiveTab] = useState("attendance");
+  const { perms, teamIds } = useTeamAccess();
 
-  const { data: teams = [] } = useQuery({
+  const { data: allTeams = [] } = useQuery({
     queryKey: ["teams"],
     queryFn: () => base44.entities.Team.list(),
   });
+
+  // Un entrenador ve las estadísticas de sus equipos; quien trabaja con todo el club, las de todos
+  const limited = perms.stats === "team";
+  const teams = limited ? allTeams.filter((t) => (teamIds || []).includes(t.id)) : allTeams;
+  const selectedTeam = limited ? (teams.some((t) => t.id === pickedTeam) ? pickedTeam : (teams[0]?.id || "none")) : pickedTeam;
 
   const { data: players = [] } = useQuery({
     queryKey: ["players"],
@@ -96,6 +103,10 @@ export default function Stats() {
     .filter(p => p.player)
     .sort((a, b) => b.minutes - a.minutes)[0];
 
+  if (perms.stats === "none") {
+    return <div className="p-12 text-center"><p className="text-gray-400">No tienes acceso a esta sección.</p></div>;
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -107,7 +118,7 @@ export default function Stats() {
             <SelectValue placeholder="Todos los equipos" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos los equipos</SelectItem>
+            {!limited && <SelectItem value="all">Todos los equipos</SelectItem>}
             {teams.map((t) => (
               <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
             ))}

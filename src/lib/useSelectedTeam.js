@@ -20,8 +20,12 @@ const setCurrent = (id) => {
  * - Coordinators/Admins: reads from localStorage, can be changed via selectTeam()
  */
 export function useSelectedTeam() {
-  const { isCoordinator, teamId, teamIds, coachTeamIds } = useTeamAccess();
+  const { isCoordinator: coordinator, teamId, teamIds, coachTeamIds, perms } = useTeamAccess();
   const selectedTeamId = useSyncExternalStore(subscribe, getSnapshot);
+
+  // Quien ve a todos los jugadores (coordinación, entrenador de porteros, psicología, fisio…) puede mirar cualquier equipo.
+  // Para las pantallas de Mi Equipo cuenta como coordinación: solo cambia qué equipos puede elegir.
+  const isCoordinator = coordinator || !!perms?.allTeams;
 
   // A coach with multiple teams also needs to be able to switch
   const isMultiTeamCoach = !isCoordinator && teamIds && teamIds.length > 1;

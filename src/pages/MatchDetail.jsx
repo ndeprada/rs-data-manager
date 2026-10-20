@@ -286,7 +286,7 @@ export default function MatchDetail() {
       {/* ── CONTENT ── */}
       {!canManageTeam(teamId) && (
         <div className="mb-3 px-3 py-2 rounded-md text-xs font-semibold border border-orange-200 bg-orange-50 text-orange-800">
-          Solo lectura: solo el administrador y los entrenadores de este equipo pueden gestionar la convocatoria, el acta y la táctica.
+          Solo lectura: solo los entrenadores de este equipo, la Dirección Deportiva y la administración pueden gestionar la convocatoria, el acta y la táctica.
         </div>
       )}
       <div {...(!canManageTeam(teamId) ? { inert: "", style: { pointerEvents: "none", opacity: 0.92 } } : {})}>

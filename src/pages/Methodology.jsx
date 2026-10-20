@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { PageTitle } from "@/components/common/PageHeader";
 export default function Methodology() {
-  const { isCoordinator, teamIds, selectedTeamId } = useTeamAccess();
+  const { isCoordinator, teamIds, selectedTeamId, perms } = useTeamAccess();
 
   const { data: teams = [] } = useQuery({
     queryKey: ["teams"],
@@ -20,7 +20,7 @@ export default function Methodology() {
   });
 
   // Coordinadores ven todos los equipos, entrenadores solo los suyos
-  const visibleTeams = isCoordinator
+  const visibleTeams = isCoordinator || perms.allTeams
     ? teams
     : teams.filter(t => teamIds.includes(t.id));
 

@@ -33,6 +33,10 @@ const ROLE_DISPLAY = {
   entrenador: "Entrenador",
   director: "Director",
   director_deportivo: "Dir. Deportivo",
+  entrenador_porteros: "Entr. porteros",
+  psicologo: "Área psicología",
+  preparador_fisico: "Prep. físico",
+  fisioterapeuta: "Fisio",
   admin: "Admin",
 };
 
@@ -153,7 +157,7 @@ function Sidebar(props) {
 
 function StaffSidebar({ onClose = () => {} }) {
   const { user, logout } = useAuth();
-  const { isCoordinator, appRole, selectedTeamId } = useTeamAccess();
+  const { isCoordinator, appRole, selectedTeamId, perms } = useTeamAccess();
   const pendingUsers = usePendingUsers(isCoordinator);
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
@@ -202,13 +206,20 @@ function StaffSidebar({ onClose = () => {} }) {
   ];
 
   const toolsNav = [
-    { label: "Estadísticas", path: "/Stats", icon: BarChart2 },
-    { label: "Metodología", path: "/Methodology", icon: BookOpen },
-    { label: "Táctica", path: "/Tactics", icon: Target },
-    { label: "Scouting", path: "/Scouting", icon: Binoculars },
-    { label: "Informes", path: "/Reports", icon: FileText },
-    { label: "Material", path: "/Material", icon: Package },
-  ];
+    { key: "stats", label: "Estadísticas", path: "/Stats", icon: BarChart2 },
+    { key: "methodology", label: "Metodología", path: "/Methodology", icon: BookOpen },
+    { key: "tactics", label: "Táctica", path: "/Tactics", icon: Target },
+    { key: "scouting", label: "Scouting", path: "/Scouting", icon: Binoculars },
+    { key: "reports", label: "Informes", path: "/Reports", icon: FileText },
+    { key: "material", label: "Material", path: "/Material", icon: Package },
+  ].filter((item) => perms.tools.includes(item.key));
+
+  // Quien ve a todos los jugadores sin ser coordinación (porteros, psicología, fisio…) tiene su propio bloque de club
+  const clubNav = [
+    perms.panel && { label: "Panel del club", path: "/Dashboard", icon: LayoutDashboard },
+    perms.allTeams && { label: "Jugadores", path: "/Players", icon: Users },
+    perms.canViewCoachProfiles && { label: "Personal", path: "/Coaches", icon: UserCheck },
+  ].filter(Boolean);
 
   return (
     <div className="flex flex-col h-full" style={{ background: "var(--granate)" }}>
@@ -234,10 +245,10 @@ function StaffSidebar({ onClose = () => {} }) {
           </>
         )}
 
-        {!isCoordinator && (
+        {!isCoordinator && clubNav.length > 0 && (
           <>
             <SectionLabel>Club</SectionLabel>
-            <NavItem item={{ label: "Panel del club", path: "/Dashboard", icon: LayoutDashboard }} onClick={onClose} />
+            {clubNav.map(item => <NavItem key={item.path} item={item} onClick={onClose} />)}
           </>
         )}
 
@@ -262,11 +273,19 @@ function StaffSidebar({ onClose = () => {} }) {
           <NavItem item={{ label: "Mi ficha de jugador", path: `/PlayerProfile?id=${user.player_id}&as=player`, icon: UserCheck }} onClick={onClose} />
         )}
 
-        <SectionLabel>Mi Equipo</SectionLabel>
-        <MyTeamNav onClose={onClose} notificationCount={notificationCount} />
+        {perms.myTeam && (
+          <>
+            <SectionLabel>Mi Equipo</SectionLabel>
+            <MyTeamNav onClose={onClose} notificationCount={notificationCount} />
+          </>
+        )}
 
-        <SectionLabel>Herramientas</SectionLabel>
-        {toolsNav.map(item => <NavItem key={item.path} item={item} onClick={onClose} />)}
+        {toolsNav.length > 0 && (
+          <>
+            <SectionLabel>Herramientas</SectionLabel>
+            {toolsNav.map(item => <NavItem key={item.path} item={item} onClick={onClose} />)}
+          </>
+        )}
       </nav>
 
       {/* User */}

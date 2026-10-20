@@ -39,7 +39,7 @@ function StarPicker({ value, onChange }) {
   );
 }
 
-export default function MatchStatsSection({ playerId, isGoalkeeper = false }) {
+export default function MatchStatsSection({ playerId, isGoalkeeper = false, readOnly = false }) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
@@ -118,9 +118,11 @@ export default function MatchStatsSection({ playerId, isGoalkeeper = false }) {
               </span>
             )}
           </div>
-          <Button variant="club" size="sm" onClick={() => setDialogOpen(true)}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> Añadir
-          </Button>
+          {!readOnly && (
+            <Button variant="club" size="sm" onClick={() => setDialogOpen(true)}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> Añadir
+            </Button>
+          )}
         </div>
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Cargando...</div>
@@ -176,10 +178,12 @@ export default function MatchStatsSection({ playerId, isGoalkeeper = false }) {
                       ) : "—"}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1">
-                        <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => setDeleteId(s.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
+                      {!readOnly && (
+                        <div className="flex justify-end gap-1">
+                          <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => setDeleteId(s.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

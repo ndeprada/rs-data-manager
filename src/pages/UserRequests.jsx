@@ -10,7 +10,7 @@ const ROLE_LABELS = {
   entrenador: "Entrenador",
   preparador_fisico: "Preparador Físico",
   entrenador_porteros: "Entrenador de Porteros",
-  psicologo: "Psicólogo",
+  psicologo: "Técnico · Área psicología",
   fisioterapeuta: "Fisioterapeuta",
   coordinador_f7: "Coordinador F7",
   coordinador_f11: "Coordinador F11",

@@ -56,6 +56,10 @@ const RootRedirect = () => {
   if (user?.role === "admin" || ["director", "director_deportivo", "coordinador_general", "coordinador_f7", "coordinador_f11"].includes(appRole)) {
     return <Navigate to="/Dashboard" replace />;
   }
+  // Psicología y fisioterapia no trabajan con un equipo: abren en la lista de jugadores
+  if (["psicologo", "fisioterapeuta"].includes(appRole)) {
+    return <Navigate to="/Players" replace />;
+  }
   if (STAFF_ROLES.includes(appRole)) {
     return <Navigate to="/MyTeam" replace />;
   }

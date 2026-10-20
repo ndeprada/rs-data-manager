@@ -13,6 +13,7 @@ import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import PlayerArchive from "@/components/players/PlayerArchive";
 import TabBar from "@/components/common/TabBar";
 import { playerSearchName } from "@/lib/playerName";
+import { useTeamAccess } from "@/lib/TeamAccessContext";
 
 import { PageTitle } from "@/components/common/PageHeader";
 const POSITIONS = [
@@ -59,6 +60,7 @@ const LATERALITY = [
 
 export default function Players() {
   const queryClient = useQueryClient();
+  const { perms } = useTeamAccess();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
@@ -153,20 +155,31 @@ export default function Players() {
     return 0;
   });
 
+  // Los entrenadores trabajan con la plantilla de su equipo (Mi Equipo); el listado del club es para quien ve a todos
+  if (perms.players !== "all") {
+    return (
+      <div className="p-12 text-center">
+        <p className="text-gray-400">No tienes acceso a esta sección.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <PageTitle kicker="Directorio" title="Jugadores" subtitle={<>Racing Sarrià · {players.length} jugadores registrados</>} />
-        <Button variant="club" onClick={() => { setEditingPlayer(null); setDialogOpen(true); }}>
-          <Plus className="w-4 h-4 mr-1" /> Nuevo Jugador
-        </Button>
+        {perms.editPlayers && (
+          <Button variant="club" onClick={() => { setEditingPlayer(null); setDialogOpen(true); }}>
+            <Plus className="w-4 h-4 mr-1" /> Nuevo Jugador
+          </Button>
+        )}
       </div>
 
       <TabBar
         value={view}
         onChange={setView}
-        items={[{ value: "current", label: "Plantilla actual" }, { value: "history", label: "Histórico", badge: historyCount }]}
+        items={[{ value: "current", label: "Plantilla actual" }, ...(perms.editPlayers ? [{ value: "history", label: "Histórico", badge: historyCount }] : [])]}
       />
       {view === "history" && <PlayerArchive players={players} teams={teams} />}
 
@@ -322,14 +335,16 @@ export default function Players() {
                         }`} style={{ fontFamily: "var(--font-display)" }}>{player.status || "activo"}</span>
                       </td>
                       <td className="px-3 py-1.5 text-right">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => { setEditingPlayer(player); setDialogOpen(true); }} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700">
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => setDeleteId(player.id)} className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        {perms.editPlayers && (
+                          <div className="flex justify-end gap-1">
+                            <button onClick={() => { setEditingPlayer(player); setDialogOpen(true); }} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => setDeleteId(player.id)} className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
