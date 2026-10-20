@@ -10,6 +10,7 @@ import { playerFullName } from "@/lib/playerName";
 import { calcMinutesPlayed, actaMinutes, totalMinutes, defaultDuration, teamDefaultDuration, durationLabel, DURATIONS } from "@/lib/matchDuration";
 import LineupSummary from "@/components/match/LineupSummary";
 import GoalClassifier from "@/components/match/GoalClassifier";
+import SaveStatus from "@/components/common/SaveStatus";
 import { toStored, fromStored, goalLabel } from "@/lib/goalTypes";
 
 // ── Formatos de partido ──────────────────────────────────
@@ -111,20 +112,6 @@ function Timeline({ events, players, opponent, onRemove, onEdit }) {
       ))}
     </div>
   );
-}
-
-// ── Estado del guardado automático ───────────────────────
-function SaveIndicator({ state, onRetry }) {
-  if (state === "error") {
-    return (
-      <span className="ml-auto text-[11px] text-red-600 flex items-center gap-1.5">
-        <AlertTriangle className="w-3 h-3" /> No se ha podido guardar
-        <button type="button" onClick={onRetry} className="underline font-semibold">Reintentar</button>
-      </span>
-    );
-  }
-  const text = state === "saving" || state === "pending" ? "Guardando…" : state === "saved" ? "✓ Guardado" : "Se guarda solo";
-  return <span className={`ml-auto text-[11px] ${state === "saved" ? "text-green-600 font-semibold" : "text-gray-400"}`} aria-live="polite">{text}</span>;
 }
 
 // ── Componente principal ─────────────────────────────────
@@ -442,7 +429,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
     healedRef.current = true;
     setScoreHome(home); setScoreAway(away);
     queueSave({ score_home: home, score_away: away });
-  }, [event?.id, event?.score_home, event?.score_away]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [event?.id, event?.score_home, event?.score_away]);
 
   return (
     <div className="space-y-5">
@@ -473,7 +460,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
               {defaultSaved ? "✓ Habitual del equipo" : savingDefault ? "Guardando…" : `Guardar como habitual de ${team.name}`}
             </button>
           )}
-          <SaveIndicator state={saveState} onRetry={saveAll} />
+          <SaveStatus state={saveState} onRetry={saveAll} className="ml-auto" />
         </div>
 
         {/* Mismo orden que la cabecera del partido: el equipo local a la izquierda (el marcador guardado sigue siendo nuestros goles / goles del rival) */}

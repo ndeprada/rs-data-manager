@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Star, Save, Check, Plus, Trash2, ExternalLink, Play } from "lucide-react";
+import { Star, Plus, Trash2, ExternalLink, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { playerFullName } from "@/lib/playerName";
 import { calcMinutesPlayed, getMatchMinutes } from "@/components/match/ActaTab";
+import { useAutosave } from "@/lib/useAutosave";
+import SaveStatus from "@/components/common/SaveStatus";
 
 const POSITION_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
 const STAR_LABELS = ["", "Mal", "Bien", "Muy bien"];
@@ -34,8 +36,8 @@ function Stars({ value, onChange }) {
 function embedOf(url) {
   const u = String(url || "");
   let m;
-  if ((m = u.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{6,})/))) return { kind: "iframe", src: `https://www.youtube.com/embed/${m[1]}?rel=0` };
-  if ((m = u.match(/vimeo\.com\/(?:video\/)?(\d+)/))) return { kind: "iframe", src: `https://player.vimeo.com/video/${m[1]}` };
+  if ((m = u.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{6,})/))) return { kind: "iframe", src: `https://www.youtube.com/embed/${m[1]}?rel=0&autoplay=1` };
+  if ((m = u.match(/vimeo\.com\/(?:video\/)?(\d+)/))) return { kind: "iframe", src: `https://player.vimeo.com/video/${m[1]}?autoplay=1` };
   if (/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(u)) return { kind: "file", src: u };
   return null;
 }
@@ -94,47 +96,31 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
   const [newUrl, setNewUrl] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [playing, setPlaying] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [seeded, setSeeded] = useState(false);
 
-  useEffect(() => {
-    if (seeded || !isFetched || !event) return;
-    const r = {};
-    stats.forEach((s) => { r[s.player_id] = { rating: s.rating || 0, notes: s.notes || "" }; });
-    setRows(r);
-    setTeamEval(event.team_eval || {});
-    setTeamNotes(event.analysis_notes_team || "");
-    setRivalNotes(event.analysis_notes_rival || "");
-    setLinks(event.video_links || []);
-    setSeeded(true);
-  }, [seeded, isFetched, event, stats]);
+  // MatchStats ya conocidos por jugador: así un guardado nuevo no vuelve a crear uno que acaba de crearse
+  const known = useRef(new Map());
+  useEffect(() => { stats.forEach((s) => known.current.set(s.player_id, s)); }, [stats]);
 
-  const setRow = (pid, patch) => { setSaved(false); setRows((prev) => ({ ...prev, [pid]: { ...prev[pid], ...patch } })); };
-
-  const addLink = () => {
-    let url = newUrl.trim();
-    if (!url) return;
-    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-    setLinks((l) => [...l, { url, title: newTitle.trim() || platformOf(url) || "Vídeo del partido", added_at: new Date().toISOString() }]);
-    setNewUrl(""); setNewTitle(""); setSaved(false);
-  };
-
-  const save = async () => {
-    setSaving(true);
-    try {
+  const form = { rows, teamEval, team_notes, rival_notes, links };
+  const autosave = useAutosave({
+    value: form,
+    enabled: seeded,
+    save: async (v) => {
       const matchMinutes = getMatchMinutes(event?.football_format, event?.match_duration, team);
       for (const p of played) {
-        const row = rows[p.id] || {};
-        const existing = stats.find((s) => s.player_id === p.id);
+        const row = v.rows[p.id] || {};
+        const existing = known.current.get(p.id);
         const rating = row.rating || null;
         const notes = (row.notes || "").trim();
         if (existing) {
           if ((existing.rating || null) === rating && (existing.notes || "") === notes) continue;
-          await base44.entities.MatchStats.update(existing.id, { ...existing, rating, notes });
+          const updated = { ...existing, rating, notes };
+          await base44.entities.MatchStats.update(existing.id, updated);
+          known.current.set(p.id, updated);
         } else if (rating || notes) {
           const isStarter = starterIds.includes(p.id);
-          await base44.entities.MatchStats.create({
+          const created = await base44.entities.MatchStats.create({
             player_id: p.id, event_id: eventId,
             date: event?.date?.split("T")[0] || new Date().toISOString().split("T")[0],
             opponent: event?.opponent || "",
@@ -143,22 +129,44 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
             goals: 0, assists: 0, yellow_cards: 0, double_yellow_card: 0, red_cards: 0,
             rating, notes,
           });
+          if (created?.id) known.current.set(p.id, created);
         }
       }
       await base44.entities.Event.update(eventId, {
-        team_eval: Object.values(teamEval).some(Boolean) ? teamEval : null,
-        analysis_notes_team: team_notes.trim() || null,
-        analysis_notes_rival: rival_notes.trim() || null,
-        video_links: links,
+        team_eval: Object.values(v.teamEval).some(Boolean) ? v.teamEval : null,
+        analysis_notes_team: v.team_notes.trim() || null,
+        analysis_notes_rival: v.rival_notes.trim() || null,
+        video_links: v.links,
       });
       qc.invalidateQueries({ queryKey: ["matchstats-event", eventId] });
       qc.invalidateQueries({ queryKey: ["matchstats"] });
       qc.invalidateQueries({ queryKey: ["event", eventId] });
       qc.invalidateQueries({ queryKey: ["events"] });
-      setSaved(true);
-    } finally {
-      setSaving(false);
-    }
+    },
+  });
+
+  useEffect(() => {
+    if (seeded || !isFetched || !event) return;
+    const r = {};
+    stats.forEach((s) => { r[s.player_id] = { rating: s.rating || 0, notes: s.notes || "" }; });
+    const loaded = { rows: r, teamEval: event.team_eval || {}, team_notes: event.analysis_notes_team || "", rival_notes: event.analysis_notes_rival || "", links: event.video_links || [] };
+    setRows(loaded.rows);
+    setTeamEval(loaded.teamEval);
+    setTeamNotes(loaded.team_notes);
+    setRivalNotes(loaded.rival_notes);
+    setLinks(loaded.links);
+    autosave.reset(loaded);
+    setSeeded(true);
+  }, [seeded, isFetched, event, stats]);
+
+  const setRow = (pid, patch) => { setRows((prev) => ({ ...prev, [pid]: { ...prev[pid], ...patch } })); };
+
+  const addLink = () => {
+    let url = newUrl.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    setLinks((l) => [...l, { url, title: newTitle.trim() || platformOf(url) || "Vídeo del partido", added_at: new Date().toISOString() }]);
+    setNewUrl(""); setNewTitle("");
   };
 
   const card = "bg-white border border-gray-200 rounded-xl p-4 space-y-3";
@@ -168,10 +176,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-gray-500">Las valoraciones y correcciones de cada jugador quedan guardadas en su ficha, en Estadísticas → Correcciones.</p>
-        <Button variant="club" onClick={save} disabled={saving} className="shrink-0">
-          {saved ? <Check className="w-4 h-4 mr-1.5" /> : <Save className="w-4 h-4 mr-1.5" />}
-          {saving ? "Guardando…" : saved ? "Guardado" : "Guardar análisis"}
-        </Button>
+        <SaveStatus state={autosave.state} onRetry={autosave.flush} className="shrink-0" />
       </div>
 
       {/* Valoración rápida del equipo */}
@@ -186,52 +191,54 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
               <p className="text-xs text-gray-700 min-w-0">{label}</p>
               <div className="flex items-center gap-1.5 shrink-0">
                 {evalAvg[k] != null && <span className="text-[10px] text-gray-400 tabular-nums">({evalAvg[k].toFixed(1).replace(".", ",")})</span>}
-                <Stars value={teamEval[k] || 0} onChange={(v) => { setSaved(false); setTeamEval((t) => ({ ...t, [k]: v })); }} />
+                <Stars value={teamEval[k] || 0} onChange={(v) => setTeamEval((t) => ({ ...t, [k]: v }))} />
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Vídeo */}
+      {/* Vídeo: miniatura compacta; al pulsar play la tarjeta se ensancha y aparece el reproductor grande */}
       <div className={card}>
         <p className={h}>Vídeo del partido</p>
-        {playing != null && links[playing] && (() => {
-          const emb = embedOf(links[playing].url);
-          return emb ? (
-            <div className="rounded-lg overflow-hidden bg-black aspect-video">
-              {emb.kind === "iframe"
-                ? <iframe src={emb.src} title="Vídeo del partido" className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
-                : <video src={emb.src} controls autoPlay className="w-full h-full" />}
-            </div>
-          ) : null;
-        })()}
         {links.length > 0 && (
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-2">
             {links.map((l, i) => {
               const emb = embedOf(l.url);
               const thumb = youtubeThumb(l.url);
-              const open = () => { if (emb) setPlaying(playing === i ? null : i); else window.open(l.url, "_blank", "noopener"); };
+              const isPlaying = playing === i && !!emb;
+              const open = () => { if (emb) setPlaying(isPlaying ? null : i); else window.open(l.url, "_blank", "noopener"); };
               return (
-                <div key={i} className={`rounded-xl overflow-hidden border ${playing === i ? "border-[#73000A]" : "border-gray-200"} bg-white`}>
-                  <button type="button" onClick={open} className="relative block w-full aspect-video bg-gray-900 group" title={emb ? "Reproducir aquí" : "Abrir vídeo"}>
-                    {thumb && <img src={thumb} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" />}
-                    <span className="absolute inset-0 flex items-center justify-center">
-                      <span className="w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110" style={{ background: "var(--granate)" }}>
-                        <Play className="w-7 h-7 ml-0.5 fill-white" />
+                <div key={i} className={`rounded-xl border bg-white overflow-hidden ${isPlaying ? "sm:col-span-2 border-[#73000A]" : "border-gray-200"}`}>
+                  <div className="flex items-center gap-3 p-2">
+                    <button type="button" onClick={open} className="relative shrink-0 w-24 aspect-video rounded-lg overflow-hidden bg-gray-900 group" title={emb ? (isPlaying ? "Cerrar el reproductor" : "Reproducir aquí") : "Abrir vídeo"}>
+                      {thumb && <img src={thumb} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" />}
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <span className="w-7 h-7 rounded-full flex items-center justify-center text-white shadow transition-transform group-hover:scale-110" style={{ background: "var(--granate)" }}>
+                          {isPlaying ? <X className="w-4 h-4" /> : <Play className="w-3.5 h-3.5 ml-0.5 fill-white" />}
+                        </span>
                       </span>
-                    </span>
-                    <span className="absolute left-2 bottom-2 text-[10px] font-bold uppercase tracking-wide text-white/90 bg-black/50 rounded px-1.5 py-0.5">
-                      {playing === i ? "Reproduciendo" : emb ? "Ver partido" : `Abrir en ${platformOf(l.url) || "otra pestaña"}`}
-                    </span>
-                  </button>
-                  <div className="flex items-center gap-2 px-3 py-2">
-                    <p className="flex-1 min-w-0 text-xs font-bold text-gray-900 truncate">{l.title}</p>
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-900 truncate">{l.title}</p>
+                      <p className="text-[10px] text-gray-500 truncate">
+                        {isPlaying ? "Reproduciendo" : emb ? "Pulsa play para verlo aquí" : `Se abre en ${platformOf(l.url) || "otra pestaña"}`}
+                      </p>
+                    </div>
                     <a href={l.url} target="_blank" rel="noopener noreferrer" title="Abrir en una pestaña nueva" className="p-1 text-gray-400 hover:text-gray-700"><ExternalLink className="w-3.5 h-3.5" /></a>
-                    <button type="button" onClick={() => { setLinks((x) => x.filter((_, j) => j !== i)); setPlaying(null); setSaved(false); }} className="p-1 text-gray-300 hover:text-red-500">
+                    <button type="button" title="Quitar el vídeo" onClick={() => { setLinks((x) => x.filter((_, j) => j !== i)); setPlaying(null); }} className="p-1 text-gray-300 hover:text-red-500">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
+                  {isPlaying && (
+                    <div className="px-2 pb-2">
+                      <div className="rounded-lg overflow-hidden bg-black aspect-video w-full max-w-4xl mx-auto">
+                        {emb.kind === "iframe"
+                          ? <iframe src={emb.src} title={l.title || "Vídeo del partido"} className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
+                          : <video src={emb.src} controls autoPlay className="w-full h-full" />}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -275,12 +282,12 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
       <div className="grid md:grid-cols-2 gap-4">
         <div className={card}>
           <p className={h}>Observaciones del partido</p>
-          <Textarea value={team_notes} onChange={(e) => { setTeamNotes(e.target.value); setSaved(false); }} rows={6}
+          <Textarea value={team_notes} onChange={(e) => setTeamNotes(e.target.value)} rows={6}
             placeholder="Correcciones generales del equipo, qué funcionó, qué hay que mejorar…" className="text-sm border-gray-200" />
         </div>
         <div className={card}>
           <p className={h}>Sobre el rival{event?.opponent ? ` · ${event.opponent}` : ""}</p>
-          <Textarea value={rival_notes} onChange={(e) => { setRivalNotes(e.target.value); setSaved(false); }} rows={6}
+          <Textarea value={rival_notes} onChange={(e) => setRivalNotes(e.target.value)} rows={6}
             placeholder="Cómo juegan, jugadores a vigilar, balón parado… para la próxima vez que nos enfrentemos." className="text-sm border-gray-200" />
         </div>
       </div>

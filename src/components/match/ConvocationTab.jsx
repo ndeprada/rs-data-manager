@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Search, Plus, Check, Eye, Clock, MapPin, MessageCircle, Copy, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +12,8 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { playerFullName, matchesPlayerSearch } from "@/lib/playerName";
 import { NO_CONV_REASONS } from "@/lib/participation";
+import { useAutosave } from "@/lib/useAutosave";
+import SaveStatus from "@/components/common/SaveStatus";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CT", libre: "LIB",
@@ -152,7 +154,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const { data: convocation } = useQuery({
+  const { data: convocation, isFetched } = useQuery({
     queryKey: ["convocatoria", eventId],
     queryFn: () => base44.entities.Convocatoria.filter({ event_id: eventId }).then(d => d[0] || null),
     enabled: !!eventId,
@@ -163,36 +165,51 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
     queryFn: () => base44.entities.Player.list(),
   });
 
-  useEffect(() => {
-    if (convocation) {
-      setConvocadoIds(convocation.player_ids || []);
-      setNotes(convocation.notes || "");
-      setCallupTime(convocation.callup_time || "");
-      setObservations(convocation.observations || "");
-      setReasons(convocation.absence_reasons || {});
-    }
-  }, [convocation?.id]);
+  // Lo que se guarda. El motivo de cada jugador no convocado queda guardado para las estadísticas de ausencias.
+  const buildForm = (ids, why, n, callup, obs) => ({
+    player_ids: ids,
+    notes: n,
+    callup_time: callup,
+    observations: obs,
+    absence_reasons: Object.fromEntries(Object.entries(why).filter(([id, r]) => r && !ids.includes(id))),
+  });
+  const form = buildForm(convocadoIds, reasons, notes, callupTime, observations);
 
-  const saveMutation = useMutation({
-    mutationFn: (data) => convocation
-      ? base44.entities.Convocatoria.update(convocation.id, data)
-      : base44.entities.Convocatoria.create({ event_id: eventId, team_id: teamId, ...data }),
-    onSuccess: () => {
+  // Carga de lo guardado y guardado automático (no se guarda nada hasta que lo guardado esté cargado)
+  const [hydrated, setHydrated] = useState(false);
+  const convIdRef = useRef(null); // id de la convocatoria (también cuando la crea este mismo guardado)
+  const autosave = useAutosave({
+    value: form,
+    enabled: hydrated,
+    save: async (data) => {
+      if (convIdRef.current) await base44.entities.Convocatoria.update(convIdRef.current, data);
+      else {
+        const created = await base44.entities.Convocatoria.create({ event_id: eventId, team_id: teamId, ...data });
+        convIdRef.current = created.id;
+      }
       queryClient.invalidateQueries({ queryKey: ["convocatoria", eventId] });
       queryClient.invalidateQueries({ queryKey: ["convocatorias"] });
     },
   });
+  useEffect(() => {
+    if (!isFetched) return;
+    if (convocation && convIdRef.current !== convocation.id) {
+      convIdRef.current = convocation.id;
+      const ids = convocation.player_ids || [];
+      const why = convocation.absence_reasons || {};
+      setConvocadoIds(ids);
+      setNotes(convocation.notes || "");
+      setCallupTime(convocation.callup_time || "");
+      setObservations(convocation.observations || "");
+      setReasons(why);
+      autosave.reset(buildForm(ids, why, convocation.notes || "", convocation.callup_time || "", convocation.observations || ""));
+    }
+    setHydrated(true);
+  }, [isFetched, convocation?.id]);
 
-  // Motivo de cada jugador no convocado (queda guardado para las estadísticas de ausencias)
-  const absenceReasons = () => Object.fromEntries(Object.entries(reasons).filter(([id, r]) => r && !convocadoIds.includes(id)));
-
-  const handleSave = () => {
-    saveMutation.mutate({ player_ids: convocadoIds, notes, callup_time: callupTime, observations, absence_reasons: absenceReasons() });
-  };
-
+  // «Avisar convocatoria»: primero se guarda lo pendiente y luego se abre el aviso
   const handleSaveAndNotify = async () => {
-    // First save, then show modal
-    await saveMutation.mutateAsync({ player_ids: convocadoIds, notes, callup_time: callupTime, observations, absence_reasons: absenceReasons() });
+    await autosave.flush();
     setShowNotifyModal(true);
   };
 
@@ -200,8 +217,9 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
   const handleMarkNotified = async () => {
     setSending(true);
     try {
-      if (convocation) {
-        await base44.entities.Convocatoria.update(convocation.id, { notified: true, notified_at: new Date().toISOString() });
+      const id = convIdRef.current || convocation?.id;
+      if (id) {
+        await base44.entities.Convocatoria.update(id, { notified: true, notified_at: new Date().toISOString() });
       }
       queryClient.invalidateQueries({ queryKey: ["convocatoria", eventId] });
       setShowNotifyModal(false);
@@ -305,17 +323,15 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
             <span className="text-[10px] text-green-600 font-bold border border-green-200 bg-green-50 px-2 py-0.5 rounded-full">✓ Notificado</span>
           )}
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          <SaveStatus state={autosave.state} onRetry={autosave.flush} />
           <Button size="sm" variant="outline" onClick={toggleAll} className="text-xs border-gray-200">
             <Check className="w-3.5 h-3.5 mr-1" /> {allSelected ? "Quitar todos" : "Seleccionar todos"}
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowGuestSearch(!showGuestSearch)} className="text-xs border-gray-200">
             <Plus className="w-3.5 h-3.5 mr-1" /> Añadir de otro equipo
           </Button>
-          <Button variant="club" size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="text-xs">
-            <Check className="w-3.5 h-3.5 mr-1" /> {saveMutation.isPending ? "Guardando…" : "Guardar"}
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleSaveAndNotify} disabled={saveMutation.isPending || convocadosCount === 0}
+          <Button size="sm" variant="outline" onClick={handleSaveAndNotify} disabled={autosave.state === "saving" || convocadosCount === 0}
             className="text-xs border-blue-200 text-blue-700 hover:bg-blue-50">
             <Eye className="w-3.5 h-3.5 mr-1" /> Avisar convocatoria
           </Button>
