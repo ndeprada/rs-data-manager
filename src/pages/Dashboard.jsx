@@ -12,6 +12,8 @@ import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { playerFullName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
 import { convocatoriaAlert } from "@/lib/matchTiming";
+import { groupPendingByTeam } from "@/lib/pendingByTeam";
+import PendingByTeamDialog from "@/components/dashboard/PendingByTeamDialog";
 import { useTrainingStatus } from "@/lib/trainingStatus";
 import { usePendingUsers } from "@/lib/pendingUsers";
 
@@ -188,22 +190,36 @@ export default function Dashboard() {
   const [seasonYear] = CURRENT_SEASON.split("-");
   const seasonStart = new Date(Number(seasonYear), 7, 1);
   const matchLink = (e, tab) => `/MatchDetail?id=${e.id}&teamId=${e.team_id}${tab ? `&tab=${tab}` : ""}`;
-  // Los amistosos sin gestionar no generan alerta (en la lista de partidos sí aparecen marcados como pendientes)
-  const pendMatch = (e) => isMatch(e.type) && e.type !== "partido_amistoso" && (!recordIds || recordIds.has(e.team_id));
   const withConv = new Set(convocs.filter((c) => (c.player_ids || []).length > 0).map((c) => c.event_id));
-  // Convocatoria: se avisa solo cuando faltan 24 h o menos, o si el partido ya se jugó sin convocar
-  const convAlert = (e) => (pendMatch(e) ? convocatoriaAlert(e, withConv.has(e.id), now) : null);
-  const noConv = events.filter((e) => convAlert(e) === "soon").sort((a, b) => new Date(a.date) - new Date(b.date));
-  const noConvPlayed = events.filter((e) => new Date(e.date) >= seasonStart && convAlert(e) === "played").sort((a, b) => new Date(a.date) - new Date(b.date));
-  const playedOver = events.filter((e) => pendMatch(e) && new Date(e.date) >= seasonStart && new Date(e.date).getTime() < now.getTime() - 2 * 3600 * 1000);
-  const noResult = playedOver.filter((e) => e.score_home == null || e.score_away == null);
-  const noClass = playedOver.filter((e) => (e.goal_events || []).some((g) => !fromStored(g).phase));
+  // Partidos pendientes de los equipos que cumplan "teamOk". Los amistosos sin gestionar no generan alerta
+  // (en la lista de partidos sí aparecen marcados como pendientes).
+  const pendingMatchLists = (teamOk) => {
+    const pendMatch = (e) => isMatch(e.type) && e.type !== "partido_amistoso" && teamOk(e.team_id);
+    // Convocatoria: se avisa solo cuando faltan 24 h o menos, o si el partido ya se jugó sin convocar
+    const convAlert = (e) => (pendMatch(e) ? convocatoriaAlert(e, withConv.has(e.id), now) : null);
+    const byDate = (a, b) => new Date(a.date) - new Date(b.date);
+    const playedOver = events.filter((e) => pendMatch(e) && new Date(e.date) >= seasonStart && new Date(e.date).getTime() < now.getTime() - 2 * 3600 * 1000);
+    return {
+      soon: events.filter((e) => convAlert(e) === "soon").sort(byDate),
+      played: events.filter((e) => new Date(e.date) >= seasonStart && convAlert(e) === "played").sort(byDate),
+      result: playedOver.filter((e) => e.score_home == null || e.score_away == null),
+      goals: playedOver.filter((e) => (e.goal_events || []).some((g) => !fromStored(g).phase)),
+    };
+  };
+  const { soon: noConv, played: noConvPlayed, result: noResult, goals: noClass } = pendingMatchLists((id) => !recordIds || recordIds.has(id));
+
+  // Coordinación: al pulsar una alerta se abre el listado por equipos de todo el club (los avisos no cambian)
+  const [pendingList, setPendingList] = useState(null); // null (cerrado) | "all" | "trainings" | "matches"
+  const openList = (kind) => (isCoordinator ? () => setPendingList(kind) : undefined);
+  const pendingRows = pendingList
+    ? groupPendingByTeam({ trainings: [...pendingTrainings.values()], matches: pendingMatchLists(() => true), teams, compare: compareTeams })
+    : [];
   const pendingItems = [
-    { key: "att", icon: ClipboardCheck, count: myPendingTr.length, label: myPendingTr.length === 1 ? "entreno sin asistencia" : "entrenos sin asistencia", cta: "Pasar lista", to: myPendingTr[0] ? `/MyTeam/Attendance?eventId=${myPendingTr[0].id}` : "/MyTeam/Attendance", tone: "#d97706" },
-    { key: "conv", icon: Users, count: noConv.length, label: noConv.length === 1 ? "partido en 24 h sin convocatoria" : "partidos en 24 h sin convocatoria", cta: "Convocar", to: noConv[0] ? matchLink(noConv[0], "convocatoria") : "/Calendar" },
-    { key: "convPlayed", icon: Users, count: noConvPlayed.length, label: noConvPlayed.length === 1 ? "partido jugado sin convocatoria" : "partidos jugados sin convocatoria", cta: "Revisar", to: noConvPlayed[0] ? matchLink(noConvPlayed[0], "convocatoria") : "/Calendar" },
-    { key: "res", icon: Trophy, count: noResult.length, label: noResult.length === 1 ? "partido jugado sin resultado" : "partidos jugados sin resultado", cta: "Revisar", to: noResult[0] ? matchLink(noResult[noResult.length - 1]) : "/Calendar" },
-    { key: "goals", icon: Target, count: noClass.length, label: noClass.length === 1 ? "partido con goles sin clasificar" : "partidos con goles sin clasificar", cta: "Clasificar", to: noClass[0] ? matchLink(noClass[0], "acta") : "/Calendar", tone: "var(--granate)" },
+    { key: "att", icon: ClipboardCheck, count: myPendingTr.length, label: myPendingTr.length === 1 ? "entreno sin asistencia" : "entrenos sin asistencia", cta: "Pasar lista", onClick: openList("trainings"), to: myPendingTr[0] ? `/MyTeam/Attendance?eventId=${myPendingTr[0].id}` : "/MyTeam/Attendance", tone: "#d97706" },
+    { key: "conv", icon: Users, count: noConv.length, label: noConv.length === 1 ? "partido en 24 h sin convocatoria" : "partidos en 24 h sin convocatoria", cta: "Convocar", onClick: openList("matches"), to: noConv[0] ? matchLink(noConv[0], "convocatoria") : "/Calendar" },
+    { key: "convPlayed", icon: Users, count: noConvPlayed.length, label: noConvPlayed.length === 1 ? "partido jugado sin convocatoria" : "partidos jugados sin convocatoria", cta: "Revisar", onClick: openList("matches"), to: noConvPlayed[0] ? matchLink(noConvPlayed[0], "convocatoria") : "/Calendar" },
+    { key: "res", icon: Trophy, count: noResult.length, label: noResult.length === 1 ? "partido jugado sin resultado" : "partidos jugados sin resultado", cta: "Revisar", onClick: openList("matches"), to: noResult[0] ? matchLink(noResult[noResult.length - 1]) : "/Calendar" },
+    { key: "goals", icon: Target, count: noClass.length, label: noClass.length === 1 ? "partido con goles sin clasificar" : "partidos con goles sin clasificar", cta: "Clasificar", onClick: openList("matches"), to: noClass[0] ? matchLink(noClass[0], "acta") : "/Calendar", tone: "var(--granate)" },
     isCoordinator && { key: "users", icon: UserCog, count: pendingUsers.length, label: pendingUsers.length === 1 ? "usuario por aprobar" : "usuarios por aprobar", cta: "Revisar", to: "/Accesos" },
   ];
 
@@ -253,6 +269,7 @@ export default function Dashboard() {
       {/* Cabecera */}
       <PageTitle kicker={`Temporada ${CURRENT_SEASON.replace("-", "–")}`} title="Panel de control" />
       <PendingStrip items={pendingItems} />
+      {isCoordinator && <PendingByTeamDialog open={!!pendingList} onOpenChange={(o) => { if (!o) setPendingList(null); }} rows={pendingRows} kind={pendingList || "all"} />}
 
       {/* Próximo partido + temporada/asistencia */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

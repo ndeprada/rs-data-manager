@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
 import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -44,8 +44,11 @@ export default function TeamAttendance() {
   const location = useLocation();
   const navigate = useNavigate();
   const eventId = new URLSearchParams(location.search).get("eventId") || "";
+  const urlTeamId = new URLSearchParams(location.search).get("teamId") || "";
 
   const { selectedTeamId, selectTeam, canSwitch, isCoordinator, teamIds: myTeamIds } = useSelectedTeam();
+  // Un enlace a un entrenamiento de otro equipo (p. ej. desde el listado de pendientes de coordinación) abre ese equipo
+  useEffect(() => { if (urlTeamId && canSwitch && urlTeamId !== selectedTeamId) selectTeam(urlTeamId); }, [urlTeamId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [editingEvent, setEditingEvent] = useState(null);
   const [createEventDate, setCreateEventDate] = useState(null);
   const [trialName, setTrialName] = useState("");
@@ -54,6 +57,15 @@ export default function TeamAttendance() {
   const [injuryFor, setInjuryFor] = useState(null); // jugador para el que se registra una lesión
   const [noteOpen, setNoteOpen] = useState(() => new Set()); // filas con la nota desplegada
   const chain = useRef({}); // serializa guardados por jugador
+
+  // Al pasar a otro entrenamiento empieza limpio: observaciones desplegadas, "convocar de otro equipo" y nombre a prueba a medias
+  const [shownEventId, setShownEventId] = useState(eventId);
+  if (shownEventId !== eventId) {
+    setShownEventId(eventId);
+    setNoteOpen(new Set());
+    setShowGuests(false);
+    setTrialName("");
+  }
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
