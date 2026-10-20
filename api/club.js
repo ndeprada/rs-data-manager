@@ -8,14 +8,14 @@ import { rivalReport } from './_lib/fcfRival.js';
 import { feedFor, readConfig, tokenFor, rotateToken, isUuid } from './_lib/ics.js';
 import { requireUser } from './_lib/auth.js';
 import { isAdmin, coachTeamIdsOf } from './_lib/access.js';
+import { COORD, STAFF, isApprovedUser, teamIdsOfUser, reachableUserIds, searchPeople, MAX_INDIVIDUALS } from './_lib/recipients.js';
 
-const COORD = ['director', 'director_deportivo', 'coordinador_general', 'coordinador_f7', 'coordinador_f11'];
-const STAFF = [...COORD, 'entrenador', 'entrenador_porteros', 'preparador_fisico', 'psicologo', 'fisioterapeuta'];
 const RELATIONS = ['padre', 'madre', 'tutor', 'otro_familiar'];
 
 const isCoord = (u) => isAdmin(u) || COORD.includes(u.app_role);
 const canSend = (u) => isCoord(u) || u.app_role === 'entrenador';
-const isApprovedUser = (d) => d.role === 'admin' || d.access_status === 'approved' || (!d.access_status && !!d.app_role);
+// A quién puede escribir de forma individual: coordinación a cualquiera; un entrenador, solo a gente de sus equipos
+const senderScope = (u) => ({ id: u.id, coord: isCoord(u), teams: coachTeamIdsOf(u) });
 
 // Claves VAPID (identifican al servidor ante los móviles). Se usan las de las variables de entorno si existen;
 // si no, se generan una vez y se guardan en la base de datos (entidad PushConfig, no accesible desde la app).
@@ -39,25 +39,27 @@ async function setupVapid() {
 }
 
 const byType = async (type) => (await query(`select id, data from entities where entity_type = $1`, [type])).rows;
-const teamIdsOfUser = (d) => [...(d.team_ids || []), ...(d.team_id ? [d.team_id] : []), ...(d.secondary_team_ids || [])];
 
 // ── Destinatarios ────────────────────────────────────────────────────────────
 // audience: { all_club, team_ids[], player_ids[], user_ids[], groups: ['jugadores','familiares','tecnico'] }
+// user_ids = personas concretas (aviso individual): solo llegan a quien el remitente puede alcanzar.
 async function resolveRecipients(sender, audience = {}) {
   const groups = new Set(audience.groups || []);
   let teamIds = new Set(audience.team_ids || []);
   const explicitPlayers = new Set(audience.player_ids || []);
-  const extraUsers = new Set(audience.user_ids || []);
+  const wantedUsers = [...new Set((Array.isArray(audience.user_ids) ? audience.user_ids : []).filter((x) => typeof x === 'string'))].slice(0, MAX_INDIVIDUALS);
 
   // Un entrenador solo puede escribir a sus equipos
   if (!isCoord(sender)) {
     const mine = new Set(coachTeamIdsOf(sender));
     teamIds = new Set([...teamIds].filter((t) => mine.has(t)));
     if (audience.all_club) teamIds = mine;
-    if (teamIds.size === 0 && explicitPlayers.size === 0) return { ids: new Set(), users: [] };
+    if (teamIds.size === 0 && explicitPlayers.size === 0 && wantedUsers.length === 0) return { ids: new Set(), users: [] };
   }
 
   const [users, players, links] = await Promise.all([byType('User'), byType('Player'), byType('GuardianLink')]);
+  const reach = reachableUserIds(senderScope(sender), { users, players, links });
+  const extraUsers = new Set(wantedUsers.filter((id) => reach.has(id)));
   const allClub = !!audience.all_club && isCoord(sender);
   const targetPlayers = new Set();
   if (explicitPlayers.size) explicitPlayers.forEach((p) => targetPlayers.add(p));
@@ -194,6 +196,21 @@ export default async function handler(req, res) {
         id: r.id, title: r.data.title, body: r.data.body, sender_name: r.data.sender_name, audience_label: r.data.audience_label,
         recipients: (r.data.recipient_ids || []).length, sent: r.data.sent || 0, devices: r.data.devices || 0, created_date: r.created_at,
       })));
+    }
+
+    // Buscador de personas para un aviso individual (nombre, función y equipo; sin correos ni teléfonos)
+    if (a === 'people') {
+      if (!canSend(user)) return res.status(403).json({ error: 'forbidden' });
+      const q = String(req.query.q || '');
+      if (q.trim().length < 2) return res.status(200).json([]);
+      const [users, players, links, teams] = await Promise.all([byType('User'), byType('Player'), byType('GuardianLink'), teamMap()]);
+      const reach = reachableUserIds(senderScope(user), { users, players, links });
+      const found = searchPeople(q, { users, players, links, teams, reach });
+      const { rows: subs } = found.length
+        ? await query(`select distinct data ->> 'user_id' as u from entities where entity_type = 'PushSubscription' and data ->> 'user_id' = any($1)`, [found.map((f) => f.id)])
+        : { rows: [] };
+      const pushUsers = new Set(subs.map((r) => r.u));
+      return res.status(200).json(found.map((f) => ({ ...f, has_push: pushUsers.has(f.id) })));
     }
 
     if ((a === 'preview' || a === 'send') && req.method === 'POST') {

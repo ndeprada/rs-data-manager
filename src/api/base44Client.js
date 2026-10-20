@@ -132,6 +132,7 @@ export const base44 = {
     inbox: () => clubGet('inbox'),
     history: () => clubGet('history'),
     preview: (audience) => clubPost('preview', { audience }),
+    people: (q) => clubGet('people', { q }),
     send: (payload) => clubPost('send', payload),
     searchPlayers: (q) => clubGet('players_search', { q }),
     requestLink: (player_id, relationship) => clubPost('link_request', { player_id, relationship }),

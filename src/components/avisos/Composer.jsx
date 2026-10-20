@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Textarea } from "@/components/ui/textarea";
 import { sortTeams, isF7Team } from "@/lib/teamOrder";
+import PeoplePicker, { peopleLabel } from "@/components/avisos/PeoplePicker";
 
 const norm = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const STAGES = [
@@ -48,6 +49,9 @@ export default function Composer({ fixed = null, defaultTitle = "", defaultBody 
     return list.filter(([, ts]) => ts.length > 0).map(([label, ts]) => ({ label, ids: ts.map((t) => t.id) }));
   }, [available]);
 
+  const [mode, setMode] = useState("teams");       // "teams" = por equipos · "people" = a personas concretas
+  const [picked, setPicked] = useState([]);
+  const people = !fixed && mode === "people";
   const [title, setTitle] = useState(defaultTitle);
   const [body, setBody] = useState(defaultBody);
   const [teamIds, setTeamIds] = useState([]);
@@ -65,35 +69,40 @@ export default function Composer({ fixed = null, defaultTitle = "", defaultBody 
 
   const toggle = (arr, set, v) => set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
-  const audience = useMemo(() => ({
-    all_club: !fixed && allClub,
-    team_ids: fixed ? [] : teamIds,
-    player_ids: fixed ? fixed.player_ids : [],
-    groups,
-  }), [fixed, allClub, teamIds, groups]);
+  const audience = useMemo(() => (people
+    ? { all_club: false, team_ids: [], player_ids: [], user_ids: picked.map((p) => p.id), groups: [] }
+    : {
+      all_club: !fixed && allClub,
+      team_ids: fixed ? [] : teamIds,
+      player_ids: fixed ? fixed.player_ids : [],
+      groups,
+    }), [people, picked, fixed, allClub, teamIds, groups]);
 
   const label = useMemo(() => {
+    if (people) return peopleLabel(picked);
     const who = groups.map((g) => GROUPS.find((x) => x.key === g)?.label).filter(Boolean).join(" + ");
     if (fixed) return `${fixed.label} · ${who}`;
     const where = allClub ? "Todo el club" : teams.filter((t) => teamIds.includes(t.id)).map((t) => t.name).join(", ");
     return `${where} · ${who}`;
-  }, [fixed, allClub, teamIds, groups, teams]);
+  }, [people, picked, fixed, allClub, teamIds, groups, teams]);
 
-  const hasTarget = fixed ? fixed.player_ids.length > 0 : allClub || teamIds.length > 0;
+  const hasTarget = people ? picked.length > 0 : fixed ? fixed.player_ids.length > 0 : allClub || teamIds.length > 0;
+  // Por equipos hay que elegir también a qué grupo de personas llega; a una persona concreta, no
+  const groupsOk = people || groups.length > 0;
 
   useEffect(() => {
     setCount(null);
-    if (!hasTarget || groups.length === 0) return;
+    if (!hasTarget || !groupsOk) return;
     const t = setTimeout(() => base44.club.preview(audience).then(setCount).catch(() => setCount(null)), 300);
     return () => clearTimeout(t);
-  }, [audience, hasTarget, groups.length]);
+  }, [audience, hasTarget, groupsOk]);
 
   const send = async () => {
     setBusy(true); setMsg(null);
     try {
       const r = await base44.club.send({ title, body, url: defaultUrl, audience, audience_label: label });
       setMsg({ ok: true, text: `Enviado a ${r.recipients} persona${r.recipients === 1 ? "" : "s"} (${r.sent} dispositivo${r.sent === 1 ? "" : "s"} con aviso activado).` });
-      setTitle(defaultTitle); setBody(defaultBody);
+      setTitle(defaultTitle); setBody(defaultBody); setPicked([]);
       qc.invalidateQueries({ queryKey: ["noticeHistory"] });
       onSent?.(r);
     } catch (e) {
@@ -102,11 +111,18 @@ export default function Composer({ fixed = null, defaultTitle = "", defaultBody 
     setBusy(false);
   };
 
-  const canSend = title.trim() && body.trim() && hasTarget && groups.length > 0 && (count?.recipients ?? 0) > 0;
+  const canSend = title.trim() && body.trim() && hasTarget && groupsOk && (count?.recipients ?? 0) > 0;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
       {!fixed && (
+        <div className="flex gap-1.5">
+          <Chip on={mode === "teams"} onClick={() => setMode("teams")}>Por equipos</Chip>
+          <Chip on={mode === "people"} onClick={() => setMode("people")}>A una persona</Chip>
+        </div>
+      )}
+      {people && <PeoplePicker picked={picked} setPicked={setPicked} />}
+      {!fixed && !people && (
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Equipos <span className="normal-case tracking-normal font-normal">· puedes combinar grupos y equipos sueltos</span></p>
           <div className="flex flex-wrap gap-1.5 mb-2">
@@ -121,14 +137,16 @@ export default function Composer({ fixed = null, defaultTitle = "", defaultBody 
         </div>
       )}
       {fixed && <p className="text-xs text-gray-500">Para: <b>{fixed.label}</b></p>}
-      <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">A quién le llega</p>
-        <div className="flex flex-wrap gap-1.5">
-          {GROUPS.filter((g) => !(fixed && g.key === "tecnico")).map((g) => (
-            <Chip key={g.key} on={groups.includes(g.key)} onClick={() => toggle(groups, setGroups, g.key)}>{g.label}</Chip>
-          ))}
+      {!people && (
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">A quién le llega</p>
+          <div className="flex flex-wrap gap-1.5">
+            {GROUPS.filter((g) => !(fixed && g.key === "tecnico")).map((g) => (
+              <Chip key={g.key} on={groups.includes(g.key)} onClick={() => toggle(groups, setGroups, g.key)}>{g.label}</Chip>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
       <div className="space-y-2">
         <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="Título"
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2" />

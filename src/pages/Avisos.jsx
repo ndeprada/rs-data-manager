@@ -41,7 +41,7 @@ export default function Avisos() {
 
   return (
     <div className="space-y-4 max-w-2xl">
-      <PageTitle kicker="Comunicación" title="Avisos" subtitle={<>{canSend ? "Envía avisos al móvil de jugadores, familias y cuerpo técnico" : "Los avisos que te envía el club"}</>} />
+      <PageTitle kicker="Comunicación" title="Avisos" subtitle={<>{canSend ? "Envía avisos al móvil de equipos (jugadores, familias y cuerpo técnico) o de una persona concreta" : "Los avisos que te envía el club"}</>} />
       <PushToggle />
       {tabs.length > 1 && (
         <TabBar value={tab} onChange={setTab} items={tabs.map(([k, l]) => ({ value: k, label: l }))} />
