@@ -218,7 +218,7 @@ export default function Coaches() {
           <p className="text-xs text-gray-300 mt-1">Añade miembros del staff desde la ficha de equipo</p>
         </div>
       ) : view === "lista" ? (
-        <StaffTable rows={rows} onOpen={navigate} />
+        <StaffTable rows={rows} onOpen={navigate} filterLabel={filterTeam === "all" ? "Todos los equipos" : getTeam(filterTeam)?.name || "Equipo"} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(s => {
