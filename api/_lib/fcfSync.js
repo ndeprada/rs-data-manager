@@ -1,4 +1,5 @@
 import { query } from './db.js';
+import { buildGuestIndex } from './rosterMatch.js';
 
 export const CLUB_CODE = '40493342';
 const BASE = `https://www.fcf.cat/api/clubs/${CLUB_CODE}`;
@@ -428,6 +429,7 @@ async function backfillStarters(stats) {
     if (!playersByTeam.has(r.data.team_id)) playersByTeam.set(r.data.team_id, new Map());
     playersByTeam.get(r.data.team_id).set(tokensKey(`${r.data.first_name || ''} ${r.data.last_name || ''}`), r.id);
   }
+  const guests = buildGuestIndex(playerRows, teamRows);
   const actas = await pool(todo, 6, async (ev) => {
     try { return await getJson(`${ACTA_BASE}/${ev.data.fcf_acta}`); } catch (e) { stats.errors.push(`acta ${ev.data.fcf_acta}: ${e.message}`); return null; }
   });
@@ -442,7 +444,8 @@ async function backfillStarters(stats) {
     const list = a[`jugadores_equipo_${ourSide}`] || [];
     const called = [], starters = [];
     for (const j of list) {
-      const pid = roster.get(fcfPlayerKey(j.nombre));
+      const key = fcfPlayerKey(j.nombre);
+      const pid = roster.get(key) || guests.find(ev.data.team_id, key);
       if (!pid) continue;
       called.push(pid);
       if (String(j.titular) === '1') starters.push(pid);
@@ -524,6 +527,8 @@ async function syncActas(stats) {
     if (!playersByTeam.has(k)) playersByTeam.set(k, new Map());
     playersByTeam.get(k).set(tokensKey(`${r.data.first_name || ''} ${r.data.last_name || ''}`), r.id);
   }
+  // Jugadores de otros equipos del club que han jugado con este equipo (p. ej. un Sub-9 convocado con el Sub-10)
+  const guests = buildGuestIndex(playerRows, teamRows);
   const { rows: convRows } = await query(`select id, data ->> 'event_id' as ev, data -> 'fcf_auto' as auto from entities where entity_type = 'Convocatoria'`);
   const convByEvent = new Map(convRows.map((r) => [r.ev, r]));
   const { rows: msRows } = await query(`select id, data ->> 'event_id' as ev, data ->> 'player_id' as pl, data ->> 'manual' as man from entities where entity_type = 'MatchStats'`);
@@ -553,6 +558,10 @@ async function syncActas(stats) {
       const key = fcfPlayerKey(j.nombre);
       let pid = roster.get(key);
       if (!pid) {
+        const guest = guests.find(ev.data.team_id, key);
+        if (guest) { pid = guest; roster.set(key, guest); stats.players_guest = (stats.players_guest || 0) + 1; }
+      }
+      if (!pid) {
         const parts = String(j.nombre).split(',');
         const first = titleCase((parts[1] || '').trim());
         const last = titleCase((parts[0] || '').trim());
@@ -560,6 +569,7 @@ async function syncActas(stats) {
         newPlayers.push(fresh);
         pid = `@new${newPlayers.length - 1}`;
         roster.set(key, pid);
+        guests.add(key, pid, ev.data.team_id);
       }
       idToPlayer.set(String(j.id), pid);
     }

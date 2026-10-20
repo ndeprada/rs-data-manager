@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { base44 } from "@/api/base44Client";
@@ -15,6 +15,7 @@ import TacticaTab from "@/components/match/TacticaTab";
 import PostMatchTab from "@/components/match/PostMatchTab";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
 import { playerFullName } from "@/lib/playerName";
+import { matchPlayerIds, withGuests } from "@/lib/matchPlayers";
 
 import TabBar from "@/components/common/TabBar";
 function Shield({ src, name, canUpload, onUpload }) {
@@ -82,7 +83,7 @@ export default function MatchDetail() {
     enabled: !!eventId,
   });
 
-  const { data: players = [] } = useQuery({
+  const { data: teamPlayers = [] } = useQuery({
     queryKey: ["teamPlayers", teamId],
     queryFn: () => base44.entities.Player.filter({ team_id: teamId }),
     enabled: !!teamId,
@@ -99,6 +100,16 @@ export default function MatchDetail() {
     queryFn: () => base44.entities.Convocatoria.filter({ event_id: eventId }).then(d => d[0] || null),
     enabled: !!eventId,
   });
+
+  // Jugadores del partido = plantilla + invitados de otros equipos del club (convocados, titulares o en el acta)
+  const guestIds = useMemo(() => matchPlayerIds(convocation, event), [convocation, event]);
+  const needsGuests = [...guestIds].some((id) => !teamPlayers.some((p) => p.id === id));
+  const { data: allPlayers = [] } = useQuery({
+    queryKey: ["players"],
+    queryFn: () => base44.entities.Player.list(),
+    enabled: needsGuests,
+  });
+  const players = useMemo(() => withGuests(teamPlayers, allPlayers, guestIds), [teamPlayers, allPlayers, guestIds]);
 
   const updateLogoMutation = useMutation({
     mutationFn: (data) => base44.entities.Event.update(eventId, data),
