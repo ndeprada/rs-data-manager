@@ -119,7 +119,7 @@ assert.equal(again.convocatorias.skipped.length, 1, 'lo de los Sabir sigue pendi
 // Si falla algo a mitad, no queda a medias
 await pg.query(`insert into entities (entity_type, data) values ('Player', '{"first_name":"Zoe","last_name":"Roca","team_id":"${s9}","status":"activo","fcf_imported":true,"birth_year":2018}')`);
 const zoeCopia = await add('Player', { first_name: 'Zoe', last_name: 'Roca', team_id: s10, status: 'activo', fcf_imported: true });
-const failing = { query: db.query, tx: (fn) => pg.transaction((tx) => fn({ query: (t, p) => { if (t.includes('delete from entities where id = any') && t.includes("entity_type = 'Player'")) throw new Error('fallo simulado'); return tx.query(t, p); } })) };
+const failing = { query: db.query, tx: (fn) => pg.transaction((tx) => fn({ query: (t, p) => { if (t.includes('delete from entities where id = any')) throw new Error('fallo simulado'); return tx.query(t, p); } })) };
 await assert.rejects(() => cleanDuplicates(failing, { dry: false }), /fallo simulado/);
 assert.ok(await get(zoeCopia), 'la copia sigue ahí si la limpieza falla');
 await pg.close();

@@ -99,7 +99,21 @@ export async function cleanDuplicates(db, { dry = true } = {}) {
   }
 }
 
+// Las escrituras se acumulan y se hacen de golpe (en el servidor real cada consulta suelta cuesta ~100 ms)
+async function flush(t, updates, deletes) {
+  if (updates.size) {
+    const docs = [...updates].map(([id, data]) => ({ id, data }));
+    await t.query(
+      `update entities e set data = v.data, updated_at = now()
+         from jsonb_to_recordset($1::jsonb) as v(id uuid, data jsonb) where e.id = v.id`,
+      [JSON.stringify(docs)]);
+  }
+  if (deletes.size) await t.query(`delete from entities where id = any($1::uuid[])`, [[...deletes]]);
+}
+
 async function run(t) {
+  const updates = new Map(); // id -> datos nuevos
+  const deletes = new Set();
   const [players, teams, events] = await Promise.all([loadAll(t, 'Player'), loadAll(t, 'Team'), loadAll(t, 'Event')]);
   const teamName = new Map(teams.map((x) => [x.id, x.data.name || '']));
   const evInfo = new Map(events.map((e) => [e.id, `${e.data.title || e.data.opponent || 'Partido'}${e.data.date ? ` (${String(e.data.date).slice(0, 10)})` : ''}`]));
@@ -135,8 +149,8 @@ async function run(t) {
     const keepRow = rows[rows.length - 1];
     statGroupsN += 1; statDeleted += rows.length - 1; statEvents.add(keepRow.data.event_id);
     if (c.length) conflicts.push({ kind: 'estadísticas', event: evInfo.get(keepRow.data.event_id) || '', fields: c.map((x) => x.field) });
-    await t.query(`update entities set data = $2::jsonb, updated_at = now() where id = $1`, [keepRow.id, JSON.stringify(data)]);
-    await t.query(`delete from entities where id = any($1::uuid[])`, [rows.slice(0, -1).map((r) => r.id)]);
+    updates.set(keepRow.id, data);
+    rows.slice(0, -1).forEach((r) => deletes.add(r.id));
   }
 
   // 3. Convocatorias repetidas
@@ -155,7 +169,7 @@ async function run(t) {
       const ids = uniq(r.data.player_ids || []), st = uniq(r.data.starters || []);
       if (ids.length !== (r.data.player_ids || []).length || st.length !== (r.data.starters || []).length) {
         r.data = { ...r.data, player_ids: ids, starters: st };
-        await t.query(`update entities set data = $2::jsonb, updated_at = now() where id = $1`, [r.id, JSON.stringify(r.data)]);
+        updates.set(r.id, r.data);
       }
     }
     if (rows.length < 2) continue;
@@ -166,14 +180,15 @@ async function run(t) {
     }
     const { data } = mergeData(rows);
     const keepRow = rows[rows.length - 1];
-    await t.query(`update entities set data = $2::jsonb, updated_at = now() where id = $1`, [keepRow.id, JSON.stringify(data)]);
-    await t.query(`delete from entities where id = any($1::uuid[])`, [rows.slice(0, -1).map((r) => r.id)]);
+    updates.set(keepRow.id, data);
+    rows.slice(0, -1).forEach((r) => { deletes.add(r.id); updates.delete(r.id); });
     convDeleted += rows.length - 1;
     convFixed.push(evInfo.get(eventId) || eventId);
   }
 
-  // 4. Las fichas copia, ya sin nada que apunte a ellas
-  if (pairs.length) await t.query(`delete from entities where id = any($1::uuid[]) and entity_type = 'Player'`, [pairs.map((p) => p.drop.id)]);
+  // 4. Se escribe todo de golpe y se borran las fichas copia, ya sin nada que apunte a ellas
+  pairs.forEach((p) => deletes.add(p.drop.id));
+  await flush(t, updates, deletes);
 
   return {
     players: playersOut,
