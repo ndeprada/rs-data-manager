@@ -2,12 +2,15 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Users, ChevronRight } from "lucide-react";
+import { Users, ChevronRight, List, LayoutGrid } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { useAuth } from "@/lib/AuthContext";
 import { buildLinks } from "@/lib/staffLink";
 import { STAFF_FUNCTION_VALUES, teamRoleLabel } from "@/lib/staffRoles";
+import { compareTeams, teamRank } from "@/lib/teamOrder";
+import TabBar from "@/components/common/TabBar";
+import StaffTable from "@/components/coach/StaffTable";
 
 import { PageTitle } from "@/components/common/PageHeader";
 const ROLE_LABELS = {
@@ -31,8 +34,19 @@ const ROLE_LABELS = {
 
 const APP_STAFF_ROLES = STAFF_FUNCTION_VALUES;
 
+// La vista elegida (lista o tarjetas) se recuerda en este navegador
+const VIEW_KEY = "rs-personal-vista";
+const readView = () => {
+  try { return localStorage.getItem(VIEW_KEY) === "tarjetas" ? "tarjetas" : "lista"; } catch { return "lista"; }
+};
+
 export default function Coaches() {
   const navigate = useNavigate();
+  const [view, setViewState] = useState(readView);
+  const setView = (v) => {
+    setViewState(v);
+    try { localStorage.setItem(VIEW_KEY, v); } catch { /* sin almacenamiento: no se recuerda */ }
+  };
   const { isCoordinator, coordType, isCoordinatorGeneral } = useTeamAccess();
   const { user: currentUser } = useAuth();
   const [filterTeam, setFilterTeam] = useState("all");
@@ -73,6 +87,12 @@ export default function Coaches() {
     return list;
   };
 
+  const accessOf = (u) => {
+    if (!u) return null;
+    if (u.role === "admin" || u.access_status === "approved" || (!u.access_status && u.app_role)) return "approved";
+    return u.access_status === "pending" ? "pending" : null;
+  };
+
   const staffCards = staff.map(s => {
     const u = userOfStaff.get(s.id);
     const list = teamsOfStaff(s.id, s.team_id);
@@ -81,6 +101,9 @@ export default function Coaches() {
       role: u?.app_role || s.role,
       photo_url: s.photo_url || u?.photo_url || null,
       phone: s.phone || u?.phone || null,
+      email: s.email || u?.email || null,
+      birth_date: s.birth_date || u?.birth_date || null,
+      _access: accessOf(u),
       team_list: list,
       team_id: list[0]?.team_id || s.team_id,
     };
@@ -102,6 +125,8 @@ export default function Coaches() {
         photo_url: u.photo_url || null,
         phone: u.phone || null,
         email: u.email,
+        birth_date: u.birth_date || null,
+        _access: "approved",
         _isUser: true,
       };
     });
@@ -122,6 +147,8 @@ export default function Coaches() {
       photo_url: u.photo_url || null,
       phone: u.phone || null,
       email: u.email,
+      birth_date: u.birth_date || null,
+      _access: "approved",
       _isUser: true,
       _isAdmin: true,
     }));
@@ -143,18 +170,43 @@ export default function Coaches() {
   });
 
   const getTeam = (id) => teams.find(t => t.id === id);
+  const profileUrlOf = (s) => (s._isUser ? `/CoachProfile?userId=${s._userId}` : `/CoachProfile?id=${s.id}`);
+
+  // Filas de la lista: una por persona, con sus equipos en el orden del club (Primer Equipo, Juvenil, Cadet…)
+  const rows = filtered.map(s => ({
+    key: s.id,
+    url: profileUrlOf(s),
+    name: `${s.first_name || ""} ${s.last_name || ""}`.trim() || "Sin nombre",
+    initials: `${s.first_name?.[0] || ""}${s.last_name?.[0] || ""}`,
+    photo_url: s.photo_url,
+    isAdmin: !!s._isAdmin,
+    roleLabel: ROLE_LABELS[s.role] || s.role || "—",
+    birth_date: s.birth_date,
+    teams: (s.team_list || [])
+      .map(a => ({ a, t: getTeam(a.team_id) }))
+      .filter(x => x.t)
+      .sort((x, y) => compareTeams(x.t, y.t))
+      .map(({ a, t }) => ({ id: t.id, name: t.name, rank: teamRank(t), role: a.team_role })),
+    phone: s.phone,
+    email: s.email,
+    access: s._access,
+  }));
 
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <PageTitle kicker="Administración" title="Personal" subtitle="Miembros del personal del club" />
-        <Select value={filterTeam} onValueChange={setFilterTeam}>
-          <SelectTrigger className="w-48 border-gray-200 bg-white"><SelectValue placeholder="Todos los equipos" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los equipos</SelectItem>
-            {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <PageTitle kicker="Administración" title="Personal" subtitle={`Miembros del personal del club · ${filtered.length} persona${filtered.length === 1 ? "" : "s"}`} />
+        <div className="flex items-center gap-2 flex-wrap">
+          <TabBar value={view} onChange={setView}
+            items={[{ value: "lista", label: "Lista", icon: List }, { value: "tarjetas", label: "Tarjetas", icon: LayoutGrid }]} />
+          <Select value={filterTeam} onValueChange={setFilterTeam}>
+            <SelectTrigger className="w-48 border-gray-200 bg-white"><SelectValue placeholder="Todos los equipos" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los equipos</SelectItem>
+              {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -165,10 +217,12 @@ export default function Coaches() {
           </p>
           <p className="text-xs text-gray-300 mt-1">Añade miembros del staff desde la ficha de equipo</p>
         </div>
+      ) : view === "lista" ? (
+        <StaffTable rows={rows} onOpen={navigate} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(s => {
-            const profileUrl = s._isUser ? `/CoachProfile?userId=${s._userId}` : `/CoachProfile?id=${s.id}`;
+            const profileUrl = profileUrlOf(s);
             return (
               <button key={s.id} onClick={() => navigate(profileUrl)}
                 className="bg-white border border-gray-200 p-5 text-left hover:shadow-md transition-all group"
