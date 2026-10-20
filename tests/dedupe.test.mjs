@@ -47,7 +47,8 @@ const e10 = await add('Event', { title: 'J3 · Can Buxeres', type: 'partido_liga
 const eSab = await add('Event', { title: 'Juvenil', type: 'partido_liga', team_id: s10, date: '2026-10-18T12:15' });
 
 // Estadísticas: la fila con los minutos escritos a mano y la fila con la nota (el caso del domingo)
-const ms1 = await add('MatchStats', { event_id: e9, player_id: lucas, goals: 1, assists: 0, minutes_played: 48, manual: true, starter: true });
+// (las filas editadas desde la pantalla traen copiados su id y sus fechas dentro de los datos)
+const ms1 = await add('MatchStats', { event_id: e9, player_id: lucas, goals: 1, assists: 0, minutes_played: 48, manual: true, starter: true, id: 'viejo-1', created_date: '2026-10-18', updated_date: '2026-10-20' });
 const ms2 = await add('MatchStats', { event_id: e9, player_id: lucas, goals: 1, assists: 0, minutes_played: 0, starter: true, notes: 'Muy buen partido', rating: 3 });
 const msOtro = await add('MatchStats', { event_id: e9, player_id: pau, goals: 0 });          // sin duplicar
 const msCopia = await add('MatchStats', { event_id: e10, player_id: lucasCopia, goals: 2, minutes_played: 30 });
@@ -97,6 +98,9 @@ assert.deepEqual((await get(cB)).starters, [lucas]);
 assert.equal(await get(ms1), undefined);
 const merged = await get(ms2);
 assert.deepEqual([merged.minutes_played, merged.manual, merged.notes, merged.rating, merged.goals, merged.starter], [48, true, 'Muy buen partido', 3, 1, true]);
+assert.equal(merged.id, undefined, 'no se cuela el id de la fila borrada');
+assert.equal(merged.created_date, undefined);
+assert.deepEqual(prev.conflicts, [], 'el id y las fechas no cuentan como conflicto');
 assert.ok(await get(msOtro));
 // Convocatoria repetida: se queda la editada a mano, con sus notas
 assert.equal(await get(cA1), undefined);

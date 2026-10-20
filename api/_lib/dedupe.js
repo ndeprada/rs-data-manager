@@ -12,6 +12,7 @@ import { tokensKey } from './rosterMatch.js';
 
 // Campos que trae una ficha creada solo por la sincronización de actas
 const BARE_KEYS = new Set(['first_name', 'last_name', 'team_id', 'status', 'fcf_imported', 'jersey_number']);
+const ROW_KEYS = new Set(['id', 'created_date', 'updated_date']);
 const hasBirth = (d) => !!(d.birth_year || d.birth_date);
 const isBare = (d) => !hasBirth(d) && Object.keys(d).every((k) => BARE_KEYS.has(k) || d[k] === '' || d[k] == null);
 const fullName = (d) => `${d.first_name || ''} ${d.last_name || ''}`.replace(/\s+/g, ' ').trim();
@@ -28,7 +29,9 @@ export function meaningful(v) {
 export function mergeData(rows) {
   const out = {};
   const conflicts = [];
-  const keys = new Set(rows.flatMap((r) => Object.keys(r.data)));
+  // Los datos guardados pueden traer copiados el id y las fechas de la fila (las envía la pantalla al guardar):
+  // nunca se funden, porque el id de una fila borrada haría que la fila que queda se sirviera con un id que ya no existe.
+  const keys = new Set(rows.flatMap((r) => Object.keys(r.data)).filter((k) => !ROW_KEYS.has(k)));
   for (const k of keys) {
     let last;
     const seen = [];
