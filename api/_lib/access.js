@@ -112,7 +112,9 @@ export function playerView(entity, doc, scope, userId) {
     case 'Convocatoria': return teamId && doc.team_id === teamId ? doc : null;
     case 'MatchStats': return own ? strip(doc) : null;
     case 'TrainingAttendance': case 'MatchAvailability': return own ? strip(doc) : null;
-    case 'Injury': case 'PlayerDocument': case 'PlayerSeasonHistory': case 'TrainingLoad': return own ? doc : null;
+    case 'Injury': case 'PlayerDocument': case 'TrainingLoad': return own ? doc : null;
+    // El historial de temporadas lleva la valoración media (sale de las estrellas de cada partido) y notas: internas, el jugador no las recibe
+    case 'PlayerSeasonHistory': return own ? strip(doc) : null;
     case 'PDI': case 'PDIGoal': case 'Evaluation360': return own && doc.visible_to_player === true ? doc : null;
     case 'User': return doc.id === userId ? doc : null;
     default: return null;
