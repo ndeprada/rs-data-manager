@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, X, Clock, Edit2, Trash2, Mail, Link2 } from "lucide-react";
+import { Check, X, Clock, Edit2, Trash2, Mail, Link2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,11 +11,11 @@ import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { relLabel } from "@/components/avisos/PlayerPicker";
 import { APP_FUNCTIONS, FUNCTION_LABELS, TEAM_ROLES, teamRoleLabel, functionConfig } from "@/lib/staffRoles";
-import { buildLinks, saveUserAccess, staffFullName, userTeamFields } from "@/lib/staffLink";
+import { buildLinks, saveUserAccess, staffFullName, userTeamFields, revokedAccess, restoredAccess } from "@/lib/staffLink";
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 
 import { PageTitle } from "@/components/common/PageHeader";
-const STATUS_LABELS = { pending: "Pendiente", approved: "Aprobado", rejected: "Rechazado" };
+const STATUS_LABELS = { pending: "Pendiente", approved: "Aprobado", rejected: "Rechazado", deleted: "Eliminado" };
 const NEW_STAFF = "__new__";
 
 const Label = ({ children }) => (
@@ -144,14 +144,23 @@ export default function Accesos() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (userId) =>
-      base44.entities.User.update(userId, { access_status: "deleted", app_role: null, app_role_pending: null }),
+    mutationFn: (userId) => base44.entities.User.update(userId, revokedAccess(users.find((u) => u.id === userId))),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setDeleteDialog(null);
-      toast({ title: "Usuario eliminado" });
+      toast({ title: "Usuario eliminado", description: "Puedes recuperarlo desde esta lista (estado «Eliminado»)." });
     },
     onError: (err) => toast({ title: "Error al eliminar", description: err.message, variant: "destructive" }),
+  });
+
+  // Recuperar a un usuario eliminado: vuelve a «Pendiente» para revisarlo y aprobarlo de nuevo
+  const restoreMutation = useMutation({
+    mutationFn: (user) => base44.entities.User.update(user.id, restoredAccess(user)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast({ title: "Usuario restaurado", description: "Está en «Pendiente»: revísalo y apruébalo para que pueda entrar." });
+    },
+    onError: (err) => toast({ title: "Error al restaurar", description: err.message, variant: "destructive" }),
   });
 
   if (currentUser?.role !== "admin") {
@@ -203,11 +212,15 @@ export default function Accesos() {
     });
   };
 
-  const filteredUsers = liveUsers.filter((u) => {
-    if (filterRole !== "all" && u.role !== filterRole && u.app_role !== filterRole) return false;
-    if (filterStatus !== "all" && u.access_status !== filterStatus) return false;
-    return true;
-  });
+  // Lista completa: los eliminados también salen (al final, en gris) para no perder a nadie de vista
+  const filteredUsers = users
+    .filter((u) => {
+      if (filterRole !== "all" && u.role !== filterRole && u.app_role !== filterRole) return false;
+      if (filterStatus !== "all" && u.access_status !== filterStatus) return false;
+      return true;
+    })
+    .sort((a, b) => (a.access_status === "deleted") - (b.access_status === "deleted"));
+  const deletedCount = users.length - liveUsers.length;
 
   const isStaffForm = editForm.person_type === "cuerpo_tecnico";
   const fnCfg = functionConfig(editForm.app_role);
@@ -219,7 +232,7 @@ export default function Accesos() {
 
   return (
     <div className="space-y-4">
-      <PageTitle kicker="Administración" title="Accesos" subtitle="Gestión de usuarios del sistema" />
+      <PageTitle kicker="Administración" title="Accesos" subtitle={isLoading ? "Gestión de usuarios del sistema" : `${users.length} usuario${users.length === 1 ? "" : "s"}${deletedCount > 0 ? ` · ${deletedCount} eliminado${deletedCount === 1 ? "" : "s"}` : ""}${filteredUsers.length !== users.length ? ` · mostrando ${filteredUsers.length}` : ""}`} />
 
       <div className="flex gap-3 flex-wrap">
         <div className="flex-1 min-w-48">
@@ -244,6 +257,7 @@ export default function Accesos() {
               <SelectItem value="pending">Pendiente</SelectItem>
               <SelectItem value="approved">Aprobado</SelectItem>
               <SelectItem value="rejected">Rechazado</SelectItem>
+              <SelectItem value="deleted">Eliminado</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -273,8 +287,9 @@ export default function Accesos() {
                   const linked = links.get(user.id);
                   const list = linked ? assignmentsOfStaff(linked.id) : [];
                   const requested = user.access_status === "pending" ? user.requested_assignments || [] : [];
+                  const deleted = user.access_status === "deleted";
                   return (
-                    <tr key={user.id} className="hover:bg-gray-50 transition-colors align-top">
+                    <tr key={user.id} className={`hover:bg-gray-50 transition-colors align-top ${deleted ? "opacity-60" : ""}`}>
                       <td className="px-4 py-3">
                         <p className="font-semibold text-gray-900">{user.full_name}</p>
                         <p className="text-xs text-gray-500 flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400" />{user.email}</p>
@@ -282,7 +297,7 @@ export default function Accesos() {
                       </td>
                       <td className="px-4 py-3">
                         <p className="font-medium" style={{ color: user.role === "admin" ? "var(--naranja)" : "var(--granate)" }}>
-                          {user.role === "admin" && !user.app_role ? "Admin" : user.app_role === "familiar" ? "Familiar" : FUNCTION_LABELS[user.app_role] || FUNCTION_LABELS[user.role] || user.role}
+                          {deleted ? (user.deleted_app_role ? `Antes: ${user.deleted_app_role === "familiar" ? "Familiar" : FUNCTION_LABELS[user.deleted_app_role] || user.deleted_app_role}` : "Sin función") : user.role === "admin" && !user.app_role ? "Admin" : user.app_role === "familiar" ? "Familiar" : FUNCTION_LABELS[user.app_role] || FUNCTION_LABELS[user.role] || user.role}
                           {user.role === "admin" && user.app_role && <span className="text-[10px] text-gray-400 font-normal"> · admin</span>}
                         </p>
                         {user.app_role_pending && (
@@ -315,17 +330,23 @@ export default function Accesos() {
                           {user.access_status === "pending" && <><Clock className="w-3.5 h-3.5 text-yellow-500" /><span className="text-yellow-600">{STATUS_LABELS.pending}</span></>}
                           {user.access_status === "approved" && <><Check className="w-3.5 h-3.5 text-green-500" /><span className="text-green-600">{STATUS_LABELS.approved}</span></>}
                           {user.access_status === "rejected" && <><X className="w-3.5 h-3.5 text-red-500" /><span className="text-red-600">{STATUS_LABELS.rejected}</span></>}
+                          {deleted && <><Trash2 className="w-3.5 h-3.5 text-gray-400" /><span className="text-gray-500">{STATUS_LABELS.deleted}</span></>}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {isFamily(user) && pendingLinks.some((l) => l.user_id === user.id) && (
+                          {deleted && (
+                            <Button size="sm" variant="ghost" title="Volver a ponerlo en Pendiente para revisarlo y aprobarlo" onClick={() => restoreMutation.mutate(user)} disabled={restoreMutation.isPending} className="text-gray-700 hover:bg-gray-100 text-xs gap-1.5">
+                              <RotateCcw className="w-4 h-4" /> Restaurar
+                            </Button>
+                          )}
+                          {!deleted && isFamily(user) && pendingLinks.some((l) => l.user_id === user.id) && (
                             <>
                               <Button size="sm" variant="ghost" title="Aprobar vínculo" onClick={() => familyDecide.mutate({ user, decision: "approve" })} disabled={familyDecide.isPending} className="text-green-600 hover:bg-green-50 text-xs"><Check className="w-4 h-4" /></Button>
                               <Button size="sm" variant="ghost" title="Rechazar" onClick={() => familyDecide.mutate({ user, decision: "reject" })} disabled={familyDecide.isPending} className="text-red-600 hover:bg-red-50 text-xs"><X className="w-4 h-4" /></Button>
                             </>
                           )}
-                          {!isFamily(user) && user.access_status === "pending" && (
+                          {!deleted && !isFamily(user) && user.access_status === "pending" && (
                             <>
                               <Button size="sm" variant="ghost" title="Revisar y aprobar" onClick={() => openEdit(user, true)} className="text-green-600 hover:bg-green-50 text-xs">
                                 <Check className="w-4 h-4" />
@@ -335,14 +356,16 @@ export default function Accesos() {
                               </Button>
                             </>
                           )}
-                          {!isFamily(user) && (
+                          {!deleted && !isFamily(user) && (
                             <Button size="sm" variant="ghost" title="Editar" onClick={() => openEdit(user)} className="text-gray-600 hover:bg-gray-100 text-xs">
                               <Edit2 className="w-4 h-4" />
                             </Button>
                           )}
-                          <Button size="sm" variant="ghost" title="Eliminar" onClick={() => setDeleteDialog(user.id)} className="text-red-500 hover:bg-red-50 text-xs">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {!deleted && (
+                            <Button size="sm" variant="ghost" title="Eliminar" onClick={() => setDeleteDialog(user.id)} className="text-red-500 hover:bg-red-50 text-xs">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -522,7 +545,7 @@ export default function Accesos() {
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
             <AlertDialogTitle style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>¿Eliminar usuario?</AlertDialogTitle>
-            <AlertDialogDescription>Se le quitará el acceso a la aplicación. Su ficha de personal y su historial se conservan.</AlertDialogDescription>
+            <AlertDialogDescription>Se le quitará el acceso a la aplicación; seguirá en la lista como «Eliminado» y podrás restaurarlo. Si es del cuerpo técnico, su ficha de personal y su historial se conservan (para quitarlo también de Entrenadores, entra en su ficha → «Eliminar del personal»).</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>

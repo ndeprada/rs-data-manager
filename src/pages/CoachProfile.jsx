@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation, Link } from "react-router-dom";
-import { ArrowLeft, Mail, Phone, Shield, Upload, Loader, Edit2 } from "lucide-react";
+import { useLocation, useNavigate, Link } from "react-router-dom";
+import { ArrowLeft, Mail, Phone, Shield, Upload, Loader, Edit2, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,7 +19,7 @@ import CoachEval360Section from "@/components/coach/CoachEval360Section";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 import { TEAM_ROLES } from "@/lib/staffRoles";
-import { syncAssignments, syncUserTeamsForStaff } from "@/lib/staffLink";
+import { syncAssignments, syncUserTeamsForStaff, buildLinks, deleteStaffPerson, revokedAccess } from "@/lib/staffLink";
 
 const ROLE_LABELS = {
   entrenador: "Entrenador",
@@ -47,7 +48,9 @@ export default function CoachProfile() {
   const { isCoordinator, isCoordinatorGeneral, coordType, teamIds } = useTeamAccess();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({});
@@ -166,6 +169,17 @@ export default function CoachProfile() {
     if (coordType === "coordinador_f11") return isF11Team(team);
     return false;
   };
+
+  // Eliminar a una persona del cuerpo técnico: solo administración, nunca a uno mismo ni a otros administradores
+  // (a un administrador con ficha sí se le puede quitar la ficha: conserva su acceso).
+  const liveUsers = users.filter(u => u.access_status !== "deleted");
+  const staffLinks = staffId ? buildLinks(liveUsers, staff) : null;
+  const linkedUser = staffLinks ? liveUsers.find(u => staffLinks.get(u.id)?.id === staffId) || null : null;
+  const targetUser = member?._isUser ? users.find(u => u.id === member._userId) : null;
+  const canDelete = user?.role === "admin" && !isOwnProfile && (
+    !!staffId && !!member ||
+    (!!targetUser && targetUser.role !== "admin")
+  );
 
   const canView = isOwnProfile || coordCanSeeTeam();
   const canEdit = isOwnProfile || coordCanSeeTeam();
@@ -289,6 +303,25 @@ export default function CoachProfile() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (member._isUser) {
+        await base44.entities.User.update(member._userId, revokedAccess(targetUser));
+        return { accessRevoked: true, assignments: 0 };
+      }
+      return deleteStaffPerson({ staffId, linkedUser });
+    },
+    onSuccess: () => {
+      ["staff", "users", "team_staff_assignments"].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+      setDeleteOpen(false);
+      toast({ title: "Eliminado del personal", description: `${member.first_name} ${member.last_name}`.trim() });
+      navigate("/Coaches");
+    },
+    onError: (err) => {
+      toast({ title: "No se ha podido eliminar", description: err.message, variant: "destructive" });
+    },
+  });
+
   const handleOpenEditDialog = () => {
     setEditForm({
       first_name: member.first_name || "",
@@ -407,6 +440,12 @@ export default function CoachProfile() {
               )}
             </div>
           </div>
+          {canDelete && (
+            <button type="button" onClick={() => setDeleteOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 rounded-full px-3 py-1.5 transition-colors">
+              <Trash2 className="w-3.5 h-3.5" /> {member._isUser ? "Quitar acceso" : "Eliminar del personal"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -495,6 +534,41 @@ export default function CoachProfile() {
       />
 
 
+
+      {/* Eliminar del personal */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent className="bg-white border-gray-200">
+          <AlertDialogHeader>
+            <AlertDialogTitle style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
+              {member._isUser ? "¿Quitar el acceso a" : "¿Eliminar del personal a"} {member.first_name} {member.last_name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-gray-600 space-y-2">
+                {member._isUser ? (
+                  <p>Dejará de poder entrar en la aplicación. Podrás recuperarlo desde Accesos → «Eliminados».</p>
+                ) : (
+                  <>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>Desaparece de Entrenadores y de los equipos{assignedTeams.length > 0 ? ` (${assignedTeams.map(t => t.name).join(", ")})` : ""}.</li>
+                      {linkedUser && (linkedUser.role === "admin"
+                        ? <li>Conserva su acceso como administrador.</li>
+                        : <li>Se le quita el acceso a la aplicación ({linkedUser.email}).</li>)}
+                      <li>Lo que ya se escribió sobre él (feedback, evaluaciones, PDI y notas) no se borra, pero queda sin ficha.</li>
+                    </ul>
+                    <p className="font-bold text-red-600">Esta acción no se puede deshacer.</p>
+                  </>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); deleteMutation.mutate(); }} disabled={deleteMutation.isPending} className="bg-red-600 hover:bg-red-700 text-white">
+              {deleteMutation.isPending ? "Eliminando..." : member._isUser ? "Quitar acceso" : "Eliminar definitivamente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

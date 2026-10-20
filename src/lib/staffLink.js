@@ -198,3 +198,45 @@ export async function syncUserTeamsForStaff(staffId) {
     // best-effort: la ficha ya está guardada; el acceso por equipo se recalcula al revisar Accesos
   }
 }
+
+/** Quita el acceso a la app sin borrar a la persona. Guarda la función que tenía para poder restaurarla desde Accesos. */
+export const revokedAccess = (u) => ({
+  access_status: "deleted",
+  deleted_app_role: u?.app_role || u?.app_role_pending || null,
+  app_role: null,
+  app_role_pending: null,
+});
+
+/** Restaura a un usuario eliminado: vuelve a «Pendiente» con la función que tenía, para revisarlo y aprobarlo de nuevo */
+export const restoredAccess = (u) => ({
+  access_status: "pending",
+  app_role_pending: u?.deleted_app_role || null,
+  deleted_app_role: null,
+});
+
+/**
+ * Elimina del todo a una persona del cuerpo técnico (solo administración).
+ *  1. Su usuario (si tiene): se le desvincula de la ficha y se le quitan los equipos; si no es administrador
+ *     también se le quita el acceso a la app. Es lo primero, para que nadie quede con acceso y sin ficha.
+ *  2. Todas sus asignaciones a equipos (activas e históricas).
+ *  3. La ficha de personal.
+ * El feedback, las evaluaciones, el PDI y las notas que ya se escribieron sobre ella NO se borran
+ * (quedan guardados, sin ficha a la que colgarse).
+ * Devuelve cuántas asignaciones se han borrado y si se le ha quitado el acceso.
+ */
+export async function deleteStaffPerson({ staffId, linkedUser }) {
+  let accessRevoked = false;
+  if (linkedUser) {
+    const isAdmin = linkedUser.role === "admin";
+    await base44.entities.User.update(linkedUser.id, {
+      staff_member_id: null,
+      ...userTeamFields(linkedUser.app_role, []),
+      ...(isAdmin ? {} : revokedAccess(linkedUser)),
+    });
+    accessRevoked = !isAdmin;
+  }
+  const assignments = await base44.entities.TeamStaffAssignment.filter({ staff_member_id: staffId });
+  for (const a of assignments) await base44.entities.TeamStaffAssignment.delete(a.id);
+  await base44.entities.StaffMember.delete(staffId);
+  return { assignments: assignments.length, accessRevoked };
+}
