@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { usePlayerMode } from "@/lib/playerMode";
+import { isFinished } from "@/lib/matchTiming";
 
 // Las estadísticas principales y las alertas de "pendiente de gestionar" son solo de partidos de liga
 // (competición oficial), ya disputados y completamente cerrados (convocatoria, alineación y minutos).
@@ -16,10 +17,7 @@ export const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 
 const minPlayers = (ev) => (ev.football_format === "f7" ? 7 : ev.football_format === "f5" ? 5 : 11);
 
-export function isFinished(ev, now = new Date()) {
-  const end = ev.end_date ? new Date(ev.end_date) : new Date(new Date(ev.date).getTime() + 2 * 3600 * 1000);
-  return end < now;
-}
+export { isFinished };
 
 // Motivos por los que un partido disputado sigue pendiente de gestionar.
 export function pendingReasons(ev, conv, evStats) {

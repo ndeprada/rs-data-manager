@@ -11,6 +11,7 @@ import WeekendAgenda from "../components/dashboard/WeekendAgenda";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { playerFullName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
+import { convocatoriaAlert } from "@/lib/matchTiming";
 import { useTrainingStatus } from "@/lib/trainingStatus";
 import { usePendingUsers } from "@/lib/pendingUsers";
 
@@ -189,13 +190,17 @@ export default function Dashboard() {
   const matchLink = (e, tab) => `/MatchDetail?id=${e.id}&teamId=${e.team_id}${tab ? `&tab=${tab}` : ""}`;
   const pendMatch = (e) => isMatch(e.type) && (!recordIds || recordIds.has(e.team_id));
   const withConv = new Set(convocs.filter((c) => (c.player_ids || []).length > 0).map((c) => c.event_id));
-  const noConv = upcoming.filter((e) => pendMatch(e) && new Date(e.date) <= addDays(now, 7) && !withConv.has(e.id));
+  // Convocatoria: se avisa solo cuando faltan 24 h o menos, o si el partido ya se jugó sin convocar
+  const convAlert = (e) => (pendMatch(e) ? convocatoriaAlert(e, withConv.has(e.id), now) : null);
+  const noConv = events.filter((e) => convAlert(e) === "soon").sort((a, b) => new Date(a.date) - new Date(b.date));
+  const noConvPlayed = events.filter((e) => new Date(e.date) >= seasonStart && convAlert(e) === "played").sort((a, b) => new Date(a.date) - new Date(b.date));
   const playedOver = events.filter((e) => pendMatch(e) && new Date(e.date) >= seasonStart && new Date(e.date).getTime() < now.getTime() - 2 * 3600 * 1000);
   const noResult = playedOver.filter((e) => e.score_home == null || e.score_away == null);
   const noClass = playedOver.filter((e) => (e.goal_events || []).some((g) => !fromStored(g).phase));
   const pendingItems = [
     { key: "att", icon: ClipboardCheck, count: myPendingTr.length, label: myPendingTr.length === 1 ? "entreno sin asistencia" : "entrenos sin asistencia", cta: "Pasar lista", to: myPendingTr[0] ? `/MyTeam/Attendance?eventId=${myPendingTr[0].id}` : "/MyTeam/Attendance", tone: "#d97706" },
-    { key: "conv", icon: Users, count: noConv.length, label: noConv.length === 1 ? "partido (7 días) sin convocatoria" : "partidos (7 días) sin convocatoria", cta: "Convocar", to: noConv[0] ? matchLink(noConv[0], "convocatoria") : "/Calendar" },
+    { key: "conv", icon: Users, count: noConv.length, label: noConv.length === 1 ? "partido en 24 h sin convocatoria" : "partidos en 24 h sin convocatoria", cta: "Convocar", to: noConv[0] ? matchLink(noConv[0], "convocatoria") : "/Calendar" },
+    { key: "convPlayed", icon: Users, count: noConvPlayed.length, label: noConvPlayed.length === 1 ? "partido jugado sin convocatoria" : "partidos jugados sin convocatoria", cta: "Revisar", to: noConvPlayed[0] ? matchLink(noConvPlayed[0], "convocatoria") : "/Calendar" },
     { key: "res", icon: Trophy, count: noResult.length, label: noResult.length === 1 ? "partido jugado sin resultado" : "partidos jugados sin resultado", cta: "Revisar", to: noResult[0] ? matchLink(noResult[noResult.length - 1]) : "/Calendar" },
     { key: "goals", icon: Target, count: noClass.length, label: noClass.length === 1 ? "partido con goles sin clasificar" : "partidos con goles sin clasificar", cta: "Clasificar", to: noClass[0] ? matchLink(noClass[0], "acta") : "/Calendar", tone: "var(--granate)" },
     isCoordinator && { key: "users", icon: UserCog, count: pendingUsers.length, label: pendingUsers.length === 1 ? "usuario por aprobar" : "usuarios por aprobar", cta: "Revisar", to: "/Accesos" },
