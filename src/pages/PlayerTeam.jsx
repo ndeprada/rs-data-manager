@@ -10,6 +10,7 @@ import { playerFullName } from "@/lib/playerName";
 import TeamMatchesColumns from "@/components/team/TeamMatchesColumns";
 import FCFClassificationsPanel from "@/components/dashboard/FCFClassificationsPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { scoreText } from "@/lib/matchScore";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TYPE_LABEL = { partido_amistoso: "Amistoso", partido_liga: "Liga", torneo: "Torneo", entrenamiento: "Entrenamiento", reunion: "Reunión" };
@@ -129,7 +130,7 @@ export default function PlayerTeam() {
             <div className="space-y-3 text-sm">
               <p className="text-gray-500 flex items-center gap-2"><CalendarDays className="w-4 h-4" />{format(new Date(openMatch.date), "EEEE d 'de' MMMM, HH:mm", { locale: es })}</p>
               {openMatch.location && <p className="text-gray-500 flex items-center gap-2"><MapPin className="w-4 h-4" />{openMatch.location}</p>}
-              {openMatch.score_home != null && openMatch.score_away != null && <p className="font-black text-lg">{openMatch.score_home} - {openMatch.score_away}</p>}
+              {openMatch.score_home != null && openMatch.score_away != null && <p className="font-black text-lg">{scoreText(openMatch)}</p>}
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Convocatoria {matchRow ? `(${calledPlayers.length})` : ""}</p>
                 {!matchRow ? <p className="text-gray-400">Todavía no hay convocatoria.</p> : (

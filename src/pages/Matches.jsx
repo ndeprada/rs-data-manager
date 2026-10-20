@@ -7,6 +7,7 @@ import { Swords, ChevronRight, MapPin, Home, Plane } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import { useCountedStats } from "@/lib/matchStatus";
+import { scoreText } from "@/lib/matchScore";
 
 import { PageTitle } from "@/components/common/PageHeader";
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
@@ -156,7 +157,7 @@ export default function Matches() {
                     {isPast && (match.score_home !== undefined && match.score_home !== null) ? (
                       <div>
                         <div className="text-2xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
-                          {match.score_home} - {match.score_away}
+                          {scoreText(match)}
                         </div>
                         <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${RESULT_COLORS[result]}`}>
                           {result}

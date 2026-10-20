@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import TeamPageHeader from "@/components/myteam/TeamPageHeader";
 import { useSelectedTeam } from "@/lib/useSelectedTeam";
 import { useMatchStatus } from "@/lib/matchStatus";
+import { scoreText } from "@/lib/matchScore";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TYPE_LABELS = { partido_amistoso: "Amistoso", partido_liga: "Liga", torneo: "Torneo" };
@@ -130,7 +131,7 @@ export default function TeamMatches() {
                   <div className="shrink-0 text-right">
                     {isPast && result ? (
                       <div>
-                        <p className="text-2xl font-black" style={{ fontFamily: "var(--font-display)" }}>{m.score_home} - {m.score_away}</p>
+                        <p className="text-2xl font-black" style={{ fontFamily: "var(--font-display)" }}>{scoreText(m)}</p>
                         <span className={`text-[10px] font-bold uppercase border px-2 py-0.5 rounded-sm ${RESULT_COLORS[result]}`}>{result}</span>
                         <div className="flex items-center justify-end gap-1 mt-1">
                           <CheckCircle className="w-3 h-3 text-green-500" />
