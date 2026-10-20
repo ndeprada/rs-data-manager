@@ -79,7 +79,7 @@ function defaultSeasonEnd(date) {
   return `${year}-06-30`;
 }
 
-const buildEmptyForm = (date, teamId) => ({
+const buildEmptyForm = (date, teamId, recurring = false) => ({
   type: "entrenamiento",
   title: "",
   date: date ? format(date, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
@@ -93,7 +93,7 @@ const buildEmptyForm = (date, teamId) => ({
   opponent: "",
   notes: "",
   teamId: teamId || "",
-  recurring: false,
+  recurring,
   frequency: "weekly",
   weekdays: [(date || new Date()).getDay()],
   series_from: date ? format(date, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
@@ -110,16 +110,17 @@ const buildEmptyForm = (date, teamId) => ({
  *   date                     — optional Date object (pre-selected date)
  *   teamId                   — pre-selected teamId (when called from MyTeam)
  *   teams                    — optional array of teams; when provided shows team selector (Calendar mode)
+ *   startRecurring           — abre ya con "evento recurrente" activado (horario semanal)
  */
-export default function CreateEventDialog({ open, onOpenChange, date, teamId, teams }) {
+export default function CreateEventDialog({ open, onOpenChange, date, teamId, teams, startRecurring = false }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [form, setForm] = useState(() => buildEmptyForm(date, teamId));
+  const [form, setForm] = useState(() => buildEmptyForm(date, teamId, startRecurring));
 
   // Reset form when dialog opens
   useEffect(() => {
-    if (open) setForm(buildEmptyForm(date, teamId));
-  }, [open, date, teamId]);
+    if (open) setForm(buildEmptyForm(date, teamId, startRecurring));
+  }, [open, date, teamId, startRecurring]);
 
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 

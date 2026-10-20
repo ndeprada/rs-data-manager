@@ -6,6 +6,7 @@ import { useMatchStatus } from "@/lib/matchStatus";
 import { useTrainingStatus } from "@/lib/trainingStatus";
 import PendingStrip from "@/components/dashboard/PendingStrip";
 import BirthdayAlert from "@/components/myteam/BirthdayAlert";
+import ScheduleNudge from "@/components/myteam/ScheduleNudge";
 
 // Avisos de arriba del panel "Mi equipo": lo que el entrenador tiene sin gestionar + cumpleaños de la plantilla.
 // Es lo primero que se ve al entrar, porque sirve de recordatorio de tareas pendientes.
@@ -42,6 +43,7 @@ export default function TeamAlerts({ teamId, players }) {
   return (
     <div className="space-y-2">
       <PendingStrip items={items} />
+      <ScheduleNudge teamId={teamId} />
       <BirthdayAlert players={players} />
     </div>
   );
