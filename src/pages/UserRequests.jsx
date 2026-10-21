@@ -6,18 +6,20 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/AuthContext";
 
 import { PageTitle } from "@/components/common/PageHeader";
+import { useT, msg } from "@/i18n";
 const ROLE_LABELS = {
-  entrenador: "Entrenador",
-  preparador_fisico: "Preparador Físico",
-  entrenador_porteros: "Entrenador de Porteros",
-  psicologo: "Técnico · Área psicología",
-  fisioterapeuta: "Fisioterapeuta",
-  coordinador_f7: "Coordinador F7",
-  coordinador_f11: "Coordinador F11",
-  coordinador_general: "Coordinador General",
+  entrenador: msg("Entrenador"),
+  preparador_fisico: msg("Preparador Físico"),
+  entrenador_porteros: msg("Entrenador de Porteros"),
+  psicologo: msg("Técnico · Área psicología"),
+  fisioterapeuta: msg("Fisioterapeuta"),
+  coordinador_f7: msg("Coordinador F7"),
+  coordinador_f11: msg("Coordinador F11"),
+  coordinador_general: msg("Coordinador General"),
 };
 
 export default function UserRequests() {
+  const t = useT();
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
 
@@ -52,14 +54,14 @@ export default function UserRequests() {
   if (currentUser?.role !== "admin") {
     return (
       <div className="p-12 text-center">
-        <p className="text-gray-400">No tienes acceso a esta sección.</p>
+        <p className="text-gray-400">{t("No tienes acceso a esta sección.")}</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <PageTitle kicker="Administración" title="Solicitudes de acceso" subtitle="Usuarios pendientes de aprobación" />
+      <PageTitle kicker={t("Administración")} title={t("Solicitudes de acceso")} subtitle={t("Usuarios pendientes de aprobación")} />
 
       {isLoading ? (
         <div className="flex justify-center p-12">
@@ -69,7 +71,7 @@ export default function UserRequests() {
         <div className="bg-white border border-gray-200 p-12 text-center" style={{ borderRadius: "4px" }}>
           <Clock className="w-8 h-8 text-gray-200 mx-auto mb-3" />
           <p className="text-gray-400 text-sm uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
-            No hay solicitudes pendientes
+            {t("No hay solicitudes pendientes")}
           </p>
         </div>
       ) : (
@@ -80,7 +82,7 @@ export default function UserRequests() {
                 <p className="font-bold text-gray-900" style={{ fontFamily: "var(--font-display)" }}>{u.full_name}</p>
                 <p className="text-sm text-gray-500">{u.email}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Rol solicitado: <span className="font-semibold text-gray-600">{ROLE_LABELS[u.app_role_pending] || u.app_role_pending}</span>
+                  {t("Rol solicitado:")} <span className="font-semibold text-gray-600">{ROLE_LABELS[u.app_role_pending] ? t(ROLE_LABELS[u.app_role_pending]) : u.app_role_pending}</span>
                 </p>
               </div>
               <div className="flex gap-2">

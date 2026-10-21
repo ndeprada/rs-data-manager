@@ -9,11 +9,9 @@ import { es } from "date-fns/locale";
 import { downloadPlayerPDF } from "./playerPdfGenerator";
 import { playerFullName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
+import { useT, useDateLocale } from "@/i18n";
 
-const MONTHS = Array.from({ length: 12 }, (_, i) => ({
-  value: String(i + 1),
-  label: format(new Date(2000, i, 1), "MMMM", { locale: es }),
-}));
+const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), index: i }));
 
 const YEARS = Array.from({ length: new Date().getFullYear() - 2023 }, (_, i) => 2024 + i).map((y) => ({ value: String(y), label: String(y) }));
 
@@ -32,6 +30,8 @@ function getPlayerStats(player, matchStats, attendance, month, year) {
 }
 
 export default function MonthlyReportSection() {
+  const t = useT();
+  const dfl = useDateLocale();
   const now = new Date();
   const [selectedTeam, setSelectedTeam] = useState("");
   const [month, setMonth] = useState(String(getMonth(now) === 0 ? 12 : getMonth(now)));
@@ -53,7 +53,7 @@ export default function MonthlyReportSection() {
   // Abre el correo del usuario con un resumen del mes (el PDF se descarga aparte y se adjunta a mano):
   // la app no envía emails por sí misma.
   const mailtoFor = (player, stats, att) => {
-    const periodLabel = format(new Date(parseInt(year), parseInt(month) - 1, 1), "MMMM yyyy", { locale: es });
+    const periodLabel = format(new Date(parseInt(year), parseInt(month) - 1, 1), "MMMM yyyy", { locale: es }); // el correo al tutor va en español
     const goals = stats.reduce((a, x) => a + (x.goals || 0), 0);
     const assists = stats.reduce((a, x) => a + (x.assists || 0), 0);
     const present = att.filter((a) => a.status === "present" || a.status === "apart").length;
@@ -69,46 +69,46 @@ export default function MonthlyReportSection() {
       {/* Config */}
       <div className="bg-white border border-gray-200 shadow-sm p-5" style={{ borderRadius: "4px" }}>
         <h2 className="font-bold text-base uppercase tracking-wide text-gray-800 mb-4" style={{ fontFamily: "var(--font-display)" }}>
-          Configurar informe mensual
+          {t("Configurar informe mensual")}
         </h2>
         <div className="flex flex-wrap gap-4 items-end">
           <div className="space-y-1.5">
-            <Label className="text-xs text-gray-500 uppercase tracking-wider">Equipo</Label>
+            <Label className="text-xs text-gray-500 uppercase tracking-wider">{t("Equipo")}</Label>
             <Select value={selectedTeam} onValueChange={setSelectedTeam}>
-              <SelectTrigger className="w-48 border-gray-200 bg-white"><SelectValue placeholder="Seleccionar equipo" /></SelectTrigger>
+              <SelectTrigger className="w-48 border-gray-200 bg-white"><SelectValue placeholder={t("Seleccionar equipo")} /></SelectTrigger>
               <SelectContent>
                 {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-gray-500 uppercase tracking-wider">Mes</Label>
+            <Label className="text-xs text-gray-500 uppercase tracking-wider">{t("Mes")}</Label>
             <Select value={month} onValueChange={setMonth}>
               <SelectTrigger className="w-36 border-gray-200 bg-white capitalize"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {MONTHS.map((m) => <SelectItem key={m.value} value={m.value} className="capitalize">{m.label}</SelectItem>)}
+                {MONTHS.map((m) => <SelectItem key={m.value} value={m.value} className="capitalize">{format(new Date(2000, m.index, 1), "MMMM", { locale: dfl })}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-gray-500 uppercase tracking-wider">Año</Label>
+            <Label className="text-xs text-gray-500 uppercase tracking-wider">{t("Año")}</Label>
             <Select value={year} onValueChange={setYear}>
               <SelectTrigger className="w-24 border-gray-200 bg-white"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {YEARS.map((y) => <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>)}
+                {YEARS.map((y) => <SelectItem key={y.value} value={y.value}>{t(y.label)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
         </div>
       </div>
 
-      <p className="text-xs text-gray-400 -mt-3">Descarga el PDF de cada jugador y envíalo a su familia: el botón Email abre tu correo con el resumen preparado (la app no envía emails por sí misma).</p>
+      <p className="text-xs text-gray-400 -mt-3">{t("Descarga el PDF de cada jugador y envíalo a su familia: el botón Email abre tu correo con el resumen preparado (la app no envía emails por sí misma).")}</p>
 
       {/* Players list */}
       {selectedTeam && teamPlayers.length === 0 && (
         <div className="bg-white border border-gray-200 p-10 text-center text-gray-400 shadow-sm" style={{ borderRadius: "4px" }}>
           <Users className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-          <p>No hay jugadores en este equipo</p>
+          <p>{t("No hay jugadores en este equipo")}</p>
         </div>
       )}
 
@@ -116,12 +116,12 @@ export default function MonthlyReportSection() {
         <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
           <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
-              {teamPlayers.length} jugadores · {format(new Date(parseInt(year), parseInt(month) - 1, 1), "MMMM yyyy", { locale: es })}
+              {t("{length} jugadores · {format}", { length: teamPlayers.length, format: format(new Date(parseInt(year), parseInt(month) - 1, 1), "MMMM yyyy", { locale: dfl }) })}
             </p>
             {withoutEmail.length > 0 && (
               <p className="text-xs text-orange-500 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" />
-                {withoutEmail.length} sin email de tutor
+                {t("{length} sin email de tutor", { length: withoutEmail.length })}
               </p>
             )}
           </div>
@@ -151,19 +151,19 @@ export default function MonthlyReportSection() {
                       {player.jersey_number && <span className="text-gray-400 font-normal ml-1">#{player.jersey_number}</span>}
                     </p>
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
-                      {player.guardian_name && <span>Tutor: {player.guardian_name}</span>}
+                      {player.guardian_name && <span>{t("Tutor: {guardian_name}", { guardian_name: player.guardian_name })}</span>}
                       {player.guardian_email
                         ? <span className="text-green-600">{player.guardian_email}</span>
-                        : <span className="text-orange-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />Sin email de tutor</span>
+                        : <span className="text-orange-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{t("Sin email de tutor")}</span>
                       }
                     </div>
                   </div>
 
                   {/* Quick stats */}
                   <div className="hidden sm:flex items-center gap-4 text-xs text-gray-400 shrink-0">
-                    <span>{stats.length} partidos</span>
-                    <span>{totalGoals} goles</span>
-                    {attRate !== null && <span>{attRate}% asist.</span>}
+                    <span>{t("{length} partidos", { length: stats.length })}</span>
+                    <span>{t("{totalGoals} goles", { totalGoals })}</span>
+                    {attRate !== null && <span>{t("{attRate}% asist.", { attRate })}</span>}
                   </div>
 
                   {/* Actions */}
@@ -171,7 +171,7 @@ export default function MonthlyReportSection() {
                     <button
                       onClick={() => downloadPlayerPDF(player, team, stats, att, m, y)}
                       className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-                      title="Descargar PDF"
+                      title={t("Descargar PDF")}
                     >
                       <Download className="w-4 h-4" />
                     </button>
@@ -179,9 +179,9 @@ export default function MonthlyReportSection() {
                       <a
                         href={mailtoFor(player, stats, att)}
                         className="inline-flex items-center gap-1 px-3 h-8 text-xs font-medium rounded border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
-                        title="Abre tu correo con el resumen preparado; adjunta el PDF descargado"
+                        title={t("Abre tu correo con el resumen preparado; adjunta el PDF descargado")}
                       >
-                        <Mail className="w-3.5 h-3.5" /> Email
+                        <Mail className="w-3.5 h-3.5" /> {t("Email")}
                       </a>
                     )}
                   </div>

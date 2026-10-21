@@ -11,16 +11,17 @@ import { Plus, Package, Edit, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 import EmptyState from "@/components/common/EmptyState";
+import { useT, msg } from "@/i18n";
 const CATEGORIES = {
-  balon: "Balón",
-  peto: "Peto",
-  cono: "Cono",
-  porterias: "Portería",
-  ropa: "Ropa",
-  equipacion: "Equipación",
-  medico: "Material médico",
-  electronico: "Electrónico",
-  otro: "Otro",
+  balon: msg("Balón"),
+  peto: msg("Peto"),
+  cono: msg("Cono"),
+  porterias: msg("Portería"),
+  ropa: msg("Ropa"),
+  equipacion: msg("Equipación"),
+  medico: msg("Material médico"),
+  electronico: msg("Electrónico"),
+  otro: msg("Otro"),
 };
 
 const CATEGORY_COLORS = {
@@ -43,15 +44,16 @@ const CONDITION_COLORS = {
 };
 
 const CONDITION_LABELS = {
-  bueno: "Bueno",
-  regular: "Regular",
-  malo: "Malo",
-  baja: "Baja",
+  bueno: msg("Bueno"),
+  regular: msg("Regular"),
+  malo: msg("Malo"),
+  baja: msg("Baja"),
 };
 
 const EMPTY_FORM = { name: "", category: "balon", total_quantity: "", available_quantity: "", condition: "bueno", notes: "" };
 
 export default function MaterialInventoryTab() {
+  const t = useT();
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -78,7 +80,7 @@ export default function MaterialInventoryTab() {
       setShowForm(false);
       setEditing(null);
       setForm(EMPTY_FORM);
-      toast({ title: editing ? "Material actualizado" : "Material añadido" });
+      toast({ title: editing ? t("Material actualizado") : t("Material añadido") });
     },
   });
 
@@ -87,7 +89,7 @@ export default function MaterialInventoryTab() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["material_items"] });
       setDeleteId(null);
-      toast({ title: "Material eliminado" });
+      toast({ title: t("Material eliminado") });
     },
   });
 
@@ -118,23 +120,23 @@ export default function MaterialInventoryTab() {
         <div className="flex gap-2">
           <Select value={filterCategory} onValueChange={setFilterCategory}>
             <SelectTrigger className="w-44">
-              <SelectValue placeholder="Todas las categorías" />
+              <SelectValue placeholder={t("Todas las categorías")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas las categorías</SelectItem>
+              <SelectItem value="all">{t("Todas las categorías")}</SelectItem>
               {Object.entries(CATEGORIES).map(([k, v]) => (
-                <SelectItem key={k} value={k}>{v}</SelectItem>
+                <SelectItem key={k} value={k}>{t(v)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <Button onClick={openNew} size="sm" className="gap-1.5">
-          <Plus className="w-4 h-4" /> Añadir material
+          <Plus className="w-4 h-4" /> {t("Añadir material")}
         </Button>
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={Package} title="No hay material registrado" />
+        <EmptyState icon={Package} title={t("No hay material registrado")} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map(item => {
@@ -146,10 +148,10 @@ export default function MaterialInventoryTab() {
                     <p className="font-semibold text-gray-900 text-sm truncate">{item.name}</p>
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CATEGORY_COLORS[item.category] || "bg-gray-100 text-gray-600"}`}>
-                        {CATEGORIES[item.category] || item.category}
+                        {CATEGORIES[item.category] ? t(CATEGORIES[item.category]) : item.category}
                       </span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CONDITION_COLORS[item.condition] || "bg-gray-100"}`}>
-                        {CONDITION_LABELS[item.condition] || item.condition}
+                        {CONDITION_LABELS[item.condition] ? t(CONDITION_LABELS[item.condition]) : item.condition}
                       </span>
                     </div>
                   </div>
@@ -165,11 +167,11 @@ export default function MaterialInventoryTab() {
 
                 <div className="flex items-center gap-4 text-xs text-gray-600 border-t pt-2">
                   <div>
-                    <span className="text-gray-400">Total</span>
+                    <span className="text-gray-400">{t("Total")}</span>
                     <p className="font-bold text-base text-gray-900 leading-tight">{item.total_quantity ?? 0}</p>
                   </div>
                   <div>
-                    <span className="text-gray-400">Disponible</span>
+                    <span className="text-gray-400">{t("Disponible")}</span>
                     <p className={`font-bold text-base leading-tight ${(item.available_quantity ?? 0) === 0 ? "text-red-500" : "text-green-600"}`}>
                       {item.available_quantity ?? 0}
                     </p>
@@ -177,7 +179,7 @@ export default function MaterialInventoryTab() {
                   {openInc > 0 && (
                     <div className="ml-auto flex items-center gap-1 text-amber-600">
                       <AlertTriangle className="w-3.5 h-3.5" />
-                      <span className="font-semibold">{openInc} incidencia{openInc > 1 ? "s" : ""}</span>
+                      <span className="font-semibold">{openInc > 1 ? t("{n} incidencias", { n: openInc }) : t("{n} incidencia", { n: openInc })}</span>
                     </div>
                   )}
                 </div>
@@ -193,50 +195,50 @@ export default function MaterialInventoryTab() {
       <Dialog open={showForm} onOpenChange={v => { if (!v) { setShowForm(false); setEditing(null); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editing ? "Editar material" : "Añadir material"}</DialogTitle>
+            <DialogTitle>{editing ? t("Editar material") : t("Añadir material")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <Label>Nombre *</Label>
-              <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Ej: Balón de entrenamiento" required />
+              <Label>{t("Nombre *")}</Label>
+              <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={t("Ej: Balón de entrenamiento")} required />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Categoría</Label>
+                <Label>{t("Categoría")}</Label>
                 <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {Object.entries(CATEGORIES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    {Object.entries(CATEGORIES).map(([k, v]) => <SelectItem key={k} value={k}>{t(v)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Estado</Label>
+                <Label>{t("Estado")}</Label>
                 <Select value={form.condition} onValueChange={v => setForm({ ...form, condition: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {Object.entries(CONDITION_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    {Object.entries(CONDITION_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{t(v)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Cantidad total</Label>
+                <Label>{t("Cantidad total")}</Label>
                 <Input type="number" min="0" value={form.total_quantity} onChange={e => setForm({ ...form, total_quantity: e.target.value })} placeholder="0" />
               </div>
               <div>
-                <Label>Cantidad disponible</Label>
+                <Label>{t("Cantidad disponible")}</Label>
                 <Input type="number" min="0" value={form.available_quantity} onChange={e => setForm({ ...form, available_quantity: e.target.value })} placeholder="0" />
               </div>
             </div>
             <div>
-              <Label>Notas</Label>
+              <Label>{t("Notas")}</Label>
               <Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} />
             </div>
             <div className="flex gap-2 justify-end pt-1">
-              <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
-              <Button type="submit" disabled={saveMutation.isPending}>Guardar</Button>
+              <Button type="button" variant="outline" onClick={() => setShowForm(false)}>{t("Cancelar")}</Button>
+              <Button type="submit" disabled={saveMutation.isPending}>{t("Guardar")}</Button>
             </div>
           </form>
         </DialogContent>
@@ -245,11 +247,11 @@ export default function MaterialInventoryTab() {
       {/* Delete confirm */}
       <Dialog open={!!deleteId} onOpenChange={v => !v && setDeleteId(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>¿Eliminar material?</DialogTitle></DialogHeader>
-          <p className="text-sm text-gray-500">Esta acción no se puede deshacer.</p>
+          <DialogHeader><DialogTitle>{t("¿Eliminar material?")}</DialogTitle></DialogHeader>
+          <p className="text-sm text-gray-500">{t("Esta acción no se puede deshacer.")}</p>
           <div className="flex gap-2 justify-end">
-            <Button variant="outline" onClick={() => setDeleteId(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={() => deleteMutation.mutate(deleteId)}>Eliminar</Button>
+            <Button variant="outline" onClick={() => setDeleteId(null)}>{t("Cancelar")}</Button>
+            <Button variant="destructive" onClick={() => deleteMutation.mutate(deleteId)}>{t("Eliminar")}</Button>
           </div>
         </DialogContent>
       </Dialog>

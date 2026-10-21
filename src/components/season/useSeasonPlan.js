@@ -1,10 +1,12 @@
 import { useRef, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useT } from "@/i18n";
 
 // Plan de traspasos de fin de temporada: { [playerId]: { to: <teamId> | "baja" | "stay" } }.
 // Se guarda en la base de datos en cada cambio (entidad SeasonPlan), así no se pierde nada y lo puede seguir cualquier coordinador.
 export function useSeasonPlan(season) {
+  const t = useT();
   const qc = useQueryClient();
   const key = ["season_plan", season];
   const { data: plan = null, isLoading } = useQuery({
@@ -35,7 +37,7 @@ export function useSeasonPlan(season) {
         idRef.current = saved?.id || idRef.current;
         qc.setQueryData(key, (old) => ({ ...(old || {}), id: idRef.current, season, moves: movesRef.current }));
       } catch {
-        setError("No se pudo guardar el último cambio. Vuelve a intentarlo.");
+        setError(t("No se pudo guardar el último cambio. Vuelve a intentarlo."));
         qc.invalidateQueries({ queryKey: key });
       } finally {
         setSaving((n) => n - 1);

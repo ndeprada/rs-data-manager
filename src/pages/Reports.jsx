@@ -17,7 +17,9 @@ import { buildExecutiveSummary } from "@/lib/reportSummary";
 
 import { PageTitle } from "@/components/common/PageHeader";
 import TabBar from "@/components/common/TabBar";
+import { useT, msg } from "@/i18n";
 export default function Reports() {
+  const t = useT();
   const [selectedTeamId, setSelectedTeamId] = useState("all");
   const [reportData, setReportData] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -128,17 +130,17 @@ export default function Reports() {
 
   return (
     <div className="space-y-4">
-      <PageTitle kicker="Herramientas" title="Informes" subtitle="Informes del club y jugadores" />
+      <PageTitle kicker={t("Herramientas")} title={t("Informes")} subtitle={t("Informes del club y jugadores")} />
 
       {/* Tabs */}
       <TabBar
         value={activeTab}
         onChange={setActiveTab}
         items={[
-          { value: "executive", label: "Informe Ejecutivo", icon: FileText },
-          { value: "monthly", label: "Informes Mensuales", icon: Users },
-          hasPDIData && hasActivePlayers && { value: "pdi", label: "Informes PDI", icon: BookOpen },
-          hasProgressionData && hasActivePlayers && { value: "progression", label: "Progresión Individual", icon: TrendingUp },
+          { value: "executive", label: msg("Informe Ejecutivo"), icon: FileText },
+          { value: "monthly", label: msg("Informes Mensuales"), icon: Users },
+          hasPDIData && hasActivePlayers && { value: "pdi", label: msg("Informes PDI"), icon: BookOpen },
+          hasProgressionData && hasActivePlayers && { value: "progression", label: msg("Progresión Individual"), icon: TrendingUp },
         ]}
       />
 
@@ -149,16 +151,16 @@ export default function Reports() {
       {activeTab === "executive" && (
         <div className="space-y-6">
           <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-            <h2 className="mb-4">Configurar informe</h2>
+            <h2 className="mb-4">{t("Configurar informe")}</h2>
             <div className="flex flex-col sm:flex-row gap-4 items-end">
               <div className="flex-1 space-y-2">
-                <Label className="text-gray-700">Ámbito del informe</Label>
+                <Label className="text-gray-700">{t("Ámbito del informe")}</Label>
                 <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
                   <SelectTrigger className="border-gray-200 bg-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todo el club</SelectItem>
+                    <SelectItem value="all">{t("Todo el club")}</SelectItem>
                     {teams.map(t => (
                       <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
@@ -172,14 +174,14 @@ export default function Reports() {
                 size="lg"
               >
                 {isGenerating ? (
-                  <><Loader2 className="w-5 h-5 mr-2.5 animate-spin" /> Generando...</>
+                  <><Loader2 className="w-5 h-5 mr-2.5 animate-spin" /> {t("Generando...")}</>
                 ) : (
-                  <><Sparkles className="w-5 h-5 mr-2.5" /> Generar informe</>
+                  <><Sparkles className="w-5 h-5 mr-2.5" /> {t("Generar informe")}</>
                 )}
               </Button>
               {reportData && (
                 <Button variant="outline" onClick={handleDownloadPDF} className="shrink-0">
-                  <Download className="w-4 h-4 mr-2" /> Descargar PDF
+                  <Download className="w-4 h-4 mr-2" /> {t("Descargar PDF")}
                 </Button>
               )}
             </div>
@@ -188,8 +190,8 @@ export default function Reports() {
           {isGenerating && (
             <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center shadow-sm">
               <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4" style={{ color: "var(--granate)" }} />
-              <p className="text-gray-600 font-medium">Reuniendo los datos y preparando el resumen...</p>
-              <p className="text-gray-400 text-sm mt-1">Esto puede tardar unos segundos</p>
+              <p className="text-gray-600 font-medium">{t("Reuniendo los datos y preparando el resumen...")}</p>
+              <p className="text-gray-400 text-sm mt-1">{t("Esto puede tardar unos segundos")}</p>
             </div>
           )}
 
@@ -200,8 +202,8 @@ export default function Reports() {
           {!reportData && !isGenerating && (
             <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center shadow-sm">
               <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 font-medium">Selecciona el ámbito y genera tu informe</p>
-              <p className="text-gray-400 text-sm mt-1">El informe incluirá estadísticas de jugadores, partidos y asistencia</p>
+              <p className="text-gray-500 font-medium">{t("Selecciona el ámbito y genera tu informe")}</p>
+              <p className="text-gray-400 text-sm mt-1">{t("El informe incluirá estadísticas de jugadores, partidos y asistencia")}</p>
             </div>
           )}
         </div>

@@ -9,14 +9,16 @@ import KitLoansTab from "@/components/material/KitLoansTab";
 
 import { PageTitle } from "@/components/common/PageHeader";
 import TabBar from "@/components/common/TabBar";
+import { useT, msg } from "@/i18n";
 const TABS = [
-  { id: "inventario", label: "Inventario", icon: Package },
-  { id: "asignaciones", label: "Asignaciones", icon: ArrowLeftRight },
-  { id: "incidencias", label: "Incidencias", icon: AlertTriangle },
-  { id: "equipaciones", label: "Equipaciones", icon: Shirt },
+  { id: "inventario", label: msg("Inventario"), icon: Package },
+  { id: "asignaciones", label: msg("Asignaciones"), icon: ArrowLeftRight },
+  { id: "incidencias", label: msg("Incidencias"), icon: AlertTriangle },
+  { id: "equipaciones", label: msg("Equipaciones"), icon: Shirt },
 ];
 
 export default function Material() {
+  const t = useT();
   const [activeTab, setActiveTab] = useState("inventario");
 
   const { data: openIncidences = [] } = useQuery({
@@ -37,7 +39,7 @@ export default function Material() {
   return (
     <div className="space-y-4">
       {/* Cabecera */}
-      <PageTitle kicker="Club" title="Material" subtitle="Inventario, asignaciones, incidencias y control de equipaciones" />
+      <PageTitle kicker={t("Club")} title={t("Material")} subtitle={t("Inventario, asignaciones, incidencias y control de equipaciones")} />
 
       {/* Pestañas */}
       <TabBar

@@ -13,23 +13,24 @@ import TabBar from "@/components/common/TabBar";
 import StaffTable from "@/components/coach/StaffTable";
 
 import { PageTitle } from "@/components/common/PageHeader";
+import { useT, msg } from "@/i18n";
 const ROLE_LABELS = {
-  entrenador: "Entrenador",
-  ayudante: "Ayudante",
-  preparador_fisico: "Prep. Físico",
-  portero_coach: "Portero Coach",
-  medico: "Médico",
-  fisioterapeuta: "Fisioterapeuta",
-  coordinador: "Coordinador",
-  otro: "Otro",
-  coordinador_general: "Coord. General",
-  director: "Director",
-  director_deportivo: "Director Deportivo",
-  coordinador_f7: "Coord. F7",
-  coordinador_f11: "Coord. F11",
-  entrenador_porteros: "Entren. Porteros",
-  psicologo: "Técnico · Área psicología",
-  admin: "Director / Admin",
+  entrenador: msg("Entrenador"),
+  ayudante: msg("Ayudante"),
+  preparador_fisico: msg("Prep. Físico"),
+  portero_coach: msg("Portero Coach"),
+  medico: msg("Médico"),
+  fisioterapeuta: msg("Fisioterapeuta"),
+  coordinador: msg("Coordinador"),
+  otro: msg("Otro"),
+  coordinador_general: msg("Coord. General"),
+  director: msg("Director"),
+  director_deportivo: msg("Director Deportivo"),
+  coordinador_f7: msg("Coord. F7"),
+  coordinador_f11: msg("Coord. F11"),
+  entrenador_porteros: msg("Entren. Porteros"),
+  psicologo: msg("Técnico · Área psicología"),
+  admin: msg("Director / Admin"),
 };
 
 const APP_STAFF_ROLES = STAFF_FUNCTION_VALUES;
@@ -41,6 +42,7 @@ const readView = () => {
 };
 
 export default function Coaches() {
+  const t = useT();
   const navigate = useNavigate();
   const [view, setViewState] = useState(readView);
   const setView = (v) => {
@@ -62,7 +64,7 @@ export default function Coaches() {
   if (!isCoordinator && !perms.canViewCoachProfiles) {
     return (
       <div className="p-12 text-center">
-        <p className="text-gray-400">No tienes acceso a esta sección.</p>
+        <p className="text-gray-400">{t("No tienes acceso a esta sección.")}</p>
       </div>
     );
   }
@@ -176,11 +178,12 @@ export default function Coaches() {
   const rows = filtered.map(s => ({
     key: s.id,
     url: profileUrlOf(s),
-    name: `${s.first_name || ""} ${s.last_name || ""}`.trim() || "Sin nombre",
+    name: `${s.first_name || ""} ${s.last_name || ""}`.trim() || t("Sin nombre"),
     initials: `${s.first_name?.[0] || ""}${s.last_name?.[0] || ""}`,
     photo_url: s.photo_url,
     isAdmin: !!s._isAdmin,
-    roleLabel: ROLE_LABELS[s.role] || s.role || "—",
+    roleLabel: ROLE_LABELS[s.role] ? t(ROLE_LABELS[s.role]) : s.role || "—",
+    roleEs: ROLE_LABELS[s.role] || s.role || "—", // para el Excel y la hoja impresa (siempre en español)
     birth_date: s.birth_date,
     teams: (s.team_list || [])
       .map(a => ({ a, t: getTeam(a.team_id) }))
@@ -195,14 +198,14 @@ export default function Coaches() {
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <PageTitle kicker="Administración" title="Personal" subtitle={`Miembros del personal del club · ${filtered.length} persona${filtered.length === 1 ? "" : "s"}`} />
+        <PageTitle kicker={t("Administración")} title={t("Personal")} subtitle={filtered.length === 1 ? t("Miembros del personal del club · {n} persona", { n: 1 }) : t("Miembros del personal del club · {n} personas", { n: filtered.length })} />
         <div className="flex items-center gap-2 flex-wrap">
           <TabBar value={view} onChange={setView}
-            items={[{ value: "lista", label: "Lista", icon: List }, { value: "tarjetas", label: "Tarjetas", icon: LayoutGrid }]} />
+            items={[{ value: "lista", label: msg("Lista"), icon: List }, { value: "tarjetas", label: msg("Tarjetas"), icon: LayoutGrid }]} />
           <Select value={filterTeam} onValueChange={setFilterTeam}>
-            <SelectTrigger className="w-48 border-gray-200 bg-white"><SelectValue placeholder="Todos los equipos" /></SelectTrigger>
+            <SelectTrigger className="w-48 border-gray-200 bg-white"><SelectValue placeholder={t("Todos los equipos")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los equipos</SelectItem>
+              <SelectItem value="all">{t("Todos los equipos")}</SelectItem>
               {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -213,9 +216,9 @@ export default function Coaches() {
         <div className="bg-white border border-gray-200 p-12 text-center" style={{ borderRadius: "4px" }}>
           <Users className="w-8 h-8 text-gray-200 mx-auto mb-3" />
           <p className="text-gray-400 text-sm uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
-            No hay miembros del cuerpo técnico registrados
+            {t("No hay miembros del cuerpo técnico registrados")}
           </p>
-          <p className="text-xs text-gray-300 mt-1">Añade miembros del staff desde la ficha de equipo</p>
+          <p className="text-xs text-gray-300 mt-1">{t("Añade miembros del staff desde la ficha de equipo")}</p>
         </div>
       ) : view === "lista" ? (
         <StaffTable rows={rows} onOpen={navigate} filterLabel={filterTeam === "all" ? "Todos los equipos" : getTeam(filterTeam)?.name || "Equipo"} />
@@ -241,18 +244,18 @@ export default function Coaches() {
                       {s.first_name} {s.last_name}
                     </p>
                     <p className="text-xs font-bold uppercase tracking-wide mt-0.5" style={{ color: "var(--naranja)", fontFamily: "var(--font-display)" }}>
-                      {ROLE_LABELS[s.role] || s.role}
+                      {ROLE_LABELS[s.role] ? t(ROLE_LABELS[s.role]) : s.role}
                     </p>
                     {(s.team_list || []).slice(0, 3).map(a => {
-                      const t = getTeam(a.team_id);
-                      return t ? (
+                      const tm = getTeam(a.team_id);
+                      return tm ? (
                         <p key={a.team_id} className="text-xs text-gray-400 mt-0.5 truncate">
-                          {t.name}{a.team_role ? ` · ${teamRoleLabel(a.team_role)}` : ""}
+                          {tm.name}{a.team_role ? ` · ${t(teamRoleLabel(a.team_role))}` : ""}
                         </p>
                       ) : null;
                     })}
                     {(s.team_list || []).length > 3 && (
-                      <p className="text-[11px] text-gray-300">+{s.team_list.length - 3} equipos más</p>
+                      <p className="text-[11px] text-gray-300">{t("+{v} equipos más", { v: s.team_list.length - 3 })}</p>
                     )}
                     {s.phone && <p className="text-xs text-gray-400 mt-0.5">{s.phone}</p>}
                   </div>

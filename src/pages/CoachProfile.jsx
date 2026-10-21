@@ -20,26 +20,28 @@ import ImageCropDialog from "@/components/ImageCropDialog";
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 import { TEAM_ROLES } from "@/lib/staffRoles";
 import { syncAssignments, syncUserTeamsForStaff, buildLinks, deleteStaffPerson, revokedAccess } from "@/lib/staffLink";
+import { useT, msg } from "@/i18n";
 
 const ROLE_LABELS = {
-  entrenador: "Entrenador",
-  ayudante: "Ayudante",
-  preparador_fisico: "Preparador Físico",
-  portero_coach: "Portero Coach",
-  medico: "Médico",
-  fisioterapeuta: "Fisioterapeuta",
-  coordinador: "Coordinador",
-  otro: "Otro",
-  coordinador_general: "Coordinador General",
-  director: "Director",
-  director_deportivo: "Director Deportivo",
-  coordinador_f7: "Coordinador F7",
-  coordinador_f11: "Coordinador F11",
-  entrenador_porteros: "Entrenador de Porteros",
-  psicologo: "Técnico · Área psicología",
+  entrenador: msg("Entrenador"),
+  ayudante: msg("Ayudante"),
+  preparador_fisico: msg("Preparador Físico"),
+  portero_coach: msg("Portero Coach"),
+  medico: msg("Médico"),
+  fisioterapeuta: msg("Fisioterapeuta"),
+  coordinador: msg("Coordinador"),
+  otro: msg("Otro"),
+  coordinador_general: msg("Coordinador General"),
+  director: msg("Director"),
+  director_deportivo: msg("Director Deportivo"),
+  coordinador_f7: msg("Coordinador F7"),
+  coordinador_f11: msg("Coordinador F11"),
+  entrenador_porteros: msg("Entrenador de Porteros"),
+  psicologo: msg("Técnico · Área psicología"),
 };
 
 export default function CoachProfile() {
+  const t = useT();
   const location = useLocation();
   const urlParams = new URLSearchParams(location.search);
   const staffId = urlParams.get("id");
@@ -97,15 +99,15 @@ export default function CoachProfile() {
   });
 
   const TEAM_ROLE_LABELS = {
-    primer_entrenador: "1er Entrenador",
-    segundo_entrenador: "2º Entrenador",
-    preparador_fisico: "Prep. Físico",
-    entrenador_porteros: "Ent. Porteros",
-    coordinador: "Coordinador",
-    delegado: "Delegado",
-    fisio: "Fisio",
-    analista: "Analista",
-    asistente: "Asistente",
+    primer_entrenador: msg("1er Entrenador"),
+    segundo_entrenador: msg("2º Entrenador"),
+    preparador_fisico: msg("Prep. Físico"),
+    entrenador_porteros: msg("Ent. Porteros"),
+    coordinador: msg("Coordinador"),
+    delegado: msg("Delegado"),
+    fisio: msg("Fisio"),
+    analista: msg("Analista"),
+    asistente: msg("Asistente"),
   };
 
   // Equipos asignados via TeamStaffAssignment
@@ -208,11 +210,11 @@ export default function CoachProfile() {
       queryClient.invalidateQueries({ queryKey: ["staff"] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setPhotoLoading(false);
-      toast({ title: "Foto actualizada correctamente." });
+      toast({ title: t("Foto actualizada correctamente.") });
     },
     onError: (err) => {
       setPhotoLoading(false);
-      toast({ title: "Error al subir la foto", description: err.message, variant: "destructive" });
+      toast({ title: t("Error al subir la foto"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -298,10 +300,10 @@ export default function CoachProfile() {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["team_staff_assignments"] });
       setEditDialogOpen(false);
-      toast({ title: "Perfil actualizado", description: "Los cambios se han guardado correctamente." });
+      toast({ title: t("Perfil actualizado"), description: t("Los cambios se han guardado correctamente.") });
     },
     onError: (err) => {
-      toast({ title: "Error al guardar", description: err.message, variant: "destructive" });
+      toast({ title: t("Error al guardar"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -316,11 +318,11 @@ export default function CoachProfile() {
     onSuccess: () => {
       ["staff", "users", "team_staff_assignments"].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
       setDeleteOpen(false);
-      toast({ title: "Eliminado del personal", description: `${member.first_name} ${member.last_name}`.trim() });
+      toast({ title: t("Eliminado del personal"), description: `${member.first_name} ${member.last_name}`.trim() });
       navigate("/Coaches");
     },
     onError: (err) => {
-      toast({ title: "No se ha podido eliminar", description: err.message, variant: "destructive" });
+      toast({ title: t("No se ha podido eliminar"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -353,14 +355,14 @@ export default function CoachProfile() {
 
   if (!member) return (
     <div className="p-12 text-center">
-      <p className="text-gray-400">Perfil no encontrado.</p>
-      <Link to="/Coaches" className="text-sm mt-3 inline-block" style={{ color: "var(--granate)" }}>← Volver a Entrenadores</Link>
+      <p className="text-gray-400">{t("Perfil no encontrado.")}</p>
+      <Link to="/Coaches" className="text-sm mt-3 inline-block" style={{ color: "var(--granate)" }}>{t("← Volver a Entrenadores")}</Link>
     </div>
   );
 
   if (!canView) return (
     <div className="p-12 text-center">
-      <p className="text-gray-400">No tienes acceso a este perfil.</p>
+      <p className="text-gray-400">{t("No tienes acceso a este perfil.")}</p>
     </div>
   );
 
@@ -368,7 +370,7 @@ export default function CoachProfile() {
     <div className="space-y-4">
       {/* Back */}
       <Link to="/Coaches" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Volver a Entrenadores
+        <ArrowLeft className="w-4 h-4" /> {t("Volver a Entrenadores")}
       </Link>
 
       {/* Header */}
@@ -402,23 +404,23 @@ export default function CoachProfile() {
                   {member.first_name} {member.last_name}
                 </h1>
                 <p className="text-sm font-bold uppercase tracking-wide mt-0.5" style={{ color: "var(--naranja)", fontFamily: "var(--font-display)" }}>
-                  {ROLE_LABELS[member.role] || member.role}
+                  {ROLE_LABELS[member.role] ? t(ROLE_LABELS[member.role]) : member.role}
                 </p>
               </div>
               {canEdit && (
-                <button onClick={handleOpenEditDialog} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Editar perfil">
+                <button onClick={handleOpenEditDialog} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title={t("Editar perfil")}>
                   <Edit2 className="w-4 h-4 text-gray-400 hover:text-gray-600" />
                 </button>
               )}
             </div>
             {assignedTeams.length > 0 ? (
               <div className="flex flex-wrap gap-2 mt-2">
-                {assignedTeams.map(t => (
-                  <div key={t.assignment_id} className="flex items-center gap-1.5 text-sm text-gray-600">
+                {assignedTeams.map(tm => (
+                  <div key={tm.assignment_id} className="flex items-center gap-1.5 text-sm text-gray-600">
                     <Shield className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                    <span>{t.name}</span>
-                    {t.team_role && (
-                      <span className="text-xs text-gray-400">· {TEAM_ROLE_LABELS[t.team_role] || t.team_role}</span>
+                    <span>{tm.name}</span>
+                    {tm.team_role && (
+                      <span className="text-xs text-gray-400">· {TEAM_ROLE_LABELS[tm.team_role] ? t(TEAM_ROLE_LABELS[tm.team_role]) : tm.team_role}</span>
                     )}
                   </div>
                 ))}
@@ -445,7 +447,7 @@ export default function CoachProfile() {
           {canDelete && (
             <button type="button" onClick={() => setDeleteOpen(true)}
               className="flex items-center gap-1.5 text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 rounded-full px-3 py-1.5 transition-colors">
-              <Trash2 className="w-3.5 h-3.5" /> {member._isUser ? "Quitar acceso" : "Eliminar del personal"}
+              <Trash2 className="w-3.5 h-3.5" /> {member._isUser ? t("Quitar acceso") : t("Eliminar del personal")}
             </button>
           )}
         </div>
@@ -456,27 +458,27 @@ export default function CoachProfile() {
         <TabsList>
           {showFeedbackTab && (
             <TabsTrigger value="feedback"  style={{ fontFamily: "var(--font-display)" }}>
-              Feedback
+              {t("Feedback")}
             </TabsTrigger>
           )}
           {showFeedbackTab && (
             <TabsTrigger value="eval360"  style={{ fontFamily: "var(--font-display)" }}>
-              Evaluación 360
+              {t("Evaluación 360")}
             </TabsTrigger>
           )}
           {showPDITab && (
             <TabsTrigger value="pdi"  style={{ fontFamily: "var(--font-display)" }}>
-              PDI · Plan Desarrollo Individual
+              {t("PDI · Plan Desarrollo Individual")}
             </TabsTrigger>
           )}
           {canViewReports && (
             <TabsTrigger value="matches"  style={{ fontFamily: "var(--font-display)" }}>
-              Notas privadas
+              {t("Notas privadas")}
             </TabsTrigger>
           )}
           {member.notes && (
             <TabsTrigger value="notes"  style={{ fontFamily: "var(--font-display)" }}>
-              Info
+              {t("Info")}
             </TabsTrigger>
           )}
         </TabsList>
@@ -542,31 +544,31 @@ export default function CoachProfile() {
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
             <AlertDialogTitle style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
-              {member._isUser ? "¿Quitar el acceso a" : "¿Eliminar del personal a"} {member.first_name} {member.last_name}?
+              {member._isUser ? t("¿Quitar el acceso a {name}?", { name: `${member.first_name} ${member.last_name}` }) : t("¿Eliminar del personal a {name}?", { name: `${member.first_name} ${member.last_name}` })}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="text-sm text-gray-600 space-y-2">
                 {member._isUser ? (
-                  <p>Dejará de poder entrar en la aplicación. Podrás recuperarlo desde Accesos → «Eliminados».</p>
+                  <p>{t("Dejará de poder entrar en la aplicación. Podrás recuperarlo desde Accesos → «Eliminados».")}</p>
                 ) : (
                   <>
                     <ul className="list-disc pl-5 space-y-1">
-                      <li>Desaparece de Entrenadores y de los equipos{assignedTeams.length > 0 ? ` (${assignedTeams.map(t => t.name).join(", ")})` : ""}.</li>
+                      <li>{t("Desaparece de Entrenadores y de los equipos{teams}.", { teams: assignedTeams.length > 0 ? ` (${assignedTeams.map(tm => tm.name).join(", ")})` : "" })}</li>
                       {linkedUser && (linkedUser.role === "admin"
-                        ? <li>Conserva su acceso como administrador.</li>
-                        : <li>Se le quita el acceso a la aplicación ({linkedUser.email}).</li>)}
-                      <li>Lo que ya se escribió sobre él (feedback, evaluaciones, PDI y notas) no se borra, pero queda sin ficha.</li>
+                        ? <li>{t("Conserva su acceso como administrador.")}</li>
+                        : <li>{t("Se le quita el acceso a la aplicación ({email}).", { email: linkedUser.email })}</li>)}
+                      <li>{t("Lo que ya se escribió sobre él (feedback, evaluaciones, PDI y notas) no se borra, pero queda sin ficha.")}</li>
                     </ul>
-                    <p className="font-bold text-red-600">Esta acción no se puede deshacer.</p>
+                    <p className="font-bold text-red-600">{t("Esta acción no se puede deshacer.")}</p>
                   </>
                 )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
             <AlertDialogAction onClick={(e) => { e.preventDefault(); deleteMutation.mutate(); }} disabled={deleteMutation.isPending} className="bg-red-600 hover:bg-red-700 text-white">
-              {deleteMutation.isPending ? "Eliminando..." : member._isUser ? "Quitar acceso" : "Eliminar definitivamente"}
+              {deleteMutation.isPending ? t("Eliminando...") : member._isUser ? t("Quitar acceso") : t("Eliminar definitivamente")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -576,32 +578,32 @@ export default function CoachProfile() {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="bg-white max-w-md">
           <DialogHeader>
-            <DialogTitle style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Editar perfil</DialogTitle>
+            <DialogTitle style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{t("Editar perfil")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Nombre</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{t("Nombre")}</label>
                 <Input
                   value={editForm.first_name || ""}
                   onChange={e => setEditForm({ ...editForm, first_name: e.target.value })}
                   className="border-gray-200"
-                  placeholder="Nombre"
+                  placeholder={t("Nombre")}
                 />
               </div>
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Apellidos</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{t("Apellidos")}</label>
                 <Input
                   value={editForm.last_name || ""}
                   onChange={e => setEditForm({ ...editForm, last_name: e.target.value })}
                   className="border-gray-200"
-                  placeholder="Apellidos"
+                  placeholder={t("Apellidos")}
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Fecha de nacimiento</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{t("Fecha de nacimiento")}</label>
               <Input
                 type="date"
                 value={editForm.birth_date || ""}
@@ -611,34 +613,34 @@ export default function CoachProfile() {
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Teléfono</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{t("Teléfono")}</label>
               <Input
                 value={editForm.phone || ""}
                 onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
                 className="border-gray-200"
-                placeholder="+34 6XX XXX XXX"
+                placeholder={t("+34 6XX XXX XXX")}
                 type="tel"
               />
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Email</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{t("Email")}</label>
               <Input
                 value={editForm.email || ""}
                 onChange={e => setEditForm({ ...editForm, email: e.target.value })}
                 className="border-gray-200"
-                placeholder="correo@ejemplo.com"
+                placeholder={t("correo@ejemplo.com")}
                 type="email"
               />
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Notas / Biografía</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{t("Notas / Biografía")}</label>
               <Textarea
                 value={editForm.notes || ""}
                 onChange={e => setEditForm({ ...editForm, notes: e.target.value })}
                 className="border-gray-200"
-                placeholder="Información adicional, especialidades, formación..."
+                placeholder={t("Información adicional, especialidades, formación...")}
                 rows={3}
               />
             </div>
@@ -648,21 +650,21 @@ export default function CoachProfile() {
                 value={editForm.role_assignments || []}
                 teams={teams}
                 roleOptions={TEAM_ROLES}
-                label="Equipos y rol en cada uno"
+                label={t("Equipos y rol en cada uno")}
                 onChange={(assignments) => setEditForm({ ...editForm, role_assignments: assignments })}
               />
             )}
 
             <div className="flex gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} className="flex-1">
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button variant="club"
                 onClick={handleSaveEdit}
                 disabled={updateInfoMutation.isPending}
                 className="flex-1"
               >
-                {updateInfoMutation.isPending ? "Guardando..." : "Guardar cambios"}
+                {updateInfoMutation.isPending ? t("Guardando...") : t("Guardar cambios")}
               </Button>
             </div>
           </div>

@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Plus, Pencil, ChevronDown, ChevronUp, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useT, useDateLocale } from "@/i18n";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 
@@ -25,6 +25,8 @@ function StarRating({ value, onChange }) {
 }
 
 export default function CoachMatchNotesSection({ staffId, teamId, isCoordinator }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -84,17 +86,17 @@ export default function CoachMatchNotesSection({ staffId, teamId, isCoordinator 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-black uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Observaciones de partido</h2>
+        <h2 className="text-lg font-black uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{t("Observaciones de partido")}</h2>
         {isCoordinator && (
           <Button variant="club" size="sm" onClick={openCreate} className="text-xs">
-            <Plus className="w-3.5 h-3.5 mr-1" /> Añadir nota
+            <Plus className="w-3.5 h-3.5 mr-1" /> {t("Añadir nota")}
           </Button>
         )}
       </div>
 
       {notesWithEvents.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 rounded p-8 text-center">
-          <p className="text-gray-400 text-sm">Sin observaciones de partido registradas</p>
+          <p className="text-gray-400 text-sm">{t("Sin observaciones de partido registradas")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -108,11 +110,11 @@ export default function CoachMatchNotesSection({ staffId, teamId, isCoordinator 
                     <p className="text-lg font-black leading-none" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
                       {note.date ? format(new Date(note.date), "d") : "—"}
                     </p>
-                    <p className="text-[10px] uppercase text-gray-400">{note.date ? format(new Date(note.date), "MMM", { locale: es }) : ""}</p>
+                    <p className="text-[10px] uppercase text-gray-400">{note.date ? format(new Date(note.date), "MMM", { locale: dfl }) : ""}</p>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-gray-900 text-sm truncate" style={{ fontFamily: "var(--font-display)" }}>
-                      {ev ? (ev.opponent ? `vs ${ev.opponent}` : ev.title) : "Partido"}
+                      {ev ? (ev.opponent ? t("vs {opponent}", { opponent: ev.opponent }) : ev.title) : t("Partido")}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
                       {note.rating && (
@@ -139,25 +141,25 @@ export default function CoachMatchNotesSection({ staffId, teamId, isCoordinator 
                   <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-4">
                     {note.positives && (
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ fontFamily: "var(--font-display)", color: "#16a34a" }}>✓ Aspectos positivos</p>
+                        <p className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ fontFamily: "var(--font-display)", color: "#16a34a" }}>{t("✓ Aspectos positivos")}</p>
                         <p className="text-sm text-gray-700 leading-relaxed">{note.positives}</p>
                       </div>
                     )}
                     {note.corrections && (
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ fontFamily: "var(--font-display)", color: "var(--naranja)" }}>⚠ Correcciones</p>
+                        <p className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ fontFamily: "var(--font-display)", color: "var(--naranja)" }}>{t("⚠ Correcciones")}</p>
                         <p className="text-sm text-gray-700 leading-relaxed">{note.corrections}</p>
                       </div>
                     )}
                     {note.tactical_notes && (
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>⚽ Notas tácticas</p>
+                        <p className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{t("⚽ Notas tácticas")}</p>
                         <p className="text-sm text-gray-700 leading-relaxed">{note.tactical_notes}</p>
                       </div>
                     )}
                     {note.general_notes && (
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ fontFamily: "var(--font-display)", color: "#64748b" }}>📋 Observaciones generales</p>
+                        <p className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ fontFamily: "var(--font-display)", color: "#64748b" }}>{t("📋 Observaciones generales")}</p>
                         <p className="text-sm text-gray-700 leading-relaxed">{note.general_notes}</p>
                       </div>
                     )}
@@ -173,18 +175,18 @@ export default function CoachMatchNotesSection({ staffId, teamId, isCoordinator 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-white border-gray-200 max-h-[90vh] overflow-y-auto max-w-xl">
           <DialogHeader>
-            <DialogTitle>{editing ? "Editar observaciones" : "Nueva observación de partido"}</DialogTitle>
+            <DialogTitle>{editing ? t("Editar observaciones") : t("Nueva observación de partido")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {!editing && (
               <div>
-                <p className="text-xs text-gray-500 mb-1 font-medium">Partido *</p>
+                <p className="text-xs text-gray-500 mb-1 font-medium">{t("Partido *")}</p>
                 <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-                  <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar partido…" /></SelectTrigger>
+                  <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Seleccionar partido…")} /></SelectTrigger>
                   <SelectContent>
                     {matchEvents.map(e => (
                       <SelectItem key={e.id} value={e.id}>
-                        {e.opponent ? `vs ${e.opponent}` : e.title} — {e.date ? format(new Date(e.date), "dd/MM/yyyy") : ""}
+                        {e.opponent ? t("vs {opponent}", { opponent: e.opponent }) : e.title} — {e.date ? format(new Date(e.date), "dd/MM/yyyy") : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -192,14 +194,14 @@ export default function CoachMatchNotesSection({ staffId, teamId, isCoordinator 
               </div>
             )}
             <div>
-              <p className="text-xs text-gray-500 mb-2 font-medium">Valoración gestión del partido</p>
+              <p className="text-xs text-gray-500 mb-2 font-medium">{t("Valoración gestión del partido")}</p>
               <StarRating value={form.rating} onChange={v => setForm({ ...form, rating: v })} />
             </div>
             {[
-              { key: "positives", label: "✓ Aspectos positivos", placeholder: "Qué hizo bien el entrenador en este partido..." },
-              { key: "corrections", label: "⚠ Correcciones a realizar", placeholder: "Errores o aspectos a mejorar..." },
-              { key: "tactical_notes", label: "⚽ Notas tácticas", placeholder: "Decisiones tácticas, cambios, sistemas..." },
-              { key: "general_notes", label: "📋 Observaciones generales", placeholder: "Cualquier otra observación..." },
+              { key: "positives", label: t("✓ Aspectos positivos"), placeholder: t("Qué hizo bien el entrenador en este partido...") },
+              { key: "corrections", label: t("⚠ Correcciones a realizar"), placeholder: t("Errores o aspectos a mejorar...") },
+              { key: "tactical_notes", label: t("⚽ Notas tácticas"), placeholder: t("Decisiones tácticas, cambios, sistemas...") },
+              { key: "general_notes", label: t("📋 Observaciones generales"), placeholder: t("Cualquier otra observación...") },
             ].map(f => (
               <div key={f.key}>
                 <p className="text-xs text-gray-500 mb-1 font-medium">{f.label}</p>
@@ -208,11 +210,11 @@ export default function CoachMatchNotesSection({ staffId, teamId, isCoordinator 
               </div>
             ))}
             <div className="flex gap-3 pt-2 border-t border-gray-100">
-              <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">Cancelar</Button>
+              <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">{t("Cancelar")}</Button>
               <Button variant="club" onClick={() => saveMutation.mutate(form)}
                 disabled={saveMutation.isPending || (!editing && !selectedEventId)}
                 className="flex-1">
-                {saveMutation.isPending ? "Guardando..." : "Guardar"}
+                {saveMutation.isPending ? "Guardando..." : t("Guardar")}
               </Button>
             </div>
           </div>

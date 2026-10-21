@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { downloadPDIPDF } from "./pdiPdfGenerator";
 import { playerFullName, matchesPlayerSearch } from "@/lib/playerName";
+import { useT } from "@/i18n";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
@@ -15,6 +16,7 @@ const POSITION_LABELS = {
 };
 
 export default function PDIReportSection() {
+  const t = useT();
   const [selectedTeamId, setSelectedTeamId] = useState("all");
   const [search, setSearch] = useState("");
   const [downloading, setDownloading] = useState(null);
@@ -44,26 +46,26 @@ export default function PDIReportSection() {
     <div className="space-y-6">
       {/* Filters */}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
-        <h2 className="font-semibold text-gray-900">Informes PDI por jugador</h2>
-        <p className="text-sm text-gray-500">Genera un PDF con todas las evaluaciones del Plan de Desarrollo Individual de cada jugador.</p>
+        <h2 className="font-semibold text-gray-900">{t("Informes PDI por jugador")}</h2>
+        <p className="text-sm text-gray-500">{t("Genera un PDF con todas las evaluaciones del Plan de Desarrollo Individual de cada jugador.")}</p>
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 space-y-1">
-            <Label className="text-gray-700 text-xs">Equipo</Label>
+            <Label className="text-gray-700 text-xs">{t("Equipo")}</Label>
             <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
               <SelectTrigger className="border-gray-200 bg-white">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos los equipos</SelectItem>
+                <SelectItem value="all">{t("Todos los equipos")}</SelectItem>
                 {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="flex-1 space-y-1">
-            <Label className="text-gray-700 text-xs">Buscar jugador</Label>
+            <Label className="text-gray-700 text-xs">{t("Buscar jugador")}</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Nombre o apellido…" className="pl-9 border-gray-200" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("Nombre o apellido…")} className="pl-9 border-gray-200" />
             </div>
           </div>
         </div>
@@ -74,16 +76,16 @@ export default function PDIReportSection() {
         {filteredPlayers.length === 0 ? (
           <div className="text-center py-12">
             <BookOpen className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">No hay jugadores</p>
+            <p className="text-gray-500 font-medium">{t("No hay jugadores")}</p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wide">
-                <th className="text-left px-5 py-3 font-semibold">Jugador</th>
-                <th className="text-left px-3 py-3 font-semibold">Equipo</th>
-                <th className="px-3 py-3 font-semibold text-center">Evaluaciones PDI</th>
-                <th className="px-5 py-3 font-semibold text-right">Descargar</th>
+                <th className="text-left px-5 py-3 font-semibold">{t("Jugador")}</th>
+                <th className="text-left px-3 py-3 font-semibold">{t("Equipo")}</th>
+                <th className="px-3 py-3 font-semibold text-center">{t("Evaluaciones PDI")}</th>
+                <th className="px-5 py-3 font-semibold text-right">{t("Descargar")}</th>
               </tr>
             </thead>
             <tbody>
@@ -101,7 +103,7 @@ export default function PDIReportSection() {
                         <div>
                           <p className="font-medium text-gray-900">{playerFullName(player)}</p>
                           <p className="text-xs text-gray-400">
-                            {POSITION_LABELS[player.position] || "—"}
+                            {POSITION_LABELS[player.position] ? t(POSITION_LABELS[player.position]) : "—"}
                             {player.jersey_number ? ` · #${player.jersey_number}` : ""}
                           </p>
                         </div>
@@ -114,7 +116,7 @@ export default function PDIReportSection() {
                           <BookOpen className="w-3 h-3" /> {pdiCount}
                         </span>
                       ) : (
-                        <span className="text-xs text-gray-400">Sin evaluaciones</span>
+                        <span className="text-xs text-gray-400">{t("Sin evaluaciones")}</span>
                       )}
                     </td>
                     <td className="px-5 py-3 text-right">
@@ -127,7 +129,7 @@ export default function PDIReportSection() {
                       >
                         {downloading === player.id
                           ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <><Download className="w-3.5 h-3.5 mr-1" />PDF PDI</>
+                          : <><Download className="w-3.5 h-3.5 mr-1" />{t("PDF PDI")}</>
                         }
                       </Button>
                     </td>

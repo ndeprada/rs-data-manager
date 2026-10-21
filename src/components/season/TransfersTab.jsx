@@ -11,16 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import EmptyState from "@/components/common/EmptyState";
 import { useSeasonPlan } from "./useSeasonPlan";
 import ProjectedSquad, { POS, POS_ORDER } from "./ProjectedSquad";
+import { useT } from "@/i18n";
 
 
 // Traspasos de fin de temporada: se eligen jugadores de un equipo y se decide, a bloques, adónde van el año que viene.
 export default function TransfersTab({ season, closed }) {
+  const t = useT();
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
   const { moves, saving, error, setDestination, clear, isLoading } = useSeasonPlan(season);
 
   const sortedTeams = useMemo(() => sortTeams(teams), [teams]);
-  const teamName = (id) => teams.find((t) => t.id === id)?.name || "Equipo eliminado";
+  const teamName = (id) => teams.find((tm) => tm.id === id)?.name || t("Equipo eliminado");
   const squad = useMemo(() => players.filter((p) => p.team_id && p.status !== "baja"), [players]);
   const byTeam = useMemo(() => {
     const m = new Map();
@@ -77,19 +79,19 @@ export default function TransfersTab({ season, closed }) {
 
   const badge = (p) => {
     const mv = moves[p.id];
-    if (!valid(mv)) return <span className="text-[11px] text-gray-300">Sin decidir</span>;
-    if (mv.to === "baja") return <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">Baja</span>;
-    if (mv.to === "stay") return <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">Se queda</span>;
+    if (!valid(mv)) return <span className="text-[11px] text-gray-300">{t("Sin decidir")}</span>;
+    if (mv.to === "baja") return <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">{t("Baja")}</span>;
+    if (mv.to === "stay") return <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">{t("Se queda")}</span>;
     return <span className="text-[11px] font-bold px-1.5 py-0.5 rounded border" style={{ background: "var(--granate-pale)", color: "var(--granate)", borderColor: "var(--granate)" }}>→ {teamName(mv.to)}</span>;
   };
 
-  if (isLoading) return <p className="py-10 text-center text-sm text-gray-400">Cargando…</p>;
+  if (isLoading) return <p className="py-10 text-center text-sm text-gray-400">{t("Cargando…")}</p>;
 
   return (
     <div className="space-y-3">
       {closed && (
         <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 bg-white text-sm text-gray-600" style={{ borderRadius: "6px", borderLeft: "4px solid var(--granate)" }}>
-          <Lock className="w-4 h-4 shrink-0 text-gray-400" /> Esta temporada ya está cerrada: los traspasos se aplicaron. Para cambiarlos, reabre la temporada en la pestaña "Nueva temporada".
+          <Lock className="w-4 h-4 shrink-0 text-gray-400" /> {t("Esta temporada ya está cerrada: los traspasos se aplicaron. Para cambiarlos, reabre la temporada en la pestaña \"Nueva temporada\".")}
         </div>
       )}
 
@@ -98,13 +100,13 @@ export default function TransfersTab({ season, closed }) {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <p className="text-sm text-gray-700">
             <span className="text-2xl font-black align-middle mr-1" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{totalDecided}</span>
-            de {squad.length} jugadores con destino decidido
+            {t("de {length} jugadores con destino decidido", { length: squad.length })}
           </p>
           <div className="flex-1 min-w-[120px] h-1.5 rounded-full bg-gray-100 overflow-hidden">
             <div className="h-full rounded-full" style={{ width: `${squad.length ? (totalDecided / squad.length) * 100 : 0}%`, background: "var(--granate)" }} />
           </div>
           <span className="text-[11px] text-gray-400 flex items-center gap-1">
-            {saving ? <><Loader2 className="w-3 h-3 animate-spin" /> Guardando…</> : <><Check className="w-3 h-3 text-green-600" /> Guardado</>}
+            {saving ? <><Loader2 className="w-3 h-3 animate-spin" /> {t("Guardando…")}</> : <><Check className="w-3 h-3 text-green-600" /> {t("Guardado")}</>}
           </span>
         </div>
         {tally.size > 0 && (
@@ -113,18 +115,18 @@ export default function TransfersTab({ season, closed }) {
               .sort((a, b) => (a[0] === "baja") - (b[0] === "baja") || (a[0] === "stay") - (b[0] === "stay") || sortedTeams.findIndex((t) => t.id === a[0]) - sortedTeams.findIndex((t) => t.id === b[0]))
               .map(([to, n]) => (
                 <span key={to} className="text-[11px] font-semibold px-2 py-0.5 rounded bg-gray-50 border border-gray-200 text-gray-700">
-                  {to === "baja" ? "Bajas" : to === "stay" ? "Se quedan en su equipo" : `→ ${teamName(to)}`} · <b>{n}</b>
+                  {to === "baja" ? t("Bajas") : to === "stay" ? t("Se quedan en su equipo") : `→ ${teamName(to)}`} · <b>{n}</b>
                 </span>
               ))}
           </div>
         )}
-        <p className="text-[11px] text-gray-400">Los jugadores sin decidir se quedan en su equipo actual al cerrar la temporada. Nada se aplica hasta que pulses "Nueva temporada".</p>
+        <p className="text-[11px] text-gray-400">{t("Los jugadores sin decidir se quedan en su equipo actual al cerrar la temporada. Nada se aplica hasta que pulses \"Nueva temporada\".")}</p>
         {error && <p className="text-xs font-semibold text-red-600">{error}</p>}
       </div>
 
       {!closed && (
         <div className="inline-flex border border-gray-200 rounded p-0.5 bg-white">
-          {[["decidir", "Decidir destinos"], ["prevista", `Plantilla prevista ${nextLabel}`]].map(([v, l]) => (
+          {[["decidir", t("Decidir destinos")], ["prevista", t("Plantilla prevista {nextLabel}", { nextLabel })]].map(([v, l]) => (
             <button key={v} type="button" onClick={() => setView(v)}
               className={`px-3 py-1.5 text-xs font-bold rounded transition-colors ${view === v ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700"}`}>{l}</button>
           ))}
@@ -158,30 +160,30 @@ export default function TransfersTab({ season, closed }) {
           <div className="px-4 py-2.5 border-b border-gray-100 flex flex-wrap items-center gap-x-3 gap-y-1">
             <h2 className="font-black text-sm uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{teamName(teamId)} <span className="text-gray-400 font-bold">({roster.length})</span></h2>
             <div className="ml-auto flex items-center gap-3 text-[11px] font-semibold text-gray-500">
-              <button type="button" className="hover:text-gray-900 hover:underline" onClick={() => setSel(new Set(roster.map((p) => p.id)))}>Todos</button>
-              <button type="button" className="hover:text-gray-900 hover:underline" onClick={() => setSel(new Set(roster.filter((p) => !decided(p)).map((p) => p.id)))}>Sin decidir</button>
-              <button type="button" className="hover:text-gray-900 hover:underline" onClick={() => setSel(new Set())}>Ninguno</button>
+              <button type="button" className="hover:text-gray-900 hover:underline" onClick={() => setSel(new Set(roster.map((p) => p.id)))}>{t("Todos")}</button>
+              <button type="button" className="hover:text-gray-900 hover:underline" onClick={() => setSel(new Set(roster.filter((p) => !decided(p)).map((p) => p.id)))}>{t("Sin decidir")}</button>
+              <button type="button" className="hover:text-gray-900 hover:underline" onClick={() => setSel(new Set())}>{t("Ninguno")}</button>
             </div>
           </div>
 
           {/* Acciones sobre los seleccionados */}
           <div className={`px-4 py-2 border-b border-gray-100 flex flex-wrap items-center gap-2 ${ids.length ? "bg-[var(--granate-pale)]" : "bg-gray-50"}`}>
-            <span className="text-xs font-bold text-gray-700 mr-1">{ids.length ? `${ids.length} seleccionado${ids.length !== 1 ? "s" : ""}` : "Selecciona jugadores para decidir su destino"}</span>
+            <span className="text-xs font-bold text-gray-700 mr-1">{ids.length ? (ids.length === 1 ? t("{length} seleccionado", { length: 1 }) : t("{length} seleccionados", { length: ids.length })) : t("Selecciona jugadores para decidir su destino")}</span>
             {ids.length > 0 && !closed && (
               <>
                 <Select value={dest} onValueChange={setDest}>
-                  <SelectTrigger className="h-8 w-44 text-xs bg-white"><SelectValue placeholder="Pasan al equipo…" /></SelectTrigger>
+                  <SelectTrigger className="h-8 w-44 text-xs bg-white"><SelectValue placeholder={t("Pasan al equipo…")} /></SelectTrigger>
                   <SelectContent>{sortedTeams.filter((t) => t.id !== teamId).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
                 </Select>
-                <Button size="sm" variant="club" disabled={!dest} onClick={() => { apply(dest); setDest(""); }} className="gap-1"><ArrowRight className="w-3.5 h-3.5" /> Pasan</Button>
-                <Button size="sm" variant="outline" onClick={() => apply("stay")} className="gap-1">Se quedan</Button>
-                <Button size="sm" variant="outline" onClick={() => apply("baja")} className="gap-1 text-red-700 border-red-200 hover:bg-red-50"><UserMinus className="w-3.5 h-3.5" /> Baja</Button>
-                <Button size="sm" variant="ghost" onClick={() => { clear(ids); setSel(new Set()); }} className="gap-1 text-gray-500"><Undo2 className="w-3.5 h-3.5" /> Quitar decisión</Button>
+                <Button size="sm" variant="club" disabled={!dest} onClick={() => { apply(dest); setDest(""); }} className="gap-1"><ArrowRight className="w-3.5 h-3.5" /> {t("Pasan")}</Button>
+                <Button size="sm" variant="outline" onClick={() => apply("stay")} className="gap-1">{t("Se quedan")}</Button>
+                <Button size="sm" variant="outline" onClick={() => apply("baja")} className="gap-1 text-red-700 border-red-200 hover:bg-red-50"><UserMinus className="w-3.5 h-3.5" /> {t("Baja")}</Button>
+                <Button size="sm" variant="ghost" onClick={() => { clear(ids); setSel(new Set()); }} className="gap-1 text-gray-500"><Undo2 className="w-3.5 h-3.5" /> {t("Quitar decisión")}</Button>
               </>
             )}
           </div>
 
-          {roster.length === 0 ? <EmptyState title="Este equipo no tiene jugadores" /> : (
+          {roster.length === 0 ? <EmptyState title={t("Este equipo no tiene jugadores")} /> : (
             <div className="divide-y divide-gray-100">
               {roster.map((p) => {
                 const on = sel.has(p.id);
@@ -191,7 +193,7 @@ export default function TransfersTab({ season, closed }) {
                     <span className="w-6 text-center text-[11px] font-bold text-gray-400">{p.jersey_number ?? ""}</span>
                     <span className="flex-1 min-w-0 truncate font-semibold text-gray-900">{playerFullName(p)}</span>
                     <span className="hidden sm:inline text-[11px] text-gray-400 w-10 text-center">{birthYearOf(p) || ""}</span>
-                    <span className="hidden sm:inline text-[10px] font-bold text-gray-400 w-8 text-center">{POS[p.position] || ""}</span>
+                    <span className="hidden sm:inline text-[10px] font-bold text-gray-400 w-8 text-center">{POS[p.position] ? t(POS[p.position]) : ""}</span>
                     <span className="w-36 text-right">{badge(p)}</span>
                   </label>
                 );

@@ -2,53 +2,54 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Plus, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useT, msg, useDateLocale } from "@/i18n";
 
 const FONT = { fontFamily: "var(--font-display)" };
 
 // Estructura basada en el documento de evaluación del Área de Metodología
 export const EVAL_BLOCKS = [
-  { key: "habitos", label: "Hábitos", color: "#36000D", sections: [
-    { key: "puntualidad", label: "Puntualidad, control de vestuarios…" },
-    { key: "material", label: "Material" },
-    { key: "datos", label: "Control de datos" },
-    { key: "segundo", label: "Observaciones para 2º entrenador/a" },
+  { key: "habitos", label: msg("Hábitos"), color: "#36000D", sections: [
+    { key: "puntualidad", label: msg("Puntualidad, control de vestuarios…") },
+    { key: "material", label: msg("Material") },
+    { key: "datos", label: msg("Control de datos") },
+    { key: "segundo", label: msg("Observaciones para 2º entrenador/a") },
   ]},
-  { key: "entrenamientos", label: "Entrenamientos", color: "#73000A", sections: [
-    { key: "metodologia", label: "Metodología" },
-    { key: "planificacion", label: "Planificación y diseño de sesiones" },
-    { key: "direccion_entreno", label: "Dirección del entrenamiento" },
-    { key: "correcciones", label: "Correcciones" },
+  { key: "entrenamientos", label: msg("Entrenamientos"), color: "#73000A", sections: [
+    { key: "metodologia", label: msg("Metodología") },
+    { key: "planificacion", label: msg("Planificación y diseño de sesiones") },
+    { key: "direccion_entreno", label: msg("Dirección del entrenamiento") },
+    { key: "correcciones", label: msg("Correcciones") },
   ]},
-  { key: "partidos", label: "Partidos", color: "#FF6E00", sections: [
-    { key: "preparacion", label: "Preparación" },
-    { key: "direccion_partido", label: "Dirección de partido" },
-    { key: "minutos", label: "Gestión de minutos" },
-    { key: "sistema", label: "Sistema de juego" },
+  { key: "partidos", label: msg("Partidos"), color: "#FF6E00", sections: [
+    { key: "preparacion", label: msg("Preparación") },
+    { key: "direccion_partido", label: msg("Dirección de partido") },
+    { key: "minutos", label: msg("Gestión de minutos") },
+    { key: "sistema", label: msg("Sistema de juego") },
   ]},
 ];
 const ALL_SECTIONS = EVAL_BLOCKS.flatMap((b) => b.sections);
 
 const RATINGS = [
-  { value: "mejorable", label: "Mejorable", cls: "bg-orange-100 text-orange-700", dot: "bg-orange-400" },
-  { value: "correcto", label: "Correcto", cls: "bg-sky-100 text-sky-700", dot: "bg-sky-400" },
-  { value: "destacado", label: "Destacado", cls: "bg-green-100 text-green-700", dot: "bg-green-500" },
+  { value: "mejorable", label: msg("Mejorable"), cls: "bg-orange-100 text-orange-700", dot: "bg-orange-400" },
+  { value: "correcto", label: msg("Correcto"), cls: "bg-sky-100 text-sky-700", dot: "bg-sky-400" },
+  { value: "destacado", label: msg("Destacado"), cls: "bg-green-100 text-green-700", dot: "bg-green-500" },
 ];
 
 const emptySections = () => Object.fromEntries(ALL_SECTIONS.map((s) => [s.key, { rating: "", text: "" }]));
 
 function EvalView({ ev }) {
+  const t = useT();
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
       {EVAL_BLOCKS.map((b) => (
         <div key={b.key} className="space-y-2">
-          <div className="text-center text-white py-1.5 text-lg font-black uppercase" style={{ ...FONT, background: b.color, borderRadius: 2 }}>{b.label}</div>
+          <div className="text-center text-white py-1.5 text-lg font-black uppercase" style={{ ...FONT, background: b.color, borderRadius: 2 }}>{t(b.label)}</div>
           {b.sections.map((s) => {
             const d = ev.sections?.[s.key] || {};
             const r = RATINGS.find((x) => x.value === d.rating);
@@ -56,8 +57,8 @@ function EvalView({ ev }) {
             return (
               <div key={s.key} className="bg-white border border-gray-200 p-3 min-h-[84px]" style={{ borderRadius: 2 }}>
                 <div className="flex items-start justify-between gap-2 mb-1">
-                  <p className="text-xs font-black uppercase leading-tight" style={FONT}>{s.label}</p>
-                  {r && <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${r.cls}`}>{r.label}</span>}
+                  <p className="text-xs font-black uppercase leading-tight" style={FONT}>{t(s.label)}</p>
+                  {r && <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${r.cls}`}>{t(r.label)}</span>}
                 </div>
                 {lines.length === 0 ? <p className="text-xs text-gray-300">—</p> : (
                   <ul className="space-y-0.5">
@@ -76,6 +77,8 @@ function EvalView({ ev }) {
 }
 
 export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate, isOwnProfile, author }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState(null);
   const [open, setOpen] = useState(false);
@@ -104,7 +107,7 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
   const saveMutation = useMutation({
     mutationFn: async () => {
       const data = {
-        staff_id: staffId, title: form.title || "Evaluación", team_id: form.team_id || null, kind: form.kind,
+        staff_id: staffId, title: form.title || t("Evaluación"), team_id: form.team_id || null, kind: form.kind,
         sections: form.sections, date: editing?.date || format(new Date(), "yyyy-MM-dd"),
         author_id: editing?.author_id || author?.id || "", author_name: editing?.author_name || author?.name || "",
       };
@@ -125,7 +128,7 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
   const openCreate = (kind) => {
     setEditing(null); setConfirmDelete(false);
     setForm({
-      title: kind === "autoevaluacion" ? `Autoevaluación ${format(new Date(), "MMMM yyyy", { locale: es })}` : `Evaluación ${format(new Date(), "MMMM yyyy", { locale: es })}`,
+      title: kind === "autoevaluacion" ? t("Autoevaluación {format}", { format: format(new Date(), "MMMM yyyy", { locale: dfl }) }) : t("Evaluación {format}", { format: format(new Date(), "MMMM yyyy", { locale: dfl }) }),
       team_id: teamIds[0] || "", kind, sections: emptySections(),
     });
     setOpen(true);
@@ -143,18 +146,18 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h2 className="text-lg font-black uppercase" style={{ ...FONT, color: "var(--granate)" }}>Evaluación 360</h2>
-          <p className="text-xs text-gray-400">Visión global del entrenador: hábitos, entrenamientos y partidos.</p>
+          <h2 className="text-lg font-black uppercase" style={{ ...FONT, color: "var(--granate)" }}>{t("Evaluación 360")}</h2>
+          <p className="text-xs text-gray-400">{t("Visión global del entrenador: hábitos, entrenamientos y partidos.")}</p>
         </div>
         <div className="flex gap-2">
           {isOwnProfile && (
             <Button size="sm" variant="outline" onClick={() => openCreate("autoevaluacion")} className="text-xs">
-              <Plus className="w-3.5 h-3.5 mr-1" /> Mi autoevaluación
+              <Plus className="w-3.5 h-3.5 mr-1" /> {t("Mi autoevaluación")}
             </Button>
           )}
           {canEvaluate && (
             <Button variant="club" size="sm" onClick={() => openCreate("evaluacion")} className="text-xs">
-              <Plus className="w-3.5 h-3.5 mr-1" /> Nueva evaluación
+              <Plus className="w-3.5 h-3.5 mr-1" /> {t("Nueva evaluación")}
             </Button>
           )}
         </div>
@@ -162,7 +165,7 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
 
       {list.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 rounded p-8 text-center">
-          <p className="text-gray-400 text-sm">{canEvaluate ? "Aún no hay evaluaciones de este entrenador" : "Todavía no hay evaluaciones publicadas"}</p>
+          <p className="text-gray-400 text-sm">{canEvaluate ? t("Aún no hay evaluaciones de este entrenador") : t("Todavía no hay evaluaciones publicadas")}</p>
         </div>
       ) : (
         <>
@@ -171,9 +174,9 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
               <button key={e.id} onClick={() => setSelectedId(e.id)}
                 className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${current?.id === e.id ? "text-white border-transparent" : "text-gray-600 border-gray-200 bg-white hover:bg-gray-50"}`}
                 style={current?.id === e.id ? { background: "var(--granate)" } : undefined}>
-                {e.title || "Evaluación"}
-                {e.kind === "autoevaluacion" && " · auto"}
-                {canEvaluate && e.status !== "publicada" && " · borrador"}
+                {e.title || t("Evaluación")}
+                {e.kind === "autoevaluacion" && " " + t("· auto")}
+                {canEvaluate && e.status !== "publicada" && " " + t("· borrador")}
               </button>
             ))}
           </div>
@@ -183,17 +186,17 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <p className="text-sm text-gray-500">
                   {current.team_id ? <span className="font-bold text-gray-800">{teamName(current.team_id)}</span> : null}
-                  {current.author_name ? ` · ${current.kind === "autoevaluacion" ? "Autoevaluación de" : "Por"} ${current.author_name}` : ""}
-                  {current.date ? ` · ${format(new Date(current.date), "d MMM yyyy", { locale: es })}` : ""}
+                  {current.author_name ? ` · ${current.kind === "autoevaluacion" ? t("Autoevaluación de {name}", { name: current.author_name }) : t("Por {name}", { name: current.author_name })}` : ""}
+                  {current.date ? ` · ${format(new Date(current.date), "d MMM yyyy", { locale: dfl })}` : ""}
                 </p>
                 <div className="flex gap-1.5">
                   {canEvaluate && current.kind !== "autoevaluacion" && (
                     <Button size="sm" variant="outline" onClick={() => publishMutation.mutate(current)} className="text-xs">
-                      {current.status === "publicada" ? <><EyeOff className="w-3.5 h-3.5 mr-1" /> Ocultar al entrenador</> : <><Eye className="w-3.5 h-3.5 mr-1" /> Publicar al entrenador</>}
+                      {current.status === "publicada" ? <><EyeOff className="w-3.5 h-3.5 mr-1" /> {t("Ocultar al entrenador")}</> : <><Eye className="w-3.5 h-3.5 mr-1" /> {t("Publicar al entrenador")}</>}
                     </Button>
                   )}
                   {canEditCurrent && (
-                    <Button size="sm" variant="outline" onClick={() => openEdit(current)} className="text-xs"><Pencil className="w-3.5 h-3.5 mr-1" /> Editar</Button>
+                    <Button size="sm" variant="outline" onClick={() => openEdit(current)} className="text-xs"><Pencil className="w-3.5 h-3.5 mr-1" /> {t("Editar")}</Button>
                   )}
                 </div>
               </div>
@@ -205,20 +208,20 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-white border-gray-200 max-h-[90vh] overflow-y-auto max-w-3xl">
-          <DialogHeader><DialogTitle>{form.kind === "autoevaluacion" ? "Autoevaluación" : editing ? "Editar evaluación" : "Nueva evaluación"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{form.kind === "autoevaluacion" ? t("Autoevaluación") : editing ? t("Editar evaluación") : t("Nueva evaluación")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="flex gap-3 flex-wrap">
               <div className="flex-1 min-w-[200px]">
-                <p className="text-xs text-gray-500 mb-1">Título</p>
+                <p className="text-xs text-gray-500 mb-1">{t("Título")}</p>
                 <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="border-gray-200" />
               </div>
               {teamIds.length > 0 && (
                 <div className="w-48">
-                  <p className="text-xs text-gray-500 mb-1">Equipo</p>
+                  <p className="text-xs text-gray-500 mb-1">{t("Equipo")}</p>
                   <Select value={form.team_id || "none"} onValueChange={(v) => setForm({ ...form, team_id: v === "none" ? "" : v })}>
                     <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">— Sin equipo —</SelectItem>
+                      <SelectItem value="none">{t("— Sin equipo —")}</SelectItem>
                       {teamIds.map((id) => <SelectItem key={id} value={id}>{teamName(id)}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -227,35 +230,35 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
             </div>
             {EVAL_BLOCKS.map((b) => (
               <div key={b.key} className="space-y-2">
-                <p className="text-sm font-black uppercase text-white px-3 py-1" style={{ ...FONT, background: b.color, borderRadius: 2 }}>{b.label}</p>
+                <p className="text-sm font-black uppercase text-white px-3 py-1" style={{ ...FONT, background: b.color, borderRadius: 2 }}>{t(b.label)}</p>
                 {b.sections.map((s) => (
                   <div key={s.key} className="border border-gray-100 rounded p-2.5 space-y-1.5">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <p className="text-xs font-black uppercase" style={FONT}>{s.label}</p>
+                      <p className="text-xs font-black uppercase" style={FONT}>{t(s.label)}</p>
                       <div className="flex gap-1">
                         {RATINGS.map((r) => (
                           <button key={r.value} type="button"
                             onClick={() => setSec(s.key, { rating: form.sections[s.key].rating === r.value ? "" : r.value })}
                             className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${form.sections[s.key].rating === r.value ? `${r.cls} border-transparent` : "text-gray-400 border-gray-200"}`}>
-                            {r.label}
+                            {t(r.label)}
                           </button>
                         ))}
                       </div>
                     </div>
                     <Textarea rows={2} value={form.sections[s.key].text} onChange={(e) => setSec(s.key, { text: e.target.value })}
-                      placeholder="Una idea por línea…" className="border-gray-200 text-sm" />
+                      placeholder={t("Una idea por línea…")} className="border-gray-200 text-sm" />
                   </div>
                 ))}
               </div>
             ))}
             <div className="flex gap-2 pt-2 border-t border-gray-100">
               {editing && (confirmDelete
-                ? <Button variant="outline" onClick={() => deleteMutation.mutate(editing)} className="text-red-600 border-red-200">Confirmar borrado</Button>
+                ? <Button variant="outline" onClick={() => deleteMutation.mutate(editing)} className="text-red-600 border-red-200">{t("Confirmar borrado")}</Button>
                 : <Button variant="outline" size="icon" onClick={() => setConfirmDelete(true)}><Trash2 className="w-4 h-4 text-gray-400" /></Button>)}
               <div className="flex-1" />
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>{t("Cancelar")}</Button>
               <Button variant="club" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-                {saveMutation.isPending ? "Guardando…" : "Guardar"}
+                {saveMutation.isPending ? t("Guardando…") : t("Guardar")}
               </Button>
             </div>
           </div>

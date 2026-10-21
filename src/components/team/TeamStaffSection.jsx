@@ -166,7 +166,7 @@ export default function TeamStaffSection({ teamId }) {
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{member.first_name} {member.last_name} <span className="text-[11px] font-medium ml-1" style={{ color: "var(--granate)" }}>{teamRoleLabel(member.team_role)}</span></p>
+                    <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{member.first_name} {member.last_name} <span className="text-[11px] font-medium ml-1" style={{ color: "var(--granate)" }}>{t(teamRoleLabel(member.team_role))}</span></p>
                     <div className="flex gap-3 flex-wrap">
                       {member.email && <span className="text-[11px] text-gray-400 flex items-center gap-1 min-w-0"><Mail className="w-3 h-3" />{member.email}</span>}
                       {member.phone && <span className="text-[11px] text-gray-400 flex items-center gap-1"><Phone className="w-3 h-3" />{member.phone}</span>}

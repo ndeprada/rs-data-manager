@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Textarea } from "@/components/ui/textarea";
 import { sortTeams, isF7Team } from "@/lib/teamOrder";
 import PeoplePicker, { peopleLabel } from "@/components/avisos/PeoplePicker";
+import { useT, msg } from "@/i18n";
 
 const norm = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const STAGES = [
@@ -16,9 +17,9 @@ const STAGES = [
 const inStage = (team, key) => norm(team.name).startsWith(key);
 
 const GROUPS = [
-  { key: "jugadores", label: "Jugadores" },
-  { key: "familiares", label: "Familiares" },
-  { key: "tecnico", label: "Cuerpo técnico" },
+  { key: "jugadores", label: msg("Jugadores") },
+  { key: "familiares", label: msg("Familiares") },
+  { key: "tecnico", label: msg("Cuerpo técnico") },
 ];
 
 const Chip = ({ on, onClick, children }) => (
@@ -32,6 +33,7 @@ const Chip = ({ on, onClick, children }) => (
 // Formulario para enviar un aviso eligiendo equipos y tipo de destinatario.
 // `fixed` (opcional) = { player_ids, label } para avisar solo a un grupo concreto de jugadores (p. ej. los convocados).
 export default function Composer({ fixed = null, defaultTitle = "", defaultBody = "", defaultUrl, onSent }) {
+  const t = useT();
   const { user } = useAuth();
   const qc = useQueryClient();
   const isCoord = user?.role === "admin" || ["director", "director_deportivo", "coordinador_general", "coordinador_f7", "coordinador_f11"].includes(user?.app_role);
@@ -59,7 +61,7 @@ export default function Composer({ fixed = null, defaultTitle = "", defaultBody 
   const [groups, setGroups] = useState(fixed ? ["jugadores", "familiares"] : ["jugadores", "familiares"]);
   const [count, setCount] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   const quickOn = (ids) => !allClub && ids.every((id) => teamIds.includes(id));
   const toggleQuick = (ids) => {
@@ -98,15 +100,15 @@ export default function Composer({ fixed = null, defaultTitle = "", defaultBody 
   }, [audience, hasTarget, groupsOk]);
 
   const send = async () => {
-    setBusy(true); setMsg(null);
+    setBusy(true); setNotice(null);
     try {
       const r = await base44.club.send({ title, body, url: defaultUrl, audience, audience_label: label });
-      setMsg({ ok: true, text: `Enviado a ${r.recipients} persona${r.recipients === 1 ? "" : "s"} (${r.sent} dispositivo${r.sent === 1 ? "" : "s"} con aviso activado).` });
+      setNotice({ ok: true, text: `${r.recipients === 1 ? t("Enviado a {n} persona", { n: 1 }) : t("Enviado a {n} personas", { n: r.recipients })} (${r.sent === 1 ? t("{n} dispositivo con aviso activado", { n: 1 }) : t("{n} dispositivos con aviso activado", { n: r.sent })}).` });
       setTitle(defaultTitle); setBody(defaultBody); setPicked([]);
       qc.invalidateQueries({ queryKey: ["noticeHistory"] });
       onSent?.(r);
     } catch (e) {
-      setMsg({ ok: false, text: e.data?.error === "no_recipients" ? "No hay nadie a quien enviar con esa selección." : (e.message || "No se pudo enviar") });
+      setNotice({ ok: false, text: e.data?.error === "no_recipients" ? t("No hay nadie a quien enviar con esa selección.") : (e.message || t("No se pudo enviar")) });
     }
     setBusy(false);
   };
@@ -117,17 +119,17 @@ export default function Composer({ fixed = null, defaultTitle = "", defaultBody 
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
       {!fixed && (
         <div className="flex gap-1.5">
-          <Chip on={mode === "teams"} onClick={() => setMode("teams")}>Por equipos</Chip>
-          <Chip on={mode === "people"} onClick={() => setMode("people")}>A una persona</Chip>
+          <Chip on={mode === "teams"} onClick={() => setMode("teams")}>{t("Por equipos")}</Chip>
+          <Chip on={mode === "people"} onClick={() => setMode("people")}>{t("A una persona")}</Chip>
         </div>
       )}
       {people && <PeoplePicker picked={picked} setPicked={setPicked} />}
       {!fixed && !people && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Equipos <span className="normal-case tracking-normal font-normal">· puedes combinar grupos y equipos sueltos</span></p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">{t("Equipos")} <span className="normal-case tracking-normal font-normal">{t("· puedes combinar grupos y equipos sueltos")}</span></p>
           <div className="flex flex-wrap gap-1.5 mb-2">
-            {isCoord && <Chip on={allClub} onClick={() => setAllClub(!allClub)}>Todo el club</Chip>}
-            {quick.map((g) => <Chip key={g.label} on={quickOn(g.ids)} onClick={() => toggleQuick(g.ids)}>{g.label}</Chip>)}
+            {isCoord && <Chip on={allClub} onClick={() => setAllClub(!allClub)}>{t("Todo el club")}</Chip>}
+            {quick.map((g) => <Chip key={g.label} on={quickOn(g.ids)} onClick={() => toggleQuick(g.ids)}>{t(g.label)}</Chip>)}
           </div>
           <div className="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100">
             {available.map((t) => (
@@ -136,36 +138,36 @@ export default function Composer({ fixed = null, defaultTitle = "", defaultBody 
           </div>
         </div>
       )}
-      {fixed && <p className="text-xs text-gray-500">Para: <b>{fixed.label}</b></p>}
+      {fixed && <p className="text-xs text-gray-500">{t("Para:")} <b>{t(fixed.label)}</b></p>}
       {!people && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">A quién le llega</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">{t("A quién le llega")}</p>
           <div className="flex flex-wrap gap-1.5">
             {GROUPS.filter((g) => !(fixed && g.key === "tecnico")).map((g) => (
-              <Chip key={g.key} on={groups.includes(g.key)} onClick={() => toggle(groups, setGroups, g.key)}>{g.label}</Chip>
+              <Chip key={g.key} on={groups.includes(g.key)} onClick={() => toggle(groups, setGroups, g.key)}>{t(g.label)}</Chip>
             ))}
           </div>
         </div>
       )}
       <div className="space-y-2">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="Título"
+        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder={t("Título")}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2" />
-        <Textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={600} rows={4} placeholder="Mensaje" />
+        <Textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={600} rows={4} placeholder={t("Mensaje")} />
       </div>
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-gray-400">
-          {count ? <>Llegará a <b className="text-gray-700">{count.recipients}</b> persona{count.recipients === 1 ? "" : "s"} · <b className="text-gray-700">{count.with_push}</b> con avisos activados</> : hasTarget ? "Calculando…" : "Elige a quién enviar"}
+          {count ? <>{t("Llegará a")} <b className="text-gray-700">{count.recipients}</b> {count.recipients === 1 ? t("persona") : t("personas")} · <b className="text-gray-700">{count.with_push}</b> {t("con avisos activados")}</> : hasTarget ? t("Calculando…") : t("Elige a quién enviar")}
         </p>
         <button onClick={send} disabled={!canSend || busy}
           className="flex items-center gap-1.5 text-white text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-full disabled:opacity-40"
           style={{ background: "var(--granate)" }}>
-          <Send className="w-3.5 h-3.5" /> {busy ? "Enviando…" : "Enviar"}
+          <Send className="w-3.5 h-3.5" /> {busy ? t("Enviando…") : t("Enviar")}
         </button>
       </div>
       {count && count.with_push < count.recipients && (
-        <p className="text-[11px] text-gray-400">Los que no tienen los avisos activados lo verán igualmente en la pestaña Avisos de la app.</p>
+        <p className="text-[11px] text-gray-400">{t("Los que no tienen los avisos activados lo verán igualmente en la pestaña Avisos de la app.")}</p>
       )}
-      {msg && <p className={`text-xs ${msg.ok ? "text-green-600" : "text-red-600"}`}>{msg.text}</p>}
+      {notice && <p className={`text-xs ${notice.ok ? "text-green-600" : "text-red-600"}`}>{notice.text}</p>}
     </div>
   );
 }

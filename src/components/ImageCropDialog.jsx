@@ -127,7 +127,7 @@ export default function ImageCropDialog({ open, onOpenChange, imageSrc, onConfir
               step={0.1}
               className="w-full"
             />
-            <p className="text-xs text-gray-400 text-right">{t("{toFixed}x", { toFixed: zoom.toFixed(2) })}</p>
+            <p className="text-xs text-gray-400 text-right">{zoom.toFixed(2)}x</p>
           </div>
         </div>
 

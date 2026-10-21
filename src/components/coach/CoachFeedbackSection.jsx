@@ -2,23 +2,23 @@ import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Plus, Pencil, ChevronDown, ChevronUp, Send, Trash2, Zap, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useT, msg, useDateLocale } from "@/i18n";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const FONT = { fontFamily: "var(--font-display)" };
 
 export const FEEDBACK_SECTIONS = [
-  { key: "lectura", label: "Lectura del partido", color: "var(--granate)", placeholder: "Cómo leyó el partido, cambios, momentos clave…" },
-  { key: "sistema", label: "Sistema de juego", color: "var(--granate)", placeholder: "Si el equipo aplica bien el sistema y qué ajustar…" },
-  { key: "jugadores", label: "Jugadores (correcciones individuales)", color: "var(--naranja)", placeholder: "Nombre del jugador: qué corregir…" },
-  { key: "direccion", label: "Dirección de campo", color: "var(--naranja)", placeholder: "Comunicación, gestión del banquillo, instrucciones…" },
-  { key: "positivo", label: "Lo positivo", color: "#16a34a", placeholder: "Qué hizo bien…" },
-  { key: "otros", label: "Otros", color: "#64748b", placeholder: "Cualquier otra cosa…" },
+  { key: "lectura", label: msg("Lectura del partido"), color: "var(--granate)", placeholder: msg("Cómo leyó el partido, cambios, momentos clave…") },
+  { key: "sistema", label: msg("Sistema de juego"), color: "var(--granate)", placeholder: msg("Si el equipo aplica bien el sistema y qué ajustar…") },
+  { key: "jugadores", label: msg("Jugadores (correcciones individuales)"), color: "var(--naranja)", placeholder: msg("Nombre del jugador: qué corregir…") },
+  { key: "direccion", label: msg("Dirección de campo"), color: "var(--naranja)", placeholder: msg("Comunicación, gestión del banquillo, instrucciones…") },
+  { key: "positivo", label: msg("Lo positivo"), color: "#16a34a", placeholder: msg("Qué hizo bien…") },
+  { key: "otros", label: msg("Otros"), color: "#64748b", placeholder: msg("Cualquier otra cosa…") },
 ];
 
 const notifyCoach = (id) => {
@@ -35,6 +35,8 @@ const notifyCoach = (id) => {
 const EMPTY = { event_id: "", lectura: "", sistema: "", jugadores: "", direccion: "", positivo: "", otros: "" };
 
 export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, isOwnProfile, author }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -57,7 +59,7 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
   );
   const eventById = (id) => events.find((e) => e.id === id);
   const teamName = (id) => teams.find((t) => t.id === id)?.name || "";
-  const matchLabel = (e) => `${e.opponent ? `vs ${e.opponent}` : e.title || "Partido"} · ${e.date ? format(new Date(e.date), "dd/MM/yyyy") : ""}${teamIds.length > 1 ? ` · ${teamName(e.team_id)}` : ""}`;
+  const matchLabel = (e) => `${e.opponent ? t("vs {opponent}", { opponent: e.opponent }) : e.title || t("Partido")} · ${e.date ? format(new Date(e.date), "dd/MM/yyyy") : ""}${teamIds.length > 1 ? ` · ${teamName(e.team_id)}` : ""}`;
 
   const visible = items
     .filter((i) => canWrite || i.status === "enviado")
@@ -164,14 +166,14 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-black uppercase" style={{ ...FONT, color: "var(--granate)" }}>Feedback y correcciones</h2>
+        <h2 className="text-lg font-black uppercase" style={{ ...FONT, color: "var(--granate)" }}>{t("Feedback y correcciones")}</h2>
         {canWrite && (
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={openQuick} className="text-xs">
-              <Zap className="w-3.5 h-3.5 mr-1" /> Nota rápida
+              <Zap className="w-3.5 h-3.5 mr-1" /> {t("Nota rápida")}
             </Button>
             <Button variant="club" size="sm" onClick={openCreate} className="text-xs">
-              <Plus className="w-3.5 h-3.5 mr-1" /> Nuevo feedback
+              <Plus className="w-3.5 h-3.5 mr-1" /> {t("Nuevo feedback")}
             </Button>
           </div>
         )}
@@ -179,7 +181,7 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
 
       {visible.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 rounded p-8 text-center">
-          <p className="text-gray-400 text-sm">{canWrite ? "Aún no hay feedback para este entrenador" : "Todavía no tienes feedback enviado"}</p>
+          <p className="text-gray-400 text-sm">{canWrite ? t("Aún no hay feedback para este entrenador") : t("Todavía no tienes feedback enviado")}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -192,33 +194,33 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
                 <div className="px-4 py-3 flex items-center gap-3 cursor-pointer" onClick={() => toggle(i)}>
                   <div className="w-10 text-center shrink-0">
                     <p className="text-lg font-black leading-none" style={{ ...FONT, color: "var(--granate)" }}>{i.date ? format(new Date(i.date), "d") : "—"}</p>
-                    <p className="text-[10px] uppercase text-gray-400">{i.date ? format(new Date(i.date), "MMM", { locale: es }) : ""}</p>
+                    <p className="text-[10px] uppercase text-gray-400">{i.date ? format(new Date(i.date), "MMM", { locale: dfl }) : ""}</p>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-gray-900 text-sm truncate" style={FONT}>
-                      {ev ? (ev.opponent ? `vs ${ev.opponent}` : ev.title) : "Feedback general"}
+                      {ev ? (ev.opponent ? t("vs {opponent}", { opponent: ev.opponent }) : ev.title) : t("Feedback general")}
                       {i.team_id && <span className="text-gray-400 font-normal"> · {teamName(i.team_id)}</span>}
                     </p>
                     <p className="text-xs text-gray-400 truncate">
-                      {i.author_name ? `Por ${i.author_name}` : ""}
-                      {canWrite && i.status === "enviado" && i.read_at ? " · Leído" : ""}
-                      {canWrite && i.status === "enviado" && !i.read_at ? " · Sin leer" : ""}
+                      {i.author_name ? t("Por {author_name}", { author_name: i.author_name }) : ""}
+                      {canWrite && i.status === "enviado" && i.read_at ? " " + t("· Leído") : ""}
+                      {canWrite && i.status === "enviado" && !i.read_at ? " " + t("· Sin leer") : ""}
                     </p>
                   </div>
-                  {isNew && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-500 text-white">Nuevo</span>}
+                  {isNew && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-500 text-white">{t("Nuevo")}</span>}
                   {canWrite && (
                     <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${i.status === "enviado" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                      {i.status === "enviado" ? "Enviado" : "Borrador"}
+                      {i.status === "enviado" ? t("Enviado") : t("Borrador")}
                     </span>
                   )}
                   {canWrite && (
                     <>
                       {i.status !== "enviado" && (
-                        <button title="Enviar al entrenador" onClick={(e) => { e.stopPropagation(); sendMutation.mutate(i); }} className="p-1.5 rounded hover:bg-gray-100" style={{ color: "var(--granate)" }}>
+                        <button title={t("Enviar al entrenador")} onClick={(e) => { e.stopPropagation(); sendMutation.mutate(i); }} className="p-1.5 rounded hover:bg-gray-100" style={{ color: "var(--granate)" }}>
                           <Send className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      <button title="Editar" onClick={(e) => { e.stopPropagation(); openEdit(i); }} className="p-1.5 rounded hover:bg-gray-100 text-gray-400">
+                      <button title={t("Editar")} onClick={(e) => { e.stopPropagation(); openEdit(i); }} className="p-1.5 rounded hover:bg-gray-100 text-gray-400">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                     </>
@@ -229,28 +231,28 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
                   <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
                     {FEEDBACK_SECTIONS.filter((s) => i[s.key]).map((s) => (
                       <div key={s.key}>
-                        <p className="text-[10px] font-black uppercase tracking-wider mb-0.5" style={{ ...FONT, color: s.color }}>{s.label}</p>
+                        <p className="text-[10px] font-black uppercase tracking-wider mb-0.5" style={{ ...FONT, color: s.color }}>{t(s.label)}</p>
                         <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{i[s.key]}</p>
                       </div>
                     ))}
                     {(i.status === "enviado" || canWrite) && (
                       <div className="border-t border-gray-100 pt-3 space-y-2">
                         <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1" style={FONT}>
-                          <MessageSquare className="w-3 h-3" /> Conversación
+                          <MessageSquare className="w-3 h-3" /> {t("Conversación")}
                         </p>
                         {(i.replies || []).map((r, k) => (
                           <div key={k} className={`rounded p-2 text-sm ${r.from_coach ? "bg-orange-50" : "bg-gray-50"}`}>
-                            <p className="text-[10px] text-gray-400">{r.by_name || (r.from_coach ? "Entrenador" : "Coordinación")} · {r.at ? format(new Date(r.at), "d MMM HH:mm", { locale: es }) : ""}</p>
+                            <p className="text-[10px] text-gray-400">{r.by_name || (r.from_coach ? t("Entrenador") : t("Coordinación"))} · {r.at ? format(new Date(r.at), "d MMM HH:mm", { locale: dfl }) : ""}</p>
                             <p className="text-gray-700 whitespace-pre-wrap">{r.text}</p>
                           </div>
                         ))}
                         {i.status === "enviado" && (
                           <div className="flex gap-2">
-                            <Textarea rows={1} placeholder="Escribe una respuesta…" value={replyText[i.id] || ""}
+                            <Textarea rows={1} placeholder={t("Escribe una respuesta…")} value={replyText[i.id] || ""}
                               onChange={(e) => setReplyText((p) => ({ ...p, [i.id]: e.target.value }))} className="border-gray-200 text-sm" />
                             <Button variant="club" size="sm" disabled={!(replyText[i.id] || "").trim() || replyMutation.isPending}
                               onClick={() => replyMutation.mutate({ i, text: replyText[i.id].trim() })}
-                              className="self-end">Responder</Button>
+                              className="self-end">{t("Responder")}</Button>
                           </div>
                         )}
                       </div>
@@ -265,12 +267,12 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
 
       <Dialog open={quickOpen} onOpenChange={setQuickOpen}>
         <DialogContent className="bg-white border-gray-200 max-w-md">
-          <DialogHeader><DialogTitle>Nota rápida</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("Nota rápida")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <Select value={quick.event_id || "none"} onValueChange={(v) => setQuick({ ...quick, event_id: v === "none" ? "" : v })}>
-              <SelectTrigger className="border-gray-200"><SelectValue placeholder="Partido…" /></SelectTrigger>
+              <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Partido…")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Sin partido concreto</SelectItem>
+                <SelectItem value="none">{t("Sin partido concreto")}</SelectItem>
                 {matchEvents.map((e) => <SelectItem key={e.id} value={e.id}>{matchLabel(e)}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -279,16 +281,16 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
                 <button key={s.key} type="button" onClick={() => setQuick({ ...quick, section: s.key })}
                   className={`text-xs px-2.5 py-1.5 rounded-full border ${quick.section === s.key ? "text-white border-transparent" : "text-gray-600 border-gray-200"}`}
                   style={quick.section === s.key ? { background: "var(--granate)" } : undefined}>
-                  {s.label.replace(" (correcciones individuales)", "")}
+                  {s.key === "jugadores" ? t("Jugadores") : t(s.label)}
                 </button>
               ))}
             </div>
-            <Textarea autoFocus rows={3} placeholder="Apunta la idea y sigue viendo el partido…" value={quick.text}
+            <Textarea autoFocus rows={3} placeholder={t("Apunta la idea y sigue viendo el partido…")} value={quick.text}
               onChange={(e) => setQuick({ ...quick, text: e.target.value })} className="border-gray-200 text-sm" />
             <div className="flex items-center gap-2">
-              <p className="text-xs text-green-600 flex-1">{quickDone > 0 ? `✓ ${quickDone} añadida${quickDone > 1 ? "s" : ""} al borrador` : "Se guarda en el borrador del partido"}</p>
-              <Button variant="outline" onClick={() => setQuickOpen(false)}>Cerrar</Button>
-              <Button variant="club" disabled={!quick.text.trim() || quickMutation.isPending} onClick={() => quickMutation.mutate()}>Añadir</Button>
+              <p className="text-xs text-green-600 flex-1">{quickDone > 0 ? (quickDone > 1 ? t("✓ {quickDone} añadidas al borrador", { quickDone }) : t("✓ {quickDone} añadida al borrador", { quickDone })) : t("Se guarda en el borrador del partido")}</p>
+              <Button variant="outline" onClick={() => setQuickOpen(false)}>{t("Cerrar")}</Button>
+              <Button variant="club" disabled={!quick.text.trim() || quickMutation.isPending} onClick={() => quickMutation.mutate()}>{t("Añadir")}</Button>
             </div>
           </div>
         </DialogContent>
@@ -296,42 +298,42 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-white border-gray-200 max-h-[90vh] overflow-y-auto max-w-xl">
-          <DialogHeader><DialogTitle>{editing ? "Editar feedback" : "Nuevo feedback"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? t("Editar feedback") : t("Nuevo feedback")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
-              <p className="text-xs text-gray-500 mb-1 font-medium">Partido</p>
+              <p className="text-xs text-gray-500 mb-1 font-medium">{t("Partido")}</p>
               <Select value={form.event_id || "none"} onValueChange={(v) => setForm({ ...form, event_id: v === "none" ? "" : v })}>
-                <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar partido…" /></SelectTrigger>
+                <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Seleccionar partido…")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Sin partido concreto</SelectItem>
+                  <SelectItem value="none">{t("Sin partido concreto")}</SelectItem>
                   {matchEvents.map((e) => <SelectItem key={e.id} value={e.id}>{matchLabel(e)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             {FEEDBACK_SECTIONS.map((s) => (
               <div key={s.key}>
-                <p className="text-xs text-gray-500 mb-1 font-medium">{s.label}</p>
-                <Textarea placeholder={s.placeholder} value={form[s.key]} rows={2}
+                <p className="text-xs text-gray-500 mb-1 font-medium">{t(s.label)}</p>
+                <Textarea placeholder={t(s.placeholder)} value={form[s.key]} rows={2}
                   onChange={(e) => setForm({ ...form, [s.key]: e.target.value })} className="border-gray-200 text-sm" />
               </div>
             ))}
             <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
               {editing && (
                 confirmDelete ? (
-                  <Button variant="outline" onClick={() => deleteMutation.mutate(editing)} className="text-red-600 border-red-200">Confirmar borrado</Button>
+                  <Button variant="outline" onClick={() => deleteMutation.mutate(editing)} className="text-red-600 border-red-200">{t("Confirmar borrado")}</Button>
                 ) : (
-                  <Button variant="outline" size="icon" onClick={() => setConfirmDelete(true)} title="Borrar"><Trash2 className="w-4 h-4 text-gray-400" /></Button>
+                  <Button variant="outline" size="icon" onClick={() => setConfirmDelete(true)} title={t("Borrar")}><Trash2 className="w-4 h-4 text-gray-400" /></Button>
                 )
               )}
               <div className="flex-1" />
               {(!editing || editing.status !== "enviado") && (
                 <Button variant="outline" disabled={!hasContent || saveMutation.isPending} onClick={() => saveMutation.mutate({ send: false })}>
-                  Guardar borrador
+                  {t("Guardar borrador")}
                 </Button>
               )}
               <Button variant="club" disabled={!hasContent || saveMutation.isPending} onClick={() => saveMutation.mutate({ send: true })}>
                 <Send className="w-3.5 h-3.5 mr-1.5" />
-                {editing?.status === "enviado" ? "Guardar y reenviar" : "Guardar y enviar"}
+                {editing?.status === "enviado" ? t("Guardar y reenviar") : t("Guardar y enviar")}
               </Button>
             </div>
           </div>

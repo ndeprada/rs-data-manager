@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { downloadProgressionPDF } from "./progressionPdfGenerator";
 import { matchesPlayerSearch } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
+import { useT } from "@/i18n";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
@@ -17,6 +18,7 @@ const POSITION_LABELS = {
 };
 
 export default function ProgressionReportSection() {
+  const t = useT();
   const [selectedTeamId, setSelectedTeamId] = useState("all");
   const [search, setSearch] = useState("");
   const [downloading, setDownloading] = useState(null);
@@ -66,27 +68,27 @@ export default function ProgressionReportSection() {
       {/* Filters */}
       <div className="bg-white border border-gray-200 p-5 shadow-sm space-y-4" style={{ borderRadius: "4px" }}>
         <div>
-          <h3 style={{ color: "var(--naranja)" }}>Informe de Progresión Individual</h3>
+          <h3 style={{ color: "var(--naranja)" }}>{t("Informe de Progresión Individual")}</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Genera un PDF completo con minutos jugados, asistencia a entrenamientos y notas tácticas del cuerpo técnico para cada jugador.
+            {t("Genera un PDF completo con minutos jugados, asistencia a entrenamientos y notas tácticas del cuerpo técnico para cada jugador.")}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 space-y-1">
-            <Label className="text-gray-700 text-xs">Equipo</Label>
+            <Label className="text-gray-700 text-xs">{t("Equipo")}</Label>
             <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
               <SelectTrigger className="border-gray-200 bg-white"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos los equipos</SelectItem>
+                <SelectItem value="all">{t("Todos los equipos")}</SelectItem>
                 {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="flex-1 space-y-1">
-            <Label className="text-gray-700 text-xs">Buscar jugador</Label>
+            <Label className="text-gray-700 text-xs">{t("Buscar jugador")}</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Nombre o apellido…" className="pl-9 border-gray-200" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("Nombre o apellido…")} className="pl-9 border-gray-200" />
             </div>
           </div>
         </div>
@@ -97,19 +99,19 @@ export default function ProgressionReportSection() {
         {filteredPlayers.length === 0 ? (
           <div className="text-center py-12">
             <TrendingUp className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-400 text-sm uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>No hay jugadores</p>
+            <p className="text-gray-400 text-sm uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>{t("No hay jugadores")}</p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-400 uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
-                <th className="text-left px-5 py-3 font-bold">Jugador</th>
-                <th className="text-left px-3 py-3 font-bold hidden md:table-cell">Equipo</th>
-                <th className="text-center px-3 py-3 font-bold">Partidos</th>
-                <th className="text-center px-3 py-3 font-bold hidden sm:table-cell">Minutos</th>
-                <th className="text-center px-3 py-3 font-bold hidden sm:table-cell">% Asistencia</th>
-                <th className="text-center px-3 py-3 font-bold hidden lg:table-cell">Eval. PDI</th>
-                <th className="text-right px-5 py-3 font-bold">PDF</th>
+                <th className="text-left px-5 py-3 font-bold">{t("Jugador")}</th>
+                <th className="text-left px-3 py-3 font-bold hidden md:table-cell">{t("Equipo")}</th>
+                <th className="text-center px-3 py-3 font-bold">{t("Partidos")}</th>
+                <th className="text-center px-3 py-3 font-bold hidden sm:table-cell">{t("Minutos")}</th>
+                <th className="text-center px-3 py-3 font-bold hidden sm:table-cell">{t("% Asistencia")}</th>
+                <th className="text-center px-3 py-3 font-bold hidden lg:table-cell">{t("Eval. PDI")}</th>
+                <th className="text-right px-5 py-3 font-bold">{t("PDF")}</th>
               </tr>
             </thead>
             <tbody>
@@ -130,7 +132,7 @@ export default function ProgressionReportSection() {
                         <div>
                           <p className="font-bold text-gray-900" style={{ fontFamily: "var(--font-display)" }}><PlayerName player={player} /></p>
                           <p className="text-xs text-gray-400">
-                            {POSITION_LABELS[player.position] || "—"}
+                            {POSITION_LABELS[player.position] ? t(POSITION_LABELS[player.position]) : "—"}
                             {player.jersey_number ? ` · #${player.jersey_number}` : ""}
                           </p>
                         </div>
@@ -154,7 +156,7 @@ export default function ProgressionReportSection() {
                     <td className="px-3 py-3 text-center hidden lg:table-cell">
                       {pdiCount > 0 ? (
                         <span className="text-xs font-bold px-2 py-0.5 rounded-sm" style={{ background: "#fdf2f4", color: "var(--granate)", fontFamily: "var(--font-display)" }}>
-                          {pdiCount} eval.
+                          {t("{pdiCount} eval.", { pdiCount })}
                         </span>
                       ) : <span className="text-xs text-gray-300">—</span>}
                     </td>
@@ -167,7 +169,7 @@ export default function ProgressionReportSection() {
                       >
                         {downloading === player.id
                           ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <><Download className="w-3.5 h-3.5 mr-1" />Generar</>
+                          : <><Download className="w-3.5 h-3.5 mr-1" />{t("Generar")}</>
                         }
                       </Button>
                     </td>
