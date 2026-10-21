@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { actaMinutes } from "@/lib/matchDuration";
 
-const POS = { portero: "POR", central: "DFC", libre: "LIB", lateral: "LAT", mediocentro: "MC", interior: "INT", extremo: "EXT", delantero_centro: "DC" };
+const POS = { portero: "POR", central: "DFC", libre: "LIB", lateral: "LAT", mediocentro: "MC", interior: "INT", mediapunta: "MP", extremo: "EXT", delantero_centro: "DC" };
 
 // Valores de un jugador: los que has corregido a mano, o los que salen de los eventos del acta.
 export function playerLine(p, stat, matchEvents, starterIds, matchMinutes) {

@@ -49,7 +49,7 @@ const STATUS_STYLES = {
 
 const POSITIONS = {
   portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
-  mediocentro: "Mediocentro", interior: "Interior", delantero_centro: "Delantero Centro", extremo: "Extremo",
+  mediocentro: "Mediocentro", interior: "Interior", mediapunta: "Mediapunta", delantero_centro: "Delantero Centro", extremo: "Extremo",
 };
 
 const STAFF_ROLES = {
@@ -60,7 +60,7 @@ const STAFF_ROLES = {
 
 
 
-const POSITION_GROUPS = ["portero", "lateral", "central", "libre", "mediocentro", "interior", "delantero_centro", "extremo"];
+const POSITION_GROUPS = ["portero", "lateral", "central", "libre", "mediocentro", "interior", "mediapunta", "delantero_centro", "extremo"];
 
 export default function TeamDetail() {
   const queryClient = useQueryClient();

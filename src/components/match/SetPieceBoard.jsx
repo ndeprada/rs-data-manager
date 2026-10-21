@@ -256,7 +256,7 @@ function Board({ piece, onChange, candidates, lookup, kitOf, header, side }) {
   const selArrow = sel?.type === "arrow" ? piece.arrows.find((a) => a.id === sel.id) : null;
   const playerOf = (t) => (t.player_id ? lookup.find((p) => p.id === t.player_id) : null);
   const fillWithSquad = () => {
-    const GROUP = { portero: 0, central: 1, libre: 1, lateral: 1, mediocentro: 2, interior: 2, extremo: 3, delantero_centro: 3 };
+    const GROUP = { portero: 0, central: 1, libre: 1, lateral: 1, mediocentro: 2, interior: 2, mediapunta: 2, extremo: 3, delantero_centro: 3 };
     const used = new Set(piece.tokens.map((t) => t.player_id).filter(Boolean));
     const pool = candidates.filter((p) => !used.has(p.id)).sort((a, b) => ((GROUP[a.position] ?? 9) - (GROUP[b.position] ?? 9)) || ((Number(a.jersey_number) || 999) - (Number(b.jersey_number) || 999)));
     let i = 0;

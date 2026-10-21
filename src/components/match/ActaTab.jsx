@@ -153,7 +153,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
   const convocadoIds = convocation?.player_ids || [];
   const starterIds = convocation?.starters || [];
 
-  const POSITION_SORT_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
+  const POSITION_SORT_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
   const sortByPosition = (a, b) => {
     const ai = POSITION_SORT_ORDER.indexOf(a.position ?? "");
     const bi = POSITION_SORT_ORDER.indexOf(b.position ?? "");

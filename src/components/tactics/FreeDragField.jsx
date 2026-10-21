@@ -7,7 +7,7 @@ const POSITION_LABELS = {
   central: "CEN",
   libre: "LIB",
   mediocentro: "MC",
-  interior: "INT",
+  interior: "INT", mediapunta: "MP",
   delantero_centro: "DC",
   extremo: "EXT",
 };

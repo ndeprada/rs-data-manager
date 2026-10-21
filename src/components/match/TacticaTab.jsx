@@ -211,8 +211,8 @@ function PlayerPicker({ open, onClose, teamPlayers, taken, onPick, onClear, curr
   );
 }
 
-const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CT", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
-const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
+const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CT", libre: "LIB", mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT" };
+const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
 
 function Plan({ title, hint, value, onChange: set, placeholder, minHeight = 140, small = false }) {
   return (
@@ -323,7 +323,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   };
   const setSlot = (i, id) => setLineup(() => { const n = [...slotIds]; n[i] = id; return n; });
   // Banquillo: solo los convocados que no están en el once, ordenados por porteros, defensas, medios y delanteros
-  const GROUP = { portero: 0, central: 1, libre: 1, lateral: 1, mediocentro: 2, interior: 2, extremo: 3, delantero_centro: 3 };
+  const GROUP = { portero: 0, central: 1, libre: 1, lateral: 1, mediocentro: 2, interior: 2, mediapunta: 2, extremo: 3, delantero_centro: 3 };
   const benchPlayers = [...new Set(convocadoIds || [])]
     .filter(id => !taken.has(id))
     .map(id => allPlayers.find(p => p.id === id) || players.find(p => p.id === id))

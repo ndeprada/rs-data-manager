@@ -13,7 +13,7 @@ const STATUS_CONFIG = {
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
-  mediocentro: "MED", interior: "INT", delantero_centro: "DEL", extremo: "EXT",
+  mediocentro: "MED", interior: "INT", mediapunta: "MP", delantero_centro: "DEL", extremo: "EXT",
 };
 
 export default function EventAttendancePanel({ event, onClose }) {

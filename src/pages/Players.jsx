@@ -22,13 +22,14 @@ const POSITIONS = [
   { value: "central", label: "Central" },
   { value: "mediocentro", label: "Mediocentro" },
   { value: "interior", label: "Interior" },
+  { value: "mediapunta", label: "Mediapunta" },
   { value: "delantero_centro", label: "Del. Centro" },
   { value: "extremo", label: "Extremo" },
 ];
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB",
-  mediocentro: "MCC", interior: "INT", delantero_centro: "DC", extremo: "EXT",
+  mediocentro: "MCC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT",
 };
 
 const POSITION_PILLS = [
@@ -37,6 +38,7 @@ const POSITION_PILLS = [
   { value: "lateral", label: "LAT" },
   { value: "central", label: "CTR" },
   { value: "interior", label: "INT" },
+  { value: "mediapunta", label: "MP" },
   { value: "extremo", label: "EXT" },
 ];
 
@@ -139,7 +141,7 @@ export default function Players() {
     let aVal, bVal;
     if (sortKey === "name") { aVal = `${a.last_name} ${a.first_name}`.toLowerCase(); bVal = `${b.last_name} ${b.first_name}`.toLowerCase(); }
     else if (sortKey === "position") {
-      const POS_ORDER = ["portero","central","libre","lateral","mediocentro","interior","extremo","delantero_centro"];
+      const POS_ORDER = ["portero","central","libre","lateral","mediocentro","interior","mediapunta","extremo","delantero_centro"];
       aVal = POS_ORDER.indexOf(a.position) === -1 ? 99 : POS_ORDER.indexOf(a.position);
       bVal = POS_ORDER.indexOf(b.position) === -1 ? 99 : POS_ORDER.indexOf(b.position);
     }

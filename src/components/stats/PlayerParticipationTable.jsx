@@ -6,8 +6,8 @@ import { participationOf, minutesAlerts, playerLevel, MIN_PCT, FORMAT_LABEL } fr
 import { useParticipationContext } from "@/lib/useParticipation";
 import { ReasonChips, FormatPills, FORMAT_OPTIONS, PctPill, alertText } from "@/components/stats/ParticipationBits";
 
-const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
-const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
+const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT" };
+const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
 
 function Th({ label, k, sort, setSort, className = "", title }) {
   const active = sort.key === k;

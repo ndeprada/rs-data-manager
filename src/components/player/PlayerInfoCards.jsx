@@ -8,11 +8,11 @@ import { Phone, Mail } from "lucide-react";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CT", libre: "LIB",
-  mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT",
+  mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT",
 };
 const POSITION_FULL = {
   portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
-  mediocentro: "Mediocentro", interior: "Interior", delantero_centro: "Delantero", extremo: "Extremo"
+  mediocentro: "Mediocentro", interior: "Interior", mediapunta: "Mediapunta", delantero_centro: "Delantero", extremo: "Extremo"
 };
 const LATERALITY_LABELS = { diestro: "Diestro", zurdo: "Zurdo", ambidiestro: "Ambidiestro" };
 
@@ -24,6 +24,7 @@ const POSITION_COORDS_BASE = {
   libre:            { x: 50, y: 78 },
   mediocentro:      { x: 50, y: 48 },
   interior:         { x: 30, y: 38 },
+  mediapunta:       { x: 50, y: 30 },
   extremo:          { x: 14, y: 25 },
   delantero_centro: { x: 50, y: 18 },
 };

@@ -17,21 +17,21 @@ import SaveStatus from "@/components/common/SaveStatus";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CT", libre: "LIB",
-  mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT",
+  mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT",
 };
 
 // Orden exacto dentro de cada grupo
 const POSITION_ORDER = {
   Porteros:        ["portero"],
   Defensas:        ["central", "libre", "lateral"],
-  Centrocampistas: ["mediocentro", "interior"],
+  Centrocampistas: ["mediocentro", "interior", "mediapunta"],
   Delanteros:      ["extremo", "delantero_centro"],
 };
 
 const POSITION_GROUP = {
   portero: "Porteros",
   central: "Defensas", libre: "Defensas", lateral: "Defensas",
-  mediocentro: "Centrocampistas", interior: "Centrocampistas",
+  mediocentro: "Centrocampistas", interior: "Centrocampistas", mediapunta: "Centrocampistas",
   extremo: "Delanteros", delantero_centro: "Delanteros",
 };
 

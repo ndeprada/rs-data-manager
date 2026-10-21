@@ -9,17 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { COUNTRIES, PROVINCES, regionOfProvince, countryOf } from "@/lib/countries";
 import { getRoleOptions, findRole } from "@/lib/competencyCatalog";
 import { LEVELS, EXTRA_LEVELS, getExtraPositions } from "@/lib/playerPositions";
+import { positionChoices, stageOf, f7Info } from "@/lib/f7Positions";
+import { isF7Team } from "@/lib/teamOrder";
+import { F7PositionDetail } from "@/components/player/F7PositionGuide";
 import { Plus, X } from "lucide-react";
-
-const POSITIONS = [
-  { value: "portero", label: "Portero" },
-  { value: "lateral", label: "Lateral" },
-  { value: "central", label: "Central" },
-  { value: "mediocentro", label: "Mediocentro" },
-  { value: "interior", label: "Interior" },
-  { value: "delantero_centro", label: "Delantero Centro" },
-  { value: "extremo", label: "Extremo" },
-];
 
 const LATERALITY = [
   { value: "diestro", label: "Diestro" },
@@ -37,6 +30,10 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
   const [form, setForm] = useState(emptyForm);
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
+  // Etapa del jugador (fútbol 7 hasta Aleví S12, fútbol 11 desde Infantil S13): decide qué posiciones se ofrecen
+  const formTeam = teams.find((t) => t.id === (form.team_id || teamId));
+  const stage = stageOf(editingPlayer, formTeam ? isF7Team(formTeam) : false);
+  const f7 = stage === "f7";
 
   useEffect(() => {
     if (editingPlayer) {
@@ -124,41 +121,43 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: LEVELS.natural.color }} />
               <Label className="text-gray-700">Posición natural (principal)</Label>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className={f7 ? "" : "grid grid-cols-2 gap-3"}>
               <Select value={form.position} onValueChange={(v) => setForm({ ...form, position: v, reference_role: "" })}>
                 <SelectTrigger className="border-gray-200"><SelectValue placeholder="Posición" /></SelectTrigger>
                 <SelectContent>
-                  {POSITIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                  {positionChoices(stage, form.position).map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {getRoleOptions(form.position).length > 0 ? (
+              {!f7 && getRoleOptions(form.position).length > 0 ? (
                 <Select value={form.reference_role} onValueChange={(v) => setForm({ ...form, reference_role: v })}>
                   <SelectTrigger className="border-gray-200"><SelectValue placeholder="Rol" /></SelectTrigger>
                   <SelectContent>
                     {getRoleOptions(form.position).map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              ) : <div />}
+              ) : (f7 ? null : <div />)}
             </div>
-            {form.reference_role && <p className="text-xs text-gray-500">{findRole(form.reference_role)?.role.description}</p>}
+            {f7 && f7Info(form.position) && <F7PositionDetail position={form.position} />}
+            {!f7 && form.reference_role && <p className="text-xs text-gray-500">{findRole(form.reference_role)?.role.description}</p>}
 
             <div className="pt-1 space-y-2">
               <Label className="text-gray-700">Otras posiciones <span className="text-gray-400 font-normal">(verde claro = secundaria · naranja = competente)</span></Label>
               {(form.extra_positions || []).map((e, idx) => {
                 const upd = (patch) => setForm({ ...form, extra_positions: form.extra_positions.map((x, i) => (i === idx ? { ...x, ...patch } : x)) });
-                const roles = getRoleOptions(e.position);
+                const roles = f7 ? [] : getRoleOptions(e.position);
                 return (
-                  <div key={idx} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">
+                  <div key={idx}>
+                  <div className={`grid ${f7 ? "grid-cols-[1fr_auto_auto]" : "grid-cols-[1fr_1fr_auto_auto]"} gap-2 items-center`}>
                     <Select value={e.position} onValueChange={(v) => upd({ position: v, role: "" })}>
                       <SelectTrigger className="border-gray-200"><SelectValue placeholder="Posición" /></SelectTrigger>
-                      <SelectContent>{POSITIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+                      <SelectContent>{positionChoices(stage, e.position).map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
                     </Select>
                     {roles.length > 0 ? (
                       <Select value={e.role} onValueChange={(v) => upd({ role: v })}>
                         <SelectTrigger className="border-gray-200"><SelectValue placeholder="Rol" /></SelectTrigger>
                         <SelectContent>{roles.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
                       </Select>
-                    ) : <div />}
+                    ) : (f7 ? null : <div />)}
                     <Select value={e.level} onValueChange={(v) => upd({ level: v })}>
                       <SelectTrigger className="border-gray-200 w-[130px]">
                         <span className="w-2.5 h-2.5 rounded-full mr-1.5 shrink-0" style={{ background: LEVELS[e.level]?.color }} /><SelectValue />
@@ -168,6 +167,13 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
                     <button type="button" aria-label="Quitar posición" onClick={() => setForm({ ...form, extra_positions: form.extra_positions.filter((_, i) => i !== idx) })} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-red-500">
                       <X className="w-4 h-4" />
                     </button>
+                  </div>
+                  {f7 && f7Info(e.position) && (
+                    <details className="mt-1">
+                      <summary className="text-[11px] font-semibold text-gray-500 cursor-pointer select-none">Cualidades y contenidos de {f7Info(e.position).label}</summary>
+                      <F7PositionDetail position={e.position} className="mt-1" />
+                    </details>
+                  )}
                   </div>
                 );
               })}

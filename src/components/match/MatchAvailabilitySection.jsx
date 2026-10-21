@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
-  mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT",
+  mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT",
 };
 
 const REASON_LABELS = {

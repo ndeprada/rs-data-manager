@@ -37,9 +37,9 @@ const REASON_LABEL = Object.fromEntries(ABSENCE_REASONS.map(r => [r.value, r.lab
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
 const POSITION_LABELS = {
   portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre", mediocentro: "Mediocentro",
-  interior: "Interior", extremo: "Extremo", delantero_centro: "Delantero",
+  interior: "Interior", mediapunta: "Mediapunta", extremo: "Extremo", delantero_centro: "Delantero",
 };
-const POSITION_ORDER = ["portero", "lateral", "central", "libre", "mediocentro", "interior", "extremo", "delantero_centro"];
+const POSITION_ORDER = ["portero", "lateral", "central", "libre", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
 const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
 
 export default function TeamAttendance() {

@@ -5,7 +5,7 @@ import { weakFootColor, weakSide, weakFootText } from "@/lib/weakFoot";
 
 const POSITION_FULL = {
   portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
-  mediocentro: "Mediocentro", interior: "Interior", delantero_centro: "Delantero", extremo: "Extremo",
+  mediocentro: "Mediocentro", interior: "Interior", mediapunta: "Mediapunta", delantero_centro: "Delantero", extremo: "Extremo",
 };
 const LATERALITY_LABELS = { diestro: "Diestro", zurdo: "Zurdo", ambidiestro: "Ambidiestro" };
 
@@ -13,7 +13,7 @@ const LATERALITY_LABELS = { diestro: "Diestro", zurdo: "Zurdo", ambidiestro: "Am
 // laterales, extremos e interiores al lado derecho, para ponerlos siempre en su perfil natural.
 const COORDS = {
   portero: { x: 50, y: 88 }, central: { x: 50, y: 68 }, lateral: { x: 22, y: 72 },
-  libre: { x: 50, y: 78 }, mediocentro: { x: 50, y: 48 }, interior: { x: 30, y: 38 },
+  libre: { x: 50, y: 78 }, mediocentro: { x: 50, y: 48 }, interior: { x: 30, y: 38 }, mediapunta: { x: 50, y: 30 },
   extremo: { x: 14, y: 25 }, delantero_centro: { x: 50, y: 18 },
 };
 const MIRROR = new Set(["lateral", "extremo", "interior"]);

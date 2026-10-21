@@ -10,6 +10,7 @@ const POSITION_COLORS = {
   libre: "#dc2626",             // rojo oscuro
   mediocentro: "#FF6E00",       // naranja
   interior: "#FF6E00",          // naranja
+  mediapunta: "#FF6E00",        // naranja
   extremo: "#73000A",           // granate
 };
 
@@ -37,7 +38,7 @@ export default function MinutesDistributionChart({ matchStats, players }) {
     const d = payload[0]?.payload;
     const positionLabels = {
       portero: "POR", delantero_centro: "DC", lateral: "LAT", central: "CTR", 
-      libre: "LIB", mediocentro: "MCC", interior: "INT", extremo: "EXT"
+      libre: "LIB", mediocentro: "MCC", interior: "INT", mediapunta: "MP", extremo: "EXT"
     };
     return (
       <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-lg text-sm">

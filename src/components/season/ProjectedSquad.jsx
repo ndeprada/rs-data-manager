@@ -3,8 +3,8 @@ import { birthYearOf } from "@/lib/birthYear";
 import { playerFullName } from "@/lib/playerName";
 import EmptyState from "@/components/common/EmptyState";
 
-export const POS = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
-export const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
+export const POS = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT" };
+export const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
 
 const posRank = (p) => { const i = POS_ORDER.indexOf(p.position); return i < 0 ? 99 : i; };
 const byPosYearName = (a, b) => posRank(a.p) - posRank(b.p) || (birthYearOf(a.p) || 0) - (birthYearOf(b.p) || 0) || playerFullName(a.p).localeCompare(playerFullName(b.p), "es");

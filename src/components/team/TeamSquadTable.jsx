@@ -14,8 +14,8 @@ import { PctPill } from "@/components/stats/ParticipationBits";
 import { Button } from "@/components/ui/button";
 import { eventMinutes } from "@/lib/matchDuration";
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
-const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
-const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
+const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT" };
+const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
 
 const pctColor = (p) => (p == null ? "#9ca3af" : p >= 80 ? "#16a34a" : p >= 60 ? "#ea580c" : "#dc2626");
 

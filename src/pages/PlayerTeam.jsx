@@ -15,7 +15,7 @@ import { isCancelled, cancelText } from "@/lib/eventCancel";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TYPE_LABEL = { partido_amistoso: "Amistoso", partido_liga: "Liga", torneo: "Torneo", entrenamiento: "Entrenamiento", reunion: "Reunión" };
-const POS = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", delantero_centro: "DC", extremo: "EXT" };
+const POS = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT" };
 const dayLabel = (d) => (isToday(d) ? "Hoy" : isTomorrow(d) ? "Mañana" : format(d, "EEE d MMM", { locale: es }));
 
 // Área del jugador: su equipo, calendario, convocatorias y compañeros (solo lectura).

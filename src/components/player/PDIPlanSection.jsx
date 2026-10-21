@@ -12,14 +12,11 @@ import {
   GROUP_LABELS, POSITION_CATALOG, getPositionCatalog, getRoleOptions, findRole, getSelectableCompetencies,
 } from "@/lib/competencyCatalog";
 import { VisibilityField, VisibilityBadge } from "@/components/player/VisibilityToggle";
+import F7PositionGuide from "@/components/player/F7PositionGuide";
 import { usePlayerMode } from "@/lib/playerMode";
+import { stageOf, f7Info, isF7Position, f7ContentOptions, F7_POSITIONS } from "@/lib/f7Positions";
+import { isF7Team } from "@/lib/teamOrder";
 
-// Etapa por defecto según el equipo. En Racing Sarrià: F7 hasta S12, F11 desde S13
-export function defaultStage(teamName) {
-  const m = /S\s?(\d{1,2})/i.exec(teamName || "");
-  if (!m) return "f11";
-  return Number(m[1]) <= 12 ? "f7" : "f11";
-}
 const STAGE_LABEL = { f7: "Fútbol 7", f11: "Fútbol 11" };
 const F7_GROUPS = ["tecnicas", "fisicas", "mentales"];
 
@@ -82,8 +79,8 @@ function CompetencyPicker({ options, selectedId, onSelect, labelOf }) {
 
 function GoalCard({ goal, onAdvance, onBack, onDelete, onToggleVisible, readOnly }) {
   const st = goal.status === "mejorado" ? "mejorado" : goal.status === "trabajando" ? "trabajando" : "a_mejorar";
-  const tag = goal.source === "role" ? `Rol · ${goal.role_label || ""}` : goal.source === "other" ? `Otra posición · ${goal.role_label || ""}` : `General · ${GROUP_LABELS[goal.group] || ""}`;
-  const tagCls = goal.source === "role" ? "bg-amber-100 text-amber-800" : goal.source === "other" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-600";
+  const tag = goal.source === "role" ? `Rol · ${goal.role_label || ""}` : goal.source === "f7" ? `Contenido · ${goal.role_label || ""}` : goal.source === "other" ? `Otra posición · ${goal.role_label || ""}` : `General · ${GROUP_LABELS[goal.group] || ""}`;
+  const tagCls = goal.source === "role" ? "bg-amber-100 text-amber-800" : goal.source === "f7" ? "bg-sky-100 text-sky-800" : goal.source === "other" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-600";
   const box = st === "mejorado" ? "border-green-200 bg-green-50/50" : st === "trabajando" ? "border-blue-200 bg-blue-50/40" : "border-gray-200 bg-white";
   return (
     <div className={`rounded-xl border p-3 ${box}`}>
@@ -122,14 +119,18 @@ export default function PDIPlanSection({ player, team }) {
   const playerId = player.id;
   const catalog = getPositionCatalog(player.position);
   const roleInfo = player.reference_role ? findRole(player.reference_role) : null;
-  const stage = player.pdi_stage || defaultStage(team?.name);
+  // Etapa: la fijada a mano en la ficha o, si no, la del equipo (fútbol 7 hasta Aleví S12)
+  const stage = stageOf(player, team ? isF7Team(team) : false);
   const isF7 = stage === "f7";
+  const f7 = isF7 ? f7Info(player.position) : null; // posición de fútbol 7 con su descripción y contenidos
+  const posLabel = f7?.label || catalog?.label;
   const selectableAll = useMemo(() => getSelectableCompetencies(player.position, player.reference_role), [player.position, player.reference_role]);
   const selectable = useMemo(() => ({
     role: isF7 ? [] : selectableAll.role,
     general: isF7 ? selectableAll.general.filter((o) => F7_GROUPS.includes(o.group)) : selectableAll.general,
   }), [selectableAll, isF7]);
-  const others = useMemo(() => otherPositionOptions(catalog?.key), [catalog?.key]);
+  const f7Own = useMemo(() => (f7 ? f7ContentOptions(player.position) : []), [f7, player.position]);
+  const others = useMemo(() => (f7 ? f7ContentOptions(player.position, { other: true }) : otherPositionOptions(catalog?.key)), [f7, player.position, catalog?.key]);
 
   const [open, setOpen] = useState(false);
   const [showRef, setShowRef] = useState(false);
@@ -176,7 +177,7 @@ export default function PDIPlanSection({ player, team }) {
       group: picked.group,
       role_id: picked.source === "role" ? player.reference_role : undefined,
       role_label: picked.roleLabel,
-      position: catalog?.key,
+      position: catalog?.key || player.position,
       objective: form.objective,
       strategy: form.strategy,
       evidence: form.evidence,
@@ -196,7 +197,7 @@ export default function PDIPlanSection({ player, team }) {
     update.mutate({ id: g.id, data: { status: next, improved_date: null } });
   };
 
-  if (!catalog) {
+  if (!catalog && !f7) {
     return (
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-2">
         <div className="flex items-center gap-2">
@@ -208,7 +209,11 @@ export default function PDIPlanSection({ player, team }) {
           ))}
           {!player.pdi_stage && <span className="text-[10px] text-gray-400">(según el equipo)</span>}
         </div>
-        <p className="text-sm text-gray-500">Para planificar competencias por posición, asigna una <strong>posición</strong> al jugador (botón Editar del perfil).</p>
+        <p className="text-sm text-gray-500">
+          {isF7Position(player.position)
+            ? <>«{f7Info(player.position).label}» es una posición de fútbol 7. Para planificar en fútbol 11, asigna una <strong>posición</strong> de esa etapa (botón Editar del perfil).</>
+            : <>Para planificar competencias por posición, asigna una <strong>posición</strong> al jugador (botón Editar del perfil).</>}
+        </p>
       </div>
     );
   }
@@ -231,9 +236,9 @@ export default function PDIPlanSection({ player, team }) {
               ))}
               {!player.pdi_stage && <span className="text-[10px] text-gray-400">(según el equipo)</span>}
             </div>
-            {isF7 && <p className="text-xs text-gray-500 mt-1">En Fútbol 7 la posición pesa poco: se trabajan sobre todo competencias técnicas, físicas y mentales.</p>}
+            {isF7 && !f7 && <p className="text-xs text-gray-500 mt-1">En Fútbol 7 la posición pesa poco: se trabajan sobre todo competencias técnicas, físicas y mentales.</p>}
             <p className="text-sm text-gray-500 mt-1.5">
-              Posición: <strong>{catalog.label}</strong>
+              Posición: <strong>{posLabel}</strong>
               {roleInfo && !isF7 ? <> · Rol de referencia: <strong>{roleInfo.role.label}</strong></> : null}
             </p>
             {!roleInfo && !isF7 && !playerMode && (
@@ -249,14 +254,15 @@ export default function PDIPlanSection({ player, team }) {
             )}
             {roleInfo && !isF7 && <p className="text-xs text-gray-500 mt-1.5 max-w-2xl">{roleInfo.role.description}</p>}
           </div>
-          {!playerMode && <Button variant="club" onClick={() => { setTab(roleInfo && !isF7 ? "role" : "general"); setOpen(true); }} className="shrink-0">
+          {!playerMode && <Button variant="club" onClick={() => { setTab(roleInfo && !isF7 ? "role" : f7 ? "f7" : catalog ? "general" : "other"); setOpen(true); }} className="shrink-0">
             <Plus className="w-4 h-4 mr-2" /> Añadir aspecto
           </Button>}
         </div>
-        <button onClick={() => setShowRef(!showRef)} className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800">
+        {f7 && <F7PositionGuide player={player} className="mt-4 pt-4 border-t border-gray-100" />}
+        {catalog && <button onClick={() => setShowRef(!showRef)} className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800">
           <BookOpen className="w-3.5 h-3.5" /> Ver competencias de referencia {showRef ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-        </button>
-        {showRef && (
+        </button>}
+        {catalog && showRef && (
           <div className="mt-3 grid md:grid-cols-2 gap-4">
             {roleInfo && (
               <div className="rounded-xl bg-amber-50 border border-amber-100 p-3">
@@ -311,16 +317,23 @@ export default function PDIPlanSection({ player, team }) {
                   Rol: {roleInfo.role.label}
                 </button>
               )}
-              <button type="button" onClick={() => { setTab("general"); setPicked(null); }} className={`px-3 py-1.5 rounded-lg text-sm border ${tab === "general" ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={tab === "general" ? { background: "var(--granate)" } : {}}>
-                Generales de {catalog.label}
-              </button>
+              {f7 && (
+                <button type="button" onClick={() => { setTab("f7"); setPicked(null); }} className={`px-3 py-1.5 rounded-lg text-sm border ${tab === "f7" ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={tab === "f7" ? { background: "var(--granate)" } : {}}>
+                  Contenidos: {f7.label}
+                </button>
+              )}
+              {catalog && (
+                <button type="button" onClick={() => { setTab("general"); setPicked(null); }} className={`px-3 py-1.5 rounded-lg text-sm border ${tab === "general" ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={tab === "general" ? { background: "var(--granate)" } : {}}>
+                  Generales de {catalog.label}
+                </button>
+              )}
               <button type="button" onClick={() => { setTab("other"); setPicked(null); }} className={`px-3 py-1.5 rounded-lg text-sm border ${tab === "other" ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={tab === "other" ? { background: "#7e22ce" } : {}}>
-                Competencias de otras posiciones
+                {f7 ? "Contenidos de otras posiciones" : "Competencias de otras posiciones"}
               </button>
             </div>
-            {tab === "other" && <p className="text-xs text-purple-800 bg-purple-50 border border-purple-100 rounded-lg p-2">Competencias de otras posiciones: quedarán marcadas como «Otra posición».</p>}
-            <CompetencyPicker key={tab} options={tab === "role" ? selectable.role : tab === "other" ? others : selectable.general} selectedId={picked?.id} onSelect={setPicked}
-              labelOf={tab === "other" ? (g) => POSITION_CATALOG[g]?.label || g : undefined} />
+            {tab === "other" && <p className="text-xs text-purple-800 bg-purple-50 border border-purple-100 rounded-lg p-2">{f7 ? "Contenidos" : "Competencias"} de otras posiciones: quedarán marcados como «Otra posición».</p>}
+            <CompetencyPicker key={tab} options={tab === "role" ? selectable.role : tab === "other" ? others : tab === "f7" ? f7Own : selectable.general} selectedId={picked?.id} onSelect={setPicked}
+              labelOf={tab === "other" ? (g) => F7_POSITIONS[g]?.label || POSITION_CATALOG[g]?.label || g : undefined} />
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-gray-700">Periodo</Label>

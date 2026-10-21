@@ -128,7 +128,7 @@ export async function downloadMatchSheetPDF({ event, team, formation, positions,
   const bx = lx + pw + 8;
   doc.setTextColor(...GRANATE); doc.setFont("helvetica", "bold"); doc.setFontSize(10);
   doc.text(`BANQUILLO (${benchPlayers.length})`, bx, ly - 1.5);
-  const GROUP = { portero: 0, central: 1, libre: 1, lateral: 1, mediocentro: 2, interior: 2, extremo: 3, delantero_centro: 3 };
+  const GROUP = { portero: 0, central: 1, libre: 1, lateral: 1, mediocentro: 2, interior: 2, mediapunta: 2, extremo: 3, delantero_centro: 3 };
   let by = ly + 4;
   const step = Math.min(7.5, (ph - 6) / Math.max(benchPlayers.length + 1, 1));
   benchPlayers.forEach((p, i) => {

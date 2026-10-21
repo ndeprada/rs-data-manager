@@ -10,7 +10,7 @@ import { calcMinutesPlayed, getMatchMinutes } from "@/components/match/ActaTab";
 import { useAutosave } from "@/lib/useAutosave";
 import SaveStatus from "@/components/common/SaveStatus";
 
-const POSITION_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "extremo", "delantero_centro"];
+const POSITION_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
 const STAR_LABELS = ["", "Mal", "Bien", "Muy bien"];
 // Valoración rápida del equipo en el partido (misma escala de 3 estrellas que la de jugadores)
 const TEAM_EVAL = [

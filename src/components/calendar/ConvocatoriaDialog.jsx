@@ -18,7 +18,7 @@ const STATUS_STYLES = {
 
 const POSITIONS = {
   portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
-  mediocentro: "MCC", interior: "INT", delantero_centro: "DC", extremo: "EXT",
+  mediocentro: "MCC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT",
 };
 
 export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }) {
@@ -83,7 +83,7 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
   };
 
   // Group players by position
-  const posOrder = ["portero", "lateral", "central", "libre", "mediocentro", "interior", "delantero_centro", "extremo"];
+  const posOrder = ["portero", "lateral", "central", "libre", "mediocentro", "interior", "mediapunta", "delantero_centro", "extremo"];
   const grouped = posOrder.reduce((acc, pos) => {
     const pp = teamPlayers.filter((p) => p.position === pos);
     if (pp.length > 0) acc[pos] = pp;

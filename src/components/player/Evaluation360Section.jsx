@@ -12,6 +12,10 @@ import { AREAS, areasFor, computeAverages, scoreColor } from "@/lib/eval360";
 import { playerFirstName } from "@/lib/playerName";
 import { VisibilityField, VisibilityBadge } from "@/components/player/VisibilityToggle";
 import { usePlayerMode } from "@/lib/playerMode";
+import F7PositionGuide from "@/components/player/F7PositionGuide";
+import { stageOf, f7Info } from "@/lib/f7Positions";
+import { getPositionList } from "@/lib/playerPositions";
+import { isF7Team } from "@/lib/teamOrder";
 
 function currentQuarter() {
   const d = new Date();
@@ -130,7 +134,7 @@ function EvalCard({ ev, areas, onEdit, onDelete, onToggleVisible, readOnly }) {
   );
 }
 
-export default function Evaluation360Section({ player, playerId }) {
+export default function Evaluation360Section({ player, playerId, team }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -140,6 +144,9 @@ export default function Evaluation360Section({ player, playerId }) {
   const [visError, setVisError] = useState(false);
   const playerMode = usePlayerMode();
   const areas = areasFor(player.position);
+  // En fútbol 7 se muestran las cualidades y los contenidos de sus posiciones mientras se valora
+  const isF7 = stageOf(player, team ? isF7Team(team) : false) === "f7";
+  const hasF7Position = getPositionList(player).some((x) => f7Info(x.position));
 
   const { data: evals = [], isLoading } = useQuery({
     queryKey: ["eval360", playerId],
@@ -256,6 +263,10 @@ export default function Evaluation360Section({ player, playerId }) {
             </div>
 
             <VisibilityField value={form.visible} onChange={(v) => setForm({ ...form, visible: v })} error={visError} />
+
+            {isF7 && (hasF7Position
+              ? <F7PositionGuide player={player} className="rounded-xl border border-gray-100 p-3" />
+              : <p className="text-[11px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">Aún no tiene posición de fútbol 7. En «Editar» del perfil puedes elegirla (portero, lateral, central, mediapunta o extremo) y aquí verás sus cualidades y los contenidos a trabajar.</p>)}
 
             <div className="flex gap-1 border-b border-gray-100 overflow-x-auto">
               {tabs.map((t) => {

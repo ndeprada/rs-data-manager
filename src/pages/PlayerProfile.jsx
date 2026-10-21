@@ -42,7 +42,7 @@ import { PlayerMatchesReadOnly, PlayerInjuriesReadOnly, PlayerDocumentsReadOnly,
 
 const POSITION_LABELS = {
   portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
-  mediocentro: "Mediocentro", interior: "Interior", delantero_centro: "Delantero", extremo: "Extremo"
+  mediocentro: "Mediocentro", interior: "Interior", mediapunta: "Mediapunta", delantero_centro: "Delantero", extremo: "Extremo"
 };
 const LATERALITY_LABELS = { diestro: "Diestro", zurdo: "Zurdo", ambidiestro: "Ambidiestro" };
 
@@ -305,7 +305,7 @@ export default function PlayerProfile() {
 
           {can("pdi") && <TabsContent value="pdi" className={tabContentClass}>
             <div className="space-y-6">
-              <Evaluation360Section player={player} playerId={playerId} />
+              <Evaluation360Section player={player} playerId={playerId} team={team} />
               <PDIPlanSection player={player} team={team} />
               {!playerMode && <details className="bg-white border border-gray-200 rounded-2xl shadow-sm">
                 <summary className="px-5 py-3 cursor-pointer text-sm font-semibold text-gray-600">Evaluaciones antiguas (texto libre)</summary>

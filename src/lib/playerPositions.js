@@ -49,6 +49,7 @@ const POS_DEFAULT = {
   lateral: { y: 66, mode: "band", v: 16 },
   mediocentro: { y: 56, mode: "center" },
   interior: { y: 41, mode: "shift", v: 12 },
+  mediapunta: { y: 28, mode: "center" }, // fútbol 7
   extremo: { y: 25, mode: "band", v: 11 },
   delantero_centro: { y: 12, mode: "center" },
 };
