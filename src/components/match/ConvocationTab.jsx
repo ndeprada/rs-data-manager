@@ -16,8 +16,8 @@ import { useAutosave } from "@/lib/useAutosave";
 import SaveStatus from "@/components/common/SaveStatus";
 
 const POSITION_LABELS = {
-  portero: "POR", lateral: "LAT", central: "CT", libre: "LIB",
-  mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT",
+  portero: msg("POR"), lateral: msg("LAT"), central: msg("CT"), libre: msg("LIB"),
+  mediocentro: msg("MC"), interior: msg("INT"), mediapunta: msg("MP"), delantero_centro: msg("DC"), extremo: msg("EXT"),
 };
 
 // Orden exacto dentro de cada grupo
@@ -29,13 +29,13 @@ const POSITION_ORDER = {
 };
 
 const POSITION_GROUP = {
-  portero: "Porteros",
-  central: "Defensas", libre: "Defensas", lateral: "Defensas",
-  mediocentro: "Centrocampistas", interior: "Centrocampistas", mediapunta: "Centrocampistas",
-  extremo: "Delanteros", delantero_centro: "Delanteros",
+  portero: msg("Porteros"),
+  central: msg("Defensas"), libre: msg("Defensas"), lateral: msg("Defensas"),
+  mediocentro: msg("Centrocampistas"), interior: msg("Centrocampistas"), mediapunta: msg("Centrocampistas"),
+  extremo: msg("Delanteros"), delantero_centro: msg("Delanteros"),
 };
 
-const GROUP_ORDER = ["Porteros", "Defensas", "Centrocampistas", "Delanteros", "Sin posición"];
+const GROUP_ORDER = [msg("Porteros"), msg("Defensas"), msg("Centrocampistas"), msg("Delanteros"), msg("Sin posición")];
 
 const GROUP_COLORS = {
   Porteros:        { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-800" },
@@ -47,6 +47,7 @@ const GROUP_COLORS = {
 
 // Mensaje corto para pegar en el grupo de WhatsApp (negritas con *…*)
 import Composer from "@/components/avisos/Composer";
+import { useT, msg, useDateLocale } from "@/i18n";
 
 function buildWhatsappText({ event, team, convocados, callupTime, observations }) {
   const day = event?.date ? format(new Date(event.date), "EEEE d 'de' MMMM", { locale: es }) : "";
@@ -68,6 +69,8 @@ function buildWhatsappText({ event, team, convocados, callupTime, observations }
 
 // ── Preview / Notify Modal ───────────────────────────────
 function NotifyModal({ open, onClose, event, team, convocados, noConvocados, callupTime, observations, onMarkNotified, sending }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const waDefault = buildWhatsappText({ event, team, convocados, callupTime, observations });
   const [waMsg, setWaMsg] = useState(waDefault);
   const [copied, setCopied] = useState(false);
@@ -85,14 +88,14 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="bg-white border-gray-200 max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-black text-gray-900">Avisar de la convocatoria</DialogTitle>
+          <DialogTitle className="font-black text-gray-900">{t("Avisar de la convocatoria")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5">
           {/* Convocados / No convocados */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <p className="text-[10px] font-black uppercase tracking-wider text-green-700 mb-2">Convocados ({convocados.length})</p>
+              <p className="text-[10px] font-black uppercase tracking-wider text-green-700 mb-2">{t("Convocados ({length})", { length: convocados.length })}</p>
               <div className="space-y-0.5">
                 {convocados.map(p => (
                   <p key={p.id} className="text-xs text-green-800">✓ <PlayerName player={p} /></p>
@@ -100,7 +103,7 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
               </div>
             </div>
             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-[10px] font-black uppercase tracking-wider text-red-700 mb-2">No convocados ({noConvocados.length})</p>
+              <p className="text-[10px] font-black uppercase tracking-wider text-red-700 mb-2">{t("No convocados ({length})", { length: noConvocados.length })}</p>
               <div className="space-y-0.5">
                 {noConvocados.map(p => (
                   <p key={p.id} className="text-xs text-red-800">✗ <PlayerName player={p} /></p>
@@ -110,31 +113,31 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
           </div>
 
           <div className="rounded-lg border border-green-200 bg-green-50/60 p-3 space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-green-800 flex items-center gap-1.5"><MessageCircle className="w-3.5 h-3.5" /> Para el grupo de WhatsApp</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-green-800 flex items-center gap-1.5"><MessageCircle className="w-3.5 h-3.5" /> {t("Para el grupo de WhatsApp")}</p>
             <Textarea value={waMsg} onChange={e => setWaMsg(e.target.value)} rows={10} className="border-green-200 bg-white text-xs leading-relaxed" />
             <Button type="button" onClick={copyWa} className="w-full text-white bg-green-600 hover:bg-green-700">
-              <Copy className="w-3.5 h-3.5 mr-1.5" />{copied ? "¡Copiado! Pégalo en WhatsApp" : "Copiar mensaje"}
+              <Copy className="w-3.5 h-3.5 mr-1.5" />{copied ? t("¡Copiado! Pégalo en WhatsApp") : t("Copiar mensaje")}
             </Button>
           </div>
 
           <div className="rounded-lg border border-gray-200 p-3 space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-600 flex items-center gap-1.5"><Bell className="w-3.5 h-3.5" /> Aviso al móvil (app)</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-600 flex items-center gap-1.5"><Bell className="w-3.5 h-3.5" /> {t("Aviso al móvil (app)")}</p>
             <Composer
               key={open ? "open" : "closed"}
               fixed={{ player_ids: convocados.map(p => p.id), label: `Convocados (${convocados.length})` }}
               defaultTitle={`Convocatoria · ${team?.name || ""}`}
-              defaultBody={`${event?.opponent ? `vs ${event.opponent} · ` : ""}${event?.date ? format(new Date(event.date), "EEEE d MMM HH:mm", { locale: es }) : ""}${callupTime ? ` · Convocatoria ${callupTime}` : ""}\n${event?.location || ""}`.trim()}
+              defaultBody={`${event?.opponent ? `vs ${event.opponent} · ` : ""}${event?.date ? format(new Date(event.date), "EEEE d MMM HH:mm", { locale: dfl }) : ""}${callupTime ? ` · Convocatoria ${callupTime}` : ""}\n${event?.location || ""}`.trim()}
             />
           </div>
 
           <div className="flex gap-3 pt-1">
-            <Button variant="outline" onClick={onClose} className="flex-1">Cerrar</Button>
+            <Button variant="outline" onClick={onClose} className="flex-1">{t("Cerrar")}</Button>
             <Button variant="club" onClick={onMarkNotified} disabled={sending} className="flex-1">
               <Check className="w-3.5 h-3.5 mr-1.5" />
-              {sending ? "Guardando…" : "Marcar como notificada"}
+              {sending ? t("Guardando…") : t("Marcar como notificada")}
             </Button>
           </div>
-          <p className="text-[10px] text-gray-400 -mt-2">Copia el mensaje al grupo de WhatsApp y/o envía el aviso al móvil; después márcala como notificada para que quede constancia.</p>
+          <p className="text-[10px] text-gray-400 -mt-2">{t("Copia el mensaje al grupo de WhatsApp y/o envía el aviso al móvil; después márcala como notificada para que quede constancia.")}</p>
         </div>
       </DialogContent>
     </Dialog>
@@ -143,6 +146,8 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
 
 // ── Main component ───────────────────────────────────────
 export default function ConvocationTab({ eventId, teamId, event, players, team }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const queryClient = useQueryClient();
   const [convocadoIds, setConvocadoIds] = useState([]);
   const [reasons, setReasons] = useState({});
@@ -279,15 +284,15 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
       {/* ── Info del partido ── */}
       <div className="bg-white border border-gray-200 rounded-xl p-4">
         <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2" style={{ fontFamily: "var(--font-display)" }}>
-          Información del partido
+          {t("Información del partido")}
         </p>
         <div className="flex flex-wrap items-center gap-4">
           {eventDate && (
             <div className="flex items-center gap-1.5 text-sm text-gray-700 min-w-0">
               <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
               <div>
-                <span className="text-[10px] text-gray-400 block leading-none">Hora partido</span>
-                <span className="font-semibold text-xs">{format(eventDate, "HH:mm")} · {format(eventDate, "EEE d MMM", { locale: es })}</span>
+                <span className="text-[10px] text-gray-400 block leading-none">{t("Hora partido")}</span>
+                <span className="font-semibold text-xs">{format(eventDate, "HH:mm")} · {format(eventDate, "EEE d MMM", { locale: dfl })}</span>
               </div>
             </div>
           )}
@@ -295,7 +300,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
             <div className="flex items-center gap-1.5 text-sm text-gray-700 min-w-0">
               <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
               <div>
-                <span className="text-[10px] text-gray-400 block leading-none">Campo</span>
+                <span className="text-[10px] text-gray-400 block leading-none">{t("Campo")}</span>
                 <span className="font-semibold text-xs truncate">{event.location}</span>
               </div>
             </div>
@@ -303,7 +308,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
           <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
             <div>
-              <span className="text-[10px] text-gray-400 block leading-none mb-0.5">Convocatoria</span>
+              <span className="text-[10px] text-gray-400 block leading-none mb-0.5">{t("Convocatoria")}</span>
               <Input
                 type="time"
                 value={callupTime}
@@ -318,22 +323,22 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
       {/* ── Header stats + actions ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-3 text-sm items-center">
-          <span className="font-bold" style={{ color: "var(--granate)" }}>{convocadosCount} convocados</span>
+          <span className="font-bold" style={{ color: "var(--granate)" }}>{t("{convocadosCount} convocados", { convocadosCount })}</span>
           {convocation?.notified && (
-            <span className="text-[10px] text-green-600 font-bold border border-green-200 bg-green-50 px-2 py-0.5 rounded-full">✓ Notificado</span>
+            <span className="text-[10px] text-green-600 font-bold border border-green-200 bg-green-50 px-2 py-0.5 rounded-full">{t("✓ Notificado")}</span>
           )}
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           <SaveStatus state={autosave.state} onRetry={autosave.flush} />
           <Button size="sm" variant="outline" onClick={toggleAll} className="text-xs border-gray-200">
-            <Check className="w-3.5 h-3.5 mr-1" /> {allSelected ? "Quitar todos" : "Seleccionar todos"}
+            <Check className="w-3.5 h-3.5 mr-1" /> {allSelected ? t("Quitar todos") : t("Seleccionar todos")}
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowGuestSearch(!showGuestSearch)} className="text-xs border-gray-200">
-            <Plus className="w-3.5 h-3.5 mr-1" /> Añadir de otro equipo
+            <Plus className="w-3.5 h-3.5 mr-1" /> {t("Añadir de otro equipo")}
           </Button>
           <Button size="sm" variant="outline" onClick={handleSaveAndNotify} disabled={autosave.state === "saving" || convocadosCount === 0}
             className="text-xs border-blue-200 text-blue-700 hover:bg-blue-50">
-            <Eye className="w-3.5 h-3.5 mr-1" /> Avisar convocatoria
+            <Eye className="w-3.5 h-3.5 mr-1" /> {t("Avisar convocatoria")}
           </Button>
         </div>
       </div>
@@ -341,10 +346,10 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
       {/* Guest search */}
       {showGuestSearch && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
-          <p className="text-xs font-semibold text-blue-700">Buscar jugadores de otros equipos del club</p>
+          <p className="text-xs font-semibold text-blue-700">{t("Buscar jugadores de otros equipos del club")}</p>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-            <input placeholder="Nombre del jugador…" value={guestSearch} onChange={e => setGuestSearch(e.target.value)}
+            <input placeholder={t("Nombre del jugador…")} value={guestSearch} onChange={e => setGuestSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-2 text-sm border border-blue-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
           </div>
           {guestSearch && guestPlayers.slice(0, 8).map(p => (
@@ -354,10 +359,10 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
                 {p.first_name?.[0]}{p.last_name?.[0]}
               </div>
               <span className="font-medium"><PlayerName player={p} /></span>
-              <span className="text-xs text-gray-400 ml-auto">{POSITION_LABELS[p.position] || "—"}</span>
+              <span className="text-xs text-gray-400 ml-auto">{POSITION_LABELS[p.position] ? t(POSITION_LABELS[p.position]) : "—"}</span>
             </button>
           ))}
-          {guestSearch && guestPlayers.length === 0 && <p className="text-xs text-gray-500 text-center py-2">Sin resultados</p>}
+          {guestSearch && guestPlayers.length === 0 && <p className="text-xs text-gray-500 text-center py-2">{t("Sin resultados")}</p>}
         </div>
       )}
 
@@ -369,7 +374,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
             <div key={group}>
               <div className={`flex items-center gap-2 px-3 py-1 rounded-t-lg border ${colors.bg} ${colors.border}`}>
                 <span className={`text-[10px] font-black uppercase tracking-widest ${colors.text}`} style={{ fontFamily: "var(--font-display)" }}>
-                  {group}
+                  {t(group)}
                 </span>
                 <span className="text-[10px] text-gray-400">({playersByGroup[group].length})</span>
               </div>
@@ -393,17 +398,17 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
                           {player.status === "lesionado" && <span className="ml-1 text-[10px] text-orange-500">⚠</span>}
                         </p>
                         <p className="text-[10px] text-gray-400 leading-none">
-                          {POSITION_LABELS[player.position] || "—"}{player.jersey_number ? ` · #${player.jersey_number}` : ""}
+                          {POSITION_LABELS[player.position] ? t(POSITION_LABELS[player.position]) : "—"}{player.jersey_number ? ` · #${player.jersey_number}` : ""}
                         </p>
                       </div>
 
                       {!isConv && (
                         <Select value={reasons[player.id] || ""} onValueChange={v => setReasons(prev => ({ ...prev, [player.id]: v }))}>
                           <SelectTrigger className="h-6 w-28 text-[10px] border-gray-200 bg-white text-gray-400 shrink-0">
-                            <SelectValue placeholder="Motivo…" />
+                            <SelectValue placeholder={t("Motivo…")} />
                           </SelectTrigger>
                           <SelectContent>
-                            {NO_CONV_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                            {NO_CONV_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{t(r.label)}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       )}
@@ -419,23 +424,23 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
       {/* ── Observations ── */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
         <p className="text-[10px] font-black uppercase tracking-wider text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
-          Observaciones
+          {t("Observaciones")}
         </p>
         <Textarea
           value={observations}
           onChange={e => setObservations(e.target.value)}
           rows={3}
           className="border-gray-200 text-sm"
-          placeholder="Uniforme, material necesario, indicaciones especiales…"
+          placeholder={t("Uniforme, material necesario, indicaciones especiales…")}
         />
         <div className="pt-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Notas internas</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Notas internas")}</p>
           <Textarea
             value={notes}
             onChange={e => setNotes(e.target.value)}
             rows={2}
             className="border-gray-200 text-sm"
-            placeholder="Notas para el cuerpo técnico (no se envían a jugadores)…"
+            placeholder={t("Notas para el cuerpo técnico (no se envían a jugadores)…")}
           />
         </div>
       </div>

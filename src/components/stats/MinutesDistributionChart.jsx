@@ -1,6 +1,7 @@
 import React from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { playerFullName } from "@/lib/playerName";
+import { useT } from "@/i18n";
 
 const POSITION_COLORS = {
   portero: "#3b82f6",           // azul
@@ -15,6 +16,7 @@ const POSITION_COLORS = {
 };
 
 export default function MinutesDistributionChart({ matchStats, players }) {
+  const t = useT();
   const playerMinutes = players
     .filter((p) => p.status !== "baja")
     .map((player) => {
@@ -34,6 +36,7 @@ export default function MinutesDistributionChart({ matchStats, players }) {
     .slice(0, 15);
 
   const CustomTooltip = ({ active, payload }) => {
+    const t = useT();
     if (!active || !payload?.length) return null;
     const d = payload[0]?.payload;
     const positionLabels = {
@@ -44,9 +47,9 @@ export default function MinutesDistributionChart({ matchStats, players }) {
       <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-lg text-sm">
         <p className="font-semibold text-gray-900">{d.fullName}</p>
         <p className="text-xs text-gray-500 mb-1">{positionLabels[d.position] || d.position}</p>
-        <p className="text-gray-600">{d.minutes} minutos</p>
-        <p className="text-gray-400">{d.games} partido{d.games !== 1 ? "s" : ""}</p>
-        {d.games > 0 && <p className="text-gray-500">Media: {Math.round(d.minutes / d.games)} min/partido</p>}
+        <p className="text-gray-600">{t("{minutes} minutos", { minutes: d.minutes })}</p>
+        <p className="text-gray-400">{d.games === 1 ? t("{n} partido", { n: d.games }) : t("{n} partidos", { n: d.games })}</p>
+        {d.games > 0 && <p className="text-gray-500">{t("Media: {round} min/partido", { round: Math.round(d.minutes / d.games) })}</p>}
       </div>
     );
   };
@@ -54,12 +57,12 @@ export default function MinutesDistributionChart({ matchStats, players }) {
   return (
     <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
       <div className="p-5 border-b border-gray-100">
-        <h2 className="font-bold text-xl uppercase tracking-wide text-gray-900" style={{ fontFamily: "var(--font-display)" }}>Distribución de Minutos por Jugador</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Top 15 jugadores con más minutos</p>
+        <h2 className="font-bold text-xl uppercase tracking-wide text-gray-900" style={{ fontFamily: "var(--font-display)" }}>{t("Distribución de Minutos por Jugador")}</h2>
+        <p className="text-sm text-gray-500 mt-0.5">{t("Top 15 jugadores con más minutos")}</p>
       </div>
       <div className="p-5">
         {playerMinutes.length === 0 ? (
-          <div className="h-48 flex items-center justify-center text-gray-400 text-sm">No hay estadísticas de partidos registradas</div>
+          <div className="h-48 flex items-center justify-center text-gray-400 text-sm">{t("No hay estadísticas de partidos registradas")}</div>
         ) : (
           <>
             <ResponsiveContainer width="100%" height={320}>
@@ -76,12 +79,12 @@ export default function MinutesDistributionChart({ matchStats, players }) {
               </BarChart>
             </ResponsiveContainer>
             <div className="flex flex-wrap gap-3 mt-4 justify-center text-xs">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#3b82f6" }}></span>Portero</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#22c55e" }}></span>Central</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#14b8a6" }}></span>Lateral</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#FF6E00" }}></span>Mediocentro/Interior</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#73000A" }}></span>Extremo</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#ef4444" }}></span>Delantero</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#3b82f6" }}></span>{t("Portero")}</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#22c55e" }}></span>{t("Central")}</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#14b8a6" }}></span>{t("Lateral")}</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#FF6E00" }}></span>{t("Mediocentro/Interior")}</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#73000A" }}></span>{t("Extremo")}</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#ef4444" }}></span>{t("Delantero")}</span>
             </div>
           </>
         )}

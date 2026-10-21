@@ -186,7 +186,7 @@ export default function PlayerPerformancePanel({ playerId }) {
             {alerts.length > 0 && (
               <div className="px-4 py-2 bg-red-50 text-[11px] text-red-800 flex items-start gap-2 first:rounded-t-2xl last:rounded-b-2xl">
                 <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                <p><b>{t("Por debajo del mínimo de minutos.")}</b> {alerts.map(alertText).join(" · ")}</p>
+                <p><b>{t("Por debajo del mínimo de minutos.")}</b> {alerts.map((a) => alertText(a, t)).join(" · ")}</p>
               </div>
             )}
           </>

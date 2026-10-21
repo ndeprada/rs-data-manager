@@ -1,57 +1,59 @@
 // Clasificación de goles (marcados y encajados): fase de juego, zona/sector y detalle de balón parado.
+import { msg } from "../i18n/translate.js";
 export const GOAL_PHASES = [
-  { value: "ataque_organizado", label: "Ataque organizado" },
-  { value: "transicion", label: "Transición" },
-  { value: "balon_parado", label: "Balón parado" },
-  { value: "gol_propio", label: "Gol en propia" },
+  { value: "ataque_organizado", label: msg("Ataque organizado") },
+  { value: "transicion", label: msg("Transición") },
+  { value: "balon_parado", label: msg("Balón parado") },
+  { value: "gol_propio", label: msg("Gol en propia") },
 ];
-export const GOAL_AREAS = [{ value: "dentro", label: "Dentro del área" }, { value: "fuera", label: "Fuera del área" }];
-export const GOAL_SECTORS = [{ value: "izquierda", label: "Izquierda" }, { value: "centro", label: "Centro" }, { value: "derecha", label: "Derecha" }];
+export const GOAL_AREAS = [{ value: "dentro", label: msg("Dentro del área") }, { value: "fuera", label: msg("Fuera del área") }];
+export const GOAL_SECTORS = [{ value: "izquierda", label: msg("Izquierda") }, { value: "centro", label: msg("Centro") }, { value: "derecha", label: msg("Derecha") }];
 export const SP_TYPES = [
-  { value: "penalti", label: "Penalti" },
-  { value: "corner", label: "Córner" },
-  { value: "falta_lateral", label: "Falta lateral" },
-  { value: "falta_frontal", label: "Falta frontal" },
-  { value: "saque_banda", label: "Saque de banda" },
-  { value: "saque_centro", label: "Saque de centro" },
-  { value: "saque_puerta", label: "Saque de puerta" },
+  { value: "penalti", label: msg("Penalti") },
+  { value: "corner", label: msg("Córner") },
+  { value: "falta_lateral", label: msg("Falta lateral") },
+  { value: "falta_frontal", label: msg("Falta frontal") },
+  { value: "saque_banda", label: msg("Saque de banda") },
+  { value: "saque_centro", label: msg("Saque de centro") },
+  { value: "saque_puerta", label: msg("Saque de puerta") },
 ];
 export const SP_HOW = [
-  { value: "directo", label: "Directo" },
-  { value: "rechace", label: "Rechace" },
-  { value: "segunda_jugada", label: "Segunda jugada" },
-  { value: "ensayada", label: "Jugada ensayada" },
+  { value: "directo", label: msg("Directo") },
+  { value: "rechace", label: msg("Rechace") },
+  { value: "segunda_jugada", label: msg("Segunda jugada") },
+  { value: "ensayada", label: msg("Jugada ensayada") },
 ];
 // Cómo se creó el gol (según la fase) y cómo acabó
-const OTROS = [{ value: "error_portero", label: "Error del portero" }, { value: "error_individual", label: "Error individual (pase o control)" }];
+const OTROS = [{ value: "error_portero", label: msg("Error del portero") }, { value: "error_individual", label: msg("Error individual (pase o control)") }];
 export const CREATE_ORG = [
-  { value: "centro_lateral", label: "Centro lateral" },
-  { value: "combinacion_interior", label: "Combinación interior" },
-  { value: "ruptura", label: "Ruptura al espacio" },
-  { value: "accion_individual", label: "Acción individual" },
-  { value: "entre_lineas", label: "Juego entre líneas" },
-  { value: "cambio_orientacion", label: "Cambio de orientación" },
-  { value: "rechace", label: "Rechace / segunda jugada" },
-  { value: "tiro_lejano", label: "Tiro lejano" },
+  { value: "centro_lateral", label: msg("Centro lateral") },
+  { value: "combinacion_interior", label: msg("Combinación interior") },
+  { value: "ruptura", label: msg("Ruptura al espacio") },
+  { value: "accion_individual", label: msg("Acción individual") },
+  { value: "entre_lineas", label: msg("Juego entre líneas") },
+  { value: "cambio_orientacion", label: msg("Cambio de orientación") },
+  { value: "rechace", label: msg("Rechace / segunda jugada") },
+  { value: "tiro_lejano", label: msg("Tiro lejano") },
   ...OTROS,
 ];
 export const CREATE_TRANS = [
-  { value: "robo_alto", label: "Robo alto (presión)" },
-  { value: "contraataque", label: "Contraataque" },
-  { value: "perdida_salida", label: "Pérdida en salida de balón" },
+  { value: "robo_alto", label: msg("Robo alto (presión)") },
+  { value: "contraataque", label: msg("Contraataque") },
+  { value: "perdida_salida", label: msg("Pérdida en salida de balón") },
   ...OTROS,
 ];
 export const CREATE_ALL = [...CREATE_ORG, ...CREATE_TRANS.filter((t) => !CREATE_ORG.some((o) => o.value === t.value))];
 export const FINISHES = [
-  { value: "cabeza", label: "Cabeza" },
-  { value: "pie_dominante", label: "Pie dominante" },
-  { value: "pie_no_dominante", label: "Pie no dominante" },
-  { value: "volea", label: "Volea" },
-  { value: "vaselina", label: "Vaselina" },
-  { value: "uno_contra_uno", label: "1 contra 1 con el portero" },
-  { value: "rechace_portero", label: "Rechace del portero" },
+  { value: "cabeza", label: msg("Cabeza") },
+  { value: "pie_dominante", label: msg("Pie dominante") },
+  { value: "pie_no_dominante", label: msg("Pie no dominante") },
+  { value: "volea", label: msg("Volea") },
+  { value: "vaselina", label: msg("Vaselina") },
+  { value: "uno_contra_uno", label: msg("1 contra 1 con el portero") },
+  { value: "rechace_portero", label: msg("Rechace del portero") },
 ];
 const find = (list, v) => list.find((x) => x.value === v)?.label || "";
+const same = (s) => s;
 
 // Valores antiguos de goal_type → clasificación nueva (para no perder lo ya registrado)
 const LEGACY = {
@@ -86,9 +88,10 @@ export const toStored = (c = {}) => {
 };
 
 // Texto corto: "Ataque organizado · Dentro · Derecha" / "Córner · Rechace · Izquierda"
-export const goalLabel = (c = {}) => {
+export const goalLabel = (c = {}, t = same) => {
+  const f = (list, v) => { const x = find(list, v); return x ? t(x) : x; };
   if (!c.phase && !c.area) return "";
-  if (c.phase === "balon_parado") return [find(SP_TYPES, c.sp) || "Balón parado", c.sp !== "penalti" && find(SP_HOW, c.how), c.sp !== "penalti" && find(GOAL_SECTORS, c.sector), find(FINISHES, c.finish)].filter(Boolean).join(" · ");
-  if (c.phase === "gol_propio") return "Gol en propia";
-  return [find(GOAL_PHASES, c.phase), find(CREATE_ALL, c.create), c.area && (c.area === "dentro" ? "Dentro" : "Fuera"), find(GOAL_SECTORS, c.sector), find(FINISHES, c.finish)].filter(Boolean).join(" · ");
+  if (c.phase === "balon_parado") return [f(SP_TYPES, c.sp) || t(msg("Balón parado")), c.sp !== "penalti" && f(SP_HOW, c.how), c.sp !== "penalti" && f(GOAL_SECTORS, c.sector), f(FINISHES, c.finish)].filter(Boolean).join(" · ");
+  if (c.phase === "gol_propio") return t(msg("Gol en propia"));
+  return [f(GOAL_PHASES, c.phase), f(CREATE_ALL, c.create), c.area && (c.area === "dentro" ? t(msg("Dentro")) : t(msg("Fuera"))), f(GOAL_SECTORS, c.sector), f(FINISHES, c.finish)].filter(Boolean).join(" · ");
 };

@@ -1,7 +1,9 @@
 import React, { useState, useRef } from "react";
 import { playerFirstName, playerFullName } from "@/lib/playerName";
+import { useT } from "@/i18n";
 
 export default function PlayerToken({ position, assignment, players, onAssign, readOnly }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -60,7 +62,7 @@ export default function PlayerToken({ position, assignment, players, onAssign, r
             className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            {position.label} — Asignar
+            {t("{pos} — Asignar", { pos: t(position.label) })}
           </div>
           <div className="max-h-44 overflow-y-auto">
             {assignment?.player_id && (
@@ -68,7 +70,7 @@ export default function PlayerToken({ position, assignment, players, onAssign, r
                 onClick={() => { onAssign(position.key, null); setOpen(false); }}
                 className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-50 border-b border-gray-100"
               >
-                ✕ Quitar jugador
+                {t("✕ Quitar jugador")}
               </button>
             )}
             {players

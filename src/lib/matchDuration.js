@@ -1,14 +1,15 @@
 // Duración del partido y minutos jugados según el acta. Funciones puras (se prueban con tests).
 import { isPrimerEquipo } from './primerEquipo.js';
+import { msg } from "../i18n/translate.js";
 
 // Duraciones que se pueden elegir en el acta (da igual el formato: cada categoría juega la suya)
 export const DURATIONS = [
-  { value: '2x45', label: "2 partes de 45'" },
-  { value: '2x40', label: "2 partes de 40'" },
-  { value: '2x35', label: "2 partes de 35'" },
-  { value: '4x15', label: "4 cuartos de 15'" },
-  { value: '4x12', label: "4 cuartos de 12'" },
-  { value: '4x10', label: "4 cuartos de 10'" },
+  { value: '2x45', label: msg("2 partes de 45'") },
+  { value: '2x40', label: msg("2 partes de 40'") },
+  { value: '2x35', label: msg("2 partes de 35'") },
+  { value: '4x15', label: msg("4 cuartos de 15'") },
+  { value: '4x12', label: msg("4 cuartos de 12'") },
+  { value: '4x10', label: msg("4 cuartos de 10'") },
 ];
 
 export const isDuration = (d) => /^\d+x\d+$/.test(String(d || ''));

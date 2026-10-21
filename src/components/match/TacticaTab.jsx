@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import RichTextBox from "./RichTextBox";
 import RivalReport from "./RivalReport";
 import { playerFirstName, playerFullName, matchesPlayerSearch } from "@/lib/playerName";
+import { useT, msg } from "@/i18n";
 
 const FORMATIONS_F11 = ["4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "3-4-3", "5-3-2", "4-5-1", "4-1-4-1"];
 // En F7 la primera es la táctica por defecto
@@ -37,18 +38,19 @@ const FORMATION_POSITIONS = {
 
 // ── Draggable Football Field ────────────────────────────
 const KITS = {
-  "1": { label: "1ª", fill: "#ffffff", stroke: "#73000A", num: "#73000A" },
-  "2": { label: "2ª", fill: "#73000A", stroke: "#36000D", num: "#ffffff" },
-  "3": { label: "3ª", fill: "#22a559", stroke: "#0f5132", num: "#ffffff" },
+  "1": { label: msg("1ª"), fill: "#ffffff", stroke: "#73000A", num: "#73000A" },
+  "2": { label: msg("2ª"), fill: "#73000A", stroke: "#36000D", num: "#ffffff" },
+  "3": { label: msg("3ª"), fill: "#22a559", stroke: "#0f5132", num: "#ffffff" },
 };
 const GK_KITS = {
-  naranja: { label: "Naranja", fill: "#F97316", stroke: "#9a3412", num: "#ffffff" },
-  azul: { label: "Azul eléctrico", fill: "#0a4bff", stroke: "#0a2a99", num: "#ffffff" },
+  naranja: { label: msg("Naranja"), fill: "#F97316", stroke: "#9a3412", num: "#ffffff" },
+  azul: { label: msg("Azul eléctrico"), fill: "#0a4bff", stroke: "#0a2a99", num: "#ffffff" },
 };
 const kitFor = (player, kit, gkKit) =>
   player?.position === "portero" ? (GK_KITS[gkKit] || GK_KITS.naranja) : (KITS[kit] || KITS["1"]);
 
 function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsChange, onSlotClick, selectedIdx = null }) {
+  const t = useT();
   const svgRef = useRef(null);
   const draggingIdx = useRef(null);
   const W = 300, H = 420;
@@ -148,7 +150,7 @@ function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsC
                 <rect x="-0.8" y="-0.8" width="15.6" height="11.6" rx="2" fill="#1f2937" opacity="0.55" />
                 <rect x="0" y="0" width="14" height="10" rx="1.5" fill="#FCDD09" />
                 {[1.4, 4.4, 7.4, 10.4].map(x => <rect key={x} x={x} y="0" width="1.7" height="10" fill="#DA121A" />)}
-                <text x="7" y="8.4" textAnchor="middle" fontSize="9" style={{ fontFamily: "'Racing Sarria', sans-serif" }} fill="white" stroke="rgba(0,0,0,0.8)" strokeWidth="1.8" paintOrder="stroke" strokeLinejoin="round">C</text>
+                <text x="7" y="8.4" textAnchor="middle" fontSize="9" style={{ fontFamily: "'Racing Sarria', sans-serif" }} fill="white" stroke="rgba(0,0,0,0.8)" strokeWidth="1.8" paintOrder="stroke" strokeLinejoin="round">{t("C")}</text>
               </g>
             )}
             {player && (
@@ -178,6 +180,7 @@ function labelLines(p) { return [playerFirstName(p), firstSurname(p.last_name)];
 
 // ── Selector de jugador para un hueco del once ─────────
 function PlayerPicker({ open, onClose, teamPlayers, taken, onPick, onClear, current }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const { data: allPlayers = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list(), enabled: open });
   useEffect(() => { if (open) setQ(""); }, [open]);
@@ -187,31 +190,31 @@ function PlayerPicker({ open, onClose, teamPlayers, taken, onPick, onClear, curr
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="bg-white border-gray-200 max-w-sm max-h-[85vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Elegir jugador</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t("Elegir jugador")}</DialogTitle></DialogHeader>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar (incluye otros equipos)…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-gray-300" />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder={t("Buscar (incluye otros equipos)…")} className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-gray-300" />
         </div>
         <div className="space-y-1">
-          {current && <button onClick={onClear} className="w-full text-left text-xs px-3 py-2 rounded border border-red-200 text-red-600 hover:bg-red-50">Dejar el hueco vacío</button>}
+          {current && <button onClick={onClear} className="w-full text-left text-xs px-3 py-2 rounded border border-red-200 text-red-600 hover:bg-red-50">{t("Dejar el hueco vacío")}</button>}
           {pool.map(p => {
             const used = taken.has(p.id) && p.id !== current?.id;
             return (
               <button key={p.id} disabled={used} onClick={() => onPick(p)} className={`w-full text-left flex items-center gap-2 px-3 py-1.5 rounded text-sm ${used ? "opacity-40" : "hover:bg-gray-50"}`}>
                 <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-black shrink-0" style={{ background: "var(--granate)" }}>{p.jersey_number || p.first_name?.[0]}</span>
                 <span className="font-medium truncate">{playerFullName(p)}</span>
-                <span className="ml-auto text-[10px] text-gray-400">{POS_LABEL[p.position] || ""}</span>
+                <span className="ml-auto text-[10px] text-gray-400">{POS_LABEL[p.position] ? t(POS_LABEL[p.position]) : ""}</span>
               </button>
             );
           })}
-          {pool.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Sin resultados</p>}
+          {pool.length === 0 && <p className="text-xs text-gray-400 text-center py-4">{t("Sin resultados")}</p>}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CT", libre: "LIB", mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT" };
+const POS_LABEL = { portero: msg("POR"), lateral: msg("LAT"), central: msg("CT"), libre: msg("LIB"), mediocentro: msg("MC"), interior: msg("INT"), mediapunta: msg("MP"), delantero_centro: msg("DC"), extremo: msg("EXT") };
 const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
 
 function Plan({ title, hint, value, onChange: set, placeholder, minHeight = 140, small = false }) {
@@ -226,6 +229,7 @@ function Plan({ title, hint, value, onChange: set, placeholder, minHeight = 140,
 
 // ── Main Tab ────────────────────────────────────────────
 export default function TacticaTab({ event, players, convocadoIds, starterIds, footballFormat, team }) {
+  const t = useT();
   const qc = useQueryClient();
   const isF7 = footballFormat === "f7";
   const formations = isF7 ? FORMATIONS_F7 : FORMATIONS_F11;
@@ -302,18 +306,18 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   useEffect(() => {
     if (!loaded.current) return;
     if (firstRun.current) { firstRun.current = false; return; }
-    setStatus("Guardando…");
-    const t = setTimeout(() => {
+    setStatus(t("Guardando…"));
+    const timer = setTimeout(() => {
       chain.current = chain.current.then(async () => {
         try {
           if (planId.current) await base44.entities.MatchPlan.update(planId.current, payload);
           else { const c = await base44.entities.MatchPlan.create({ event_id: event.id, team_id: event.team_id, ...payload }); planId.current = c.id; }
           qc.invalidateQueries({ queryKey: ["matchplan", event.id] });
-          setStatus("Guardado ✓");
-        } catch (_) { setStatus("Error al guardar"); }
+          setStatus(t("Guardado ✓"));
+        } catch (_) { setStatus(t("Error al guardar")); }
       });
     }, 1200);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [payloadKey]);
 
   const handleFormationChange = (f) => {
@@ -364,7 +368,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-2">
         <Button type="button" variant="club" size="sm" disabled={pdfBusy} onClick={makePdf} className="gap-1.5">
-          <FileDown className="w-3.5 h-3.5" /> {pdfBusy ? "Generando…" : "Hoja del entrenador (PDF)"}
+          <FileDown className="w-3.5 h-3.5" /> {pdfBusy ? t("Generando…") : t("Hoja del entrenador (PDF)")}
         </Button>
         <span className="text-[11px] text-gray-400 h-4">{status}</span>
       </div>
@@ -373,56 +377,56 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
         {/* ── Once inicial: libre, no depende de la convocatoria ── */}
         <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-sm font-bold text-gray-900">Once inicial <span className="text-gray-400 font-normal text-xs">({filled}/{nSlots})</span></p>
+            <p className="text-sm font-bold text-gray-900">{t("Once inicial")} <span className="text-gray-400 font-normal text-xs">({filled}/{nSlots})</span></p>
             <div className="flex items-center gap-2">
               <Select value={validFormation} onValueChange={handleFormationChange}>
                 <SelectTrigger className="w-28 h-8 text-xs border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent>{formations.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
               </Select>
-              <button onClick={() => setPositions(null)} title="Restablecer posiciones" className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50"><RotateCcw className="w-3.5 h-3.5" /></button>
-              {starterIds?.length > 0 && <button onClick={fillFromActa} title="Rellenar con los titulares del acta" className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50"><Wand2 className="w-3.5 h-3.5" /></button>}
-              {filled > 0 && <button onClick={() => setLineup([])} title="Vaciar el once" className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-red-600 hover:bg-red-50"><Eraser className="w-3.5 h-3.5" /></button>}
+              <button onClick={() => setPositions(null)} title={t("Restablecer posiciones")} className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50"><RotateCcw className="w-3.5 h-3.5" /></button>
+              {starterIds?.length > 0 && <button onClick={fillFromActa} title={t("Rellenar con los titulares del acta")} className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50"><Wand2 className="w-3.5 h-3.5" /></button>}
+              {filled > 0 && <button onClick={() => setLineup([])} title={t("Vaciar el once")} className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-red-600 hover:bg-red-50"><Eraser className="w-3.5 h-3.5" /></button>}
             </div>
           </div>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Equipación</span>
+              <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">{t("Equipación")}</span>
               {Object.entries(KITS).map(([k, v]) => (
-                <button key={k} type="button" onClick={() => setKit(k)} title={`${v.label} equipación`}
+                <button key={k} type="button" onClick={() => setKit(k)} title={t("{label} equipación", { label: t(v.label) })}
                   className={`w-7 h-7 rounded-full text-[10px] font-black flex items-center justify-center ${kit === k ? "ring-2 ring-offset-1 ring-gray-400" : ""}`}
-                  style={{ background: v.fill, border: `2px solid ${v.stroke}`, color: v.num }}>{v.label[0]}</button>
+                  style={{ background: v.fill, border: `2px solid ${v.stroke}`, color: v.num }}>{t(v.label)[0]}</button>
               ))}
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Portero</span>
+              <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">{t("Portero")}</span>
               {Object.entries(GK_KITS).map(([k, v]) => (
-                <button key={k} type="button" onClick={() => setGkKit(k)} title={v.label}
+                <button key={k} type="button" onClick={() => setGkKit(k)} title={t(v.label)}
                   className={`w-7 h-7 rounded-full text-[10px] font-black flex items-center justify-center ${gkKit === k ? "ring-2 ring-offset-1 ring-gray-400" : ""}`}
-                  style={{ background: v.fill, border: `2px solid ${v.stroke}`, color: v.num }}>P</button>
+                  style={{ background: v.fill, border: `2px solid ${v.stroke}`, color: v.num }}>{t("P")}</button>
               ))}
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Portero suplente</span>
+              <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">{t("Portero suplente")}</span>
               {Object.entries(GK_KITS).map(([k, v]) => (
-                <button key={k} type="button" onClick={() => setGkKit2(k)} title={v.label}
+                <button key={k} type="button" onClick={() => setGkKit2(k)} title={t(v.label)}
                   className={`w-7 h-7 rounded-full text-[10px] font-black flex items-center justify-center ${(gkKit2 || gkKit) === k ? "ring-2 ring-offset-1 ring-gray-400" : ""}`}
-                  style={{ background: v.fill, border: `2px solid ${v.stroke}`, color: v.num }}>P</button>
+                  style={{ background: v.fill, border: `2px solid ${v.stroke}`, color: v.num }}>{t("P")}</button>
               ))}
             </div>
           </div>
           {filled > 0 && (
             <div className="flex items-center justify-center gap-1.5">
-              <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Capitán</span>
+              <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">{t("Capitán")}</span>
               <Select value={slotIds.includes(captain) ? captain : "none"} onValueChange={v => setCaptain(v === "none" ? "" : v)}>
-                <SelectTrigger className="w-44 h-7 text-xs border-gray-200"><SelectValue placeholder="Elegir…" /></SelectTrigger>
+                <SelectTrigger className="w-44 h-7 text-xs border-gray-200"><SelectValue placeholder={t("Elegir…")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Sin capitán</SelectItem>
+                  <SelectItem value="none">{t("Sin capitán")}</SelectItem>
                   {slots.filter(Boolean).map(p => <SelectItem key={p.id} value={p.id}>{playerFirstName(p)} {firstSurname(p.last_name)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           )}
-          <p className="text-[10px] text-gray-400 text-center">Toca un jugador y luego otro (del campo o del banquillo) para intercambiarlos · toca un hueco vacío para elegir · arrastra para reposicionar</p>
+          <p className="text-[10px] text-gray-400 text-center">{t("Toca un jugador y luego otro (del campo o del banquillo) para intercambiarlos · toca un hueco vacío para elegir · arrastra para reposicionar")}</p>
           <div className="flex flex-col sm:flex-row gap-3 items-start">
             <div className="flex-1 min-w-0 w-full" style={{ maxWidth: 380 }}>
               <div style={{ aspectRatio: "300/420" }}>
@@ -441,9 +445,9 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
 
             {/* Banquillo: solo convocados, por líneas */}
             <div className="w-full sm:w-44 shrink-0">
-              <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1.5">Banquillo <span className="font-normal">({benchPlayers.length})</span></p>
+              <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1.5">{t("Banquillo")} <span className="font-normal">({benchPlayers.length})</span></p>
               {benchPlayers.length === 0 ? (
-                <p className="text-[11px] text-gray-400">{(convocadoIds || []).length === 0 ? "Aún no hay convocatoria." : "Todos los convocados están en el once."}</p>
+                <p className="text-[11px] text-gray-400">{(convocadoIds || []).length === 0 ? t("Aún no hay convocatoria.") : t("Todos los convocados están en el once.")}</p>
               ) : (
                 <div className="flex flex-row flex-wrap sm:flex-col gap-1">
                   {benchPlayers.map((p, idx) => {
@@ -467,11 +471,11 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
 
           {sel && selPlayer && (
             <div className="flex items-center justify-between gap-2 flex-wrap text-xs bg-yellow-50 border border-yellow-300 rounded-lg px-3 py-2">
-              <span className="text-gray-700"><b>{playerFullName(selPlayer)}</b> seleccionado · {sel.kind === "bench" ? "toca un hueco del once para meterlo" : "toca otro jugador para intercambiarlo"}</span>
+              <span className="text-gray-700"><b>{playerFullName(selPlayer)}</b> seleccionado · {sel.kind === "bench" ? t("toca un hueco del once para meterlo") : t("toca otro jugador para intercambiarlo")}</span>
               <span className="flex items-center gap-1.5">
-                {sel.kind === "slot" && <button onClick={() => { setPickSlot(sel.i); }} className="px-2 py-1 rounded border border-gray-300 text-gray-700 hover:bg-white">Elegir otro jugador</button>}
-                {sel.kind === "slot" && <button onClick={() => { setSlot(sel.i, null); setSel(null); }} className="px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-white">Vaciar hueco</button>}
-                <button onClick={() => setSel(null)} className="px-2 py-1 rounded border border-gray-300 text-gray-500 hover:bg-white">Cancelar</button>
+                {sel.kind === "slot" && <button onClick={() => { setPickSlot(sel.i); }} className="px-2 py-1 rounded border border-gray-300 text-gray-700 hover:bg-white">{t("Elegir otro jugador")}</button>}
+                {sel.kind === "slot" && <button onClick={() => { setSlot(sel.i, null); setSel(null); }} className="px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-white">{t("Vaciar hueco")}</button>}
+                <button onClick={() => setSel(null)} className="px-2 py-1 rounded border border-gray-300 text-gray-500 hover:bg-white">{t("Cancelar")}</button>
               </span>
             </div>
           )}
@@ -479,12 +483,12 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
 
         {/* ── Planes ── */}
         <div className="space-y-4">
-          <Plan title="⚔️ Plan de partido en ataque" hint="Salida de balón, progresión, zonas de ataque, movimientos clave, finalización…" value={planAttack} onChange={setPlanAttack}
-            placeholder="Ej: Salida 3+1 con el mediocentro, progresar por banda derecha, extremos cerrando para el desmarque del 9…" />
-          <Plan title="🛡️ Plan de partido en defensa" hint="Bloque, altura de presión, referencias de marcaje, transiciones defensivas…" value={planDefense} onChange={setPlanDefense}
-            placeholder="Ej: Bloque medio 4-4-2, presión tras pase atrás, vigilar al 10 rival en el rechace, repliegue rápido…" />
-          <Plan small minHeight={56} title="⚑ Balón parado" hint="Córners, faltas, saques de banda: referencias y aspectos a tener en cuenta." value={planSet} onChange={setPlanSet}
-            placeholder="Ej: Córner a favor: 2 al primer palo; en contra: marcaje mixto, 9 rival vigilado…" />
+          <Plan title={t("⚔️ Plan de partido en ataque")} hint={t("Salida de balón, progresión, zonas de ataque, movimientos clave, finalización…")} value={planAttack} onChange={setPlanAttack}
+            placeholder={t("Ej: Salida 3+1 con el mediocentro, progresar por banda derecha, extremos cerrando para el desmarque del 9…")} />
+          <Plan title={t("🛡️ Plan de partido en defensa")} hint={t("Bloque, altura de presión, referencias de marcaje, transiciones defensivas…")} value={planDefense} onChange={setPlanDefense}
+            placeholder={t("Ej: Bloque medio 4-4-2, presión tras pase atrás, vigilar al 10 rival en el rechace, repliegue rápido…")} />
+          <Plan small minHeight={56} title={t("⚑ Balón parado")} hint={t("Córners, faltas, saques de banda: referencias y aspectos a tener en cuenta.")} value={planSet} onChange={setPlanSet}
+            placeholder={t("Ej: Córner a favor: 2 al primer palo; en contra: marcaje mixto, 9 rival vigilado…")} />
         </div>
       </div>
 
@@ -493,18 +497,18 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
 
       {/* ── Análisis del rival ── */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-        <p className="text-sm font-bold text-gray-900">🔍 Análisis del rival{event?.opponent ? ` · ${event.opponent}` : ""}</p>
+        <p className="text-sm font-bold text-gray-900">{t("🔍 Análisis del rival{v}", { v: event?.opponent ? ` · ${event.opponent}` : "" })}</p>
         <div className="grid md:grid-cols-3 gap-3">
-          {[["strengths", "Puntos fuertes", "Qué hacen bien, cómo atacan…"], ["weaknesses", "Puntos débiles", "Dónde les podemos hacer daño…"], ["keys", "Jugadores clave", "Dorsal, perfil, cómo frenarlo…"]].map(([k, label, ph]) => (
+          {[["strengths", msg("Puntos fuertes"), msg("Qué hacen bien, cómo atacan…")], ["weaknesses", msg("Puntos débiles"), msg("Dónde les podemos hacer daño…")], ["keys", msg("Jugadores clave"), msg("Dorsal, perfil, cómo frenarlo…")]].map(([k, label, ph]) => (
             <div key={k} className="space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{label}</p>
-              <RichTextBox value={rival[k]} onChange={v => setRival(r => ({ ...r, [k]: v }))} placeholder={ph} minHeight={110} />
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t(label)}</p>
+              <RichTextBox value={rival[k]} onChange={v => setRival(r => ({ ...r, [k]: v }))} placeholder={t(ph)} minHeight={110} />
             </div>
           ))}
         </div>
         <div className="space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Comentarios</p>
-          <RichTextBox value={rival.notes} onChange={v => setRival(r => ({ ...r, notes: v }))} placeholder="Sistema habitual, estilo, balón parado, resultados recientes…" minHeight={70} />
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t("Comentarios")}</p>
+          <RichTextBox value={rival.notes} onChange={v => setRival(r => ({ ...r, notes: v }))} placeholder={t("Sistema habitual, estilo, balón parado, resultados recientes…")} minHeight={70} />
         </div>
       </div>
 

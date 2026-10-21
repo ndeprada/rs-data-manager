@@ -9,15 +9,16 @@ import { playerFullName } from "@/lib/playerName";
 import { calcMinutesPlayed, getMatchMinutes } from "@/components/match/ActaTab";
 import { useAutosave } from "@/lib/useAutosave";
 import SaveStatus from "@/components/common/SaveStatus";
+import { useT, msg } from "@/i18n";
 
 const POSITION_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
-const STAR_LABELS = ["", "Mal", "Bien", "Muy bien"];
+const STAR_LABELS = ["", msg("Mal"), msg("Bien"), msg("Muy bien")];
 // Valoración rápida del equipo en el partido (misma escala de 3 estrellas que la de jugadores)
 const TEAM_EVAL = [
-  ["actitud", "Actitud y compromiso"],
-  ["organizacion", "Organización sin balón"],
-  ["juego", "Juego con balón"],
-  ["intensidad", "Intensidad y ritmo"],
+  ["actitud", msg("Actitud y compromiso")],
+  ["organizacion", msg("Organización sin balón")],
+  ["juego", msg("Juego con balón")],
+  ["intensidad", msg("Intensidad y ritmo")],
 ];
 
 function Stars({ value, onChange }) {
@@ -50,6 +51,7 @@ const platformOf = (url) => {
 };
 
 export default function PostMatchTab({ eventId, teamId, event, players, convocation, team }) {
+  const t = useT();
   const qc = useQueryClient();
   const starterIds = convocation?.starters || [];
   const convocadoIds = convocation?.player_ids || [];
@@ -165,7 +167,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
     let url = newUrl.trim();
     if (!url) return;
     if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-    setLinks((l) => [...l, { url, title: newTitle.trim() || platformOf(url) || "Vídeo del partido", added_at: new Date().toISOString() }]);
+    setLinks((l) => [...l, { url, title: newTitle.trim() || platformOf(url) || t("Vídeo del partido"), added_at: new Date().toISOString() }]);
     setNewUrl(""); setNewTitle("");
   };
 
@@ -175,20 +177,20 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-gray-500">Las valoraciones y correcciones de cada jugador quedan guardadas en su ficha, en Estadísticas → Correcciones.</p>
+        <p className="text-xs text-gray-500">{t("Las valoraciones y correcciones de cada jugador quedan guardadas en su ficha, en Estadísticas → Correcciones.")}</p>
         <SaveStatus state={autosave.state} onRetry={autosave.flush} className="shrink-0" />
       </div>
 
       {/* Valoración rápida del equipo */}
       <div className={card}>
         <div className="flex items-baseline justify-between gap-2">
-          <p className={h}>Cómo ha jugado el equipo</p>
-          {evalAvg.n > 0 && <p className="text-[10px] text-gray-400">Entre paréntesis, la media {evalAvg.n === 1 ? "del otro partido valorado" : `de los otros ${evalAvg.n} partidos valorados`}</p>}
+          <p className={h}>{t("Cómo ha jugado el equipo")}</p>
+          {evalAvg.n > 0 && <p className="text-[10px] text-gray-400">{t("Entre paréntesis, la media {v}", { v: evalAvg.n === 1 ? t("del otro partido valorado") : t("de los otros {n} partidos valorados", { n: evalAvg.n }) })}</p>}
         </div>
         <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5">
           {TEAM_EVAL.map(([k, label]) => (
             <div key={k} className="flex items-center justify-between gap-2">
-              <p className="text-xs text-gray-700 min-w-0">{label}</p>
+              <p className="text-xs text-gray-700 min-w-0">{t(label)}</p>
               <div className="flex items-center gap-1.5 shrink-0">
                 {evalAvg[k] != null && <span className="text-[10px] text-gray-400 tabular-nums">({evalAvg[k].toFixed(1).replace(".", ",")})</span>}
                 <Stars value={teamEval[k] || 0} onChange={(v) => setTeamEval((t) => ({ ...t, [k]: v }))} />
@@ -200,7 +202,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
 
       {/* Vídeo: miniatura compacta; al pulsar play la tarjeta se ensancha y aparece el reproductor grande */}
       <div className={card}>
-        <p className={h}>Vídeo del partido</p>
+        <p className={h}>{t("Vídeo del partido")}</p>
         {links.length > 0 && (
           <div className="grid sm:grid-cols-2 gap-2">
             {links.map((l, i) => {
@@ -211,7 +213,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
               return (
                 <div key={i} className={`rounded-xl border bg-white overflow-hidden ${isPlaying ? "sm:col-span-2 border-[#73000A]" : "border-gray-200"}`}>
                   <div className="flex items-center gap-3 p-2">
-                    <button type="button" onClick={open} className="relative shrink-0 w-24 aspect-video rounded-lg overflow-hidden bg-gray-900 group" title={emb ? (isPlaying ? "Cerrar el reproductor" : "Reproducir aquí") : "Abrir vídeo"}>
+                    <button type="button" onClick={open} className="relative shrink-0 w-24 aspect-video rounded-lg overflow-hidden bg-gray-900 group" title={emb ? (isPlaying ? t("Cerrar el reproductor") : t("Reproducir aquí")) : t("Abrir vídeo")}>
                       {thumb && <img src={thumb} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" />}
                       <span className="absolute inset-0 flex items-center justify-center">
                         <span className="w-7 h-7 rounded-full flex items-center justify-center text-white shadow transition-transform group-hover:scale-110" style={{ background: "var(--granate)" }}>
@@ -222,11 +224,11 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-gray-900 truncate">{l.title}</p>
                       <p className="text-[10px] text-gray-500 truncate">
-                        {isPlaying ? "Reproduciendo" : emb ? "Pulsa play para verlo aquí" : `Se abre en ${platformOf(l.url) || "otra pestaña"}`}
+                        {isPlaying ? t("Reproduciendo") : emb ? t("Pulsa play para verlo aquí") : t("Se abre en {site}", { site: platformOf(l.url) || t("otra pestaña") })}
                       </p>
                     </div>
-                    <a href={l.url} target="_blank" rel="noopener noreferrer" title="Abrir en una pestaña nueva" className="p-1 text-gray-400 hover:text-gray-700"><ExternalLink className="w-3.5 h-3.5" /></a>
-                    <button type="button" title="Quitar el vídeo" onClick={() => { setLinks((x) => x.filter((_, j) => j !== i)); setPlaying(null); }} className="p-1 text-gray-300 hover:text-red-500">
+                    <a href={l.url} target="_blank" rel="noopener noreferrer" title={t("Abrir en una pestaña nueva")} className="p-1 text-gray-400 hover:text-gray-700"><ExternalLink className="w-3.5 h-3.5" /></a>
+                    <button type="button" title={t("Quitar el vídeo")} onClick={() => { setLinks((x) => x.filter((_, j) => j !== i)); setPlaying(null); }} className="p-1 text-gray-300 hover:text-red-500">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -234,7 +236,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
                     <div className="px-2 pb-2">
                       <div className="rounded-lg overflow-hidden bg-black aspect-video w-full max-w-4xl mx-auto">
                         {emb.kind === "iframe"
-                          ? <iframe src={emb.src} title={l.title || "Vídeo del partido"} className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
+                          ? <iframe src={emb.src} title={l.title || t("Vídeo del partido")} className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
                           : <video src={emb.src} controls autoPlay className="w-full h-full" />}
                       </div>
                     </div>
@@ -246,18 +248,18 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
         )}
         <div className="flex flex-col sm:flex-row gap-2">
           <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addLink()}
-            placeholder="Enlace de YouTube, Vimeo, Veo…" className="h-8 text-sm border-gray-200" />
-          <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Título (opcional)" className="h-8 text-sm border-gray-200 sm:max-w-[180px]" />
-          <Button size="sm" variant="outline" className="h-8" onClick={addLink} disabled={!newUrl.trim()}><Plus className="w-3.5 h-3.5 mr-1" />Añadir</Button>
+            placeholder={t("Enlace de YouTube, Vimeo, Veo…")} className="h-8 text-sm border-gray-200" />
+          <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={t("Título (opcional)")} className="h-8 text-sm border-gray-200 sm:max-w-[180px]" />
+          <Button size="sm" variant="outline" className="h-8" onClick={addLink} disabled={!newUrl.trim()}><Plus className="w-3.5 h-3.5 mr-1" />{t("Añadir")}</Button>
         </div>
-        <p className="text-[10px] text-gray-400">YouTube, Vimeo y archivos de vídeo directos se reproducen aquí. Con otras plataformas (Veo…) el botón abre el vídeo en una pestaña nueva.</p>
+        <p className="text-[10px] text-gray-400">{t("YouTube, Vimeo y archivos de vídeo directos se reproducen aquí. Con otras plataformas (Veo…) el botón abre el vídeo en una pestaña nueva.")}</p>
       </div>
 
       {/* Jugadores */}
       <div className={card}>
-        <p className={h}>Valoración y correcciones por jugador <span className="text-gray-400 font-normal">({played.length})</span></p>
+        <p className={h}>{t("Valoración y correcciones por jugador")} <span className="text-gray-400 font-normal">({played.length})</span></p>
         {played.length === 0 ? (
-          <p className="text-xs text-gray-400">Aún no hay jugadores convocados para este partido.</p>
+          <p className="text-xs text-gray-400">{t("Aún no hay jugadores convocados para este partido.")}</p>
         ) : (
           <div className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
             {played.map((p) => {
@@ -266,11 +268,11 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
                 <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-2 px-3 py-2">
                   <div className="sm:w-48 shrink-0">
                     <p className="text-xs font-bold text-gray-900 truncate">{playerFullName(p)}</p>
-                    <p className="text-[10px] text-gray-400">{starterIds.length ? (starterIds.includes(p.id) ? "Titular" : "Suplente") : ""}</p>
+                    <p className="text-[10px] text-gray-400">{starterIds.length ? (starterIds.includes(p.id) ? t("Titular") : t("Suplente")) : ""}</p>
                   </div>
                   <Stars value={row.rating || 0} onChange={(v) => setRow(p.id, { rating: v })} />
                   <Textarea value={row.notes || ""} onChange={(e) => setRow(p.id, { notes: e.target.value })} rows={1}
-                    placeholder="Corrección o valoración…" className="text-xs border-gray-200 min-h-[32px] py-1.5" />
+                    placeholder={t("Corrección o valoración…")} className="text-xs border-gray-200 min-h-[32px] py-1.5" />
                 </div>
               );
             })}
@@ -281,14 +283,14 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
       {/* Observaciones */}
       <div className="grid md:grid-cols-2 gap-4">
         <div className={card}>
-          <p className={h}>Observaciones del partido</p>
+          <p className={h}>{t("Observaciones del partido")}</p>
           <Textarea value={team_notes} onChange={(e) => setTeamNotes(e.target.value)} rows={6}
-            placeholder="Correcciones generales del equipo, qué funcionó, qué hay que mejorar…" className="text-sm border-gray-200" />
+            placeholder={t("Correcciones generales del equipo, qué funcionó, qué hay que mejorar…")} className="text-sm border-gray-200" />
         </div>
         <div className={card}>
-          <p className={h}>Sobre el rival{event?.opponent ? ` · ${event.opponent}` : ""}</p>
+          <p className={h}>{t("Sobre el rival{v}", { v: event?.opponent ? ` · ${event.opponent}` : "" })}</p>
           <Textarea value={rival_notes} onChange={(e) => setRivalNotes(e.target.value)} rows={6}
-            placeholder="Cómo juegan, jugadores a vigilar, balón parado… para la próxima vez que nos enfrentemos." className="text-sm border-gray-200" />
+            placeholder={t("Cómo juegan, jugadores a vigilar, balón parado… para la próxima vez que nos enfrentemos.")} className="text-sm border-gray-200" />
         </div>
       </div>
     </div>

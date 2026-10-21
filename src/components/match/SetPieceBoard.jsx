@@ -9,41 +9,42 @@ import { playerFirstName } from "@/lib/playerName";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 
 import { Button } from "@/components/ui/button";
+import { useT, msg } from "@/i18n";
 // Creador de jugadas a balón parado: medio campo (portería arriba), fichas propias/rivales con jugador, dorsal y rol,
 // balón y flechas finas (rectas o curvas, continuas o discontinuas). Las jugadas se pueden guardar en la biblioteca del
 // equipo y reutilizar otra semana cambiando solo los jugadores.
 const W = 300, H = 240;
 const TYPES = [
-  { value: "corner_favor", label: "Córner a favor" },
-  { value: "corner_contra", label: "Córner en contra" },
-  { value: "falta_lateral", label: "Falta lateral a favor" },
-  { value: "falta_frontal", label: "Falta frontal a favor" },
-  { value: "falta_contra", label: "Falta en contra" },
-  { value: "saque_banda", label: "Saque de banda" },
-  { value: "penalti", label: "Penalti" },
-  { value: "saque_puerta", label: "Saque de puerta" },
+  { value: "corner_favor", label: msg("Córner a favor") },
+  { value: "corner_contra", label: msg("Córner en contra") },
+  { value: "falta_lateral", label: msg("Falta lateral a favor") },
+  { value: "falta_frontal", label: msg("Falta frontal a favor") },
+  { value: "falta_contra", label: msg("Falta en contra") },
+  { value: "saque_banda", label: msg("Saque de banda") },
+  { value: "penalti", label: msg("Penalti") },
+  { value: "saque_puerta", label: msg("Saque de puerta") },
 ];
 const TOOLS = [
-  { key: "move", label: "Mover", icon: MousePointer2 },
-  { key: "own", label: "Nuestro", icon: Circle, color: "#73000A" },
-  { key: "rival", label: "Rival", icon: Circle, color: "#2563eb" },
-  { key: "ball", label: "Balón", icon: Circle, color: "#f59e0b" },
-  { key: "signal", label: "Señal", icon: User },
-  { key: "text", label: "Texto", icon: Type },
-  { key: "arrow", label: "Flecha", icon: MoveRight },
-  { key: "erase", label: "Borrar", icon: Eraser },
+  { key: "move", label: msg("Mover"), icon: MousePointer2 },
+  { key: "own", label: msg("Nuestro"), icon: Circle, color: "#73000A" },
+  { key: "rival", label: msg("Rival"), icon: Circle, color: "#2563eb" },
+  { key: "ball", label: msg("Balón"), icon: Circle, color: "#f59e0b" },
+  { key: "signal", label: msg("Señal"), icon: User },
+  { key: "text", label: msg("Texto"), icon: Type },
+  { key: "arrow", label: msg("Flecha"), icon: MoveRight },
+  { key: "erase", label: msg("Borrar"), icon: Eraser },
 ];
 const COLORS = [
-  { v: "#73000A", n: "Granate" },
-  { v: "#2563eb", n: "Azul" },
-  { v: "#ffffff", n: "Blanco" },
-  { v: "#facc15", n: "Amarillo" },
-  { v: "#0a4bff", n: "Azul eléctrico" },
-  { v: "#f97316", n: "Naranja" },
-  { v: "#111827", n: "Negro" },
+  { v: "#73000A", n: msg("Granate") },
+  { v: "#2563eb", n: msg("Azul") },
+  { v: "#ffffff", n: msg("Blanco") },
+  { v: "#facc15", n: msg("Amarillo") },
+  { v: "#0a4bff", n: msg("Azul eléctrico") },
+  { v: "#f97316", n: msg("Naranja") },
+  { v: "#111827", n: msg("Negro") },
 ];
-const SIGNALS = [["head", "Mano a la cabeza"], ["arm", "Brazo extendido"], ["bounce", "Bota el balón"]];
-const ROLES = ["Lanzador", "Rematador 1er palo", "Rematador 2º palo", "Rematador", "Bloqueador", "Pantalla", "Referencia", "Rechace", "Segunda jugada", "Marca", "Zona", "Cobertura", "Pasador"];
+const SIGNALS = [["head", msg("Mano a la cabeza")], ["arm", msg("Brazo extendido")], ["bounce", msg("Bota el balón")]];
+const ROLES = [msg("Lanzador"), msg("Rematador 1er palo"), msg("Rematador 2º palo"), msg("Rematador"), msg("Bloqueador"), msg("Pantalla"), msg("Referencia"), msg("Rechace"), msg("Segunda jugada"), msg("Marca"), msg("Zona"), msg("Cobertura"), msg("Pasador")];
 const RIVAL_COLOR = "#2563eb";
 const GRANATE = "#73000A", NARANJA = "#FF6E00";
 const F_BIG = "'Racing Sarria', sans-serif", F_TXT = "'IBM Plex Sans Condensed', sans-serif";
@@ -86,14 +87,14 @@ const mkRiv = (x, y, label, role = "") => ({ id: uid(), kind: "rival", x, y, siz
 const mkBall = (x, y) => ({ id: uid(), kind: "ball", x, y, size: 1, label: "", role: "", player_id: null, color: null });
 const mkArr = (x1, y1, x2, y2, o = {}) => ({ id: uid(), x1, y1, x2, y2, dashed: false, team: "own", ...o });
 const TEMPLATES = [
-  { key: "corner_favor", label: "Córner a favor", make: () => ({ tokens: [mkOwn(30, 26, "L", "Lanzador"), mkBall(14, 14), mkRiv(150, 18, "P"), mkOwn(104, 44, "1", "1er palo"), mkOwn(150, 62, "2", "Rematador"), mkOwn(198, 44, "3", "2º palo"), mkOwn(100, 112, "R", "Rechace"), mkOwn(200, 112, "R", "Rechace"), mkOwn(150, 175, "C", "Cobertura")],
+  { key: "corner_favor", label: msg("Córner a favor"), make: () => ({ tokens: [mkOwn(30, 26, "L", msg("Lanzador")), mkBall(14, 14), mkRiv(150, 18, "P"), mkOwn(104, 44, "1", msg("1er palo")), mkOwn(150, 62, "2", msg("Rematador")), mkOwn(198, 44, "3", msg("2º palo")), mkOwn(100, 112, "R", msg("Rechace")), mkOwn(200, 112, "R", msg("Rechace")), mkOwn(150, 175, "C", msg("Cobertura"))],
     arrows: [mkArr(38, 26, 132, 50, { cx: 80, cy: 22 }), mkArr(198, 96, 198, 64, { dashed: true }), mkArr(150, 86, 114, 52, { dashed: true })] }) },
-  { key: "corner_contra", label: "Córner en contra", make: () => ({ tokens: [mkRiv(284, 22, "X", "Lanzador"), mkBall(292, 12), mkOwn(150, 18, "P"), mkOwn(112, 30, "Z"), mkOwn(188, 30, "Z"), mkOwn(90, 62, "Z"), mkOwn(130, 70, "Z"), mkOwn(170, 70, "Z"), mkOwn(210, 62, "Z"), mkOwn(118, 100, "M", "Marca"), mkOwn(182, 100, "M", "Marca"), mkOwn(150, 128, "C", "Cobertura"), mkRiv(104, 48, "1"), mkRiv(150, 46, "2"), mkRiv(196, 48, "3"), mkRiv(232, 80, "4")], arrows: [] }) },
-  { key: "falta_lateral", label: "Falta lateral a favor", make: () => ({ tokens: [mkOwn(44, 158, "L", "Lanzador"), mkBall(52, 152), ...[75, 105, 135, 165, 195, 225].map((x, i) => mkOwn(x, 118, String(i + 1))), mkOwn(112, 162, "R", "Rechace"), mkOwn(188, 162, "R", "Rechace"), mkOwn(150, 200, "C", "Cobertura")],
+  { key: "corner_contra", label: msg("Córner en contra"), make: () => ({ tokens: [mkRiv(284, 22, "X", msg("Lanzador")), mkBall(292, 12), mkOwn(150, 18, "P"), mkOwn(112, 30, "Z"), mkOwn(188, 30, "Z"), mkOwn(90, 62, "Z"), mkOwn(130, 70, "Z"), mkOwn(170, 70, "Z"), mkOwn(210, 62, "Z"), mkOwn(118, 100, "M", msg("Marca")), mkOwn(182, 100, "M", msg("Marca")), mkOwn(150, 128, "C", msg("Cobertura")), mkRiv(104, 48, "1"), mkRiv(150, 46, "2"), mkRiv(196, 48, "3"), mkRiv(232, 80, "4")], arrows: [] }) },
+  { key: "falta_lateral", label: msg("Falta lateral a favor"), make: () => ({ tokens: [mkOwn(44, 158, "L", msg("Lanzador")), mkBall(52, 152), ...[75, 105, 135, 165, 195, 225].map((x, i) => mkOwn(x, 118, String(i + 1))), mkOwn(112, 162, "R", msg("Rechace")), mkOwn(188, 162, "R", msg("Rechace")), mkOwn(150, 200, "C", msg("Cobertura"))],
     arrows: [mkArr(58, 150, 158, 40, { cx: 70, cy: 70 }), ...[75, 105, 135, 165, 195, 225].map((x, i) => mkArr(x, 114, 108 + i * 17, 62, { dashed: true }))] }) },
-  { key: "falta_frontal", label: "Falta frontal a favor", make: () => ({ tokens: [mkOwn(138, 132, "T", "Toque"), mkOwn(164, 132, "L", "Lanzador"), mkBall(150, 124), mkRiv(150, 18, "P"), ...[122, 136, 150, 164, 178].map((x) => ({ ...mkRiv(x, 102, "B"), size: 0.75 })), mkOwn(120, 52, "1"), mkOwn(150, 56, "2"), mkOwn(182, 52, "3"), mkOwn(96, 120, "R", "Rechace"), mkOwn(204, 120, "R", "Rechace"), mkOwn(150, 182, "C", "Cobertura")], arrows: [mkArr(150, 118, 190, 36, { cx: 200, cy: 90 })] }) },
-  { key: "falta_contra", label: "Falta en contra (barrera + zona)", make: () => ({ tokens: [mkRiv(176, 132, "X", "Lanzador"), mkBall(166, 128), mkOwn(150, 18, "P"), ...[122, 136, 150, 164, 178].map((x, i) => ({ ...mkOwn(x, 100, String(i + 1), i === 0 ? "Barrera" : ""), size: 0.75 })), mkOwn(84, 62, "Z"), mkOwn(108, 64, "Z"), mkOwn(192, 64, "Z"), mkOwn(216, 62, "Z"), mkOwn(150, 72, "Z"), mkOwn(150, 150, "R", "Rechace")], arrows: [] }) },
-  { key: "saque_banda", label: "Saque de banda", make: () => ({ tokens: [mkOwn(8, 124, "L", "Saque"), mkBall(18, 124), mkOwn(44, 100, "1"), mkOwn(50, 148, "2"), mkOwn(86, 124, "3"), mkRiv(58, 116, "A"), mkRiv(72, 138, "B")], arrows: [mkArr(26, 124, 80, 124), mkArr(86, 124, 120, 100, { dashed: true }), mkArr(44, 100, 70, 80, { dashed: true })] }) },
+  { key: "falta_frontal", label: msg("Falta frontal a favor"), make: () => ({ tokens: [mkOwn(138, 132, "T", msg("Toque")), mkOwn(164, 132, "L", msg("Lanzador")), mkBall(150, 124), mkRiv(150, 18, "P"), ...[122, 136, 150, 164, 178].map((x) => ({ ...mkRiv(x, 102, "B"), size: 0.75 })), mkOwn(120, 52, "1"), mkOwn(150, 56, "2"), mkOwn(182, 52, "3"), mkOwn(96, 120, "R", msg("Rechace")), mkOwn(204, 120, "R", msg("Rechace")), mkOwn(150, 182, "C", msg("Cobertura"))], arrows: [mkArr(150, 118, 190, 36, { cx: 200, cy: 90 })] }) },
+  { key: "falta_contra", label: msg("Falta en contra (barrera + zona)"), make: () => ({ tokens: [mkRiv(176, 132, "X", msg("Lanzador")), mkBall(166, 128), mkOwn(150, 18, "P"), ...[122, 136, 150, 164, 178].map((x, i) => ({ ...mkOwn(x, 100, String(i + 1), i === 0 ? msg("Barrera") : ""), size: 0.75 })), mkOwn(84, 62, "Z"), mkOwn(108, 64, "Z"), mkOwn(192, 64, "Z"), mkOwn(216, 62, "Z"), mkOwn(150, 72, "Z"), mkOwn(150, 150, "R", msg("Rechace"))], arrows: [] }) },
+  { key: "saque_banda", label: msg("Saque de banda"), make: () => ({ tokens: [mkOwn(8, 124, "L", msg("Saque")), mkBall(18, 124), mkOwn(44, 100, "1"), mkOwn(50, 148, "2"), mkOwn(86, 124, "3"), mkRiv(58, 116, "A"), mkRiv(72, 138, "B")], arrows: [mkArr(26, 124, 80, 124), mkArr(86, 124, 120, 100, { dashed: true }), mkArr(44, 100, 70, 80, { dashed: true })] }) },
 ];
 const fromTemplate = (tpl, n) => ({ ...newPiece(n), name: tpl.label, type: tpl.key, ...tpl.make() });
 
@@ -153,20 +154,22 @@ function ArrowShape({ a, hit, onHitDown, selected }) {
   );
 }
 
-function Swatches({ value, onPick, allowReset, resetLabel = "Equipación" }) {
+function Swatches({ value, onPick, allowReset, resetLabel }) {
+  const t = useT();
   return (
     <div className="flex items-center gap-1 flex-wrap">
       {allowReset && (
-        <button type="button" onClick={() => onPick(null)} className={`px-1.5 h-6 rounded-full border text-[10px] font-semibold ${!value ? "border-[var(--granate)] text-[var(--granate)]" : "border-gray-200 text-gray-500"}`}>{resetLabel}</button>
+        <button type="button" onClick={() => onPick(null)} className={`px-1.5 h-6 rounded-full border text-[10px] font-semibold ${!value ? "border-[var(--granate)] text-[var(--granate)]" : "border-gray-200 text-gray-500"}`}>{resetLabel ?? t("Equipación")}</button>
       )}
       {COLORS.map((c) => (
-        <button key={c.v} type="button" title={c.n} onClick={() => onPick(c.v)} className="w-6 h-6 rounded-full border-2" style={{ background: c.v, borderColor: value === c.v ? "#facc15" : "#d1d5db", boxShadow: value === c.v ? "0 0 0 2px #73000A" : undefined }} />
+        <button key={c.v} type="button" title={t(c.n)} onClick={() => onPick(c.v)} className="w-6 h-6 rounded-full border-2" style={{ background: c.v, borderColor: value === c.v ? "#facc15" : "#d1d5db", boxShadow: value === c.v ? "0 0 0 2px #73000A" : undefined }} />
       ))}
     </div>
   );
 }
 
 function Board({ piece, onChange, candidates, lookup, kitOf, header, side }) {
+  const t = useT();
   const box = useRef(null);
   const [width, setWidth] = useState(520);
   const [tool, setTool] = useState("move");
@@ -201,13 +204,13 @@ function Board({ piece, onChange, candidates, lookup, kitOf, header, side }) {
         return;
       }
       const n = piece.tokens.filter((t) => t.kind === tool).length + 1;
-      const t = { id: uid(), kind: tool, x: p.x, y: p.y, label: tool === "ball" ? "" : String(n), size: 1, role: "", player_id: null, color: null };
-      set({ tokens: [...piece.tokens, t] });
-      if (tool !== "ball") setSel({ type: "token", id: t.id });
+      const tk = { id: uid(), kind: tool, x: p.x, y: p.y, label: tool === "ball" ? "" : String(n), size: 1, role: "", player_id: null, color: null };
+      set({ tokens: [...piece.tokens, tk] });
+      if (tool !== "ball") setSel({ type: "token", id: tk.id });
     } else if (tool === "signal" || tool === "text") {
-      const t = tool === "signal" ? { id: uid(), kind: "signal", x: p.x, y: p.y, size: 1, variant: "head" } : { id: uid(), kind: "text", x: p.x, y: p.y, size: 1, label: "Texto", color: null };
-      set({ tokens: [...piece.tokens, t] });
-      setSel({ type: "token", id: t.id });
+      const tk = tool === "signal" ? { id: uid(), kind: "signal", x: p.x, y: p.y, size: 1, variant: "head" } : { id: uid(), kind: "text", x: p.x, y: p.y, size: 1, label: t("Texto"), color: null };
+      set({ tokens: [...piece.tokens, tk] });
+      setSel({ type: "token", id: tk.id });
       setTool("move");
     } else if (tool === "arrow") {
       setDraft({ x1: p.x, y1: p.y, x2: p.x, y2: p.y });
@@ -288,19 +291,19 @@ function Board({ piece, onChange, candidates, lookup, kitOf, header, side }) {
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1">
-        {TOOLS.map((t) => {
-          const Icon = t.icon;
-          const on = tool === t.key;
+        {TOOLS.map((tl) => {
+          const Icon = tl.icon;
+          const on = tool === tl.key;
           return (
-            <button key={t.key} type="button" onClick={() => setTool(t.key)}
+            <button key={tl.key} type="button" onClick={() => setTool(tl.key)}
               className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold border ${on ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
               style={on ? { background: "var(--granate)" } : {}}>
-              <Icon className="w-3.5 h-3.5" style={!on && t.color ? { color: t.color, fill: t.color } : {}} />{t.label}
+              <Icon className="w-3.5 h-3.5" style={!on && tl.color ? { color: tl.color, fill: tl.color } : {}} />{t(tl.label)}
             </button>
           );
         })}
-        <button type="button" onClick={fillWithSquad} disabled={!candidates.length} title="Asigna los convocados (porteros, defensas, medios, delanteros) a las fichas nuestras que no tienen jugador"
-          className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold border bg-white text-gray-600 border-gray-200 hover:bg-gray-50 disabled:opacity-40"><Users className="w-3.5 h-3.5" /> Rellenar con convocados</button>
+        <button type="button" onClick={fillWithSquad} disabled={!candidates.length} title={t("Asigna los convocados (porteros, defensas, medios, delanteros) a las fichas nuestras que no tienen jugador")}
+          className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold border bg-white text-gray-600 border-gray-200 hover:bg-gray-50 disabled:opacity-40"><Users className="w-3.5 h-3.5" /> {t("Rellenar con convocados")}</button>
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm space-y-3">
@@ -390,79 +393,79 @@ function Board({ piece, onChange, candidates, lookup, kitOf, header, side }) {
       {side}
       </div>
       </div>
-      <p className="text-[10px] text-gray-400">Elige una herramienta y toca el campo. Con «Flecha», arrastra de origen a destino. Con «Mover», toca una ficha o una flecha para editarla.</p>
+      <p className="text-[10px] text-gray-400">{t("Elige una herramienta y toca el campo. Con «Flecha», arrastra de origen a destino. Con «Mover», toca una ficha o una flecha para editarla.")}</p>
 
       {showArrowOpts && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Flecha</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t("Flecha")}</span>
           <div className="flex gap-1">
-            {[[false, "Recta"], [true, "Curva"]].map(([v, l]) => (
-              <button key={l} type="button" onClick={() => changeArrow({ curve: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowCurve === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowCurve === v ? { background: "var(--granate)" } : {}}>{l}</button>
+            {[[false, msg("Recta")], [true, msg("Curva")]].map(([v, l]) => (
+              <button key={l} type="button" onClick={() => changeArrow({ curve: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowCurve === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowCurve === v ? { background: "var(--granate)" } : {}}>{t(l)}</button>
             ))}
           </div>
           <div className="flex gap-1">
-            {[[false, "Continua"], [true, "Discontinua"]].map(([v, l]) => (
-              <button key={l} type="button" onClick={() => changeArrow({ dashed: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowDashed === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowDashed === v ? { background: "var(--granate)" } : {}}>{l}</button>
+            {[[false, msg("Continua")], [true, msg("Discontinua")]].map(([v, l]) => (
+              <button key={l} type="button" onClick={() => changeArrow({ dashed: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowDashed === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowDashed === v ? { background: "var(--granate)" } : {}}>{t(l)}</button>
             ))}
           </div>
           <div className="flex gap-1">
-            {[["own", "Nuestro"], ["rival", "Rival"]].map(([v, l]) => (
-              <button key={v} type="button" onClick={() => changeArrow({ team: v, color: null })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowTeam === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowTeam === v ? { background: teamColor(v) } : {}}>{l}</button>
+            {[["own", msg("Nuestro")], ["rival", msg("Rival")]].map(([v, l]) => (
+              <button key={v} type="button" onClick={() => changeArrow({ team: v, color: null })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowTeam === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowTeam === v ? { background: teamColor(v) } : {}}>{t(l)}</button>
             ))}
           </div>
-          <Swatches value={arrowColor} onPick={(c) => changeArrow({ color: c })} allowReset resetLabel="Del equipo" />
+          <Swatches value={arrowColor} onPick={(c) => changeArrow({ color: c })} allowReset resetLabel={t("Del equipo")} />
           <div className="flex gap-1">
-            {[[true, "Con borde"], [false, "Sin borde"]].map(([v, l]) => (
-              <button key={l} type="button" onClick={() => changeArrow({ border: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowBorder === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowBorder === v ? { background: "var(--granate)" } : {}}>{l}</button>
+            {[[true, msg("Con borde")], [false, msg("Sin borde")]].map(([v, l]) => (
+              <button key={l} type="button" onClick={() => changeArrow({ border: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowBorder === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowBorder === v ? { background: "var(--granate)" } : {}}>{t(l)}</button>
             ))}
           </div>
           <div className="flex gap-1">
-            {[[true, "Con punta"], [false, "Sin punta"]].map(([v, l]) => (
-              <button key={l} type="button" onClick={() => changeArrow({ head: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowHead === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowHead === v ? { background: "var(--granate)" } : {}}>{l}</button>
+            {[[true, msg("Con punta")], [false, msg("Sin punta")]].map(([v, l]) => (
+              <button key={l} type="button" onClick={() => changeArrow({ head: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${arrowHead === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={arrowHead === v ? { background: "var(--granate)" } : {}}>{t(l)}</button>
             ))}
           </div>
-          <label className="flex items-center gap-2 text-[11px] text-gray-500">Grosor
+          <label className="flex items-center gap-2 text-[11px] text-gray-500">{t("Grosor")}
             <input type="range" min="0.8" max="3.5" step="0.1" value={arrowWidth} onChange={(e) => changeArrow({ width: Number(e.target.value) })} className="w-24 accent-[#73000A]" />
           </label>
           {selArrow && selArrow.cx != null && (
-            <label className="flex items-center gap-2 text-[11px] text-gray-500">Curvatura
+            <label className="flex items-center gap-2 text-[11px] text-gray-500">{t("Curvatura")}
               <input type="range" min="-0.8" max="0.8" step="0.02" value={curvatureOf(selArrow)} onChange={(e) => setArrow(selArrow.id, controlFromK(selArrow, Number(e.target.value)))} className="w-28 accent-[#73000A]" />
             </label>
           )}
-          {selArrow && <button type="button" onClick={() => { set({ arrows: piece.arrows.filter((a) => a.id !== selArrow.id) }); setSel(null); }} className="ml-auto p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title="Eliminar flecha"><Trash2 className="w-4 h-4" /></button>}
+          {selArrow && <button type="button" onClick={() => { set({ arrows: piece.arrows.filter((a) => a.id !== selArrow.id) }); setSel(null); }} className="ml-auto p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title={t("Eliminar flecha")}><Trash2 className="w-4 h-4" /></button>}
         </div>
       )}
 
       {selToken && selToken.kind === "signal" && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Señal</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t("Señal")}</span>
           <div className="flex gap-1 flex-wrap">
             {SIGNALS.map(([v, l]) => (
-              <button key={v} type="button" onClick={() => setToken(selToken.id, { variant: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${selToken.variant === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={selToken.variant === v ? { background: "var(--granate)" } : {}}>{l}</button>
+              <button key={v} type="button" onClick={() => setToken(selToken.id, { variant: v })} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${selToken.variant === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={selToken.variant === v ? { background: "var(--granate)" } : {}}>{t(l)}</button>
             ))}
           </div>
-          <label className="flex items-center gap-2 text-[11px] text-gray-500">Tamaño
+          <label className="flex items-center gap-2 text-[11px] text-gray-500">{t("Tamaño")}
             <input type="range" min="0.6" max="1.8" step="0.1" value={selToken.size || 1} onChange={(e) => setToken(selToken.id, { size: Number(e.target.value) })} className="w-24 accent-[#73000A]" />
           </label>
-          <button type="button" onClick={() => { set({ tokens: piece.tokens.filter((t) => t.id !== selToken.id) }); setSel(null); }} className="ml-auto p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title="Quitar"><Trash2 className="w-4 h-4" /></button>
+          <button type="button" onClick={() => { set({ tokens: piece.tokens.filter((t) => t.id !== selToken.id) }); setSel(null); }} className="ml-auto p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title={t("Quitar")}><Trash2 className="w-4 h-4" /></button>
         </div>
       )}
       {selToken && selToken.kind === "text" && (
         <div className="grid sm:grid-cols-2 gap-x-4 gap-y-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
           <div className="sm:col-span-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Texto (admite varias líneas)</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Texto (admite varias líneas)")}</p>
             <Textarea rows={2} value={selToken.label} onChange={(e) => setToken(selToken.id, { label: e.target.value })} className="border-gray-200 text-sm bg-white" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Tamaño</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Tamaño")}</p>
             <input type="range" min="0.6" max="2.2" step="0.1" value={selToken.size || 1} onChange={(e) => setToken(selToken.id, { size: Number(e.target.value) })} className="w-full accent-[#73000A]" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Color</p>
-            <Swatches value={selToken.color} onPick={(c) => setToken(selToken.id, { color: c })} allowReset resetLabel="Naranja" />
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Color")}</p>
+            <Swatches value={selToken.color} onPick={(c) => setToken(selToken.id, { color: c })} allowReset resetLabel={t("Naranja")} />
           </div>
           <div className="sm:col-span-2 flex justify-end">
-            <button type="button" onClick={() => { set({ tokens: piece.tokens.filter((t) => t.id !== selToken.id) }); setSel(null); }} className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /> Quitar texto</button>
+            <button type="button" onClick={() => { set({ tokens: piece.tokens.filter((t) => t.id !== selToken.id) }); setSel(null); }} className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /> {t("Quitar texto")}</button>
           </div>
         </div>
       )}
@@ -470,37 +473,37 @@ function Board({ piece, onChange, candidates, lookup, kitOf, header, side }) {
         <div className="grid sm:grid-cols-2 gap-x-4 gap-y-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
           {selToken.kind === "own" ? (
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Jugador</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Jugador")}</p>
               <Select value={selToken.player_id || "__none__"} onValueChange={(v) => setToken(selToken.id, { player_id: v === "__none__" ? null : v })}>
                 <SelectTrigger className="h-8 text-xs border-gray-200 bg-white"><SelectValue /></SelectTrigger>
                 <SelectContent className="max-h-72">
-                  <SelectItem value="__none__">Sin asignar</SelectItem>
+                  <SelectItem value="__none__">{t("Sin asignar")}</SelectItem>
                   {candidates.map((p) => <SelectItem key={p.id} value={p.id}>{p.jersey_number || "–"} · {shortName(p)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           ) : (
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Dorsal / etiqueta</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Dorsal / etiqueta")}</p>
               <Input value={selToken.label} onChange={(e) => setToken(selToken.id, { label: e.target.value })} className="h-8 text-xs border-gray-200 bg-white" />
             </div>
           )}
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Rol en la jugada</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Rol en la jugada")}</p>
             <Input list="sp-roles" value={selToken.role || ""} onChange={(e) => setToken(selToken.id, { role: e.target.value })} className="h-8 text-xs border-gray-200 bg-white" />
             <datalist id="sp-roles">{ROLES.map((r) => <option key={r} value={r} />)}</datalist>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Tamaño de la ficha</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Tamaño de la ficha")}</p>
             <input type="range" min="0.6" max="1.8" step="0.1" value={selToken.size || 1} onChange={(e) => { const size = Number(e.target.value); if (allSize) set({ tokens: piece.tokens.map((t) => ({ ...t, size })) }); else setToken(selToken.id, { size }); }} className="w-full accent-[#73000A]" />
-            <label className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-600 cursor-pointer"><input type="checkbox" checked={allSize} onChange={(e) => { setAllSize(e.target.checked); if (e.target.checked) { const size = selToken.size || 1; set({ tokens: piece.tokens.map((t) => ({ ...t, size })) }); } }} className="accent-[#73000A]" /> Aplicar a todas las fichas y el balón</label>
+            <label className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-600 cursor-pointer"><input type="checkbox" checked={allSize} onChange={(e) => { setAllSize(e.target.checked); if (e.target.checked) { const size = selToken.size || 1; set({ tokens: piece.tokens.map((t) => ({ ...t, size })) }); } }} className="accent-[#73000A]" /> {t("Aplicar a todas las fichas y el balón")}</label>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Color de la ficha</p>
-            <Swatches value={selToken.color} onPick={(c) => setToken(selToken.id, { color: c })} allowReset resetLabel={selToken.kind === "own" ? "Equipación" : "Azul"} />
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Color de la ficha")}</p>
+            <Swatches value={selToken.color} onPick={(c) => setToken(selToken.id, { color: c })} allowReset resetLabel={selToken.kind === "own" ? t("Equipación") : t("Azul")} />
           </div>
           <div className="sm:col-span-2 flex justify-end">
-            <button type="button" onClick={() => { set({ tokens: piece.tokens.filter((t) => t.id !== selToken.id) }); setSel(null); }} className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /> Quitar ficha</button>
+            <button type="button" onClick={() => { set({ tokens: piece.tokens.filter((t) => t.id !== selToken.id) }); setSel(null); }} className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /> {t("Quitar ficha")}</button>
           </div>
         </div>
       )}
@@ -611,6 +614,7 @@ function printPieces(list, candidates, kitOf, perPage, teamName, book = false) {
 }
 
 export default function SetPieceBoard({ pieces, onChange, candidates = [], allPlayers = [], teamName = "", kitOf = () => ({ fill: "#fff", stroke: "#73000A", num: "#73000A" }), teamId }) {
+  const t = useT();
   const qc = useQueryClient();
   const [activeId, setActiveId] = useState(null);
   const [libOpen, setLibOpen] = useState(false);
@@ -624,8 +628,8 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
   const moveP = (id, dir) => { const i = printList.indexOf(id), j = i + dir; if (j < 0 || j >= printList.length) return; const n = [...printList]; [n[i], n[j]] = [n[j], n[i]]; setOrder(n); };
   const doPrint = () => {
     const list = printList.filter((id) => !off.includes(id)).map((id) => pieces.find((p) => p.id === id));
-    if (!list.length) return flash("Marca al menos una jugada");
-    try { printPieces(list, lookup, kitOf, perPage, teamName); } catch (e) { flash("No se pudo imprimir: " + (e?.message || "error")); }
+    if (!list.length) return flash(t("Marca al menos una jugada"));
+    try { printPieces(list, lookup, kitOf, perPage, teamName); } catch (e) { flash(t("No se pudo imprimir: {error}", { error: e?.message || t("error") })); }
   };
   const active = pieces.find((p) => p.id === activeId) || pieces[0] || null;
 
@@ -642,10 +646,10 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
   const duplicate = () => { if (!active) return; const c = { ...active, id: uid(), name: `${active.name} (copia)`, lib_id: undefined, tokens: active.tokens.map((t) => ({ ...t, id: uid() })), arrows: active.arrows.map((a) => ({ ...a, id: uid() })) }; addPiece(c); };
   const flip = () => { if (active) update(flipPiece(active)); };
   const printBook = () => {
-    if (!library.length) return flash("La biblioteca está vacía");
+    if (!library.length) return flash(t("La biblioteca está vacía"));
     const order = TYPES.map((t) => t.value);
     const list = [...library].sort((a, b) => (order.indexOf(a.type) - order.indexOf(b.type)) || (a.name || "").localeCompare(b.name || ""));
-    try { printPieces(list, lookup, kitOf, perPage, teamName, true); } catch (e) { flash("No se pudo imprimir: " + (e?.message || "error")); }
+    try { printPieces(list, lookup, kitOf, perPage, teamName, true); } catch (e) { flash(t("No se pudo imprimir: {error}", { error: e?.message || t("error") })); }
   };
   const update = (p) => onChange(pieces.map((x) => (x.id === p.id ? p : x)));
   const remove = (id) => { onChange(pieces.filter((x) => x.id !== id)); setActiveId(null); };
@@ -658,14 +662,14 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
     try {
       if (active.lib_id && library.some((l) => l.id === active.lib_id)) {
         await base44.entities.SetPlay.update(active.lib_id, data);
-        flash("Jugada actualizada en la biblioteca");
+        flash(t("Jugada actualizada en la biblioteca"));
       } else {
         const created = await base44.entities.SetPlay.create(data);
         update({ ...active, lib_id: created.id });
-        flash("Jugada guardada en la biblioteca");
+        flash(t("Jugada guardada en la biblioteca"));
       }
       qc.invalidateQueries({ queryKey: ["setplays", teamId] });
-    } catch (e) { flash("No se pudo guardar: " + (e?.message || "error")); }
+    } catch (e) { flash(t("No se pudo guardar: {error}", { error: e?.message || t("error") })); }
   };
   // Usar una jugada guardada: se mantiene todo, y los jugadores solo si siguen disponibles; si no, queda vacío para reasignar
   const addFromLibrary = (l) => {
@@ -686,53 +690,53 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
     <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-gray-900">⚽ Acciones a balón parado</p>
-          <p className="text-[10px] text-gray-400">Diseña las jugadas del partido y guárdalas para reutilizarlas.</p>
+          <p className="text-sm font-bold text-gray-900">{t("⚽ Acciones a balón parado")}</p>
+          <p className="text-[10px] text-gray-400">{t("Diseña las jugadas del partido y guárdalas para reutilizarlas.")}</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={() => setPrintOpen((v) => !v)} disabled={!pieces.length} className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40"><Printer className="w-3.5 h-3.5" /> Imprimir</button>
-          <button type="button" onClick={() => setLibOpen((v) => !v)} className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50"><Library className="w-3.5 h-3.5" /> Biblioteca{library.length ? ` (${library.length})` : ""}</button>
-          <button type="button" onClick={() => setTplOpen((v) => !v)} className="inline-flex items-center gap-1 text-xs font-bold text-white px-2.5 py-1.5 rounded" style={{ background: "var(--granate)" }}><Plus className="w-3.5 h-3.5" /> Nueva jugada</button>
+          <button type="button" onClick={() => setPrintOpen((v) => !v)} disabled={!pieces.length} className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40"><Printer className="w-3.5 h-3.5" /> {t("Imprimir")}</button>
+          <button type="button" onClick={() => setLibOpen((v) => !v)} className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50"><Library className="w-3.5 h-3.5" /> {t("Biblioteca{v}", { v: library.length ? ` (${library.length})` : "" })}</button>
+          <button type="button" onClick={() => setTplOpen((v) => !v)} className="inline-flex items-center gap-1 text-xs font-bold text-white px-2.5 py-1.5 rounded" style={{ background: "var(--granate)" }}><Plus className="w-3.5 h-3.5" /> {t("Nueva jugada")}</button>
         </div>
       </div>
 
       {tplOpen && (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Empezar desde…</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t("Empezar desde…")}</p>
             <button type="button" onClick={() => setTplOpen(false)} className="text-gray-400 hover:text-gray-700"><X className="w-4 h-4" /></button>
           </div>
           <div className="grid sm:grid-cols-2 gap-2">
-            <button type="button" onClick={add} className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"><Plus className="w-3.5 h-3.5" /> Campo en blanco</button>
-            {TEMPLATES.map((t) => (
-              <button key={t.key} type="button" onClick={() => addTemplate(t)} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-800 hover:bg-gray-50 text-left"><LayoutTemplate className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--granate)" }} /> {t.label}</button>
+            <button type="button" onClick={add} className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"><Plus className="w-3.5 h-3.5" /> {t("Campo en blanco")}</button>
+            {TEMPLATES.map((tp) => (
+              <button key={tp.key} type="button" onClick={() => addTemplate(tp)} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-800 hover:bg-gray-50 text-left"><LayoutTemplate className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--granate)" }} /> {t(tp.label)}</button>
             ))}
           </div>
-          <p className="text-[10px] text-gray-400">Las fichas ya vienen colocadas. Después solo asignas los jugadores (o pulsas «Rellenar con convocados»).</p>
+          <p className="text-[10px] text-gray-400">{t("Las fichas ya vienen colocadas. Después solo asignas los jugadores (o pulsas «Rellenar con convocados»).")}</p>
         </div>
       )}
 
       {printOpen && pieces.length > 0 && (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Imprimir · elige jugadas y orden</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t("Imprimir · elige jugadas y orden")}</p>
             <button type="button" onClick={() => setPrintOpen(false)} className="text-gray-400 hover:text-gray-700"><X className="w-4 h-4" /></button>
           </div>
           <div className="space-y-1">
             {printList.map((id, i) => { const p = pieces.find((x) => x.id === id); return (
               <div key={id} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5">
                 <input type="checkbox" checked={!off.includes(id)} onChange={(e) => setOff(e.target.checked ? off.filter((x) => x !== id) : [...off, id])} className="accent-[#73000A]" />
-                <span className="text-xs font-semibold text-gray-800 truncate flex-1 min-w-0">{i + 1}. {p.name || "Sin nombre"}</span>
+                <span className="text-xs font-semibold text-gray-800 truncate flex-1 min-w-0">{i + 1}. {p.name || t("Sin nombre")}</span>
                 <button type="button" onClick={() => moveP(id, -1)} className="p-1 text-gray-400 hover:text-gray-800"><ArrowUp className="w-3.5 h-3.5" /></button>
                 <button type="button" onClick={() => moveP(id, 1)} className="p-1 text-gray-400 hover:text-gray-800"><ArrowDown className="w-3.5 h-3.5" /></button>
               </div>); })}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {[[1, "1 por página"], [2, "2 por página"]].map(([v, l]) => (
-              <button key={v} type="button" onClick={() => setPerPage(v)} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${perPage === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={perPage === v ? { background: "var(--granate)" } : {}}>{l}</button>
+            {[[1, msg("1 por página")], [2, msg("2 por página")]].map(([v, l]) => (
+              <button key={v} type="button" onClick={() => setPerPage(v)} className={`px-2 py-1 rounded-md text-[11px] font-semibold border ${perPage === v ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={perPage === v ? { background: "var(--granate)" } : {}}>{t(l)}</button>
             ))}
-            <button type="button" onClick={printBook} disabled={!library.length} title="Imprime toda la biblioteca del equipo, con portada y agrupada por tipo" className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-white disabled:opacity-40"><BookOpen className="w-3.5 h-3.5" /> Libro del equipo</button>
-            <Button type="button" variant="club" size="sm" onClick={doPrint} className="ml-auto gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir</Button>
+            <button type="button" onClick={printBook} disabled={!library.length} title={t("Imprime toda la biblioteca del equipo, con portada y agrupada por tipo")} className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-white disabled:opacity-40"><BookOpen className="w-3.5 h-3.5" /> {t("Libro del equipo")}</button>
+            <Button type="button" variant="club" size="sm" onClick={doPrint} className="ml-auto gap-1"><Printer className="w-3.5 h-3.5" /> {t("Imprimir")}</Button>
           </div>
         </div>
       )}
@@ -740,21 +744,21 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
       {libOpen && (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Biblioteca del equipo</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t("Biblioteca del equipo")}</p>
             <button type="button" onClick={() => setLibOpen(false)} className="text-gray-400 hover:text-gray-700"><X className="w-4 h-4" /></button>
           </div>
           {library.length === 0 ? (
-            <p className="text-xs text-gray-400">Aún no hay jugadas guardadas. Crea una y pulsa «Guardar en biblioteca».</p>
+            <p className="text-xs text-gray-400">{t("Aún no hay jugadas guardadas. Crea una y pulsa «Guardar en biblioteca».")}</p>
           ) : (
             <div className="grid sm:grid-cols-2 gap-2">
               {library.map((l) => (
                 <div key={l.id} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-gray-900 truncate">{l.name || "Sin nombre"}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{typeLabel(l.type)}{l.signal ? ` · Señal: ${l.signal}` : ""}</p>
+                    <p className="text-xs font-bold text-gray-900 truncate">{l.name || t("Sin nombre")}</p>
+                    <p className="text-[10px] text-gray-400 truncate">{typeLabel(l.type)}{l.signal ? ` · ${t("Señal: {signal}", { signal: l.signal })}` : ""}</p>
                   </div>
-                  <button type="button" onClick={() => addFromLibrary(l)} className="text-[11px] font-bold text-white px-2 py-1 rounded shrink-0" style={{ background: "var(--granate)" }}>Usar</button>
-                  <button type="button" onClick={() => removeFromLibrary(l)} className="p-1 text-gray-300 hover:text-red-500 shrink-0" title="Quitar de la biblioteca"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button type="button" onClick={() => addFromLibrary(l)} className="text-[11px] font-bold text-white px-2 py-1 rounded shrink-0" style={{ background: "var(--granate)" }}>{t("Usar")}</button>
+                  <button type="button" onClick={() => removeFromLibrary(l)} className="p-1 text-gray-300 hover:text-red-500 shrink-0" title={t("Quitar de la biblioteca")}><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               ))}
             </div>
@@ -763,14 +767,14 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
       )}
 
       {pieces.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-6">Aún no hay jugadas. Crea una nueva o usa una de la biblioteca.</p>
+        <p className="text-sm text-gray-400 text-center py-6">{t("Aún no hay jugadas. Crea una nueva o usa una de la biblioteca.")}</p>
       ) : (
         <div className="grid lg:grid-cols-[200px_1fr] gap-4">
           <div className="space-y-1">
             {pieces.map((p) => (
               <button key={p.id} type="button" onClick={() => setActiveId(p.id)}
                 className={`w-full text-left px-3 py-2 rounded-lg border text-xs ${active?.id === p.id ? "border-[var(--granate)] bg-red-50" : "border-gray-200 hover:bg-gray-50"}`}>
-                <span className="block font-bold text-gray-900 truncate">{p.name || "Sin nombre"}</span>
+                <span className="block font-bold text-gray-900 truncate">{p.name || t("Sin nombre")}</span>
                 <span className="text-[10px] text-gray-400">{typeLabel(p.type)}</span>
               </button>
             ))}
@@ -784,41 +788,41 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
                       <div className="flex items-center gap-2 shrink-0">
                         <img src={CLUB_LOGO_URL} alt="" className="h-9 sm:h-11 w-auto" />
                         <div className="hidden sm:block leading-tight">
-                          <p className="text-sm" style={{ fontFamily: F_BIG, color: GRANATE, letterSpacing: "0.05em" }}>RACING SARRIÀ</p>
+                          <p className="text-sm" style={{ fontFamily: F_BIG, color: GRANATE, letterSpacing: "0.05em" }}>{t("RACING SARRIÀ")}</p>
                           <p className="text-xs uppercase font-semibold" style={{ fontFamily: F_TXT, color: NARANJA }}>{teamName}</p>
                         </div>
                       </div>
                       <div className="min-w-0 flex-1 flex flex-col items-end">
-                        <input value={active.name} onChange={(e) => update({ ...active, name: e.target.value })} placeholder="TÍTULO DE LA JUGADA"
+                        <input value={active.name} onChange={(e) => update({ ...active, name: e.target.value })} placeholder={t("TÍTULO DE LA JUGADA")}
                           className="w-full text-right uppercase bg-transparent rounded px-1 outline-none hover:bg-gray-50 focus:bg-gray-50 focus:ring-1 focus:ring-[#FF6E00] text-xl sm:text-3xl leading-tight"
                           style={{ fontFamily: F_BIG, color: GRANATE, letterSpacing: "0.05em" }} />
                         <Select value={active.type} onValueChange={(v) => update({ ...active, type: v })}>
                           <SelectTrigger className="h-7 w-auto max-w-full border-0 bg-transparent shadow-none px-1 gap-1 focus:ring-0 hover:bg-gray-50 text-sm sm:text-base uppercase" style={{ fontFamily: F_BIG, color: NARANJA, letterSpacing: "0.05em" }}><SelectValue /></SelectTrigger>
-                          <SelectContent>{TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                          <SelectContent>{TYPES.map((ty) => <SelectItem key={ty.value} value={ty.value}>{t(ty.label)}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 rounded-md border px-2 py-1" style={{ borderColor: NARANJA }}>
-                      <span className="text-[10px] font-bold text-white px-2 py-0.5 rounded shrink-0" style={{ background: NARANJA, fontFamily: F_TXT, letterSpacing: "0.08em" }}>SEÑAL</span>
-                      <input value={active.signal || ""} onChange={(e) => update({ ...active, signal: e.target.value })} placeholder="Cómo se avisa: el lanzador se toca la cabeza, bota el balón…"
+                      <span className="text-[10px] font-bold text-white px-2 py-0.5 rounded shrink-0" style={{ background: NARANJA, fontFamily: F_TXT, letterSpacing: "0.08em" }}>{t("SEÑAL")}</span>
+                      <input value={active.signal || ""} onChange={(e) => update({ ...active, signal: e.target.value })} placeholder={t("Cómo se avisa: el lanzador se toca la cabeza, bota el balón…")}
                         className="flex-1 min-w-0 bg-transparent outline-none text-sm text-gray-800" style={{ fontFamily: F_TXT }} />
                     </div>
                   </>
                 )}
                 side={(
                   <div className="w-full md:w-48 shrink-0 md:border-l-2 md:pl-3" style={{ borderColor: NARANJA }}>
-                    <p className="text-[10px] font-bold mb-1" style={{ color: NARANJA, fontFamily: F_TXT, letterSpacing: "0.08em" }}>INSTRUCCIONES</p>
-                    <Textarea rows={5} value={active.notes} onChange={(e) => update({ ...active, notes: e.target.value })} className="border-gray-200 text-sm" style={{ fontFamily: F_TXT }} placeholder="Quién saca, quién ataca el primer palo, rechace…" />
+                    <p className="text-[10px] font-bold mb-1" style={{ color: NARANJA, fontFamily: F_TXT, letterSpacing: "0.08em" }}>{t("INSTRUCCIONES")}</p>
+                    <Textarea rows={5} value={active.notes} onChange={(e) => update({ ...active, notes: e.target.value })} className="border-gray-200 text-sm" style={{ fontFamily: F_TXT }} placeholder={t("Quién saca, quién ataca el primer palo, rechace…")} />
                   </div>
                 )} />
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={saveToLibrary} disabled={!teamId} className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded border" style={{ borderColor: "var(--granate)", color: "var(--granate)" }}>
-                  <BookmarkPlus className="w-3.5 h-3.5" /> {active.lib_id ? "Actualizar en la biblioteca" : "Guardar en biblioteca"}
+                  <BookmarkPlus className="w-3.5 h-3.5" /> {active.lib_id ? t("Actualizar en la biblioteca") : t("Guardar en biblioteca")}
                 </button>
-                <button type="button" onClick={duplicate} className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50"><Copy className="w-3.5 h-3.5" /> Duplicar</button>
-                <button type="button" onClick={flip} title="Voltea la jugada de izquierda a derecha (por ejemplo, un córner del otro lado)" className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50"><FlipHorizontal className="w-3.5 h-3.5" /> Voltear izq/der</button>
+                <button type="button" onClick={duplicate} className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50"><Copy className="w-3.5 h-3.5" /> {t("Duplicar")}</button>
+                <button type="button" onClick={flip} title={t("Voltea la jugada de izquierda a derecha (por ejemplo, un córner del otro lado)")} className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50"><FlipHorizontal className="w-3.5 h-3.5" /> {t("Voltear izq/der")}</button>
                 {msg && <span className="text-[11px] text-gray-500">{msg}</span>}
-                <button type="button" onClick={() => remove(active.id)} className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /> Quitar del partido</button>
+                <button type="button" onClick={() => remove(active.id)} className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /> {t("Quitar del partido")}</button>
               </div>
             </div>
           )}

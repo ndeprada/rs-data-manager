@@ -1,9 +1,11 @@
 import React from "react";
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subMonths, eachMonthOfInterval } from "date-fns";
-import { es } from "date-fns/locale";
+import { useT, useDateLocale } from "@/i18n";
 
 export default function AttendanceChart({ attendance }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const last6Months = eachMonthOfInterval({
     start: subMonths(new Date(), 5),
     end: new Date(),
@@ -19,7 +21,7 @@ export default function AttendanceChart({ attendance }) {
     const pct = total > 0 ? Math.round(((present + apart) / total) * 100) : 0;
 
     return {
-      month: format(month, "MMM", { locale: es }),
+      month: format(month, "MMM", { locale: dfl }),
       present,
       apart,
       absent,
@@ -34,10 +36,10 @@ export default function AttendanceChart({ attendance }) {
     return (
       <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-lg text-sm">
         <p className="font-semibold text-gray-900 capitalize mb-1">{label}</p>
-        <p className="text-green-600">Presentes: {d.present}</p>
-        <p className="text-blue-600">A parte: {d.apart}</p>
-        <p className="text-red-500">Ausentes: {d.absent}</p>
-        <p className="text-gray-700 font-medium mt-1">Asistencia: {d.pct}%</p>
+        <p className="text-green-600">{t("Presentes: {present}", { present: d.present })}</p>
+        <p className="text-blue-600">{t("A parte: {apart}", { apart: d.apart })}</p>
+        <p className="text-red-500">{t("Ausentes: {absent}", { absent: d.absent })}</p>
+        <p className="text-gray-700 font-medium mt-1">{t("Asistencia: {pct}%", { pct: d.pct })}</p>
       </div>
     );
   };
@@ -49,19 +51,19 @@ export default function AttendanceChart({ attendance }) {
     <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
       <div className="p-5 border-b border-gray-100 flex items-center justify-between">
         <div>
-          <h2 className="font-bold text-xl uppercase tracking-wide text-gray-900" style={{ fontFamily: "var(--font-display)" }}>Asistencia a Entrenamientos</h2>
-          <p className="text-xs text-gray-400 mt-0.5 uppercase tracking-widest" style={{ fontFamily: "var(--font-display)" }}>Últimos 6 meses</p>
+          <h2 className="font-bold text-xl uppercase tracking-wide text-gray-900" style={{ fontFamily: "var(--font-display)" }}>{t("Asistencia a Entrenamientos")}</h2>
+          <p className="text-xs text-gray-400 mt-0.5 uppercase tracking-widest" style={{ fontFamily: "var(--font-display)" }}>{t("Últimos 6 meses")}</p>
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold" style={{ color: "var(--granate)" }}>{Math.round(avgPct)}%</p>
-          <p className="text-xs text-gray-400">media</p>
+          <p className="text-xs text-gray-400">{t("media")}</p>
         </div>
       </div>
       <div className="p-5">
         <div className="flex gap-4 mb-4 text-xs">
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-green-500 inline-block"></span>Presente</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-blue-400 inline-block"></span>A parte</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-red-400 inline-block"></span>Ausente</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-green-500 inline-block"></span>{t("Presente")}</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-blue-400 inline-block"></span>{t("A parte")}</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-red-400 inline-block"></span>{t("Ausente")}</span>
         </div>
         <ResponsiveContainer width="100%" height={220}>
           <ComposedChart data={data} barSize={18} barGap={2}>
@@ -73,7 +75,7 @@ export default function AttendanceChart({ attendance }) {
             <Bar yAxisId="left" dataKey="present" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
             <Bar yAxisId="left" dataKey="apart" stackId="a" fill="#60a5fa" />
             <Bar yAxisId="left" dataKey="absent" stackId="a" fill="#f87171" radius={[4, 4, 0, 0]} />
-            <Line yAxisId="right" type="monotone" dataKey="pct" stroke="var(--naranja)" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Media de asistencia" />
+            <Line yAxisId="right" type="monotone" dataKey="pct" stroke="var(--naranja)" strokeWidth={2} strokeDasharray="5 5" dot={false} name={t("Media de asistencia")} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

@@ -1,22 +1,23 @@
 // Participación de un jugador en los partidos: titular, suplente, no convocado (y por qué), minutos y porcentajes.
 // Funciones puras (se prueban con tests). Los partidos que se pasan ya vienen filtrados (cerrados y del tipo elegido).
 import { defaultDuration, totalMinutes } from './matchDuration.js';
+import { msg } from "../i18n/translate.js";
 
 // Motivos por los que un jugador no está convocado (los mismos que se eligen en la pestaña Convocatoria).
 // `ajeno` = motivo ajeno al entrenador: ese partido el jugador NO estaba disponible y no cuenta para el % de minutos.
 // Si lo deja fuera el entrenador (decisión técnica, descanso) o no hay motivo, el partido sí cuenta como disponible (0 minutos).
 export const NO_CONV_REASONS = [
-  { value: 'lesion', label: 'Lesión', short: 'Lesión', ajeno: true },
-  { value: 'enfermo', label: 'Enfermo (cuenta como lesión)', short: 'Enfermo', ajeno: true },
-  { value: 'sancion', label: 'Sanción', short: 'Sanción', ajeno: true },
-  { value: 'descanso', label: 'Descanso', short: 'Descanso', ajeno: false },
-  { value: 'decision_tecnica', label: 'Dec. técnica', short: 'Dec. técnica', ajeno: false },
-  { value: 'viaje', label: 'Viaje', short: 'Viaje', ajeno: true },
-  { value: 'estudios', label: 'Estudios', short: 'Estudios', ajeno: true },
-  { value: 'otro', label: 'Otro', short: 'Otro', ajeno: true },
+  { value: 'lesion', label: msg("Lesión"), short: msg("Lesión"), ajeno: true },
+  { value: 'enfermo', label: msg("Enfermo (cuenta como lesión)"), short: msg("Enfermo"), ajeno: true },
+  { value: 'sancion', label: msg("Sanción"), short: msg("Sanción"), ajeno: true },
+  { value: 'descanso', label: msg("Descanso"), short: msg("Descanso"), ajeno: false },
+  { value: 'decision_tecnica', label: msg("Dec. técnica"), short: msg("Dec. técnica"), ajeno: false },
+  { value: 'viaje', label: msg("Viaje"), short: msg("Viaje"), ajeno: true },
+  { value: 'estudios', label: msg("Estudios"), short: msg("Estudios"), ajeno: true },
+  { value: 'otro', label: msg("Otro"), short: msg("Otro"), ajeno: true },
 ];
 export const NO_REASON = 'sin_motivo';
-export const reasonShort = (r) => (r === NO_REASON ? 'Sin motivo' : NO_CONV_REASONS.find((x) => x.value === r)?.short || r);
+export const reasonShort = (r) => (r === NO_REASON ? msg("Sin motivo") : NO_CONV_REASONS.find((x) => x.value === r)?.short || r);
 // Orden en el que se enseñan los motivos (los de sin motivo, al final)
 export const REASON_ORDER = [...NO_CONV_REASONS.map((r) => r.value), NO_REASON];
 // ¿El jugador no estaba a disposición del entrenador por ese motivo?
@@ -37,7 +38,7 @@ export function minutesLevel(format, pct) {
 }
 const SEVERITY = { ok: 0, warn: 1, alert: 2 };
 export const worstLevel = (levels) => levels.filter(Boolean).sort((a, b) => SEVERITY[b] - SEVERITY[a])[0] || null;
-export const FORMAT_LABEL = { f11: 'Fútbol 11', f7: 'Fútbol 7' };
+export const FORMAT_LABEL = { f11: msg("Fútbol 11"), f7: msg("Fútbol 7") };
 
 // Nivel de minutos de un jugador en la vista elegida ('all' = el peor de sus formatos con partidos disponibles).
 // Un formato en el que no tuvo ningún partido disponible no cuenta.

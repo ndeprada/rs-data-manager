@@ -95,41 +95,43 @@ export function buildReport({ table, matches, scorers, ourCode, rivalCode, compe
   const us = ourRow ? { pos: Number(ourRow.position), pts: Number(ourRow.points), pj: Number(ourRow.played) || 0, gf: Number(ourRow.goalsFor) || 0, gc: Number(ourRow.goalsAgainst) || 0 } : null;
 
   // ── Claves automáticas (solo con datos suficientes) ──
-  const insights = [];
+  // Cada clave sale como texto en español (compatibilidad) y como {id, v} para que la app la traduzca.
+  const insights = [], insightItems = [];
+  const say = (id, v, text) => { insights.push(text); insightItems.push({ id, v }); };
   if (form.length >= 3) {
     const wins = form.findIndex((x) => x.result !== 'G');
     const unbeaten = form.findIndex((x) => x.result === 'P');
     const winless = form.findIndex((x) => x.result === 'G');
     const run = (i) => (i === -1 ? form.length : i);
-    if (run(wins) >= 3) insights.push(`Racha de ${run(wins)} victorias seguidas.`);
-    else if (run(unbeaten) >= 3) insights.push(`Lleva ${run(unbeaten)} partidos sin perder.`);
-    else if (run(winless) >= 3) insights.push(`Lleva ${run(winless)} partidos sin ganar.`);
+    if (run(wins) >= 3) say('streakWins', { n: run(wins) }, `Racha de ${run(wins)} victorias seguidas.`);
+    else if (run(unbeaten) >= 3) say('unbeaten', { n: run(unbeaten) }, `Lleva ${run(unbeaten)} partidos sin perder.`);
+    else if (run(winless) >= 3) say('winless', { n: run(winless) }, `Lleva ${run(winless)} partidos sin ganar.`);
   }
   if (pj >= 3) {
     const byGf = [...rows].sort((a, b) => Number(b.goalsFor) - Number(a.goalsFor)).findIndex((r) => String(r.team?.teamId) === rivalCode) + 1;
     const byGc = [...rows].sort((a, b) => Number(a.goalsAgainst) - Number(b.goalsAgainst)).findIndex((r) => String(r.team?.teamId) === rivalCode) + 1;
-    if (byGf <= 3) insights.push(`Ataque nº ${byGf} del grupo: ${gf} goles (${f1(gf / pj)} por partido).`);
-    else if (gf / pj < 1) insights.push(`Marca poco: ${f1(gf / pj)} goles por partido.`);
-    if (byGc <= 3) insights.push(`Defensa nº ${byGc} del grupo: solo ${gc} goles encajados (${f1(gc / pj)} por partido).`);
-    else if (gc / pj >= 2) insights.push(`Encaja mucho: ${f1(gc / pj)} goles por partido.`);
-    if (cleanSheets >= Math.ceil(pj / 2)) insights.push(`Ha dejado la portería a cero en ${cleanSheets} de ${pj} partidos.`);
+    if (byGf <= 3) say('attackTop', { pos: byGf, gf, pg: gf / pj }, `Ataque nº ${byGf} del grupo: ${gf} goles (${f1(gf / pj)} por partido).`);
+    else if (gf / pj < 1) say('scoresLittle', { pg: gf / pj }, `Marca poco: ${f1(gf / pj)} goles por partido.`);
+    if (byGc <= 3) say('defenceTop', { pos: byGc, gc, pg: gc / pj }, `Defensa nº ${byGc} del grupo: solo ${gc} goles encajados (${f1(gc / pj)} por partido).`);
+    else if (gc / pj >= 2) say('concedesMuch', { pg: gc / pj }, `Encaja mucho: ${f1(gc / pj)} goles por partido.`);
+    if (cleanSheets >= Math.ceil(pj / 2)) say('cleanSheets', { n: cleanSheets, pj }, `Ha dejado la portería a cero en ${cleanSheets} de ${pj} partidos.`);
   }
   if (home.pj >= 2 && away.pj >= 2) {
     const ppg = (r) => (r.g * 3 + r.e) / r.pj;
     const d = ppg(home) - ppg(away);
-    if (d >= 1) insights.push(`Mucho más fuerte en casa (${f1(ppg(home))} pts/partido) que fuera (${f1(ppg(away))}).`);
-    else if (d <= -1) insights.push(`Rinde más fuera (${f1(ppg(away))} pts/partido) que en casa (${f1(ppg(home))}).`);
+    if (d >= 1) say('strongerHome', { home: ppg(home), away: ppg(away) }, `Mucho más fuerte en casa (${f1(ppg(home))} pts/partido) que fuera (${f1(ppg(away))}).`);
+    else if (d <= -1) say('strongerAway', { home: ppg(home), away: ppg(away) }, `Rinde más fuera (${f1(ppg(away))} pts/partido) que en casa (${f1(ppg(home))}).`);
   }
-  if (sc.length && gf >= 4 && sc[0].goals / gf >= 0.4) insights.push(`Depende de ${sc[0].name}: ${sc[0].goals} de sus ${gf} goles.`);
+  if (sc.length && gf >= 4 && sc[0].goals / gf >= 0.4) say('depends', { name: sc[0].name, goals: sc[0].goals, gf }, `Depende de ${sc[0].name}: ${sc[0].goals} de sus ${gf} goles.`);
   if (h2h.length) {
     const x = h2h[0]; // el más reciente
     const verb = x.ourGoals > x.rivalGoals ? 'ganasteis' : x.ourGoals < x.rivalGoals ? 'perdisteis' : 'empatasteis';
-    insights.push(`Ya os enfrentasteis: ${verb} ${x.ourGoals}-${x.rivalGoals} ${x.rivalHome ? 'jugando fuera' : 'en casa'}.`);
+    say('h2h', { result: x.ourGoals > x.rivalGoals ? 'G' : x.ourGoals < x.rivalGoals ? 'P' : 'E', our: x.ourGoals, rival: x.rivalGoals, away: !!x.rivalHome }, `Ya os enfrentasteis: ${verb} ${x.ourGoals}-${x.rivalGoals} ${x.rivalHome ? 'jugando fuera' : 'en casa'}.`);
   }
 
   return {
     available: true, competition, group, updated: new Date().toISOString(),
-    rival, us, form, home, away, cleanSheets, scorers: sc.slice(0, 3), next: upcoming, h2h, insights,
+    rival, us, form, home, away, cleanSheets, scorers: sc.slice(0, 3), next: upcoming, h2h, insights, insightItems,
   };
 }
 

@@ -8,24 +8,26 @@ import { Label } from "@/components/ui/label";
 import { playerFullName } from "@/lib/playerName";
 
 import { PageTitle } from "@/components/common/PageHeader";
+import { useT, msg } from "@/i18n";
 const STATUS_CONFIG = {
-  present: { label: "Asistió", color: "green", icon: CheckCircle2 },
-  apart: { label: "Trabajo aparté", color: "blue", icon: AlertCircle },
-  absent: { label: "Ausente", color: "red", icon: XCircle },
+  present: { label: msg("Asistió"), color: "green", icon: CheckCircle2 },
+  apart: { label: msg("Trabajo aparté"), color: "blue", icon: AlertCircle },
+  absent: { label: msg("Ausente"), color: "red", icon: XCircle },
 };
 
 const ABSENCE_REASONS = [
-  { value: "lesion", label: "Lesión" },
-  { value: "enfermo", label: "Enfermo" },
-  { value: "clase", label: "Clase" },
-  { value: "examen", label: "Examen" },
-  { value: "viaje", label: "Viaje" },
-  { value: "familiar", label: "Asunto familiar" },
-  { value: "permiso", label: "Permiso" },
-  { value: "otro", label: "Otro" },
+  { value: "lesion", label: msg("Lesión") },
+  { value: "enfermo", label: msg("Enfermo") },
+  { value: "clase", label: msg("Clase") },
+  { value: "examen", label: msg("Examen") },
+  { value: "viaje", label: msg("Viaje") },
+  { value: "familiar", label: msg("Asunto familiar") },
+  { value: "permiso", label: msg("Permiso") },
+  { value: "otro", label: msg("Otro") },
 ];
 
 export default function Attendance() {
+  const t = useT();
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [selectedTeamId, setSelectedTeamId] = useState("all");
@@ -115,13 +117,13 @@ export default function Attendance() {
 
   return (
     <div className="space-y-4">
-      <PageTitle kicker="Gestión" title="Asistencia" subtitle="Registra la asistencia a entrenamientos y partidos" />
+      <PageTitle kicker={t("Gestión")} title={t("Asistencia")} subtitle={t("Registra la asistencia a entrenamientos y partidos")} />
 
       {/* Filters */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label className="text-gray-700">Fecha</Label>
+            <Label className="text-gray-700">{t("Fecha")}</Label>
             <input
               type="date"
               value={selectedDate}
@@ -130,13 +132,13 @@ export default function Attendance() {
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-gray-700">Equipo</Label>
+            <Label className="text-gray-700">{t("Equipo")}</Label>
             <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
               <SelectTrigger className="border-gray-200 bg-white">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos los equipos</SelectItem>
+                <SelectItem value="all">{t("Todos los equipos")}</SelectItem>
                 {teams.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
@@ -164,16 +166,16 @@ export default function Attendance() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-gray-500">
-                <th className="text-left font-medium px-5 py-3">Jugador</th>
-                <th className="text-left font-medium px-5 py-3">Estado</th>
-                <th className="text-left font-medium px-5 py-3">Motivo (si aplica)</th>
+                <th className="text-left font-medium px-5 py-3">{t("Jugador")}</th>
+                <th className="text-left font-medium px-5 py-3">{t("Estado")}</th>
+                <th className="text-left font-medium px-5 py-3">{t("Motivo (si aplica)")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {teamPlayers.length === 0 ? (
                 <tr>
                   <td colSpan="3" className="px-5 py-8 text-center text-gray-400">
-                    Selecciona un equipo
+                    {t("Selecciona un equipo")}
                   </td>
                 </tr>
               ) : (
@@ -203,12 +205,12 @@ export default function Attendance() {
                       <td className="px-5 py-4">
                         <Select value={currentStatus} onValueChange={(v) => handleStatusChange(player.id, v)}>
                           <SelectTrigger className="w-40 border-gray-200">
-                            <SelectValue placeholder="Seleccionar" />
+                            <SelectValue placeholder={t("Seleccionar")} />
                           </SelectTrigger>
                           <SelectContent>
                             {Object.entries(STATUS_CONFIG).map(([key, config]) => (
                               <SelectItem key={key} value={key}>
-                                {config.label}
+                                {t(config.label)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -218,12 +220,12 @@ export default function Attendance() {
                         {currentStatus === "absent" ? (
                           <Select value={currentReason} onValueChange={(v) => handleReasonChange(player.id, v)}>
                             <SelectTrigger className="w-40 border-gray-200">
-                              <SelectValue placeholder="Motivo" />
+                              <SelectValue placeholder={t("Motivo")} />
                             </SelectTrigger>
                             <SelectContent>
                               {ABSENCE_REASONS.map((reason) => (
                                 <SelectItem key={reason.value} value={reason.value}>
-                                  {reason.label}
+                                  {t(reason.label)}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -243,7 +245,7 @@ export default function Attendance() {
         {teamPlayers.length > 0 && (
           <div className="border-t border-gray-100 px-5 py-4 flex justify-end gap-3">
             <Button variant="outline" onClick={() => { setAttendanceData({}); setAbsenceReasons({}); }}>
-              Cancelar
+              {t("Cancelar")}
             </Button>
             <Button variant="club"
               onClick={handleSaveAttendance}
@@ -252,10 +254,10 @@ export default function Attendance() {
               {createAttendanceMutation.isPending || updateAttendanceMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Guardando...
+                  {t("Guardando...")}
                 </>
               ) : (
-                "Guardar asistencia"
+                t("Guardar asistencia")
               )}
             </Button>
           </div>

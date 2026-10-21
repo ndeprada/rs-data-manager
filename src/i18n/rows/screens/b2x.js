@@ -1,0 +1,30 @@
+// Pantallas de personal — bloque «b2x»: [español, inglés, francés, catalán]
+// Siglas y textos cortos que el generador no detecta (abreviaturas de posición del campo, columnas, iniciales…)
+export default [
+  ["Post-partido", "Post-match", "Après-match", "Postpartit"],
+  ["Torneos", "Tournaments", "Tournois", "Torneigs"],
+  ["Amistosos", "Friendlies", "Matchs amicaux", "Amistosos"],
+  ["vs {opponent}", "vs {opponent}", "vs {opponent}", "vs {opponent}"],
+  ["vs {v}", "vs {v}", "vs {v}", "vs {v}"],
+  ["{v} vs", "{v} vs", "{v} vs", "{v} vs"],
+  ["vs", "vs", "vs", "vs"],
+  ["DFC", "CB", "DC", "DFC"],
+  ["y", "and", "et", "i"],
+  ["GF–GC", "GF–GA", "BP–BC", "GF–GC"],
+  ["{cleanSheets} de {pj}", "{cleanSheets} of {pj}", "{cleanSheets} sur {pj}", "{cleanSheets} de {pj}"],
+  ["{day} en {vs}", "{day} at {vs}", "{day} chez {vs}", "{day} a {vs}"],
+  ["Am.", "YC", "CJ", "Gr."],
+  ["as.", "ast.", "pd.", "ast."],
+  ["(p.p.)", "(o.g.)", "(c.s.c.)", "(p.p.)"],
+  ["Ej: V1", "E.g. V1", "Ex. : V1", "Ex: V1"],
+  ["N", "U", "N", "N"],
+  ["R", "O", "A", "R"],
+  // Abreviaturas de posición en las formaciones (POR, CEN, EXT, MC y DC ya existen)
+  ["LTD", "LB", "AG", "LE"],
+  ["RTD", "RB", "AD", "LD"],
+  ["LMC", "LM", "MG", "ME"],
+  ["RMC", "RM", "MD", "MD"],
+  ["MCO", "AM", "MO", "MCO"],
+  ["MCD", "DM", "MDef", "MCD"],
+  ["CAR", "WB", "PIS", "CAR"],
+];

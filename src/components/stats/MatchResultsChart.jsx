@@ -1,9 +1,11 @@
 import React from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { useT } from "@/i18n";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 
 export default function MatchResultsChart({ events }) {
+  const t = useT();
   const matchEvents = events.filter((e) => MATCH_TYPES.includes(e.type));
 
   const won = matchEvents.filter((e) => {
@@ -24,10 +26,10 @@ export default function MatchResultsChart({ events }) {
   const unknown = matchEvents.length - won - lost - drawn;
 
   const chartData = [
-    { name: "Victorias", value: won, color: "#22c55e" },
-    { name: "Empates", value: drawn, color: "#f59e0b" },
-    { name: "Derrotas", value: lost, color: "#ef4444" },
-    { name: "Sin resultado", value: unknown > 0 ? unknown : 0, color: "#e5e7eb" },
+    { name: t("Victorias"), value: won, color: "#22c55e" },
+    { name: t("Empates"), value: drawn, color: "#f59e0b" },
+    { name: t("Derrotas"), value: lost, color: "#ef4444" },
+    { name: t("Sin resultado"), value: unknown > 0 ? unknown : 0, color: "#e5e7eb" },
   ].filter((d) => d.value > 0);
 
   const total = matchEvents.length;
@@ -38,7 +40,7 @@ export default function MatchResultsChart({ events }) {
     return (
       <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-lg text-sm">
         <p className="font-semibold" style={{ color: item.payload.color }}>{item.name}</p>
-        <p className="text-gray-700">{item.value} partido{item.value !== 1 ? "s" : ""}</p>
+        <p className="text-gray-700">{item.value === 1 ? t("{n} partido", { n: item.value }) : t("{n} partidos", { n: item.value })}</p>
         <p className="text-gray-400">{total > 0 ? Math.round((item.value / total) * 100) : 0}%</p>
       </div>
     );
@@ -48,27 +50,27 @@ export default function MatchResultsChart({ events }) {
     <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
       <div className="p-5 border-b border-gray-100 flex items-center justify-between">
         <div>
-          <h2 className="font-bold text-xl uppercase tracking-wide text-gray-900" style={{ fontFamily: "var(--font-display)" }}>Resultados de Partidos</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{total} partido{total !== 1 ? "s" : ""} en total</p>
+          <h2 className="font-bold text-xl uppercase tracking-wide text-gray-900" style={{ fontFamily: "var(--font-display)" }}>{t("Resultados de Partidos")}</h2>
+          <p className="text-sm text-gray-500 mt-0.5">{total === 1 ? t("{n} partido en total", { n: total }) : t("{n} partidos en total", { n: total })}</p>
         </div>
         <div className="flex gap-4 text-sm">
           <div className="text-center">
             <p className="text-2xl font-bold text-green-500">{won}</p>
-            <p className="text-xs text-gray-400">V</p>
+            <p className="text-xs text-gray-400">{t("V")}</p>
           </div>
           <div className="text-center">
             <p className="text-2xl font-bold text-amber-400">{drawn}</p>
-            <p className="text-xs text-gray-400">E</p>
+            <p className="text-xs text-gray-400">{t("E")}</p>
           </div>
           <div className="text-center">
             <p className="text-2xl font-bold text-red-500">{lost}</p>
-            <p className="text-xs text-gray-400">D</p>
+            <p className="text-xs text-gray-400">{t("D")}</p>
           </div>
         </div>
       </div>
       <div className="p-5">
         {total === 0 ? (
-          <div className="h-48 flex items-center justify-center text-gray-400 text-sm">No hay partidos registrados</div>
+          <div className="h-48 flex items-center justify-center text-gray-400 text-sm">{t("No hay partidos registrados")}</div>
         ) : (
           <div className="flex flex-col md:flex-row items-center gap-6">
             <ResponsiveContainer width="100%" height={200}>
@@ -92,7 +94,7 @@ export default function MatchResultsChart({ events }) {
             </div>
           </div>
         )}
-        <p className="text-xs text-gray-400 mt-3">* Los resultados se detectan a partir de las notas del evento (victoria/derrota/empate).</p>
+        <p className="text-xs text-gray-400 mt-3">{t("* Los resultados se detectan a partir de las notas del evento (victoria/derrota/empate).")}</p>
       </div>
     </div>
   );

@@ -11,9 +11,9 @@ import { msg } from "../i18n/translate.js";
 // Torneos y amistosos no generan alerta (solo un aviso gris) y tienen sus estadísticas aparte.
 export const STAT_TYPES = ["partido_liga"];
 export const STAT_SCOPES = [
-  { value: "liga", label: "Liga", types: ["partido_liga"] },
-  { value: "torneo", label: "Torneos", types: ["torneo"] },
-  { value: "amistoso", label: "Amistosos", types: ["partido_amistoso"] },
+  { value: "liga", label: msg("Liga"), types: ["partido_liga"] },
+  { value: "torneo", label: msg("Torneos"), types: ["torneo"] },
+  { value: "amistoso", label: msg("Amistosos"), types: ["partido_amistoso"] },
 ];
 export const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 

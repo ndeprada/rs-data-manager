@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Swords, ChevronRight, MapPin, Home, Plane } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
@@ -10,11 +9,12 @@ import { useCountedStats } from "@/lib/matchStatus";
 import { scoreText } from "@/lib/matchScore";
 
 import { PageTitle } from "@/components/common/PageHeader";
+import { useT, msg, useDateLocale } from "@/i18n";
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TYPE_LABELS = {
-  partido_amistoso: "Amistoso",
-  partido_liga: "Liga",
-  torneo: "Torneo",
+  partido_amistoso: msg("Amistoso"),
+  partido_liga: msg("Liga"),
+  torneo: msg("Torneo"),
 };
 
 const RESULT_COLORS = {
@@ -25,6 +25,8 @@ const RESULT_COLORS = {
 };
 
 export default function Matches() {
+  const t = useT();
+  const dfl = useDateLocale();
   const navigate = useNavigate();
   const [filterTeam, setFilterTeam] = useState("all");
   const [filterType, setFilterType] = useState("all");
@@ -62,19 +64,19 @@ export default function Matches() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <PageTitle kicker="Gestión" title="Partidos" subtitle="Historial y gestión de partidos" />
+        <PageTitle kicker={t("Gestión")} title={t("Partidos")} subtitle={t("Historial y gestión de partidos")} />
         <div className="flex gap-3 flex-wrap">
           <Select value={filterTeam} onValueChange={setFilterTeam}>
-            <SelectTrigger className="w-44 border-gray-200 bg-white"><SelectValue placeholder="Equipo" /></SelectTrigger>
+            <SelectTrigger className="w-44 border-gray-200 bg-white"><SelectValue placeholder={t("Equipo")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los equipos</SelectItem>
+              <SelectItem value="all">{t("Todos los equipos")}</SelectItem>
               {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-36 border-gray-200 bg-white"><SelectValue placeholder="Tipo" /></SelectTrigger>
+            <SelectTrigger className="w-36 border-gray-200 bg-white"><SelectValue placeholder={t("Tipo")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">{t("Todos")}</SelectItem>
               {MATCH_TYPES.map((t) => <SelectItem key={t} value={t}>{TYPE_LABELS[t]}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -84,9 +86,9 @@ export default function Matches() {
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Total", value: filtered.length, color: "var(--granate)" },
-          { label: "Victorias", value: filtered.filter(m => getResult(m) === "victoria").length, color: "#16a34a" },
-          { label: "Derrotas", value: filtered.filter(m => getResult(m) === "derrota").length, color: "#dc2626" },
+          { label: t("Total"), value: filtered.length, color: "var(--granate)" },
+          { label: t("Victorias"), value: filtered.filter(m => getResult(m) === "victoria").length, color: "#16a34a" },
+          { label: t("Derrotas"), value: filtered.filter(m => getResult(m) === "derrota").length, color: "#dc2626" },
         ].map((s) => (
           <div key={s.label} className="bg-white border border-gray-200 rounded p-4 text-center shadow-sm">
             <div className="text-2xl font-bold" style={{ color: s.color, fontFamily: "var(--font-display)" }}>{s.value}</div>
@@ -100,7 +102,7 @@ export default function Matches() {
         {filtered.length === 0 ? (
           <div className="p-12 text-center">
             <Swords className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-400 text-sm">No hay partidos registrados.<br />Crea eventos de tipo partido en el Calendario.</p>
+            <p className="text-gray-400 text-sm">{t("No hay partidos registrados.")}<br />{t("Crea eventos de tipo partido en el Calendario.")}</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
@@ -120,7 +122,7 @@ export default function Matches() {
                       {format(new Date(match.date), "d")}
                     </div>
                     <div className="text-[10px] uppercase text-gray-400 tracking-wide">
-                      {format(new Date(match.date), "MMM", { locale: es })}
+                      {format(new Date(match.date), "MMM", { locale: dfl })}
                     </div>
                     <div className="text-[10px] text-gray-400">
                       {format(new Date(match.date), "yyyy")}
@@ -141,8 +143,8 @@ export default function Matches() {
                     {match.opponent && (
                       <p className="text-sm text-gray-500 truncate flex items-center gap-1.5">
                         {match.opponent_logo_url && <img src={match.opponent_logo_url} alt="" className="w-5 h-5 object-contain shrink-0" loading="lazy" />}
-                        <span className="truncate">vs {match.opponent}</span>
-                        {match.is_home === false ? <Plane className="w-3.5 h-3.5 text-sky-600 shrink-0" title="Fuera" /> : <Home className="w-3.5 h-3.5 text-emerald-600 shrink-0" title="Casa" />}
+                        <span className="truncate">{t("vs {opponent}", { opponent: match.opponent })}</span>
+                        {match.is_home === false ? <Plane className="w-3.5 h-3.5 text-sky-600 shrink-0" title={t("Fuera")} /> : <Home className="w-3.5 h-3.5 text-emerald-600 shrink-0" title={t("Casa")} />}
                       </p>
                     )}
                     {match.location && (

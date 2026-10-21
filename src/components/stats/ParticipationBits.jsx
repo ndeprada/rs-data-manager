@@ -1,5 +1,6 @@
 import React from "react";
 import { REASON_ORDER, reasonShort, NO_REASON, FORMAT_LABEL } from "@/lib/participation";
+import { useT, msg } from "@/i18n";
 
 const REASON_STYLE = {
   lesion: "bg-red-50 text-red-700 border-red-200",
@@ -15,13 +16,14 @@ const REASON_STYLE = {
 
 // Motivos de ausencia acumulados: «Lesión 3 · Viaje 1 · Sin motivo 2»
 export function ReasonChips({ reasons = {} }) {
+  const t = useT();
   const keys = [...REASON_ORDER, ...Object.keys(reasons).filter((k) => !REASON_ORDER.includes(k))].filter((k) => reasons[k] > 0);
   if (!keys.length) return <span className="text-gray-300">—</span>;
   return (
     <span className="inline-flex flex-wrap gap-1">
       {keys.map((k) => (
         <span key={k} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm border text-[10px] font-semibold whitespace-nowrap ${REASON_STYLE[k] || REASON_STYLE.otro}`}>
-          {reasonShort(k)} <b>{reasons[k]}</b>
+          {t(reasonShort(k))} <b>{reasons[k]}</b>
         </span>
       ))}
     </span>
@@ -45,9 +47,10 @@ export function PctPill({ value, level, title }) {
 }
 
 // Texto de una alerta: «Fútbol 11: 29 % de los minutos disponibles (mínimo 35 %)»
-export const alertText = (a) => `${FORMAT_LABEL[a.format]}: ${a.pct} % de los minutos disponibles (mínimo ${a.min} %)`;
+export const alertText = (a, t) => t("{format}: {pct} % de los minutos disponibles (mínimo {min} %)", { format: t(FORMAT_LABEL[a.format]), pct: a.pct, min: a.min });
 
 export function FormatPills({ value, onChange, options }) {
+  const t = useT();
   return (
     <div className="flex items-center gap-1.5">
       {options.map((o) => {
@@ -56,7 +59,7 @@ export function FormatPills({ value, onChange, options }) {
           <button key={o.value} type="button" onClick={() => onChange(o.value)}
             className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-colors ${active ? "text-white" : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"}`}
             style={active ? { background: "var(--granate)", borderColor: "var(--granate)" } : undefined}>
-            {o.label}
+            {t(o.label)}
           </button>
         );
       })}
@@ -65,7 +68,7 @@ export function FormatPills({ value, onChange, options }) {
 }
 
 export const FORMAT_OPTIONS = [
-  { value: "all", label: "Todos" },
-  { value: "f11", label: "Fútbol 11" },
-  { value: "f7", label: "Fútbol 7" },
+  { value: "all", label: msg("Todos") },
+  { value: "f11", label: msg("Fútbol 11") },
+  { value: "f7", label: msg("Fútbol 7") },
 ];

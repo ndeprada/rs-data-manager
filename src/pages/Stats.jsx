@@ -16,7 +16,9 @@ import { useTeamAccess } from "@/lib/TeamAccessContext";
 import StatsScopePills from "@/components/common/StatsScopePills";
 
 import { PageTitle } from "@/components/common/PageHeader";
+import { useT } from "@/i18n";
 export default function Stats() {
+  const t = useT();
   const [pickedTeam, setSelectedTeam] = useState("all");
   const [activeTab, setActiveTab] = useState("attendance");
   const { perms, teamIds } = useTeamAccess();
@@ -104,21 +106,21 @@ export default function Stats() {
     .sort((a, b) => b.minutes - a.minutes)[0];
 
   if (perms.stats === "none") {
-    return <div className="p-12 text-center"><p className="text-gray-400">No tienes acceso a esta sección.</p></div>;
+    return <div className="p-12 text-center"><p className="text-gray-400">{t("No tienes acceso a esta sección.")}</p></div>;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <PageTitle kicker="Herramientas" title="Estadísticas" subtitle="Rendimiento y análisis del equipo" />
+        <PageTitle kicker={t("Herramientas")} title={t("Estadísticas")} subtitle={t("Rendimiento y análisis del equipo")} />
         <div className="flex items-center gap-3 flex-wrap">
         <StatsScopePills value={statScope} onChange={setStatScope} />
         <Select value={selectedTeam} onValueChange={setSelectedTeam}>
           <SelectTrigger className="w-48 border-gray-200 bg-white">
-            <SelectValue placeholder="Todos los equipos" />
+            <SelectValue placeholder={t("Todos los equipos")} />
           </SelectTrigger>
           <SelectContent>
-            {!limited && <SelectItem value="all">Todos los equipos</SelectItem>}
+            {!limited && <SelectItem value="all">{t("Todos los equipos")}</SelectItem>}
             {teams.map((t) => (
               <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
             ))}
@@ -131,21 +133,21 @@ export default function Stats() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {topScorer && (
           <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-2">Máximo goleador</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-2">{t("Máximo goleador")}</p>
             <p className="text-2xl font-black" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{topScorer.goals}</p>
             <p className="text-xs text-gray-500 mt-1">{playerFullName(topScorer.player)}</p>
           </div>
         )}
         {topAssister && (
           <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-2">Máximo asistente</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-2">{t("Máximo asistente")}</p>
             <p className="text-2xl font-black" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{topAssister.assists}</p>
             <p className="text-xs text-gray-500 mt-1">{playerFullName(topAssister.player)}</p>
           </div>
         )}
         {topMinutes && (
           <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-2">Más minutos</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-2">{t("Más minutos")}</p>
             <p className="text-2xl font-black" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{topMinutes.minutes}'</p>
             <p className="text-xs text-gray-500 mt-1">{playerFullName(topMinutes.player)}</p>
           </div>
@@ -155,13 +157,13 @@ export default function Stats() {
       <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="attendance">
         <TabsList>
           <TabsTrigger value="attendance">
-            <Users className="w-4 h-4 mr-2" /> Asistencia
+            <Users className="w-4 h-4 mr-2" /> {t("Asistencia")}
           </TabsTrigger>
           <TabsTrigger value="matches">
-            <BarChart2 className="w-4 h-4 mr-2" /> Partidos
+            <BarChart2 className="w-4 h-4 mr-2" /> {t("Partidos")}
           </TabsTrigger>
           <TabsTrigger value="goals">
-            <Target className="w-4 h-4 mr-2" /> Goles
+            <Target className="w-4 h-4 mr-2" /> {t("Goles")}
           </TabsTrigger>
         </TabsList>
 
