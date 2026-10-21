@@ -27,7 +27,7 @@ Objetivo permanente: app lo más optimizada posible, de uso fácil y que, al ent
 - Idioma: perfil (`language`) > `localStorage rs_lang` > español. Selector `LanguageSelector` = desplegable pequeño (barra superior en móvil, menú lateral en escritorio, arriba en acceso/alta/pendiente/familia); se puede cambiar en cualquier momento y queda guardado en el perfil. Fechas con `useFormat()` / `useDateLocale()`.
 - En desarrollo (`npm run dev`) `window.__i18nMissing` lista los textos pedidos en otro idioma sin traducción (útil con Playwright).
 - Fase 1 hecha: acceso, alta, pendiente, jugador y familia (incl. competencias por posición, fútbol 7 y Evaluación 360). Fase 2 (pantallas de personal) y metodología: pendientes. Los textos libres que escribe el cuerpo técnico no se traducen.
-- Terminología decidida con Nacho: «Mediapunta» (se queda así en español; es el delantero que también actúa como medio) = Complete forward / Attaquant complet / Davanter complet, siglas MP → CPF / ACP / DCP. «Interior» = Inside midfielder (el «attacking midfielder» del club es el Interior).
+- Terminología decidida con Nacho: «Mediapunta» (se queda así en español; es el delantero que también actúa como medio) = Complete forward / Attaquant complet / Mitjapunta (en catalán se queda Mitjapunta, decisión de Nacho), siglas MP → CPF / ACP / MP. «Interior» = Inside midfielder (el «attacking midfielder» del club es el Interior).
 
 ## Pendiente importante (recordárselo a Nacho al volver a hablar)
 **Informe de evaluación de entrenadores**, primero a nivel metodológico y pensado para que lo use coordinación. Hay que acabar de definirlo con él. Primer borrador de lo que quiere evaluar:
