@@ -2,7 +2,6 @@ import React from "react";
 import { isCancelled } from "@/lib/eventCancel";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { Pencil, Trash2, ChevronRight } from "lucide-react";
 import { getCategoryLabel } from "@/components/fcfCategories";
@@ -14,18 +13,19 @@ const RESULT_COLORS = {
 };
 
 const TEAM_ROLE_SHORT = {
-  primer_entrenador: "1er Entrenador",
-  segundo_entrenador: "2º Entrenador",
-  preparador_fisico: "Prep. Físico",
-  entrenador_porteros: "Ent. Porteros",
-  coordinador: "Coordinador",
-  delegado: "Delegado",
-  fisio: "Fisio",
-  analista: "Analista",
-  asistente: "Asistente",
+  primer_entrenador: msg("1er Entrenador"),
+  segundo_entrenador: msg("2º Entrenador"),
+  preparador_fisico: msg("Prep. Físico"),
+  entrenador_porteros: msg("Ent. Porteros"),
+  coordinador: msg("Coordinador"),
+  delegado: msg("Delegado"),
+  fisio: msg("Fisio"),
+  analista: msg("Analista"),
+  asistente: msg("Asistente"),
 };
 
 function StandingCell({ teamId }) {
+  const t = useT();
   const { data } = useQuery({
     queryKey: ["fcf-standing", teamId],
     queryFn: async () => {
@@ -37,13 +37,16 @@ function StandingCell({ teamId }) {
     retry: 1,
   });
   const me = (data?.rows || []).find((r) => r.teamId === data?.ourTeamId);
-  return me ? <span className="text-sm font-black" style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}>{me.pos}º <span className="text-[10px] font-normal text-gray-400">{me.pts} pts</span></span> : <span className="text-xs text-gray-300">—</span>;
+  return me ? <span className="text-sm font-black" style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}>{t("{pos}º", { pos: me.pos })} <span className="text-[10px] font-normal text-gray-400">{t("{pts} pts", { pts: me.pts })}</span></span> : <span className="text-xs text-gray-300">—</span>;
 }
 
 import { teamRoleRank } from "@/lib/staffRoles";
 import { scoreText } from "@/lib/matchScore";
+import { useT, useDateLocale, msg } from "@/i18n";
 
 export default function TeamsTable({ teams = [], players = [], events = [], staff = [], assignments = [], onEdit, onDelete }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const getPlayerCount = (teamId) => {
     return players.filter((p) => p.team_id === teamId).length;
   };
@@ -99,28 +102,28 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
             <th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-gray-700" style={{ fontFamily: "var(--font-display)" }}>
-              Equipo
+              {t("Equipo")}
             </th>
             <th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-gray-700" style={{ fontFamily: "var(--font-display)" }}>
-              Categoría
+              {t("Categoría")}
             </th>
             <th className="px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wider text-gray-700" style={{ fontFamily: "var(--font-display)" }}>
-              Jugadores
+              {t("Jugadores")}
             </th>
             <th className="px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wider text-gray-700" style={{ fontFamily: "var(--font-display)" }}>
-              Récord
+              {t("Récord")}
             </th>
             <th className="px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wider text-gray-700" style={{ fontFamily: "var(--font-display)" }}>
-              Últimos Resultados
+              {t("Últimos Resultados")}
             </th>
             <th className="px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wider text-gray-700" style={{ fontFamily: "var(--font-display)" }}>
-              Pos.
+              {t("Pos.")}
             </th>
             <th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-gray-700" style={{ fontFamily: "var(--font-display)" }}>
-              Próximo partido
+              {t("Próximo partido")}
             </th>
             <th className="px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wider text-gray-700" style={{ fontFamily: "var(--font-display)" }}>
-              Acciones
+              {t("Acciones")}
             </th>
           </tr>
         </thead>
@@ -138,7 +141,7 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
                   <Link to={`/TeamDetail?id=${team.id}`} className="flex items-center gap-2 group">
                     <img
                       src="https://media.base44.com/images/public/69b72e4f23c3602504953d0d/442c01da9_Escudo_Granate.png"
-                      alt="Escudo"
+                      alt={t("Escudo")}
                       className="w-5 h-5 object-contain shrink-0"
                     />
                     <span className="flex items-center gap-1">
@@ -165,7 +168,7 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
                 {/* Record */}
                 <td className="px-3 py-1 text-center whitespace-nowrap">
                   <span className="text-sm font-bold text-gray-800" style={{ fontFamily: "var(--font-display)" }}>
-                    {stats.wins}V - {stats.draws}E - {stats.losses}D
+                    {t("{wins}V - {draws}E - {losses}D", { wins: stats.wins, draws: stats.draws, losses: stats.losses })}
                   </span>
                 </td>
 
@@ -180,13 +183,13 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
                       ))}
                     </div>
                   ) : (
-                    <span className="text-xs text-gray-400">Sin partidos</span>
+                    <span className="text-xs text-gray-400">{t("Sin partidos")}</span>
                   )}
                 </td>
 
                 <td className="px-3 py-1 text-center whitespace-nowrap"><StandingCell teamId={team.id} /></td>
                 <td className="px-3 py-1 whitespace-nowrap">
-                  {next ? <span className="text-xs text-gray-700"><span className="font-bold capitalize">{format(new Date(next.date), "EEE d MMM · HH:mm", { locale: es })}</span> <span className="text-gray-400">vs {next.opponent || "—"}</span></span> : <span className="text-xs text-gray-300">—</span>}
+                  {next ? <span className="text-xs text-gray-700"><span className="font-bold capitalize">{format(new Date(next.date), "EEE d MMM · HH:mm", { locale: dfl })}</span> <span className="text-gray-400">{t("vs {v}", { v: next.opponent || "—" })}</span></span> : <span className="text-xs text-gray-300">—</span>}
                 </td>
 
                 {/* Actions */}
@@ -195,14 +198,14 @@ export default function TeamsTable({ teams = [], players = [], events = [], staf
                     <button
                       onClick={() => onEdit(team)}
                       className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-                      title="Editar"
+                      title={t("Editar")}
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => onDelete(team.id)}
                       className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                      title="Eliminar"
+                      title={t("Eliminar")}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

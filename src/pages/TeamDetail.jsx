@@ -24,38 +24,39 @@ import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
 import { useCountedStats } from "@/lib/matchStatus";
 import { statTeamResolver, statsOfTeam } from "@/lib/teamStats";
+import { useT, msg } from "@/i18n";
 
 const EVENT_TYPES = [
-  { value: "entrenamiento", label: "Entrenamiento" },
-  { value: "partido_liga", label: "Partido de liga" },
-  { value: "partido_amistoso", label: "Partido amistoso" },
-  { value: "torneo", label: "Torneo" },
-  { value: "entrenamiento_fisico", label: "Entrenamiento físico" },
-  { value: "sesion_teorica", label: "Sesión teórica" },
-  { value: "sesion_video", label: "Sesión de vídeo" },
-  { value: "reunion_equipo", label: "Reunión de equipo" },
-  { value: "concentracion", label: "Concentración" },
-  { value: "cena_equipo", label: "Cena de equipo" },
-  { value: "evento_club", label: "Evento del club" },
+  { value: "entrenamiento", label: msg("Entrenamiento") },
+  { value: "partido_liga", label: msg("Partido de liga") },
+  { value: "partido_amistoso", label: msg("Partido amistoso") },
+  { value: "torneo", label: msg("Torneo") },
+  { value: "entrenamiento_fisico", label: msg("Entrenamiento físico") },
+  { value: "sesion_teorica", label: msg("Sesión teórica") },
+  { value: "sesion_video", label: msg("Sesión de vídeo") },
+  { value: "reunion_equipo", label: msg("Reunión de equipo") },
+  { value: "concentracion", label: msg("Concentración") },
+  { value: "cena_equipo", label: msg("Cena de equipo") },
+  { value: "evento_club", label: msg("Evento del club") },
 ];
 
 const isMatchType = (type) => ["partido_amistoso", "partido_liga", "torneo"].includes(type);
 
 const STATUS_STYLES = {
-  activo: { label: "Activo", bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
-  lesionado: { label: "Lesionado", bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
-  baja: { label: "Baja", bg: "#fdf2f4", color: "#73000A", border: "#fecdd3" },
+  activo: { label: msg("Activo"), bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+  lesionado: { label: msg("Lesionado"), bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
+  baja: { label: msg("Baja"), bg: "#fdf2f4", color: "#73000A", border: "#fecdd3" },
 };
 
 const POSITIONS = {
-  portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
-  mediocentro: "Mediocentro", interior: "Interior", mediapunta: "Mediapunta", delantero_centro: "Delantero Centro", extremo: "Extremo",
+  portero: msg("Portero"), lateral: msg("Lateral"), central: msg("Central"), libre: msg("Libre"),
+  mediocentro: msg("Mediocentro"), interior: msg("Interior"), mediapunta: msg("Mediapunta"), delantero_centro: msg("Delantero Centro"), extremo: msg("Extremo"),
 };
 
 const STAFF_ROLES = {
-  entrenador: "Entrenador", ayudante: "Ayudante", preparador_fisico: "Preparador Físico",
-  portero_coach: "Entrenador de Porteros", medico: "Médico", fisioterapeuta: "Fisioterapeuta",
-  coordinador: "Coordinador", otro: "Otro",
+  entrenador: msg("Entrenador"), ayudante: msg("Ayudante"), preparador_fisico: msg("Preparador Físico"),
+  portero_coach: msg("Entrenador de Porteros"), medico: msg("Médico"), fisioterapeuta: msg("Fisioterapeuta"),
+  coordinador: msg("Coordinador"), otro: msg("Otro"),
 };
 
 
@@ -63,6 +64,7 @@ const STAFF_ROLES = {
 const POSITION_GROUPS = ["portero", "lateral", "central", "libre", "mediocentro", "interior", "mediapunta", "delantero_centro", "extremo"];
 
 export default function TeamDetail() {
+  const t = useT();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const urlParams = new URLSearchParams(window.location.search);
@@ -145,8 +147,8 @@ export default function TeamDetail() {
   if (!team) {
     return (
       <div className="text-center py-20">
-        <p className="text-gray-500">Equipo no encontrado</p>
-        <Link to="/Teams" className="text-sm font-medium mt-2 inline-block" style={{ color: "var(--granate)" }}>← Volver a equipos</Link>
+        <p className="text-gray-500">{t("Equipo no encontrado")}</p>
+        <Link to="/Teams" className="text-sm font-medium mt-2 inline-block" style={{ color: "var(--granate)" }}>{t("← Volver a equipos")}</Link>
       </div>
     );
   }
@@ -158,22 +160,22 @@ export default function TeamDetail() {
     <div className="space-y-4">
       <div>
         <Link to="/Teams" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors mb-4 font-medium">
-          <ArrowLeft className="w-4 h-4" /> Volver a equipos
+          <ArrowLeft className="w-4 h-4" /> {t("Volver a equipos")}
         </Link>
         <div className="flex items-center gap-4">
-          <img src="https://media.base44.com/images/public/69b72e4f23c3602504953d0d/442c01da9_Escudo_Granate.png" alt="Escudo" className="w-14 h-14 object-contain shrink-0" />
+          <img src="https://media.base44.com/images/public/69b72e4f23c3602504953d0d/442c01da9_Escudo_Granate.png" alt={t("Escudo")} className="w-14 h-14 object-contain shrink-0" />
           <div>
             <h1 className="text-3xl leading-none">{team.name}</h1>
             <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mt-1">
               <span>{getCategoryLabel(team.category)}</span>
-              {team.coach && <span>· Entrenador: {team.coach}</span>}
+              {team.coach && <span>{t("· Entrenador: {coach}", { coach: team.coach })}</span>}
               {team.season && <span>· {team.season}</span>}
-              <span>· {teamPlayers.filter(p => p.status !== "baja").length} jugadores</span>
+              <span>{t("· {n} jugadores", { n: teamPlayers.filter(p => p.status !== "baja").length })}</span>
               {team.fcf_group_url && (
                 <a href={team.fcf_group_url} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 font-medium hover:underline"
                   style={{ color: "var(--granate)" }}>
-                  <ExternalLink className="w-3.5 h-3.5" /> Grup FCF
+                  <ExternalLink className="w-3.5 h-3.5" /> {t("Grup FCF")}
                 </a>
               )}
             </div>
@@ -227,39 +229,39 @@ export default function TeamDetail() {
       <Dialog open={newEventOpen} onOpenChange={setNewEventOpen}>
         <DialogContent className="bg-white border-gray-200">
           <DialogHeader>
-            <DialogTitle>Nuevo Evento</DialogTitle>
+            <DialogTitle>{t("Nuevo Evento")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateEvent} className="space-y-4">
             <div className="space-y-1">
-              <Label>Título *</Label>
-              <Input value={eventForm.title} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} required placeholder="Ej: Entrenamiento martes" />
+              <Label>{t("Título *")}</Label>
+              <Input value={eventForm.title} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} required placeholder={t("Ej: Entrenamiento martes")} />
             </div>
             <div className="space-y-1">
-              <Label>Tipo *</Label>
+              <Label>{t("Tipo *")}</Label>
               <Select value={eventForm.type} onValueChange={(v) => setEventForm({ ...eventForm, type: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {EVENT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  {EVENT_TYPES.map(opt => <SelectItem key={opt.value} value={opt.value}>{t(opt.label)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Fecha y hora *</Label>
+              <Label>{t("Fecha y hora *")}</Label>
               <Input type="datetime-local" value={eventForm.date} onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })} required />
             </div>
             <div className="space-y-1">
-              <Label>Lugar</Label>
-              <Input value={eventForm.location} onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })} placeholder="Ej: Camp Municipal" />
+              <Label>{t("Lugar")}</Label>
+              <Input value={eventForm.location} onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })} placeholder={t("Ej: Camp Municipal")} />
             </div>
             {isMatchType(eventForm.type) && (
               <div className="space-y-1">
-                <Label>Rival</Label>
-                <Input value={eventForm.opponent} onChange={(e) => setEventForm({ ...eventForm, opponent: e.target.value })} placeholder="Nombre del equipo rival" />
+                <Label>{t("Rival")}</Label>
+                <Input value={eventForm.opponent} onChange={(e) => setEventForm({ ...eventForm, opponent: e.target.value })} placeholder={t("Nombre del equipo rival")} />
               </div>
             )}
             <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={() => setNewEventOpen(false)}>Cancelar</Button>
-              <Button variant="club" type="submit">Crear evento</Button>
+              <Button type="button" variant="outline" onClick={() => setNewEventOpen(false)}>{t("Cancelar")}</Button>
+              <Button variant="club" type="submit">{t("Crear evento")}</Button>
             </div>
           </form>
         </DialogContent>
@@ -282,12 +284,12 @@ export default function TeamDetail() {
       <AlertDialog open={!!deletePlayer} onOpenChange={(open) => { if (!open) setDeletePlayer(null); }}>
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar jugador?</AlertDialogTitle>
-            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+            <AlertDialogTitle>{t("¿Eliminar jugador?")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("Esta acción no se puede deshacer.")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deletePlayerMutation.mutate(deletePlayer)} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deletePlayerMutation.mutate(deletePlayer)} className="bg-red-600 hover:bg-red-700 text-white">{t("Eliminar")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -295,12 +297,12 @@ export default function TeamDetail() {
       <AlertDialog open={!!deleteStaff} onOpenChange={(open) => { if (!open) setDeleteStaff(null); }}>
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar miembro?</AlertDialogTitle>
-            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+            <AlertDialogTitle>{t("¿Eliminar miembro?")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("Esta acción no se puede deshacer.")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteStaffMutation.mutate(deleteStaff)} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteStaffMutation.mutate(deleteStaff)} className="bg-red-600 hover:bg-red-700 text-white">{t("Eliminar")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -4,7 +4,6 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { UserCog, Swords, MapPin, Trophy, ClipboardCheck, Users, Target } from "lucide-react";
 import { format, startOfDay, addDays, isSameDay, differenceInMinutes, startOfWeek, endOfDay, subDays } from "date-fns";
-import { es } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import FCFClassificationsPanel from "../components/dashboard/FCFClassificationsPanel";
 import WeekendAgenda from "../components/dashboard/WeekendAgenda";
@@ -24,6 +23,7 @@ import PendingStrip from "@/components/dashboard/PendingStrip";
 import { fromStored } from "@/lib/goalTypes";
 import { scoreText, scoreTitle, playsAway } from "@/lib/matchScore";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
+import { useT, useDateLocale, msg } from "@/i18n";
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
 const isMatch = (t) => MATCH_TYPES.includes(t);
@@ -41,25 +41,26 @@ const Title = ({ children, right }) => (
 
 function groupOf(team) {
   const n = (team.name || "").toLowerCase();
-  if (n.includes("primer")) return "Primer equipo";
-  if (n.includes("juvenil")) return "Juvenil";
-  if (n.includes("cadet")) return "Cadete";
-  if (n.includes("infantil")) return "Infantil";
-  return "Fútbol 7";
+  if (n.includes("primer")) return msg("Primer equipo");
+  if (n.includes("juvenil")) return msg("Juvenil");
+  if (n.includes("cadet")) return msg("Cadete");
+  if (n.includes("infantil")) return msg("Infantil");
+  return msg("Fútbol 7");
 }
-const GROUPS = ["Todos", "Primer equipo", "Juvenil", "Cadete", "Infantil", "Fútbol 7"];
+const GROUPS = [msg("Todos"), msg("Primer equipo"), msg("Juvenil"), msg("Cadete"), msg("Infantil"), msg("Fútbol 7")];
 
 function Countdown({ date }) {
+  const t = useT();
   const [now, setNow] = useState(new Date());
-  useEffect(() => { const t = setInterval(() => setNow(new Date()), 60000); return () => clearInterval(t); }, []);
+  useEffect(() => { const id = setInterval(() => setNow(new Date()), 60000); return () => clearInterval(id); }, []);
   const mins = Math.max(0, differenceInMinutes(new Date(date), now));
   const d = Math.floor(mins / 1440), h = Math.floor((mins % 1440) / 60), m = mins % 60;
   return (
     <div className="flex gap-2 shrink-0">
-      {[[d, "días"], [h, "horas"], [m, "min"]].map(([v, l]) => (
+      {[[d, msg("días")], [h, msg("horas")], [m, msg("min")]].map(([v, l]) => (
         <div key={l} className="rounded-lg px-3 pt-1.5 pb-1 text-center" style={{ background: "rgba(255,255,255,0.12)" }}>
           <p className="text-2xl font-black leading-none text-white" style={display}>{String(v).padStart(2, "0")}</p>
-          <p className="text-[9px] uppercase tracking-widest text-white/65 mt-0.5">{l}</p>
+          <p className="text-[9px] uppercase tracking-widest text-white/65 mt-0.5">{t(l)}</p>
         </div>
       ))}
     </div>
@@ -67,6 +68,7 @@ function Countdown({ date }) {
 }
 
 function MatchButtons({ ev, mine, light }) {
+  const t = useT();
   const base = `/MatchDetail?id=${ev.id}&teamId=${ev.team_id}`;
   const primary = light ? { background: "#fff", color: "var(--granate)" } : { background: "var(--granate)", color: "#fff" };
   const secondary = light ? { border: "1px solid #fff", color: "#fff" } : { border: "1px solid #e5e7eb", color: "#111827" };
@@ -74,17 +76,18 @@ function MatchButtons({ ev, mine, light }) {
     <div className="flex flex-wrap gap-2">
       {mine ? (
         <>
-          <Link to={`${base}&tab=tactica`} className="text-sm font-bold px-3.5 py-1.5 rounded-md" style={primary}>Preparar partido</Link>
-          <Link to={`${base}&tab=convocatoria`} className="text-sm font-semibold px-3.5 py-1.5 rounded-md" style={secondary}>Ver convocatoria</Link>
+          <Link to={`${base}&tab=tactica`} className="text-sm font-bold px-3.5 py-1.5 rounded-md" style={primary}>{t("Preparar partido")}</Link>
+          <Link to={`${base}&tab=convocatoria`} className="text-sm font-semibold px-3.5 py-1.5 rounded-md" style={secondary}>{t("Ver convocatoria")}</Link>
         </>
       ) : (
-        <Link to={base} className="text-sm font-semibold px-3.5 py-1.5 rounded-md" style={secondary}>Ver partido</Link>
+        <Link to={base} className="text-sm font-semibold px-3.5 py-1.5 rounded-md" style={secondary}>{t("Ver partido")}</Link>
       )}
     </div>
   );
 }
 
 function TeamCard({ team, count }) {
+  const t = useT();
   const { data } = useQuery({
     queryKey: ["fcf-standing", team.id],
     queryFn: async () => {
@@ -102,11 +105,11 @@ function TeamCard({ team, count }) {
     <Link to={`/TeamDetail?id=${team.id}`} className="bg-white border border-gray-200 px-2.5 py-1.5 hover:shadow-md transition-shadow flex flex-col gap-0.5 min-w-0" style={{ borderRadius: "6px", borderLeft: "3px solid var(--granate)" }}>
       <div className="flex items-baseline gap-1.5 min-w-0">
         <p className="font-black text-gray-900 uppercase text-[12px] leading-tight truncate" style={display}>{team.name}</p>
-        <span className="ml-auto text-[9px] text-gray-400 shrink-0">{count} jug.</span>
+        <span className="ml-auto text-[9px] text-gray-400 shrink-0">{t("{count} jug.", { count })}</span>
       </div>
       <div className="flex items-center gap-1.5">
         <span className="text-lg font-black leading-none" style={{ ...display, color: "var(--granate)" }}>{me ? `${me.pos}º` : "—"}</span>
-        <span className="text-[10px] text-gray-500">{me ? `${me.pts} pts` : ""}</span>
+        <span className="text-[10px] text-gray-500">{me ? t("{pts} pts", { pts: me.pts }) : ""}</span>
         <div className="ml-auto flex gap-0.5">
           {form.map((f, i) => (
             <span key={i} className="w-3.5 h-3.5 rounded-[3px] text-[8px] font-black text-white flex items-center justify-center" style={{ background: (FORM[f] || ["?", "#9ca3af"])[1] }}>{(FORM[f] || ["?"])[0]}</span>
@@ -118,6 +121,7 @@ function TeamCard({ team, count }) {
 }
 
 function Leaders({ title, items }) {
+  const t = useT();
   return (
     <div className={`${card} overflow-hidden`} style={cardStyle}>
       <Title>{title}</Title>
@@ -142,6 +146,8 @@ function Leaders({ title, items }) {
 }
 
 export default function Dashboard() {
+  const t = useT();
+  const dfl = useDateLocale();
   const { isCoordinator, coachTeamIds, canManageTeam } = useTeamAccess();
   const pendingUsers = usePendingUsers(isCoordinator);
   const [tab, setTab] = useState("equipos");
@@ -178,7 +184,7 @@ export default function Dashboard() {
   const wins = played.filter((m) => m.score_home > m.score_away).length;
   const draws = played.filter((m) => m.score_home === m.score_away).length;
   const losses = played.length - wins - draws;
-  const recordLabel = hasMine ? (myIds.size === 1 ? teamName([...myIds][0]) : "Mis equipos") : "Todo el club";
+  const recordLabel = hasMine ? (myIds.size === 1 ? teamName([...myIds][0]) : t("Mis equipos")) : t("Todo el club");
 
   const cancelledIds = new Set(events.filter(isCancelled).map((e) => e.id));
   const attScope = attendance.filter((a) => !cancelledIds.has(a.event_id)).filter((a) => !scopeIds || events.find((e) => e.id === a.event_id && scopeIds.has(e.team_id)) || (a.team_id && scopeIds.has(a.team_id)));
@@ -218,12 +224,12 @@ export default function Dashboard() {
     ? groupPendingByTeam({ trainings: [...pendingTrainings.values()], matches: pendingMatchLists(() => true), teams, compare: compareTeams })
     : [];
   const pendingItems = [
-    { key: "att", icon: ClipboardCheck, count: myPendingTr.length, label: myPendingTr.length === 1 ? "entreno sin asistencia" : "entrenos sin asistencia", cta: "Pasar lista", onClick: openList("trainings"), to: myPendingTr[0] ? `/MyTeam/Attendance?eventId=${myPendingTr[0].id}` : "/MyTeam/Attendance", tone: "#d97706" },
-    { key: "conv", icon: Users, count: noConv.length, label: noConv.length === 1 ? "partido en 24 h sin convocatoria" : "partidos en 24 h sin convocatoria", cta: "Convocar", onClick: openList("matches"), to: noConv[0] ? matchLink(noConv[0], "convocatoria") : "/Calendar" },
-    { key: "convPlayed", icon: Users, count: noConvPlayed.length, label: noConvPlayed.length === 1 ? "partido jugado sin convocatoria" : "partidos jugados sin convocatoria", cta: "Revisar", onClick: openList("matches"), to: noConvPlayed[0] ? matchLink(noConvPlayed[0], "convocatoria") : "/Calendar" },
-    { key: "res", icon: Trophy, count: noResult.length, label: noResult.length === 1 ? "partido jugado sin resultado" : "partidos jugados sin resultado", cta: "Revisar", onClick: openList("matches"), to: noResult[0] ? matchLink(noResult[noResult.length - 1]) : "/Calendar" },
-    { key: "goals", icon: Target, count: noClass.length, label: noClass.length === 1 ? "partido con goles sin clasificar" : "partidos con goles sin clasificar", cta: "Clasificar", onClick: openList("matches"), to: noClass[0] ? matchLink(noClass[0], "acta") : "/Calendar", tone: "var(--granate)" },
-    isCoordinator && { key: "users", icon: UserCog, count: pendingUsers.length, label: pendingUsers.length === 1 ? "usuario por aprobar" : "usuarios por aprobar", cta: "Revisar", to: "/Accesos" },
+    { key: "att", icon: ClipboardCheck, count: myPendingTr.length, label: myPendingTr.length === 1 ? t("entreno sin asistencia") : t("entrenos sin asistencia"), cta: msg("Pasar lista"), onClick: openList("trainings"), to: myPendingTr[0] ? `/MyTeam/Attendance?eventId=${myPendingTr[0].id}` : "/MyTeam/Attendance", tone: "#d97706" },
+    { key: "conv", icon: Users, count: noConv.length, label: noConv.length === 1 ? t("partido en 24 h sin convocatoria") : t("partidos en 24 h sin convocatoria"), cta: msg("Convocar"), onClick: openList("matches"), to: noConv[0] ? matchLink(noConv[0], "convocatoria") : "/Calendar" },
+    { key: "convPlayed", icon: Users, count: noConvPlayed.length, label: noConvPlayed.length === 1 ? t("partido jugado sin convocatoria") : t("partidos jugados sin convocatoria"), cta: msg("Revisar"), onClick: openList("matches"), to: noConvPlayed[0] ? matchLink(noConvPlayed[0], "convocatoria") : "/Calendar" },
+    { key: "res", icon: Trophy, count: noResult.length, label: noResult.length === 1 ? t("partido jugado sin resultado") : t("partidos jugados sin resultado"), cta: msg("Revisar"), onClick: openList("matches"), to: noResult[0] ? matchLink(noResult[noResult.length - 1]) : "/Calendar" },
+    { key: "goals", icon: Target, count: noClass.length, label: noClass.length === 1 ? t("partido con goles sin clasificar") : t("partidos con goles sin clasificar"), cta: msg("Clasificar"), onClick: openList("matches"), to: noClass[0] ? matchLink(noClass[0], "acta") : "/Calendar", tone: "var(--granate)" },
+    isCoordinator && { key: "users", icon: UserCog, count: pendingUsers.length, label: pendingUsers.length === 1 ? t("usuario por aprobar") : t("usuarios por aprobar"), cta: msg("Revisar"), to: "/Accesos" },
   ];
 
   // Resultados del último fin de semana (viernes a domingo ya jugados), de todos los equipos en su ámbito
@@ -235,7 +241,7 @@ export default function Dashboard() {
     .sort((a, b) => compareTeams(teams.find((t) => t.id === a.team_id) || {}, teams.find((t) => t.id === b.team_id) || {}) || new Date(a.date) - new Date(b.date));
   const isF7 = (e) => { const t = teams.find((x) => x.id === e.team_id); return t ? isF7Team(t) : (e.football_format === "f7" || e.football_format === "f5"); };
   const rankOf = (e) => teamRank(teams.find((x) => x.id === e.team_id));
-  const weekendLabel = `${format(subDays(lastSunday, 1), "d", { locale: es })}–${format(lastSunday, "d MMM", { locale: es })}`;
+  const weekendLabel = `${format(subDays(lastSunday, 1), "d", { locale: dfl })}–${format(lastSunday, "d MMM", { locale: dfl })}`;
 
   // Semana actual completa (lunes a domingo)
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
@@ -256,9 +262,9 @@ export default function Dashboard() {
     const top = (k) => { const r = [...rows].sort((a, b) => b[k] - a[k])[0]; return r && r[k] > 0 ? r : null; };
     const g = top("goals"), a = top("assists"), m = top("minutes");
     return [
-      { label: "Goleador", row: g, value: g?.goals, unit: "goles", team: g && teamName(g.player.team_id) },
-      { label: "Asistente", row: a, value: a?.assists, unit: "asist.", team: a && teamName(a.player.team_id) },
-      { label: "Más minutos", row: m, value: m ? `${m.minutes}'` : "", unit: "", team: m && teamName(m.player.team_id) },
+      { label: t("Goleador"), row: g, value: g?.goals, unit: "goles", team: g && teamName(g.player.team_id) },
+      { label: t("Asistente"), row: a, value: a?.assists, unit: "asist.", team: a && teamName(a.player.team_id) },
+      { label: t("Más minutos"), row: m, value: m ? `${m.minutes}'` : "", unit: "", team: m && teamName(m.player.team_id) },
     ];
   };
 
@@ -270,7 +276,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-4">
       {/* Cabecera */}
-      <PageTitle kicker={`Temporada ${CURRENT_SEASON.replace("-", "–")}`} title="Panel de control" />
+      <PageTitle kicker={t("Temporada {replace}", { replace: CURRENT_SEASON.replace("-", "–") })} title={t("Panel de control")} />
       <PendingStrip items={pendingItems} />
       {isCoordinator && <PendingByTeamDialog open={!!pendingList} onOpenChange={(o) => { if (!o) setPendingList(null); }} rows={pendingRows} kind={pendingList || "all"} />}
 
@@ -280,13 +286,13 @@ export default function Dashboard() {
           {nextClub ? (
             <div className="rounded-xl px-4 py-3 md:px-5 md:py-3 flex flex-col md:flex-row md:items-center gap-3 md:gap-5 on-dark bg-club-banner">
               <div className="flex-1 min-w-0 space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70">{nextIsMine ? "Próximo partido del club · es de tus equipos" : "Próximo partido del club"}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70">{nextIsMine ? t("Próximo partido del club · es de tus equipos") : t("Próximo partido del club")}</p>
                 <div className="flex items-center gap-3 flex-wrap">
                   <Swords className="w-5 h-5 text-white/80 shrink-0" />
                   <p className="text-xl font-black text-white leading-tight" style={display}>{nextClub.title}</p>
                 </div>
                 <p className="text-sm text-white/85 flex items-center gap-4 flex-wrap">
-                  <span className="font-bold capitalize">{format(new Date(nextClub.date), "EEE d MMM · HH:mm", { locale: es })}</span>
+                  <span className="font-bold capitalize">{format(new Date(nextClub.date), "EEE d MMM · HH:mm", { locale: dfl })}</span>
                   <span>{teamName(nextClub.team_id)}</span>
                   {nextClub.location && <span className="inline-flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{nextClub.location}</span>}
                 </p>
@@ -295,15 +301,15 @@ export default function Dashboard() {
               <Countdown date={nextClub.date} />
             </div>
           ) : (
-            <div className={`${card} p-6 text-sm text-gray-400`} style={cardStyle}>Sin partidos programados.</div>
+            <div className={`${card} p-6 text-sm text-gray-400`} style={cardStyle}>{t("Sin partidos programados.")}</div>
           )}
 
           {nextMine && !nextIsMine && (
             <div className={`${card} p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4`} style={{ ...cardStyle, borderLeft: "4px solid var(--naranja)" }}>
               <div className="flex-1 min-w-0 w-full">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Mi próximo partido · {teamName(nextMine.team_id)}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("Mi próximo partido · {teamName}", { teamName: teamName(nextMine.team_id) })}</p>
                 <p className="font-black text-gray-900 text-lg leading-tight" style={display}>{nextMine.title}</p>
-                <p className="text-xs font-bold mt-0.5 capitalize" style={{ color: "var(--granate)" }}>{format(new Date(nextMine.date), "EEEE d MMM · HH:mm", { locale: es })}</p>
+                <p className="text-xs font-bold mt-0.5 capitalize" style={{ color: "var(--granate)" }}>{format(new Date(nextMine.date), "EEEE d MMM · HH:mm", { locale: dfl })}</p>
               </div>
               <MatchButtons ev={nextMine} mine />
             </div>
@@ -312,16 +318,16 @@ export default function Dashboard() {
 
         <div className="space-y-4">
           <div className={`${card} p-4`} style={cardStyle}>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">Temporada · {recordLabel}</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">{t("Temporada · {recordLabel}", { recordLabel })}</p>
             <div className="flex items-end gap-2" style={display}>
-              <span className="text-4xl font-black text-green-600 leading-none">{wins}</span><span className="text-[10px] text-gray-400 mb-1">V</span>
-              <span className="text-4xl font-black text-gray-500 leading-none ml-1">{draws}</span><span className="text-[10px] text-gray-400 mb-1">E</span>
-              <span className="text-4xl font-black text-red-600 leading-none ml-1">{losses}</span><span className="text-[10px] text-gray-400 mb-1">D</span>
+              <span className="text-4xl font-black text-green-600 leading-none">{wins}</span><span className="text-[10px] text-gray-400 mb-1">{t("V")}</span>
+              <span className="text-4xl font-black text-gray-500 leading-none ml-1">{draws}</span><span className="text-[10px] text-gray-400 mb-1">{t("E")}</span>
+              <span className="text-4xl font-black text-red-600 leading-none ml-1">{losses}</span><span className="text-[10px] text-gray-400 mb-1">{t("D")}</span>
             </div>
           </div>
           <div className={`${card} p-4`} style={cardStyle}>
             <div className="flex items-baseline justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Asistencia media{hasMine && !isCoordinator ? " · mis equipos" : ""}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{t("Asistencia media")}{hasMine && !isCoordinator ? ` · ${t("mis equipos")}` : ""}</p>
               <p className="text-2xl font-black" style={{ ...display, color: attRate == null ? "#9ca3af" : attColor }}>{attRate == null ? "—" : `${attRate}%`}</p>
             </div>
             <div className="h-2 rounded-full bg-gray-100 mt-2 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${attRate || 0}%`, background: attColor }} /></div>
@@ -331,9 +337,9 @@ export default function Dashboard() {
 
       {/* Datos del club */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[["Equipos", teams.length], ["Jugadores", players.length], ["Activos", activePlayers], ["Lesionados", injured]].map(([l, v]) => (
+        {[[msg("Equipos"), teams.length], [msg("Jugadores"), players.length], [msg("Activos"), activePlayers], [msg("Lesionados"), injured]].map(([l, v]) => (
           <div key={l} className={`${card} px-4 py-3`} style={cardStyle}>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400">{l}</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400">{t(l)}</p>
             <p className="text-2xl font-black" style={{ ...display, color: "var(--granate)" }}>{v}</p>
           </div>
         ))}
@@ -341,8 +347,8 @@ export default function Dashboard() {
 
       {/* Planificación semanal */}
       <div className={card} style={cardStyle}>
-        <Title right={<Link to="/Calendar" className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--granate)", ...display }}>Calendario completo →</Link>}>
-          Planificación semanal{!isCoordinator && hasMine ? " · mis equipos" : ""} · {format(weekDays[0], "d MMM", { locale: es })} – {format(weekDays[6], "d MMM", { locale: es })}
+        <Title right={<Link to="/Calendar" className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--granate)", ...display }}>{t("Calendario completo →")}</Link>}>
+          {t("Planificación semanal")}{!isCoordinator && hasMine ? ` · ${t("mis equipos")}` : ""} · {format(weekDays[0], "d MMM", { locale: dfl })} – {format(weekDays[6], "d MMM", { locale: dfl })}
         </Title>
         <div className="grid grid-cols-7 gap-1 sm:gap-3 px-2 sm:px-4 pb-4">
           {weekDays.map((d) => {
@@ -353,8 +359,8 @@ export default function Dashboard() {
             return (
               <div key={k} className="space-y-1.5 min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-widest capitalize" style={{ ...display, color: isToday ? "var(--naranja)" : "#6b7280" }}>
-                  <span className="sm:hidden">{format(d, "EEEEE d", { locale: es })}</span>
-                  <span className="hidden sm:inline">{isToday ? "Hoy · " : ""}{format(d, "EEE d", { locale: es })}</span>
+                  <span className="sm:hidden">{format(d, "EEEEE d", { locale: dfl })}</span>
+                  <span className="hidden sm:inline">{isToday ? `${t("Hoy")} · ` : ""}{format(d, "EEE d", { locale: dfl })}</span>
                 </p>
                 {sorted.length === 0 && <p className="text-[11px] text-gray-300 pl-1">—</p>}
                 {sorted.slice(0, 4).map((e) => {
@@ -366,14 +372,14 @@ export default function Dashboard() {
                         <p className={`text-[9px] sm:text-[10px] font-bold ${off ? "line-through" : ""}`} style={{ color: m ? "var(--granate)" : "var(--naranja)" }}>{format(new Date(e.date), "HH:mm")}</p>
                         <EventWeather event={e} size="xs" />
                       </div>
-                      <p className={`text-[9px] sm:text-xs font-semibold text-gray-900 leading-tight line-clamp-3 sm:line-clamp-2 break-words ${off ? "line-through" : ""}`}>{m ? (e.opponent ? `${teamName(e.team_id)} vs ${e.opponent}` : e.title) : (e.title || "Entrenamiento")}</p>
+                      <p className={`text-[9px] sm:text-xs font-semibold text-gray-900 leading-tight line-clamp-3 sm:line-clamp-2 break-words ${off ? "line-through" : ""}`}>{m ? (e.opponent ? `${teamName(e.team_id)} vs ${e.opponent}` : e.title) : (e.title || t("Entrenamiento"))}</p>
                       {!m && <p className="text-[8px] sm:text-[10px] text-gray-500 leading-tight break-words">{teamName(e.team_id)}</p>}
-                      {off && <p className="text-[8px] sm:text-[10px] font-bold text-gray-500 leading-tight break-words" title={cancelText(e)}>{cancelText(e)}</p>}
+                      {off && <p className="text-[8px] sm:text-[10px] font-bold text-gray-500 leading-tight break-words" title={cancelText(e, t)}>{cancelText(e, t)}</p>}
                     </div>
                   );
                   return m ? <Link key={e.id} to={`/MatchDetail?id=${e.id}&teamId=${e.team_id}`} className="block">{content}</Link> : <div key={e.id}>{content}</div>;
                 })}
-                {sorted.length > 4 && <Link to="/Calendar" className="block text-[11px] font-bold pl-1" style={{ color: "var(--granate)" }}>+{sorted.length - 4} más</Link>}
+                {sorted.length > 4 && <Link to="/Calendar" className="block text-[11px] font-bold pl-1" style={{ color: "var(--granate)" }}>{t("+{v} más", { v: sorted.length - 4 })}</Link>}
               </div>
             );
           })}
@@ -382,12 +388,12 @@ export default function Dashboard() {
 
       {/* Resultados del último fin de semana */}
       <div className={`${card} overflow-hidden`} style={cardStyle}>
-        <Title right={<span className="text-[11px] font-bold text-gray-400">{recent.length} partidos</span>}>Resultados del fin de semana · {weekendLabel}</Title>
-        {recent.length === 0 ? <p className="px-4 pb-3 text-sm text-gray-400">Todavía no hay resultados de ese fin de semana.</p> : (
+        <Title right={<span className="text-[11px] font-bold text-gray-400">{t("{length} partidos", { length: recent.length })}</span>}>{t("Resultados del fin de semana · {weekendLabel}", { weekendLabel })}</Title>
+        {recent.length === 0 ? <p className="px-4 pb-3 text-sm text-gray-400">{t("Todavía no hay resultados de ese fin de semana.")}</p> : (
           <div className="grid grid-cols-1 md:grid-cols-3 md:divide-x divide-gray-100">
-            {[["Primer Equipo y Juvenil", recent.filter((m) => !isF7(m) && rankOf(m) <= 1)], ["Cadete e Infantil · F11", recent.filter((m) => !isF7(m) && rankOf(m) > 1)], ["Fútbol 7", recent.filter(isF7)]].map(([label, list]) => (
+            {[[msg("Primer Equipo y Juvenil"), recent.filter((m) => !isF7(m) && rankOf(m) <= 1)], [msg("Cadete e Infantil · F11"), recent.filter((m) => !isF7(m) && rankOf(m) > 1)], [msg("Fútbol 7"), recent.filter(isF7)]].map(([label, list]) => (
               <div key={label} className="pb-1.5 min-w-0">
-                <p className="px-3 pt-1 pb-0.5 text-[10px] font-black uppercase tracking-widest text-gray-400" style={display}>{label} · {list.length}</p>
+                <p className="px-3 pt-1 pb-0.5 text-[10px] font-black uppercase tracking-widest text-gray-400" style={display}>{t(label)} · {list.length}</p>
                 {list.length === 0 && <p className="px-3 pb-1 text-sm text-gray-300">—</p>}
                 {list.map((m) => {
                   const win = m.score_home > m.score_away, draw = m.score_home === m.score_away;
@@ -397,8 +403,8 @@ export default function Dashboard() {
                       <span className="w-4 h-4 rounded-[3px] text-[9px] font-black text-white flex items-center justify-center shrink-0" style={{ background: c }}>{win ? "V" : draw ? "E" : "D"}</span>
                       <p className="text-[12px] font-semibold text-gray-900 truncate min-w-0 flex-1">
                         {playsAway(m)
-                          ? <><span className="font-normal text-[10px] text-gray-400">{m.opponent || "—"} vs</span> {teamName(m.team_id)}</>
-                          : <>{teamName(m.team_id)} <span className="font-normal text-[10px] text-gray-400">vs {m.opponent || "—"}</span></>}
+                          ? <><span className="font-normal text-[10px] text-gray-400">{t("{v} vs", { v: m.opponent || "—" })}</span> {teamName(m.team_id)}</>
+                          : <>{teamName(m.team_id)} <span className="font-normal text-[10px] text-gray-400">{t("vs {v}", { v: m.opponent || "—" })}</span></>}
                       </p>
                       <span className="text-[13px] font-black shrink-0" style={{ ...display, color: c }} title={scoreTitle(m, teamName(m.team_id))}>{scoreText(m, "–")}</span>
                     </Link>
@@ -411,14 +417,14 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Leaders title="Líderes · Fútbol 7" items={leadersFor("f7")} />
-        <Leaders title="Líderes · Fútbol 11" items={leadersFor("f11")} />
+        <Leaders title={t("Líderes · Fútbol 7")} items={leadersFor("f7")} />
+        <Leaders title={t("Líderes · Fútbol 11")} items={leadersFor("f11")} />
       </div>
 
       {/* Equipos / clasificación / agenda */}
       <div className={`${card} overflow-hidden`} style={cardStyle}>
         <div className="flex border-b border-gray-200 px-3 overflow-x-auto">
-          {[["equipos", `Equipos y clasificación · ${teams.length}`], ["fcf", "Clasificaciones completas"], ["agenda", "Agenda fin de semana"]].map(([k, l]) => (
+          {[["equipos", t("Equipos y clasificación · {n}", { n: teams.length })], ["fcf", t("Clasificaciones completas")], ["agenda", t("Agenda fin de semana")]].map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)} className="px-3 py-2.5 text-[13px] whitespace-nowrap border-b-[3px] -mb-px transition-colors"
               style={{ borderColor: tab === k ? "var(--granate)" : "transparent", color: tab === k ? "var(--granate)" : "#6b7280", fontWeight: tab === k ? 700 : 500, ...display }}>{l}</button>
           ))}
@@ -428,9 +434,9 @@ export default function Dashboard() {
             <div className="flex gap-1.5 flex-wrap">
               {GROUPS.map((g) => (
                 <button key={g} onClick={() => setGroup(g)} className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                  style={group === g ? { background: "var(--granate)", color: "#fff" } : { background: "#f3f4f6", color: "#6b7280" }}>{g}</button>
+                  style={group === g ? { background: "var(--granate)", color: "#fff" } : { background: "#f3f4f6", color: "#6b7280" }}>{t(g)}</button>
               ))}
-              <Link to="/Teams" className="ml-auto text-[11px] font-bold uppercase tracking-wider self-center" style={{ color: "var(--granate)", ...display }}>Gestionar →</Link>
+              <Link to="/Teams" className="ml-auto text-[11px] font-bold uppercase tracking-wider self-center" style={{ color: "var(--granate)", ...display }}>{t("Gestionar →")}</Link>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-1.5">
               {shownTeams.map((t) => <TeamCard key={t.id} team={t} count={players.filter((p) => p.team_id === t.id).length} />)}

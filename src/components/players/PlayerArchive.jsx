@@ -11,12 +11,14 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import EmptyState from "@/components/common/EmptyState";
+import { useT } from "@/i18n";
 
 const short = (s) => { const [a, b] = String(s || "").split("-"); return b ? `${a.slice(2)}–${b.slice(2)}` : s || ""; };
 
 // Histórico de jugadores: los que se fueron del club (bajas de un cierre de temporada o marcados como baja).
 // Siguen en la base de datos con todo su historial; si vuelven, se reincorporan a un equipo.
 export default function PlayerArchive({ players, teams }) {
+  const t = useT();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [year, setYear] = useState("all");
@@ -60,12 +62,12 @@ export default function PlayerArchive({ players, teams }) {
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-3 flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input placeholder="Buscar en el histórico…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 border-gray-200 h-8" />
+          <Input placeholder={t("Buscar en el histórico…")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 border-gray-200 h-8" />
         </div>
         <Select value={year} onValueChange={setYear}>
-          <SelectTrigger className="w-[130px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Año nac." /></SelectTrigger>
+          <SelectTrigger className="w-[130px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder={t("Año nac.")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos los años</SelectItem>
+            <SelectItem value="all">{t("Todos los años")}</SelectItem>
             {years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -73,11 +75,11 @@ export default function PlayerArchive({ players, teams }) {
       </div>
 
       {isLoading ? (
-        <p className="py-10 text-center text-sm text-gray-400">Cargando…</p>
+        <p className="py-10 text-center text-sm text-gray-400">{t("Cargando…")}</p>
       ) : shown.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded">
-          <EmptyState icon={History} title={list.length ? "Sin resultados" : "Todavía no hay jugadores en el histórico"}
-            hint={list.length ? "" : 'Los jugadores que marques como baja al cerrar la temporada (o con estado "Baja") aparecerán aquí, con todo su historial.'} />
+          <EmptyState icon={History} title={list.length ? t("Sin resultados") : t("Todavía no hay jugadores en el histórico")}
+            hint={list.length ? "" : t("Los jugadores que marques como baja al cerrar la temporada (o con estado \"Baja\") aparecerán aquí, con todo su historial.")} />
         </div>
       ) : (
         <div className="bg-white border border-gray-200 shadow-sm overflow-hidden rounded-xl">
@@ -85,10 +87,10 @@ export default function PlayerArchive({ players, teams }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-400 uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
-                  <th className="text-left px-4 py-2 font-bold">Jugador</th>
-                  <th className="text-center px-3 py-2 font-bold hidden sm:table-cell">Año nac.</th>
-                  <th className="text-left px-3 py-2 font-bold hidden md:table-cell">Último equipo</th>
-                  <th className="text-left px-3 py-2 font-bold hidden lg:table-cell">Temporadas en el club</th>
+                  <th className="text-left px-4 py-2 font-bold">{t("Jugador")}</th>
+                  <th className="text-center px-3 py-2 font-bold hidden sm:table-cell">{t("Año nac.")}</th>
+                  <th className="text-left px-3 py-2 font-bold hidden md:table-cell">{t("Último equipo")}</th>
+                  <th className="text-left px-3 py-2 font-bold hidden lg:table-cell">{t("Temporadas en el club")}</th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
@@ -100,7 +102,7 @@ export default function PlayerArchive({ players, teams }) {
                     <tr key={p.id} className="hover:bg-gray-50">
                       <td className="px-4 py-1.5">
                         <Link to={`/PlayerProfile?id=${p.id}`} className="font-bold text-gray-900 hover:underline" style={{ fontFamily: "var(--font-display)" }}>{playerFullName(p)}</Link>
-                        {p.archived_season && <span className="ml-2 text-[10px] font-semibold text-gray-400">baja {short(p.archived_season)}</span>}
+                        {p.archived_season && <span className="ml-2 text-[10px] font-semibold text-gray-400">{t("baja {short}", { short: short(p.archived_season) })}</span>}
                       </td>
                       <td className="px-3 py-1.5 text-center hidden sm:table-cell font-black text-gray-600" style={{ fontFamily: "var(--font-display)" }}>{birthYearOf(p) || "—"}</td>
                       <td className="px-3 py-1.5 hidden md:table-cell text-xs text-gray-500">{last}</td>
@@ -108,7 +110,7 @@ export default function PlayerArchive({ players, teams }) {
                         {hs.length ? hs.slice(0, 4).map((h) => `${short(h.season)} ${h.team_name || ""}`.trim()).join(" · ") + (hs.length > 4 ? " …" : "") : "—"}
                       </td>
                       <td className="px-3 py-1.5 text-right">
-                        <Button size="sm" variant="clubOutline" className="gap-1" onClick={() => { setBack(p); setTeamId(""); }}><UserPlus className="w-3.5 h-3.5" /> Reincorporar</Button>
+                        <Button size="sm" variant="clubOutline" className="gap-1" onClick={() => { setBack(p); setTeamId(""); }}><UserPlus className="w-3.5 h-3.5" /> {t("Reincorporar")}</Button>
                       </td>
                     </tr>
                   );
@@ -122,16 +124,16 @@ export default function PlayerArchive({ players, teams }) {
       <Dialog open={!!back} onOpenChange={(o) => { if (!o) setBack(null); }}>
         <DialogContent className="bg-white max-w-md">
           <DialogHeader>
-            <DialogTitle>Reincorporar a {back ? playerFullName(back) : ""}</DialogTitle>
-            <DialogDescription>Vuelve a la plantilla del equipo que elijas, con todo su historial.</DialogDescription>
+            <DialogTitle>{t("Reincorporar a {v}", { v: back ? playerFullName(back) : "" })}</DialogTitle>
+            <DialogDescription>{t("Vuelve a la plantilla del equipo que elijas, con todo su historial.")}</DialogDescription>
           </DialogHeader>
           <Select value={teamId} onValueChange={setTeamId}>
-            <SelectTrigger className="bg-white"><SelectValue placeholder="Elegir equipo…" /></SelectTrigger>
+            <SelectTrigger className="bg-white"><SelectValue placeholder={t("Elegir equipo…")} /></SelectTrigger>
             <SelectContent>{sortedTeams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
           </Select>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setBack(null)}>Cancelar</Button>
-            <Button variant="club" disabled={!teamId || saving} onClick={reinstate}>{saving ? "Guardando…" : "Reincorporar"}</Button>
+            <Button variant="ghost" onClick={() => setBack(null)}>{t("Cancelar")}</Button>
+            <Button variant="club" disabled={!teamId || saving} onClick={reinstate}>{saving ? t("Guardando…") : t("Reincorporar")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

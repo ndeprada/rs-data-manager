@@ -7,21 +7,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { CheckCircle, Circle, Users, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { playerFullName } from "@/lib/playerName";
+import { useT, useDateLocale, msg } from "@/i18n";
 
 const STATUS_STYLES = {
-  activo:   { label: "Activo",    dot: "bg-green-400" },
-  lesionado:{ label: "Lesionado", dot: "bg-orange-400" },
-  baja:     { label: "Baja",      dot: "bg-red-400" },
+  activo:   { label: msg("Activo"),    dot: "bg-green-400" },
+  lesionado:{ label: msg("Lesionado"), dot: "bg-orange-400" },
+  baja:     { label: msg("Baja"),      dot: "bg-red-400" },
 };
 
 const POSITIONS = {
-  portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
-  mediocentro: "MCC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT",
+  portero: msg("POR"), lateral: msg("LAT"), central: msg("CEN"), libre: msg("LIB"),
+  mediocentro: msg("MCC"), interior: msg("INT"), mediapunta: msg("MP"), delantero_centro: msg("DC"), extremo: msg("EXT"),
 };
 
 export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const queryClient = useQueryClient();
   const [selectedIds, setSelectedIds] = useState([]);
   const [notes, setNotes] = useState("");
@@ -97,11 +99,11 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
         <DialogHeader>
           <DialogTitle className="text-gray-900 flex items-center gap-2">
             <Users className="w-5 h-5" style={{ color: "var(--granate)" }} />
-            Convocatoria — {event?.title}
+            {t("Convocatoria — {title}", { title: event?.title })}
           </DialogTitle>
           {event?.date && (
             <p className="text-sm text-gray-500 capitalize mt-0.5">
-              {format(new Date(event.date), "EEEE d 'de' MMMM 'a las' HH:mm", { locale: es })}
+              {format(new Date(event.date), "EEEE d 'de' MMMM 'a las' HH:mm", { locale: dfl })}
               {event?.location && ` · ${event.location}`}
             </p>
           )}
@@ -109,10 +111,10 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
 
         {/* Summary bar */}
         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl text-sm">
-          <span className="font-semibold text-gray-700">{selectedIds.length} convocados</span>
-          <span className="text-gray-400">de {teamPlayers.length} jugadores</span>
+          <span className="font-semibold text-gray-700">{t("{length} convocados", { length: selectedIds.length })}</span>
+          <span className="text-gray-400">{t("de {length} jugadores", { length: teamPlayers.length })}</span>
           <button onClick={selectAll} className="ml-auto text-xs font-medium hover:underline" style={{ color: "var(--granate)" }}>
-            Seleccionar disponibles
+            {t("Seleccionar disponibles")}
           </button>
         </div>
 
@@ -121,7 +123,7 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
           {Object.entries(grouped).map(([pos, pp]) => (
             <div key={pos}>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-1">
-                {POSITIONS[pos] || pos}
+                {t(POSITIONS[pos] || pos)}
               </p>
               <div className="space-y-1">
                 {pp.map((player) => {
@@ -162,7 +164,7 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
                       <div className="flex items-center gap-1.5 shrink-0">
                         {isInjured && <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />}
                         <span className={`w-2 h-2 rounded-full ${st.dot}`} />
-                        <span className="text-xs text-gray-400">{st.label}</span>
+                        <span className="text-xs text-gray-400">{t(st.label)}</span>
                       </div>
                     </button>
                   );
@@ -172,7 +174,7 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
           ))}
           {noPos.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-1">Sin posición</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-1">{t("Sin posición")}</p>
               <div className="space-y-1">
                 {noPos.map((player) => {
                   const isSelected = selectedIds.includes(player.id);
@@ -193,20 +195,20 @@ export default function ConvocatoriaDialog({ open, onOpenChange, event, teamId }
 
         {/* Notes */}
         <div className="space-y-2">
-          <Label className="text-gray-700">Notas para los convocados</Label>
+          <Label className="text-gray-700">{t("Notas para los convocados")}</Label>
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Instrucciones, hora de concentración, equipación..."
+            placeholder={t("Instrucciones, hora de concentración, equipación...")}
             className="border-gray-200 h-20"
           />
         </div>
 
         {/* Actions */}
         <div className="flex items-center justify-between gap-3 pt-2">
-          <p className="text-[11px] text-gray-400">Para avisar a los jugadores usa la pestaña Convocatoria del partido (WhatsApp y aviso al móvil).</p>
+          <p className="text-[11px] text-gray-400">{t("Para avisar a los jugadores usa la pestaña Convocatoria del partido (WhatsApp y aviso al móvil).")}</p>
           <Button variant="club" onClick={handleSave} disabled={saveMutation.isPending || selectedIds.length === 0}>
-            {saveMutation.isPending ? "Guardando…" : "Guardar"}
+            {saveMutation.isPending ? t("Guardando…") : t("Guardar")}
           </Button>
         </div>
       </DialogContent>

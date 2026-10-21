@@ -12,8 +12,10 @@ import AddStaffDialog from "@/components/team/AddStaffDialog";
 
 import { CURRENT_SEASON, TEAM_ROLES, teamRoleLabel, teamRoleRank } from "@/lib/staffRoles";
 import { syncUserTeamsForStaff } from "@/lib/staffLink";
+import { useT } from "@/i18n";
 
 export default function TeamStaffSection({ teamId }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -98,9 +100,9 @@ export default function TeamStaffSection({ teamId }) {
       invalidate();
       setAddDialogOpen(false);
       setForm({ staff_member_id: "", team_role: "" });
-      toast({ title: "Miembro añadido al cuerpo técnico." });
+      toast({ title: t("Miembro añadido al cuerpo técnico.") });
     },
-    onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err) => toast({ title: t("Error"), description: err.message, variant: "destructive" }),
   });
 
   const editRoleMutation = useMutation({
@@ -112,9 +114,9 @@ export default function TeamStaffSection({ teamId }) {
     onSuccess: () => {
       invalidate();
       setEditDialog(null);
-      toast({ title: "Rol actualizado." });
+      toast({ title: t("Rol actualizado.") });
     },
-    onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err) => toast({ title: t("Error"), description: err.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -131,9 +133,9 @@ export default function TeamStaffSection({ teamId }) {
     onSuccess: () => {
       invalidate();
       setDeleteId(null);
-      toast({ title: "Miembro desvinculado del equipo." });
+      toast({ title: t("Miembro desvinculado del equipo.") });
     },
-    onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err) => toast({ title: t("Error"), description: err.message, variant: "destructive" }),
   });
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -141,15 +143,15 @@ export default function TeamStaffSection({ teamId }) {
     <>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Cuerpo Técnico del Equipo</h3>
+          <h3 className="font-semibold text-gray-900">{t("Cuerpo Técnico del Equipo")}</h3>
           <Button variant="club" size="sm" onClick={() => setAddDialogOpen(true)}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> Añadir miembro
+            <Plus className="w-3.5 h-3.5 mr-1" /> {t("Añadir miembro")}
           </Button>
         </div>
 
         {teamStaff.length === 0 ? (
           <div className="p-6 text-center border border-gray-200 rounded-lg bg-gray-50">
-            <p className="text-gray-400 text-sm">No hay miembros asignados al cuerpo técnico</p>
+            <p className="text-gray-400 text-sm">{t("No hay miembros asignados al cuerpo técnico")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
@@ -195,14 +197,14 @@ export default function TeamStaffSection({ teamId }) {
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="bg-white border-gray-200">
           <DialogHeader>
-            <DialogTitle>Añadir al Cuerpo Técnico</DialogTitle>
+            <DialogTitle>{t("Añadir al Cuerpo Técnico")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Miembro del Staff *</Label>
+              <Label>{t("Miembro del Staff *")}</Label>
               <Select value={form.staff_member_id} onValueChange={(v) => setForm(f => ({ ...f, staff_member_id: v }))}>
                 <SelectTrigger className="border-gray-200">
-                  <SelectValue placeholder="Seleccionar miembro" />
+                  <SelectValue placeholder={t("Seleccionar miembro")} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableStaff.map((s) => (
@@ -219,31 +221,31 @@ export default function TeamStaffSection({ teamId }) {
                 className="text-xs font-medium flex items-center gap-1 hover:underline"
                 style={{ color: "var(--granate)" }}
               >
-                <Plus className="w-3 h-3" /> Crear nuevo miembro del staff
+                <Plus className="w-3 h-3" /> {t("Crear nuevo miembro del staff")}
               </button>
             </div>
             <div className="space-y-2">
-              <Label>Rol en el Equipo *</Label>
+              <Label>{t("Rol en el Equipo *")}</Label>
               <Select value={form.team_role} onValueChange={(v) => setForm(f => ({ ...f, team_role: v }))}>
                 <SelectTrigger className="border-gray-200">
-                  <SelectValue placeholder="Seleccionar rol" />
+                  <SelectValue placeholder={t("Seleccionar rol")} />
                 </SelectTrigger>
                 <SelectContent>
                   {TEAM_ROLES.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                    <SelectItem key={r.value} value={r.value}>{t(r.label)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button variant="outline" onClick={() => { setAddDialogOpen(false); setForm({ staff_member_id: "", team_role: "" }); }}>
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button variant="club"
                 onClick={() => addMutation.mutate(form)}
                 disabled={!form.staff_member_id || !form.team_role || addMutation.isPending}
               >
-                {addMutation.isPending ? "Añadiendo..." : "Añadir"}
+                {addMutation.isPending ? t("Añadiendo...") : t("Añadir")}
               </Button>
             </div>
           </div>
@@ -254,29 +256,29 @@ export default function TeamStaffSection({ teamId }) {
       <Dialog open={!!editDialog} onOpenChange={() => setEditDialog(null)}>
         <DialogContent className="bg-white border-gray-200">
           <DialogHeader>
-            <DialogTitle>Editar Rol en el Equipo</DialogTitle>
+            <DialogTitle>{t("Editar Rol en el Equipo")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Nuevo Rol</Label>
+              <Label>{t("Nuevo Rol")}</Label>
               <Select value={editDialog?.team_role || ""} onValueChange={(v) => setEditDialog(d => ({ ...d, team_role: v }))}>
                 <SelectTrigger className="border-gray-200">
-                  <SelectValue placeholder="Seleccionar rol" />
+                  <SelectValue placeholder={t("Seleccionar rol")} />
                 </SelectTrigger>
                 <SelectContent>
                   {TEAM_ROLES.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                    <SelectItem key={r.value} value={r.value}>{t(r.label)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={() => setEditDialog(null)}>Cancelar</Button>
+              <Button variant="outline" onClick={() => setEditDialog(null)}>{t("Cancelar")}</Button>
               <Button variant="club"
                 onClick={() => editRoleMutation.mutate(editDialog)}
                 disabled={!editDialog?.team_role || editRoleMutation.isPending}
               >
-                {editRoleMutation.isPending ? "Guardando..." : "Guardar"}
+                {editRoleMutation.isPending ? "Guardando..." : t("Guardar")}
               </Button>
             </div>
           </div>
@@ -292,7 +294,7 @@ export default function TeamStaffSection({ teamId }) {
         onCreated={(created) => {
           queryClient.setQueryData(["staff"], (old = []) => [...old, created]);
           setForm((f) => ({ ...f, staff_member_id: created.id }));
-          toast({ title: "Miembro del staff creado. Ahora elige su rol y pulsa Añadir." });
+          toast({ title: t("Miembro del staff creado. Ahora elige su rol y pulsa Añadir.") });
         }}
       />
 
@@ -300,17 +302,17 @@ export default function TeamStaffSection({ teamId }) {
       <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Desvincular del equipo?</AlertDialogTitle>
-            <AlertDialogDescription>Se eliminará este miembro del cuerpo técnico del equipo. El miembro no será eliminado del sistema.</AlertDialogDescription>
+            <AlertDialogTitle>{t("¿Desvincular del equipo?")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("Se eliminará este miembro del cuerpo técnico del equipo. El miembro no será eliminado del sistema.")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteMutation.mutate(deleteId)}
               disabled={deleteMutation.isPending}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
-              {deleteMutation.isPending ? "Desvinculando..." : "Desvincular"}
+              {deleteMutation.isPending ? "Desvinculando..." : t("Desvincular")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

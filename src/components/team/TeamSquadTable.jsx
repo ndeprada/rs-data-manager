@@ -13,6 +13,7 @@ import { PctPill } from "@/components/stats/ParticipationBits";
 
 import { Button } from "@/components/ui/button";
 import { eventMinutes } from "@/lib/matchDuration";
+import { useT } from "@/i18n";
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB", mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT" };
 const POS_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
@@ -31,6 +32,7 @@ function Th({ label, k, sort, setSort, className = "" }) {
 
 // Tabla única de plantilla: datos del jugador + estadísticas de partidos + entrenos + lesiones.
 export default function TeamSquadTable({ teamId, onAddPlayer }) {
+  const t = useT();
   const [sort, setSort] = useState({ key: "pos", dir: "asc" });
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
@@ -110,32 +112,32 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
     <div className="space-y-3">
       <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
         <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-black text-sm uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Plantilla <span className="text-gray-400 font-bold">({rows.length})</span></h2>
+          <h2 className="font-black text-sm uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{t("Plantilla")} <span className="text-gray-400 font-bold">({rows.length})</span></h2>
           {onAddPlayer && (
-            <Button variant="club" size="sm" onClick={onAddPlayer} className="gap-1"><Plus className="w-3.5 h-3.5" /> Jugador</Button>
+            <Button variant="club" size="sm" onClick={onAddPlayer} className="gap-1"><Plus className="w-3.5 h-3.5" /> {t("Jugador")}</Button>
           )}
         </div>
-        {rows.length === 0 ? <p className="p-6 text-center text-gray-400 text-sm">No hay jugadores en este equipo</p> : (
+        {rows.length === 0 ? <p className="p-6 text-center text-gray-400 text-sm">{t("No hay jugadores en este equipo")}</p> : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-[10px] text-gray-400 uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
                   <Th label="#" k="num" {...hdr} className="text-left" />
-                  <Th label="Jugador" k="name" {...hdr} className="text-left" />
-                  <Th label="Año" k="year" {...hdr} />
-                  <Th label="Nac" k="nat" {...hdr} />
-                  <Th label="Pos" k="pos" {...hdr} />
-                  <Th label="PJ" k="pj" {...hdr} />
-                  <Th label="Goles" k="goals" {...hdr} />
-                  <Th label="Asist" k="assists" {...hdr} />
-                  <Th label="Min" k="mins" {...hdr} />
-                  <Th label="Min/PJ" k="minPJ" {...hdr} />
-                  <Th label="% min" k="pctMin" {...hdr} />
-                  <Th label="Val." k="rating" {...hdr} />
-                  <Th label="TA" k="ta" {...hdr} />
-                  <Th label="TR" k="tr" {...hdr} />
-                  <Th label="Entr." k="attPct" {...hdr} />
-                  <th className="px-2 py-2 font-bold">Estado</th>
+                  <Th label={t("Jugador")} k="name" {...hdr} className="text-left" />
+                  <Th label={t("Año")} k="year" {...hdr} />
+                  <Th label={t("Nac")} k="nat" {...hdr} />
+                  <Th label={t("Pos")} k="pos" {...hdr} />
+                  <Th label={t("PJ")} k="pj" {...hdr} />
+                  <Th label={t("Goles")} k="goals" {...hdr} />
+                  <Th label={t("Asist")} k="assists" {...hdr} />
+                  <Th label={t("Min")} k="mins" {...hdr} />
+                  <Th label={t("Min/PJ")} k="minPJ" {...hdr} />
+                  <Th label={t("% min")} k="pctMin" {...hdr} />
+                  <Th label={t("Val.")} k="rating" {...hdr} />
+                  <Th label={t("TA")} k="ta" {...hdr} />
+                  <Th label={t("TR")} k="tr" {...hdr} />
+                  <Th label={t("Entr.")} k="attPct" {...hdr} />
+                  <th className="px-2 py-2 font-bold">{t("Estado")}</th>
                   <th className="px-2 py-2"></th>
                 </tr>
               </thead>
@@ -155,7 +157,7 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
                     <td className={num}>{countryOf(r.p) ? <Flag player={r.p} className="justify-center" /> : <span className="text-gray-300">—</span>}</td>
                     <td className={num}><span className="text-[10px] font-black px-1.5 py-0.5 rounded-sm" style={{ background: "var(--granate-pale)", color: "var(--granate)" }}>{POS_LABEL[r.p.position] || "—"}</span></td>
                     <td className={`${num} font-black`}>{r.pj}</td>
-                    <td className={`${num} font-black`} style={{ color: r.p.position === "portero" ? undefined : r.goals > 0 ? "var(--granate)" : undefined }} title={r.p.position === "portero" ? "Goles encajados (y marcados entre paréntesis)" : undefined}>
+                    <td className={`${num} font-black`} style={{ color: r.p.position === "portero" ? undefined : r.goals > 0 ? "var(--granate)" : undefined }} title={r.p.position === "portero" ? t("Goles encajados (y marcados entre paréntesis)") : undefined}>
                       {r.p.position === "portero" ? (
                         <span>
                           <span style={{ color: r.conceded > 0 ? "#dc2626" : "#9ca3af" }}>{r.conceded > 0 ? `-${r.conceded}` : "0"}</span>
@@ -164,24 +166,24 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
                       ) : r.goals}
                     </td>
                     <td className={`${num} font-bold text-gray-600`}>{r.assists}</td>
-                    <td className={`${num} text-gray-700`} title={`${r.mins}' de ${r.totalMin}' de partidos jugados`}>{r.mins > 0 ? `${r.mins}'` : "—"}</td>
+                    <td className={`${num} text-gray-700`} title={t("{mins}' de {totalMin}' de partidos jugados", { mins: r.mins, totalMin: r.totalMin })}>{r.mins > 0 ? `${r.mins}'` : "—"}</td>
                     <td className={`${num} text-gray-600`}>{r.minPJ ? `${r.minPJ}'` : "—"}</td>
-                    <td className={num}><PctPill value={r.pctMin} level={r.level} title={`${r.mins}' de ${r.availMin}' disponibles (no cuentan los partidos de lesión, viaje, sanción…)`} /></td>
+                    <td className={num}><PctPill value={r.pctMin} level={r.level} title={t("{mins}' de {availMin}' disponibles (no cuentan los partidos de lesión, viaje, sanción…)", { mins: r.mins, availMin: r.availMin })} /></td>
                     <td className={`${num} font-bold`}>{r.rating != null ? r.rating.toFixed(1) : "—"}</td>
                     <td className={num}>{r.ta > 0 ? <span className="inline-block min-w-4 px-1 rounded-sm bg-yellow-400 text-[10px] font-bold text-yellow-900">{r.ta}</span> : <span className="text-gray-300">—</span>}</td>
                     <td className={num}>{r.tr > 0 ? <span className="inline-block min-w-4 px-1 rounded-sm bg-red-500 text-[10px] font-bold text-white">{r.tr}</span> : <span className="text-gray-300">—</span>}</td>
-                    <td className={`${num} font-bold`} style={{ color: pctColor(r.attPct) }} title={r.attN ? `${r.attN} entrenos registrados` : ""}>{r.attPct != null ? `${r.attPct}%` : "—"}</td>
+                    <td className={`${num} font-bold`} style={{ color: pctColor(r.attPct) }} title={r.attN ? t("{attN} entrenos registrados", { attN: r.attN }) : ""}>{r.attPct != null ? `${r.attPct}%` : "—"}</td>
                     <td className="px-2 py-1.5">
                       {r.injury ? (
-                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-red-50 text-red-700 border-red-200 whitespace-nowrap" title={r.injury.diagnosis || ""}>Lesión{r.injury.body_part ? ` · ${r.injury.body_part}` : ""}</span>
+                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-red-50 text-red-700 border-red-200 whitespace-nowrap" title={r.injury.diagnosis || ""}>{t("Lesión")}{r.injury.body_part ? ` · ${r.injury.body_part}` : ""}</span>
                       ) : r.p.status === "lesionado" ? (
-                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-red-50 text-red-700 border-red-200">Lesionado</span>
+                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-red-50 text-red-700 border-red-200">{t("Lesionado")}</span>
                       ) : (
-                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-green-50 text-green-700 border-green-200">Activo</span>
+                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-green-50 text-green-700 border-green-200">{t("Activo")}</span>
                       )}
                     </td>
                     <td className="px-2 py-1.5 text-right">
-                      <Link to={`/PlayerProfile?id=${r.p.id}&edit=1`} title="Editar jugador" className="inline-flex p-1 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-100"><Pencil className="w-3.5 h-3.5" /></Link>
+                      <Link to={`/PlayerProfile?id=${r.p.id}&edit=1`} title={t("Editar jugador")} className="inline-flex p-1 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-100"><Pencil className="w-3.5 h-3.5" /></Link>
                     </td>
                   </tr>
                 ))}
@@ -194,14 +196,14 @@ export default function TeamSquadTable({ teamId, onAddPlayer }) {
       {guests.length > 0 && (
         <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
           <div className="px-4 py-2.5 border-b border-gray-100">
-            <h2 className="font-black text-sm uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Jugadores de otros equipos con este equipo <span className="text-gray-400 font-bold">({guests.length})</span></h2>
+            <h2 className="font-black text-sm uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{t("Jugadores de otros equipos con este equipo")} <span className="text-gray-400 font-bold">({guests.length})</span></h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-[10px] text-gray-400 uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
-                  <th className="px-2 py-2 text-left font-bold">Jugador</th><th className="px-2 py-2 font-bold">Año</th><th className="px-2 py-2 text-left font-bold">Equipo</th>
-                  <th className="px-2 py-2 font-bold">PJ</th><th className="px-2 py-2 font-bold">Goles</th><th className="px-2 py-2 font-bold">Asist</th><th className="px-2 py-2 font-bold">Min</th><th className="px-2 py-2 font-bold">Val.</th>
+                  <th className="px-2 py-2 text-left font-bold">{t("Jugador")}</th><th className="px-2 py-2 font-bold">{t("Año")}</th><th className="px-2 py-2 text-left font-bold">{t("Equipo")}</th>
+                  <th className="px-2 py-2 font-bold">{t("PJ")}</th><th className="px-2 py-2 font-bold">{t("Goles")}</th><th className="px-2 py-2 font-bold">{t("Asist")}</th><th className="px-2 py-2 font-bold">{t("Min")}</th><th className="px-2 py-2 font-bold">{t("Val.")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">

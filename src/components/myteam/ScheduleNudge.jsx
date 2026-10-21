@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { isCancelled } from "@/lib/eventCancel";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
+import { useT } from "@/i18n";
 
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
 
@@ -16,6 +17,7 @@ const offSeason = (now = new Date()) => now.getMonth() === 5 || now.getMonth() =
  * invita a crear el horario semanal y abre el alta de evento ya como «recurrente».
  */
 export default function ScheduleNudge({ teamId }) {
+  const t = useT();
   const { canManageTeam, coachTeamIds } = useTeamAccess();
   const [open, setOpen] = useState(false);
   const { data: events = [], isSuccess } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
@@ -33,12 +35,12 @@ export default function ScheduleNudge({ teamId }) {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 bg-white border border-gray-200" style={{ borderRadius: "6px", borderLeft: "3px solid var(--naranja)" }}>
         <CalendarPlus className="w-5 h-5 shrink-0" style={{ color: "var(--naranja)" }} />
         <p className="flex-1 min-w-[200px] text-sm text-gray-700">
-          <span className="font-bold text-gray-900">{mine ? "Crea tu horario semanal." : "Este equipo no tiene horario semanal."}</span>{" "}
-          {mine ? "Aún no tienes entrenamientos programados: créalos una vez y se repiten cada semana." : "No hay entrenamientos programados a partir de hoy."}
+          <span className="font-bold text-gray-900">{mine ? t("Crea tu horario semanal.") : t("Este equipo no tiene horario semanal.")}</span>{" "}
+          {mine ? t("Aún no tienes entrenamientos programados: créalos una vez y se repiten cada semana.") : t("No hay entrenamientos programados a partir de hoy.")}
         </p>
         <button type="button" onClick={() => setOpen(true)}
           className="h-8 px-3 text-xs font-bold rounded-md text-white shrink-0" style={{ background: "var(--granate)" }}>
-          Crear horario semanal →
+          {t("Crear horario semanal →")}
         </button>
       </div>
       <CreateEventDialog open={open} onOpenChange={setOpen} date={new Date()} teamId={teamId} startRecurring />

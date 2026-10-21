@@ -4,17 +4,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { ZoomIn } from "lucide-react";
+import { useT, msg } from "@/i18n";
 
 const BG_COLORS = [
-  { label: "Blanco", value: "#ffffff" },
-  { label: "Gris claro", value: "#f3f4f6" },
-  { label: "Negro", value: "#000000" },
-  { label: "Granate", value: "#73000A" },
-  { label: "Azul marino", value: "#1e3a5f" },
-  { label: "Transparente", value: "transparent" },
+  { label: msg("Blanco"), value: "#ffffff" },
+  { label: msg("Gris claro"), value: "#f3f4f6" },
+  { label: msg("Negro"), value: "#000000" },
+  { label: msg("Granate"), value: "#73000A" },
+  { label: msg("Azul marino"), value: "#1e3a5f" },
+  { label: msg("Transparente"), value: "transparent" },
 ];
 
 export default function ImageCropDialog({ open, onOpenChange, imageSrc, onConfirm, isLoading }) {
+  const t = useT();
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
@@ -69,7 +71,7 @@ export default function ImageCropDialog({ open, onOpenChange, imageSrc, onConfir
       <DialogContent className="bg-white max-w-md">
         <DialogHeader>
           <DialogTitle style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
-            Ajustar foto
+            {t("Ajustar foto")}
           </DialogTitle>
         </DialogHeader>
 
@@ -92,14 +94,14 @@ export default function ImageCropDialog({ open, onOpenChange, imageSrc, onConfir
 
           {/* Background color picker */}
           <div className="space-y-1.5">
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Fondo de la foto</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t("Fondo de la foto")}</p>
             <div className="flex flex-wrap gap-2">
               {BG_COLORS.map(c => (
                 <button
                   key={c.value}
                   type="button"
                   onClick={() => setBgColor(c.value)}
-                  title={c.label}
+                  title={t(c.label)}
                   className={`w-7 h-7 rounded-full border-2 transition-all ${bgColor === c.value ? "border-gray-800 scale-110" : "border-gray-200 hover:border-gray-400"}`}
                   style={{
                     background: c.value === "transparent"
@@ -115,7 +117,7 @@ export default function ImageCropDialog({ open, onOpenChange, imageSrc, onConfir
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <ZoomIn className="w-4 h-4 text-gray-400" />
-              <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Zoom</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-500">{t("Zoom")}</span>
             </div>
             <Slider
               value={[zoom]}
@@ -125,19 +127,19 @@ export default function ImageCropDialog({ open, onOpenChange, imageSrc, onConfir
               step={0.1}
               className="w-full"
             />
-            <p className="text-xs text-gray-400 text-right">{zoom.toFixed(2)}x</p>
+            <p className="text-xs text-gray-400 text-right">{t("{toFixed}x", { toFixed: zoom.toFixed(2) })}</p>
           </div>
         </div>
 
         <DialogFooter className="gap-2">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
+            {t("Cancelar")}
           </Button>
           <Button variant="club"
             onClick={handleConfirm}
             disabled={isLoading}
           >
-            {isLoading ? "Guardando..." : "Guardar"}
+            {isLoading ? "Guardando..." : t("Guardar")}
           </Button>
         </DialogFooter>
       </DialogContent>

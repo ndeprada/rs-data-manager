@@ -8,8 +8,10 @@ import { useSelectedTeam } from "@/lib/useSelectedTeam";
 import { playerFullName, playerSearchName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
 import { statTeamResolver, statsOfTeam } from "@/lib/teamStats";
+import { useT } from "@/i18n";
 
 export default function Development() {
+  const t = useT();
   const { selectedTeamId, selectTeam, isCoordinator, canSwitch, teamIds: myTeamIds } = useSelectedTeam();
   const [search, setSearch] = useState("");
 
@@ -38,8 +40,8 @@ export default function Development() {
 
   return (
     <div className="space-y-6">
-      <TeamPageHeader title="Desarrollo">
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar jugador..."
+      <TeamPageHeader title={t("Desarrollo")}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("Buscar jugador...")}
           className="h-9 px-3 text-sm border border-gray-200 rounded bg-white w-48" />
       </TeamPageHeader>
 
@@ -48,7 +50,7 @@ export default function Development() {
           <div className="p-12 text-center">
             <Users className="w-8 h-8 text-gray-200 mx-auto mb-3" />
             <p className="text-gray-400 text-sm uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
-              {selectedTeamId ? "Sin jugadores" : "Selecciona un equipo"}
+              {selectedTeamId ? t("Sin jugadores") : t("Selecciona un equipo")}
             </p>
           </div>
         ) : (
@@ -74,15 +76,15 @@ export default function Development() {
                 <div className="hidden sm:flex items-center gap-6 shrink-0 text-center">
                   <div>
                     <p className="text-lg font-black" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{p.goals}</p>
-                    <p className="text-[10px] text-gray-400 uppercase" style={{ fontFamily: "var(--font-display)" }}>Goles</p>
+                    <p className="text-[10px] text-gray-400 uppercase" style={{ fontFamily: "var(--font-display)" }}>{t("Goles")}</p>
                   </div>
                   <div>
                     <p className="text-lg font-black text-gray-700" style={{ fontFamily: "var(--font-display)" }}>{p.assists}</p>
-                    <p className="text-[10px] text-gray-400 uppercase" style={{ fontFamily: "var(--font-display)" }}>Asist.</p>
+                    <p className="text-[10px] text-gray-400 uppercase" style={{ fontFamily: "var(--font-display)" }}>{t("Asist.")}</p>
                   </div>
                   <div>
                     <p className="text-lg font-black text-gray-700" style={{ fontFamily: "var(--font-display)" }}>{p.matches}</p>
-                    <p className="text-[10px] text-gray-400 uppercase" style={{ fontFamily: "var(--font-display)" }}>PJ</p>
+                    <p className="text-[10px] text-gray-400 uppercase" style={{ fontFamily: "var(--font-display)" }}>{t("PJ")}</p>
                   </div>
                 </div>
                 {/* PDI */}
@@ -92,21 +94,21 @@ export default function Development() {
                       <p className="text-lg font-black" style={{ fontFamily: "var(--font-display)", color: p.lastPdi.overall_rating >= 7 ? "#16a34a" : p.lastPdi.overall_rating >= 5 ? "#b45309" : "#dc2626" }}>
                         {p.lastPdi.overall_rating}/10
                       </p>
-                      <p className="text-[10px] text-gray-400 uppercase" style={{ fontFamily: "var(--font-display)" }}>PDI</p>
+                      <p className="text-[10px] text-gray-400 uppercase" style={{ fontFamily: "var(--font-display)" }}>{t("PDI")}</p>
                     </div>
                   ) : (
                     <div>
                       <p className="text-sm text-gray-300">—</p>
-                      <p className="text-[10px] text-gray-400 uppercase" style={{ fontFamily: "var(--font-display)" }}>PDI</p>
+                      <p className="text-[10px] text-gray-400 uppercase" style={{ fontFamily: "var(--font-display)" }}>{t("PDI")}</p>
                     </div>
                   )}
                 </div>
                 {/* Injury */}
                 <div className="shrink-0">
                   {p.activeInjury ? (
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-sm border bg-red-50 text-red-700 border-red-200">Lesionado</span>
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-sm border bg-red-50 text-red-700 border-red-200">{t("Lesionado")}</span>
                   ) : (
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-sm border bg-green-50 text-green-700 border-green-200">OK</span>
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-sm border bg-green-50 text-green-700 border-green-200">{t("OK")}</span>
                   )}
                 </div>
               </Link>

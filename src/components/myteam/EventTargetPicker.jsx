@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { sortTeams, isF7Team } from "@/lib/teamOrder";
-import { teamSets, scopeLabel } from "@/lib/clubEvent";
+import { teamSets, scopeLabel, scopeText } from "@/lib/clubEvent";
+import { useT } from "@/i18n";
 
 const LABEL = "text-xs font-bold uppercase tracking-wider text-gray-500 mb-1";
 
@@ -20,6 +21,7 @@ const Chip = ({ on, onClick, children, small = false, title }) => (
  *   value = { multi, teamId, teamIds }   ·   onChange(patch)
  */
 export default function EventTargetPicker({ teams, canMulti, value, onChange }) {
+  const t = useT();
   const sorted = useMemo(() => sortTeams(teams), [teams]);
   const sets = useMemo(() => teamSets(sorted, isF7Team), [sorted]);
   const picked = sorted.filter((t) => value.teamIds.includes(t.id));
@@ -30,18 +32,18 @@ export default function EventTargetPicker({ teams, canMulti, value, onChange }) 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <p className={`${LABEL} mb-0`}>{value.multi ? "Equipos *" : "Equipo *"}</p>
+        <p className={`${LABEL} mb-0`}>{value.multi ? t("Equipos *") : t("Equipo *")}</p>
         {canMulti && (
           <div className="flex gap-1">
-            <Chip small on={!value.multi} onClick={() => onChange({ multi: false })}>Un equipo</Chip>
-            <Chip small on={value.multi} onClick={() => onChange({ multi: true })}>Varios equipos</Chip>
+            <Chip small on={!value.multi} onClick={() => onChange({ multi: false })}>{t("Un equipo")}</Chip>
+            <Chip small on={value.multi} onClick={() => onChange({ multi: true })}>{t("Varios equipos")}</Chip>
           </div>
         )}
       </div>
 
       {!value.multi ? (
         <Select value={value.teamId} onValueChange={(v) => onChange({ teamId: v })}>
-          <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar equipo…" /></SelectTrigger>
+          <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Seleccionar equipo…")} /></SelectTrigger>
           <SelectContent>
             {sorted.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
           </SelectContent>
@@ -49,20 +51,20 @@ export default function EventTargetPicker({ teams, canMulti, value, onChange }) 
       ) : (
         <div className="rounded-lg border border-gray-200 p-2.5 space-y-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            {sets.map((s) => <Chip key={s.key} on={on(s.ids)} onClick={() => toggleSet(s.ids)} title={`${s.ids.length} equipos`}>{s.label}</Chip>)}
-            {picked.length > 0 && <button type="button" onClick={() => onChange({ teamIds: [] })} className="ml-auto text-[11px] font-bold text-gray-400 hover:text-gray-700">Quitar todos</button>}
+            {sets.map((s) => <Chip key={s.key} on={on(s.ids)} onClick={() => toggleSet(s.ids)} title={t("{length} equipos", { length: s.ids.length })}>{t(s.label)}</Chip>)}
+            {picked.length > 0 && <button type="button" onClick={() => onChange({ teamIds: [] })} className="ml-auto text-[11px] font-bold text-gray-400 hover:text-gray-700">{t("Quitar todos")}</button>}
           </div>
           <div className="flex flex-wrap gap-1 max-h-36 overflow-y-auto">
             {sorted.map((t) => <Chip key={t.id} small on={value.teamIds.includes(t.id)} onClick={() => toggleTeam(t.id)}>{t.name}</Chip>)}
           </div>
           <p className="text-[11px] text-gray-500">
             {picked.length === 0
-              ? "Elige los equipos en los que quieres crear el evento."
+              ? t("Elige los equipos en los que quieres crear el evento.")
               : picked.length === 1
-                ? "Un solo equipo: se creará como un evento normal."
+                ? t("Un solo equipo: se creará como un evento normal.")
                 : picked.length === sorted.length
-                  ? `Se creará en los ${picked.length} equipos del club. Después podrás editarlo o borrarlo en todos a la vez.`
-                  : `Se creará en ${picked.length} equipos (${scopeLabel(picked, sorted)}). Después podrás editarlo o borrarlo en todos a la vez.`}
+                  ? t("Se creará en los {length} equipos del club. Después podrás editarlo o borrarlo en todos a la vez.", { length: picked.length })
+                  : t("Se creará en {length} equipos ({scopeLabel}). Después podrás editarlo o borrarlo en todos a la vez.", { length: picked.length, scopeLabel: scopeText(scopeLabel(picked, sorted), t) })}
           </p>
         </div>
       )}

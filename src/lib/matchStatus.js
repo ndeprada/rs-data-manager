@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { usePlayerMode } from "@/lib/playerMode";
 import { isFinished } from "@/lib/matchTiming";
 import { isCancelled } from "@/lib/eventCancel";
+import { msg } from "../i18n/translate.js";
 
 // Las estadísticas principales y las alertas de "pendiente de gestionar" son solo de partidos de liga
 // (competición oficial), ya disputados y completamente cerrados (convocatoria, alineación y minutos).
@@ -25,15 +26,24 @@ export function pendingReasons(ev, conv, evStats) {
   const n = minPlayers(ev);
   const reasons = [];
   const called = conv?.player_ids?.length || 0;
-  if (!conv || called === 0) reasons.push("Sin convocatoria");
+  if (!conv || called === 0) reasons.push(msg("Sin convocatoria"));
   else if (called < n) reasons.push(`Convocados: ${called} (mín. ${n})`);
   const starters = conv?.starters || [];
-  if (starters.length < n) reasons.push(starters.length ? `Alineación incompleta (${starters.length}/${n})` : "Sin alineación");
+  if (starters.length < n) reasons.push(starters.length ? `Alineación incompleta (${starters.length}/${n})` : msg("Sin alineación"));
   else {
     const noMin = starters.filter((id) => !(evStats || []).some((s) => s.player_id === id && (s.minutes_played || 0) > 0)).length;
-    if (noMin) reasons.push("Faltan minutos/cambios");
+    if (noMin) reasons.push(msg("Faltan minutos/cambios"));
   }
   return reasons;
+}
+
+// Texto de un motivo para mostrarlo en pantalla (t = traductor de la pantalla). Los motivos con cifras se componen aquí.
+export function reasonLabel(r, t = (s, v) => (v ? s.replace(/\{(\w+)\}/g, (_, k) => v[k]) : s)) {
+  const c = /^Convocados: (\d+) \(mín\. (\d+)\)$/.exec(r);
+  if (c) return t("Convocados: {n} (mín. {min})", { n: c[1], min: c[2] });
+  const a = /^Alineación incompleta \((\d+)\/(\d+)\)$/.exec(r);
+  if (a) return t("Alineación incompleta ({n}/{min})", { n: a[1], min: a[2] });
+  return t(r);
 }
 
 // Estado de todos los partidos (liga/torneo) ya disputados.
@@ -59,7 +69,7 @@ export function useMatchStatus() {
       }
       if (!STAT_TYPES.includes(ev.type)) continue;
       // El jugador no ve las estadísticas de sus compañeros: el servidor le indica si el partido está cerrado
-      if (playerMode) { if (ev.stats_closed) counted.add(ev.id); else pending.set(ev.id, ["Pendiente de cerrar"]); continue; }
+      if (playerMode) { if (ev.stats_closed) counted.add(ev.id); else pending.set(ev.id, [msg("Pendiente de cerrar")]); continue; }
       const reasons = pendingReasons(ev, convBy.get(ev.id), statsBy.get(ev.id));
       if (reasons.length) pending.set(ev.id, reasons); else counted.add(ev.id);
     }

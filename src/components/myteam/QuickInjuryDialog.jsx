@@ -7,15 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { playerFullName } from "@/lib/playerName";
+import { useT, msg } from "@/i18n";
 
 const BODY_PARTS = [
-  ["tobillo", "Tobillo"], ["rodilla", "Rodilla"], ["muslo", "Muslo"], ["gemelo", "Gemelo"], ["isquiotibial", "Isquio"],
-  ["cadera", "Cadera"], ["espalda", "Espalda"], ["hombro", "Hombro"], ["brazo", "Brazo"], ["cabeza", "Cabeza"], ["otro", "Otra"],
+  ["tobillo", msg("Tobillo")], ["rodilla", msg("Rodilla")], ["muslo", msg("Muslo")], ["gemelo", msg("Gemelo")], ["isquiotibial", msg("Isquio")],
+  ["cadera", msg("Cadera")], ["espalda", msg("Espalda")], ["hombro", msg("Hombro")], ["brazo", msg("Brazo")], ["cabeza", msg("Cabeza")], ["otro", msg("Otra")],
 ];
 const TYPES = [
-  ["muscular", "Muscular"], ["osea", "Ósea"], ["ligamento", "Ligamento"], ["tendon", "Tendón"], ["contusion", "Contusión"], ["otro", "No sé / otra"],
+  ["muscular", msg("Muscular")], ["osea", msg("Ósea")], ["ligamento", msg("Ligamento")], ["tendon", msg("Tendón")], ["contusion", msg("Contusión")], ["otro", msg("No sé / otra")],
 ];
-const SEVERITIES = [["leve", "Leve"], ["moderada", "Moderada"], ["grave", "Grave"]];
+const SEVERITIES = [["leve", msg("Leve")], ["moderada", msg("Moderada")], ["grave", msg("Grave")]];
 
 const Chip = ({ on, onClick, children }) => (
   <button type="button" onClick={onClick}
@@ -26,6 +27,7 @@ const Chip = ({ on, onClick, children }) => (
 // Alta rápida de lesión desde la pantalla de asistencia (el jugador figura "a parte" o ausente por lesión).
 // Crea la lesión y marca al jugador como lesionado, igual que el registro completo de su ficha.
 export default function QuickInjuryDialog({ open, onOpenChange, player, date }) {
+  const t = useT();
   const qc = useQueryClient();
   const { user } = useAuth();
   const [part, setPart] = useState("");
@@ -58,35 +60,35 @@ export default function QuickInjuryDialog({ open, onOpenChange, player, date }) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-white max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-black">Registrar lesión</DialogTitle>
-          <DialogDescription>{playerFullName(player)} · podrás completar los detalles después en su ficha.</DialogDescription>
+          <DialogTitle className="font-black">{t("Registrar lesión")}</DialogTitle>
+          <DialogDescription>{t("{playerFullName} · podrás completar los detalles después en su ficha.", { playerFullName: playerFullName(player) })}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Zona</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">{t("Zona")}</p>
             <div className="flex flex-wrap gap-1.5">
-              {BODY_PARTS.map(([v, l]) => <Chip key={v} on={part === v} onClick={() => setPart(v)}>{l}</Chip>)}
+              {BODY_PARTS.map(([v, l]) => <Chip key={v} on={part === v} onClick={() => setPart(v)}>{t(l)}</Chip>)}
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Gravedad</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">{t("Gravedad")}</p>
             <div className="flex gap-1.5">
-              {SEVERITIES.map(([v, l]) => <Chip key={v} on={severity === v} onClick={() => setSeverity(v)}>{l}</Chip>)}
+              {SEVERITIES.map(([v, l]) => <Chip key={v} on={severity === v} onClick={() => setSeverity(v)}>{t(l)}</Chip>)}
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Tipo</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">{t("Tipo")}</p>
             <Select value={type} onValueChange={setType}>
               <SelectTrigger className="h-9 border-gray-200"><SelectValue /></SelectTrigger>
-              <SelectContent>{TYPES.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
+              <SelectContent>{TYPES.map(([v, l]) => <SelectItem key={v} value={v}>{t(l)}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Nota (opcional): cómo ocurrió, molestias…" className="border-gray-200" />
-          {create.isError && <p className="text-xs text-red-600">No se pudo guardar. Inténtalo de nuevo.</p>}
+          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("Nota (opcional): cómo ocurrió, molestias…")} className="border-gray-200" />
+          {create.isError && <p className="text-xs text-red-600">{t("No se pudo guardar. Inténtalo de nuevo.")}</p>}
           <div className="flex gap-2 pt-1">
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>{t("Cancelar")}</Button>
             <Button variant="club" className="flex-1" disabled={!part || create.isPending} onClick={() => create.mutate()}>
-              {create.isPending ? "Guardando…" : "Registrar lesión"}
+              {create.isPending ? t("Guardando…") : t("Registrar lesión")}
             </Button>
           </div>
         </div>

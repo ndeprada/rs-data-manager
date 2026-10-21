@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isSameDay } from "date-fns";
-import { es } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
 import EventWeather from "@/components/EventWeather";
+import { useT, useDateLocale } from "@/i18n";
 
 const EVENT_TYPE_COLORS = {
   partido_amistoso: "#73000A",   // granate
@@ -24,6 +24,8 @@ const EVENT_TYPE_COLORS = {
 };
 
 export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "all", onEventClick, selectedDay, onSelectDay }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const today = new Date();
   const [weekStart, setWeekStart] = useState(startOfWeek(today, { weekStartsOn: 1 }));
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
@@ -53,7 +55,7 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
           <ChevronLeft className="w-4 h-4" />
         </button>
         <p className="text-sm font-bold text-gray-800" style={{ fontFamily: "var(--font-display)", letterSpacing: "0.04em" }}>
-          {format(weekStart, "d MMM", { locale: es })} - {format(weekEnd, "d MMM yyyy", { locale: es })}
+          {format(weekStart, "d MMM", { locale: dfl })} - {format(weekEnd, "d MMM yyyy", { locale: dfl })}
         </p>
         <button onClick={() => setWeekStart(addWeeks(weekStart, 1))} className="p-1.5 rounded hover:bg-gray-100 text-gray-500 transition-colors">
           <ChevronRight className="w-4 h-4" />
@@ -78,7 +80,7 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
               {/* Day header */}
               <div className="mb-2 pb-2 border-b border-gray-100">
                 <p className="text-[11px] font-black uppercase tracking-wider text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
-                  {format(day, "EEE", { locale: es })}
+                  {format(day, "EEE", { locale: dfl })}
                 </p>
                 <p className={`text-lg font-black inline-flex items-center justify-center w-7 h-7 rounded-full mt-1 ${isToday ? "text-white" : "text-gray-600"}`}
                   style={isToday ? { background: "var(--granate)" } : {}}>
@@ -89,7 +91,7 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
               {/* Events */}
               <div className="space-y-1">
                 {dayEvts.length === 0 ? (
-                  <p className="text-[9px] text-gray-300 text-center py-4">Sin eventos</p>
+                  <p className="text-[9px] text-gray-300 text-center py-4">{t("Sin eventos")}</p>
                 ) : (
                   dayEvts.map(evt => (
                     <div
@@ -97,7 +99,7 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
                       onClick={e => { e.stopPropagation(); onEventClick(evt); }}
                       className={`text-[9px] px-1.5 py-1 rounded font-bold text-white truncate hover:opacity-75 transition-opacity cursor-pointer leading-tight whitespace-normal ${isCancelled(evt) ? "line-through" : ""}`}
                       style={{ background: isCancelled(evt) ? "#9ca3af" : getEventColor(evt.type), minHeight: "20px" }}
-                      title={isCancelled(evt) ? `${evt.title} · ${cancelText(evt)}` : evt.title}
+                      title={isCancelled(evt) ? `${evt.title} · ${cancelText(evt, t)}` : evt.title}
                     >
                       {evt.opponent_logo_url && ["partido_liga","partido_amistoso","torneo"].includes(evt.type) && (
                         <img src={evt.opponent_logo_url} alt="" loading="lazy" className="inline-block w-4 h-4 object-contain bg-white rounded-sm mr-1 align-middle" />
@@ -118,15 +120,15 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
       <div className="px-4 py-2 border-t border-gray-100 grid grid-cols-3 gap-3 bg-gray-50">
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full" style={{ background: "#73000A" }} />
-          <span className="text-[10px] text-gray-400">Partido oficial</span>
+          <span className="text-[10px] text-gray-400">{t("Partido oficial")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full" style={{ background: "#FF6E00" }} />
-          <span className="text-[10px] text-gray-400">Entrenamiento</span>
+          <span className="text-[10px] text-gray-400">{t("Entrenamiento")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full" style={{ background: "#64748b" }} />
-          <span className="text-[10px] text-gray-400">Otros eventos</span>
+          <span className="text-[10px] text-gray-400">{t("Otros eventos")}</span>
         </div>
       </div>
     </div>

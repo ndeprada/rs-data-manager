@@ -4,10 +4,12 @@ import { CalendarPlus, Copy, Check, RefreshCw } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useT } from "@/i18n";
 
 // Botón para llevar el calendario de un equipo (entrenos y partidos) al calendario del móvil.
 // El enlace es privado por equipo; se actualiza solo cuando cambian los eventos en la app.
 export default function CalendarSubscribe({ teamId, teamName, className = "" }) {
+  const t = useT();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -25,7 +27,7 @@ export default function CalendarSubscribe({ teamId, teamName, className = "" }) 
 
   const copy = async () => {
     try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2500); }
-    catch { window.prompt("Copia este enlace:", url); }
+    catch { window.prompt(t("Copia este enlace:"), url); }
   };
   const renew = async () => {
     if (!confirmNew) { setConfirmNew(true); return; }
@@ -37,39 +39,39 @@ export default function CalendarSubscribe({ teamId, teamName, className = "" }) 
   if (!teamId) return null;
   return (
     <>
-      <Button variant="outline" size="sm" className={`h-8 text-xs border-gray-200 bg-white ${className}`} onClick={() => setOpen(true)} title="Llevar el calendario del equipo al móvil">
-        <CalendarPlus className="w-3.5 h-3.5 mr-1.5" /> Calendario en el móvil
+      <Button variant="outline" size="sm" className={`h-8 text-xs border-gray-200 bg-white ${className}`} onClick={() => setOpen(true)} title={t("Llevar el calendario del equipo al móvil")}>
+        <CalendarPlus className="w-3.5 h-3.5 mr-1.5" /> {t("Calendario en el móvil")}
       </Button>
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setConfirmNew(false); }}>
         <DialogContent className="bg-white max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-black">Calendario en el móvil</DialogTitle>
+            <DialogTitle className="font-black">{t("Calendario en el móvil")}</DialogTitle>
             <DialogDescription>
-              {teamName ? `${teamName}: ` : ""}entrenos y partidos en tu calendario. Se actualiza solo cuando cambian en la app.
+              {teamName ? t("{team}: entrenos y partidos en tu calendario. Se actualiza solo cuando cambian en la app.", { team: teamName }) : t("Entrenos y partidos en tu calendario. Se actualiza solo cuando cambian en la app.")}
             </DialogDescription>
           </DialogHeader>
 
-          {isLoading && <p className="text-sm text-gray-400 py-4 text-center">Preparando enlace…</p>}
-          {isError && <p className="text-sm text-red-600">No se pudo generar el enlace. Puede que no tengas permiso sobre este equipo.</p>}
+          {isLoading && <p className="text-sm text-gray-400 py-4 text-center">{t("Preparando enlace…")}</p>}
+          {isError && <p className="text-sm text-red-600">{t("No se pudo generar el enlace. Puede que no tengas permiso sobre este equipo.")}</p>}
           {url && (
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <a href={webcal}>
-                  <Button variant="club" className="w-full"><CalendarPlus className="w-4 h-4 mr-1.5" /> Añadir al calendario</Button>
+                  <Button variant="club" className="w-full"><CalendarPlus className="w-4 h-4 mr-1.5" /> {t("Añadir al calendario")}</Button>
                 </a>
                 <Button variant="clubOutline" onClick={copy}>
-                  {copied ? <Check className="w-4 h-4 mr-1.5" /> : <Copy className="w-4 h-4 mr-1.5" />} {copied ? "Enlace copiado" : "Copiar enlace"}
+                  {copied ? <Check className="w-4 h-4 mr-1.5" /> : <Copy className="w-4 h-4 mr-1.5" />} {copied ? t("Enlace copiado") : t("Copiar enlace")}
                 </Button>
               </div>
               <ul className="text-xs text-gray-600 space-y-1.5 list-disc pl-4">
-                <li><b>iPhone o Mac:</b> pulsa «Añadir al calendario» y confirma la suscripción.</li>
-                <li><b>Android o Google Calendar:</b> copia el enlace; en calendar.google.com ve a «Otros calendarios» → «Desde URL» y pégalo. Google puede tardar unas horas en reflejar los cambios.</li>
+                <li><b>{t("iPhone o Mac:")}</b> {t("pulsa «Añadir al calendario» y confirma la suscripción.")}</li>
+                <li><b>{t("Android o Google Calendar:")}</b> {t("copia el enlace; en calendar.google.com ve a «Otros calendarios» → «Desde URL» y pégalo. Google puede tardar unas horas en reflejar los cambios.")}</li>
               </ul>
               <div className="border-t border-gray-100 pt-3 space-y-2">
-                <p className="text-[11px] text-gray-400">Es un enlace privado: quien lo tenga puede ver las fechas, horas y campos del equipo (nunca datos de jugadores). Si se comparte sin querer, genera uno nuevo.</p>
+                <p className="text-[11px] text-gray-400">{t("Es un enlace privado: quien lo tenga puede ver las fechas, horas y campos del equipo (nunca datos de jugadores). Si se comparte sin querer, genera uno nuevo.")}</p>
                 <Button variant="ghost" size="sm" className={`h-7 px-2 text-xs ${confirmNew ? "text-red-600 hover:text-red-700" : "text-gray-500"}`} onClick={renew} disabled={busy}>
                   <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${busy ? "animate-spin" : ""}`} />
-                  {confirmNew ? "Confirmar: el enlace actual dejará de funcionar" : "Generar enlace nuevo"}
+                  {confirmNew ? t("Confirmar: el enlace actual dejará de funcionar") : t("Generar enlace nuevo")}
                 </Button>
               </div>
             </div>

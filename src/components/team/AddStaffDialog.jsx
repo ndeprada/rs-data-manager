@@ -7,21 +7,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useT, msg } from "@/i18n";
 
 const ROLES = [
-  { value: "entrenador", label: "Entrenador" },
-  { value: "ayudante", label: "Ayudante" },
-  { value: "preparador_fisico", label: "Preparador Físico" },
-  { value: "portero_coach", label: "Entrenador de Porteros" },
-  { value: "medico", label: "Médico" },
-  { value: "fisioterapeuta", label: "Fisioterapeuta" },
-  { value: "coordinador", label: "Coordinador" },
-  { value: "otro", label: "Otro" },
+  { value: "entrenador", label: msg("Entrenador") },
+  { value: "ayudante", label: msg("Ayudante") },
+  { value: "preparador_fisico", label: msg("Preparador Físico") },
+  { value: "portero_coach", label: msg("Entrenador de Porteros") },
+  { value: "medico", label: msg("Médico") },
+  { value: "fisioterapeuta", label: msg("Fisioterapeuta") },
+  { value: "coordinador", label: msg("Coordinador") },
+  { value: "otro", label: msg("Otro") },
 ];
 
 const emptyForm = { first_name: "", last_name: "", role: "", phone: "", email: "", notes: "" };
 
 export default function AddStaffDialog({ open, onOpenChange, teamId, editingStaff, onCreated }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [form, setForm] = useState(emptyForm);
 
@@ -68,46 +70,46 @@ export default function AddStaffDialog({ open, onOpenChange, teamId, editingStaf
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-white border-gray-200">
         <DialogHeader>
-          <DialogTitle className="text-gray-900">{editingStaff ? "Editar Miembro" : "Añadir Cuerpo Técnico"}</DialogTitle>
+          <DialogTitle className="text-gray-900">{editingStaff ? t("Editar Miembro") : t("Añadir Cuerpo Técnico")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-700">Nombre *</Label>
+              <Label className="text-gray-700">{t("Nombre *")}</Label>
               <Input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required className="border-gray-200" />
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-700">Apellidos *</Label>
+              <Label className="text-gray-700">{t("Apellidos *")}</Label>
               <Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required className="border-gray-200" />
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-gray-700">Rol *</Label>
+            <Label className="text-gray-700">{t("Rol *")}</Label>
             <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-              <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar rol" /></SelectTrigger>
+              <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Seleccionar rol")} /></SelectTrigger>
               <SelectContent>
-                {ROLES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                {ROLES.map((r) => <SelectItem key={r.value} value={r.value}>{t(r.label)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-700">Teléfono</Label>
+              <Label className="text-gray-700">{t("Teléfono")}</Label>
               <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="border-gray-200" />
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-700">Email</Label>
+              <Label className="text-gray-700">{t("Email")}</Label>
               <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="border-gray-200" />
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-gray-700">Notas</Label>
+            <Label className="text-gray-700">{t("Notas")}</Label>
             <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="border-gray-200" rows={2} />
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("Cancelar")}</Button>
             <Button variant="club" type="submit">
-              {editingStaff ? "Guardar" : "Añadir"}
+              {editingStaff ? t("Guardar") : t("Añadir")}
             </Button>
           </div>
         </form>

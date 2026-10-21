@@ -16,6 +16,7 @@ import { FCF_CATEGORIES, FCF_CATEGORY_GROUPS, getCategoryLabel } from "@/compone
 
 import { PageTitle } from "@/components/common/PageHeader";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
+import { useT } from "@/i18n";
 const emptyForm = { name: "", category: "", coach_id: "", season: "", fcf_group_url: "" };
 
 // Orden de categorías por edad (mayor a menor) usando FCF_CATEGORIES
@@ -58,6 +59,7 @@ const groupTeamsByAge = (teams) => {
 };
 
 export default function Teams() {
+  const t = useT();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -66,11 +68,11 @@ export default function Teams() {
     try {
       const r = await fetch("/api/sync-fcf", { credentials: "include" });
       const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.error || "Error al sincronizar");
+      if (!r.ok || !j.ok) throw new Error(j.error || t("Error al sincronizar"));
       queryClient.invalidateQueries();
-      alert(`Sincronización FCF completada\n\nEquipos nuevos: ${j.teams_created}\nJugadores nuevos: ${j.players_created}\nPartidos nuevos: ${j.matches_created}\nPartidos actualizados: ${j.matches_updated}${j.errors?.length ? "\n\nAvisos: " + j.errors.length : ""}`);
+      alert(t("Sincronización FCF completada\n\nEquipos nuevos: {teams}\nJugadores nuevos: {players}\nPartidos nuevos: {created}\nPartidos actualizados: {updated}", { teams: j.teams_created, players: j.players_created, created: j.matches_created, updated: j.matches_updated }) + (j.errors?.length ? "\n\n" + t("Avisos: {n}", { n: j.errors.length }) : ""));
     } catch (e) {
-      alert("No se pudo sincronizar: " + e.message);
+      alert(t("No se pudo sincronizar: {error}", { error: e.message }));
     } finally {
       setSyncing(false);
     }
@@ -170,20 +172,20 @@ export default function Teams() {
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
-         <PageTitle kicker="Administración" title="Equipos" subtitle="Gestión de equipos del club" />
+         <PageTitle kicker={t("Administración")} title={t("Equipos")} subtitle={t("Gestión de equipos del club")} />
          <div className="flex items-center gap-2">
            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
              <button
                onClick={() => setViewMode("list")}
                className={`p-2 rounded transition-colors ${viewMode === "list" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-               title="Vista lista"
+               title={t("Vista lista")}
              >
                <List className="w-4 h-4" />
              </button>
              <button
                onClick={() => setViewMode("cards")}
                className={`p-2 rounded transition-colors ${viewMode === "cards" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-               title="Vista tarjetas"
+               title={t("Vista tarjetas")}
              >
                <Grid3x3 className="w-4 h-4" />
              </button>
@@ -194,26 +196,26 @@ export default function Teams() {
              variant="outline"
              className="shadow-sm"
            >
-             <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} /> {syncing ? "Sincronizando..." : "Sincronizar con FCF"}
+             <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} /> {syncing ? "Sincronizando..." : t("Sincronizar con FCF")}
            </Button>
            <Button variant="club"
              onClick={() => { setForm(emptyForm); setDialogOpen(true); }}
              className="shadow-sm"
            >
-             <Plus className="w-4 h-4 mr-2" /> Nuevo Equipo
+             <Plus className="w-4 h-4 mr-2" /> {t("Nuevo Equipo")}
            </Button>
          </div>
        </div>
 
       {isLoading ? (
         <div className="bg-white border border-gray-200 p-8 text-center animate-pulse" style={{ borderRadius: "4px" }}>
-          <p className="text-gray-400">Cargando...</p>
+          <p className="text-gray-400">{t("Cargando...")}</p>
         </div>
       ) : teams.length === 0 ? (
         <div className="bg-white border border-gray-200 p-12 text-center shadow-sm" style={{ borderRadius: "4px" }}>
           <Shield className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500 font-medium">No hay equipos registrados</p>
-          <p className="text-gray-400 text-sm mt-1">Crea tu primer equipo para empezar</p>
+          <p className="text-gray-500 font-medium">{t("No hay equipos registrados")}</p>
+          <p className="text-gray-400 text-sm mt-1">{t("Crea tu primer equipo para empezar")}</p>
         </div>
       ) : viewMode === "list" ? (
         <TeamsTable
@@ -256,11 +258,11 @@ export default function Teams() {
                         </div>
                         <div className="space-y-2 pt-2 border-t border-gray-100">
                           <div className="flex justify-between items-center text-xs">
-                            <span className="text-gray-500">Jugadores:</span>
+                            <span className="text-gray-500">{t("Jugadores:")}</span>
                             <span className="font-bold text-gray-900">{teamPlayers.length}</span>
                           </div>
                           <div className="flex justify-between items-center text-xs">
-                            <span className="text-gray-500">Récord:</span>
+                            <span className="text-gray-500">{t("Récord:")}</span>
                             <span className="font-bold" style={{ color: "var(--granate)" }}>{wins}–{draws}–{losses}</span>
                           </div>
                         </div>
@@ -277,17 +279,17 @@ export default function Teams() {
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
         <DialogContent className="bg-white border-gray-200 max-h-[90vh] overflow-y-auto max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-gray-900">{editingTeam ? "Editar Equipo" : "Nuevo Equipo"}</DialogTitle>
+            <DialogTitle className="text-gray-900">{editingTeam ? t("Editar Equipo") : t("Nuevo Equipo")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-gray-700">Nombre del equipo *</Label>
+              <Label className="text-gray-700">{t("Nombre del equipo *")}</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required className="border-gray-200" />
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-700">Categoria FCF *</Label>
+              <Label className="text-gray-700">{t("Categoria FCF *")}</Label>
               <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar categoria" /></SelectTrigger>
+                <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Seleccionar categoria")} /></SelectTrigger>
                 <SelectContent className="max-h-80">
                   {Object.entries(FCF_CATEGORY_GROUPS).map(([group, cats]) => (
                     <React.Fragment key={group}>
@@ -299,18 +301,18 @@ export default function Teams() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-700">Temporada</Label>
+              <Label className="text-gray-700">{t("Temporada")}</Label>
               <Input value={form.season} onChange={(e) => setForm({ ...form, season: e.target.value })} placeholder={CURRENT_SEASON} className="border-gray-200" />
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-700">Enlace grup FCF (resultats / classificació)</Label>
-              <Input value={form.fcf_group_url} onChange={(e) => setForm({ ...form, fcf_group_url: e.target.value })} placeholder="https://www.fcf.cat/competicio/..." className="border-gray-200" />
-              <p className="text-xs text-gray-400">Pega aquí el enlace al grupo de tu equipo en fcf.cat</p>
+              <Label className="text-gray-700">{t("Enlace grup FCF (resultats / classificació)")}</Label>
+              <Input value={form.fcf_group_url} onChange={(e) => setForm({ ...form, fcf_group_url: e.target.value })} placeholder={t("https://www.fcf.cat/competicio/...")} className="border-gray-200" />
+              <p className="text-xs text-gray-400">{t("Pega aquí el enlace al grupo de tu equipo en fcf.cat")}</p>
             </div>
             <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={closeDialog}>{t("Cancelar")}</Button>
               <Button variant="club" type="submit">
-                {editingTeam ? "Guardar datos" : "Crear"}
+                {editingTeam ? t("Guardar datos") : t("Crear")}
               </Button>
             </div>
           </form>
@@ -327,12 +329,12 @@ export default function Teams() {
       <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar equipo?</AlertDialogTitle>
-            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+            <AlertDialogTitle>{t("¿Eliminar equipo?")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("Esta acción no se puede deshacer.")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteMutation.mutate(deleteId)} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteMutation.mutate(deleteId)} className="bg-red-600 hover:bg-red-700 text-white">{t("Eliminar")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -1,13 +1,14 @@
 // Agrupa por equipo lo que está sin registrar: entrenos sin asistencia y partidos sin gestionar.
 // Sin dependencias de la app para poder probarlo solo.
+import { msg } from "../i18n/translate.js";
 
 // Motivos por los que un partido sale como pendiente, en orden de prioridad.
 // "tab" es la pestaña del partido donde se arregla (sin tab = ficha del partido).
 export const MATCH_REASONS = [
-  { key: "soon", label: "Sin convocatoria (24 h)", tab: "convocatoria" },
-  { key: "played", label: "Jugado sin convocatoria", tab: "convocatoria" },
-  { key: "result", label: "Sin resultado", tab: null },
-  { key: "goals", label: "Goles sin clasificar", tab: "acta" },
+  { key: "soon", label: msg("Sin convocatoria (24 h)"), tab: "convocatoria" },
+  { key: "played", label: msg("Jugado sin convocatoria"), tab: "convocatoria" },
+  { key: "result", label: msg("Sin resultado"), tab: null },
+  { key: "goals", label: msg("Goles sin clasificar"), tab: "acta" },
 ];
 
 const byDate = (a, b) => new Date(a.date) - new Date(b.date);

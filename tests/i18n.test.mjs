@@ -61,8 +61,9 @@ test("filas: el mismo texto en español no tiene traducciones distintas", () => 
 });
 
 test("filas: sin espacios sobrantes ni saltos de línea en las traducciones", () => {
-  // En francés va un espacio delante de : ; ! ? (puntuación francesa)
-  const bad = ALL_ROWS.filter(([, ...tr]) => tr.some((s) => { const x = s.replace(/^ (?=[:;!?»])/, ""); return x !== x.trim() || /\n/.test(x); }));
+  // En francés va un espacio delante de : ; ! ? (puntuación francesa). Los saltos de línea solo donde los tiene el texto en español (y los mismos)
+  const nl = (s) => (s.match(/\n/g) || []).length;
+  const bad = ALL_ROWS.filter(([es, ...tr]) => tr.some((s) => { const x = s.replace(/^ (?=[:;!?»])/, ""); return x !== x.trim() || nl(x) !== nl(es); }));
   assert.deepEqual(bad.map((r) => r[0]).slice(0, 5), []);
 });
 

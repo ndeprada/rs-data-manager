@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, parseISO, differenceInCalendarDays, startOfWeek } from "date-fns";
-import { es } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,34 +14,35 @@ import { Repeat } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { notifyTeamPush, notifyTeamsPush, pushResultText } from "@/lib/notifyTeam";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
-import { CLUB_EVENT_TYPE, clubEventCopies, scopeLabel } from "@/lib/clubEvent";
+import { CLUB_EVENT_TYPE, clubEventCopies, scopeLabel, scopeText } from "@/lib/clubEvent";
 import { sortTeams } from "@/lib/teamOrder";
 import EventTargetPicker from "@/components/myteam/EventTargetPicker";
+import { useT, useDateLocale, useFormat, msg } from "@/i18n";
 
 const EVENT_TYPES = [
-  { value: "entrenamiento",        label: "Entrenamiento" },
-  { value: "entrenamiento_fisico", label: "Físico" },
-  { value: "sesion_teorica",       label: "Sesión teórica" },
-  { value: "sesion_video",         label: "Sesión de vídeo" },
-  { value: "partido_liga",         label: "Partido de liga" },
-  { value: "partido_amistoso",     label: "Partido amistoso" },
-  { value: "torneo",               label: "Torneo" },
-  { value: "reunion_equipo",       label: "Reunión de equipo" },
-  { value: "reunion_jugador",      label: "Reunión con jugador" },
-  { value: "reunion_capitanes",    label: "Reunión de capitanes" },
-  { value: "stage",                label: "Stage" },
-  { value: "concentracion",        label: "Concentración" },
-  { value: "cena_equipo",          label: "Cena de equipo" },
-  { value: "comida_equipo",        label: "Comida de equipo" },
-  { value: "evento_club",          label: "Evento del club" },
+  { value: "entrenamiento",        label: msg("Entrenamiento") },
+  { value: "entrenamiento_fisico", label: msg("Físico") },
+  { value: "sesion_teorica",       label: msg("Sesión teórica") },
+  { value: "sesion_video",         label: msg("Sesión de vídeo") },
+  { value: "partido_liga",         label: msg("Partido de liga") },
+  { value: "partido_amistoso",     label: msg("Partido amistoso") },
+  { value: "torneo",               label: msg("Torneo") },
+  { value: "reunion_equipo",       label: msg("Reunión de equipo") },
+  { value: "reunion_jugador",      label: msg("Reunión con jugador") },
+  { value: "reunion_capitanes",    label: msg("Reunión de capitanes") },
+  { value: "stage",                label: msg("Stage") },
+  { value: "concentracion",        label: msg("Concentración") },
+  { value: "cena_equipo",          label: msg("Cena de equipo") },
+  { value: "comida_equipo",        label: msg("Comida de equipo") },
+  { value: "evento_club",          label: msg("Evento del club") },
 ];
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const MULTIDAY_TYPES = ["torneo", "stage", "concentracion"];
 
 const WEEKDAYS = [
-  { dow: 1, label: "L", name: "Lunes" }, { dow: 2, label: "M", name: "Martes" }, { dow: 3, label: "X", name: "Miércoles" },
-  { dow: 4, label: "J", name: "Jueves" }, { dow: 5, label: "V", name: "Viernes" }, { dow: 6, label: "S", name: "Sábado" }, { dow: 0, label: "D", name: "Domingo" },
+  { dow: 1, label: "L" }, { dow: 2, label: "M" }, { dow: 3, label: "X" },
+  { dow: 4, label: "J" }, { dow: 5, label: "V" }, { dow: 6, label: "S" }, { dow: 0, label: "D" },
 ];
 
 // `scope`: a quién llega cuando el evento es para varios equipos («Todo el club», «Juvenil A, Cadet S16 A», «5 equipos»)
@@ -56,11 +56,11 @@ const buildDefaultNotificationMessage = (form, teams, scope = "") => {
 };
 
 const FREQ_OPTIONS = [
-  { value: "weekly", label: "Cada semana" },
-  { value: "biweekly", label: "Cada 2 semanas" },
-  { value: "monthly", label: "Una vez al mes" },
+  { value: "weekly", label: msg("Cada semana") },
+  { value: "biweekly", label: msg("Cada 2 semanas") },
+  { value: "monthly", label: msg("Una vez al mes") },
 ];
-const ORDINALS = ["primer", "segundo", "tercer", "cuarto", "quinto"];
+const ORDINALS = [msg("primer"), msg("segundo"), msg("tercer"), msg("cuarto"), msg("quinto")];
 
 // Fechas de la serie entre "desde" y "hasta" (inclusive).
 // Semanal / cada 2 semanas: los días de la semana marcados. Mensual: el mismo día (p. ej. "segundo martes") que la fecha de inicio.
@@ -121,6 +121,13 @@ const buildEmptyForm = (date, teamId, recurring = false) => ({
  *   startRecurring           — abre ya con "evento recurrente" activado (horario semanal)
  */
 export default function CreateEventDialog({ open, onOpenChange, date, teamId, teams, startRecurring = false }) {
+  const t = useT();
+  const dfl = useDateLocale();
+  const { lang } = useFormat();
+  // Nombre del día de la semana (0 = domingo) en el idioma de la app; en español las iniciales de siempre (L M X J V S D)
+  const dayOf = (dow) => addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), (dow + 6) % 7);
+  const dayName = (dow) => format(dayOf(dow), "EEEE", { locale: dfl });
+  const dayInitial = (w) => (lang === "es" ? w.label : format(dayOf(w.dow), "EEEEEE", { locale: dfl }).replace(/\.$/, "").replace(/^./, (c) => c.toUpperCase()));
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { isCoordinator } = useTeamAccess();
@@ -192,9 +199,9 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
             body,
           })
         : await notifyTeamPush({ teamId: createdEvent.team_id, teamName: team?.name, title: `📅 Nuevo evento: ${title}`, body });
-      toast({ title: groupMode ? `Aviso enviado: ${scope}` : "Aviso enviado al equipo", description: pushResultText(r) });
+      toast({ title: groupMode ? t("Aviso enviado: {scope}", { scope: scopeText(scope, t) }) : t("Aviso enviado al equipo"), description: pushResultText(r, t) });
     } catch (e) {
-      toast({ title: "El evento se ha creado, pero no se pudo enviar el aviso", description: e?.message || "Inténtalo desde Avisos.", variant: "destructive" });
+      toast({ title: t("El evento se ha creado, pero no se pudo enviar el aviso"), description: e?.message || t("Inténtalo desde Avisos."), variant: "destructive" });
     }
   };
 
@@ -255,14 +262,14 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
     });
   };
 
-  const dateLabel = form.date ? format(parseISO(form.date), "EEEE d 'de' MMMM", { locale: es }) : "";
+  const dateLabel = form.date ? format(parseISO(form.date), "EEEE d 'de' MMMM", { locale: dfl }) : "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-white border-gray-200 max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="mb-1">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold" style={{ fontFamily: "var(--font-display)" }}>Nuevo evento</p>
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold" style={{ fontFamily: "var(--font-display)" }}>{t("Nuevo evento")}</p>
             <DialogTitle className="text-gray-900 font-black capitalize text-lg" style={{ fontFamily: "var(--font-display)" }}>
               {dateLabel}
             </DialogTitle>
@@ -282,11 +289,11 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
 
           {/* Tipo */}
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Tipo de evento</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Tipo de evento")}</p>
             <Select value={form.type} onValueChange={v => set("type", v)}>
               <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {typeOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                {typeOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{t(opt.label)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -294,15 +301,15 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
           {/* Rival (solo partidos) */}
           {isMatch && (
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Rival</p>
-              <Input value={form.opponent} onChange={e => set("opponent", e.target.value)} placeholder="Nombre del rival…" className="border-gray-200" />
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Rival")}</p>
+              <Input value={form.opponent} onChange={e => set("opponent", e.target.value)} placeholder={t("Nombre del rival…")} className="border-gray-200" />
             </div>
           )}
 
           {/* Título */}
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
-              Título <span className="font-normal text-gray-400">(opcional)</span>
+              {t("Título")} <span className="font-normal text-gray-400">{t("(opcional)")}</span>
             </p>
             <Input
               value={form.title}
@@ -315,18 +322,18 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
           {/* Fecha y hora */}
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Fecha</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Fecha")}</p>
               <input type="date" value={form.date} onChange={e => set("date", e.target.value)} required
                 className="w-full h-9 rounded-md border border-gray-200 bg-transparent text-sm shadow-sm px-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Inicio</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Inicio")}</p>
               <input type="time" value={form.time} onChange={e => set("time", e.target.value)}
                 className="w-full h-9 rounded-md border border-gray-200 bg-transparent text-sm shadow-sm px-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
             </div>
             {!isMultiday && (
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Fin</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Fin")}</p>
                 <input type="time" value={form.end_time} onChange={e => set("end_time", e.target.value)}
                   className="w-full h-9 rounded-md border border-gray-200 bg-transparent text-sm shadow-sm px-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
               </div>
@@ -337,7 +344,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
           {isMultiday && (
             <div className="grid grid-cols-2 gap-3 bg-orange-50 border border-orange-100 rounded-lg p-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Fecha fin</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Fecha fin")}</p>
                 <Input
                   type="date"
                   value={form.end_date_multiday}
@@ -347,12 +354,12 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                 />
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Hora fin</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Hora fin")}</p>
                 <Input type="time" value={form.end_time_multiday} onChange={e => set("end_time_multiday", e.target.value)} className="border-gray-200 bg-white" />
               </div>
               {form.end_date_multiday && form.end_date_multiday > form.date && (
                 <p className="col-span-2 text-[10px] text-orange-600 font-medium">
-                  El evento aparecerá desde el {form.date ? format(parseISO(form.date), "d MMM", { locale: es }) : "—"} hasta el {format(parseISO(form.end_date_multiday), "d MMM", { locale: es })}.
+                  {t("El evento aparecerá desde el {v} hasta el {format}.", { v: form.date ? format(parseISO(form.date), "d MMM", { locale: dfl }) : "—", format: format(parseISO(form.end_date_multiday), "d MMM", { locale: dfl }) })}
                 </p>
               )}
             </div>
@@ -362,8 +369,8 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
 
           {/* Notas */}
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Notas</p>
-            <Textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={2} className="border-gray-200" placeholder="Observaciones…" />
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Notas")}</p>
+            <Textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={2} className="border-gray-200" placeholder={t("Observaciones…")} />
           </div>
 
           {/* Notificación (solo Calendar mode) */}
@@ -379,20 +386,20 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                   }}
                 />
                 <label htmlFor="send_notif" className="text-sm font-medium text-gray-700 cursor-pointer">
-                  {groupMode ? `Avisar en el móvil a: ${scope} (notificación de la app)` : "Avisar al equipo en el móvil (notificación de la app)"}
+                  {groupMode ? t("Avisar en el móvil a: {scope} (notificación de la app)", { scope: scopeText(scope, t) }) : t("Avisar al equipo en el móvil (notificación de la app)")}
                 </label>
               </div>
               {form.send_notification && (
                 <div className="pl-7 space-y-1">
-                  <p className="text-xs text-gray-500">Mensaje del aviso</p>
+                  <p className="text-xs text-gray-500">{t("Mensaje del aviso")}</p>
                   <Textarea
                     value={form.notification_message}
                     onChange={e => set("notification_message", e.target.value)}
                     className="border-gray-200 text-sm"
                     rows={5}
-                    placeholder="Escribe el mensaje…"
+                    placeholder={t("Escribe el mensaje…")}
                   />
-                  <p className="text-[10px] text-gray-400">Les llegará a quienes tengan activados los avisos en la app (máx. 600 caracteres).</p>
+                  <p className="text-[10px] text-gray-400">{t("Les llegará a quienes tengan activados los avisos en la app (máx. 600 caracteres).")}</p>
                 </div>
               )}
             </div>
@@ -403,7 +410,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Repeat className="w-4 h-4 text-gray-400" />
-                <span className="text-sm font-bold text-gray-700">Evento recurrente</span>
+                <span className="text-sm font-bold text-gray-700">{t("Evento recurrente")}</span>
               </div>
               <Switch checked={form.recurring} onCheckedChange={v => set("recurring", v)} />
             </div>
@@ -411,29 +418,32 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
             {form.recurring && (
               <div className="space-y-3 pt-1">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Frecuencia</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Frecuencia")}</p>
                   <Select value={form.frequency} onValueChange={v => set("frequency", v)}>
                     <SelectTrigger className="border-gray-200 h-8 text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {FREQ_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                      {FREQ_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{t(o.label)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 {form.frequency === "monthly" ? (
                   <p className="text-xs text-gray-600">
-                    Se repetirá el <b>{ORDINALS[Math.floor((parseISO(form.series_from).getDate() - 1) / 7)]} {WEEKDAYS.find(w => w.dow === parseISO(form.series_from).getDay())?.name.toLowerCase()}</b> de cada mes, a partir de «Empieza el».
+                    {t("Se repetirá el {ordinal} {day} de cada mes, a partir de «Empieza el».", {
+                      ordinal: t(ORDINALS[Math.floor((parseISO(form.series_from).getDate() - 1) / 7)]),
+                      day: dayName(parseISO(form.series_from).getDay()),
+                    })}
                   </p>
                 ) : (
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Se repite en</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Se repite en")}</p>
                   <div className="flex gap-1">
                     {WEEKDAYS.map(w => {
                       const on = form.weekdays.includes(w.dow);
                       return (
-                        <button type="button" key={w.dow} title={w.name} onClick={() => toggleWeekday(w.dow)}
+                        <button type="button" key={w.dow} title={dayName(w.dow)} onClick={() => toggleWeekday(w.dow)}
                           className={`w-9 h-8 rounded-md border text-sm font-bold transition-colors ${on ? "text-white border-transparent" : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"}`}
                           style={on ? { background: "var(--granate)" } : undefined}>
-                          {w.label}
+                          {dayInitial(w)}
                         </button>
                       );
                     })}
@@ -442,19 +452,19 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                 )}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Empieza el</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Empieza el")}</p>
                     <input type="date" value={form.series_from} onChange={e => set("series_from", e.target.value)}
                       className="w-full h-8 rounded-md border border-gray-200 bg-transparent text-sm px-1.5" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Termina el</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Termina el")}</p>
                     <input type="date" min={form.series_from} value={form.recurrence_until} onChange={e => set("recurrence_until", e.target.value)}
                       className="w-full h-8 rounded-md border border-gray-200 bg-transparent text-sm px-1.5" />
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded p-2">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-                    Se crearán {previewDates.length} eventos · pulsa una fecha para quitarla (festivos…)
+                    {t("Se crearán {length} eventos · pulsa una fecha para quitarla (festivos…)", { length: previewDates.length })}
                   </p>
                   <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
                     {allDates.map((d, i) => {
@@ -464,12 +474,12 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                           type="button"
                           key={i}
                           onClick={() => toggleExcluded(d)}
-                          title={off ? "Volver a incluir" : "Quitar esta fecha"}
+                          title={off ? t("Volver a incluir") : t("Quitar esta fecha")}
                           className={`text-[10px] pl-1.5 pr-1 py-0.5 rounded border font-medium inline-flex items-center gap-1 transition-colors ${
                             off ? "bg-gray-100 border-dashed border-gray-300 text-gray-400 line-through" : "bg-white border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-600"
                           }`}
                         >
-                          {format(d, "d MMM", { locale: es })}
+                          {format(d, "d MMM", { locale: dfl })}
                           <span className="text-[11px] leading-none no-underline">{off ? "+" : "×"}</span>
                         </button>
                       );
@@ -481,15 +491,15 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
           </div>}
 
           <div className="flex gap-3 pt-1">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">{t("Cancelar")}</Button>
             <Button variant="club" type="submit" disabled={createMutation.isPending || (form.recurring && previewDates.length === 0) || !hasTarget} className="flex-1">
               {createMutation.isPending
-                ? "Guardando…"
+                ? t("Guardando…")
                 : groupMode
-                  ? `Crear en los ${picked.length} equipos`
+                  ? t("Crear en los {length} equipos", { length: picked.length })
                   : form.recurring
-                  ? `Crear ${previewDates.length} eventos`
-                  : "Crear evento"}
+                  ? t("Crear {length} eventos", { length: previewDates.length })
+                  : t("Crear evento")}
             </Button>
           </div>
         </form>

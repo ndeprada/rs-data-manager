@@ -7,30 +7,32 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import GuestPlayerSelector from "@/components/common/GuestPlayerSelector";
 import { playerFullName } from "@/lib/playerName";
+import { useT, msg } from "@/i18n";
 
 const STATUS_CONFIG = {
-  present: { label: "Presente",  icon: CheckCircle, iconClass: "text-green-500",  activeBorder: "border-green-400 bg-green-50" },
-  apart:   { label: "A parte",   icon: Activity,    iconClass: "text-blue-500",   activeBorder: "border-blue-400 bg-blue-50" },
-  absent:  { label: "Ausente",   icon: XCircle,     iconClass: "text-red-400",    activeBorder: "border-red-400 bg-red-50" },
+  present: { label: msg("Presente"),  icon: CheckCircle, iconClass: "text-green-500",  activeBorder: "border-green-400 bg-green-50" },
+  apart:   { label: msg("A parte"),   icon: Activity,    iconClass: "text-blue-500",   activeBorder: "border-blue-400 bg-blue-50" },
+  absent:  { label: msg("Ausente"),   icon: XCircle,     iconClass: "text-red-400",    activeBorder: "border-red-400 bg-red-50" },
 };
 
 const ABSENCE_REASONS = [
-  { value: "lesion",   label: "Lesión" },
+  { value: "lesion",   label: msg("Lesión") },
   { value: "enfermo",  label: "Enfermo/a" },
-  { value: "clase",    label: "Clase" },
-  { value: "examen",   label: "Examen" },
-  { value: "viaje",    label: "Viaje" },
-  { value: "familiar", label: "Motivo familiar" },
-  { value: "permiso",  label: "Permiso" },
-  { value: "otro",     label: "Otro" },
+  { value: "clase",    label: msg("Clase") },
+  { value: "examen",   label: msg("Examen") },
+  { value: "viaje",    label: msg("Viaje") },
+  { value: "familiar", label: msg("Motivo familiar") },
+  { value: "permiso",  label: msg("Permiso") },
+  { value: "otro",     label: msg("Otro") },
 ];
 
 const POSITION_LABELS = {
-  portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
-  mediocentro: "MED", interior: "INT", mediapunta: "MP", delantero_centro: "DEL", extremo: "EXT",
+  portero: msg("POR"), lateral: msg("LAT"), central: msg("CEN"), libre: msg("LIB"),
+  mediocentro: msg("MED"), interior: msg("INT"), mediapunta: msg("MP"), delantero_centro: msg("DEL"), extremo: msg("EXT"),
 };
 
 export default function EventAttendanceDialog({ event, open, onOpenChange }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [pendingReason, setPendingReason] = useState({}); // playerId -> reason
   const [guestPlayers, setGuestPlayers] = useState([]); // Jugadores de otros equipos añadidos
@@ -135,16 +137,16 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
         <DialogHeader className="p-5 border-b border-gray-100 bg-gray-50 shrink-0">
           <DialogTitle className="text-gray-900">{event.title}</DialogTitle>
           <div className="flex flex-wrap gap-3 mt-1 text-xs">
-            <span className="text-green-600 font-medium">{counts.present} presentes</span>
-            <span className="text-blue-600 font-medium">{counts.apart} a parte</span>
-            <span className="text-red-500 font-medium">{counts.absent} ausentes</span>
-            {counts.pending > 0 && <span className="text-gray-400">{counts.pending} sin registrar</span>}
+            <span className="text-green-600 font-medium">{t("{present} presentes", { present: counts.present })}</span>
+            <span className="text-blue-600 font-medium">{t("{apart} a parte", { apart: counts.apart })}</span>
+            <span className="text-red-500 font-medium">{t("{absent} ausentes", { absent: counts.absent })}</span>
+            {counts.pending > 0 && <span className="text-gray-400">{t("{pending} sin registrar", { pending: counts.pending })}</span>}
           </div>
         </DialogHeader>
 
         <div className="overflow-y-auto flex-1">
           {teamPlayers.length === 0 ? (
-            <div className="p-10 text-center text-gray-400 text-sm">No hay jugadores en este equipo</div>
+            <div className="p-10 text-center text-gray-400 text-sm">{t("No hay jugadores en este equipo")}</div>
           ) : (
             <div className="divide-y divide-gray-100">
               {/* Jugadores del equipo */}
@@ -166,10 +168,10 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {playerFullName(player)}
-                          {player.status === "lesionado" && <span className="ml-2 text-xs text-orange-500">⚠ Lesionado</span>}
+                          {player.status === "lesionado" && <span className="ml-2 text-xs text-orange-500">{t("⚠ Lesionado")}</span>}
                         </p>
                         <p className="text-xs text-gray-400">
-                          {POSITION_LABELS[player.position] || player.position || "—"}
+                          {t(POSITION_LABELS[player.position] || player.position || "—")}
                           {player.jersey_number ? ` · #${player.jersey_number}` : ""}
                         </p>
                       </div>
@@ -184,7 +186,7 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
                             <button
                               key={st}
                               onClick={() => handleStatusClick(player.id, st)}
-                              title={cfg.label}
+                              title={t(cfg.label)}
                               className={`p-1.5 rounded-lg border transition-all ${
                                 isActive ? cfg.activeBorder : "border-gray-200 bg-white hover:bg-gray-50"
                               }`}
@@ -204,11 +206,11 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
                           onValueChange={(v) => handleReasonChange(player.id, v)}
                         >
                           <SelectTrigger className="h-7 text-xs border-red-200 bg-red-50 text-red-700 w-48">
-                            <SelectValue placeholder="Motivo de ausencia..." />
+                            <SelectValue placeholder={t("Motivo de ausencia...")} />
                           </SelectTrigger>
                           <SelectContent>
                             {ABSENCE_REASONS.map((r) => (
-                              <SelectItem key={r.value} value={r.value} className="text-sm">{r.label}</SelectItem>
+                              <SelectItem key={r.value} value={r.value} className="text-sm">{t(r.label)}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -222,7 +224,7 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
               {guestPlayers.length > 0 && (
                 <>
                   <div className="sticky px-4 py-2 bg-blue-50 border-t-2 border-blue-200">
-                    <p className="text-xs font-semibold text-blue-700 uppercase">Jugadores de otros equipos</p>
+                    <p className="text-xs font-semibold text-blue-700 uppercase">{t("Jugadores de otros equipos")}</p>
                   </div>
                   {guestPlayers.filter(p => p.team_id !== event?.team_id).map((player) => {
                     const currentStatus = getStatus(player.id);
@@ -241,7 +243,7 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
                               {playerFullName(player)}
                             </p>
                             <p className="text-xs text-blue-500">
-                              {teams.find(t => t.id === player.team_id)?.name || "Otro equipo"} · {POSITION_LABELS[player.position] || player.position || "—"}
+                              {teams.find(t => t.id === player.team_id)?.name || t("Otro equipo")} · {t(POSITION_LABELS[player.position] || player.position || "—")}
                             </p>
                           </div>
 
@@ -254,7 +256,7 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
                                 <button
                                   key={st}
                                   onClick={() => handleStatusClick(player.id, st)}
-                                  title={cfg.label}
+                                  title={t(cfg.label)}
                                   className={`p-1.5 rounded-lg border transition-all ${
                                     isActive ? cfg.activeBorder : "border-gray-200 bg-white hover:bg-gray-50"
                                   }`}
@@ -273,11 +275,11 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
                               onValueChange={(v) => handleReasonChange(player.id, v)}
                             >
                               <SelectTrigger className="h-7 text-xs border-red-200 bg-red-50 text-red-700 w-48">
-                                <SelectValue placeholder="Motivo de ausencia..." />
+                                <SelectValue placeholder={t("Motivo de ausencia...")} />
                               </SelectTrigger>
                               <SelectContent>
                                 {ABSENCE_REASONS.map((r) => (
-                                  <SelectItem key={r.value} value={r.value} className="text-sm">{r.label}</SelectItem>
+                                  <SelectItem key={r.value} value={r.value} className="text-sm">{t(r.label)}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -289,7 +291,7 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
                             onClick={() => setGuestPlayers(prev => prev.filter(p => p.id !== player.id))}
                             className="text-xs text-red-600 hover:text-red-700 font-medium"
                           >
-                            Eliminar
+                            {t("Eliminar")}
                           </button>
                         </div>
                       </div>
@@ -325,7 +327,7 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
               onClick={() => teamPlayers.forEach((p) => upsertMutation.mutate({ playerId: p.id, status: "present" }))}
               className="text-xs px-3 py-1.5 rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors font-medium"
             >
-              ✓ Marcar todos presentes
+              {t("✓ Marcar todos presentes")}
             </button>
           </div>
         )}

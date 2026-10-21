@@ -3,13 +3,13 @@ import EventWeather from "@/components/EventWeather";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { format, addDays, parseISO, startOfDay } from "date-fns";
-import { es } from "date-fns/locale";
 import { Download, ChevronLeft, ChevronRight, Edit2, Check, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
+import { useT, useDateLocale, msg } from "@/i18n";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 
@@ -17,9 +17,9 @@ const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 // Los almacenamos localmente en estado y al guardar hacemos update del evento
 
 const KIT_OPTS = [
-  { value: "primera", label: "1ª (granate)" },
-  { value: "segunda", label: "2ª (granate alt)" },
-  { value: "tercera", label: "3ª (verde)" },
+  { value: "primera", label: msg("1ª (granate)") },
+  { value: "segunda", label: msg("2ª (granate alt)") },
+  { value: "tercera", label: msg("3ª (verde)") },
 ];
 
 function getWeekendDates(referenceDate) {
@@ -41,6 +41,8 @@ function getWeekendDates(referenceDate) {
 }
 
 export default function WeekendAgenda({ events = [], teams = [], fields = [] }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const qc = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
   const [editing, setEditing] = useState({}); // eventId -> { locker, kit, kit_size }
@@ -52,10 +54,10 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
   const [sat, sun] = getWeekendDates(baseDate);
 
   const weekendLabel = (() => {
-    const satStr = format(sat, "d", { locale: es });
-    const sunStr = format(sun, "d", { locale: es });
-    const monthStr = format(sat, "MMMM", { locale: es });
-    const monthSunStr = format(sun, "MMMM", { locale: es });
+    const satStr = format(sat, "d", { locale: dfl });
+    const sunStr = format(sun, "d", { locale: dfl });
+    const monthStr = format(sat, "MMMM", { locale: dfl });
+    const monthSunStr = format(sun, "MMMM", { locale: dfl });
     const year = format(sat, "yyyy");
     if (monthStr === monthSunStr) return `${satStr}-${sunStr} de ${monthStr} ${year}`;
     return `${satStr} de ${monthStr} - ${sunStr} de ${monthSunStr} ${year}`;
@@ -101,7 +103,7 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
     qc.invalidateQueries({ queryKey: ["events"] });
     setSaving(prev => { const n = { ...prev }; delete n[event.id]; return n; });
     setEditing(prev => { const n = { ...prev }; delete n[event.id]; return n; });
-    toast({ title: "Guardado" });
+    toast({ title: t("Guardado") });
   };
 
   const handlePrint = () => {
@@ -220,7 +222,7 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
           ${rows || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#9ca3af;">Sin partidos este fin de semana</td></tr>'}
         </tbody>
       </table>
-      <div class="footer">Generado el ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es })} · RS Manager</div>
+      <div class="footer">Generado el ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: dfl })} · RS Manager</div>
     `;
   };
 
@@ -230,7 +232,7 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100" style={{ background: "var(--granate)" }}>
         <div className="flex items-center gap-2">
           <h2 className="font-black text-white text-sm uppercase tracking-wider on-dark" style={{ fontFamily: "var(--font-display)" }}>
-            Agenda Semanal
+            {t("Agenda Semanal")}
           </h2>
         </div>
         <div className="flex items-center gap-2">
@@ -279,7 +281,7 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
             className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-bold text-white bg-white/10 hover:bg-white/20 transition-colors"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            <Download className="w-3.5 h-3.5" /> PDF
+            <Download className="w-3.5 h-3.5" /> {t("PDF")}
           </button>
         </div>
       </div>
@@ -287,14 +289,14 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
       {/* Table */}
       {weekendMatches.length === 0 ? (
         <div className="py-12 text-center text-gray-400 text-sm">
-          Sin partidos este fin de semana
+          {t("Sin partidos este fin de semana")}
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                {["Día", "Equipo", "Rival", "Hora", "Loc/Vis", "Campo", "Vestuario", "Equipación"].map(h => (
+                {[t("Día"), t("Equipo"), t("Rival"), t("Hora"), t("Loc/Vis"), t("Campo"), t("Vestuario"), t("Equipación")].map(h => (
                   <th key={h} className="px-3 py-2 text-left font-bold uppercase tracking-wider text-gray-500 text-[10px] whitespace-nowrap" style={{ fontFamily: "var(--font-display)" }}>
                     {h}
                   </th>
@@ -318,7 +320,7 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
                     {/* Day */}
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${isSat ? "bg-amber-100 text-amber-700" : "bg-violet-100 text-violet-700"}`}>
-                        {isSat ? "Sáb" : "Dom"}
+                        {isSat ? t("Sáb") : t("Dom")}
                       </span>
                     </td>
                     {/* Team */}
@@ -328,7 +330,7 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
                     {/* Rival */}
                     <td className="px-3 py-2 whitespace-nowrap text-gray-700">
                       <span className={isCancelled(ev) ? "line-through text-gray-400" : ""}>{ev.opponent || <span className="text-gray-300">—</span>}</span>
-                      {isCancelled(ev) && <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300">{cancelText(ev)}</span>}
+                      {isCancelled(ev) && <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300">{cancelText(ev, t)}</span>}
                     </td>
                     {/* Hour */}
                     <td className="px-3 py-2 whitespace-nowrap">
@@ -338,8 +340,8 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
                     {/* Home/Away */}
                     <td className="px-3 py-2 whitespace-nowrap">
                       {isHome
-                        ? <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-green-100 text-green-700">Local</span>
-                        : <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-500">Visitante</span>
+                        ? <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-green-100 text-green-700">{t("Local")}</span>
+                        : <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-500">{t("Visitante")}</span>
                       }
                     </td>
                     {/* Field */}
@@ -353,7 +355,7 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
                           <Input
                             value={ed.locker}
                             onChange={e => setEditing(prev => ({ ...prev, [ev.id]: { ...prev[ev.id], locker: e.target.value } }))}
-                            placeholder="Ej: V1"
+                            placeholder={t("Ej: V1")}
                             className="h-6 w-16 text-xs px-1.5"
                           />
                         ) : (
@@ -369,16 +371,16 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
                         isEditing ? (
                           <div className="flex items-center gap-1">
                                             <Select value={ed.kit || "primera"} onValueChange={v => setEditing(prev => ({ ...prev, [ev.id]: { ...prev[ev.id], kit: v === "primera" ? "" : v } }))}>
-                              <SelectTrigger className="h-6 text-xs w-32 px-1.5"><SelectValue placeholder="Equipación" /></SelectTrigger>
+                              <SelectTrigger className="h-6 text-xs w-32 px-1.5"><SelectValue placeholder={t("Equipación")} /></SelectTrigger>
                               <SelectContent>
-                                {KIT_OPTS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                                {KIT_OPTS.map(o => <SelectItem key={o.value} value={o.value}>{t(o.label)}</SelectItem>)}
                               </SelectContent>
                             </Select>
                             {ed.kit && ed.kit !== "primera" && (
                               <Input
                                 value={ed.kit_size}
                                 onChange={e => setEditing(prev => ({ ...prev, [ev.id]: { ...prev[ev.id], kit_size: e.target.value } }))}
-                                placeholder="Talla"
+                                placeholder={t("Talla")}
                                 className="h-6 w-16 text-xs px-1.5"
                               />
                             )}

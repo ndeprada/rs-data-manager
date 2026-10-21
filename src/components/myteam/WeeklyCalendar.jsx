@@ -1,29 +1,29 @@
 import React, { useState } from "react";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, isToday } from "date-fns";
-import { es } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, MapPin, Clock, Plus, Home, Plane, Ban } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
 import EventWeather from "@/components/EventWeather";
+import { useT, useDateLocale, msg } from "@/i18n";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 
 const EVENT_META = {
-  entrenamiento:     { label: "Entreno",    color: "orange" },
-  entrenamiento_fisico: { label: "Físico",  color: "orange" },
-  sesion_teorica:    { label: "Táctica",    color: "orange" },
-  sesion_video:      { label: "Vídeo",      color: "orange" },
-  partido_amistoso:  { label: "Amistoso",   color: "granate" },
-  partido_liga:      { label: "Liga",       color: "granate" },
-  torneo:            { label: "Torneo",     color: "granate" },
-  reunion_equipo:    { label: "Reunión",    color: "slate" },
-  reunion_jugador:   { label: "Reunión",    color: "slate" },
-  reunion_capitanes: { label: "Capitanes",  color: "slate" },
-  stage:             { label: "Stage",      color: "slate" },
-  concentracion:     { label: "Concentr.",  color: "slate" },
-  cena_equipo:       { label: "Cena",       color: "slate" },
-  comida_equipo:     { label: "Comida",     color: "slate" },
-  evento_club:       { label: "Club",       color: "granate" },
+  entrenamiento:     { label: msg("Entreno"),    color: "orange" },
+  entrenamiento_fisico: { label: msg("Físico"),  color: "orange" },
+  sesion_teorica:    { label: msg("Táctica"),    color: "orange" },
+  sesion_video:      { label: msg("Vídeo"),      color: "orange" },
+  partido_amistoso:  { label: msg("Amistoso"),   color: "granate" },
+  partido_liga:      { label: msg("Liga"),       color: "granate" },
+  torneo:            { label: msg("Torneo"),     color: "granate" },
+  reunion_equipo:    { label: msg("Reunión"),    color: "slate" },
+  reunion_jugador:   { label: msg("Reunión"),    color: "slate" },
+  reunion_capitanes: { label: msg("Capitanes"),  color: "slate" },
+  stage:             { label: msg("Stage"),      color: "slate" },
+  concentracion:     { label: msg("Concentr."),  color: "slate" },
+  cena_equipo:       { label: msg("Cena"),       color: "slate" },
+  comida_equipo:     { label: msg("Comida"),     color: "slate" },
+  evento_club:       { label: msg("Club"),       color: "granate" },
 };
 
 // Color styles per category
@@ -66,6 +66,7 @@ function getWeekNumber(date) {
 const OFF_STYLES = { bar: "#9ca3af", bg: "#f9fafb", pill: "#e5e7eb", pillText: "#6b7280", accent: "#6b7280", border: "#e5e7eb" };
 
 function EventCard({ event, navigate, onEventClick }) {
+  const t = useT();
   const meta = EVENT_META[event.type] || { label: event.type, color: "slate" };
   const off = isCancelled(event);
   const styles = off ? OFF_STYLES : COLOR_STYLES[meta.color];
@@ -102,12 +103,12 @@ function EventCard({ event, navigate, onEventClick }) {
             className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full"
             style={{ background: styles.pill, color: styles.pillText, fontFamily: "var(--font-display)" }}
           >
-            {meta.label}
+            {t(meta.label)}
           </span>
           {isMatch && (
             event.is_home === false
-              ? <span title="Fuera" className="inline-flex"><Plane className="w-3.5 h-3.5 text-sky-600" /></span>
-              : <span title="Casa" className="inline-flex"><Home className="w-3.5 h-3.5 text-emerald-600" /></span>
+              ? <span title={t("Fuera")} className="inline-flex"><Plane className="w-3.5 h-3.5 text-sky-600" /></span>
+              : <span title={t("Casa")} className="inline-flex"><Home className="w-3.5 h-3.5 text-emerald-600" /></span>
           )}
         </div>
 
@@ -136,8 +137,8 @@ function EventCard({ event, navigate, onEventClick }) {
         )}
 
         {off && (
-          <p className="mt-1 flex items-center gap-1 text-[9px] font-black uppercase tracking-wide text-gray-500" title={cancelText(event)}>
-            <Ban className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">{cancelText(event)}</span>
+          <p className="mt-1 flex items-center gap-1 text-[9px] font-black uppercase tracking-wide text-gray-500" title={cancelText(event, t)}>
+            <Ban className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">{cancelText(event, t)}</span>
           </p>
         )}
 
@@ -147,7 +148,7 @@ function EventCard({ event, navigate, onEventClick }) {
             <MapPin className="w-2.5 h-2.5 shrink-0 text-gray-400" />
             {event.location_url ? (
               <span role="link" onClick={(e) => { e.stopPropagation(); window.open(/^https?:\/\//i.test(event.location_url) ? event.location_url : `https://${event.location_url}`, "_blank", "noopener"); }}
-                className="text-[9px] text-sky-600 underline truncate cursor-pointer">{event.location || "Ver mapa"}</span>
+                className="text-[9px] text-sky-600 underline truncate cursor-pointer">{event.location || t("Ver mapa")}</span>
             ) : (
               <span className="text-[9px] text-gray-400 truncate">{event.location}</span>
             )}
@@ -158,9 +159,9 @@ function EventCard({ event, navigate, onEventClick }) {
   );
 }
 
-const DAYS_ES = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
-
-export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEventClick, title = "Previsión semanal", selectedEventId, forceGrid = false }) {
+export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEventClick, title, selectedEventId, forceGrid = false }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const navigate = useNavigate();
   const [weekBase, setWeekBase] = useState(new Date());
 
@@ -197,10 +198,10 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
         style={{ background: "var(--granate)" }}>
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-white/60" style={{ fontFamily: "var(--font-display)" }}>
-            {title}
+            {title || t("Previsión semanal")}
           </p>
           <p className="text-sm font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>
-            Sem. {weekNum} · {format(weekStart, "d MMM", { locale: es })} – {format(weekEnd, "d MMM", { locale: es })}
+            {t("Sem. {weekNum} · {format} – {format2}", { weekNum, format: format(weekStart, "d MMM", { locale: dfl }), format2: format(weekEnd, "d MMM", { locale: dfl }) })}
           </p>
         </div>
         <div className="flex items-center gap-1">
@@ -211,7 +212,7 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
           <button onClick={() => setWeekBase(new Date())}
             className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full transition-colors text-white/70 hover:text-white hover:bg-white/20"
             style={{ fontFamily: "var(--font-display)" }}>
-            Hoy
+            {t("Hoy")}
           </button>
           <button onClick={() => setWeekBase(w => addWeeks(w, 1))}
             className="w-8 h-8 flex items-center justify-center rounded-full transition-colors text-white/70 hover:text-white hover:bg-white/20">
@@ -239,7 +240,7 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
                 <div className="shrink-0 text-center w-10">
                   <p className="text-[9px] font-black uppercase tracking-widest"
                     style={{ fontFamily: "var(--font-display)", color: todayDay ? "var(--naranja)" : "#9ca3af" }}>
-                    {DAYS_ES[i]}
+                    {format(days[i], "EEE", { locale: dfl }).replace(/\.$/, "").toUpperCase()}
                   </p>
                   <div className="mx-auto w-8 h-8 flex items-center justify-center rounded-full text-sm font-black"
                     style={{
@@ -254,7 +255,7 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
                 {/* Events or empty */}
                 <div className="flex-1 min-w-0 space-y-1.5">
                   {!hasEvents ? (
-                    <p className="text-[11px] text-gray-300">Sin eventos</p>
+                    <p className="text-[11px] text-gray-300">{t("Sin eventos")}</p>
                   ) : (
                     dayEvents.map(ev => {
                       const meta = EVENT_META[ev.type] || { label: ev.type, color: "slate" };
@@ -280,7 +281,7 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
                               {isMatch && ev.opponent ? `vs ${ev.opponent}` : ev.title}
                             </p>
                             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              <span className="text-[9px] font-bold uppercase" style={{ color: styles.pillText }}>{off ? cancelText(ev) : meta.label}</span>
+                              <span className="text-[9px] font-bold uppercase" style={{ color: styles.pillText }}>{off ? cancelText(ev, t) : t(meta.label)}</span>
                               {timeStr && <span className={`text-[9px] text-gray-400 ${off ? "line-through" : ""}`}>{timeStr}</span>}
                               <EventWeather event={ev} rain size="sm" />
                               {ev.location && <span className="text-[9px] text-gray-400 truncate max-w-[120px]">{ev.location}</span>}
@@ -331,7 +332,7 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
               >
                 <p className="text-[9px] font-black uppercase tracking-widest mb-1"
                   style={{ fontFamily: "var(--font-display)", color: todayDay ? "var(--naranja)" : isWeekend ? "#94a3b8" : "#9ca3af" }}>
-                  {DAYS_ES[i]}
+                  {format(days[i], "EEE", { locale: dfl }).replace(/\.$/, "").toUpperCase()}
                 </p>
                 <div className="mx-auto w-8 h-8 flex items-center justify-center rounded-full text-sm font-black transition-all"
                   style={{
@@ -358,9 +359,9 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
                 <div className="px-1.5 pb-1.5">
                   <button onClick={() => onDayClick(day)}
                     className="w-full flex items-center justify-center gap-1 py-1 rounded text-[9px] font-bold uppercase tracking-wider text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
-                    title={`Añadir evento el ${format(day, "d MMM", { locale: es })}`}>
+                    title={t("Añadir evento el {format}", { format: format(day, "d MMM", { locale: dfl }) })}>
                     <Plus className="w-2.5 h-2.5" />
-                    Añadir
+                    {t("Añadir")}
                   </button>
                 </div>
               )}
@@ -374,9 +375,9 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
       {/* ── LEGEND ── */}
       <div className="px-4 py-2.5 flex items-center gap-4 bg-gray-50 border-t border-gray-100">
         {[
-          { color: "var(--naranja)", label: "Entrenamiento" },
-          { color: "var(--granate)", label: "Partido" },
-          { color: "#334155",        label: "Otro" },
+          { color: "var(--naranja)", label: t("Entrenamiento") },
+          { color: "var(--granate)", label: t("Partido") },
+          { color: "#334155",        label: t("Otro") },
         ].map(({ color, label }) => (
           <div key={label} className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />

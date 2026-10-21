@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
+import { useT } from "@/i18n";
 
 // Avisa cuando hay una versión nueva de la app publicada, para no seguir trabajando con una pantalla antigua.
 // Compara el archivo principal que está cargado con el que sirve ahora el servidor.
 const entryOf = (html) => (html.match(/assets\/index-[\w-]+\.js/) || [])[0] || null;
 
 export default function UpdateNotice() {
+  const t = useT();
   const [stale, setStale] = useState(false);
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export default function UpdateNotice() {
       <button type="button" onClick={() => window.location.reload()}
         className="flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg text-white text-xs font-bold"
         style={{ background: "var(--granate)" }}>
-        <RefreshCw className="w-3.5 h-3.5 shrink-0" /> Hay una versión nueva de la app. Pulsa para actualizar
+        <RefreshCw className="w-3.5 h-3.5 shrink-0" /> {t("Hay una versión nueva de la app. Pulsa para actualizar")}
       </button>
     </div>
   );

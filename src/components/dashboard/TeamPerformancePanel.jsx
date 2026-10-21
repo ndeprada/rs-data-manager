@@ -5,8 +5,10 @@ import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Toolti
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trophy } from "lucide-react";
+import { useT } from "@/i18n";
 
 export default function TeamPerformancePanel() {
+  const t = useT();
   const [selectedTeamId, setSelectedTeamId] = React.useState("all");
 
   const { data: teams = [] } = useQuery({
@@ -62,20 +64,20 @@ export default function TeamPerformancePanel() {
   const filteredTeams = selectedTeamId === "all" ? teamsWithStats : teamsWithStats.filter((t) => t.id === selectedTeamId);
 
   // Data for overall bar chart
-  const overallData = filteredTeams.map((t) => ({
-    name: t.name,
-    Victorias: t.wins,
-    Empates: t.draws,
-    Derrotas: t.losses,
+  const overallData = filteredTeams.map((tm) => ({
+    name: tm.name,
+    [t("Victorias")]: tm.wins,
+    [t("Empates")]: tm.draws,
+    [t("Derrotas")]: tm.losses,
   }));
 
   // Data for pie chart (selected team or combined)
   const selectedTeam = filteredTeams[0];
   const pieData = selectedTeam
     ? [
-        { name: "Victorias", value: selectedTeam.wins },
-        { name: "Empates", value: selectedTeam.draws },
-        { name: "Derrotas", value: selectedTeam.losses },
+        { name: t("Victorias"), value: selectedTeam.wins },
+        { name: t("Empates"), value: selectedTeam.draws },
+        { name: t("Derrotas"), value: selectedTeam.losses },
       ]
     : [];
 
@@ -87,15 +89,15 @@ export default function TeamPerformancePanel() {
         <div className="flex items-center gap-2">
           <Trophy className="w-6 h-6" style={{ color: "var(--granate)" }} />
           <h2 className="text-2xl font-black uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
-            Rendimiento de Equipos
+            {t("Rendimiento de Equipos")}
           </h2>
         </div>
         <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
           <SelectTrigger className="w-64 border-gray-200 bg-white">
-            <SelectValue placeholder="Todos los equipos" />
+            <SelectValue placeholder={t("Todos los equipos")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos los equipos</SelectItem>
+            <SelectItem value="all">{t("Todos los equipos")}</SelectItem>
             {teamsWithStats.map((t) => (
               <SelectItem key={t.id} value={t.id}>
                 {t.name}
@@ -107,14 +109,14 @@ export default function TeamPerformancePanel() {
 
       {filteredTeams.length === 0 ? (
         <Card className="p-8 text-center border-gray-200">
-          <p className="text-gray-400 text-sm">No hay datos de partidos disponibles</p>
+          <p className="text-gray-400 text-sm">{t("No hay datos de partidos disponibles")}</p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Bar Chart */}
           <Card className="p-6 border-gray-200">
             <h3 className="text-sm font-bold uppercase tracking-wider mb-4" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
-              Comparativa de Resultados
+              {t("Comparativa de Resultados")}
             </h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={overallData}>
@@ -123,9 +125,9 @@ export default function TeamPerformancePanel() {
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb" }} />
                 <Legend />
-                <Bar dataKey="Victorias" fill="#10b981" />
-                <Bar dataKey="Empates" fill="#f59e0b" />
-                <Bar dataKey="Derrotas" fill="#ef4444" />
+                <Bar dataKey={t("Victorias")} fill="#10b981" />
+                <Bar dataKey={t("Empates")} fill="#f59e0b" />
+                <Bar dataKey={t("Derrotas")} fill="#ef4444" />
               </BarChart>
             </ResponsiveContainer>
           </Card>
@@ -134,7 +136,7 @@ export default function TeamPerformancePanel() {
           {selectedTeam && (
             <Card className="p-6 border-gray-200">
               <h3 className="text-sm font-bold uppercase tracking-wider mb-4" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
-                Distribución: {selectedTeam.name}
+                {t("Distribución: {name}", { name: selectedTeam.name })}
               </h3>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
@@ -170,24 +172,24 @@ export default function TeamPerformancePanel() {
               </p>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Partidos:</span>
+                  <span className="text-xs text-gray-600">{t("Partidos:")}</span>
                   <span className="font-bold">{team.matches}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Victorias:</span>
+                  <span className="text-xs text-gray-600">{t("Victorias:")}</span>
                   <span className="font-bold text-green-600">{team.wins}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Empates:</span>
+                  <span className="text-xs text-gray-600">{t("Empates:")}</span>
                   <span className="font-bold text-amber-600">{team.draws}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Derrotas:</span>
+                  <span className="text-xs text-gray-600">{t("Derrotas:")}</span>
                   <span className="font-bold text-red-600">{team.losses}</span>
                 </div>
                 <div className="border-t border-gray-200 pt-2 mt-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-600">Promedio:</span>
+                    <span className="text-xs text-gray-600">{t("Promedio:")}</span>
                     <span className="font-bold text-sm">
                       {team.matches > 0 ? ((team.wins / team.matches) * 100).toFixed(0) : 0}%
                     </span>

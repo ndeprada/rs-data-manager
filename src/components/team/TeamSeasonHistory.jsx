@@ -1,11 +1,13 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useT } from "@/i18n";
 
 const lbl = (s) => String(s || "").replace("-", "–");
 
 // Historial de temporadas de un equipo (se rellena al cerrar cada temporada). Si no hay ninguna, no se muestra.
 export default function TeamSeasonHistory({ teamId }) {
+  const t = useT();
   const { data: rows = [] } = useQuery({
     queryKey: ["team_season_history", teamId],
     queryFn: () => base44.entities.TeamSeasonHistory.filter({ team_id: teamId }),
@@ -16,14 +18,14 @@ export default function TeamSeasonHistory({ teamId }) {
   return (
     <div className="bg-white border border-gray-200 shadow-sm overflow-x-auto" style={{ borderRadius: "4px" }}>
       <div className="px-4 py-2.5 border-b border-gray-100">
-        <h2 className="font-black text-sm uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Historial de temporadas</h2>
+        <h2 className="font-black text-sm uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{t("Historial de temporadas")}</h2>
       </div>
       <table className="w-full text-xs">
         <thead>
           <tr className="bg-gray-50 border-b border-gray-100 text-[10px] text-gray-400 uppercase tracking-wider text-center" style={{ fontFamily: "var(--font-display)" }}>
-            <th className="px-4 py-2 text-left">Temporada</th><th className="px-2 py-2 text-left">Competición</th>
-            <th className="px-2 py-2">Pos</th><th className="px-2 py-2">Pts</th><th className="px-2 py-2">PJ</th>
-            <th className="px-2 py-2">G</th><th className="px-2 py-2">E</th><th className="px-2 py-2">P</th><th className="px-2 py-2">GF–GC</th><th className="px-2 py-2">Jugadores</th>
+            <th className="px-4 py-2 text-left">{t("Temporada")}</th><th className="px-2 py-2 text-left">{t("Competición")}</th>
+            <th className="px-2 py-2">{t("Pos")}</th><th className="px-2 py-2">{t("Pts")}</th><th className="px-2 py-2">{t("PJ")}</th>
+            <th className="px-2 py-2">{t("G")}</th><th className="px-2 py-2">{t("E")}</th><th className="px-2 py-2">{t("P")}</th><th className="px-2 py-2">{t("GF–GC")}</th><th className="px-2 py-2">{t("Jugadores")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">

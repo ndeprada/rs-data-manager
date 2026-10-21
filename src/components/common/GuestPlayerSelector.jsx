@@ -5,19 +5,21 @@ import { X, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { playerFullName, matchesPlayerSearch } from "@/lib/playerName";
+import { useT, msg } from "@/i18n";
 
 const POSITION_LABELS = {
-  portero: "Portero",
-  lateral: "Lateral",
-  central: "Central",
-  libre: "Libre",
-  mediocentro: "Mediocentro",
-  interior: "Interior", mediapunta: "Mediapunta",
-  delantero_centro: "Del. Centro",
-  extremo: "Extremo",
+  portero: msg("Portero"),
+  lateral: msg("Lateral"),
+  central: msg("Central"),
+  libre: msg("Libre"),
+  mediocentro: msg("Mediocentro"),
+  interior: msg("Interior"), mediapunta: msg("Mediapunta"),
+  delantero_centro: msg("Del. Centro"),
+  extremo: msg("Extremo"),
 };
 
 export default function GuestPlayerSelector({ teamId, selectedPlayers, onAdd, onRemove, type = "training" }) {
+  const t = useT();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTeamId, setSelectedTeamId] = useState("");
 
@@ -49,14 +51,14 @@ export default function GuestPlayerSelector({ teamId, selectedPlayers, onAdd, on
   return (
     <div className="space-y-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
       <div>
-        <h4 className="text-sm font-semibold text-gray-900 mb-2">Añadir jugadores de otros equipos</h4>
+        <h4 className="text-sm font-semibold text-gray-900 mb-2">{t("Añadir jugadores de otros equipos")}</h4>
         <div className="space-y-2">
           <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
             <SelectTrigger className="h-8 text-sm border-gray-200">
-              <SelectValue placeholder="Filtrar por equipo..." />
+              <SelectValue placeholder={t("Filtrar por equipo...")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={null}>Todos los equipos</SelectItem>
+              <SelectItem value={null}>{t("Todos los equipos")}</SelectItem>
               {otherTeams.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   {t.name}
@@ -66,7 +68,7 @@ export default function GuestPlayerSelector({ teamId, selectedPlayers, onAdd, on
           </Select>
 
           <Input
-            placeholder="Buscar jugador..."
+            placeholder={t("Buscar jugador...")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="h-8 text-sm border-gray-200"
@@ -87,7 +89,7 @@ export default function GuestPlayerSelector({ teamId, selectedPlayers, onAdd, on
                   {playerFullName(player)}
                 </p>
                 <p className="text-[10px] text-gray-500">
-                  {POSITION_LABELS[player.position] || player.position || "—"} · {teams.find((t) => t.id === player.team_id)?.name}
+                  {t(POSITION_LABELS[player.position] || player.position || "—")} · {teams.find((t) => t.id === player.team_id)?.name}
                 </p>
               </div>
               <Plus className="w-4 h-4 text-blue-600 shrink-0 ml-2" />
@@ -95,13 +97,13 @@ export default function GuestPlayerSelector({ teamId, selectedPlayers, onAdd, on
           ))}
         </div>
       ) : (
-        <p className="text-xs text-gray-500 text-center py-2">No hay jugadores disponibles</p>
+        <p className="text-xs text-gray-500 text-center py-2">{t("No hay jugadores disponibles")}</p>
       )}
 
       {/* Lista de jugadores añadidos de otros equipos */}
       {selectedPlayers.length > 0 && (
         <div className="pt-2 border-t border-blue-200 space-y-1">
-          <p className="text-xs font-semibold text-gray-700">Jugadores añadidos:</p>
+          <p className="text-xs font-semibold text-gray-700">{t("Jugadores añadidos:")}</p>
           <div className="space-y-1">
             {selectedPlayers.map((playerId) => {
               const player = allPlayers.find((p) => p.id === playerId);

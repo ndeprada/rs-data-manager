@@ -1,27 +1,27 @@
 import React from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { MapPin, Clock, Pencil, Trash2, Users, FileText, ClipboardList, Home as HomeIcon, Plane as PlaneIcon } from "lucide-react";
 import EventWeather from "@/components/EventWeather";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
+import { useT, useDateLocale, msg } from "@/i18n";
 
 const EVENT_TYPES = [
-  { value: "partido_amistoso", label: "Partido amistoso", isMatch: true },
-  { value: "partido_liga", label: "Partido de liga", isMatch: true },
-  { value: "torneo", label: "Torneo", isMatch: true },
-  { value: "entrenamiento_fisico", label: "Entrenamiento físico", isMatch: false },
-  { value: "entrenamiento", label: "Entrenamiento", isMatch: false },
-  { value: "sesion_teorica", label: "Sesión teórica", isMatch: false },
-  { value: "sesion_video", label: "Sesión de vídeo", isMatch: false },
-  { value: "reunion_equipo", label: "Reunión de equipo", isMatch: false },
-  { value: "reunion_jugador", label: "Reunión jugador", isMatch: false },
-  { value: "reunion_capitanes", label: "Reunión de capitanes", isMatch: false },
-  { value: "stage", label: "Stage", isMatch: false },
-  { value: "concentracion", label: "Concentración", isMatch: false },
-  { value: "cena_equipo", label: "Cena de equipo", isMatch: false },
-  { value: "comida_equipo", label: "Comida de equipo", isMatch: false },
-  { value: "evento_club", label: "Evento del club", isMatch: false },
+  { value: "partido_amistoso", label: msg("Partido amistoso"), isMatch: true },
+  { value: "partido_liga", label: msg("Partido de liga"), isMatch: true },
+  { value: "torneo", label: msg("Torneo"), isMatch: true },
+  { value: "entrenamiento_fisico", label: msg("Entrenamiento físico"), isMatch: false },
+  { value: "entrenamiento", label: msg("Entrenamiento"), isMatch: false },
+  { value: "sesion_teorica", label: msg("Sesión teórica"), isMatch: false },
+  { value: "sesion_video", label: msg("Sesión de vídeo"), isMatch: false },
+  { value: "reunion_equipo", label: msg("Reunión de equipo"), isMatch: false },
+  { value: "reunion_jugador", label: msg("Reunión jugador"), isMatch: false },
+  { value: "reunion_capitanes", label: msg("Reunión de capitanes"), isMatch: false },
+  { value: "stage", label: msg("Stage"), isMatch: false },
+  { value: "concentracion", label: msg("Concentración"), isMatch: false },
+  { value: "cena_equipo", label: msg("Cena de equipo"), isMatch: false },
+  { value: "comida_equipo", label: msg("Comida de equipo"), isMatch: false },
+  { value: "evento_club", label: msg("Evento del club"), isMatch: false },
 ];
 
 const isMatchType = (type) => EVENT_TYPES.find(t => t.value === type)?.isMatch;
@@ -40,6 +40,8 @@ export default function EventListWithDragDrop({
   onDeleteSeries,
   filterTeam
 }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const filteredEvents = filterTeam === "all" ? events : events.filter((e) => e.team_id === filterTeam);
   
   // Group events by date
@@ -60,7 +62,7 @@ export default function EventListWithDragDrop({
       <div className="space-y-6">
         {sortedDates.length === 0 ? (
           <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
-            <p className="text-gray-400">No hay eventos programados</p>
+            <p className="text-gray-400">{t("No hay eventos programados")}</p>
           </div>
         ) : (
           sortedDates.map((dateKey) => {
@@ -73,10 +75,10 @@ export default function EventListWithDragDrop({
                 {/* Date Header */}
                 <div className={`px-5 py-3 border-b border-gray-100 ${isToday ? 'bg-blue-50' : 'bg-gray-50'}`}>
                   <h3 className="font-semibold text-gray-900 capitalize flex items-center gap-2">
-                    {format(dateObj, "EEEE d 'de' MMMM 'de' yyyy", { locale: es })}
+                    {format(dateObj, "EEEE d 'de' MMMM 'de' yyyy", { locale: dfl })}
                     {isToday && (
                       <span className="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
-                        Hoy
+                        {t("Hoy")}
                       </span>
                     )}
                   </h3>
@@ -117,7 +119,7 @@ export default function EventListWithDragDrop({
                                     className="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5"
                                     style={{ background: isMatch ? "var(--granate)" : "var(--naranja)" }}
                                   >
-                                    {getEventLabel(event.type).slice(0, 2).toUpperCase()}
+                                    {t(getEventLabel(event.type)).slice(0, 2).toUpperCase()}
                                   </div>
 
                                   {/* Content */}
@@ -132,10 +134,10 @@ export default function EventListWithDragDrop({
                                     >
                                       <p className={`font-semibold transition-colors ${isCancelled(event) ? "text-gray-400 line-through" : "text-gray-900 group-hover:text-blue-600"}`}>
                                         {event.title}
-                                        {isCancelled(event) && <span className="ml-2 inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300">{cancelText(event)}</span>}
+                                        {isCancelled(event) && <span className="ml-2 inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300">{cancelText(event, t)}</span>}
                                       </p>
                                       <p className="text-sm text-gray-500 mt-1">
-                                        {getEventLabel(event.type)}
+                                        {t(getEventLabel(event.type))}
                                       </p>
                                     </div>
 
@@ -153,7 +155,7 @@ export default function EventListWithDragDrop({
                                       )}
                                       {event.opponent && (
                                         <div className="flex items-center gap-1">
-                                          {event.is_home === true && <HomeIcon className="w-3.5 h-3.5 text-green-600" />}{event.is_home === false && <PlaneIcon className="w-3.5 h-3.5 text-sky-600" />}{event.opponent_logo_url && <img src={event.opponent_logo_url} alt="" className="w-4 h-4 object-contain" referrerPolicy="no-referrer" />}vs <span className="font-medium">{event.opponent}</span>
+                                          {event.is_home === true && <HomeIcon className="w-3.5 h-3.5 text-green-600" />}{event.is_home === false && <PlaneIcon className="w-3.5 h-3.5 text-sky-600" />}{event.opponent_logo_url && <img src={event.opponent_logo_url} alt="" className="w-4 h-4 object-contain" referrerPolicy="no-referrer" />}{t("vs")} <span className="font-medium">{event.opponent}</span>
                                         </div>
                                       )}
                                       {event.location && (
@@ -170,7 +172,7 @@ export default function EventListWithDragDrop({
                                     <button
                                       onClick={() => onOpenAttendance(event)}
                                       className="p-1.5 rounded-lg hover:bg-green-50 text-gray-400 hover:text-green-600 transition-colors"
-                                      title="Control de asistencia"
+                                      title={t("Control de asistencia")}
                                     >
                                       <ClipboardList className="w-4 h-4" />
                                     </button>
@@ -178,7 +180,7 @@ export default function EventListWithDragDrop({
                                       <button
                                         onClick={() => onOpenSession(event)}
                                         className="p-1.5 rounded-lg hover:bg-purple-50 text-gray-400 hover:text-purple-600 transition-colors"
-                                        title="Informe de sesión"
+                                        title={t("Informe de sesión")}
                                       >
                                         <FileText className="w-4 h-4" />
                                       </button>
@@ -187,7 +189,7 @@ export default function EventListWithDragDrop({
                                       <button
                                         onClick={() => onOpenConvocation(event)}
                                         className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
-                                        title="Gestionar convocatoria"
+                                        title={t("Gestionar convocatoria")}
                                       >
                                         <Users className="w-4 h-4" />
                                       </button>
@@ -195,14 +197,14 @@ export default function EventListWithDragDrop({
                                     <button
                                       onClick={() => onEdit(event)}
                                       className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-                                      title="Editar"
+                                      title={t("Editar")}
                                     >
                                       <Pencil className="w-4 h-4" />
                                     </button>
                                     <button
                                      onClick={() => onDelete(event.id)}
                                      className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                                     title="Eliminar este evento"
+                                     title={t("Eliminar este evento")}
                                     >
                                      <Trash2 className="w-4 h-4" />
                                     </button>
@@ -210,10 +212,10 @@ export default function EventListWithDragDrop({
                                       <button
                                         onClick={() => onDeleteSeries(event.series_id)}
                                         className="p-1.5 rounded-lg hover:bg-red-100 text-gray-400 hover:text-red-600 transition-colors text-[9px] font-bold leading-none"
-                                        title="Eliminar toda la serie recurrente"
+                                        title={t("Eliminar toda la serie recurrente")}
                                         style={{ fontFamily: "var(--font-display)" }}
                                       >
-                                        SERIE
+                                        {t("SERIE")}
                                       </button>
                                     )}
                                   </div>

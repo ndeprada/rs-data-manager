@@ -4,19 +4,21 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle, XCircle, Activity, X } from "lucide-react";
 import { format } from "date-fns";
 import { playerFullName } from "@/lib/playerName";
+import { useT, msg } from "@/i18n";
 
 const STATUS_CONFIG = {
-  present: { label: "Presente",        icon: CheckCircle, iconClass: "text-green-500",  badge: "bg-green-100 text-green-700 border-green-200", activeBorder: "border-green-400 bg-green-50" },
-  apart:   { label: "A parte",         icon: Activity,    iconClass: "text-blue-500",   badge: "bg-blue-100 text-blue-700 border-blue-200",   activeBorder: "border-blue-400 bg-blue-50" },
-  absent:  { label: "Ausente",         icon: XCircle,     iconClass: "text-red-400",    badge: "bg-red-100 text-red-600 border-red-200",     activeBorder: "border-red-400 bg-red-50" },
+  present: { label: msg("Presente"),        icon: CheckCircle, iconClass: "text-green-500",  badge: "bg-green-100 text-green-700 border-green-200", activeBorder: "border-green-400 bg-green-50" },
+  apart:   { label: msg("A parte"),         icon: Activity,    iconClass: "text-blue-500",   badge: "bg-blue-100 text-blue-700 border-blue-200",   activeBorder: "border-blue-400 bg-blue-50" },
+  absent:  { label: msg("Ausente"),         icon: XCircle,     iconClass: "text-red-400",    badge: "bg-red-100 text-red-600 border-red-200",     activeBorder: "border-red-400 bg-red-50" },
 };
 
 const POSITION_LABELS = {
-  portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
-  mediocentro: "MED", interior: "INT", mediapunta: "MP", delantero_centro: "DEL", extremo: "EXT",
+  portero: msg("POR"), lateral: msg("LAT"), central: msg("CEN"), libre: msg("LIB"),
+  mediocentro: msg("MED"), interior: msg("INT"), mediapunta: msg("MP"), delantero_centro: msg("DEL"), extremo: msg("EXT"),
 };
 
 export default function EventAttendancePanel({ event, onClose }) {
+  const t = useT();
   const queryClient = useQueryClient();
 
   const eventDate = format(new Date(event.date), "yyyy-MM-dd");
@@ -77,12 +79,12 @@ export default function EventAttendancePanel({ event, onClose }) {
       {/* Header */}
       <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
         <div>
-          <p className="font-semibold text-gray-900">Asistencia — {event.title}</p>
+          <p className="font-semibold text-gray-900">{t("Asistencia — {title}", { title: event.title })}</p>
           <div className="flex gap-3 mt-1 text-xs text-gray-500">
-            <span className="text-green-600 font-medium">{counts.present} presentes</span>
-            <span className="text-blue-600 font-medium">{counts.apart} a parte</span>
-            <span className="text-red-500 font-medium">{counts.absent} ausentes</span>
-            {counts.pending > 0 && <span className="text-gray-400">{counts.pending} sin registrar</span>}
+            <span className="text-green-600 font-medium">{t("{present} presentes", { present: counts.present })}</span>
+            <span className="text-blue-600 font-medium">{t("{apart} a parte", { apart: counts.apart })}</span>
+            <span className="text-red-500 font-medium">{t("{absent} ausentes", { absent: counts.absent })}</span>
+            {counts.pending > 0 && <span className="text-gray-400">{t("{pending} sin registrar", { pending: counts.pending })}</span>}
           </div>
         </div>
         <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition-colors">
@@ -91,7 +93,7 @@ export default function EventAttendancePanel({ event, onClose }) {
       </div>
 
       {teamPlayers.length === 0 ? (
-        <div className="p-8 text-center text-gray-400 text-sm">No hay jugadores en este equipo</div>
+        <div className="p-8 text-center text-gray-400 text-sm">{t("No hay jugadores en este equipo")}</div>
       ) : (
         <div className="divide-y divide-gray-50">
           {teamPlayers.map((player) => {
@@ -110,11 +112,11 @@ export default function EventAttendancePanel({ event, onClose }) {
                   <p className="text-sm font-medium text-gray-900 truncate">
                     {playerFullName(player)}
                     {player.status === "lesionado" && (
-                      <span className="ml-2 text-xs text-orange-500">⚠ Lesionado</span>
+                      <span className="ml-2 text-xs text-orange-500">{t("⚠ Lesionado")}</span>
                     )}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {POSITION_LABELS[player.position] || player.position || "—"}
+                    {t(POSITION_LABELS[player.position] || player.position || "—")}
                     {player.jersey_number ? ` · #${player.jersey_number}` : ""}
                   </p>
                 </div>
@@ -129,7 +131,7 @@ export default function EventAttendancePanel({ event, onClose }) {
                       <button
                         key={st}
                         onClick={() => upsertMutation.mutate({ playerId: player.id, status: st })}
-                        title={cfg.label}
+                        title={t(cfg.label)}
                         className={`p-1.5 rounded-lg border transition-all ${
                           isActive ? cfg.activeBorder : "border-gray-200 bg-white hover:bg-gray-50"
                         }`}
@@ -152,7 +154,7 @@ export default function EventAttendancePanel({ event, onClose }) {
             onClick={() => teamPlayers.forEach((p) => upsertMutation.mutate({ playerId: p.id, status: "present" }))}
             className="text-xs px-3 py-1.5 rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors font-medium"
           >
-            ✓ Marcar todos presentes
+            {t("✓ Marcar todos presentes")}
           </button>
         </div>
       )}

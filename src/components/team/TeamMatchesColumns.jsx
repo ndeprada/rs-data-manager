@@ -2,7 +2,7 @@ import React from "react";
 import { format } from "date-fns";
 import { ChevronRight } from "lucide-react";
 import { resultOf, HomeAwayIcon } from "@/components/match/MatchesTimeline";
-import { useMatchStatus } from "@/lib/matchStatus";
+import { useMatchStatus, reasonLabel } from "@/lib/matchStatus";
 import { usePlayerMode } from "@/lib/playerMode";
 import { scoreText, scoreTitle } from "@/lib/matchScore";
 import { isCancelled, cancelText, cancelWord } from "@/lib/eventCancel";
@@ -24,8 +24,8 @@ function Row({ m, onOpen, reasons, soft }) {
       {m.opponent_logo_url ? <img src={m.opponent_logo_url} alt="" loading="lazy" className="w-5 h-5 object-contain shrink-0" /> : <span className="w-5 shrink-0" />}
       <span className="flex-1 min-w-0 truncate text-sm font-normal text-gray-900">{m.opponent || m.title || t("Rival")}</span>
       {isCancelled(m) && <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300" title={cancelText(m, t)}>{t(cancelWord(m))}</span>}
-      {reasons && <span title={reasons.join(" · ")} className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">{t("Pendiente")}</span>}
-      {!reasons && soft && <span title={soft.join(" · ")} className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 border border-gray-200">{t("Pendiente")}</span>}
+      {reasons && <span title={reasons.map((r) => reasonLabel(r, t)).join(" · ")} className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">{t("Pendiente")}</span>}
+      {!reasons && soft && <span title={soft.map((r) => reasonLabel(r, t)).join(" · ")} className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 border border-gray-200">{t("Pendiente")}</span>}
       {r ? (
         <span className="flex items-center gap-1.5 shrink-0">
           <span className="text-sm font-black" style={{ fontFamily: "var(--font-display)" }} title={scoreTitle(m, undefined, t)}>{scoreText(m, "-")}</span>

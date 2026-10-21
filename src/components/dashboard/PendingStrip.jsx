@@ -1,17 +1,19 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
+import { useT } from "@/i18n";
 
 /**
  * Fila compacta de "Pendientes": cosas que requieren atención.
  * items: [{ key, icon, count, label, cta, to, tone }]  (los de count 0 no se muestran)
  */
 export default function PendingStrip({ items }) {
+  const t = useT();
   const shown = items.filter((i) => i && i.count > 0);
   if (shown.length === 0) {
     return (
       <div className="flex items-center gap-1.5 text-xs font-semibold text-green-700">
-        <CheckCircle2 className="w-4 h-4" /> Todo al día: no hay pendientes
+        <CheckCircle2 className="w-4 h-4" /> {t("Todo al día: no hay pendientes")}
       </div>
     );
   }
@@ -25,7 +27,7 @@ export default function PendingStrip({ items }) {
             {Icon && <Icon className="w-4 h-4 shrink-0" style={{ color: tone }} />}
             <span className="text-lg font-black leading-none" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{count}</span>
             <span className="text-xs text-gray-700">{label}</span>
-            {cta && <span className="text-[11px] font-bold whitespace-nowrap" style={{ color: "var(--granate)" }}>{cta} →</span>}
+            {cta && <span className="text-[11px] font-bold whitespace-nowrap" style={{ color: "var(--granate)" }}>{t(cta)} →</span>}
           </>
         );
         // Con onClick (p. ej. el listado por equipos de coordinación) se abre algo en la misma pantalla en vez de navegar

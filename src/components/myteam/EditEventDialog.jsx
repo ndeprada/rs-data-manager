@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { es } from "date-fns/locale";
 import { format, differenceInCalendarDays, startOfDay, parseISO, addDays } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,34 +10,37 @@ import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Upload, Ban } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
-import { clubSiblings, scopeLabel } from "@/lib/clubEvent";
+import { clubSiblings, scopeLabel, scopeText } from "@/lib/clubEvent";
 import { sortTeams } from "@/lib/teamOrder";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
 import CancelEventDialog from "@/components/myteam/CancelEventDialog";
 import EventPlaceFields from "@/components/myteam/EventPlaceFields";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useT, useDateLocale, msg } from "@/i18n";
 
 const EVENT_TYPES = [
-  { value: "entrenamiento",        label: "Entrenamiento" },
-  { value: "entrenamiento_fisico", label: "Físico" },
-  { value: "sesion_teorica",       label: "Sesión teórica" },
-  { value: "sesion_video",         label: "Sesión de vídeo" },
-  { value: "partido_liga",         label: "Partido de liga" },
-  { value: "partido_amistoso",     label: "Partido amistoso" },
-  { value: "torneo",               label: "Torneo" },
-  { value: "reunion_equipo",       label: "Reunión de equipo" },
-  { value: "reunion_jugador",      label: "Reunión con jugador" },
-  { value: "reunion_capitanes",    label: "Reunión de capitanes" },
-  { value: "stage",                label: "Stage" },
-  { value: "concentracion",        label: "Concentración" },
-  { value: "cena_equipo",          label: "Cena de equipo" },
-  { value: "comida_equipo",        label: "Comida de equipo" },
-  { value: "evento_club",          label: "Evento del club" },
+  { value: "entrenamiento",        label: msg("Entrenamiento") },
+  { value: "entrenamiento_fisico", label: msg("Físico") },
+  { value: "sesion_teorica",       label: msg("Sesión teórica") },
+  { value: "sesion_video",         label: msg("Sesión de vídeo") },
+  { value: "partido_liga",         label: msg("Partido de liga") },
+  { value: "partido_amistoso",     label: msg("Partido amistoso") },
+  { value: "torneo",               label: msg("Torneo") },
+  { value: "reunion_equipo",       label: msg("Reunión de equipo") },
+  { value: "reunion_jugador",      label: msg("Reunión con jugador") },
+  { value: "reunion_capitanes",    label: msg("Reunión de capitanes") },
+  { value: "stage",                label: msg("Stage") },
+  { value: "concentracion",        label: msg("Concentración") },
+  { value: "cena_equipo",          label: msg("Cena de equipo") },
+  { value: "comida_equipo",        label: msg("Comida de equipo") },
+  { value: "evento_club",          label: msg("Evento del club") },
 ];
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 
 export default function EditEventDialog({ open, onOpenChange, event }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({});
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -76,7 +78,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
   // A qué equipos llega este evento (si es de varios)
   const groupTeams = group.map((e) => teams.find((t) => t.id === e.team_id)).filter(Boolean);
   const groupScope = scopeLabel(groupTeams, teams, 6);
-  const groupTitle = group.length > 1 ? (groupScope === "Todo el club" ? "Evento de todo el club" : `Evento en ${group.length} equipos`) : "Evento de varios equipos";
+  const groupTitle = group.length > 1 ? (groupScope === "Todo el club" ? t("Evento de todo el club") : t("Evento en {n} equipos", { n: group.length })) : t("Evento de varios equipos");
 
   useEffect(() => {
     if (event) {
@@ -258,7 +260,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
         <DialogContent className="bg-white border-gray-200 max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="mb-1">
-              <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold" style={{ fontFamily: "var(--font-display)" }}>Editar evento</p>
+              <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold" style={{ fontFamily: "var(--font-display)" }}>{t("Editar evento")}</p>
               <DialogTitle className="text-gray-900 font-black text-lg" style={{ fontFamily: "var(--font-display)" }}>
                 {event.title}
               </DialogTitle>
@@ -269,29 +271,29 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
             {isCancelled(event) && (
               <button type="button" onClick={() => setCancelOpen(true)}
                 className="w-full flex items-center gap-2 rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-200">
-                <Ban className="w-4 h-4 shrink-0" /> <span className="flex-1">{cancelText(event)}</span> <span className="font-normal text-gray-500">Restaurar</span>
+                <Ban className="w-4 h-4 shrink-0" /> <span className="flex-1">{cancelText(event, t)}</span> <span className="font-normal text-gray-500">{t("Restaurar")}</span>
               </button>
             )}
             {event.club_event_id && (
               <div className="rounded-md border border-red-100 bg-red-50/60 px-3 py-2 space-y-1.5">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--granate)]">{groupTitle}{group.length > 1 && groupScope === "Todo el club" ? ` · ${group.length} equipos` : ""}</p>
-                {group.length > 1 && groupScope && groupScope !== "Todo el club" && !/^\d+ equipos$/.test(groupScope) && <p className="text-[11px] text-gray-500">{groupScope}</p>}
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--granate)]">{groupTitle}{group.length > 1 && groupScope === "Todo el club" ? ` · ${t("{n} equipos", { n: group.length })}` : ""}</p>
+                {group.length > 1 && groupScope && groupScope !== "Todo el club" && !/^\d+ equipos$/.test(groupScope) && <p className="text-[11px] text-gray-500">{scopeText(groupScope, t)}</p>}
                 {canApplyAll ? (
                   <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
-                    <Checkbox checked={applyAll} onCheckedChange={(v) => setApplyAll(!!v)} /> Aplicar los cambios a todos los equipos
+                    <Checkbox checked={applyAll} onCheckedChange={(v) => setApplyAll(!!v)} /> {t("Aplicar los cambios a todos los equipos")}
                   </label>
                 ) : (
-                  <p className="text-[11px] text-gray-500">Los cambios solo afectan a la copia de este equipo.</p>
+                  <p className="text-[11px] text-gray-500">{t("Los cambios solo afectan a la copia de este equipo.")}</p>
                 )}
               </div>
             )}
             {/* Tipo */}
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Tipo de evento</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Tipo de evento")}</p>
               <Select value={form.type} onValueChange={v => set("type", v)}>
                 <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {EVENT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  {EVENT_TYPES.map(opt => <SelectItem key={opt.value} value={opt.value}>{t(opt.label)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -300,22 +302,22 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
             {isMatch && (
               <>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Rival</p>
-                  <Input value={form.opponent} onChange={e => set("opponent", e.target.value)} placeholder="Nombre del rival…" className="border-gray-200" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Rival")}</p>
+                  <Input value={form.opponent} onChange={e => set("opponent", e.target.value)} placeholder={t("Nombre del rival…")} className="border-gray-200" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Escudo del rival</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Escudo del rival")}</p>
                   <div className="flex items-center gap-3">
                     {form.opponent_logo_url && (
-                      <img src={form.opponent_logo_url} alt="Escudo rival" className="w-10 h-10 object-contain rounded border border-gray-200 p-0.5" />
+                      <img src={form.opponent_logo_url} alt={t("Escudo rival")} className="w-10 h-10 object-contain rounded border border-gray-200 p-0.5" />
                     )}
                     <label className="cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors">
                       <Upload className="w-3.5 h-3.5" />
-                      {uploadingLogo ? "Subiendo…" : (form.opponent_logo_url ? "Cambiar escudo" : "Subir escudo")}
+                      {uploadingLogo ? t("Subiendo…") : (form.opponent_logo_url ? t("Cambiar escudo") : t("Subir escudo"))}
                       <input type="file" accept="image/*" className="hidden" onChange={handleOpponentLogoUpload} disabled={uploadingLogo} />
                     </label>
                     {form.opponent_logo_url && (
-                      <button type="button" onClick={() => set("opponent_logo_url", "")} className="text-xs text-red-400 hover:text-red-600">Quitar</button>
+                      <button type="button" onClick={() => set("opponent_logo_url", "")} className="text-xs text-red-400 hover:text-red-600">{t("Quitar")}</button>
                     )}
                   </div>
                 </div>
@@ -324,9 +326,9 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
 
             {/* Equipo */}
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Equipo</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Equipo")}</p>
               <Select value={form.team_id || ""} onValueChange={v => set("team_id", v)}>
-                <SelectTrigger className="border-gray-200"><SelectValue placeholder="Equipo…" /></SelectTrigger>
+                <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Equipo…")} /></SelectTrigger>
                 <SelectContent>
                   {sortTeams(teams).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
@@ -335,24 +337,24 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
 
             {/* Título */}
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Título</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Título")}</p>
               <Input value={form.title} onChange={e => set("title", e.target.value)} className="border-gray-200" />
             </div>
 
             {/* Fecha y hora */}
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Fecha</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Fecha")}</p>
                 <input type="date" value={form.date} onChange={e => set("date", e.target.value)}
                   className="w-full h-9 rounded-md border border-gray-200 bg-transparent text-sm shadow-sm px-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Inicio</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Inicio")}</p>
                 <input type="time" value={form.time} onChange={e => set("time", e.target.value)}
                   className="w-full h-9 rounded-md border border-gray-200 bg-transparent text-sm shadow-sm px-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Fin</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Fin")}</p>
                 <input type="time" value={form.end_time} onChange={e => set("end_time", e.target.value)}
                   className="w-full h-9 rounded-md border border-gray-200 bg-transparent text-sm shadow-sm px-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
               </div>
@@ -360,28 +362,28 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
 
             {event.series_id && form.series_from && (
               <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 -mt-2">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Serie · {seriesEvents.length} eventos</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Serie · {length} eventos", { length: seriesEvents.length })}</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <p className="text-[10px] text-gray-500 mb-0.5">Primer día</p>
+                    <p className="text-[10px] text-gray-500 mb-0.5">{t("Primer día")}</p>
                     <input type="date" value={form.series_from} onChange={e => set("series_from", e.target.value)}
                       className="w-full h-8 rounded-md border border-gray-200 bg-white text-sm px-1.5" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-gray-500 mb-0.5">Último día</p>
+                    <p className="text-[10px] text-gray-500 mb-0.5">{t("Último día")}</p>
                     <input type="date" value={form.series_until} onChange={e => set("series_until", e.target.value)}
                       className="w-full h-8 rounded-md border border-gray-200 bg-white text-sm px-1.5" />
                   </div>
                 </div>
                 {(form.series_from !== seriesFirst || form.series_until !== seriesLast) && (
-                  <p className="text-[10px] text-amber-700 mt-1">Al guardar con «Todos los eventos de la serie» se añadirán (o quitarán) eventos para cubrir estas fechas, con la misma frecuencia.</p>
+                  <p className="text-[10px] text-amber-700 mt-1">{t("Al guardar con «Todos los eventos de la serie» se añadirán (o quitarán) eventos para cubrir estas fechas, con la misma frecuencia.")}</p>
                 )}
               </div>
             )}
 
             {isMatch && String(event.date || "").slice(0, 10) !== form.date && form.date && (
               <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 -mt-2">
-                Se guardará como <b>partido aplazado</b> (fecha original: {format(new Date(event.postponed_from || event.date), "d MMM", { locale: es })}). Se mantiene todo lo anotado en el partido.
+                {t("Se guardará como")} <b>{t("partido aplazado")}</b> {t("(fecha original: {format}). Se mantiene todo lo anotado en el partido.", { format: format(new Date(event.postponed_from || event.date), "d MMM", { locale: dfl }) })}
               </p>
             )}
 
@@ -390,22 +392,22 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
 
             {/* Notas */}
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Notas</p>
-              <Textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={2} className="border-gray-200" placeholder="Observaciones…" />
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t("Notas")}</p>
+              <Textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={2} className="border-gray-200" placeholder={t("Observaciones…")} />
             </div>
 
             <div className="flex gap-3 pt-1">
-              <Button type="button" variant="outline" size="icon" onClick={() => setConfirmDelete(true)} className="text-red-400 hover:text-red-600 hover:bg-red-50 border-red-200" title="Eliminar evento">
+              <Button type="button" variant="outline" size="icon" onClick={() => setConfirmDelete(true)} className="text-red-400 hover:text-red-600 hover:bg-red-50 border-red-200" title={t("Eliminar evento")}>
                 <Trash2 className="w-4 h-4" />
               </Button>
               <Button type="button" variant="outline" size="icon" onClick={() => setCancelOpen(true)}
                 className={isCancelled(event) ? "text-gray-700 border-gray-400 bg-gray-100" : "text-gray-500 hover:text-gray-800"}
-                title={isCancelled(event) ? "Evento cancelado: restaurar" : "Marcar como cancelado o suspendido (lluvia, festivo…)"}>
+                title={isCancelled(event) ? t("Evento cancelado: restaurar") : t("Marcar como cancelado o suspendido (lluvia, festivo…)")}>
                 <Ban className="w-4 h-4" />
               </Button>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancelar</Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">{t("Cancelar")}</Button>
               <Button variant="club" type="submit" disabled={updateMutation.isPending || updateClubMutation.isPending} className="flex-1">
-                {updateMutation.isPending || updateClubMutation.isPending ? "Guardando…" : canApplyAll && applyAll ? `Guardar en ${group.length} equipos` : "Guardar"}
+                {updateMutation.isPending || updateClubMutation.isPending ? t("Guardando…") : canApplyAll && applyAll ? t("Guardar en {length} equipos", { length: group.length }) : t("Guardar")}
               </Button>
             </div>
           </form>
@@ -417,25 +419,25 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar evento?</AlertDialogTitle>
+            <AlertDialogTitle>{t("¿Eliminar evento?")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {event.series_id ? "Este evento forma parte de una serie recurrente. Esta acción no se puede deshacer." : canApplyAll ? `Es un evento de ${groupScope === "Todo el club" ? "todo el club" : "varios equipos"}: puedes borrarlo solo en este equipo o en todos. Esta acción no se puede deshacer.` : "Esta acción no se puede deshacer."}
+              {event.series_id ? t("Este evento forma parte de una serie recurrente. Esta acción no se puede deshacer.") : canApplyAll ? (groupScope === "Todo el club" ? t("Es un evento de todo el club: puedes borrarlo solo en este equipo o en todos. Esta acción no se puede deshacer.") : t("Es un evento de varios equipos: puedes borrarlo solo en este equipo o en todos. Esta acción no se puede deshacer.")) : t("Esta acción no se puede deshacer.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
             {event.series_id && (
               <Button variant="outline" onClick={() => deleteSeriesMutation.mutate()} disabled={deleteSeriesMutation.isPending} className="text-red-600 border-red-200 hover:bg-red-50">
-                {deleteSeriesMutation.isPending ? "Eliminando…" : "Toda la serie"}
+                {deleteSeriesMutation.isPending ? t("Eliminando…") : t("Toda la serie")}
               </Button>
             )}
             {canApplyAll && (
               <Button variant="outline" onClick={() => deleteClubMutation.mutate()} disabled={deleteClubMutation.isPending} className="text-red-600 border-red-200 hover:bg-red-50">
-                {deleteClubMutation.isPending ? "Eliminando…" : `En los ${group.length} equipos`}
+                {deleteClubMutation.isPending ? t("Eliminando…") : t("En los {length} equipos", { length: group.length })}
               </Button>
             )}
             <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-red-600 hover:bg-red-700 text-white">
-              {event.series_id || canApplyAll ? "Solo este" : "Eliminar"}
+              {event.series_id || canApplyAll ? t("Solo este") : t("Eliminar")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -444,25 +446,25 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
       <AlertDialog open={seriesConfirm} onOpenChange={open => { if (!open) setSeriesConfirm(false); }}>
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
-            <AlertDialogTitle>Evento recurrente</AlertDialogTitle>
+            <AlertDialogTitle>{t("Evento recurrente")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Este evento forma parte de una serie. ¿A qué eventos quieres aplicar los cambios? Si has cambiado la fecha (por ejemplo de martes a jueves), toda la serie se moverá esos mismos días. Si has cambiado el primer o el último día de la serie, se añadirán o quitarán eventos.
+              {t("Este evento forma parte de una serie. ¿A qué eventos quieres aplicar los cambios? Si has cambiado la fecha (por ejemplo de martes a jueves), toda la serie se moverá esos mismos días. Si has cambiado el primer o el último día de la serie, se añadirán o quitarán eventos.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
             <Button
               variant="outline"
               onClick={() => { setSeriesConfirm(false); updateMutation.mutate(pendingData); }}
               disabled={updateMutation.isPending}
             >
-              Solo este evento
+              {t("Solo este evento")}
             </Button>
             <Button variant="club"
               onClick={() => updateSeriesMutation.mutate(pendingData)}
               disabled={updateSeriesMutation.isPending}
             >
-              {updateSeriesMutation.isPending ? "Guardando…" : "Todos los eventos de la serie"}
+              {updateSeriesMutation.isPending ? t("Guardando…") : t("Todos los eventos de la serie")}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

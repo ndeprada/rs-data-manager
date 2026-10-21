@@ -1,4 +1,5 @@
 import React from "react";
+import { useFormat } from "@/i18n";
 
 // [ISO2, ISO3, nombre]
 const RAW = [
@@ -56,12 +57,14 @@ export const countryOf = (p) => BY_KEY.get(strip(p?.nationality)) || null;
 export const isForeign = (p) => { const c = countryOf(p); return !!c && c.a3 !== "ESP"; };
 
 export function Flag({ player, code, showCode = true, className = "" }) {
+  const fmt = useFormat();
   const c = code ? BY_KEY.get(strip(code)) : countryOf(player);
   if (!c) return null;
+  const cname = fmt.country(c.a2, c.name);
   const region = player ? regionOf(player) : null;
   return (
-    <span className={`inline-flex items-center gap-1 ${className}`} title={c.name}>
-      <img src={`https://flagcdn.com/w20/${c.a2}.png`} srcSet={`https://flagcdn.com/w40/${c.a2}.png 2x`} width="16" height="12" alt={c.name} loading="lazy" className="inline-block rounded-[2px] border border-black/10 object-cover" style={{ width: 16, height: 12 }} />
+    <span className={`inline-flex items-center gap-1 ${className}`} title={cname}>
+      <img src={`https://flagcdn.com/w20/${c.a2}.png`} srcSet={`https://flagcdn.com/w40/${c.a2}.png 2x`} width="16" height="12" alt={cname} loading="lazy" className="inline-block rounded-[2px] border border-black/10 object-cover" style={{ width: 16, height: 12 }} />
       {showCode && <span className="text-[10px] font-bold text-gray-500 tracking-wide">{c.a3}</span>}
       {c.a3 === "ESP" && region && (
         <span title={region.name} className="inline-flex"><img src={regionSrc(region.code, 20)} srcSet={`${regionSrc(region.code, 40)} 2x`} alt={region.name} loading="lazy" className="inline-block rounded-[2px] border border-black/10 object-cover" style={{ width: 16, height: 12 }} /></span>

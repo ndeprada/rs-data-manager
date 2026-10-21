@@ -13,11 +13,12 @@ import { positionChoices, stageOf, f7Info } from "@/lib/f7Positions";
 import { isF7Team } from "@/lib/teamOrder";
 import { F7PositionDetail } from "@/components/player/F7PositionGuide";
 import { Plus, X } from "lucide-react";
+import { useT, useFormat, msg } from "@/i18n";
 
 const LATERALITY = [
-  { value: "diestro", label: "Diestro" },
-  { value: "zurdo", label: "Zurdo" },
-  { value: "ambidiestro", label: "Ambidiestro" },
+  { value: "diestro", label: msg("Diestro") },
+  { value: "zurdo", label: msg("Zurdo") },
+  { value: "ambidiestro", label: msg("Ambidiestro") },
 ];
 
 const emptyForm = {
@@ -26,6 +27,8 @@ const emptyForm = {
 };
 
 export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPlayer }) {
+  const t = useT();
+  const fmt = useFormat();
   const queryClient = useQueryClient();
   const [form, setForm] = useState(emptyForm);
 
@@ -87,14 +90,14 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-white border-gray-200 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-gray-900">{editingPlayer ? "Editar Jugador" : "Añadir Jugador"}</DialogTitle>
+          <DialogTitle className="text-gray-900">{editingPlayer ? t("Editar Jugador") : t("Añadir Jugador")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {!teamId && (
             <div className="space-y-2">
-              <Label className="text-gray-700">Equipo *</Label>
+              <Label className="text-gray-700">{t("Equipo *")}</Label>
               <Select value={form.team_id} onValueChange={v => setForm({ ...form, team_id: v })}>
-                <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar equipo" /></SelectTrigger>
+                <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Seleccionar equipo")} /></SelectTrigger>
                 <SelectContent>
                   {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
@@ -103,36 +106,36 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
           )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-700">Nombre *</Label>
+              <Label className="text-gray-700">{t("Nombre *")}</Label>
               <Input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required className="border-gray-200" />
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-700">Apellidos *</Label>
+              <Label className="text-gray-700">{t("Apellidos *")}</Label>
               <Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required className="border-gray-200" />
             </div>
           </div>
           <div className="space-y-1">
-            <Label className="text-gray-700">Apodo <span className="text-gray-400 font-normal">(opcional)</span></Label>
+            <Label className="text-gray-700">{t("Apodo")} <span className="text-gray-400 font-normal">{t("(opcional)")}</span></Label>
             <Input value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} className="border-gray-200" />
-            <p className="text-[11px] text-gray-400">Se muestra en la app en lugar del nombre. El nombre y apellidos oficiales (FCF) no cambian.</p>
+            <p className="text-[11px] text-gray-400">{t("Se muestra en la app en lugar del nombre. El nombre y apellidos oficiales (FCF) no cambian.")}</p>
           </div>
           <div className="space-y-3 rounded-md border border-gray-200 p-3">
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: LEVELS.natural.color }} />
-              <Label className="text-gray-700">Posición natural (principal)</Label>
+              <Label className="text-gray-700">{t("Posición natural (principal)")}</Label>
             </div>
             <div className={f7 ? "" : "grid grid-cols-2 gap-3"}>
               <Select value={form.position} onValueChange={(v) => setForm({ ...form, position: v, reference_role: "" })}>
-                <SelectTrigger className="border-gray-200"><SelectValue placeholder="Posición" /></SelectTrigger>
+                <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Posición")} /></SelectTrigger>
                 <SelectContent>
-                  {positionChoices(stage, form.position).map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                  {positionChoices(stage, form.position).map((p) => <SelectItem key={p.value} value={p.value}>{t(p.label)}</SelectItem>)}
                 </SelectContent>
               </Select>
               {!f7 && getRoleOptions(form.position).length > 0 ? (
                 <Select value={form.reference_role} onValueChange={(v) => setForm({ ...form, reference_role: v })}>
-                  <SelectTrigger className="border-gray-200"><SelectValue placeholder="Rol" /></SelectTrigger>
+                  <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Rol")} /></SelectTrigger>
                   <SelectContent>
-                    {getRoleOptions(form.position).map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                    {getRoleOptions(form.position).map((r) => <SelectItem key={r.value} value={r.value}>{t(r.label)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               ) : (f7 ? null : <div />)}
@@ -141,7 +144,7 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
             {!f7 && form.reference_role && <p className="text-xs text-gray-500">{findRole(form.reference_role)?.role.description}</p>}
 
             <div className="pt-1 space-y-2">
-              <Label className="text-gray-700">Otras posiciones <span className="text-gray-400 font-normal">(verde claro = secundaria · naranja = competente)</span></Label>
+              <Label className="text-gray-700">{t("Otras posiciones")} <span className="text-gray-400 font-normal">{t("(verde claro = secundaria · naranja = competente)")}</span></Label>
               {(form.extra_positions || []).map((e, idx) => {
                 const upd = (patch) => setForm({ ...form, extra_positions: form.extra_positions.map((x, i) => (i === idx ? { ...x, ...patch } : x)) });
                 const roles = f7 ? [] : getRoleOptions(e.position);
@@ -149,28 +152,28 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
                   <div key={idx}>
                   <div className={`grid ${f7 ? "grid-cols-[1fr_auto_auto]" : "grid-cols-[1fr_1fr_auto_auto]"} gap-2 items-center`}>
                     <Select value={e.position} onValueChange={(v) => upd({ position: v, role: "" })}>
-                      <SelectTrigger className="border-gray-200"><SelectValue placeholder="Posición" /></SelectTrigger>
-                      <SelectContent>{positionChoices(stage, e.position).map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+                      <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Posición")} /></SelectTrigger>
+                      <SelectContent>{positionChoices(stage, e.position).map((p) => <SelectItem key={p.value} value={p.value}>{t(p.label)}</SelectItem>)}</SelectContent>
                     </Select>
                     {roles.length > 0 ? (
                       <Select value={e.role} onValueChange={(v) => upd({ role: v })}>
-                        <SelectTrigger className="border-gray-200"><SelectValue placeholder="Rol" /></SelectTrigger>
-                        <SelectContent>{roles.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+                        <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Rol")} /></SelectTrigger>
+                        <SelectContent>{roles.map((r) => <SelectItem key={r.value} value={r.value}>{t(r.label)}</SelectItem>)}</SelectContent>
                       </Select>
                     ) : (f7 ? null : <div />)}
                     <Select value={e.level} onValueChange={(v) => upd({ level: v })}>
                       <SelectTrigger className="border-gray-200 w-[130px]">
                         <span className="w-2.5 h-2.5 rounded-full mr-1.5 shrink-0" style={{ background: LEVELS[e.level]?.color }} /><SelectValue />
                       </SelectTrigger>
-                      <SelectContent>{EXTRA_LEVELS.map((l) => <SelectItem key={l} value={l}>{LEVELS[l].label}</SelectItem>)}</SelectContent>
+                      <SelectContent>{EXTRA_LEVELS.map((l) => <SelectItem key={l} value={l}>{t(LEVELS[l].label)}</SelectItem>)}</SelectContent>
                     </Select>
-                    <button type="button" aria-label="Quitar posición" onClick={() => setForm({ ...form, extra_positions: form.extra_positions.filter((_, i) => i !== idx) })} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-red-500">
+                    <button type="button" aria-label={t("Quitar posición")} onClick={() => setForm({ ...form, extra_positions: form.extra_positions.filter((_, i) => i !== idx) })} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-red-500">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                   {f7 && f7Info(e.position) && (
                     <details className="mt-1">
-                      <summary className="text-[11px] font-semibold text-gray-500 cursor-pointer select-none">Cualidades y contenidos de {f7Info(e.position).label}</summary>
+                      <summary className="text-[11px] font-semibold text-gray-500 cursor-pointer select-none">{t("Cualidades y contenidos de {label}", { label: f7Info(e.position).label })}</summary>
                       <F7PositionDetail position={e.position} className="mt-1" />
                     </details>
                   )}
@@ -179,32 +182,32 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
               })}
               <button type="button" onClick={() => setForm({ ...form, extra_positions: [...(form.extra_positions || []), { position: "", role: "", level: "secundaria" }] })}
                 className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--granate)" }}>
-                <Plus className="w-3.5 h-3.5" /> Añadir posición
+                <Plus className="w-3.5 h-3.5" /> {t("Añadir posición")}
               </button>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-700">Lateralidad</Label>
+              <Label className="text-gray-700">{t("Lateralidad")}</Label>
               <Select value={form.laterality} onValueChange={(v) => setForm({ ...form, laterality: v })}>
-                <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Seleccionar")} /></SelectTrigger>
                 <SelectContent>
-                  {LATERALITY.map((l) => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+                  {LATERALITY.map((l) => <SelectItem key={l.value} value={l.value}>{t(l.label)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-700">Dorsal</Label>
+              <Label className="text-gray-700">{t("Dorsal")}</Label>
               <Input type="number" value={form.jersey_number} onChange={(e) => setForm({ ...form, jersey_number: e.target.value })} className="border-gray-200" />
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-gray-700">Nacionalidad</Label>
+            <Label className="text-gray-700">{t("Nacionalidad")}</Label>
             <Select value={form.nationality || "none"} onValueChange={(v) => setForm({ ...form, nationality: v === "none" ? "" : v, region: v === "ESP" ? form.region : "", birth_province: v === "ESP" ? form.birth_province : "" })}>
-              <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+              <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Seleccionar")} /></SelectTrigger>
               <SelectContent className="max-h-72">
-                <SelectItem value="none">Sin indicar</SelectItem>
-                {COUNTRIES.map((c) => <SelectItem key={c.a3} value={c.a3}>{c.name} ({c.a3})</SelectItem>)}
+                <SelectItem value="none">{t("Sin indicar")}</SelectItem>
+                {COUNTRIES.map((c) => <SelectItem key={c.a3} value={c.a3}>{fmt.country(c.a2, c.name)} ({c.a3})</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -212,59 +215,59 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
             <div className="grid grid-cols-2 gap-4">
               {form.nationality === "ESP" && (
                 <div className="space-y-2">
-                  <Label className="text-gray-700">Provincia de nacimiento</Label>
+                  <Label className="text-gray-700">{t("Provincia de nacimiento")}</Label>
                   <Select value={form.birth_province || "none"} onValueChange={(v) => { const p = v === "none" ? "" : v; setForm({ ...form, birth_province: p, region: regionOfProvince(p) }); }}>
-                    <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                    <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Seleccionar")} /></SelectTrigger>
                     <SelectContent className="max-h-72">
-                      <SelectItem value="none">Sin indicar</SelectItem>
+                      <SelectItem value="none">{t("Sin indicar")}</SelectItem>
                       {PROVINCES.map((p) => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
               )}
               <div className={`space-y-2 ${form.nationality === "ESP" ? "" : "col-span-2"}`}>
-                <Label className="text-gray-700">Ciudad / municipio</Label>
+                <Label className="text-gray-700">{t("Ciudad / municipio")}</Label>
                 <Input value={form.birth_place} onChange={(e) => setForm({ ...form, birth_place: e.target.value })} className="border-gray-200" />
               </div>
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-700">Año de nacimiento</Label>
+              <Label className="text-gray-700">{t("Año de nacimiento")}</Label>
               <Input type="number" min="1980" max="2030" placeholder="2009" value={form.birth_year}
                 onChange={(e) => setForm({ ...form, birth_year: e.target.value })} className="border-gray-200" />
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-700">Fecha completa <span className="text-gray-400 font-normal">(opcional)</span></Label>
+              <Label className="text-gray-700">{t("Fecha completa")} <span className="text-gray-400 font-normal">{t("(opcional)")}</span></Label>
               <Input type="date" value={form.birth_date || ""}
                 onChange={(e) => setForm({ ...form, birth_date: e.target.value, birth_year: e.target.value ? e.target.value.slice(0, 4) : form.birth_year })} className="border-gray-200" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-700">Teléfono</Label>
+              <Label className="text-gray-700">{t("Teléfono")}</Label>
               <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="border-gray-200" />
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-700">Email</Label>
+              <Label className="text-gray-700">{t("Email")}</Label>
               <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="border-gray-200" />
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-gray-700">Estado</Label>
+            <Label className="text-gray-700">{t("Estado")}</Label>
             <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
               <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="activo">Activo</SelectItem>
-                <SelectItem value="lesionado">Lesionado</SelectItem>
-                <SelectItem value="baja">Baja</SelectItem>
+                <SelectItem value="activo">{t("Activo")}</SelectItem>
+                <SelectItem value="lesionado">{t("Lesionado")}</SelectItem>
+                <SelectItem value="baja">{t("Baja")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("Cancelar")}</Button>
             <Button variant="club" type="submit">
-              {editingPlayer ? "Guardar" : "Añadir"}
+              {editingPlayer ? t("Guardar") : t("Añadir")}
             </Button>
           </div>
         </form>

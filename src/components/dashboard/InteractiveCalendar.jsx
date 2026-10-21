@@ -3,12 +3,14 @@ import EventWeather from "@/components/EventWeather";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
+import { useT, useDateLocale } from "@/i18n";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 
 export default function InteractiveCalendar({ events = [], teams = [] }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const navigate = useNavigate();
@@ -42,7 +44,7 @@ export default function InteractiveCalendar({ events = [], teams = [] }) {
       {/* Calendar */}
       <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-base text-gray-900">Calendario</h3>
+          <h3 className="font-bold text-base text-gray-900">{t("Calendario")}</h3>
           <div className="flex gap-1 items-center">
             <Button
               variant="outline"
@@ -53,7 +55,7 @@ export default function InteractiveCalendar({ events = [], teams = [] }) {
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <div className="px-3 text-sm font-semibold text-gray-900">
-              {format(currentDate, "MMM yyyy", { locale: es }).toUpperCase()}
+              {format(currentDate, "MMM yyyy", { locale: dfl }).toUpperCase()}
             </div>
             <Button
               variant="outline"
@@ -111,13 +113,13 @@ export default function InteractiveCalendar({ events = [], teams = [] }) {
       {/* Events detail panel */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm h-fit">
         <h3 className="font-bold text-lg text-gray-900 mb-4">
-          {selectedDate ? format(selectedDate, "d MMMM", { locale: es }) : "Selecciona una fecha"}
+          {selectedDate ? format(selectedDate, "d MMMM", { locale: dfl }) : t("Selecciona una fecha")}
         </h3>
 
         {selectedDateEvents.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-400 text-sm">
-              {selectedDate ? "Sin eventos este día" : "Haz clic en una fecha para ver detalles"}
+              {selectedDate ? t("Sin eventos este día") : t("Haz clic en una fecha para ver detalles")}
             </p>
           </div>
         ) : (
@@ -141,7 +143,7 @@ export default function InteractiveCalendar({ events = [], teams = [] }) {
                     <p className="font-semibold text-gray-900 text-sm">{event.title}</p>
                     <p className="text-xs text-gray-500 truncate">{getTeamName(event.team_id)}</p>
                     {event.opponent && (
-                      <p className="text-xs text-gray-500">vs {event.opponent}</p>
+                      <p className="text-xs text-gray-500">{t("vs {opponent}", { opponent: event.opponent })}</p>
                     )}
                     <p className="text-xs text-gray-400 mt-1">
                       {format(parseISO(event.date), "HH:mm")}

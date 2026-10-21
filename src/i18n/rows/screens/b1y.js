@@ -1,0 +1,23 @@
+// Pantallas de personal — bloque «b1y»: [español, inglés, francés, catalán]
+export default [
+  ["Gestionar","Manage","Gérer","Gestiona"],
+  ["Pasar lista","Take attendance","Faire l'appel","Passa llista"],
+  ["partido","match","match","partit"],
+  ["partidos","matches","matchs","partits"],
+  ["entreno","training","entraînement","entrenament"],
+  ["entrenos","trainings","entraînements","entrenaments"],
+  ["Convocar","Select squad","Convoquer","Convoca"],
+  ["Revisar","Review","Vérifier","Revisa"],
+  ["Clasificar","Classify","Classer","Classifica"],
+  ["Sin convocatoria","No match squad","Sans convocation","Sense convocatòria"],
+  ["Sin alineación","No lineup","Sans composition","Sense alineació"],
+  ["Faltan minutos/cambios","Minutes/substitutions missing","Minutes/remplacements manquants","Falten minuts/canvis"],
+  ["Convocados: {n} (mín. {min})","Called up: {n} (min. {min})","Convoqués : {n} (min. {min})","Convocats: {n} (mín. {min})"],
+  ["Alineación incompleta ({n}/{min})","Incomplete lineup ({n}/{min})","Composition incomplète ({n}/{min})","Alineació incompleta ({n}/{min})"],
+  ["Pendiente de cerrar","Pending closure","À clôturer","Pendent de tancar"],
+  ["Sin convocatoria (24 h)","No match squad (24 h)","Sans convocation (24 h)","Sense convocatòria (24 h)"],
+  ["Jugado sin convocatoria","Played without a squad","Joué sans convocation","Jugat sense convocatòria"],
+  ["Goles sin clasificar","Unclassified goals","Buts non classés","Gols sense classificar"],
+  ["{absent} no","{absent} not attending","{absent} absents","{absent} no assisteixen"],
+  ["{wins}V - {draws}E - {losses}D","{wins}W - {draws}D - {losses}L","{wins}V - {draws}N - {losses}D","{wins}V - {draws}E - {losses}D"],
+];

@@ -1,5 +1,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n";
 
 /**
  * Pestañas estándar del club (mismo aspecto que las pestañas de Radix de ui/tabs.jsx):
@@ -9,6 +10,7 @@ import { cn } from "@/lib/utils";
  * fill:  reparte las pestañas a todo el ancho (rejilla); en móvil usa `short` si existe.
  */
 export default function TabBar({ items, value, onChange, fill = false, className }) {
+  const t = useT();
   const visible = items.filter(Boolean);
   return (
     <div
@@ -40,10 +42,10 @@ export default function TabBar({ items, value, onChange, fill = false, className
             {fill && short ? (
               <>
                 <span className="sm:hidden">{short}</span>
-                <span className="hidden sm:inline">{label}</span>
+                <span className="hidden sm:inline">{t(label)}</span>
               </>
             ) : (
-              <span>{label}</span>
+              <span>{t(label)}</span>
             )}
             {badge > 0 && (
               <span className={cn("text-[10px] rounded-full px-1.5 py-0.5 font-bold leading-none", badgeClass || "bg-white/90 text-[var(--granate)]")}>

@@ -24,6 +24,13 @@ export function teamSets(teams, isF7) {
   ].filter((s) => s.ids.length > 0);
 }
 
+// Para mostrar en pantalla lo que devuelve scopeLabel («Todo el club», «5 equipos»); los nombres de equipo se dejan tal cual
+export function scopeText(scope, t = (s) => s) {
+  if (scope === "Todo el club") return t("Todo el club");
+  const m = /^(\d+) equipos$/.exec(scope || "");
+  return m ? t("{n} equipos", { n: m[1] }) : scope;
+}
+
 // A quién llega el evento, en pocas palabras: «Todo el club», «Juvenil A, Cadet S16 A» o «5 equipos»
 export function scopeLabel(selected, allTeams, maxNames = 3) {
   const sel = (selected || []).filter((t) => t?.id);

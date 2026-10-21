@@ -16,30 +16,31 @@ import { playerSearchName } from "@/lib/playerName";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 
 import { PageTitle } from "@/components/common/PageHeader";
+import { useT, useFormat, msg } from "@/i18n";
 const POSITIONS = [
-  { value: "portero", label: "Portero" },
-  { value: "lateral", label: "Lateral" },
-  { value: "central", label: "Central" },
-  { value: "mediocentro", label: "Mediocentro" },
-  { value: "interior", label: "Interior" },
-  { value: "mediapunta", label: "Mediapunta" },
-  { value: "delantero_centro", label: "Del. Centro" },
-  { value: "extremo", label: "Extremo" },
+  { value: "portero", label: msg("Portero") },
+  { value: "lateral", label: msg("Lateral") },
+  { value: "central", label: msg("Central") },
+  { value: "mediocentro", label: msg("Mediocentro") },
+  { value: "interior", label: msg("Interior") },
+  { value: "mediapunta", label: msg("Mediapunta") },
+  { value: "delantero_centro", label: msg("Del. Centro") },
+  { value: "extremo", label: msg("Extremo") },
 ];
 
 const POSITION_LABELS = {
-  portero: "POR", lateral: "LAT", central: "CTR", libre: "LIB",
-  mediocentro: "MCC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT",
+  portero: msg("POR"), lateral: msg("LAT"), central: msg("CTR"), libre: msg("LIB"),
+  mediocentro: msg("MCC"), interior: msg("INT"), mediapunta: msg("MP"), delantero_centro: msg("DC"), extremo: msg("EXT"),
 };
 
 const POSITION_PILLS = [
-  { value: "portero", label: "POR" },
-  { value: "delantero_centro", label: "DC" },
-  { value: "lateral", label: "LAT" },
-  { value: "central", label: "CTR" },
-  { value: "interior", label: "INT" },
-  { value: "mediapunta", label: "MP" },
-  { value: "extremo", label: "EXT" },
+  { value: "portero", label: msg("POR") },
+  { value: "delantero_centro", label: msg("DC") },
+  { value: "lateral", label: msg("LAT") },
+  { value: "central", label: msg("CTR") },
+  { value: "interior", label: msg("INT") },
+  { value: "mediapunta", label: msg("MP") },
+  { value: "extremo", label: msg("EXT") },
 ];
 
 function PlayerAvatar({ player }) {
@@ -55,12 +56,14 @@ function PlayerAvatar({ player }) {
 }
 
 const LATERALITY = [
-  { value: "diestro", label: "Diestro" },
-  { value: "zurdo", label: "Zurdo" },
-  { value: "ambidiestro", label: "Ambidiestro" },
+  { value: "diestro", label: msg("Diestro") },
+  { value: "zurdo", label: msg("Zurdo") },
+  { value: "ambidiestro", label: msg("Ambidiestro") },
 ];
 
 export default function Players() {
+  const t = useT();
+  const fmt = useFormat();
   const queryClient = useQueryClient();
   const { perms } = useTeamAccess();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -122,7 +125,7 @@ export default function Players() {
     players.map(p => birthYearOf(p)).filter(Boolean)
   )].sort((a, b) => b - a);
 
-  const natList = [...new Map(players.filter(isForeign).map((p) => [countryOf(p).a3, countryOf(p)])).values()].sort((a, b) => a.name.localeCompare(b.name, "es"));
+  const natList = [...new Map(players.filter(isForeign).map((p) => [countryOf(p).a3, countryOf(p)])).values()].sort((a, b) => fmt.country(a.a2, a.name).localeCompare(fmt.country(b.a2, b.name), fmt.lang));
 
   const filtered = players.filter((p) => {
     const matchSearch = `${playerSearchName(p)}`.toLowerCase().includes(search.toLowerCase());
@@ -161,7 +164,7 @@ export default function Players() {
   if (perms.players !== "all") {
     return (
       <div className="p-12 text-center">
-        <p className="text-gray-400">No tienes acceso a esta sección.</p>
+        <p className="text-gray-400">{t("No tienes acceso a esta sección.")}</p>
       </div>
     );
   }
@@ -170,10 +173,10 @@ export default function Players() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <PageTitle kicker="Directorio" title="Jugadores" subtitle={<>Racing Sarrià · {players.length} jugadores registrados</>} />
+        <PageTitle kicker={t("Directorio")} title={t("Jugadores")} subtitle={<>{t("Racing Sarrià · {length} jugadores registrados", { length: players.length })}</>} />
         {perms.editPlayers && (
           <Button variant="club" onClick={() => { setEditingPlayer(null); setDialogOpen(true); }}>
-            <Plus className="w-4 h-4 mr-1" /> Nuevo Jugador
+            <Plus className="w-4 h-4 mr-1" /> {t("Nuevo Jugador")}
           </Button>
         )}
       </div>
@@ -181,16 +184,16 @@ export default function Players() {
       <TabBar
         value={view}
         onChange={setView}
-        items={[{ value: "current", label: "Plantilla actual" }, ...(perms.editPlayers ? [{ value: "history", label: "Histórico", badge: historyCount }] : [])]}
+        items={[{ value: "current", label: msg("Plantilla actual") }, ...(perms.editPlayers ? [{ value: "history", label: msg("Histórico"), badge: historyCount }] : [])]}
       />
       {view === "history" && <PlayerArchive players={players} teams={teams} />}
 
       {view === "current" && (<>
       {/* Resumen */}
       <div className="grid grid-cols-3 gap-3">
-        {[["Jugadores", players.length], ["Activos", players.filter(p => (p.status || "activo") === "activo").length], ["Lesionados", players.filter(p => p.status === "lesionado").length]].map(([l, v]) => (
+        {[[msg("Jugadores"), players.length], [msg("Activos"), players.filter(p => (p.status || "activo") === "activo").length], [msg("Lesionados"), players.filter(p => p.status === "lesionado").length]].map(([l, v]) => (
           <div key={l} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">{l}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">{t(l)}</p>
             <p className="text-2xl font-black leading-none mt-1" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{v}</p>
           </div>
         ))}
@@ -201,52 +204,52 @@ export default function Players() {
         <div className="flex flex-wrap gap-2 items-center">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input placeholder="Buscar por nombre…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 border-gray-200 h-8" />
+            <Input placeholder={t("Buscar por nombre…")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9 border-gray-200 h-8" />
           </div>
           <Select value={filterTeam} onValueChange={setFilterTeam}>
-            <SelectTrigger className="w-[170px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Equipo" /></SelectTrigger>
+            <SelectTrigger className="w-[170px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder={t("Equipo")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los equipos</SelectItem>
+              <SelectItem value="all">{t("Todos los equipos")}</SelectItem>
               {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterYear} onValueChange={setFilterYear}>
-            <SelectTrigger className="w-[130px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Año nac." /></SelectTrigger>
+            <SelectTrigger className="w-[130px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder={t("Año nac.")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los años</SelectItem>
+              <SelectItem value="all">{t("Todos los años")}</SelectItem>
               {birthYears.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterNat} onValueChange={setFilterNat}>
-            <SelectTrigger className="w-[150px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Nacionalidad" /></SelectTrigger>
+            <SelectTrigger className="w-[150px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder={t("Nacionalidad")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Toda nacionalidad</SelectItem>
-              <SelectItem value="ESP">Españoles ({players.filter((p) => countryOf(p)?.a3 === "ESP").length})</SelectItem>
-              <SelectItem value="foreign">Extranjeros ({players.filter(isForeign).length})</SelectItem>
-              {natList.map((c) => <SelectItem key={c.a3} value={c.a3}>{c.name} ({players.filter((p) => countryOf(p)?.a3 === c.a3).length})</SelectItem>)}
+              <SelectItem value="all">{t("Toda nacionalidad")}</SelectItem>
+              <SelectItem value="ESP">{t("Españoles ({n})", { n: players.filter((p) => countryOf(p)?.a3 === "ESP").length })}</SelectItem>
+              <SelectItem value="foreign">{t("Extranjeros ({length})", { length: players.filter(isForeign).length })}</SelectItem>
+              {natList.map((c) => <SelectItem key={c.a3} value={c.a3}>{fmt.country(c.a2, c.name)} ({players.filter((p) => countryOf(p)?.a3 === c.a3).length})</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterLaterality} onValueChange={setFilterLaterality}>
-            <SelectTrigger className="w-[140px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Lateralidad" /></SelectTrigger>
+            <SelectTrigger className="w-[140px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder={t("Lateralidad")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Toda lateralidad</SelectItem>
-              {LATERALITY.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+              <SelectItem value="all">{t("Toda lateralidad")}</SelectItem>
+              {LATERALITY.map(l => <SelectItem key={l.value} value={l.value}>{t(l.label)}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[120px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder="Estado" /></SelectTrigger>
+            <SelectTrigger className="w-[120px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder={t("Estado")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="activo">Activo</SelectItem>
-              <SelectItem value="lesionado">Lesionado</SelectItem>
-              <SelectItem value="baja">Baja</SelectItem>
+              <SelectItem value="all">{t("Todos")}</SelectItem>
+              <SelectItem value="activo">{t("Activo")}</SelectItem>
+              <SelectItem value="lesionado">{t("Lesionado")}</SelectItem>
+              <SelectItem value="baja">{t("Baja")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="flex flex-wrap gap-x-4 gap-y-2 items-center">
           <div className="flex flex-wrap gap-1.5 items-center">
-            <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider mr-1">Posición</span>
+            <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider mr-1">{t("Posición")}</span>
             {POSITION_PILLS.map(pos => (
               <button
                 key={pos.value}
@@ -256,18 +259,18 @@ export default function Players() {
                 }`}
                 style={filterPosition.has(pos.value) ? { background: "var(--granate)", borderColor: "var(--granate)" } : {}}
               >
-                {pos.label}
+                {t(pos.label)}
               </button>
             ))}
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <p className="text-xs text-gray-500">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</p>
+            <p className="text-xs text-gray-500">{filtered.length === 1 ? t("{n} resultado", { n: 1 }) : t("{n} resultados", { n: filtered.length })}</p>
             {hasFilters && (
               <button
                 onClick={() => { setSearch(""); setFilterTeam("all"); setFilterYear("all"); setFilterLaterality("all"); setFilterPosition(new Set()); setFilterStatus("all"); setFilterNat("all"); }}
                 className="text-xs font-semibold underline" style={{ color: "var(--granate)" }}
               >
-                Limpiar filtros
+                {t("Limpiar filtros")}
               </button>
             )}
           </div>
@@ -283,7 +286,7 @@ export default function Players() {
         <div className="bg-white border border-gray-200 rounded p-12 text-center">
           <Users className="w-8 h-8 text-gray-200 mx-auto mb-3" />
           <p className="text-gray-400 text-sm uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
-            {hasFilters ? "Sin resultados con estos filtros" : "No hay jugadores registrados"}
+            {hasFilters ? t("Sin resultados con estos filtros") : t("No hay jugadores registrados")}
           </p>
         </div>
       ) : (
@@ -292,14 +295,14 @@ export default function Players() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-400 uppercase tracking-wider select-none" style={{ fontFamily: "var(--font-display)" }}>
-                   <th className="text-left px-4 py-2 font-bold cursor-pointer hover:text-gray-700" onClick={() => handleSort("name")}>Jugador<SortIcon col="name" /></th>
-                   <th className="text-center px-3 py-2 font-bold hidden sm:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("birth_date")}>Año nac.<SortIcon col="birth_date" /></th>
-                   <th className="text-center px-3 py-2 font-bold hidden md:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("nat")}>Nac.<SortIcon col="nat" /></th>
-                   <th className="text-left px-3 py-2 font-bold hidden md:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("team")}>Equipo<SortIcon col="team" /></th>
-                   <th className="text-center px-3 py-2 font-bold cursor-pointer hover:text-gray-700" onClick={() => handleSort("position")}>Pos.<SortIcon col="position" /></th>
-                   <th className="text-center px-3 py-2 font-bold hidden lg:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("laterality")}>Lateralidad<SortIcon col="laterality" /></th>
-                   <th className="text-center px-3 py-2 font-bold hidden sm:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("jersey_number")}>Dorsal<SortIcon col="jersey_number" /></th>
-                   <th className="text-center px-3 py-2 font-bold cursor-pointer hover:text-gray-700" onClick={() => handleSort("status")}>Estado<SortIcon col="status" /></th>
+                   <th className="text-left px-4 py-2 font-bold cursor-pointer hover:text-gray-700" onClick={() => handleSort("name")}>{t("Jugador")}<SortIcon col="name" /></th>
+                   <th className="text-center px-3 py-2 font-bold hidden sm:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("birth_date")}>{t("Año nac.")}<SortIcon col="birth_date" /></th>
+                   <th className="text-center px-3 py-2 font-bold hidden md:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("nat")}>{t("Nac.")}<SortIcon col="nat" /></th>
+                   <th className="text-left px-3 py-2 font-bold hidden md:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("team")}>{t("Equipo")}<SortIcon col="team" /></th>
+                   <th className="text-center px-3 py-2 font-bold cursor-pointer hover:text-gray-700" onClick={() => handleSort("position")}>{t("Pos.")}<SortIcon col="position" /></th>
+                   <th className="text-center px-3 py-2 font-bold hidden lg:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("laterality")}>{t("Lateralidad")}<SortIcon col="laterality" /></th>
+                   <th className="text-center px-3 py-2 font-bold hidden sm:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("jersey_number")}>{t("Dorsal")}<SortIcon col="jersey_number" /></th>
+                   <th className="text-center px-3 py-2 font-bold cursor-pointer hover:text-gray-700" onClick={() => handleSort("status")}>{t("Estado")}<SortIcon col="status" /></th>
                    <th className="px-3 py-2"></th>
                  </tr>
               </thead>
@@ -323,7 +326,7 @@ export default function Players() {
                       <td className="px-3 py-1.5 text-center">
                         {player.position ? (
                           <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full" style={{ background: "var(--granate-pale)", color: "var(--granate)", fontFamily: "var(--font-display)" }}>
-                            {POSITION_LABELS[player.position] || player.position}
+                            {t(POSITION_LABELS[player.position] || player.position)}
                           </span>
                         ) : <span className="text-gray-300">—</span>}
                       </td>
@@ -369,12 +372,12 @@ export default function Players() {
       <AlertDialog open={!!deleteId} onOpenChange={open => { if (!open) setDeleteId(null); }}>
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar jugador?</AlertDialogTitle>
-            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+            <AlertDialogTitle>{t("¿Eliminar jugador?")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("Esta acción no se puede deshacer.")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteMutation.mutate(deleteId)} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteMutation.mutate(deleteId)} className="bg-red-600 hover:bg-red-700 text-white">{t("Eliminar")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

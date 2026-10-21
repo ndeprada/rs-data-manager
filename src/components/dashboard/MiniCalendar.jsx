@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from "date-fns";
-import { es } from "date-fns/locale";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, addDays } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
+import { useT, useDateLocale } from "@/i18n";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 
 export default function MiniCalendar({ events = [] }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const [currentDate, setCurrentDate] = useState(new Date());
   const navigate = useNavigate();
 
@@ -28,20 +30,20 @@ export default function MiniCalendar({ events = [] }) {
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
           <span className="text-xs font-bold uppercase tracking-wider text-gray-700" style={{ fontFamily: "var(--font-display)" }}>
-            {format(currentDate, "MMM yyyy", { locale: es })}
+            {format(currentDate, "MMM yyyy", { locale: dfl })}
           </span>
           <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
         <Link to="/Calendar" className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}>
-          Ver todo →
+          {t("Ver todo →")}
         </Link>
       </div>
 
       <div className="p-3">
         <div className="grid grid-cols-7 mb-1">
-          {["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"].map((d) => (
+          {Array.from({ length: 7 }, (_, i) => format(addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), i), "EEEEEE", { locale: dfl }).replace(/\.$/, "")).map((d) => (
             <div key={d} className="text-center text-[9px] font-bold text-gray-400 uppercase py-1">{d}</div>
           ))}
         </div>
@@ -75,11 +77,11 @@ export default function MiniCalendar({ events = [] }) {
         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100">
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full" style={{ background: "var(--granate)" }} />
-            <span className="text-[10px] text-gray-500">Partido</span>
+            <span className="text-[10px] text-gray-500">{t("Partido")}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full" style={{ background: "var(--naranja)" }} />
-            <span className="text-[10px] text-gray-500">Entrenamiento</span>
+            <span className="text-[10px] text-gray-500">{t("Entrenamiento")}</span>
           </div>
         </div>
       </div>

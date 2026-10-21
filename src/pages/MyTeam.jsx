@@ -5,7 +5,6 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { isAfter, startOfDay, startOfWeek, endOfWeek, addDays } from "date-fns";
-import { es } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Shield } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +24,7 @@ import { statTeamResolver, statsOfTeam } from "@/lib/teamStats";
 
 import PageHeader, { PageTitle } from "@/components/common/PageHeader";
 import { TeamSelectTrigger } from "@/components/myteam/TeamPageHeader";
+import { useT, useDateLocale } from "@/i18n";
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
 const RESULT_COLORS = {
@@ -34,6 +34,8 @@ const RESULT_COLORS = {
 };
 
 export default function MyTeam() {
+  const t = useT();
+  const dfl = useDateLocale();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { selectedTeamId, selectTeam, isCoordinator, canSwitch, teamIds: myTeamIds } = useSelectedTeam();
@@ -56,8 +58,8 @@ export default function MyTeam() {
   });
 
   const today = startOfDay(new Date());
-  const weekStart = startOfWeek(today, { locale: es });
-  const weekEnd = endOfWeek(today, { locale: es });
+  const weekStart = startOfWeek(today, { locale: dfl });
+  const weekEnd = endOfWeek(today, { locale: dfl });
 
   const selectedTeam = teams.find(t => t.id === selectedTeamId);
   const teamPlayers = players.filter(p => p.team_id === selectedTeamId && p.status !== "baja");
@@ -112,20 +114,20 @@ export default function MyTeam() {
   if (!selectedTeamId) {
     return (
       <div className="space-y-6">
-        <PageTitle kicker="Club" title="Mi Equipo" />
+        <PageTitle kicker={t("Club")} title={t("Mi Equipo")} />
         {isCoordinator ? (
           <div className="bg-white border border-gray-200 rounded p-8 text-center">
             <Shield className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="text-gray-500 mb-4">Selecciona un equipo para ver su panel</p>
+            <p className="text-gray-500 mb-4">{t("Selecciona un equipo para ver su panel")}</p>
             <div className="flex justify-center">
               <Select value="" onValueChange={selectTeam}>
-                <SelectTrigger className="w-64"><SelectValue placeholder="Seleccionar equipo..." /></SelectTrigger>
+                <SelectTrigger className="w-64"><SelectValue placeholder={t("Seleccionar equipo...")} /></SelectTrigger>
                 <SelectContent>{teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
         ) : (
-          <p className="text-gray-500">No tienes un equipo asignado. Contacta con el coordinador.</p>
+          <p className="text-gray-500">{t("No tienes un equipo asignado. Contacta con el coordinador.")}</p>
         )}
       </div>
     );
@@ -135,7 +137,7 @@ export default function MyTeam() {
     <div className="space-y-4">
       {/* Header */}
       <PageHeader
-        kicker="Mi Equipo"
+        kicker={t("Mi Equipo")}
         title={selectedTeam?.name || "—"}
         subtitle={[getCategoryLabel(selectedTeam?.category), selectedTeam?.coach].filter(Boolean).join(" · ")}
         actions={
@@ -194,12 +196,12 @@ export default function MyTeam() {
       <AlertDialog open={!!deletePlayerId} onOpenChange={open => { if (!open) setDeletePlayerId(null); }}>
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar jugador?</AlertDialogTitle>
-            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+            <AlertDialogTitle>{t("¿Eliminar jugador?")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("Esta acción no se puede deshacer.")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteMutation.mutate(deletePlayerId)} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteMutation.mutate(deletePlayerId)} className="bg-red-600 hover:bg-red-700 text-white">{t("Eliminar")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

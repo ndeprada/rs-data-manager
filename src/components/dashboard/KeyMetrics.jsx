@@ -3,13 +3,15 @@ import { isCancelled } from "@/lib/eventCancel";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, isAfter, startOfDay } from "date-fns";
-import { es } from "date-fns/locale";
 import { CalendarDays, Trophy, Activity } from "lucide-react";
+import { useDateLocale, useT } from "@/i18n";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico"];
 
 export default function KeyMetrics({ events = [], teams = [] }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const { data: attendance = [] } = useQuery({
     queryKey: ["training-attendance-metrics"],
     queryFn: () => base44.entities.TrainingAttendance.list("-date", 500),
@@ -52,27 +54,27 @@ export default function KeyMetrics({ events = [], teams = [] }) {
   const metrics = [
     {
       icon: CalendarDays,
-      label: "Próximo partido",
+      label: t("Próximo partido"),
       value: nextMatch ? nextMatch.opponent ? `vs ${nextMatch.opponent}` : nextMatch.title : "—",
       sub: nextMatch
-        ? `${nextMatchTeam?.name || ""} · ${format(new Date(nextMatch.date), "EEE d MMM · HH:mm", { locale: es })}`
-        : "Sin partidos programados",
+        ? `${nextMatchTeam?.name || ""} · ${format(new Date(nextMatch.date), "EEE d MMM · HH:mm", { locale: dfl })}`
+        : t("Sin partidos programados"),
       color: "var(--granate)",
       colorPale: "var(--granate-pale)",
     },
     {
       icon: Trophy,
-      label: "Victorias este mes",
+      label: t("Victorias este mes"),
       value: `${winsThisMonth} / ${matchesThisMonth.length}`,
-      sub: matchesThisMonth.length === 0 ? "Sin partidos este mes" : `${matchesThisMonth.length - winsThisMonth} empates/derrotas`,
+      sub: matchesThisMonth.length === 0 ? t("Sin partidos este mes") : t("{n} empates/derrotas", { n: matchesThisMonth.length - winsThisMonth }),
       color: "#16a34a",
       colorPale: "#f0fdf4",
     },
     {
       icon: Activity,
-      label: "Asistencia media",
+      label: t("Asistencia media"),
       value: avgAttendance != null ? `${avgAttendance}%` : "—",
-      sub: totalAttendance > 0 ? `${presentAttendance} de ${totalAttendance} registros este mes` : "Sin datos este mes",
+      sub: totalAttendance > 0 ? t("{a} de {b} registros este mes", { a: presentAttendance, b: totalAttendance }) : t("Sin datos este mes"),
       color: "var(--naranja)",
       colorPale: "var(--naranja-pale)",
     },
@@ -91,7 +93,7 @@ export default function KeyMetrics({ events = [], teams = [] }) {
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5" style={{ fontFamily: "var(--font-display)" }}>
-              {label}
+              {t(label)}
             </p>
             <p className="text-2xl font-black leading-tight truncate" style={{ fontFamily: "var(--font-display)", color }}>
               {value}

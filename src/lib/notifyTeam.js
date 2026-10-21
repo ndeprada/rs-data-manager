@@ -13,11 +13,14 @@ export async function notifyTeamPush({ teamId, teamName, title, body, url = "/Ca
   });
 }
 
-// Texto para el toast tras enviar un aviso
-export function pushResultText(r) {
+// Texto para el toast tras enviar un aviso (t = traductor de la pantalla; sin él sale en español)
+const plain = (s, v) => (v ? s.replace(/\{(\w+)\}/g, (_, k) => v[k]) : s);
+export function pushResultText(r, t = plain) {
   const n = r?.recipients ?? 0;
   const d = r?.sent ?? 0;
-  return `Llegará a ${n} persona${n === 1 ? "" : "s"} (${d} dispositivo${d === 1 ? "" : "s"} con avisos activados).`;
+  const people = n === 1 ? t("{n} persona", { n }) : t("{n} personas", { n });
+  const devices = d === 1 ? t("{n} dispositivo", { n: d }) : t("{n} dispositivos", { n: d });
+  return t("Llegará a {people} ({devices} con avisos activados).", { people, devices });
 }
 
 // Aviso al móvil a varios equipos a la vez (o a todo el club si teamIds es null). Solo coordinación puede avisar a otros equipos.

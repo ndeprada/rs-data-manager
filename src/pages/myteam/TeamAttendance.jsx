@@ -3,7 +3,6 @@ import PlayerName from "@/components/common/PlayerName";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { ArrowLeft, Pencil, X, UserPlus, Check, MessageSquarePlus, HeartPulse, Ban, RotateCcw } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -21,28 +20,31 @@ import QuickInjuryDialog from "@/components/myteam/QuickInjuryDialog";
 import CancelEventDialog from "@/components/myteam/CancelEventDialog";
 import BulkCancelButton from "@/components/myteam/BulkCancelButton";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
+import { useT, useDateLocale, msg } from "@/i18n";
 
 const STATUS_CONFIG = {
-  present: { label: "Asiste", short: "Asiste", cls: "bg-green-600 text-white border-green-600" },
-  apart: { label: "A parte", short: "A parte", cls: "bg-blue-600 text-white border-blue-600" },
-  absent: { label: "No asiste", short: "No", cls: "bg-red-600 text-white border-red-600" },
+  present: { label: msg("Asiste"), short: msg("Asiste"), cls: "bg-green-600 text-white border-green-600" },
+  apart: { label: msg("A parte"), short: msg("A parte"), cls: "bg-blue-600 text-white border-blue-600" },
+  absent: { label: msg("No asiste"), short: "No", cls: "bg-red-600 text-white border-red-600" },
 };
 const ABSENCE_REASONS = [
-  { value: "lesion", label: "Lesión" }, { value: "enfermo", label: "Enfermo" },
-  { value: "clase", label: "Clase" }, { value: "examen", label: "Examen" },
-  { value: "viaje", label: "Viaje" }, { value: "familiar", label: "Familiar" },
-  { value: "permiso", label: "Permiso" }, { value: "otro", label: "Otro" },
+  { value: "lesion", label: msg("Lesión") }, { value: "enfermo", label: msg("Enfermo") },
+  { value: "clase", label: msg("Clase") }, { value: "examen", label: msg("Examen") },
+  { value: "viaje", label: msg("Viaje") }, { value: "familiar", label: msg("Familiar") },
+  { value: "permiso", label: msg("Permiso") }, { value: "otro", label: msg("Otro") },
 ];
 const REASON_LABEL = Object.fromEntries(ABSENCE_REASONS.map(r => [r.value, r.label]));
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
 const POSITION_LABELS = {
-  portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre", mediocentro: "Mediocentro",
-  interior: "Interior", mediapunta: "Mediapunta", extremo: "Extremo", delantero_centro: "Delantero",
+  portero: msg("Portero"), lateral: msg("Lateral"), central: msg("Central"), libre: msg("Libre"), mediocentro: msg("Mediocentro"),
+  interior: msg("Interior"), mediapunta: msg("Mediapunta"), extremo: msg("Extremo"), delantero_centro: msg("Delantero"),
 };
 const POSITION_ORDER = ["portero", "lateral", "central", "libre", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
 const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
 
 export default function TeamAttendance() {
+  const t = useT();
+  const dfl = useDateLocale();
   const qc = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
@@ -197,7 +199,7 @@ export default function TeamAttendance() {
             <p className="font-bold text-gray-900 text-[13px] leading-tight truncate" style={{ fontFamily: "var(--font-display)" }}>{pid.startsWith("prueba_") ? name : <PlayerName id={pid}>{name}</PlayerName>}</p>
             {(sub || injured) && (
               <p className="text-[10px] text-gray-400 truncate">
-                {sub}{injured && <span className="text-orange-600 font-bold">{sub ? " · " : ""}🩹 Lesionado</span>}
+                {sub}{injured && <span className="text-orange-600 font-bold">{sub ? " · " : ""}🩹 {t("Lesionado")}</span>}
               </p>
             )}
           </div>
@@ -205,30 +207,30 @@ export default function TeamAttendance() {
             {Object.entries(STATUS_CONFIG).map(([k, cfg]) => (
               <button key={k} onClick={() => setStatus(pid, k)}
                 className={`h-9 min-w-[2.6rem] px-2.5 text-[11px] font-bold rounded-md border whitespace-nowrap ${att.status === k ? cfg.cls : "bg-white text-gray-500 border-gray-300 hover:bg-gray-50"}`}>
-                {cfg.short}
+                {t(cfg.short)}
               </button>
             ))}
           </div>
-          <button onClick={() => toggleNote(pid)} title="Observaciones"
+          <button onClick={() => toggleNote(pid)} title={t("Observaciones")}
             className={`p-1.5 rounded shrink-0 ${att.notes ? "text-blue-600" : "text-gray-300 hover:text-gray-500"}`}>
             <MessageSquarePlus className="w-4 h-4" />
           </button>
           {onRemove && (
-            <button onClick={onRemove} className="p-1 text-gray-300 hover:text-red-600 shrink-0" title="Quitar de la sesión"><X className="w-3.5 h-3.5" /></button>
+            <button onClick={onRemove} className="p-1 text-gray-300 hover:text-red-600 shrink-0" title={t("Quitar de la sesión")}><X className="w-3.5 h-3.5" /></button>
           )}
         </div>
         {(att.status === "absent" || canInjure || showNote) && (
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
             {att.status === "absent" && (
               <Select value={att.absence_reason || ""} onValueChange={v => save(pid, { absence_reason: v })}>
-                <SelectTrigger className="h-8 w-32 text-[11px] border-gray-200 bg-white"><SelectValue placeholder="Motivo" /></SelectTrigger>
-                <SelectContent>{ABSENCE_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+                <SelectTrigger className="h-8 w-32 text-[11px] border-gray-200 bg-white"><SelectValue placeholder={t("Motivo")} /></SelectTrigger>
+                <SelectContent>{ABSENCE_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{t(r.label)}</SelectItem>)}</SelectContent>
               </Select>
             )}
             {canInjure && (
               <button onClick={() => setInjuryFor(player)}
                 className="h-8 px-2.5 inline-flex items-center gap-1 text-[11px] font-bold rounded-md border border-orange-300 text-orange-700 bg-orange-50 hover:bg-orange-100">
-                <HeartPulse className="w-3.5 h-3.5" /> Registrar lesión
+                <HeartPulse className="w-3.5 h-3.5" /> {t("Registrar lesión")}
               </button>
             )}
             {showNote && (
@@ -236,7 +238,7 @@ export default function TeamAttendance() {
                 key={`${selectedEvent?.id}-${pid}-${att.id ? "s" : "n"}`}
                 defaultValue={att.notes || ""}
                 onBlur={e => { if ((e.target.value || "") !== (att.notes || "")) save(pid, { notes: e.target.value }); }}
-                placeholder="Observaciones…"
+                placeholder={t("Observaciones…")}
                 className="h-8 text-[12px] border-gray-200 flex-1 min-w-[160px]"
               />
             )}
@@ -248,26 +250,26 @@ export default function TeamAttendance() {
 
   return (
     <div className="space-y-5">
-      <TeamPageHeader title="Entrenamientos"><BulkCancelButton teamId={selectedTeamId} /></TeamPageHeader>
+      <TeamPageHeader title={t("Entrenamientos")}><BulkCancelButton teamId={selectedTeamId} /></TeamPageHeader>
 
       {selectedEvent ? (
         /* ───────── SESIÓN ───────── */
         <div className="space-y-3">
           <button onClick={() => navigate("/MyTeam/Attendance")} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 font-medium">
-            <ArrowLeft className="w-4 h-4" /> Volver a entrenamientos
+            <ArrowLeft className="w-4 h-4" /> {t("Volver a entrenamientos")}
           </button>
           <div className="bg-white border border-gray-200 shadow-sm px-4 py-3 flex flex-wrap items-center gap-x-2 gap-y-2" style={{ borderRadius: "4px", borderLeft: `3px solid ${offSel ? "#9ca3af" : "var(--naranja)"}` }}>
             <div className="flex-1 min-w-[160px]">
               <h2 className={`font-black text-sm uppercase truncate ${offSel ? "line-through" : ""}`} style={{ fontFamily: "var(--font-display)", color: offSel ? "#6b7280" : "var(--naranja)" }}>{selectedEvent.title}</h2>
-              <p className={`text-xs text-gray-400 capitalize ${offSel ? "line-through" : ""}`}>{format(new Date(selectedEvent.date), "EEEE d MMMM · HH:mm", { locale: es })}</p>
+              <p className={`text-xs text-gray-400 capitalize ${offSel ? "line-through" : ""}`}>{format(new Date(selectedEvent.date), "EEEE d MMMM · HH:mm", { locale: dfl })}</p>
               {offSel ? (
-                <p className="text-[11px] mt-0.5 font-black uppercase tracking-wide text-gray-600 inline-flex items-center gap-1"><Ban className="w-3 h-3" /> {cancelText(selectedEvent)}</p>
+                <p className="text-[11px] mt-0.5 font-black uppercase tracking-wide text-gray-600 inline-flex items-center gap-1"><Ban className="w-3 h-3" /> {cancelText(selectedEvent, t)}</p>
               ) : (
                 <p className="text-[11px] mt-0.5">
-                  <span className="font-bold text-green-700">{sessionCounts.present} asisten</span>
-                  <span className="text-gray-300"> · </span><span className="font-bold text-blue-700">{sessionCounts.apart} a parte</span>
-                  <span className="text-gray-300"> · </span><span className="font-bold text-red-600">{sessionCounts.absent} no</span>
-                  {sessionCounts.pending > 0 && <><span className="text-gray-300"> · </span><span className="font-bold text-amber-600">{sessionCounts.pending} sin marcar</span></>}
+                  <span className="font-bold text-green-700">{t("{present} asisten", { present: sessionCounts.present })}</span>
+                  <span className="text-gray-300"> · </span><span className="font-bold text-blue-700">{t("{apart} a parte", { apart: sessionCounts.apart })}</span>
+                  <span className="text-gray-300"> · </span><span className="font-bold text-red-600">{t("{absent} no", { absent: sessionCounts.absent })}</span>
+                  {sessionCounts.pending > 0 && <><span className="text-gray-300"> · </span><span className="font-bold text-amber-600">{t("{pending} sin marcar", { pending: sessionCounts.pending })}</span></>}
                 </p>
               )}
             </div>
@@ -275,19 +277,19 @@ export default function TeamAttendance() {
               {!offSel && (
                 <Button variant="outline" size="sm" className="text-xs h-7 border-green-200 text-green-700 hover:bg-green-50"
                   onClick={() => teamPlayers.forEach(p => { if (!recFor(p.id).status) save(p.id, { status: "present" }); })}>
-                  <Check className="w-3 h-3 mr-1" /> Todos asisten
+                  <Check className="w-3 h-3 mr-1" /> {t("Todos asisten")}
                 </Button>
               )}
               {offSel ? (
                 <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setCancelFor(selectedEvent)}>
-                  <RotateCcw className="w-3 h-3 mr-1" /> Restaurar
+                  <RotateCcw className="w-3 h-3 mr-1" /> {t("Restaurar")}
                 </Button>
               ) : (
-                <button onClick={() => setCancelFor(selectedEvent)} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700" title="Marcar como cancelado (lluvia, festivo…)">
+                <button onClick={() => setCancelFor(selectedEvent)} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700" title={t("Marcar como cancelado (lluvia, festivo…)")}>
                   <Ban className="w-4 h-4" />
                 </button>
               )}
-              <button onClick={() => setEditingEvent(selectedEvent)} className="p-1.5 rounded hover:bg-orange-50 text-gray-400 hover:text-orange-600" title="Editar evento">
+              <button onClick={() => setEditingEvent(selectedEvent)} className="p-1.5 rounded hover:bg-orange-50 text-gray-400 hover:text-orange-600" title={t("Editar evento")}>
                 <Pencil className="w-4 h-4" />
               </button>
             </div>
@@ -295,22 +297,22 @@ export default function TeamAttendance() {
 
           {offSel && (
             <div className="bg-gray-50 border border-gray-200 px-4 py-6 text-center text-sm text-gray-500" style={{ borderRadius: "4px" }}>
-              Este entreno estaba previsto pero no se ha celebrado, así que no hay lista que pasar.
+              {t("Este entreno estaba previsto pero no se ha celebrado, así que no hay lista que pasar.")}
             </div>
           )}
 
           {!offSel && (<>
           <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
-            {teamPlayers.map(p => renderRow({ pid: p.id, player: p, name: `${playerFullName(p)}`, sub: POSITION_LABELS[p.position] }))}
+            {teamPlayers.map(p => renderRow({ pid: p.id, player: p, name: `${playerFullName(p)}`, sub: t(POSITION_LABELS[p.position]) }))}
             {guests.map(p => renderRow({ pid: p.id, player: p, tint: "#eff6ff", name: `${playerFullName(p)}`,
-              sub: `Convocado · ${teams.find(t => t.id === p.team_id)?.name || "Otro equipo"}`, onRemove: () => removeRecord(p.id) }))}
-            {trials.map(r => renderRow({ pid: r.player_id, tint: "#fffbeb", name: r.trial_name, sub: "A prueba", onRemove: () => removeRecord(r.player_id) }))}
+              sub: t("Convocado · {team}", { team: teams.find(tm => tm.id === p.team_id)?.name || t("Otro equipo") }), onRemove: () => removeRecord(p.id) }))}
+            {trials.map(r => renderRow({ pid: r.player_id, tint: "#fffbeb", name: r.trial_name, sub: t("A prueba"), onRemove: () => removeRecord(r.player_id) }))}
           </div>
 
           {/* Añadir a prueba / convocar de otro equipo */}
           <div className="bg-white border border-gray-200 shadow-sm p-3 space-y-3" style={{ borderRadius: "4px" }}>
             <button onClick={() => setShowGuests(s => !s)} className="text-xs font-bold text-blue-600 hover:underline">
-              {showGuests ? "− Ocultar" : "+ Convocar jugador de otro equipo"}
+              {showGuests ? t("− Ocultar") : t("+ Convocar jugador de otro equipo")}
             </button>
             {showGuests && (
               <GuestPlayerSelector
@@ -325,8 +327,8 @@ export default function TeamAttendance() {
               <UserPlus className="w-4 h-4 text-amber-600 shrink-0" />
               <Input value={trialName} onChange={e => setTrialName(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && addTrial()}
-                placeholder="Jugador a prueba: escribe el nombre…" className="h-8 text-sm" />
-              <Button variant="club" size="sm" className="h-8" onClick={addTrial} disabled={!trialName.trim()}>Añadir</Button>
+                placeholder={t("Jugador a prueba: escribe el nombre…")} className="h-8 text-sm" />
+              <Button variant="club" size="sm" className="h-8" onClick={addTrial} disabled={!trialName.trim()}>{t("Añadir")}</Button>
             </div>
           </div>
           </>)}
@@ -337,7 +339,7 @@ export default function TeamAttendance() {
           <WeeklyCalendar
             events={events.filter(e => e.team_id === selectedTeamId)}
             teamId={selectedTeamId}
-            title="Entrenamientos de la semana"
+            title={t("Entrenamientos de la semana")}
             forceGrid
             onDayClick={(day) => setCreateEventDate(day)}
             onEventClick={(ev) => TRAINING_TYPES.includes(ev.type) ? navigate(`/MyTeam/Attendance?eventId=${ev.id}`) : setEditingEvent(ev)}
@@ -345,22 +347,22 @@ export default function TeamAttendance() {
 
           <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
             <div className="px-4 py-3 border-b border-gray-100 flex items-baseline justify-between gap-2 flex-wrap">
-              <h2 className="font-black text-sm uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Resumen de asistencia</h2>
-              <span className="text-xs text-gray-400">{total} {total === 1 ? "sesión realizada" : "sesiones realizadas"} por el equipo</span>
+              <h2 className="font-black text-sm uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{t("Resumen de asistencia")}</h2>
+              <span className="text-xs text-gray-400">{total === 1 ? t("{n} sesión realizada por el equipo", { n: total }) : t("{n} sesiones realizadas por el equipo", { n: total })}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100 text-[10px] text-gray-400 uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
-                    <th className="text-left px-3 py-2 font-bold">Jugador</th>
-                    <th className="text-center px-2 py-2 font-bold">Año nac.</th>
-                    <th className="text-left px-2 py-2 font-bold">Posición</th>
-                    <th className="text-center px-2 py-2 font-bold text-green-600">Asiste</th>
-                    <th className="text-center px-2 py-2 font-bold text-blue-600">A parte</th>
-                    <th className="text-center px-2 py-2 font-bold text-red-600">No asiste</th>
-                    <th className="text-left px-2 py-2 font-bold">Motivos</th>
-                    <th className="text-center px-2 py-2 font-bold">% Asiste</th>
-                    <th className="text-center px-2 py-2 font-bold">% Lesión</th>
+                    <th className="text-left px-3 py-2 font-bold">{t("Jugador")}</th>
+                    <th className="text-center px-2 py-2 font-bold">{t("Año nac.")}</th>
+                    <th className="text-left px-2 py-2 font-bold">{t("Posición")}</th>
+                    <th className="text-center px-2 py-2 font-bold text-green-600">{t("Asiste")}</th>
+                    <th className="text-center px-2 py-2 font-bold text-blue-600">{t("A parte")}</th>
+                    <th className="text-center px-2 py-2 font-bold text-red-600">{t("No asiste")}</th>
+                    <th className="text-left px-2 py-2 font-bold">{t("Motivos")}</th>
+                    <th className="text-center px-2 py-2 font-bold">{t("% Asiste")}</th>
+                    <th className="text-center px-2 py-2 font-bold">{t("% Lesión")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -370,12 +372,12 @@ export default function TeamAttendance() {
                       <tr key={p.id} className="hover:bg-gray-50">
                         <td className="px-3 py-2 font-bold text-gray-900 whitespace-nowrap" style={{ fontFamily: "var(--font-display)" }}>{playerFullName(p)}</td>
                         <td className="px-2 py-2 text-center text-gray-500">{birthYearOf(p) ?? "—"}</td>
-                        <td className="px-2 py-2 text-gray-500 whitespace-nowrap">{POSITION_LABELS[p.position] || "—"}</td>
+                        <td className="px-2 py-2 text-gray-500 whitespace-nowrap">{t(POSITION_LABELS[p.position] || "—")}</td>
                         <td className="px-2 py-2 text-center font-black text-green-700">{present}</td>
                         <td className="px-2 py-2 text-center font-black text-blue-700">{apart}</td>
                         <td className="px-2 py-2 text-center font-black text-red-600">{absent}</td>
                         <td className="px-2 py-2 text-gray-500">
-                          {Object.entries(reasons).map(([k, n]) => `${REASON_LABEL[k] || k} ${n}`).join(" · ") || "—"}
+                          {Object.entries(reasons).map(([k, n]) => `${t(REASON_LABEL[k] || k)} ${n}`).join(" · ") || "—"}
                         </td>
                         <td className="px-2 py-2 text-center">
                           {total > 0 ? (
@@ -386,7 +388,7 @@ export default function TeamAttendance() {
                       </tr>
                     );
                   })}
-                  {summary.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-gray-400">Sin jugadores</td></tr>}
+                  {summary.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-gray-400">{t("Sin jugadores")}</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -396,34 +398,34 @@ export default function TeamAttendance() {
             <div className="bg-white border border-blue-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
               <button onClick={() => setShowExternal(v => !v)} className="w-full px-4 py-3 flex items-center justify-between text-left" style={{ background: "#eff6ff" }}>
                 <h2 className="font-black text-sm uppercase" style={{ fontFamily: "var(--font-display)", color: "#2563eb" }}>
-                  Jugadores de otros equipos y a prueba <span className="text-blue-400 font-normal">({external.length})</span>
+                  {t("Jugadores de otros equipos y a prueba")} <span className="text-blue-400 font-normal">({external.length})</span>
                 </h2>
-                <span className="text-xs text-blue-500">{showExternal ? "Ocultar" : "Mostrar"}</span>
+                <span className="text-xs text-blue-500">{showExternal ? t("Ocultar") : t("Mostrar")}</span>
               </button>
               {showExternal && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-100 text-[10px] text-gray-400 uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
-                        <th className="text-left px-3 py-2 font-bold">Jugador</th>
-                        <th className="text-left px-2 py-2 font-bold">Procedencia</th>
-                        <th className="text-center px-2 py-2 font-bold">Año nac.</th>
-                        <th className="text-center px-2 py-2 font-bold text-green-600">Asiste</th>
-                        <th className="text-center px-2 py-2 font-bold text-blue-600">A parte</th>
-                        <th className="text-center px-2 py-2 font-bold text-red-600">No asiste</th>
-                        <th className="text-left px-2 py-2 font-bold">Motivos</th>
+                        <th className="text-left px-3 py-2 font-bold">{t("Jugador")}</th>
+                        <th className="text-left px-2 py-2 font-bold">{t("Procedencia")}</th>
+                        <th className="text-center px-2 py-2 font-bold">{t("Año nac.")}</th>
+                        <th className="text-center px-2 py-2 font-bold text-green-600">{t("Asiste")}</th>
+                        <th className="text-center px-2 py-2 font-bold text-blue-600">{t("A parte")}</th>
+                        <th className="text-center px-2 py-2 font-bold text-red-600">{t("No asiste")}</th>
+                        <th className="text-left px-2 py-2 font-bold">{t("Motivos")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {external.map(e => (
                         <tr key={e.key} style={{ background: e.isTrial ? "#fffbeb" : "#f8fbff" }}>
                           <td className="px-3 py-2 font-bold text-gray-900 whitespace-nowrap" style={{ fontFamily: "var(--font-display)" }}>{e.name}</td>
-                          <td className="px-2 py-2 text-gray-500 whitespace-nowrap">{e.isTrial ? "A prueba" : (teams.find(t => t.id === e.pl.team_id)?.name || "Otro equipo")}</td>
+                          <td className="px-2 py-2 text-gray-500 whitespace-nowrap">{e.isTrial ? t("A prueba") : (teams.find(t => t.id === e.pl.team_id)?.name || t("Otro equipo"))}</td>
                           <td className="px-2 py-2 text-center text-gray-500">{e.pl ? (birthYearOf(e.pl) ?? "—") : "—"}</td>
                           <td className="px-2 py-2 text-center font-black text-green-700">{e.present}</td>
                           <td className="px-2 py-2 text-center font-black text-blue-700">{e.apart}</td>
                           <td className="px-2 py-2 text-center font-black text-red-600">{e.absent}</td>
-                          <td className="px-2 py-2 text-gray-500">{Object.entries(e.reasons).map(([k, n]) => `${REASON_LABEL[k] || k} ${n}`).join(" · ") || "—"}</td>
+                          <td className="px-2 py-2 text-gray-500">{Object.entries(e.reasons).map(([k, n]) => `${t(REASON_LABEL[k] || k)} ${n}`).join(" · ") || "—"}</td>
                         </tr>
                       ))}
                     </tbody>
