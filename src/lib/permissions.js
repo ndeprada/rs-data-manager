@@ -132,6 +132,8 @@ export function canManageTeamWith(perms, teamId, coachTeamIds = []) {
 export const MEDICAL_ENTITIES = new Set(['Injury', 'PlayerDocument']);
 export const PLAYER_EVAL_ENTITIES = new Set(['Evaluation360', 'PDI', 'PDIGoal']);
 export const COACH_EVAL_ENTITIES = new Set(['CoachFeedback', 'CoachPDI', 'CoachEval360', 'CoachMatchNote']);
+// Sesiones de entrenamiento: son personales de cada entrenador (owner_id). Las ve toda la coordinación, pero solo las cambia su autor.
+export const SESSION_ENTITIES = new Set(['CoachSession']);
 // Campos de la ficha del jugador que solo escribe quien puede editar fichas (entrenadores y coordinación)
 export const PLAYER_STAFF_FIELDS = [WEAK_FOOT_FIELD];
 
@@ -214,11 +216,26 @@ export function checkRoleWrite({ perms, entity, method, body = {}, existing = nu
   return { ok: true };
 }
 
+// Sesiones de entrenamiento: cada persona escribe solo las suyas (la coordinación y la administración las leen todas)
+export function checkSessionWrite({ perms, userId, method, body = {}, existing = null }) {
+  if (perms.isAdmin) return { ok: true };
+  const deny = { ok: false, error: 'forbidden_role' };
+  if (method === 'POST') return body.owner_id === userId ? { ok: true } : deny;
+  if (!existing || existing.owner_id !== userId) return deny;
+  return body.owner_id === undefined || body.owner_id === userId ? { ok: true } : deny;
+}
+
+export function filterSessionRead({ perms, userId, docs }) {
+  if (perms.isAdmin || perms.administration) return docs;
+  return docs.filter((d) => d.owner_id === userId);
+}
+
 // Lo que puede leer: devuelve los documentos permitidos. Las lecturas no fallan: lo no permitido simplemente no sale.
-export function filterRoleRead({ perms, entity, docs, ownIds = new Set() }) {
+export function filterRoleRead({ perms, entity, docs, ownIds = new Set(), userId = null }) {
   if (perms.isAdmin) return docs;
   if (MEDICAL_ENTITIES.has(entity)) return perms.medical === 'none' ? [] : docs;
   if (PLAYER_EVAL_ENTITIES.has(entity)) return perms.playerEval === 'none' ? [] : docs;
+  if (SESSION_ENTITIES.has(entity)) return filterSessionRead({ perms, userId, docs });
   if (COACH_EVAL_ENTITIES.has(entity)) {
     if (perms.coaches !== 'own') return docs;
     return docs.filter((d) => ownIds.has(d.staff_id) && ownerCanSeeCoachDoc(entity, d));

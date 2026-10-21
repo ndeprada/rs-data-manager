@@ -163,3 +163,15 @@ body { padding-bottom: env(safe-area-inset-bottom); }
    Los iconos y separadores decorativos que los usan quedan un poco más marcados, sin cambiar el estilo. */
 .text-gray-300 { color: #8b92a0; }
 .text-gray-400 { color: #6f7684; }
+
+/* ── Ficha de sesión (Sesiones): se imprime fuera de la app ─────────────────── */
+.session-print-root { display: none; }
+@media print {
+  @page { size: A4 portrait; margin: 7mm 8mm; }
+  html body.printing-session > *:not(.session-print-root) { display: none !important; }
+  html:has(body.printing-session), html body.printing-session { height: auto !important; min-height: 0 !important; overflow: visible !important; position: static !important; margin: 0 !important; padding: 0 !important; background: #fff !important; pointer-events: auto !important; }
+  html body.printing-session .session-print-root { display: block !important; }
+  html body.printing-session .session-print-root, html body.printing-session .session-print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.printing-session .session-print-root > div { margin: 0 auto; }
+  body.printing-session .session-print-root [data-avoid-break] { break-inside: avoid; }
+}

@@ -4,8 +4,8 @@ import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, Layers, BarChart2 } from "lucide-react";
 import TaskLibrary from "@/components/methodology/TaskLibrary";
-import SessionList from "@/components/methodology/SessionList";
-import MethodologyStats from "@/components/methodology/MethodologyStats";
+import SessionsHome from "@/components/sessions/SessionsHome";
+import ContentControl from "@/components/sessions/ContentControl";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -34,7 +34,7 @@ export default function Methodology() {
         }
         kicker="Mi Equipo"
         title="Metodología"
-        subtitle="Biblioteca de tareas, planificación de sesiones y análisis del trabajo"
+        subtitle="Tus sesiones de entrenamiento, el control de lo que se trabaja y la biblioteca de tareas"
       />
 
       <Tabs defaultValue="sessions">
@@ -42,24 +42,24 @@ export default function Methodology() {
           <TabsTrigger value="sessions" className="gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
             <Layers className="w-3.5 h-3.5" /> Sesiones
           </TabsTrigger>
+          <TabsTrigger value="control" className="gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
+            <BarChart2 className="w-3.5 h-3.5" /> Control de contenidos
+          </TabsTrigger>
           <TabsTrigger value="tasks" className="gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
             <BookOpen className="w-3.5 h-3.5" /> Biblioteca de Tareas
-          </TabsTrigger>
-          <TabsTrigger value="stats" className="gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
-            <BarChart2 className="w-3.5 h-3.5" /> Análisis
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="sessions" className="mt-4">
-          <SessionList teams={visibleTeams} isCoordinator={isCoordinator} defaultTeamId={selectedTeamId} />
+          <SessionsHome teams={visibleTeams} isCoordinator={isCoordinator} defaultTeamId={selectedTeamId} />
+        </TabsContent>
+
+        <TabsContent value="control" className="mt-4">
+          <ContentControl teams={visibleTeams} isCoordinator={isCoordinator} defaultTeamId={selectedTeamId} />
         </TabsContent>
 
         <TabsContent value="tasks" className="mt-4">
           <TaskLibrary teams={visibleTeams} isCoordinator={isCoordinator} />
-        </TabsContent>
-
-        <TabsContent value="stats" className="mt-4">
-          <MethodologyStats teams={visibleTeams} isCoordinator={isCoordinator} selectedTeamId={selectedTeamId} />
         </TabsContent>
       </Tabs>
     </div>

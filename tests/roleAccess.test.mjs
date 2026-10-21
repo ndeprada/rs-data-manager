@@ -89,4 +89,25 @@ assert.equal((await read(jugador, 'Injury', injuries)).length, 1);
 assert.equal((await write(jugador, 'Injury', 'POST', {})).ok, true, 'la regla del jugador (solo lectura) la pone otra comprobación');
 assert.equal((await read(portero, 'Event', [{ id: 'x' }])).length, 1);
 
+// Sesiones de entrenamiento (CoachSession): personales; la coordinación las lee todas; solo su autor las cambia
+const sAna = await add('CoachSession', { owner_id: ana.id, team_id: 't1', date: '2026-10-21' });
+const sLuis = await add('CoachSession', { owner_id: luis.id, team_id: 't2', date: '2026-10-21' });
+const sessions = async () => (await pg.query(`select id, data from entities where entity_type = 'CoachSession'`)).rows.map((r) => ({ id: r.id, ...r.data }));
+assert.deepEqual((await read(ana, 'CoachSession', await sessions())).map((d) => d.id), [sAna], 'cada entrenador ve solo las suyas');
+assert.deepEqual((await read(luis, 'CoachSession', await sessions())).map((d) => d.id), [sLuis]);
+assert.equal((await read(coord, 'CoachSession', await sessions())).length, 2, 'la coordinación ve todas');
+assert.equal((await read(admin, 'CoachSession', await sessions())).length, 2);
+assert.equal((await read(portero, 'CoachSession', await sessions())).length, 0, 'otras funciones solo ven las suyas');
+assert.equal((await write(ana, 'CoachSession', 'POST', { owner_id: ana.id, team_id: 't1' })).ok, true, 'crea la suya');
+assert.equal((await write(ana, 'CoachSession', 'POST', { owner_id: luis.id, team_id: 't1' })).ok, false, 'no la crea a nombre de otro');
+assert.equal((await write(ana, 'CoachSession', 'POST', { team_id: 't1' })).ok, false, 'sin autor no vale');
+assert.equal((await write(ana, 'CoachSession', 'PUT', { obj_atk: 'x' }, sAna)).ok, true, 'cambia la suya');
+assert.equal((await write(ana, 'CoachSession', 'PUT', { obj_atk: 'x' }, sLuis)).ok, false, 'no cambia la de otro');
+assert.equal((await write(ana, 'CoachSession', 'PUT', { owner_id: luis.id }, sAna)).ok, false, 'no la cede a otro');
+assert.equal((await write(ana, 'CoachSession', 'DELETE', {}, sLuis)).ok, false);
+assert.equal((await write(ana, 'CoachSession', 'DELETE', {}, sAna)).ok, true);
+assert.equal((await write(coord, 'CoachSession', 'PUT', { obj_atk: 'x' }, sLuis)).ok, false, 'la coordinación lee pero no cambia las de otros');
+assert.equal((await write(coord, 'CoachSession', 'POST', { owner_id: coord.id })).ok, true, 'sí crea las suyas');
+assert.equal((await write(admin, 'CoachSession', 'PUT', { obj_atk: 'x' }, sLuis)).ok, true, 'administración puede todo');
+
 console.log('roleAccess ok');
