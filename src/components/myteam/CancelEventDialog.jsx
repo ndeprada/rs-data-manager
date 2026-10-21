@@ -1,27 +1,76 @@
-import React, { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import React, { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Ban, RotateCcw } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/components/ui/use-toast";
+import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { CANCEL_REASONS, cancelPatch, restorePatch, cancelWord, isCancelled, cancelText } from "@/lib/eventCancel";
+import { cancelNotice } from "@/lib/cancelNotice";
+import { clubSiblings } from "@/lib/clubEvent";
+import { notifyTeamsPush, pushResultText } from "@/lib/notifyTeam";
 
 /**
  * Marca un evento como cancelado/suspendido (con motivo) o lo restaura.
  * El evento sigue en el calendario, pero ya no cuenta como pendiente de pasar lista, convocar, etc.
+ * Al cancelar se puede avisar al móvil del equipo (jugadores, familias y cuerpo técnico).
+ * Si es un evento de todo el club, coordinación puede aplicarlo a todos los equipos a la vez.
  */
 export default function CancelEventDialog({ open, onOpenChange, event, onDone }) {
   const qc = useQueryClient();
+  const { toast } = useToast();
+  const { isCoordinator, coachTeamIds } = useTeamAccess();
   const [reason, setReason] = useState("lluvia");
+  const [notify, setNotify] = useState(true);
+  const [applyAll, setApplyAll] = useState(true);
   const cancelled = isCancelled(event);
-  useEffect(() => { if (open) setReason(event?.cancel_reason || "lluvia"); }, [open, event?.id, event?.cancel_reason]);
+  useEffect(() => { if (open) { setReason(event?.cancel_reason || "lluvia"); setNotify(true); setApplyAll(true); } }, [open, event?.id, event?.cancel_reason]);
+
+  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date"), enabled: open });
+  const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list(), enabled: open });
+
+  const group = useMemo(() => clubSiblings(events, event), [events, event]);
+  const canApplyAll = isCoordinator && group.length > 1;
+  const all = canApplyAll && applyAll;
+  // A quiénes afecta: a este evento o, si es de todo el club, a todas sus copias que aún no están en ese estado
+  const targets = useMemo(() => (all ? group.filter((e) => isCancelled(e) === cancelled) : event ? [event] : []), [all, group, event, cancelled]);
+  const teamIds = useMemo(() => [...new Set(targets.map((e) => e.team_id).filter(Boolean))], [targets]);
+  const teamName = teams.find((t) => t.id === event?.team_id)?.name || "";
+
+  // Solo se puede avisar a los equipos que uno gestiona (coordinación, a todos)
+  const canNotify = !cancelled && teamIds.length > 0 && (isCoordinator || teamIds.every((id) => (coachTeamIds || []).includes(id)));
+  const notice = cancelNotice(event || {}, { teamName, reason, group: all });
+  const { data: preview } = useQuery({
+    queryKey: ["cancel-recipients", [...teamIds].sort().join(",")],
+    queryFn: () => base44.club.preview({ team_ids: teamIds, groups: ["jugadores", "familiares", "tecnico"] }),
+    enabled: open && canNotify && notify,
+    staleTime: 30000,
+  });
+  const nobody = preview && preview.recipients === 0;
+  const sendNotice = canNotify && notify && !nobody;
 
   const save = useMutation({
-    mutationFn: (patch) => base44.entities.Event.update(event.id, patch),
-    onSuccess: () => {
+    mutationFn: async ({ patch, list, withNotice }) => {
+      for (let i = 0; i < list.length; i += 10) await Promise.all(list.slice(i, i + 10).map((e) => base44.entities.Event.update(e.id, patch)));
+      if (!withNotice) return { sent: null };
+      try {
+        const sent = await notifyTeamsPush({
+          teamIds, title: notice.title, body: notice.body,
+          label: all ? "Todos los equipos · cancelación" : `${teamName || "Equipo"} · cancelación`,
+        });
+        return { sent };
+      } catch (e) {
+        return { sent: null, noticeError: e };
+      }
+    },
+    onSuccess: ({ sent, noticeError }) => {
       qc.invalidateQueries({ queryKey: ["events"] });
+      if (sent) toast({ title: "Aviso enviado", description: pushResultText(sent) });
+      if (noticeError) toast({ title: "Se ha marcado como cancelado, pero no se pudo enviar el aviso", description: "Puedes enviarlo desde Avisos.", variant: "destructive" });
       onDone?.();
       onOpenChange(false);
     },
@@ -29,6 +78,7 @@ export default function CancelEventDialog({ open, onOpenChange, event, onDone })
 
   if (!event) return null;
   const word = cancelWord(event).toLowerCase(); // «cancelado» o «suspendido»
+  const n = targets.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -47,9 +97,14 @@ export default function CancelEventDialog({ open, onOpenChange, event, onDone })
           <div className="space-y-3">
             <p className="text-sm text-gray-700 flex items-center gap-2"><Ban className="w-4 h-4 text-gray-500" /> {cancelText(event)}</p>
             <p className="text-xs text-gray-500">Si lo restauras vuelve a ser un evento normal y volverá a contar como pendiente si nadie lo gestiona.</p>
+            {canApplyAll && (
+              <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
+                <Checkbox checked={applyAll} onCheckedChange={(v) => setApplyAll(!!v)} /> Restaurarlo en los {group.length} equipos
+              </label>
+            )}
             <div className="flex gap-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Cerrar</Button>
-              <Button type="button" variant="club" className="flex-1" disabled={save.isPending} onClick={() => save.mutate(restorePatch())}>
+              <Button type="button" variant="club" className="flex-1" disabled={save.isPending || n === 0} onClick={() => save.mutate({ patch: restorePatch(), list: targets, withNotice: false })}>
                 <RotateCcw className="w-4 h-4 mr-1.5" /> {save.isPending ? "Restaurando…" : "Restaurar"}
               </Button>
             </div>
@@ -67,11 +122,32 @@ export default function CancelEventDialog({ open, onOpenChange, event, onDone })
                 ))}
               </div>
             </div>
+            {canApplyAll && (
+              <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
+                <Checkbox checked={applyAll} onCheckedChange={(v) => setApplyAll(!!v)} /> Aplicarlo a los {group.length} equipos (evento de todo el club)
+              </label>
+            )}
+            {canNotify && (
+              <div className="rounded-md border border-gray-200 bg-gray-50 p-2.5 space-y-1.5">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                  <Checkbox checked={notify} onCheckedChange={(v) => setNotify(!!v)} /> Avisar al móvil del equipo
+                </label>
+                {notify && (
+                  <>
+                    <p className="text-[11px] text-gray-600 italic pl-6">«{notice.body}»</p>
+                    <p className="text-[11px] text-gray-500 pl-6">
+                      {nobody ? "Nadie de este equipo tiene la app con avisos: no se enviará nada."
+                        : preview ? `Llegará a ${preview.recipients} persona${preview.recipients === 1 ? "" : "s"} (jugadores, familias y cuerpo técnico).` : "Calculando a cuántas personas llegará…"}
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
             <p className="text-xs text-gray-500">Seguirá en el calendario marcado como {word}, y no saldrá como pendiente de pasar lista o gestionar.</p>
             <div className="flex gap-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Volver</Button>
-              <Button type="button" variant="club" className="flex-1" disabled={save.isPending} onClick={() => save.mutate(cancelPatch(reason))}>
-                <Ban className="w-4 h-4 mr-1.5" /> {save.isPending ? "Guardando…" : `Marcar ${word}`}
+              <Button type="button" variant="club" className="flex-1" disabled={save.isPending || n === 0} onClick={() => save.mutate({ patch: cancelPatch(reason), list: targets, withNotice: sendNotice })}>
+                <Ban className="w-4 h-4 mr-1.5" /> {save.isPending ? "Guardando…" : n > 1 ? `Marcar ${n} ${word}s` : `Marcar ${word}`}
               </Button>
             </div>
           </div>

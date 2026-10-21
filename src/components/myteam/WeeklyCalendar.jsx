@@ -22,6 +22,7 @@ const EVENT_META = {
   concentracion:     { label: "Concentr.",  color: "slate" },
   cena_equipo:       { label: "Cena",       color: "slate" },
   comida_equipo:     { label: "Comida",     color: "slate" },
+  evento_club:       { label: "Club",       color: "granate" },
 };
 
 // Color styles per category

@@ -19,6 +19,7 @@ import WeeklyCalendar from "@/components/myteam/WeeklyCalendar";
 import { playerFullName } from "@/lib/playerName";
 import QuickInjuryDialog from "@/components/myteam/QuickInjuryDialog";
 import CancelEventDialog from "@/components/myteam/CancelEventDialog";
+import BulkCancelButton from "@/components/myteam/BulkCancelButton";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
 
 const STATUS_CONFIG = {
@@ -247,7 +248,7 @@ export default function TeamAttendance() {
 
   return (
     <div className="space-y-5">
-      <TeamPageHeader title="Entrenamientos"></TeamPageHeader>
+      <TeamPageHeader title="Entrenamientos"><BulkCancelButton teamId={selectedTeamId} /></TeamPageHeader>
 
       {selectedEvent ? (
         /* ───────── SESIÓN ───────── */

@@ -21,6 +21,7 @@ const luis = await addUser('luis@club.es', { full_name: 'Luis Gil', app_role: 'e
 const armand = await addUser('armand@club.es', { full_name: 'Armand Vallés', app_role: 'psicologo', access_status: 'approved' });
 const portero = await addUser('gk@club.es', { full_name: 'Entrenador Porteros', app_role: 'entrenador_porteros', access_status: 'approved' });
 const fisio = await addUser('fisio@club.es', { full_name: 'Fisio Club', app_role: 'fisioterapeuta', access_status: 'approved' });
+const coord = await addUser('coord@club.es', { full_name: 'Coordinador', app_role: 'coordinador_general', access_status: 'approved' });
 const admin = await addUser('admin@club.es', { full_name: 'Nacho', role: 'admin', app_role: 'director_deportivo', access_status: 'approved' });
 const jugador = await addUser('j@club.es', { full_name: 'Jugador', app_role: 'jugador', access_status: 'approved' });
 
@@ -72,6 +73,16 @@ assert.equal((await write(portero, 'Player', 'PUT', { weak_foot_rating: 3 }, 'p1
 assert.equal((await write(fisio, 'Player', 'PUT', { weak_foot_rating: 3 }, 'p1')).ok, false);
 assert.equal((await write(armand, 'Player', 'PUT', { phone: '600000000' }, 'p1')).ok, true, 'el resto de la ficha no cambia de reglas');
 assert.equal((await read(armand, 'Player', [{ id: 'p1', weak_foot_rating: 3 }]))[0].weak_foot_rating, 3, 'el resto del cuerpo técnico la ve');
+
+// Evento de todo el club (una copia por equipo con club_event_id): solo coordinación lo crea o lo cambia
+const clubCopy = { title: 'Fiesta del club', type: 'evento_club', team_id: 't1', club_event_id: 'g1' };
+assert.equal((await write(coord, 'Event', 'POST', clubCopy)).ok, true, 'coordinación crea el evento de club');
+assert.equal((await write(admin, 'Event', 'POST', clubCopy)).ok, true);
+assert.equal((await write(ana, 'Event', 'POST', clubCopy)).ok, false, 'un entrenador no');
+assert.equal((await write(ana, 'Event', 'PUT', { club_event_id: 'g1' }, 'e1')).ok, false);
+assert.equal((await write(ana, 'Event', 'POST', { title: 'Entreno', type: 'entrenamiento', team_id: 't1' })).ok, true, 'sus eventos normales siguen igual');
+assert.equal((await write(ana, 'Event', 'PUT', { cancelled: true, cancel_reason: 'lluvia' }, 'e1')).ok, true, 'cancelar (también una copia de club) sigue abierto');
+assert.equal((await write(ana, 'Event', 'DELETE', {}, 'e1')).ok, true);
 
 // Lo que no es de personal pasa tal cual: el jugador se filtra por su propia vía
 assert.equal((await read(jugador, 'Injury', injuries)).length, 1);

@@ -19,6 +19,7 @@ const EVENT_TYPE_COLORS = {
   concentracion: "#64748b",       // slate
   cena_equipo: "#64748b",         // slate
   comida_equipo: "#64748b",       // slate
+  evento_club: "#73000A",         // granate (evento de todo el club)
 };
 
 export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "all", onEventClick, selectedDay, onSelectDay }) {

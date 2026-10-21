@@ -8,7 +8,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MATCHES = ['partido_liga', 'partido_amistoso', 'torneo'];
 const TYPE_LABEL = {
   entrenamiento: 'Entrenamiento', entrenamiento_fisico: 'Entrenamiento físico', sesion_teorica: 'Sesión teórica', sesion_video: 'Sesión de vídeo',
-  concentracion: 'Concentración', partido_amistoso: 'Amistoso', partido_liga: 'Liga', torneo: 'Torneo', reunion: 'Reunión',
+  concentracion: 'Concentración', partido_amistoso: 'Amistoso', partido_liga: 'Liga', torneo: 'Torneo', reunion: 'Reunión', evento_club: 'Evento del club',
 };
 
 export const isUuid = (s) => UUID.test(String(s || ''));

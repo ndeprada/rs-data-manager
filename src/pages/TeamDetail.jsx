@@ -36,6 +36,7 @@ const EVENT_TYPES = [
   { value: "reunion_equipo", label: "Reunión de equipo" },
   { value: "concentracion", label: "Concentración" },
   { value: "cena_equipo", label: "Cena de equipo" },
+  { value: "evento_club", label: "Evento del club" },
 ];
 
 const isMatchType = (type) => ["partido_amistoso", "partido_liga", "torneo"].includes(type);

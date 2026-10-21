@@ -13,7 +13,9 @@ import EventPlaceFields from "@/components/myteam/EventPlaceFields";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Repeat } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { notifyTeamPush, pushResultText } from "@/lib/notifyTeam";
+import { notifyTeamPush, notifyTeamsPush, pushResultText } from "@/lib/notifyTeam";
+import { useTeamAccess } from "@/lib/TeamAccessContext";
+import { CLUB_ALL, CLUB_EVENT_TYPE, clubEventCopies } from "@/lib/clubEvent";
 
 const EVENT_TYPES = [
   { value: "entrenamiento",        label: "Entrenamiento" },
@@ -30,6 +32,7 @@ const EVENT_TYPES = [
   { value: "concentracion",        label: "Concentración" },
   { value: "cena_equipo",          label: "Cena de equipo" },
   { value: "comida_equipo",        label: "Comida de equipo" },
+  { value: "evento_club",          label: "Evento del club" },
 ];
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
@@ -42,11 +45,12 @@ const WEEKDAYS = [
 
 const buildDefaultNotificationMessage = (form, teams) => {
   const team = teams?.find(t => t.id === form.teamId);
+  const wholeClub = form.teamId === CLUB_ALL;
   const eventLabel = EVENT_TYPES.find(t => t.value === form.type)?.label || form.type;
   const dateStr = form.date ? `${form.date}T${form.time}:00` : "";
   const formattedDate = dateStr ? format(new Date(dateStr), "dd/MM/yyyy 'a las' HH:mm") : "";
   const title = form.title?.trim() || (MATCH_TYPES.includes(form.type) && form.opponent ? `vs ${form.opponent}` : eventLabel);
-  return `Se ha añadido un nuevo evento al calendario:\n\n📌 ${title}\n🏷️ Tipo: ${eventLabel}\n📅 Fecha: ${formattedDate}${form.location ? `\n📍 Lugar: ${form.location}` : ""}${team ? `\n🛡️ Equipo: ${team.name}` : ""}${form.notes ? `\n📝 Notas: ${form.notes}` : ""}`;
+  return `Se ha añadido un nuevo evento al calendario:\n\n📌 ${title}\n🏷️ Tipo: ${eventLabel}\n📅 Fecha: ${formattedDate}${form.location ? `\n📍 Lugar: ${form.location}` : ""}${team ? `\n🛡️ Equipo: ${team.name}` : wholeClub ? "\n🛡️ Para todo el club" : ""}${form.notes ? `\n📝 Notas: ${form.notes}` : ""}`;
 };
 
 const FREQ_OPTIONS = [
@@ -115,6 +119,7 @@ const buildEmptyForm = (date, teamId, recurring = false) => ({
 export default function CreateEventDialog({ open, onOpenChange, date, teamId, teams, startRecurring = false }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { isCoordinator } = useTeamAccess();
   const [form, setForm] = useState(() => buildEmptyForm(date, teamId, startRecurring));
 
   // Reset form when dialog opens
@@ -128,6 +133,8 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
   const isMultiday = MULTIDAY_TYPES.includes(form.type);
   const typeLabel = EVENT_TYPES.find(t => t.value === form.type)?.label || "";
   const showTeamSelector = !teamId && teams && teams.length > 0;
+  // Coordinación puede crear el evento para todos los equipos a la vez (una copia en cada uno)
+  const allTeams = showTeamSelector && isCoordinator && form.teamId === CLUB_ALL;
 
   // Parse current date for preview
   const parsedDate = form.date ? parseISO(form.date) : new Date();
@@ -157,13 +164,20 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
     const team = teams?.find(t => t.id === createdEvent.team_id);
     const title = form.title?.trim() || (isMatch && form.opponent ? `vs ${form.opponent}` : typeLabel);
     try {
-      const r = await notifyTeamPush({
-        teamId: createdEvent.team_id,
-        teamName: team?.name,
-        title: `📅 Nuevo evento: ${title}`,
-        body: form.notification_message || buildDefaultNotificationMessage(form, teams),
-      });
-      toast({ title: "Aviso enviado al equipo", description: pushResultText(r) });
+      const r = allTeams
+        ? await notifyTeamsPush({
+            teamIds: null,
+            label: "Todo el club · aviso de evento",
+            title: `📅 Evento del club: ${title}`,
+            body: form.notification_message || buildDefaultNotificationMessage(form, teams),
+          })
+        : await notifyTeamPush({
+            teamId: createdEvent.team_id,
+            teamName: team?.name,
+            title: `📅 Nuevo evento: ${title}`,
+            body: form.notification_message || buildDefaultNotificationMessage(form, teams),
+          });
+      toast({ title: allTeams ? "Aviso enviado a todo el club" : "Aviso enviado al equipo", description: pushResultText(r) });
     } catch (e) {
       toast({ title: "El evento se ha creado, pero no se pudo enviar el aviso", description: e?.message || "Inténtalo desde Avisos.", variant: "destructive" });
     }
@@ -171,20 +185,28 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const seriesId = form.recurring ? crypto.randomUUID() : undefined;
-      const occurrences = form.recurring
+      const seriesId = form.recurring && !allTeams ? crypto.randomUUID() : undefined;
+      const occurrences = form.recurring && !allTeams
         ? getOccurrenceDates(form.series_from, form.recurrence_until, form.weekdays, form.frequency).filter(d => !(form.excluded || []).includes(format(d, "yyyy-MM-dd")))
         : [parsedDate];
 
+      const dStr0 = format(occurrences[0], "yyyy-MM-dd");
+      const endOf = (dStr) => (isMultiday && form.end_date_multiday
+        ? `${form.end_date_multiday}T${form.end_time_multiday}:00`
+        : (form.end_time ? `${dStr}T${form.end_time}:00` : undefined));
+      // Todos los equipos: una copia por equipo, unidas por club_event_id
+      if (allTeams) {
+        const copies = clubEventCopies({ ...data, date: `${dStr0}T${form.time}:00`, end_date: endOf(dStr0) }, teams, crypto.randomUUID());
+        const created = [];
+        for (let i = 0; i < copies.length; i += 10) created.push(...(await Promise.all(copies.slice(i, i + 10).map((c) => base44.entities.Event.create(c)))));
+        return created;
+      }
       const makeOne = (occDate) => {
         const dStr = format(occDate, "yyyy-MM-dd");
-        const endDate = isMultiday && form.end_date_multiday
-          ? `${form.end_date_multiday}T${form.end_time_multiday}:00`
-          : (form.end_time ? `${dStr}T${form.end_time}:00` : undefined);
         return base44.entities.Event.create({
           ...data,
           date: `${dStr}T${form.time}:00`,
-          end_date: endDate,
+          end_date: endOf(dStr),
           ...(seriesId ? { series_id: seriesId } : {}),
         });
       };
@@ -209,7 +231,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
     createMutation.mutate({
       title,
       type: form.type,
-      team_id: form.teamId || teamId,
+      team_id: allTeams ? undefined : (form.teamId || teamId),
       location: form.location || undefined,
       field_id: form.field_id || undefined,
       location_url: form.location_url.trim() || undefined,
@@ -237,12 +259,17 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
           {showTeamSelector && (
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Equipo *</p>
-              <Select value={form.teamId} onValueChange={v => set("teamId", v)}>
+              <Select value={form.teamId} onValueChange={v => setForm(prev => ({
+                ...prev, teamId: v, recurring: v === CLUB_ALL ? false : prev.recurring,
+                type: v === CLUB_ALL && prev.type === "entrenamiento" ? CLUB_EVENT_TYPE : prev.type,
+              }))}>
                 <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar equipo…" /></SelectTrigger>
                 <SelectContent>
+                  {isCoordinator && <SelectItem value={CLUB_ALL}>★ Todos los equipos del club</SelectItem>}
                   {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {allTeams && <p className="text-[11px] text-gray-500 mt-1">Se creará en el calendario de los {teams.length} equipos. Después podrás editarlo o borrarlo en todos a la vez.</p>}
             </div>
           )}
 
@@ -345,7 +372,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                   }}
                 />
                 <label htmlFor="send_notif" className="text-sm font-medium text-gray-700 cursor-pointer">
-                  Avisar al equipo en el móvil (notificación de la app)
+                  {allTeams ? "Avisar a todo el club en el móvil (notificación de la app)" : "Avisar al equipo en el móvil (notificación de la app)"}
                 </label>
               </div>
               {form.send_notification && (
@@ -364,8 +391,8 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
             </div>
           )}
 
-          {/* Recurrencia */}
-          <div className="border border-gray-200 rounded-lg p-3 space-y-3">
+          {/* Recurrencia (no con «todos los equipos»: sería una copia por equipo y por fecha) */}
+          {!allTeams && <div className="border border-gray-200 rounded-lg p-3 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Repeat className="w-4 h-4 text-gray-400" />
@@ -444,14 +471,16 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                 </div>
               </div>
             )}
-          </div>
+          </div>}
 
           <div className="flex gap-3 pt-1">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancelar</Button>
-            <Button variant="club" type="submit" disabled={createMutation.isPending || (form.recurring && previewDates.length === 0)} className="flex-1">
+            <Button variant="club" type="submit" disabled={createMutation.isPending || (form.recurring && !allTeams && previewDates.length === 0) || (showTeamSelector && !form.teamId)} className="flex-1">
               {createMutation.isPending
                 ? "Guardando…"
-                : form.recurring
+                : allTeams
+                  ? `Crear en los ${teams.length} equipos`
+                  : form.recurring
                   ? `Crear ${previewDates.length} eventos`
                   : "Crear evento"}
             </Button>

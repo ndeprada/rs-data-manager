@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Upload, Ban } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useTeamAccess } from "@/lib/TeamAccessContext";
+import { clubSiblings } from "@/lib/clubEvent";
 import { sortTeams } from "@/lib/teamOrder";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
 import CancelEventDialog from "@/components/myteam/CancelEventDialog";
@@ -30,6 +33,7 @@ const EVENT_TYPES = [
   { value: "concentracion",        label: "Concentración" },
   { value: "cena_equipo",          label: "Cena de equipo" },
   { value: "comida_equipo",        label: "Comida de equipo" },
+  { value: "evento_club",          label: "Evento del club" },
 ];
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
@@ -41,6 +45,13 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
   const [seriesConfirm, setSeriesConfirm] = useState(false);
   const [pendingData, setPendingData] = useState(null);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [applyAll, setApplyAll] = useState(true);
+  const { isCoordinator } = useTeamAccess();
+  // Evento de todo el club: coordinación puede cambiarlo o borrarlo en todos los equipos a la vez
+  const { data: allEvents = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date"), enabled: open && !!event?.club_event_id });
+  const group = clubSiblings(allEvents, event);
+  const canApplyAll = isCoordinator && group.length > 1;
+  useEffect(() => { if (open) setApplyAll(true); }, [open, event?.id]);
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
@@ -169,6 +180,29 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
     },
   });
 
+  // Evento de club en todos los equipos: mismos cambios en cada copia (sin tocar el equipo de cada una)
+  const updateClubMutation = useMutation({
+    mutationFn: async (data) => {
+      const { team_id: _t, ...common } = data;
+      for (let i = 0; i < group.length; i += 10) await Promise.all(group.slice(i, i + 10).map((e) => base44.entities.Event.update(e.id, e.id === event.id ? data : common)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      onOpenChange(false);
+    },
+  });
+
+  const deleteClubMutation = useMutation({
+    mutationFn: async () => {
+      for (let i = 0; i < group.length; i += 10) await Promise.all(group.slice(i, i + 10).map((e) => base44.entities.Event.delete(e.id)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      setConfirmDelete(false);
+      onOpenChange(false);
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => base44.entities.Event.delete(event.id),
     onSuccess: () => {
@@ -202,7 +236,9 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     const data = buildData();
-    if (event.series_id) {
+    if (canApplyAll && applyAll) {
+      updateClubMutation.mutate(data);
+    } else if (event.series_id) {
       setPendingData(data);
       setSeriesConfirm(true);
     } else {
@@ -231,6 +267,18 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
                 className="w-full flex items-center gap-2 rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-200">
                 <Ban className="w-4 h-4 shrink-0" /> <span className="flex-1">{cancelText(event)}</span> <span className="font-normal text-gray-500">Restaurar</span>
               </button>
+            )}
+            {event.club_event_id && (
+              <div className="rounded-md border border-red-100 bg-red-50/60 px-3 py-2 space-y-1.5">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--granate)]">Evento de todo el club{group.length > 1 ? ` · ${group.length} equipos` : ""}</p>
+                {canApplyAll ? (
+                  <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
+                    <Checkbox checked={applyAll} onCheckedChange={(v) => setApplyAll(!!v)} /> Aplicar los cambios a todos los equipos
+                  </label>
+                ) : (
+                  <p className="text-[11px] text-gray-500">Los cambios solo afectan a la copia de este equipo.</p>
+                )}
+              </div>
             )}
             {/* Tipo */}
             <div>
@@ -351,8 +399,8 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
                 <Ban className="w-4 h-4" />
               </Button>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancelar</Button>
-              <Button variant="club" type="submit" disabled={updateMutation.isPending} className="flex-1">
-                {updateMutation.isPending ? "Guardando…" : "Guardar"}
+              <Button variant="club" type="submit" disabled={updateMutation.isPending || updateClubMutation.isPending} className="flex-1">
+                {updateMutation.isPending || updateClubMutation.isPending ? "Guardando…" : canApplyAll && applyAll ? `Guardar en ${group.length} equipos` : "Guardar"}
               </Button>
             </div>
           </form>
@@ -366,7 +414,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar evento?</AlertDialogTitle>
             <AlertDialogDescription>
-              {event.series_id ? "Este evento forma parte de una serie recurrente. Esta acción no se puede deshacer." : "Esta acción no se puede deshacer."}
+              {event.series_id ? "Este evento forma parte de una serie recurrente. Esta acción no se puede deshacer." : canApplyAll ? "Es un evento de todo el club: puedes borrarlo solo en este equipo o en todos. Esta acción no se puede deshacer." : "Esta acción no se puede deshacer."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -376,8 +424,13 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
                 {deleteSeriesMutation.isPending ? "Eliminando…" : "Toda la serie"}
               </Button>
             )}
+            {canApplyAll && (
+              <Button variant="outline" onClick={() => deleteClubMutation.mutate()} disabled={deleteClubMutation.isPending} className="text-red-600 border-red-200 hover:bg-red-50">
+                {deleteClubMutation.isPending ? "Eliminando…" : `En los ${group.length} equipos`}
+              </Button>
+            )}
             <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-red-600 hover:bg-red-700 text-white">
-              {event.series_id ? "Solo este" : "Eliminar"}
+              {event.series_id || canApplyAll ? "Solo este" : "Eliminar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

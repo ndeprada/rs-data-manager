@@ -8,6 +8,7 @@ import EditEventDialog from "@/components/myteam/EditEventDialog";
 import { sortTeams } from "@/lib/teamOrder";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
+import BulkCancelButton from "@/components/myteam/BulkCancelButton";
 import SessionReportDialog from "@/components/calendar/SessionReportDialog";
 import EventListWithDragDrop from "@/components/calendar/EventListWithDragDrop";
 import WeeklyCalendar from "@/components/calendar/WeeklyCalendar";
@@ -42,6 +43,7 @@ const EVENT_TYPES = [
   { value: "concentracion", label: "Concentración", isMatch: false },
   { value: "cena_equipo", label: "Cena de equipo", isMatch: false },
   { value: "comida_equipo", label: "Comida de equipo", isMatch: false },
+  { value: "evento_club", label: "Evento del club", isMatch: false },
 ];
 
 const isMatchType = (type) => EVENT_TYPES.find(t => t.value === type)?.isMatch;
@@ -187,7 +189,7 @@ export default function Calendar() {
         
         updateMutation.mutate({
           id: event.id,
-          data: { ...event, date: newDate.toISOString() }
+          data: { date: newDate.toISOString() }
         });
       }
     }
@@ -263,6 +265,7 @@ export default function Calendar() {
             <button onClick={() => setViewMode("list")} className={`px-2.5 py-1.5 text-xs font-bold rounded transition-colors ${viewMode === "list" ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700"}`} title="Lista">Lista</button>
           </div>
           {filterTeam !== "all" && <CalendarSubscribe teamId={filterTeam} teamName={teams.find((t) => t.id === filterTeam)?.name} />}
+          <BulkCancelButton teamId={filterTeam !== "all" ? filterTeam : undefined} />
           <Button variant="club" size="sm" onClick={() => openNewEvent(today)} className="h-8 text-xs">
             <Plus className="w-3.5 h-3.5 mr-1" /> Nuevo
           </Button>

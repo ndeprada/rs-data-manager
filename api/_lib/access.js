@@ -183,8 +183,8 @@ export async function checkTeamWrite(user, entity, method, body, id) {
 }
 
 // ── Datos sensibles por función: médicos, evaluaciones de jugadores y evaluaciones de entrenadores ─────
-// 'Player' entra para vigilar los campos que solo escribe el cuerpo técnico (pierna no hábil)
-const ROLE_ENTITIES = new Set([...MEDICAL_ENTITIES, ...PLAYER_EVAL_ENTITIES, ...COACH_EVAL_ENTITIES, 'Player']);
+// 'Player' y 'Event' entran para vigilar campos concretos: pierna no hábil (cuerpo técnico) y evento de todo el club (coordinación)
+const ROLE_ENTITIES = new Set([...MEDICAL_ENTITIES, ...PLAYER_EVAL_ENTITIES, ...COACH_EVAL_ENTITIES, 'Player', 'Event']);
 
 const isStaffUser = (user) => !isAdmin(user) && !isPlayerUser(user) && user.app_role !== 'familiar';
 

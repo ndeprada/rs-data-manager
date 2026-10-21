@@ -184,6 +184,10 @@ export function staffIdsOfUser(user, users, staffList) {
 // ¿Puede esta persona escribir (crear, cambiar o borrar)? existing = documento actual (si lo hay), ownIds = sus ids de personal.
 export function checkRoleWrite({ perms, entity, method, body = {}, existing = null, ownIds = new Set() }) {
   if (perms.isAdmin) return { ok: true };
+  if (entity === 'Event') {
+    // Evento de todo el club (una copia por equipo): lo crea o cambia solo coordinación
+    return body.club_event_id !== undefined && !perms.administration ? { ok: false, error: 'forbidden_role' } : { ok: true };
+  }
   if (entity === 'Player') {
     // Valoración de la pierna no hábil: solo entrenadores y coordinación, y con un valor de 1 a 5 (o vacío para quitarla)
     if (body[WEAK_FOOT_FIELD] === undefined) return { ok: true };

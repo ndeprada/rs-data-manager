@@ -19,3 +19,15 @@ export function pushResultText(r) {
   const d = r?.sent ?? 0;
   return `Llegará a ${n} persona${n === 1 ? "" : "s"} (${d} dispositivo${d === 1 ? "" : "s"} con avisos activados).`;
 }
+
+// Aviso al móvil a varios equipos a la vez (o a todo el club si teamIds es null). Solo coordinación puede avisar a otros equipos.
+export async function notifyTeamsPush({ teamIds = null, label, title, body, url = "/Calendar" }) {
+  if (Array.isArray(teamIds) && teamIds.length === 0) throw new Error("Falta el equipo");
+  return base44.club.send({
+    title: String(title || "").slice(0, 100),
+    body: String(body || "").slice(0, 600),
+    url,
+    audience: { all_club: !Array.isArray(teamIds), team_ids: Array.isArray(teamIds) ? teamIds : [], groups: ["jugadores", "familiares", "tecnico"] },
+    audience_label: label || (Array.isArray(teamIds) ? `${teamIds.length} equipos · aviso de evento` : "Todo el club · aviso de evento"),
+  });
+}

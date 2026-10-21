@@ -20,6 +20,7 @@ const EVENT_TYPES = [
   { value: "concentracion", label: "Concentración", isMatch: false },
   { value: "cena_equipo", label: "Cena de equipo", isMatch: false },
   { value: "comida_equipo", label: "Comida de equipo", isMatch: false },
+  { value: "evento_club", label: "Evento del club", isMatch: false },
 ];
 
 const isMatchType = (type) => EVENT_TYPES.find(t => t.value === type)?.isMatch;
