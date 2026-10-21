@@ -24,7 +24,7 @@ Objetivo permanente: app lo más optimizada posible, de uso fácil y que, al ent
 ## Idiomas (español por defecto, inglés, francés y catalán)
 - El texto en español es la clave: `t("Mi equipo")` (hook `useT()` de `@/i18n`); con variables `t("Hola {nombre}", { nombre })`. Constantes y errores se marcan con `msg("Texto")` y se traducen al mostrarlos con `t(...)`. Si falta la traducción se ve el español.
 - Las traducciones son filas `[es, en, fr, ca]` en `src/i18n/rows/` (`common.js`, `player.js`, `staff.js`, `catalog/*.js`). Al añadir un texto nuevo hay que añadir su fila; `npm test` (tests/i18n.test.mjs) falla si falta alguna, si las variables `{x}` no coinciden o si un mismo texto tiene dos traducciones.
-- Idioma: perfil (`language`) > `localStorage rs_lang` > español. Selector `LanguageSelector` en el menú y en las pantallas de acceso/familia. Fechas con `useFormat()` / `useDateLocale()`.
+- Idioma: perfil (`language`) > `localStorage rs_lang` > español. Selector `LanguageSelector` = desplegable pequeño (barra superior en móvil, menú lateral en escritorio, arriba en acceso/alta/pendiente/familia); se puede cambiar en cualquier momento y queda guardado en el perfil. Fechas con `useFormat()` / `useDateLocale()`.
 - En desarrollo (`npm run dev`) `window.__i18nMissing` lista los textos pedidos en otro idioma sin traducción (útil con Playwright).
 - Fase 1 hecha: acceso, alta, pendiente, jugador y familia (incl. competencias por posición, fútbol 7 y Evaluación 360). Fase 2 (pantallas de personal) y metodología: pendientes. Los textos libres que escribe el cuerpo técnico no se traducen.
 

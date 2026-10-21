@@ -130,7 +130,7 @@ function MyTeamNav({ onClose, notificationCount }) {
   );
 }
 
-function PlayerSidebar({ onClose = () => {} }) {
+function PlayerSidebar({ onClose = () => {}, drawer = false }) {
   const t = useT();
   const { user, logout } = useAuth();
   return (
@@ -151,7 +151,7 @@ function PlayerSidebar({ onClose = () => {} }) {
           <p className="text-white text-[11px] font-bold truncate flex-1" style={{ fontFamily: "var(--font-display)" }}>{user?.full_name?.split(" ")[0]}</p>
           <button onClick={logout} aria-label={t("Salir")} title={t("Cerrar sesión")} className="text-white/60 hover:text-white"><LogOut className="w-4 h-4" /></button>
         </div>
-        <LanguageSelector tone="dark" className="px-1.5 pt-1" />
+        {!drawer && <LanguageSelector tone="dark" className="px-0.5 pt-1" />}
       </div>
     </div>
   );
@@ -161,7 +161,7 @@ function Sidebar(props) {
   return usePlayerMode() ? <PlayerSidebar {...props} /> : <StaffSidebar {...props} />;
 }
 
-function StaffSidebar({ onClose = () => {} }) {
+function StaffSidebar({ onClose = () => {}, drawer = false }) {
   const t = useT();
   const { user, logout } = useAuth();
   const { isCoordinator, appRole, selectedTeamId, perms } = useTeamAccess();
@@ -316,7 +316,7 @@ function StaffSidebar({ onClose = () => {} }) {
             </button>
           </div>
         )}
-        <LanguageSelector tone="dark" className="px-1.5" />
+        {!drawer && <LanguageSelector tone="dark" className="px-0.5" />}
       </div>
     </div>
   );
@@ -377,6 +377,7 @@ export default function Layout() {
             <h1 className="font-bold text-xl tracking-wider uppercase leading-none" style={{ fontFamily: "var(--font-display)", color: "#ffffff" }}>RS Manager</h1>
           </Link>
         </div>
+        <LanguageSelector tone="dark" className="ml-auto -mr-1.5" />
       </div>
 
       {/* Mobile Drawer */}
@@ -394,7 +395,7 @@ export default function Layout() {
               style={{ paddingTop: "56px" }}
               onClick={e => e.stopPropagation()}
             >
-              <Sidebar onClose={() => setMobileOpen(false)} />
+              <Sidebar onClose={() => setMobileOpen(false)} drawer />
             </motion.div>
           </motion.div>
         )}

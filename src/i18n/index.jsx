@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Globe } from "lucide-react";
+import { Globe, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { DEFAULT_LANG, LANGUAGES, isLang, langInfo } from "./translate.js";
@@ -80,30 +81,34 @@ export function useFormat() {
 export const useLocaleTag = () => localeTag(useContext(LanguageContext).lang);
 
 /**
- * Selector de idioma para cualquier persona. variant="compact": ES · EN · FR · CA (menús); variant="names": nombres completos (acceso).
- * tone="dark" sobre fondo granate; "light" sobre fondo claro.
+ * Selector de idioma para cualquier persona: desplegable pequeño (globo + idioma actual).
+ * variant="compact": solo el código (ES, EN, FR, CA), para barras y menús; variant="names": el nombre completo, para las pantallas de acceso.
+ * tone="dark" sobre fondo granate; "light" sobre fondo claro. La elección se guarda en el perfil y se puede cambiar cuando se quiera.
  */
 export function LanguageSelector({ variant = "compact", tone = "light", className = "" }) {
   const { lang, setLang, t } = useLanguage();
   const dark = tone === "dark";
+  const current = langInfo(lang);
+  const look = dark ? "text-white/80 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100";
   return (
-    <div className={`flex items-center gap-1 ${className}`} role="group" aria-label={t("Idioma")}>
-      <Globe className={`w-3.5 h-3.5 shrink-0 ${dark ? "text-white/50" : "text-gray-400"}`} aria-hidden="true" />
-      <div className="flex flex-wrap items-center gap-0.5">
-        {LANGUAGES.map((l) => {
-          const active = l.code === lang;
-          const base = "rounded-md font-bold transition-colors";
-          const size = variant === "names" ? "px-2 py-1 text-xs" : "px-1.5 py-0.5 text-[10px]";
-          const look = active
-            ? dark ? "bg-white text-[#73000A]" : "bg-[#73000A] text-white"
-            : dark ? "text-white/60 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100";
-          return (
-            <button key={l.code} type="button" onClick={() => setLang(l.code)} aria-pressed={active} title={l.name} lang={l.code} className={`${base} ${size} ${look}`}>
-              {variant === "names" ? l.name : l.short}
-            </button>
-          );
-        })}
-      </div>
+    <div className={className}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" aria-label={`${t("Idioma")}: ${current.name}`} title={t("Idioma")}
+            className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-bold uppercase tracking-wide transition-colors outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${look}`}>
+            <Globe className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            {variant === "names" ? current.name : current.short}
+            <ChevronDown className="w-3 h-3 shrink-0 opacity-70" aria-hidden="true" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-[9rem]">
+          <DropdownMenuRadioGroup value={lang} onValueChange={setLang}>
+            {LANGUAGES.map((l) => (
+              <DropdownMenuRadioItem key={l.code} value={l.code} lang={l.code}>{l.name}</DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
