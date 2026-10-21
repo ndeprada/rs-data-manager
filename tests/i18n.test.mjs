@@ -148,9 +148,9 @@ test("tablas de textos de las pantallas de jugador, familia y alta: todo traduci
 });
 
 test("traducción real: ejemplos en los cuatro idiomas", () => {
-  assert.equal(translate("en", "Mediapunta"), "Attacking midfielder");
-  assert.equal(translate("fr", "Mediapunta"), "Milieu offensif");
-  assert.equal(translate("ca", "Mediapunta"), "Mitjapunta");
+  assert.equal(translate("en", "Mediapunta"), "Complete forward");
+  assert.equal(translate("fr", "Mediapunta"), "Attaquant complet");
+  assert.equal(translate("ca", "Mediapunta"), "Davanter complet");
   assert.equal(translate("es", "Mediapunta"), "Mediapunta");
   assert.notEqual(translate("en", F7_POSITIONS.extremo.why), F7_POSITIONS.extremo.why);
   assert.notEqual(translate("ca", AREAS[0].label), "");
