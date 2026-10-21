@@ -25,7 +25,7 @@ function NewSessionDialog({ open, onOpenChange, teams, defaultTeamId, onCreate }
       <DialogContent className="bg-white max-w-sm">
         <DialogHeader>
           <DialogTitle style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Nueva sesión</DialogTitle>
-          <DialogDescription className="text-xs">Elige el equipo y el día. El tipo de sesión se propone según el día de la semana y lo puedes cambiar.</DialogDescription>
+          <DialogDescription className="text-xs">Elige el equipo y el día. El tipo de sesión (tensión, duración, velocidad…) lo eliges tú dentro de la sesión.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>

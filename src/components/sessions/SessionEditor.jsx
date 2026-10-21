@@ -18,7 +18,7 @@ import SessionPreview from "./SessionPreview";
 import { longDate, matchRefOf, playerShortName, posShort, sortRoster, todayStr } from "./sessionHelpers";
 import {
   BLOCKS, SESSION_TYPES, STAGES, compareWithStage, contentName, emptySession, emptyTask, fmtMin, isBlankTask,
-  registerSession, sessionTypeInfo, stageOfTeamName, suggestSessionType, taskMinutes,
+  registerSession, sessionTypeInfo, stageOfTeamName, taskMinutes,
 } from "@/lib/sessionPlan";
 import { MATCH_TYPES } from "@/lib/matchStatus";
 import { isCancelled } from "@/lib/eventCancel";
@@ -32,7 +32,7 @@ const stripMeta = (s) => Object.fromEntries(Object.entries(s).filter(([k]) => !M
 // Base de una sesión nueva a partir de un equipo y una fecha
 export function newSessionFor({ team, date = todayStr() }) {
   const stage = team ? stageOfTeamName(team.name) : null;
-  return emptySession({ teamId: team?.id || "", date, stage, type: suggestSessionType(date) });
+  return emptySession({ teamId: team?.id || "", date, stage, type: null });
 }
 
 function Card({ title, right, children, open = true, onToggle }) {
@@ -235,10 +235,7 @@ export default function SessionEditor({ session, draft, teams, sessions = [], on
     const t = teams.find((x) => x.id === teamId);
     set({ team_id: teamId, stage: t ? stageOfTeamName(t.name) : null, attendance: {}, match_ref: "" });
   };
-  const changeDate = (date) => {
-    const was = suggestSessionType(form.date);
-    set({ date, ...(!form.session_type || form.session_type === was ? { session_type: suggestSessionType(date) } : {}) });
-  };
+  const changeDate = (date) => set({ date });
 
   const goBack = async () => { await autosave.flush(); onClose(); };
   const type = sessionTypeInfo(form.session_type);

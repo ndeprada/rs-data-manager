@@ -200,12 +200,7 @@ export const SESSION_TYPES = [
 ];
 export const sessionTypeInfo = (id) => SESSION_TYPES.find((t) => t.id === id) || null;
 
-// Por costumbre: lunes tensión, miércoles duración, jueves o viernes velocidad
-export function suggestSessionType(dateStr) {
-  const d = new Date(`${dateStr}T12:00:00`);
-  if (Number.isNaN(d.getTime())) return null;
-  return { 1: "fundamentos", 3: "juego_colectivo", 4: "optimizacion", 5: "optimizacion" }[d.getDay()] || null;
-}
+// El tipo de sesión NO depende del día de la semana (decisión de Nacho): lo elige siempre el entrenador.
 
 // ── Tipos de tarea (TFM 4.7.3) ────────────────────────────────────────────────
 export const TASK_TYPES = [

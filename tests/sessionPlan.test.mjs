@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {
-  STAGES, BLOCKS, targetPct, stageContents, contentId, stageOfTeamName, suggestSessionType, taskMinutes, seriesLabel, fmtMin,
+  STAGES, BLOCKS, targetPct, stageContents, contentId, stageOfTeamName, taskMinutes, seriesLabel, fmtMin,
   registerSession, aggregateSessions, taskWarnings, marginState, compareWithStage, hierarchyIssues, phasesLabel, emptySession, emptyTask, isBlankTask,
   priorityOf, contentBlock, contentName,
 } from '../src/lib/sessionPlan.js';
@@ -44,14 +44,6 @@ assert.equal(priorityOf('perf', contentId('tecnica', 'Conducción')), 'A');
 assert.equal(priorityOf('inic1', contentId('abp', 'Córner ofensivo')), null, 'el balón parado específico empieza en Perfeccionamiento');
 assert.equal(contentBlock(contentId('oc_of', 'Pared')), 'oc_of');
 assert.equal(contentName(contentId('oc_of', 'Pared')), 'Pared');
-
-// ── Día de la semana → tipo de sesión (lunes, miércoles, jueves/viernes) ──
-assert.equal(suggestSessionType('2026-10-19'), 'fundamentos'); // lunes
-assert.equal(suggestSessionType('2026-10-21'), 'juego_colectivo'); // miércoles
-assert.equal(suggestSessionType('2026-10-15'), 'optimizacion'); // jueves
-assert.equal(suggestSessionType('2026-10-01'), 'optimizacion'); // jueves
-assert.equal(suggestSessionType('2026-10-20'), null); // martes
-assert.equal(suggestSessionType('x'), null);
 
 // ── Tiempos ──
 assert.equal(taskMinutes({ series: 4, serie_min: 4, rec_min: 1 }), 19);

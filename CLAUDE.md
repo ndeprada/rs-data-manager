@@ -19,3 +19,16 @@ Objetivo permanente: app lo más optimizada posible, de uso fácil y que, al ent
 - Fechas de eventos como texto local `yyyy-MM-ddTHH:mm` (no UTC).
 - Asistencia (`TrainingAttendance`): `status` present|apart|absent, `absence_reason`, `notes`; jugadores a prueba con `trial_name` y `player_id` `prueba_*`.
 - Siempre se puede convocar a jugadores de otros equipos del club y añadir jugadores a prueba.
+- Sesiones de entrenamiento (Metodología → Sesiones): tipos = fundamentos individuales (Tensión), juego colectivo (Duración) y optimización (Velocidad). **No están ligados a un día de la semana** (suelen coincidir con ciertos días, pero no siempre): nunca proponerlos ni fijarlos por el día.
+
+## Pendiente importante (recordárselo a Nacho al volver a hablar)
+**Informe de evaluación de entrenadores**, primero a nivel metodológico y pensado para que lo use coordinación. Hay que acabar de definirlo con él. Primer borrador de lo que quiere evaluar:
+- Según el tipo de sesión (fundamentos individuales / juego colectivo / optimización): si el entrenador sigue las premisas de ese tipo de tarea (nº de jugadores, tipo de contenidos, dimensiones, partido final).
+- Parte inicial: si trabaja técnica y hábitos de juego; si hay correcciones; si hay demostración en los ejercicios.
+- Tareas principales: correcciones adecuadas, sin pausas excesivas, distancias y espacios adecuados.
+- Partido final: tiempo suficiente; dimensiones, formato y nº de jugadores que tocan; correcciones relacionadas con lo trabajado antes y con los elementos principales del sistema de juego.
+- Contenidos y tareas adecuados a la categoría y la etapa.
+- Que se atiendan todos los bloques (técnica, táctica individual y colectiva ofensiva/defensiva, balón parado, hábitos de juego) con tiempo suficiente (enlaza con el Control de contenidos).
+- Planificación: si planifica las sesiones, lleva los equipos preparados y las posibles correcciones preparadas.
+Ideas a consultar con él: evaluación de la sesión del TFM (4.8.11, escala 1–4 + decisión) como base.
+
