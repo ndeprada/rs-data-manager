@@ -47,7 +47,7 @@ function Card({ title, onMore, children, className = "" }) {
   );
 }
 
-export default function PlayerSummaryTab({ team, player, playerId, matchStats, attendance, injuries, onGoTab }) {
+export default function PlayerSummaryTab({ team, player, playerId, footMode = "hidden", matchStats, attendance, injuries, onGoTab }) {
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list() });
   const { allStats } = useCleanSheetData(player.position === "portero");
   const { data: goals = [] } = useQuery({
@@ -85,7 +85,7 @@ export default function PlayerSummaryTab({ team, player, playerId, matchStats, a
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <PlayerInfoCards player={player} />
+        <PlayerInfoCards player={player} footMode={footMode} />
         <PlayerAttributesBar playerId={playerId} position={player.position} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">

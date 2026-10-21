@@ -7,7 +7,7 @@
 import { query } from './db.js';
 import {
   permissionsOf, canManageTeamWith, checkRoleWrite, filterRoleRead, staffIdsOfUser,
-  MEDICAL_ENTITIES, PLAYER_EVAL_ENTITIES, COACH_EVAL_ENTITIES,
+  MEDICAL_ENTITIES, PLAYER_EVAL_ENTITIES, COACH_EVAL_ENTITIES, PLAYER_STAFF_FIELDS,
 } from '../../src/lib/permissions.js';
 
 const PERMISSION_FIELDS = new Set([
@@ -100,7 +100,12 @@ export function playerView(entity, doc, scope, userId) {
   switch (entity) {
     case 'Team': return doc;
     case 'Player': {
-      if (own) return doc;
+      if (own) {
+        // Su propia ficha completa, salvo lo que solo ve el cuerpo técnico (valoración de la pierna no hábil)
+        const mine = { ...doc };
+        for (const k of PLAYER_STAFF_FIELDS) delete mine[k];
+        return mine;
+      }
       if (teamId && doc.team_id === teamId) {
         const out = { id: doc.id };
         for (const k of TEAMMATE_FIELDS) if (doc[k] !== undefined) out[k] = doc[k];
@@ -178,7 +183,8 @@ export async function checkTeamWrite(user, entity, method, body, id) {
 }
 
 // ── Datos sensibles por función: médicos, evaluaciones de jugadores y evaluaciones de entrenadores ─────
-const ROLE_ENTITIES = new Set([...MEDICAL_ENTITIES, ...PLAYER_EVAL_ENTITIES, ...COACH_EVAL_ENTITIES]);
+// 'Player' entra para vigilar los campos que solo escribe el cuerpo técnico (pierna no hábil)
+const ROLE_ENTITIES = new Set([...MEDICAL_ENTITIES, ...PLAYER_EVAL_ENTITIES, ...COACH_EVAL_ENTITIES, 'Player']);
 
 const isStaffUser = (user) => !isAdmin(user) && !isPlayerUser(user) && user.app_role !== 'familiar';
 

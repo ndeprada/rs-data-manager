@@ -26,7 +26,8 @@ import DocumentsSection from "../components/player/DocumentsSection";
 import TrainingLoadSection from "../components/player/TrainingLoadSection";
 import PlayerSeasonHistorySection from "../components/player/PlayerSeasonHistorySection";
 import { getExtraPositions } from "@/lib/playerPositions";
-import { MiniPitch, FootIndicator } from "../components/player/PlayerPositionBadges";
+import { MiniPitch } from "../components/player/PlayerPositionBadges";
+import PlayerFoot from "../components/player/PlayerFoot";
 import PlayerSummaryTab from "../components/player/PlayerSummaryTab";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import ImageCropDialog from "@/components/ImageCropDialog";
@@ -169,6 +170,8 @@ export default function PlayerProfile() {
   const can = (tab) => playerMode || perms.canSeePlayerTab(tab);
   const visibleTabs = tabs.filter((t) => can(t.value));
   const staffEdit = !playerMode && perms.editPlayers;
+  // Pierna no hábil: valoración interna; el jugador no la ve, entrenadores y coordinación la editan
+  const footMode = playerMode ? "hidden" : perms.editPlayers ? "edit" : "view";
 
   return (
     <div className="min-h-screen" style={{ background: "#f5f5f5" }}>
@@ -226,7 +229,7 @@ export default function PlayerProfile() {
               {(player.position || player.laterality) && (
                 <div className="flex items-center gap-3 shrink-0 ml-1">
                   {player.position && <MiniPitch player={player} />}
-                  <FootIndicator laterality={player.laterality} />
+                  <PlayerFoot player={player} mode={footMode} />
                 </div>
               )}
             </div>
@@ -277,6 +280,7 @@ export default function PlayerProfile() {
               team={team}
               player={player}
               playerId={playerId}
+              footMode={footMode}
               matchStats={matchStats}
               attendance={playerAttendance}
               injuries={playerInjuries}

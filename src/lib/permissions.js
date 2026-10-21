@@ -15,6 +15,8 @@
 //   administration  pantallas de administración (accesos, temporada, personal…)
 //   panel, myTeam, tools  qué apartados del menú tiene (panel del club, Mi Equipo y herramientas)
 
+import { WEAK_FOOT_FIELD, isValidWeakFoot } from './weakFoot.js';
+
 export const DIRECCION = ['director', 'director_deportivo', 'coordinador_general'];
 export const COORD_ETAPA = ['coordinador_f7', 'coordinador_f11'];
 export const COORDINATORS = [...DIRECCION, ...COORD_ETAPA];
@@ -130,6 +132,8 @@ export function canManageTeamWith(perms, teamId, coachTeamIds = []) {
 export const MEDICAL_ENTITIES = new Set(['Injury', 'PlayerDocument']);
 export const PLAYER_EVAL_ENTITIES = new Set(['Evaluation360', 'PDI', 'PDIGoal']);
 export const COACH_EVAL_ENTITIES = new Set(['CoachFeedback', 'CoachPDI', 'CoachEval360', 'CoachMatchNote']);
+// Campos de la ficha del jugador que solo escribe quien puede editar fichas (entrenadores y coordinación)
+export const PLAYER_STAFF_FIELDS = [WEAK_FOOT_FIELD];
 
 // Datos de entrenadores que ve la propia persona (no los borradores)
 export function ownerCanSeeCoachDoc(entity, doc) {
@@ -180,6 +184,12 @@ export function staffIdsOfUser(user, users, staffList) {
 // ¿Puede esta persona escribir (crear, cambiar o borrar)? existing = documento actual (si lo hay), ownIds = sus ids de personal.
 export function checkRoleWrite({ perms, entity, method, body = {}, existing = null, ownIds = new Set() }) {
   if (perms.isAdmin) return { ok: true };
+  if (entity === 'Player') {
+    // Valoración de la pierna no hábil: solo entrenadores y coordinación, y con un valor de 1 a 5 (o vacío para quitarla)
+    if (body[WEAK_FOOT_FIELD] === undefined) return { ok: true };
+    if (!perms.editPlayers) return { ok: false, error: 'forbidden_role' };
+    return body[WEAK_FOOT_FIELD] === null || isValidWeakFoot(body[WEAK_FOOT_FIELD]) ? { ok: true } : { ok: false, error: 'invalid_value' };
+  }
   if (MEDICAL_ENTITIES.has(entity)) return perms.medical === 'edit' ? { ok: true } : { ok: false, error: 'forbidden_role' };
   if (PLAYER_EVAL_ENTITIES.has(entity)) return perms.playerEval === 'edit' ? { ok: true } : { ok: false, error: 'forbidden_role' };
   if (COACH_EVAL_ENTITIES.has(entity)) {

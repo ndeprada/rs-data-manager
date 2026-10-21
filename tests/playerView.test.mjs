@@ -32,4 +32,16 @@ assert.equal(off.cancelled, true);
 assert.equal(off.cancel_reason, 'lluvia');
 assert.equal(off.notes, undefined);
 
+// Su ficha: completa, salvo la valoración de la pierna no hábil (interna del cuerpo técnico)
+const me = { id: 'P1', first_name: 'Ulises', last_name: 'Martí', team_id: 'T1', laterality: 'diestro', weak_foot_rating: 2, phone: '600' };
+const mine = view('Player', me);
+assert.equal(mine.weak_foot_rating, undefined, 'el jugador no recibe la valoración de su pierna no hábil');
+assert.equal(mine.laterality, 'diestro');
+assert.equal(mine.phone, '600');
+assert.equal(me.weak_foot_rating, 2, 'no se toca el original');
+// Compañeros: solo los datos mínimos, nunca la valoración
+const mate = view('Player', { id: 'P2', first_name: 'Leo', team_id: 'T1', laterality: 'zurdo', weak_foot_rating: 5 });
+assert.equal(mate.weak_foot_rating, undefined);
+assert.equal(mate.laterality, undefined);
+
 console.log('playerView ok');

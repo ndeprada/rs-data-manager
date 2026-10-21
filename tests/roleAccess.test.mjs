@@ -60,6 +60,19 @@ assert.equal((await write(fisio, 'PDIGoal', 'POST', { player_id: 'p1' })).ok, fa
 assert.equal((await write(portero, 'Evaluation360', 'POST', { player_id: 'p1' })).ok, true, 'porteros evalúa');
 assert.equal((await write(ana, 'PlayerDocument', 'POST', {})).ok, true);
 
+// Pierna no hábil (ficha del jugador): la escriben entrenadores y coordinación, con un valor de 1 a 5 o vacío
+assert.equal((await write(ana, 'Player', 'PUT', { weak_foot_rating: 4 }, 'p1')).ok, true, 'un entrenador la valora');
+assert.equal((await write(ana, 'Player', 'PUT', { weak_foot_rating: null }, 'p1')).ok, true, 'y puede quitarla');
+assert.equal((await write(admin, 'Player', 'PUT', { weak_foot_rating: 2 }, 'p1')).ok, true, 'la coordinación también');
+assert.equal((await write(ana, 'Player', 'PUT', { weak_foot_rating: 6 }, 'p1')).ok, false, 'más de 5 no vale');
+assert.equal((await write(ana, 'Player', 'PUT', { weak_foot_rating: 0 }, 'p1')).ok, false);
+assert.equal((await write(ana, 'Player', 'PUT', { weak_foot_rating: '4' }, 'p1')).ok, false, 'solo números');
+assert.equal((await write(armand, 'Player', 'PUT', { weak_foot_rating: 3 }, 'p1')).ok, false, 'psicología no edita fichas');
+assert.equal((await write(portero, 'Player', 'PUT', { weak_foot_rating: 3 }, 'p1')).ok, false, 'ni el entrenador de porteros');
+assert.equal((await write(fisio, 'Player', 'PUT', { weak_foot_rating: 3 }, 'p1')).ok, false);
+assert.equal((await write(armand, 'Player', 'PUT', { phone: '600000000' }, 'p1')).ok, true, 'el resto de la ficha no cambia de reglas');
+assert.equal((await read(armand, 'Player', [{ id: 'p1', weak_foot_rating: 3 }]))[0].weak_foot_rating, 3, 'el resto del cuerpo técnico la ve');
+
 // Lo que no es de personal pasa tal cual: el jugador se filtra por su propia vía
 assert.equal((await read(jugador, 'Injury', injuries)).length, 1);
 assert.equal((await write(jugador, 'Injury', 'POST', {})).ok, true, 'la regla del jugador (solo lectura) la pone otra comprobación');

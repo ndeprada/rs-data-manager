@@ -1,5 +1,7 @@
 import React from "react";
+import { Star } from "lucide-react";
 import { LEVELS, getPositionList, getPitchXY, getPitchMarkers } from "@/lib/playerPositions";
+import { weakFootColor, weakSide, weakFootText } from "@/lib/weakFoot";
 
 const POSITION_FULL = {
   portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
@@ -48,10 +50,11 @@ export function MiniPitch({ player, position, secondaryPosition, laterality }) {
   );
 }
 
-function Foot({ side, active, inactive = "rgba(255,255,255,0.28)" }) {
+function Foot({ side, active, tint, inactive = "rgba(255,255,255,0.28)" }) {
   // Planta del pie: el dedo gordo mira hacia dentro (derecha en el pie izquierdo, izquierda en el derecho).
+  // tint = color de la valoración de la pierna no hábil (verde → rojo); manda sobre el resto.
   const dir = side === "left" ? 1 : -1;
-  const color = active ? GREEN : inactive;
+  const color = tint || (active ? GREEN : inactive);
   const toes = [
     { x: 7 * dir, y: 2, r: 3.2 }, { x: 2 * dir, y: -1, r: 2.2 }, { x: -2 * dir, y: -0.5, r: 2 },
     { x: -5.5 * dir, y: 1, r: 1.8 }, { x: -8.5 * dir, y: 3, r: 1.6 },
@@ -66,16 +69,37 @@ function Foot({ side, active, inactive = "rgba(255,255,255,0.28)" }) {
   );
 }
 
-export function FootIndicator({ laterality, light = false }) {
+// Cinco estrellas coloreadas según el dominio de la pierna no hábil (como el «pie malo» del FIFA)
+function WeakStars({ rating, light }) {
+  const color = weakFootColor(rating);
+  const empty = light ? "#d1d5db" : "rgba(255,255,255,0.3)";
+  return (
+    <div className="flex gap-px mt-0.5" aria-hidden="true">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star key={i} className="w-2.5 h-2.5" strokeWidth={1.5} style={i <= (rating || 0) ? { color, fill: color } : { color: empty, fill: "none" }} />
+      ))}
+    </div>
+  );
+}
+
+// weak = undefined → solo la lateralidad (como siempre; es lo que ve el jugador).
+// weak = { rating, editable } → muestra también la pierna no hábil: el pie malo toma el color de la valoración y
+// van debajo las estrellas. Sin valorar solo se dibujan las estrellas vacías si se puede editar (para invitar a rellenarlas).
+export function FootIndicator({ laterality, light = false, weak }) {
   if (!laterality) return null;
   const left = laterality === "zurdo" || laterality === "ambidiestro";
   const right = laterality === "diestro" || laterality === "ambidiestro";
+  const rating = weak?.rating || null;
+  const side = weakSide(laterality);
+  const tint = (s) => (rating && (laterality === "ambidiestro" || s === side) ? weakFootColor(rating) : null);
+  const title = LATERALITY_LABELS[laterality] + (weak && (rating || weak.editable) ? ` · ${weakFootText(rating)}` : "");
   return (
-    <div className="flex flex-col items-center" title={LATERALITY_LABELS[laterality]}>
+    <div className="flex flex-col items-center" title={title}>
       <div className="flex gap-1 items-end">
-        <Foot side="left" active={left} inactive={light ? "#d1d5db" : undefined} />
-        <Foot side="right" active={right} inactive={light ? "#d1d5db" : undefined} />
+        <Foot side="left" active={left} tint={tint("left")} inactive={light ? "#d1d5db" : undefined} />
+        <Foot side="right" active={right} tint={tint("right")} inactive={light ? "#d1d5db" : undefined} />
       </div>
+      {weak && (rating || weak.editable) && <WeakStars rating={rating} light={light} />}
       <span className={`text-[9px] leading-none mt-1 ${light ? "text-gray-500" : "text-white/60"}`}>{LATERALITY_LABELS[laterality]}</span>
     </div>
   );

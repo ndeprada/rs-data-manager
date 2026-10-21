@@ -3,7 +3,7 @@ import { Flag, countryOf } from "@/lib/countries";
 import React from "react";
 import { LEVELS, getPositionList, getPitchMarkers } from "@/lib/playerPositions";
 import { findRole } from "@/lib/competencyCatalog";
-import { FootIndicator } from "./PlayerPositionBadges";
+import PlayerFoot from "./PlayerFoot";
 import { Phone, Mail } from "lucide-react";
 
 const POSITION_LABELS = {
@@ -104,7 +104,7 @@ function FootballField({ player }) {
 
 const Label = ({ children }) => <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mb-0.5">{children}</p>;
 
-export default function PlayerInfoCards({ player }) {
+export default function PlayerInfoCards({ player, footMode = "hidden" }) {
   const birthYear = birthYearOf(player);
   const statusCls = player.status === "activo" ? "bg-green-100 text-green-700" : player.status === "lesionado" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700";
   const statusTxt = player.status === "activo" ? "Activo" : player.status === "lesionado" ? "Lesionado" : "Baja";
@@ -172,7 +172,7 @@ export default function PlayerInfoCards({ player }) {
               {player.laterality && (
                 <div>
                   <Label>Lateralidad</Label>
-                  <div className="w-fit"><FootIndicator laterality={player.laterality} light /></div>
+                  <div className="w-fit"><PlayerFoot player={player} light mode={footMode} /></div>
                 </div>
               )}
             </div>
