@@ -1,21 +1,23 @@
 import React, { useState } from "react";
 import { Phone, Mail, User, ChevronDown, ChevronUp } from "lucide-react";
 import { playerFullName } from "@/lib/playerName";
+import { useT, msg } from "@/i18n";
 
 const RELATIONSHIP_LABELS = {
-  padre: "Padre",
-  madre: "Madre",
-  tutor: "Tutor",
-  otro: "Contacto",
+  padre: msg("Padre"),
+  madre: msg("Madre"),
+  tutor: msg("Tutor"),
+  otro: msg("Contacto"),
 };
 
 export default function GuardianContactCard({ player }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
 
   const hasGuardian = player.guardian_name || player.guardian_phone || player.guardian_email;
   if (!hasGuardian) return null;
 
-  const relationship = RELATIONSHIP_LABELS[player.guardian_relationship] || "Tutor legal";
+  const relationship = t(RELATIONSHIP_LABELS[player.guardian_relationship] || msg("Tutor legal"));
 
   // Abre el programa de correo del usuario con el mensaje preparado (la app no envía emails por sí misma)
   const emailHref = player.guardian_email
@@ -34,7 +36,7 @@ export default function GuardianContactCard({ player }) {
           </div>
           <div>
             <p className="font-semibold text-gray-900 text-sm" style={{ fontFamily: "var(--font-display)" }}>
-              {player.guardian_name || "Tutor legal"}
+              {player.guardian_name || t("Tutor legal")}
             </p>
             <p className="text-xs text-gray-400">{relationship}</p>
           </div>
@@ -47,7 +49,7 @@ export default function GuardianContactCard({ player }) {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded text-white transition-opacity hover:opacity-80"
               style={{ background: "var(--granate)" }}
             >
-              <Phone className="w-3 h-3" /> Llamar
+              <Phone className="w-3 h-3" /> {t("Llamar")}
             </a>
           )}
           {emailHref && (
@@ -56,7 +58,7 @@ export default function GuardianContactCard({ player }) {
               onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
             >
-              <Mail className="w-3 h-3" /> Email
+              <Mail className="w-3 h-3" /> {t("Email")}
             </a>
           )}
           {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
@@ -67,13 +69,13 @@ export default function GuardianContactCard({ player }) {
         <div className="px-5 pb-4 border-t border-gray-100 pt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
           {player.guardian_name && (
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">Nombre</p>
+              <p className="text-xs text-gray-400 mb-0.5">{t("Nombre")}</p>
               <p className="font-medium text-gray-800">{player.guardian_name}</p>
             </div>
           )}
           {player.guardian_phone && (
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">Teléfono</p>
+              <p className="text-xs text-gray-400 mb-0.5">{t("Teléfono")}</p>
               <a href={`tel:${player.guardian_phone}`} className="font-medium hover:underline" style={{ color: "var(--granate)" }}>
                 {player.guardian_phone}
               </a>
@@ -81,7 +83,7 @@ export default function GuardianContactCard({ player }) {
           )}
           {player.guardian_email && (
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">Email</p>
+              <p className="text-xs text-gray-400 mb-0.5">{t("Email")}</p>
               <a href={`mailto:${player.guardian_email}`} className="font-medium hover:underline" style={{ color: "var(--granate)" }}>
                 {player.guardian_email}
               </a>

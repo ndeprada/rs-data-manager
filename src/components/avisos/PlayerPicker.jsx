@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { useT, msg } from "@/i18n";
 
 export const RELATIONS = [
-  { v: "padre", l: "Padre" }, { v: "madre", l: "Madre" }, { v: "tutor", l: "Tutor/a" }, { v: "otro_familiar", l: "Otro familiar" },
+  { v: "padre", l: msg("Padre") }, { v: "madre", l: msg("Madre") }, { v: "tutor", l: msg("Tutor/a") }, { v: "otro_familiar", l: msg("Otro familiar") },
 ];
 export const relLabel = (v) => RELATIONS.find((r) => r.v === v)?.l || v;
 
 // Buscador de jugador + parentesco. Llama a onPick({ player, relationship }).
-export default function PlayerPicker({ onPick, busy, buttonLabel = "Solicitar vínculo" }) {
+export default function PlayerPicker({ onPick, busy, buttonLabel = msg("Solicitar vínculo") }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const [results, setResults] = useState([]);
   const [player, setPlayer] = useState(null);
@@ -28,13 +30,13 @@ export default function PlayerPicker({ onPick, busy, buttonLabel = "Solicitar v�
             <p className="text-sm font-bold text-gray-900">{player.name}</p>
             <p className="text-[11px] text-gray-400">{player.team}{player.birth_year ? ` · ${player.birth_year}` : ""}</p>
           </div>
-          <button onClick={() => { setPlayer(null); setQ(""); }} className="text-xs text-gray-400 hover:text-gray-600">Cambiar</button>
+          <button onClick={() => { setPlayer(null); setQ(""); }} className="text-xs text-gray-400 hover:text-gray-600">{t("Cambiar")}</button>
         </div>
       ) : (
         <div>
           <div className="relative">
             <Search className="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nombre del jugador (mín. 3 letras)"
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Nombre del jugador (mín. 3 letras)")}
               className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2" />
           </div>
           {results.length > 0 && (
@@ -47,19 +49,19 @@ export default function PlayerPicker({ onPick, busy, buttonLabel = "Solicitar v�
               ))}
             </div>
           )}
-          {q.trim().length >= 3 && results.length === 0 && <p className="text-[11px] text-gray-400 mt-1">Sin resultados. Prueba con otro nombre o apellido.</p>}
+          {q.trim().length >= 3 && results.length === 0 && <p className="text-[11px] text-gray-400 mt-1">{t("Sin resultados. Prueba con otro nombre o apellido.")}</p>}
         </div>
       )}
       <div className="flex flex-wrap gap-1.5">
         {RELATIONS.map((r) => (
           <button key={r.v} type="button" onClick={() => setRel(r.v)}
             className={`px-3 py-1.5 rounded-full text-xs font-bold border ${rel === r.v ? "text-white border-transparent" : "bg-white text-gray-500 border-gray-200"}`}
-            style={rel === r.v ? { background: "var(--granate)" } : undefined}>{r.l}</button>
+            style={rel === r.v ? { background: "var(--granate)" } : undefined}>{t(r.l)}</button>
         ))}
       </div>
       <button disabled={!player || !rel || busy} onClick={() => onPick({ player, relationship: rel })}
         className="w-full py-2.5 rounded-full text-white font-bold uppercase text-xs tracking-wider disabled:opacity-40" style={{ background: "var(--granate)" }}>
-        {busy ? "Enviando..." : buttonLabel}
+        {busy ? t("Enviando...") : t(buttonLabel)}
       </button>
     </div>
   );

@@ -2,12 +2,13 @@ import React from "react";
 import { Star } from "lucide-react";
 import { LEVELS, getPositionList, getPitchXY, getPitchMarkers } from "@/lib/playerPositions";
 import { weakFootColor, weakSide, weakFootText } from "@/lib/weakFoot";
+import { useT, msg } from "@/i18n";
 
 const POSITION_FULL = {
-  portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
-  mediocentro: "Mediocentro", interior: "Interior", mediapunta: "Mediapunta", delantero_centro: "Delantero", extremo: "Extremo",
+  portero: msg("Portero"), lateral: msg("Lateral"), central: msg("Central"), libre: msg("Libre"),
+  mediocentro: msg("Mediocentro"), interior: msg("Interior"), mediapunta: msg("Mediapunta"), delantero_centro: msg("Delantero"), extremo: msg("Extremo"),
 };
-const LATERALITY_LABELS = { diestro: "Diestro", zurdo: "Zurdo", ambidiestro: "Ambidiestro" };
+const LATERALITY_LABELS = { diestro: msg("Diestro"), zurdo: msg("Zurdo"), ambidiestro: msg("Ambidiestro") };
 
 // Coordenadas base en el lado izquierdo (perfil del zurdo); en diestro/ambidiestro/sin dato se espejan
 // laterales, extremos e interiores al lado derecho, para ponerlos siempre en su perfil natural.
@@ -27,13 +28,14 @@ const GREEN = "#22c55e";
 const ORANGE = "#f59e0b";
 
 export function MiniPitch({ player, position, secondaryPosition, laterality }) {
+  const t = useT();
   const list = player ? getPositionList(player) : [{ position, level: "natural" }, ...(secondaryPosition ? [{ position: secondaryPosition, level: "secundaria" }] : [])];
   const lat = player ? player.laterality : laterality;
   const pts = player ? getPitchMarkers(player, lat) : list.map((x) => ({ ...x, c: getPitchXY(x.position, x.role, lat) })).filter((x) => x.c);
   if (!pts.length) return null;
   const order = { competente: 0, secundaria: 1, natural: 2 };
   pts.sort((a, b) => order[a.level] - order[b.level]);
-  const title = list.map((x) => `${POSITION_FULL[x.position] || x.position} (${LEVELS[x.level].label})`).join(" · ");
+  const title = list.map((x) => `${POSITION_FULL[x.position] ? t(POSITION_FULL[x.position]) : x.position} (${t(LEVELS[x.level].label)})`).join(" · ");
   const line = "rgba(255,255,255,0.45)";
   return (
     <svg viewBox="0 0 100 150" width="40" height="60" role="img" aria-label={title} style={{ display: "block" }}>
@@ -86,13 +88,14 @@ function WeakStars({ rating, light }) {
 // weak = { rating, editable } → muestra también la pierna no hábil: el pie malo toma el color de la valoración y
 // van debajo las estrellas. Sin valorar solo se dibujan las estrellas vacías si se puede editar (para invitar a rellenarlas).
 export function FootIndicator({ laterality, light = false, weak }) {
+  const t = useT();
   if (!laterality) return null;
   const left = laterality === "zurdo" || laterality === "ambidiestro";
   const right = laterality === "diestro" || laterality === "ambidiestro";
   const rating = weak?.rating || null;
   const side = weakSide(laterality);
   const tint = (s) => (rating && (laterality === "ambidiestro" || s === side) ? weakFootColor(rating) : null);
-  const title = LATERALITY_LABELS[laterality] + (weak && (rating || weak.editable) ? ` · ${weakFootText(rating)}` : "");
+  const title = t(LATERALITY_LABELS[laterality]) + (weak && (rating || weak.editable) ? ` · ${weakFootText(rating, t)}` : "");
   return (
     <div className="flex flex-col items-center" title={title}>
       <div className="flex gap-1 items-end">
@@ -100,7 +103,7 @@ export function FootIndicator({ laterality, light = false, weak }) {
         <Foot side="right" active={right} tint={tint("right")} inactive={light ? "#d1d5db" : undefined} />
       </div>
       {weak && (rating || weak.editable) && <WeakStars rating={rating} light={light} />}
-      <span className={`text-[9px] leading-none mt-1 ${light ? "text-gray-500" : "text-white/60"}`}>{LATERALITY_LABELS[laterality]}</span>
+      <span className={`text-[9px] leading-none mt-1 ${light ? "text-gray-500" : "text-white/60"}`}>{t(LATERALITY_LABELS[laterality])}</span>
     </div>
   );
 }

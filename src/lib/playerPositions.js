@@ -3,10 +3,12 @@
 // - extra_positions: [{ position, role, level }] con level "secundaria" (verde claro) o "competente" (naranja)
 // Compatibilidad: si solo existe el antiguo secondary_position, se trata como una secundaria sin rol.
 
+import { msg } from "../i18n/translate.js";
+
 export const LEVELS = {
-  natural: { label: "Natural", color: "#2ce65f", text: "#05341a", ink: "#15a03d" },
-  secundaria: { label: "Secundaria", color: "#7fa24f", text: "#0f1f0a", ink: "#5d7d36" },
-  competente: { label: "Competente", color: "#f5c60a", text: "#3b2f00", ink: "#a37c00" },
+  natural: { label: msg("Natural"), color: "#2ce65f", text: "#05341a", ink: "#15a03d" },
+  secundaria: { label: msg("Secundaria"), color: "#7fa24f", text: "#0f1f0a", ink: "#5d7d36" },
+  competente: { label: msg("Competente"), color: "#f5c60a", text: "#3b2f00", ink: "#a37c00" },
 };
 export const EXTRA_LEVELS = ["secundaria", "competente"];
 

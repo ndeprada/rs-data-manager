@@ -1,8 +1,10 @@
 import React from "react";
 import { Eye, Lock } from "lucide-react";
+import { useT } from "@/i18n";
 
 // Selector obligatorio: ¿lo puede ver el jugador? value: true | false | null (sin decidir)
 export function VisibilityField({ value, onChange, error }) {
+  const t = useT();
   const opt = (v, label, Icon, on) => (
     <button
       type="button"
@@ -14,24 +16,25 @@ export function VisibilityField({ value, onChange, error }) {
   );
   return (
     <div className={`rounded-lg border p-2.5 ${error && value == null ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50"}`}>
-      <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">¿Lo puede ver el jugador? *</p>
+      <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">{t("¿Lo puede ver el jugador? *")}</p>
       <div className="flex gap-2">
-        {opt(true, "Visible para el jugador", Eye, "bg-green-50 text-green-700 border-green-300")}
-        {opt(false, "Solo interno (borrador)", Lock, "bg-gray-100 text-gray-700 border-gray-400")}
+        {opt(true, t("Visible para el jugador"), Eye, "bg-green-50 text-green-700 border-green-300")}
+        {opt(false, t("Solo interno (borrador)"), Lock, "bg-gray-100 text-gray-700 border-gray-400")}
       </div>
-      {error && value == null && <p className="text-[11px] text-red-600 mt-1">Elige si el jugador podrá verlo.</p>}
+      {error && value == null && <p className="text-[11px] text-red-600 mt-1">{t("Elige si el jugador podrá verlo.")}</p>}
     </div>
   );
 }
 
 // Botón/etiqueta rápida para cambiar la visibilidad en las listas
 export function VisibilityBadge({ value, onToggle, readOnly }) {
+  const t = useT();
   const visible = value === true;
   const cls = visible ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-100 text-gray-500 border-gray-200";
-  const content = <>{visible ? <Eye className="w-3 h-3" /> : <Lock className="w-3 h-3" />}{visible ? "Visible" : "Interno"}</>;
+  const content = <>{visible ? <Eye className="w-3 h-3" /> : <Lock className="w-3 h-3" />}{visible ? t("Visible") : t("Interno")}</>;
   if (readOnly || !onToggle) return <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border ${cls}`}>{content}</span>;
   return (
-    <button type="button" onClick={(e) => { e.stopPropagation(); onToggle(!visible); }} title={visible ? "Visible para el jugador: pulsa para ocultar" : "Solo interno: pulsa para hacerlo visible al jugador"}
+    <button type="button" onClick={(e) => { e.stopPropagation(); onToggle(!visible); }} title={visible ? t("Visible para el jugador: pulsa para ocultar") : t("Solo interno: pulsa para hacerlo visible al jugador")}
       className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border hover:opacity-80 ${cls}`}>
       {content}
     </button>

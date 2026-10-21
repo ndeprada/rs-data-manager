@@ -1,9 +1,9 @@
 import React from "react";
 import { Home, Plane, ChevronRight, MapPin } from "lucide-react";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { scoreText, scoreTitle } from "@/lib/matchScore";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
+import { useT, useDateLocale, msg } from "@/i18n";
 
 // Convención de la app: score_home = goles de NUESTRO equipo, score_away = goles del rival.
 export function resultOf(m) {
@@ -12,6 +12,8 @@ export function resultOf(m) {
   return h > a ? "victoria" : h < a ? "derrota" : "empate";
 }
 
+const RESULT_LABEL = { victoria: msg("victoria"), empate: msg("empate"), derrota: msg("derrota") };
+
 const BADGE = {
   victoria: "bg-green-50 text-green-700 border-green-200",
   empate: "bg-gray-50 text-gray-600 border-gray-200",
@@ -19,15 +21,18 @@ const BADGE = {
 };
 
 export function HomeAwayIcon({ match, className = "w-4 h-4" }) {
+  const t = useT();
   const home = match.is_home !== false;
   return home ? (
-    <span title="Juegas en casa" className="inline-flex"><Home className={`${className} text-emerald-600`} /></span>
+    <span title={t("Juegas en casa")} className="inline-flex"><Home className={`${className} text-emerald-600`} /></span>
   ) : (
-    <span title="Juegas fuera" className="inline-flex"><Plane className={`${className} text-sky-600`} /></span>
+    <span title={t("Juegas fuera")} className="inline-flex"><Plane className={`${className} text-sky-600`} /></span>
   );
 }
 
 function Row({ m, onOpen }) {
+  const t = useT();
+  const locale = useDateLocale();
   const result = resultOf(m);
   const past = new Date(m.date) < new Date();
   return (
@@ -38,12 +43,12 @@ function Row({ m, onOpen }) {
     >
       <div className="w-10 text-center shrink-0">
         <p className="text-lg font-black leading-none" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{format(new Date(m.date), "d")}</p>
-        <p className="text-[10px] uppercase text-gray-400">{format(new Date(m.date), "MMM", { locale: es })}</p>
+        <p className="text-[10px] uppercase text-gray-400">{format(new Date(m.date), "MMM", { locale })}</p>
       </div>
       <HomeAwayIcon match={m} className="w-5 h-5 shrink-0" />
       {m.opponent_logo_url && <img src={m.opponent_logo_url} alt="" loading="lazy" className="w-7 h-7 object-contain shrink-0" />}
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-gray-900 truncate" style={{ fontFamily: "var(--font-display)" }}>{m.opponent ? `vs ${m.opponent}` : m.title}</p>
+        <p className="font-bold text-gray-900 truncate" style={{ fontFamily: "var(--font-display)" }}>{m.opponent ? t("vs {rival}", { rival: m.opponent }) : m.title}</p>
         <p className="text-xs text-gray-400 truncate flex items-center gap-1">
           <MapPin className="w-3 h-3 shrink-0" />{m.location || "—"} · {format(new Date(m.date), "HH:mm")}
         </p>
@@ -51,13 +56,13 @@ function Row({ m, onOpen }) {
       <div className="text-right shrink-0">
         {result ? (
           <>
-            <p className="text-xl font-black leading-none" style={{ fontFamily: "var(--font-display)" }} title={scoreTitle(m)}>{scoreText(m)}</p>
-            <span className={`inline-block mt-1 text-[10px] font-bold uppercase border px-2 py-0.5 rounded-sm ${BADGE[result]}`}>{result}</span>
+            <p className="text-xl font-black leading-none" style={{ fontFamily: "var(--font-display)" }} title={scoreTitle(m, undefined, t)}>{scoreText(m)}</p>
+            <span className={`inline-block mt-1 text-[10px] font-bold uppercase border px-2 py-0.5 rounded-sm ${BADGE[result]}`}>{t(RESULT_LABEL[result])}</span>
           </>
         ) : (
           isCancelled(m)
-          ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300" title={cancelText(m)}>{cancelText(m)}</span>
-          : <span className="text-xs text-gray-400">{past ? "Sin resultado" : "Próximo"}</span>
+          ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300" title={cancelText(m, t)}>{cancelText(m, t)}</span>
+          : <span className="text-xs text-gray-400">{past ? t("Sin resultado") : t("Próximo")}</span>
         )}
       </div>
       <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0" />
@@ -65,7 +70,8 @@ function Row({ m, onOpen }) {
   );
 }
 
-export default function MatchesTimeline({ matches, onOpen, title = "Partidos", count = 3 }) {
+export default function MatchesTimeline({ matches, onOpen, title, count = 3 }) {
+  const t = useT();
   const now = new Date();
   const upcoming = matches.filter((m) => new Date(m.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, count);
   const last = matches.filter((m) => new Date(m.date) < now && !isCancelled(m)).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, count);
@@ -73,21 +79,21 @@ export default function MatchesTimeline({ matches, onOpen, title = "Partidos", c
   return (
     <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
       <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-        <h2 className="font-black text-base uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{title}</h2>
+        <h2 className="font-black text-base uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{title || t("Partidos")}</h2>
         <div className="flex items-center gap-3 text-[11px] text-gray-500">
-          <span className="inline-flex items-center gap-1"><Home className="w-3.5 h-3.5 text-emerald-600" /> Casa</span>
-          <span className="inline-flex items-center gap-1"><Plane className="w-3.5 h-3.5 text-sky-600" /> Fuera</span>
+          <span className="inline-flex items-center gap-1"><Home className="w-3.5 h-3.5 text-emerald-600" /> {t("Casa")}</span>
+          <span className="inline-flex items-center gap-1"><Plane className="w-3.5 h-3.5 text-sky-600" /> {t("Fuera")}</span>
         </div>
       </div>
       {upcoming.length > 0 && (
         <div>
-          <p className="px-5 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">Próximos {upcoming.length}</p>
+          <p className="px-5 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("Próximos {n}", { n: upcoming.length })}</p>
           <div className="divide-y divide-gray-50">{upcoming.map((m) => <Row key={m.id} m={m} onOpen={onOpen} />)}</div>
         </div>
       )}
       {last.length > 0 && (
         <div className={upcoming.length ? "border-t border-gray-100" : ""}>
-          <p className="px-5 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">Últimos {last.length} jugados</p>
+          <p className="px-5 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("Últimos {n} jugados", { n: last.length })}</p>
           <div className="divide-y divide-gray-50">{last.map((m) => <Row key={m.id} m={m} onOpen={onOpen} />)}</div>
         </div>
       )}

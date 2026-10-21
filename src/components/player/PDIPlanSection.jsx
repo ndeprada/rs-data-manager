@@ -16,8 +16,9 @@ import F7PositionGuide from "@/components/player/F7PositionGuide";
 import { usePlayerMode } from "@/lib/playerMode";
 import { stageOf, f7Info, isF7Position, f7ContentOptions, F7_POSITIONS } from "@/lib/f7Positions";
 import { isF7Team } from "@/lib/teamOrder";
+import { useT, useFormat, msg } from "@/i18n";
 
-const STAGE_LABEL = { f7: "Fútbol 7", f11: "Fútbol 11" };
+const STAGE_LABEL = { f7: msg("Fútbol 7"), f11: msg("Fútbol 11") };
 const F7_GROUPS = ["tecnicas", "fisicas", "mentales"];
 
 // Competencias de otras posiciones (generales + clave de sus roles)
@@ -28,7 +29,7 @@ function otherPositionOptions(currentKey) {
     Object.entries(pos.groups).forEach(([group, items]) => {
       items.forEach((text, i) => out.push({ id: `${pk}.${group}.${i}`, source: "other", group: pk, groupLabel: pos.label, subLabel: GROUP_LABELS[group], text, roleLabel: pos.label }));
     });
-    pos.roles.forEach((r) => r.key.forEach((text, i) => out.push({ id: `${r.id}.key.${i}`, source: "other", group: pk, groupLabel: pos.label, subLabel: `Rol ${r.label}`, text, roleLabel: pos.label })));
+    pos.roles.forEach((r) => r.key.forEach((text, i) => out.push({ id: `${r.id}.key.${i}`, source: "other", group: pk, groupLabel: pos.label, subLabel: r.label, roleSub: true, text, roleLabel: pos.label })));
   });
   return out;
 }
@@ -39,6 +40,7 @@ function currentQuarter() {
 }
 
 function CompetencyPicker({ options, selectedId, onSelect, labelOf }) {
+  const t = useT();
   const [group, setGroup] = useState("all");
   const groups = [...new Set(options.map((o) => o.group))];
   const list = options.filter((o) => group === "all" || o.group === group);
@@ -54,13 +56,13 @@ function CompetencyPicker({ options, selectedId, onSelect, labelOf }) {
               className={`px-2.5 py-1 rounded-full text-xs border ${group === g ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`}
               style={group === g ? { background: "var(--granate)" } : {}}
             >
-              {g === "all" ? "Todas" : (labelOf ? labelOf(g) : GROUP_LABELS[g] || g)}
+              {g === "all" ? t("Todas") : (labelOf ? labelOf(g) : t(GROUP_LABELS[g] || g))}
             </button>
           ))}
         </div>
       )}
       <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-        {list.length === 0 && <p className="text-sm text-gray-400">No hay competencias.</p>}
+        {list.length === 0 && <p className="text-sm text-gray-400">{t("No hay competencias.")}</p>}
         {list.map((o) => (
           <button
             type="button"
@@ -68,8 +70,8 @@ function CompetencyPicker({ options, selectedId, onSelect, labelOf }) {
             onClick={() => onSelect(o)}
             className={`w-full text-left text-sm rounded-xl border px-3 py-2 transition-colors ${selectedId === o.id ? "border-[var(--granate)] bg-red-50" : "border-gray-200 hover:bg-gray-50"}`}
           >
-            <span className="block text-[10px] uppercase tracking-wider text-gray-400 mb-0.5">{o.subLabel ? `${o.groupLabel} · ${o.subLabel}` : (GROUP_LABELS[o.group] || "Rol de referencia")}</span>
-            {o.text}
+            <span className="block text-[10px] uppercase tracking-wider text-gray-400 mb-0.5">{o.subLabel ? `${t(o.groupLabel)} · ${o.roleSub ? t("Rol {rol}", { rol: t(o.subLabel) }) : t(o.subLabel)}` : t(GROUP_LABELS[o.group] || msg("Rol de referencia"))}</span>
+            {t(o.text)}
           </button>
         ))}
       </div>
@@ -78,8 +80,11 @@ function CompetencyPicker({ options, selectedId, onSelect, labelOf }) {
 }
 
 function GoalCard({ goal, onAdvance, onBack, onDelete, onToggleVisible, readOnly }) {
+  const t = useT();
+  const { tag: dateTag } = useFormat();
   const st = goal.status === "mejorado" ? "mejorado" : goal.status === "trabajando" ? "trabajando" : "a_mejorar";
-  const tag = goal.source === "role" ? `Rol · ${goal.role_label || ""}` : goal.source === "f7" ? `Contenido · ${goal.role_label || ""}` : goal.source === "other" ? `Otra posición · ${goal.role_label || ""}` : `General · ${GROUP_LABELS[goal.group] || ""}`;
+  const rl = goal.role_label ? t(goal.role_label) : "";
+  const tag = goal.source === "role" ? t("Rol · {rol}", { rol: rl }) : goal.source === "f7" ? t("Contenido · {rol}", { rol: rl }) : goal.source === "other" ? t("Otra posición · {rol}", { rol: rl }) : t("General · {grupo}", { grupo: GROUP_LABELS[goal.group] ? t(GROUP_LABELS[goal.group]) : "" });
   const tagCls = goal.source === "role" ? "bg-amber-100 text-amber-800" : goal.source === "f7" ? "bg-sky-100 text-sky-800" : goal.source === "other" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-600";
   const box = st === "mejorado" ? "border-green-200 bg-green-50/50" : st === "trabajando" ? "border-blue-200 bg-blue-50/40" : "border-gray-200 bg-white";
   return (
@@ -88,21 +93,21 @@ function GoalCard({ goal, onAdvance, onBack, onDelete, onToggleVisible, readOnly
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-1.5 mb-1">
             <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${tagCls}`}>{tag}</span>
-            {st === "trabajando" && <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">Trabajando</span>}
+            {st === "trabajando" && <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">{t("Trabajando")}</span>}
             {goal.period && <span className="text-[10px] text-gray-400">{goal.period}</span>}
             {!readOnly && <VisibilityBadge value={goal.visible_to_player} onToggle={(v) => onToggleVisible(goal, v)} />}
-            {st === "mejorado" && goal.improved_date && <span className="text-[10px] text-green-700">Mejorado el {new Date(goal.improved_date).toLocaleDateString("es-ES")}</span>}
+            {st === "mejorado" && goal.improved_date && <span className="text-[10px] text-green-700">{t("Mejorado el {fecha}", { fecha: new Date(goal.improved_date).toLocaleDateString(dateTag) })}</span>}
           </div>
-          <p className="text-sm text-gray-800">{goal.competency_text}</p>
-          {goal.objective && <p className="text-sm text-gray-600 mt-1.5"><strong>Objetivo:</strong> {goal.objective}</p>}
-          {goal.strategy && <p className="text-sm text-gray-600 mt-1"><strong>Cómo se trabaja:</strong> {goal.strategy}</p>}
-          {goal.evidence && <p className="text-sm text-gray-600 mt-1"><strong>Evidencia / comportamiento observado:</strong> {goal.evidence}</p>}
+          <p className="text-sm text-gray-800">{t(goal.competency_text)}</p>
+          {goal.objective && <p className="text-sm text-gray-600 mt-1.5"><strong>{t("Objetivo:")}</strong> {goal.objective}</p>}
+          {goal.strategy && <p className="text-sm text-gray-600 mt-1"><strong>{t("Cómo se trabaja:")}</strong> {goal.strategy}</p>}
+          {goal.evidence && <p className="text-sm text-gray-600 mt-1"><strong>{t("Evidencia / comportamiento observado:")}</strong> {goal.evidence}</p>}
         </div>
         {!readOnly && <div className="flex flex-col gap-1 shrink-0">
-          {st === "a_mejorar" && <button onClick={() => onAdvance(goal)} title="Empezar a trabajarlo" className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-700"><Play className="w-4 h-4" /></button>}
-          {st === "trabajando" && <button onClick={() => onAdvance(goal)} title="Marcar como mejorado" className="p-1.5 rounded-lg hover:bg-green-50 text-gray-500 hover:text-green-700"><CheckCircle2 className="w-4 h-4" /></button>}
-          {st !== "a_mejorar" && <button onClick={() => onBack(goal)} title={st === "mejorado" ? "Reabrir (a mejorar)" : "Volver a 'a mejorar'"} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"><RotateCcw className="w-4 h-4" /></button>}
-          <button onClick={() => onDelete(goal)} title="Eliminar" className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">
+          {st === "a_mejorar" && <button onClick={() => onAdvance(goal)} title={t("Empezar a trabajarlo")} className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-700"><Play className="w-4 h-4" /></button>}
+          {st === "trabajando" && <button onClick={() => onAdvance(goal)} title={t("Marcar como mejorado")} className="p-1.5 rounded-lg hover:bg-green-50 text-gray-500 hover:text-green-700"><CheckCircle2 className="w-4 h-4" /></button>}
+          {st !== "a_mejorar" && <button onClick={() => onBack(goal)} title={st === "mejorado" ? t("Reabrir (a mejorar)") : t("Volver a 'a mejorar'")} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"><RotateCcw className="w-4 h-4" /></button>}
+          <button onClick={() => onDelete(goal)} title={t("Eliminar")} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">
             <Trash2 className="w-4 h-4" />
           </button>
         </div>}
@@ -112,6 +117,7 @@ function GoalCard({ goal, onAdvance, onBack, onDelete, onToggleVisible, readOnly
 }
 
 export default function PDIPlanSection({ player, team }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const playerMode = usePlayerMode();
   const [visible, setVisible] = useState(null);
@@ -123,7 +129,7 @@ export default function PDIPlanSection({ player, team }) {
   const stage = stageOf(player, team ? isF7Team(team) : false);
   const isF7 = stage === "f7";
   const f7 = isF7 ? f7Info(player.position) : null; // posición de fútbol 7 con su descripción y contenidos
-  const posLabel = f7?.label || catalog?.label;
+  const posLabel = t(f7?.label || catalog?.label || "");
   const selectableAll = useMemo(() => getSelectableCompetencies(player.position, player.reference_role), [player.position, player.reference_role]);
   const selectable = useMemo(() => ({
     role: isF7 ? [] : selectableAll.role,
@@ -201,18 +207,18 @@ export default function PDIPlanSection({ player, team }) {
     return (
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Etapa:</span>
+          <span className="text-xs text-gray-500">{t("Etapa:")}</span>
           {["f7", "f11"].map((k) => (
             <button key={k} type="button" onClick={() => setStage.mutate(k)}
               className={`px-3 py-1 rounded-full text-xs font-semibold border ${stage === k ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`}
-              style={stage === k ? { background: "var(--granate)" } : {}}>{STAGE_LABEL[k]}</button>
+              style={stage === k ? { background: "var(--granate)" } : {}}>{t(STAGE_LABEL[k])}</button>
           ))}
-          {!player.pdi_stage && <span className="text-[10px] text-gray-400">(según el equipo)</span>}
+          {!player.pdi_stage && <span className="text-[10px] text-gray-400">{t("(según el equipo)")}</span>}
         </div>
         <p className="text-sm text-gray-500">
           {isF7Position(player.position)
-            ? <>«{f7Info(player.position).label}» es una posición de fútbol 7. Para planificar en fútbol 11, asigna una <strong>posición</strong> de esa etapa (botón Editar del perfil).</>
-            : <>Para planificar competencias por posición, asigna una <strong>posición</strong> al jugador (botón Editar del perfil).</>}
+            ? t("«{pos}» es una posición de fútbol 7. Para planificar en fútbol 11, asigna una posición de esa etapa (botón Editar del perfil).", { pos: t(f7Info(player.position).label) })
+            : t("Para planificar competencias por posición, asigna una posición al jugador (botón Editar del perfil).")}
         </p>
       </div>
     );
@@ -226,58 +232,58 @@ export default function PDIPlanSection({ player, team }) {
             <Target className="w-5 h-5" style={{ color: "var(--granate)" }} />
           </div>
           <div className="flex-1 min-w-[220px]">
-            <h3 className="font-semibold text-gray-900">Plan de Desarrollo Individual · competencias</h3>
+            <h3 className="font-semibold text-gray-900">{t("Plan de Desarrollo Individual · competencias")}</h3>
             <div className={`flex items-center gap-2 mt-2 ${playerMode ? "hidden" : ""}`}>
-              <span className="text-xs text-gray-500">Etapa:</span>
+              <span className="text-xs text-gray-500">{t("Etapa:")}</span>
               {["f7", "f11"].map((k) => (
                 <button key={k} type="button" onClick={() => setStage.mutate(k)}
                   className={`px-3 py-1 rounded-full text-xs font-semibold border ${stage === k ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`}
-                  style={stage === k ? { background: "var(--granate)" } : {}}>{STAGE_LABEL[k]}</button>
+                  style={stage === k ? { background: "var(--granate)" } : {}}>{t(STAGE_LABEL[k])}</button>
               ))}
-              {!player.pdi_stage && <span className="text-[10px] text-gray-400">(según el equipo)</span>}
+              {!player.pdi_stage && <span className="text-[10px] text-gray-400">{t("(según el equipo)")}</span>}
             </div>
-            {isF7 && !f7 && <p className="text-xs text-gray-500 mt-1">En Fútbol 7 la posición pesa poco: se trabajan sobre todo competencias técnicas, físicas y mentales.</p>}
+            {isF7 && !f7 && <p className="text-xs text-gray-500 mt-1">{t("En Fútbol 7 la posición pesa poco: se trabajan sobre todo competencias técnicas, físicas y mentales.")}</p>}
             <p className="text-sm text-gray-500 mt-1.5">
-              Posición: <strong>{posLabel}</strong>
-              {roleInfo && !isF7 ? <> · Rol de referencia: <strong>{roleInfo.role.label}</strong></> : null}
+              {t("Posición:")} <strong>{posLabel}</strong>
+              {roleInfo && !isF7 ? <> · {t("Rol de referencia:")} <strong>{t(roleInfo.role.label)}</strong></> : null}
             </p>
             {!roleInfo && !isF7 && !playerMode && (
               <div className="mt-2 max-w-xs">
-                <Label className="text-xs text-gray-500">Asigna un rol de referencia</Label>
+                <Label className="text-xs text-gray-500">{t("Asigna un rol de referencia")}</Label>
                 <Select value="" onValueChange={(v) => setRole.mutate(v)}>
-                  <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar rol" /></SelectTrigger>
+                  <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Seleccionar rol")} /></SelectTrigger>
                   <SelectContent>
-                    {getRoleOptions(player.position).map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                    {getRoleOptions(player.position).map((r) => <SelectItem key={r.value} value={r.value}>{t(r.label)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             )}
-            {roleInfo && !isF7 && <p className="text-xs text-gray-500 mt-1.5 max-w-2xl">{roleInfo.role.description}</p>}
+            {roleInfo && !isF7 && <p className="text-xs text-gray-500 mt-1.5 max-w-2xl">{t(roleInfo.role.description)}</p>}
           </div>
           {!playerMode && <Button variant="club" onClick={() => { setTab(roleInfo && !isF7 ? "role" : f7 ? "f7" : catalog ? "general" : "other"); setOpen(true); }} className="shrink-0">
-            <Plus className="w-4 h-4 mr-2" /> Añadir aspecto
+            <Plus className="w-4 h-4 mr-2" /> {t("Añadir aspecto")}
           </Button>}
         </div>
         {f7 && <F7PositionGuide player={player} className="mt-4 pt-4 border-t border-gray-100" />}
         {catalog && <button onClick={() => setShowRef(!showRef)} className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800">
-          <BookOpen className="w-3.5 h-3.5" /> Ver competencias de referencia {showRef ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          <BookOpen className="w-3.5 h-3.5" /> {t("Ver competencias de referencia")} {showRef ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
         </button>}
         {catalog && showRef && (
           <div className="mt-3 grid md:grid-cols-2 gap-4">
             {roleInfo && (
               <div className="rounded-xl bg-amber-50 border border-amber-100 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-amber-800 mb-2">Competencias clave · {roleInfo.role.label}</p>
-                <ul className="list-disc pl-4 space-y-1 text-sm text-gray-700">{roleInfo.role.key.map((t, i) => <li key={i}>{t}</li>)}</ul>
-                {roleInfo.role.contents?.length > 0 && <p className="text-xs text-gray-500 mt-3"><strong>Contenidos prioritarios:</strong> {roleInfo.role.contents.join(" · ")}</p>}
-                {roleInfo.role.references && <p className="text-xs text-gray-500 mt-1"><strong>Referencias:</strong> {roleInfo.role.references}</p>}
+                <p className="text-xs font-semibold uppercase tracking-wider text-amber-800 mb-2">{t("Competencias clave · {rol}", { rol: t(roleInfo.role.label) })}</p>
+                <ul className="list-disc pl-4 space-y-1 text-sm text-gray-700">{roleInfo.role.key.map((k, i) => <li key={i}>{t(k)}</li>)}</ul>
+                {roleInfo.role.contents?.length > 0 && <p className="text-xs text-gray-500 mt-3"><strong>{t("Contenidos prioritarios:")}</strong> {roleInfo.role.contents.map((c) => t(c)).join(" · ")}</p>}
+                {roleInfo.role.references && <p className="text-xs text-gray-500 mt-1"><strong>{t("Referencias:")}</strong> {t(roleInfo.role.references)}</p>}
               </div>
             )}
             <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 max-h-80 overflow-y-auto">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-600 mb-2">Competencias generales · {catalog.label}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-600 mb-2">{t("Competencias generales · {pos}", { pos: t(catalog.label) })}</p>
               {Object.entries(catalog.groups).map(([g, items]) => (
                 <div key={g} className="mb-3">
-                  <p className="text-[11px] font-semibold text-gray-500 mb-1">{GROUP_LABELS[g]}</p>
-                  <ul className="list-disc pl-4 space-y-1 text-sm text-gray-700">{items.map((t, i) => <li key={i}>{t}</li>)}</ul>
+                  <p className="text-[11px] font-semibold text-gray-500 mb-1">{t(GROUP_LABELS[g])}</p>
+                  <ul className="list-disc pl-4 space-y-1 text-sm text-gray-700">{items.map((k, i) => <li key={i}>{t(k)}</li>)}</ul>
                 </div>
               ))}
             </div>
@@ -288,85 +294,85 @@ export default function PDIPlanSection({ player, team }) {
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="font-semibold text-gray-900 flex items-center gap-2"><Target className="w-4 h-4 text-orange-500" /> Aspectos a mejorar <span className="text-xs text-gray-400">({toImprove.length}{active.length ? ` · ${active.length} trabajando` : ""})</span></h4>
+            <h4 className="font-semibold text-gray-900 flex items-center gap-2"><Target className="w-4 h-4 text-orange-500" /> {t("Aspectos a mejorar")} <span className="text-xs text-gray-400">({toImprove.length}{active.length ? ` · ${t("{n} trabajando", { n: active.length })}` : ""})</span></h4>
           </div>
           {toImprove.length > 3 && (
             <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg p-2 mb-3">
-              <AlertTriangle className="w-4 h-4 shrink-0" /> El método recomienda un máximo de 2–3 objetivos activos por trimestre. El resto quedan registrados sin intervención principal.
+              <AlertTriangle className="w-4 h-4 shrink-0" /> {t("El método recomienda un máximo de 2–3 objetivos activos por trimestre. El resto quedan registrados sin intervención principal.")}
             </div>
           )}
           <div className="space-y-2">
-            {toImprove.length === 0 ? <p className="text-sm text-gray-400">Aún no hay aspectos a mejorar.</p> : toImprove.map((g) => <GoalCard key={g.id} goal={g} onAdvance={advance} onBack={back} onDelete={(x) => remove.mutate(x.id)} onToggleVisible={toggleVisible} readOnly={playerMode} />)}
+            {toImprove.length === 0 ? <p className="text-sm text-gray-400">{t("Aún no hay aspectos a mejorar.")}</p> : toImprove.map((g) => <GoalCard key={g.id} goal={g} onAdvance={advance} onBack={back} onDelete={(x) => remove.mutate(x.id)} onToggleVisible={toggleVisible} readOnly={playerMode} />)}
           </div>
         </div>
         <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-          <h4 className="font-semibold text-gray-900 flex items-center gap-2 mb-3"><CheckCircle2 className="w-4 h-4 text-green-600" /> Trabajados y mejorados <span className="text-xs text-gray-400">({improved.length})</span></h4>
+          <h4 className="font-semibold text-gray-900 flex items-center gap-2 mb-3"><CheckCircle2 className="w-4 h-4 text-green-600" /> {t("Trabajados y mejorados")} <span className="text-xs text-gray-400">({improved.length})</span></h4>
           <div className="space-y-2">
-            {improved.length === 0 ? <p className="text-sm text-gray-400">Todavía no hay aspectos marcados como mejorados.</p> : improved.map((g) => <GoalCard key={g.id} goal={g} onAdvance={advance} onBack={back} onDelete={(x) => remove.mutate(x.id)} onToggleVisible={toggleVisible} readOnly={playerMode} />)}
+            {improved.length === 0 ? <p className="text-sm text-gray-400">{t("Todavía no hay aspectos marcados como mejorados.")}</p> : improved.map((g) => <GoalCard key={g.id} goal={g} onAdvance={advance} onBack={back} onDelete={(x) => remove.mutate(x.id)} onToggleVisible={toggleVisible} readOnly={playerMode} />)}
           </div>
         </div>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-white border-gray-200 max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader><DialogTitle className="text-gray-900">Añadir aspecto al PDI</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-gray-900">{t("Añadir aspecto al PDI")}</DialogTitle></DialogHeader>
           <form onSubmit={submit} className="space-y-4">
             <div className="flex gap-2">
               {roleInfo && !isF7 && (
                 <button type="button" onClick={() => { setTab("role"); setPicked(null); }} className={`px-3 py-1.5 rounded-lg text-sm border ${tab === "role" ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={tab === "role" ? { background: "var(--granate)" } : {}}>
-                  Rol: {roleInfo.role.label}
+                  {t("Rol: {rol}", { rol: t(roleInfo.role.label) })}
                 </button>
               )}
               {f7 && (
                 <button type="button" onClick={() => { setTab("f7"); setPicked(null); }} className={`px-3 py-1.5 rounded-lg text-sm border ${tab === "f7" ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={tab === "f7" ? { background: "var(--granate)" } : {}}>
-                  Contenidos: {f7.label}
+                  {t("Contenidos: {pos}", { pos: t(f7.label) })}
                 </button>
               )}
               {catalog && (
                 <button type="button" onClick={() => { setTab("general"); setPicked(null); }} className={`px-3 py-1.5 rounded-lg text-sm border ${tab === "general" ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={tab === "general" ? { background: "var(--granate)" } : {}}>
-                  Generales de {catalog.label}
+                  {t("Generales de {pos}", { pos: t(catalog.label) })}
                 </button>
               )}
               <button type="button" onClick={() => { setTab("other"); setPicked(null); }} className={`px-3 py-1.5 rounded-lg text-sm border ${tab === "other" ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`} style={tab === "other" ? { background: "#7e22ce" } : {}}>
-                {f7 ? "Contenidos de otras posiciones" : "Competencias de otras posiciones"}
+                {f7 ? t("Contenidos de otras posiciones") : t("Competencias de otras posiciones")}
               </button>
             </div>
-            {tab === "other" && <p className="text-xs text-purple-800 bg-purple-50 border border-purple-100 rounded-lg p-2">{f7 ? "Contenidos" : "Competencias"} de otras posiciones: quedarán marcados como «Otra posición».</p>}
+            {tab === "other" && <p className="text-xs text-purple-800 bg-purple-50 border border-purple-100 rounded-lg p-2">{f7 ? t("Contenidos de otras posiciones: quedarán marcados como «Otra posición».") : t("Competencias de otras posiciones: quedarán marcados como «Otra posición».")}</p>}
             <CompetencyPicker key={tab} options={tab === "role" ? selectable.role : tab === "other" ? others : tab === "f7" ? f7Own : selectable.general} selectedId={picked?.id} onSelect={setPicked}
-              labelOf={tab === "other" ? (g) => F7_POSITIONS[g]?.label || POSITION_CATALOG[g]?.label || g : undefined} />
+              labelOf={tab === "other" ? (g) => t(F7_POSITIONS[g]?.label || POSITION_CATALOG[g]?.label || g) : undefined} />
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-gray-700">Periodo</Label>
+                <Label className="text-gray-700">{t("Periodo")}</Label>
                 <Input value={form.period} onChange={(e) => setForm({ ...form, period: e.target.value })} className="border-gray-200" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-gray-700">Estado</Label>
+                <Label className="text-gray-700">{t("Estado")}</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                   <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="a_mejorar">A mejorar</SelectItem>
-                    <SelectItem value="trabajando">Trabajando</SelectItem>
-                    <SelectItem value="mejorado">Ya trabajado y mejorado</SelectItem>
+                    <SelectItem value="a_mejorar">{t("A mejorar")}</SelectItem>
+                    <SelectItem value="trabajando">{t("Trabajando")}</SelectItem>
+                    <SelectItem value="mejorado">{t("Ya trabajado y mejorado")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-gray-700">Objetivo individual (frase clara y específica)</Label>
+              <Label className="text-gray-700">{t("Objetivo individual (frase clara y específica)")}</Label>
               <Textarea rows={2} value={form.objective} onChange={(e) => setForm({ ...form, objective: e.target.value })} className="border-gray-200" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-gray-700">Estrategia de intervención (sesión de equipo, tarea complementaria, vídeo...)</Label>
+              <Label className="text-gray-700">{t("Estrategia de intervención (sesión de equipo, tarea complementaria, vídeo...)")}</Label>
               <Textarea rows={2} value={form.strategy} onChange={(e) => setForm({ ...form, strategy: e.target.value })} className="border-gray-200" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-gray-700">Comportamiento observable / evidencia</Label>
+              <Label className="text-gray-700">{t("Comportamiento observable / evidencia")}</Label>
               <Textarea rows={2} value={form.evidence} onChange={(e) => setForm({ ...form, evidence: e.target.value })} className="border-gray-200" />
             </div>
             <VisibilityField value={visible} onChange={setVisible} error={visError} />
             <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button variant="club" type="submit" disabled={!picked || create.isPending}>Añadir</Button>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>{t("Cancelar")}</Button>
+              <Button variant="club" type="submit" disabled={!picked || create.isPending}>{t("Añadir")}</Button>
             </div>
           </form>
         </DialogContent>

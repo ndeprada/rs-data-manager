@@ -36,23 +36,27 @@ import { playerFirstName, playerFullName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
 import { usePlayerMode } from "@/lib/playerMode";
 import { useAuth } from "@/lib/AuthContext";
+import { INJURY_TYPE_LABELS, BODY_PART_LABELS, labelOf } from "@/lib/injuryLabels";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import FamiliesSection from "@/components/player/FamiliesSection";
 import { PlayerMatchesReadOnly, PlayerInjuriesReadOnly, PlayerDocumentsReadOnly, PlayerHistoryReadOnly } from "@/components/player/PlayerReadOnlySections";
+import { useT, useFormat, msg } from "@/i18n";
 
 const POSITION_LABELS = {
-  portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
-  mediocentro: "Mediocentro", interior: "Interior", mediapunta: "Mediapunta", delantero_centro: "Delantero", extremo: "Extremo"
+  portero: msg("Portero"), lateral: msg("Lateral"), central: msg("Central"), libre: msg("Libre"),
+  mediocentro: msg("Mediocentro"), interior: msg("Interior"), mediapunta: msg("Mediapunta"), delantero_centro: msg("Delantero"), extremo: msg("Extremo")
 };
-const LATERALITY_LABELS = { diestro: "Diestro", zurdo: "Zurdo", ambidiestro: "Ambidiestro" };
+const LATERALITY_LABELS = { diestro: msg("Diestro"), zurdo: msg("Zurdo"), ambidiestro: msg("Ambidiestro") };
 
 const STATUS_CONFIG = {
-  activo:    { label: "Activo",    dot: "bg-green-400",  text: "text-green-700",  bg: "bg-green-50 border-green-200" },
-  lesionado: { label: "Lesionado", dot: "bg-orange-400", text: "text-orange-700", bg: "bg-orange-50 border-orange-200" },
-  baja:      { label: "Baja",      dot: "bg-red-400",    text: "text-red-700",    bg: "bg-red-50 border-red-200" },
+  activo:    { label: msg("Activo"),    dot: "bg-green-400",  text: "text-green-700",  bg: "bg-green-50 border-green-200" },
+  lesionado: { label: msg("Lesionado"), dot: "bg-orange-400", text: "text-orange-700", bg: "bg-orange-50 border-orange-200" },
+  baja:      { label: msg("Baja"),      dot: "bg-red-400",    text: "text-red-700",    bg: "bg-red-50 border-red-200" },
 };
 
 export default function PlayerProfile() {
+  const t = useT();
+  const fmt = useFormat();
   const urlParams = new URLSearchParams(window.location.search);
   const isPlayerAccount = usePlayerMode();
   const { user: authUser } = useAuth();
@@ -117,11 +121,11 @@ export default function PlayerProfile() {
     // return resolved so ImageCropDialog can close after completion
   };
 
-  if (!player && archLoading) return <p className="text-center py-20 text-sm text-gray-400">Cargando…</p>;
+  if (!player && archLoading) return <p className="text-center py-20 text-sm text-gray-400">{t("Cargando…")}</p>;
   if (!player) return (
     <div className="text-center py-20">
-      <p className="text-gray-500">Jugador no encontrado</p>
-      <Link to="/Players" className="text-sm font-medium mt-2 inline-block" style={{ color: "var(--granate)" }}>← Volver a jugadores</Link>
+      <p className="text-gray-500">{t("Jugador no encontrado")}</p>
+      <Link to="/Players" className="text-sm font-medium mt-2 inline-block" style={{ color: "var(--granate)" }}>{t("← Volver a jugadores")}</Link>
     </div>
   );
 
@@ -147,28 +151,28 @@ export default function PlayerProfile() {
 
   const isGK = player.position === "portero";
   const heroStats = [
-    { label: "PJ", value: partidos },
-    { label: "Min", value: totalMins > 0 ? `${totalMins.toLocaleString("es-ES")}'` : "0'" },
-    { label: "Goles", value: totalGoals },
-    isGK ? { label: "Porter. a 0", value: countCleanSheets(matchStats, allEvents, allMatchStats) } : { label: "Asist.", value: totalAssists },
-    { label: "Tarj.", value: yellowCards + redCards },
-    { label: "Asist. entr.", value: attendancePct !== null ? `${attendancePct}%` : "—" },
-    ...(playerMode ? [] : [{ label: "Nota", value: avgRating || "—" }]),
+    { label: msg("PJ"), value: partidos },
+    { label: msg("Min"), value: totalMins > 0 ? `${fmt.num(totalMins)}'` : "0'" },
+    { label: msg("Goles"), value: totalGoals },
+    isGK ? { label: msg("Porter. a 0"), value: countCleanSheets(matchStats, allEvents, allMatchStats) } : { label: msg("Asist."), value: totalAssists },
+    { label: msg("Tarj."), value: yellowCards + redCards },
+    { label: msg("Asist. entr."), value: attendancePct !== null ? `${attendancePct}%` : "—" },
+    ...(playerMode ? [] : [{ label: msg("Nota"), value: avgRating || "—" }]),
   ];
   const nextInjury = activeInjuries[0];
   const tabs = [
-    { value: "resumen", icon: <LayoutGrid className="w-3.5 h-3.5" />, label: "Resumen" },
-    { value: "stats", icon: <BarChart2 className="w-3.5 h-3.5" />, label: "Partidos" },
-    { value: "entrenos", icon: <Clock className="w-3.5 h-3.5" />, label: "Entrenos" },
-    { value: "pdi", icon: <BookOpen className="w-3.5 h-3.5" />, label: "PDI" },
-    { value: "injuries", icon: <HeartPulse className="w-3.5 h-3.5" />, label: "Médico" },
-    { value: "documents", icon: <FileText className="w-3.5 h-3.5" />, label: "Documentos" },
-    { value: "historial", icon: <History className="w-3.5 h-3.5" />, label: "Historial" },
+    { value: "resumen", icon: <LayoutGrid className="w-3.5 h-3.5" />, label: msg("Resumen") },
+    { value: "stats", icon: <BarChart2 className="w-3.5 h-3.5" />, label: msg("Partidos") },
+    { value: "entrenos", icon: <Clock className="w-3.5 h-3.5" />, label: msg("Entrenos") },
+    { value: "pdi", icon: <BookOpen className="w-3.5 h-3.5" />, label: msg("PDI") },
+    { value: "injuries", icon: <HeartPulse className="w-3.5 h-3.5" />, label: msg("Médico") },
+    { value: "documents", icon: <FileText className="w-3.5 h-3.5" />, label: msg("Documentos") },
+    { value: "historial", icon: <History className="w-3.5 h-3.5" />, label: msg("Historial") },
   ];
   const tabContentClass = "mt-0 focus-visible:outline-none focus-visible:ring-0";
   // Qué ve y qué puede cambiar cada función (el jugador ve su propia ficha como siempre)
   const can = (tab) => playerMode || perms.canSeePlayerTab(tab);
-  const visibleTabs = tabs.filter((t) => can(t.value));
+  const visibleTabs = tabs.filter((tb) => can(tb.value));
   const staffEdit = !playerMode && perms.editPlayers;
   // Pierna no hábil: valoración interna; el jugador no la ve, entrenadores y coordinación la editan
   const footMode = playerMode ? "hidden" : perms.editPlayers ? "edit" : "view";
@@ -180,14 +184,14 @@ export default function PlayerProfile() {
         <div className="px-4 sm:px-6 pt-3 pb-4">
           <div className="flex items-center justify-between mb-3">
             <Link to={perms.players === "all" || playerMode ? "/Players" : "/MyTeam/Squad"} onClick={(e) => { if (!playerMode && window.history.state?.idx > 0) { e.preventDefault(); navigate(-1); } }} className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm font-medium">
-              <ArrowLeft className="w-4 h-4" /> Volver
+              <ArrowLeft className="w-4 h-4" /> {t("Volver")}
             </Link>
             <div className={`flex gap-2 ${staffEdit ? "" : "hidden"}`}>
               <button onClick={() => setEditDialogOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-white/80 hover:text-white border border-white/20 hover:border-white/40 transition-all">
-                <Pencil className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Editar</span>
+                <Pencil className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{t("Editar")}</span>
               </button>
               <button onClick={() => setDeleteConfirm(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-red-300 hover:text-red-200 border border-red-400/30 hover:border-red-400/60 transition-all">
-                <Trash2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Eliminar</span>
+                <Trash2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{t("Eliminar")}</span>
               </button>
             </div>
           </div>
@@ -204,7 +208,7 @@ export default function PlayerProfile() {
                     </div>
                   )}
                 </div>
-                <button onClick={() => staffEdit && fileInputRef.current?.click()} className={`${staffEdit ? "" : "hidden"} absolute inset-0 rounded-xl flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer`} aria-label="Cambiar foto">
+                <button onClick={() => staffEdit && fileInputRef.current?.click()} className={`${staffEdit ? "" : "hidden"} absolute inset-0 rounded-xl flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer`} aria-label={t("Cambiar foto")}>
                   {uploading ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Camera className="w-5 h-5 text-white" />}
                 </button>
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
@@ -219,10 +223,10 @@ export default function PlayerProfile() {
                 </h1>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-white/70">
                   {team && <span className="inline-flex items-center gap-1"><Shield className="w-3 h-3" style={{ color: "#FF6E00" }} />{team.name}</span>}
-                  {player.position && <span>· {POSITION_LABELS[player.position] || player.position}{getExtraPositions(player).map((e) => ` / ${POSITION_LABELS[e.position] || e.position}`).join("")}</span>}
-                  {age && <span>· Nac. {age}</span>}
+                  {player.position && <span>· {POSITION_LABELS[player.position] ? t(POSITION_LABELS[player.position]) : player.position}{getExtraPositions(player).map((e) => ` / ${POSITION_LABELS[e.position] ? t(POSITION_LABELS[e.position]) : e.position}`).join("")}</span>}
+                  {age && <span>· {t("Nac.")} {age}</span>}
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${st.bg} ${st.text}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} /> {st.label}
+                    <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} /> {t(st.label)}
                   </span>
                 </div>
               </div>
@@ -238,7 +242,7 @@ export default function PlayerProfile() {
               {heroStats.map(({ label, value }) => (
                 <div key={label} className="px-1">
                   <p className="text-base sm:text-lg font-black text-white leading-none">{value}</p>
-                  <p className="text-[10px] text-white/50 mt-1 leading-tight">{label}</p>
+                  <p className="text-[10px] text-white/50 mt-1 leading-tight">{t(label)}</p>
                 </div>
               ))}
             </div>
@@ -249,8 +253,8 @@ export default function PlayerProfile() {
           <button onClick={() => setTab("injuries")} className="w-full flex items-center gap-2 px-4 sm:px-6 py-1.5 text-xs text-left" style={{ background: "#fef2f2", color: "#b91c1c" }}>
             <HeartPulse className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">
-              Lesión activa{nextInjury.type ? `: ${nextInjury.type}` : ""}{nextInjury.body_part ? ` · ${nextInjury.body_part}` : ""}
-              {nextInjury.expected_return ? ` · alta prevista ${new Date(nextInjury.expected_return).toLocaleDateString("es", { day: "numeric", month: "short" })}` : ""}
+              {t("Lesión activa")}{nextInjury.type ? `: ${labelOf(INJURY_TYPE_LABELS, nextInjury.type, t).toLowerCase()}` : ""}{nextInjury.body_part ? ` · ${labelOf(BODY_PART_LABELS, nextInjury.body_part, t).toLowerCase()}` : ""}
+              {nextInjury.expected_return ? ` · ${t("alta prevista")} ${new Date(nextInjury.expected_return).toLocaleDateString(fmt.tag, { day: "numeric", month: "short" })}` : ""}
               {activeInjuries.length > 1 ? ` (+${activeInjuries.length - 1})` : ""}
             </span>
           </button>
@@ -262,14 +266,14 @@ export default function PlayerProfile() {
         <Tabs value={tab} onValueChange={setTab}>
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-4">
             <TabsList className="w-full bg-transparent p-0 h-auto border-b border-gray-100 flex rounded-none overflow-x-auto">
-              {visibleTabs.map((t) => (
+              {visibleTabs.map((tb) => (
                 <TabsTrigger
-                  key={t.value}
-                  value={t.value}
+                  key={tb.value}
+                  value={tb.value}
                   className="flex-1 min-w-0 rounded-none border-b-2 border-transparent px-1.5 sm:px-2 py-3 text-xs font-semibold text-gray-500 transition-all gap-1.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-[#73000A] data-[state=active]:text-[#73000A]"
                 >
-                  {t.icon}
-                  <span className="hidden md:inline">{t.label}</span>
+                  {tb.icon}
+                  <span className="hidden md:inline">{t(tb.label)}</span>
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -308,7 +312,7 @@ export default function PlayerProfile() {
               <Evaluation360Section player={player} playerId={playerId} team={team} />
               <PDIPlanSection player={player} team={team} />
               {!playerMode && <details className="bg-white border border-gray-200 rounded-2xl shadow-sm">
-                <summary className="px-5 py-3 cursor-pointer text-sm font-semibold text-gray-600">Evaluaciones antiguas (texto libre)</summary>
+                <summary className="px-5 py-3 cursor-pointer text-sm font-semibold text-gray-600">{t("Evaluaciones antiguas (texto libre)")}</summary>
                 <div className="px-4 pb-4">
                   <PDISection readOnly playerId={playerId} playerName={`${playerFullName(player)}`} playerEmail={player.email} />
                 </div>
@@ -319,7 +323,7 @@ export default function PlayerProfile() {
           {can("injuries") && <TabsContent value="injuries" className={tabContentClass}>
             {playerMode || perms.medical !== "edit" ? <PlayerInjuriesReadOnly playerId={playerId} /> : <div className="space-y-4">
               <Button variant="club" onClick={() => setInjuryDialogOpen(true)} className="w-full">
-                <Plus className="w-4 h-4 mr-2" /> Registrar lesión
+                <Plus className="w-4 h-4 mr-2" /> {t("Registrar lesión")}
               </Button>
               <InjurySection
                 playerId={playerId}
@@ -349,12 +353,12 @@ export default function PlayerProfile() {
       <AlertDialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar jugador?</AlertDialogTitle>
-            <AlertDialogDescription>Se eliminará a {playerFullName(player)} y todos sus datos. Esta acción no se puede deshacer.</AlertDialogDescription>
+            <AlertDialogTitle>{t("¿Eliminar jugador?")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("Se eliminará a {nombre} y todos sus datos. Esta acción no se puede deshacer.", { nombre: playerFullName(player) })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-red-600 hover:bg-red-700 text-white">{t("Eliminar")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

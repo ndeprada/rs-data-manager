@@ -12,7 +12,7 @@ assert.equal(tact.items, GK_TACTICAL_ITEMS);
 assert.equal(tact.pendingReview, true);
 assert.equal(GK_TACTICAL_ITEMS.length, 8);
 assert.ok(!tact.items.some((i) => ['presion', 'colocacion', 'transiciones', 'desmarques'].includes(i.id)));
-assert.ok(GK_TACTICAL_ITEMS.every((i) => i.competency && i.competency.length > 20), 'cada ítem enlaza con una competencia del catálogo');
+assert.ok(GK_TACTICAL_ITEMS.every((i) => i.competency && [].concat(i.competency).join(' ').length > 20), 'cada ítem enlaza con una competencia del catálogo');
 assert.equal(new Set([...GK_TACTICAL_ITEMS, ...GK_TECH_ITEMS].map((i) => i.id)).size, GK_TACTICAL_ITEMS.length + GK_TECH_ITEMS.length, 'ids únicos');
 assert.equal(gk.find((a) => a.key === 'tecnica').items, GK_TECH_ITEMS);
 assert.equal(gk.find((a) => a.key === 'fisica').items, AREAS.find((a) => a.key === 'fisica').items);

@@ -2,14 +2,16 @@
 // Es una valoración interna del cuerpo técnico: el jugador no la recibe (ver playerView en api/_lib/access.js).
 // Un jugador ambidiestro cuenta siempre con 5 estrellas, sin necesidad de rellenarlo.
 
+import { msg, interpolate } from '../i18n/translate.js';
+
 export const WEAK_FOOT_FIELD = 'weak_foot_rating';
 
 export const WEAK_FOOT_LEVELS = {
-  5: { label: 'Ambidiestro', hint: 'Juega igual con las dos piernas', color: '#22c55e' },
-  4: { label: 'Muy buena', hint: 'La usa con confianza y con calidad', color: '#84cc16' },
-  3: { label: 'Normal', hint: 'Correcta: resuelve sin problemas', color: '#eab308' },
-  2: { label: 'Floja', hint: 'La evita o pierde calidad', color: '#f97316' },
-  1: { label: 'Muy floja', hint: 'Casi no la usa', color: '#ef4444' },
+  5: { label: msg('Ambidiestro'), hint: msg('Juega igual con las dos piernas'), color: '#22c55e' },
+  4: { label: msg('Muy buena'), hint: msg('La usa con confianza y con calidad'), color: '#84cc16' },
+  3: { label: msg('Normal'), hint: msg('Correcta: resuelve sin problemas'), color: '#eab308' },
+  2: { label: msg('Floja'), hint: msg('La evita o pierde calidad'), color: '#f97316' },
+  1: { label: msg('Muy floja'), hint: msg('Casi no la usa'), color: '#ef4444' },
 };
 
 export const isValidWeakFoot = (v) => Number.isInteger(v) && v >= 1 && v <= 5;
@@ -32,6 +34,9 @@ export function weakSide(laterality) {
   return null;
 }
 
-export function weakFootText(rating) {
-  return isValidWeakFoot(rating) ? `Pierna no hábil: ${weakFootLabel(rating)} (${rating}/5)` : 'Pierna no hábil: sin valorar';
+// t = función de traducción (opcional): sin ella sale en español
+export function weakFootText(rating, t = interpolate) {
+  return isValidWeakFoot(rating)
+    ? t('Pierna no hábil: {nivel} ({n}/5)', { nivel: t(weakFootLabel(rating)), n: rating })
+    : t('Pierna no hábil: sin valorar');
 }

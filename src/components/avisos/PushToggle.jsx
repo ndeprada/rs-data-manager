@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Bell, BellOff, Smartphone } from "lucide-react";
 import { pushState, enablePush, disablePush } from "@/lib/push";
+import { useT, msg } from "@/i18n";
 
 // Botón para activar los avisos en este móvil/ordenador. Explica qué falta si no se puede.
 export default function PushToggle() {
+  const t = useT();
   const [state, setState] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -15,7 +17,7 @@ export default function PushToggle() {
     setBusy(true); setError("");
     try {
       if (state === "on") await disablePush(); else await enablePush();
-    } catch (e) { setError(e.message || "No se pudo cambiar"); }
+    } catch (e) { setError(e.message || msg("No se pudo cambiar")); }
     await refresh();
     setBusy(false);
   };
@@ -27,29 +29,29 @@ export default function PushToggle() {
     return (
       <div className={box}>
         <Smartphone className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" />
-        <p className="text-xs text-gray-500">Para recibir avisos en iPhone, primero instala la app: <b>Compartir → «Añadir a pantalla de inicio»</b> y ábrela desde el icono.</p>
+        <p className="text-xs text-gray-500">{t("Para recibir avisos en iPhone, primero instala la app:")} <b>{t("Compartir → «Añadir a pantalla de inicio»")}</b> {t("y ábrela desde el icono.")}</p>
       </div>
     );
   }
   if (state === "unsupported") {
-    return <div className={box}><BellOff className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" /><p className="text-xs text-gray-500">Este navegador no admite avisos. Prueba con Chrome (Android) o con la app instalada (iPhone).</p></div>;
+    return <div className={box}><BellOff className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" /><p className="text-xs text-gray-500">{t("Este navegador no admite avisos. Prueba con Chrome (Android) o con la app instalada (iPhone).")}</p></div>;
   }
   if (state === "denied") {
-    return <div className={box}><BellOff className="w-5 h-5 text-red-400 shrink-0 mt-0.5" /><p className="text-xs text-gray-500">Has bloqueado las notificaciones para esta app. Actívalas en los ajustes del navegador o del móvil.</p></div>;
+    return <div className={box}><BellOff className="w-5 h-5 text-red-400 shrink-0 mt-0.5" /><p className="text-xs text-gray-500">{t("Has bloqueado las notificaciones para esta app. Actívalas en los ajustes del navegador o del móvil.")}</p></div>;
   }
   const on = state === "on";
   return (
     <div className={box}>
       {on ? <Bell className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "var(--granate)" }} /> : <BellOff className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" />}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-gray-900">{on ? "Avisos activados en este dispositivo" : "Avisos desactivados"}</p>
-        <p className="text-xs text-gray-400">{on ? "Recibirás los avisos del club en este móvil." : "Actívalos para recibir los avisos del club en este móvil."}</p>
-        {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+        <p className="text-sm font-bold text-gray-900">{on ? t("Avisos activados en este dispositivo") : t("Avisos desactivados")}</p>
+        <p className="text-xs text-gray-400">{on ? t("Recibirás los avisos del club en este móvil.") : t("Actívalos para recibir los avisos del club en este móvil.")}</p>
+        {error && <p className="text-xs text-red-600 mt-1">{t(error)}</p>}
       </div>
       <button onClick={toggle} disabled={busy}
         className={`shrink-0 text-xs font-bold uppercase tracking-wider px-3 py-2 rounded-full disabled:opacity-40 ${on ? "border border-gray-200 text-gray-500" : "text-white"}`}
         style={on ? undefined : { background: "var(--granate)" }}>
-        {busy ? "..." : on ? "Desactivar" : "Activar"}
+        {busy ? "..." : on ? t("Desactivar") : t("Activar")}
       </button>
     </div>
   );

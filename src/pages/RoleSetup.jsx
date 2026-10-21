@@ -11,19 +11,22 @@ import { invalidStaffFields, joinFullName, splitFullName, STAFF_REQUIRED_LABELS 
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 import PlayerPicker from "@/components/avisos/PlayerPicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useT, useFormat, msg, LanguageSelector } from "@/i18n";
 
 const FONT = { fontFamily: "var(--font-display)" };
 
 function Shell({ children }) {
+  const t = useT();
   return (
     <div
       className="min-h-screen flex items-center justify-center bg-[#f5f5f5] p-4"
       style={{ "--granate": "#73000A", "--naranja": "#FF6E00", "--font-display": "'IBM Plex Sans Condensed', sans-serif" }}
     >
       <div className="w-full max-w-md">
+        <div className="flex justify-end mb-2"><LanguageSelector variant="names" /></div>
         <div className="text-center mb-6">
-          <img src={CLUB_LOGO_URL} alt="RS Club" className="w-14 h-14 object-contain mx-auto mb-4" />
-          <h1 className="text-3xl font-black uppercase tracking-wider" style={{ color: "var(--granate)", ...FONT }}>RS Manager</h1>
+          <img src={CLUB_LOGO_URL} alt={t("RS Club")} className="w-14 h-14 object-contain mx-auto mb-4" />
+          <h1 className="text-3xl font-black uppercase tracking-wider" style={{ color: "var(--granate)", ...FONT }}>{t("RS Manager")}</h1>
         </div>
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-6 sm:p-8">{children}</div>
       </div>
@@ -32,13 +35,14 @@ function Shell({ children }) {
 }
 
 function LogoutButton({ logout }) {
+  const t = useT();
   return (
     <button
       onClick={() => logout()}
       className="w-full flex items-center justify-center gap-2 py-2.5 rounded-sm border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors font-bold uppercase text-sm tracking-wider"
       style={FONT}
     >
-      <LogOut className="w-4 h-4" /> Cerrar sesión
+      <LogOut className="w-4 h-4" /> {t("Cerrar sesión")}
     </button>
   );
 }
@@ -49,6 +53,8 @@ const optionClass = (selected) =>
   }`;
 
 export default function RoleSetup() {
+  const t = useT();
+  const fmt = useFormat();
   const { user, logout, refreshUser } = useAuth();
   const [step, setStep] = useState("type"); // type | jugador | staff
   const [fn, setFn] = useState("");
@@ -87,8 +93,8 @@ export default function RoleSetup() {
       await refreshUser();
     } catch (e) {
       setError(e?.data?.error === "missing_fields"
-        ? `Revisa estos datos: ${(e.data.fields || []).map((k) => (STAFF_REQUIRED_LABELS[k] || k).toLowerCase()).join(", ")}.`
-        : "No se ha podido enviar la solicitud. Inténtalo de nuevo.");
+        ? t("Revisa estos datos: {campos}.", { campos: (e.data.fields || []).map((k) => t(STAFF_REQUIRED_LABELS[k] || k).toLowerCase()).join(", ") })
+        : t("No se ha podido enviar la solicitud. Inténtalo de nuevo."));
       setSubmitting(false);
     }
   };
@@ -112,7 +118,7 @@ export default function RoleSetup() {
       await base44.club.requestLink(player.id, relationship);
       await refreshUser();
     } catch {
-      setError("No se ha podido enviar la solicitud. Inténtalo de nuevo.");
+      setError(t("No se ha podido enviar la solicitud. Inténtalo de nuevo."));
       setSubmitting(false);
     }
   };
@@ -127,7 +133,7 @@ export default function RoleSetup() {
 
   const phoneField = (
     <div className="mb-5">
-      <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Teléfono (opcional)</label>
+      <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{t("Teléfono (opcional)")}</label>
       <input
         type="tel"
         value={phone}
@@ -141,27 +147,27 @@ export default function RoleSetup() {
     return (
       <Shell>
         <h2 className="text-xl font-black uppercase mb-1" style={{ color: "var(--granate)", ...FONT }}>
-          Hola{user?.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}
+          {t("Hola")}{user?.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}
         </h2>
-        <p className="text-gray-500 text-sm mb-4">Para solicitar acceso, dinos de dónde eres y quién eres en el club.</p>
+        <p className="text-gray-500 text-sm mb-4">{t("Para solicitar acceso, dinos de dónde eres y quién eres en el club.")}</p>
         <div className="mb-4">
-          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">País de nacimiento *</label>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{t("País de nacimiento *")}</label>
           <Select value={country} onValueChange={(v) => { setCountry(v); setProvince(""); }}>
-            <SelectTrigger className="border-gray-300"><SelectValue placeholder="Selecciona tu país" /></SelectTrigger>
+            <SelectTrigger className="border-gray-300"><SelectValue placeholder={t("Selecciona tu país")} /></SelectTrigger>
             <SelectContent className="max-h-72">
-              {COUNTRIES.map((c) => <SelectItem key={c.a3} value={c.a3}>{c.name}</SelectItem>)}
+              {COUNTRIES.map((c) => <SelectItem key={c.a3} value={c.a3}>{fmt.country(c.a2, c.name)}</SelectItem>)}
             </SelectContent>
           </Select>
           {country === "ESP" && (
             <Select value={province} onValueChange={setProvince}>
-              <SelectTrigger className="border-gray-300 mt-2"><SelectValue placeholder="Provincia de nacimiento" /></SelectTrigger>
+              <SelectTrigger className="border-gray-300 mt-2"><SelectValue placeholder={t("Provincia de nacimiento")} /></SelectTrigger>
               <SelectContent className="max-h-72">
                 {PROVINCES.map((p) => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
           )}
           {country && (
-            <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ciudad / municipio de nacimiento"
+            <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder={t("Ciudad / municipio de nacimiento")}
               className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm mt-2 focus:outline-none focus:ring-2" />
           )}
         </div>
@@ -169,23 +175,23 @@ export default function RoleSetup() {
           <button onClick={() => setStep("staff")} className={`${optionClass(false)} flex items-center gap-3`}>
             <ClipboardList className="w-6 h-6 shrink-0" style={{ color: "var(--granate)" }} />
             <span>
-              <span className="block font-bold">Cuerpo técnico</span>
-              <span className="block text-xs text-gray-400 font-normal">Entrenador, coordinador, preparador, porteros…</span>
+              <span className="block font-bold">{t("Cuerpo técnico")}</span>
+              <span className="block text-xs text-gray-400 font-normal">{t("Entrenador, coordinador, preparador, porteros…")}</span>
             </span>
           </button>
           <button onClick={() => setStep("jugador")} className={`${optionClass(false)} flex items-center gap-3`}>
             <UserRound className="w-6 h-6 shrink-0" style={{ color: "var(--granate)" }} />
             <span>
-              <span className="block font-bold">Jugador</span>
-              <span className="block text-xs text-gray-400 font-normal">Soy jugador del club</span>
+              <span className="block font-bold">{t("Jugador")}</span>
+              <span className="block text-xs text-gray-400 font-normal">{t("Soy jugador del club")}</span>
             </span>
           </button>
         </div>
         <button onClick={() => setStep("familiar")} className={`${optionClass(false)} flex items-center gap-3 mb-6`}>
           <Users className="w-6 h-6 shrink-0" style={{ color: "var(--granate)" }} />
           <span>
-            <span className="block font-bold">Familiar de un jugador</span>
-            <span className="block text-xs text-gray-400 font-normal">Padre, madre, tutor u otro familiar</span>
+            <span className="block font-bold">{t("Familiar de un jugador")}</span>
+            <span className="block text-xs text-gray-400 font-normal">{t("Padre, madre, tutor u otro familiar")}</span>
           </span>
         </button>
         <LogoutButton logout={logout} />
@@ -195,7 +201,7 @@ export default function RoleSetup() {
 
   const back = (
     <button onClick={() => setStep("type")} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mb-3">
-      <ArrowLeft className="w-3.5 h-3.5" /> Volver
+      <ArrowLeft className="w-3.5 h-3.5" /> {t("Volver")}
     </button>
   );
 
@@ -203,11 +209,11 @@ export default function RoleSetup() {
     return (
       <Shell>
         {back}
-        <h2 className="text-xl font-black uppercase mb-1" style={{ color: "var(--granate)", ...FONT }}>Soy familiar</h2>
-        <p className="text-gray-500 text-sm mb-5">Busca al jugador y dinos qué parentesco tienes. El club revisará la solicitud antes de activarla. Luego podrás vincular a más jugadores.</p>
+        <h2 className="text-xl font-black uppercase mb-1" style={{ color: "var(--granate)", ...FONT }}>{t("Soy familiar")}</h2>
+        <p className="text-gray-500 text-sm mb-5">{t("Busca al jugador y dinos qué parentesco tienes. El club revisará la solicitud antes de activarla. Luego podrás vincular a más jugadores.")}</p>
         {phoneField}
         {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
-        <div className="mb-4"><PlayerPicker onPick={submitFamily} busy={submitting} buttonLabel="Solicitar acceso" /></div>
+        <div className="mb-4"><PlayerPicker onPick={submitFamily} busy={submitting} buttonLabel={msg("Solicitar acceso")} /></div>
         <LogoutButton logout={logout} />
       </Shell>
     );
@@ -217,12 +223,12 @@ export default function RoleSetup() {
     return (
       <Shell>
         {back}
-        <h2 className="text-xl font-black uppercase mb-1" style={{ color: "var(--granate)", ...FONT }}>Soy jugador</h2>
-        <p className="text-gray-500 text-sm mb-5">Indica tu equipo para que el club pueda localizarte.</p>
+        <h2 className="text-xl font-black uppercase mb-1" style={{ color: "var(--granate)", ...FONT }}>{t("Soy jugador")}</h2>
+        <p className="text-gray-500 text-sm mb-5">{t("Indica tu equipo para que el club pueda localizarte.")}</p>
         <div className="mb-5">
-          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Equipo (opcional)</label>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{t("Equipo (opcional)")}</label>
           <Select value={playerTeam} onValueChange={setPlayerTeam}>
-            <SelectTrigger className="border-gray-300"><SelectValue placeholder="Selecciona tu equipo" /></SelectTrigger>
+            <SelectTrigger className="border-gray-300"><SelectValue placeholder={t("Selecciona tu equipo")} /></SelectTrigger>
             <SelectContent>
               {sortTeams(teams).map((t) => (
                 <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
@@ -238,7 +244,7 @@ export default function RoleSetup() {
           className="w-full py-2.5 rounded-sm text-white font-bold uppercase text-sm tracking-wider disabled:opacity-40 mb-3"
           style={{ background: "var(--granate)", ...FONT }}
         >
-          {submitting ? "Enviando..." : "Solicitar acceso"}
+          {submitting ? t("Enviando...") : t("Solicitar acceso")}
         </button>
         <LogoutButton logout={logout} />
       </Shell>
@@ -248,32 +254,32 @@ export default function RoleSetup() {
   return (
     <Shell>
       {back}
-      <h2 className="text-xl font-black uppercase mb-1" style={{ color: "var(--granate)", ...FONT }}>Cuerpo técnico</h2>
-      <p className="text-gray-500 text-sm mb-4">Tus datos y tu función en el club. Todos los datos marcados con * son obligatorios.</p>
+      <h2 className="text-xl font-black uppercase mb-1" style={{ color: "var(--granate)", ...FONT }}>{t("Cuerpo técnico")}</h2>
+      <p className="text-gray-500 text-sm mb-4">{t("Tus datos y tu función en el club. Todos los datos marcados con * son obligatorios.")}</p>
 
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Nombre *</label>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{t("Nombre *")}</label>
           <input type="text" value={firstName} autoComplete="given-name" onChange={(e) => setFirstName(e.target.value)} onBlur={() => touch("first_name")} className={inputCls("first_name")} />
         </div>
         <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Apellidos *</label>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{t("Apellidos *")}</label>
           <input type="text" value={lastName} autoComplete="family-name" onChange={(e) => setLastName(e.target.value)} onBlur={() => touch("last_name")} className={inputCls("last_name")} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 mb-1">
         <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Fecha de nacimiento *</label>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{t("Fecha de nacimiento *")}</label>
           <input type="date" value={birthDate} autoComplete="bday" max={new Date().toISOString().slice(0, 10)} onChange={(e) => setBirthDate(e.target.value)} onBlur={() => touch("birth_date")} className={inputCls("birth_date")} />
         </div>
         <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">Teléfono *</label>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">{t("Teléfono *")}</label>
           <input type="tel" value={phone} autoComplete="tel" onChange={(e) => setPhone(e.target.value)} onBlur={() => touch("phone")} className={inputCls("phone")} />
         </div>
       </div>
-      <p className="text-xs text-gray-400 mb-5">Teléfono con prefijo si no es de España (p. ej. +34 600 111 222).</p>
+      <p className="text-xs text-gray-400 mb-5">{t("Teléfono con prefijo si no es de España (p. ej. +34 600 111 222).")}</p>
 
-      <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Tu función en el club *</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t("Tu función en el club *")}</p>
 
       <div className="space-y-2 mb-5">
         {APP_FUNCTIONS.map((f) => (
@@ -287,10 +293,10 @@ export default function RoleSetup() {
             className={optionClass(fn === f.value)}
           >
             <span className="flex items-center justify-between">
-              {f.label}
+              {t(f.label)}
               {fn === f.value && <Check className="w-4 h-4" />}
             </span>
-            {f.hint && <span className="block text-xs text-gray-400 font-normal">{f.hint}</span>}
+            {f.hint && <span className="block text-xs text-gray-400 font-normal">{t(f.hint)}</span>}
           </button>
         ))}
       </div>
@@ -298,7 +304,7 @@ export default function RoleSetup() {
       {cfg?.teams === "required" && (
         <div className="mb-5 p-3 bg-gray-50 rounded-sm border border-gray-100">
           <p className="text-xs text-gray-500 mb-3">
-            Indica de qué equipo(s) eres entrenador y qué rol tienes en cada uno. Si entrenas más de un equipo, añádelos todos.
+            {t("Indica de qué equipo(s) eres entrenador y qué rol tienes en cada uno. Si entrenas más de un equipo, añádelos todos.")}
           </p>
           <TeamRolesEditor value={assignments} onChange={setAssignments} teams={teams} roleOptions={COACH_TEAM_ROLES} compact />
         </div>
@@ -308,7 +314,7 @@ export default function RoleSetup() {
         <div className="mb-5">
           <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
             <input type="checkbox" checked={moreTeams} onChange={(e) => setMoreTeams(e.target.checked)} />
-            Además trabajo con equipos concretos
+            {t("Además trabajo con equipos concretos")}
           </label>
           {moreTeams && (
             <div className="mt-3 p-3 bg-gray-50 rounded-sm border border-gray-100">
@@ -319,16 +325,16 @@ export default function RoleSetup() {
       )}
 
       {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
-      {staffBad.length > 0 && <p className="text-xs text-orange-600 mb-3">Para enviar la solicitud faltan: {staffBad.map((k) => STAFF_REQUIRED_LABELS[k].toLowerCase()).join(", ")}.</p>}
-      {fn && !teamsOk && <p className="text-xs text-orange-600 mb-3">Añade al menos un equipo con su rol.</p>}
-      {halfFilled && <p className="text-xs text-orange-600 mb-3">Completa equipo y rol en cada fila (o quita la fila).</p>}
+      {staffBad.length > 0 && <p className="text-xs text-orange-600 mb-3">{t("Para enviar la solicitud faltan: {campos}.", { campos: staffBad.map((k) => t(STAFF_REQUIRED_LABELS[k]).toLowerCase()).join(", ") })}</p>}
+      {fn && !teamsOk && <p className="text-xs text-orange-600 mb-3">{t("Añade al menos un equipo con su rol.")}</p>}
+      {halfFilled && <p className="text-xs text-orange-600 mb-3">{t("Completa equipo y rol en cada fila (o quita la fila).")}</p>}
       <button
         onClick={submitStaff}
         disabled={!fn || !teamsOk || halfFilled || staffBad.length > 0 || submitting}
         className="w-full py-2.5 rounded-sm text-white font-bold uppercase text-sm tracking-wider disabled:opacity-40 mb-3"
         style={{ background: "var(--granate)", ...FONT }}
       >
-        {submitting ? "Enviando..." : "Solicitar acceso"}
+        {submitting ? t("Enviando...") : t("Solicitar acceso")}
       </button>
       <LogoutButton logout={logout} />
     </Shell>

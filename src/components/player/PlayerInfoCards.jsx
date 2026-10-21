@@ -5,16 +5,16 @@ import { LEVELS, getPositionList, getPitchMarkers } from "@/lib/playerPositions"
 import { findRole } from "@/lib/competencyCatalog";
 import PlayerFoot from "./PlayerFoot";
 import { Phone, Mail } from "lucide-react";
+import { useT, msg } from "@/i18n";
 
 const POSITION_LABELS = {
-  portero: "POR", lateral: "LAT", central: "CT", libre: "LIB",
-  mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT",
+  portero: msg("POR"), lateral: msg("LAT"), central: msg("CT"), libre: msg("LIB"),
+  mediocentro: msg("MC"), interior: msg("INT"), mediapunta: msg("MP"), delantero_centro: msg("DC"), extremo: msg("EXT"),
 };
 const POSITION_FULL = {
-  portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre",
-  mediocentro: "Mediocentro", interior: "Interior", mediapunta: "Mediapunta", delantero_centro: "Delantero", extremo: "Extremo"
+  portero: msg("Portero"), lateral: msg("Lateral"), central: msg("Central"), libre: msg("Libre"),
+  mediocentro: msg("Mediocentro"), interior: msg("Interior"), mediapunta: msg("Mediapunta"), delantero_centro: msg("Delantero"), extremo: msg("Extremo")
 };
-const LATERALITY_LABELS = { diestro: "Diestro", zurdo: "Zurdo", ambidiestro: "Ambidiestro" };
 
 // Base coords en el lado izquierdo; se espejan al derecho salvo en zurdos (perfil natural).
 const POSITION_COORDS_BASE = {
@@ -42,6 +42,7 @@ function getPositionCoords(position, laterality) {
 }
 
 function FootballField({ player }) {
+  const t = useT();
   const laterality = player.laterality;
   const order = { competente: 0, secundaria: 1, natural: 2 };
   const pts = getPitchMarkers(player, laterality).sort((a, b) => order[a.level] - order[b.level]);
@@ -95,7 +96,7 @@ function FootballField({ player }) {
             {nat && <circle cx={cx} cy={cy} r="27" fill={col} fillOpacity="0.22" />}
             {nat && <circle cx={cx} cy={cy} r="20" fill={col} fillOpacity="0.35" />}
             <circle cx={cx} cy={cy} r={nat ? 13 : 11} fill={col} stroke={nat ? "#fff" : "#0b2a12"} strokeWidth={nat ? 2.5 : 2} />
-            <text x={cx} y={x.c.y < 80 ? cy + (nat ? 27 : 24) : cy - (nat ? 22 : 17)} textAnchor="middle" fontSize="12" fontWeight="800" fill="white" fontFamily="system-ui, sans-serif" stroke="rgba(0,0,0,0.5)" strokeWidth="0.7" paintOrder="stroke">{POSITION_LABELS[x.position]}</text>
+            <text x={cx} y={x.c.y < 80 ? cy + (nat ? 27 : 24) : cy - (nat ? 22 : 17)} textAnchor="middle" fontSize="12" fontWeight="800" fill="white" fontFamily="system-ui, sans-serif" stroke="rgba(0,0,0,0.5)" strokeWidth="0.7" paintOrder="stroke">{t(POSITION_LABELS[x.position])}</text>
           </g>
         );
       })}
@@ -106,30 +107,31 @@ function FootballField({ player }) {
 const Label = ({ children }) => <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mb-0.5">{children}</p>;
 
 export default function PlayerInfoCards({ player, footMode = "hidden" }) {
+  const t = useT();
   const birthYear = birthYearOf(player);
   const statusCls = player.status === "activo" ? "bg-green-100 text-green-700" : player.status === "lesionado" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700";
-  const statusTxt = player.status === "activo" ? "Activo" : player.status === "lesionado" ? "Lesionado" : "Baja";
+  const statusTxt = player.status === "activo" ? t("Activo") : player.status === "lesionado" ? t("Lesionado") : t("Baja");
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="px-4 py-2 border-b border-gray-100">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Ficha del jugador</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{t("Ficha del jugador")}</span>
       </div>
       <div className="flex items-stretch gap-5 px-4 py-3">
         {/* Izquierda: posiciones y datos */}
         <div className="flex-1 min-w-0 flex flex-col gap-3">
           {player.position && (
             <div>
-              <Label>Posiciones</Label>
+              <Label>{t("Posiciones")}</Label>
               <div className="space-y-1">
                 {getPositionList(player).map((x) => {
-                  const role = x.role ? findRole(x.role)?.role.label : "";
+                  const role = x.role ? t(findRole(x.role)?.role.label) : "";
                   return (
                     <div key={x.position + (x.role||"")} className="flex items-center gap-2">
-                      <span className="text-[11px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md min-w-[34px] text-center shrink-0" style={{ background: LEVELS[x.level].color, color: LEVELS[x.level].text }}>{POSITION_LABELS[x.position]}</span>
+                      <span className="text-[11px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md min-w-[34px] text-center shrink-0" style={{ background: LEVELS[x.level].color, color: LEVELS[x.level].text }}>{t(POSITION_LABELS[x.position])}</span>
                       <div className="leading-tight min-w-0">
-                        <p className={`text-sm ${x.level === "natural" ? "font-bold text-gray-900" : "font-medium text-gray-700"}`}>{POSITION_FULL[x.position] || x.position}{role ? ` · ${role}` : ""}</p>
-                        <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: LEVELS[x.level].ink }}>{LEVELS[x.level].label}</p>
+                        <p className={`text-sm ${x.level === "natural" ? "font-bold text-gray-900" : "font-medium text-gray-700"}`}>{POSITION_FULL[x.position] ? t(POSITION_FULL[x.position]) : x.position}{role ? ` · ${role}` : ""}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: LEVELS[x.level].ink }}>{t(LEVELS[x.level].label)}</p>
                       </div>
                     </div>
                   );
@@ -141,13 +143,13 @@ export default function PlayerInfoCards({ player, footMode = "hidden" }) {
             <div className="grid grid-cols-2 gap-x-4">
               {birthYear && (
                 <div>
-                  <Label>Año de nacimiento</Label>
+                  <Label>{t("Año de nacimiento")}</Label>
                   <p className="text-sm font-bold text-gray-800">{birthYear}</p>
                 </div>
               )}
               {countryOf(player) && (
                 <div>
-                  <Label>Nacionalidad</Label>
+                  <Label>{t("Nacionalidad")}</Label>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Flag player={player} className="text-sm" />
                     {(player.birth_place || player.birth_province) && (
@@ -160,19 +162,19 @@ export default function PlayerInfoCards({ player, footMode = "hidden" }) {
             <div className="grid grid-cols-3 gap-x-4 items-start">
               {player.jersey_number && (
                 <div>
-                  <Label>Dorsal</Label>
+                  <Label>{t("Dorsal")}</Label>
                   <p className="text-sm font-bold text-gray-800">#{player.jersey_number}</p>
                 </div>
               )}
               {player.status && (
                 <div>
-                  <Label>Estado</Label>
+                  <Label>{t("Estado")}</Label>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusCls}`}>{statusTxt}</span>
                 </div>
               )}
               {player.laterality && (
                 <div>
-                  <Label>Lateralidad</Label>
+                  <Label>{t("Lateralidad")}</Label>
                   <div className="w-fit"><PlayerFoot player={player} light mode={footMode} /></div>
                 </div>
               )}

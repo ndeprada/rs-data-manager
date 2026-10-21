@@ -1,15 +1,17 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
+import { useT, LanguageSelector, msg } from "@/i18n";
 
 export default function Login() {
+  const t = useT();
   const [mode, setMode] = useState("login"); // "login" | "register"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState(() =>
     new URLSearchParams(window.location.search).get("auth_error") === "google"
-      ? "No se pudo iniciar sesión con Google. Inténtalo de nuevo."
+      ? msg("No se pudo iniciar sesión con Google. Inténtalo de nuevo.")
       : ""
   );
   const [loading, setLoading] = useState(false);
@@ -29,11 +31,11 @@ export default function Login() {
       }
     } catch (err) {
       const map = {
-        invalid_credentials: "Email o contraseña incorrectos.",
-        email_already_registered: "Ya existe una cuenta con ese email.",
-        email_and_password_required: "Rellena email y contraseña.",
+        invalid_credentials: msg("Email o contraseña incorrectos."),
+        email_already_registered: msg("Ya existe una cuenta con ese email."),
+        email_and_password_required: msg("Rellena email y contraseña."),
       };
-      setError(map[err.data?.error] || "Ha ocurrido un error. Inténtalo de nuevo.");
+      setError(map[err.data?.error] || msg("Ha ocurrido un error. Inténtalo de nuevo."));
     } finally {
       setLoading(false);
     }
@@ -49,13 +51,14 @@ export default function Login() {
       }}
     >
       <div className="w-full max-w-md">
+        <div className="flex justify-end mb-2"><LanguageSelector variant="names" /></div>
         <div className="text-center mb-6">
-          <img src={CLUB_LOGO_URL} alt="RS Club" className="w-14 h-14 object-contain mx-auto mb-4" />
+          <img src={CLUB_LOGO_URL} alt={t("RS Club")} className="w-14 h-14 object-contain mx-auto mb-4" />
           <h1
             className="text-3xl font-black uppercase tracking-wider"
             style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}
           >
-            RS Manager
+            {t("RS Manager")}
           </h1>
         </div>
 
@@ -73,11 +76,11 @@ export default function Login() {
                   <path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.03z" />
                   <path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.97L3.95 7.3C4.66 5.17 6.65 3.58 9 3.58z" />
                 </svg>
-                Continuar con Google
+                {t("Continuar con Google")}
               </button>
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex-1 h-px bg-gray-200" />
-                <span className="text-[11px] uppercase tracking-wider text-gray-400">o con email</span>
+                <span className="text-[11px] uppercase tracking-wider text-gray-400">{t("o con email")}</span>
                 <div className="flex-1 h-px bg-gray-200" />
               </div>
             </>
@@ -85,7 +88,7 @@ export default function Login() {
           {registered ? (
             <div className="text-center">
               <p className="text-gray-600 text-sm mb-4">
-                Cuenta creada. Un administrador debe aprobar tu acceso antes de poder entrar.
+                {t("Cuenta creada. Un administrador debe aprobar tu acceso antes de poder entrar.")}
               </p>
               <button
                 onClick={() => {
@@ -95,7 +98,7 @@ export default function Login() {
                 className="w-full py-2.5 rounded-sm border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold uppercase text-sm tracking-wider"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                Volver al login
+                {t("Volver al login")}
               </button>
             </div>
           ) : (
@@ -103,7 +106,7 @@ export default function Login() {
               {mode === "register" && (
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
-                    Nombre completo
+                    {t("Nombre completo")}
                   </label>
                   <input
                     type="text"
@@ -117,7 +120,7 @@ export default function Login() {
               )}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
-                  Email
+                  {t("Email")}
                 </label>
                 <input
                   type="email"
@@ -129,7 +132,7 @@ export default function Login() {
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
-                  Contraseña
+                  {t("Contraseña")}
                 </label>
                 <input
                   type="password"
@@ -141,7 +144,7 @@ export default function Login() {
                 />
               </div>
 
-              {error && <p className="text-red-600 text-sm">{error}</p>}
+              {error && <p className="text-red-600 text-sm">{t(error)}</p>}
 
               <button
                 type="submit"
@@ -149,7 +152,7 @@ export default function Login() {
                 className="w-full py-2.5 rounded-sm text-white font-bold uppercase text-sm tracking-wider disabled:opacity-60"
                 style={{ background: "var(--granate)", fontFamily: "var(--font-display)" }}
               >
-                {loading ? "Un momento..." : mode === "login" ? "Entrar" : "Crear cuenta"}
+                {loading ? t("Un momento...") : mode === "login" ? t("Entrar") : t("Crear cuenta")}
               </button>
 
               <button
@@ -160,7 +163,7 @@ export default function Login() {
                 }}
                 className="w-full text-center text-xs text-gray-500 hover:text-gray-700 pt-2"
               >
-                {mode === "login" ? "¿No tienes cuenta? Regístrate" : "¿Ya tienes cuenta? Inicia sesión"}
+                {mode === "login" ? t("¿No tienes cuenta? Regístrate") : t("¿Ya tienes cuenta? Inicia sesión")}
               </button>
             </form>
           )}

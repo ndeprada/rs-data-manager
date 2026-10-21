@@ -16,41 +16,44 @@ import { base44 } from "@/api/base44Client";
 import { addDays, isWithinInterval, parseISO } from "date-fns";
 import { buildLinks } from "@/lib/staffLink";
 import { usePlayerMode } from "@/lib/playerMode";
+import { useT, msg, LanguageSelector } from "@/i18n";
 
 const MY_TEAM_SUBITEMS = [
-  { label: "Panel", path: "/MyTeam", exact: true, icon: LayoutDashboard },
-  { label: "Plantilla", path: "/MyTeam/Squad", icon: Users },
-  { label: "Entrenamientos", path: "/MyTeam/Attendance", icon: Calendar },
-  { label: "Partidos", path: "/MyTeam/Matches", icon: Trophy },
-  { label: "Desarrollo", path: "/MyTeam/Development", icon: Target },
-  { label: "Metodología", path: "/Methodology", icon: BookOpen },
+  { label: msg("Panel"), path: "/MyTeam", exact: true, icon: LayoutDashboard },
+  { label: msg("Plantilla"), path: "/MyTeam/Squad", icon: Users },
+  { label: msg("Entrenamientos"), path: "/MyTeam/Attendance", icon: Calendar },
+  { label: msg("Partidos"), path: "/MyTeam/Matches", icon: Trophy },
+  { label: msg("Desarrollo"), path: "/MyTeam/Development", icon: Target },
+  { label: msg("Metodología"), path: "/Methodology", icon: BookOpen },
 ];
 
 const ROLE_DISPLAY = {
-  coordinador_general: "Coord. General",
-  coordinador_f7: "Coord. F7",
-  coordinador_f11: "Coord. F11",
-  entrenador: "Entrenador",
-  director: "Director",
-  director_deportivo: "Dir. Deportivo",
-  entrenador_porteros: "Entr. porteros",
-  psicologo: "Área psicología",
-  preparador_fisico: "Prep. físico",
-  fisioterapeuta: "Fisio",
-  admin: "Admin",
+  coordinador_general: msg("Coord. General"),
+  coordinador_f7: msg("Coord. F7"),
+  coordinador_f11: msg("Coord. F11"),
+  entrenador: msg("Entrenador"),
+  director: msg("Director"),
+  director_deportivo: msg("Dir. Deportivo"),
+  entrenador_porteros: msg("Entr. porteros"),
+  psicologo: msg("Área psicología"),
+  preparador_fisico: msg("Prep. físico"),
+  fisioterapeuta: msg("Fisio"),
+  admin: msg("Admin"),
 };
 
 function SectionLabel({ children }) {
+  const t = useT();
   return (
     <p className="px-2.5 pt-3.5 pb-1 text-[9px] font-black uppercase tracking-[0.16em] text-white/45 flex items-center gap-2"
       style={{ fontFamily: "var(--font-display)" }}>
-      <span>{children}</span>
+      <span>{typeof children === "string" ? t(children) : children}</span>
       <span className="flex-1 h-px bg-white/12" />
     </p>
   );
 }
 
 function NavItem({ item, onClick, badge = 0 }) {
+  const t = useT();
   const location = useLocation();
   const active = location.pathname === item.path;
   return (
@@ -64,14 +67,15 @@ function NavItem({ item, onClick, badge = 0 }) {
       {item.icon && (
         <item.icon className={`shrink-0 w-3.5 h-3.5 ${active ? "text-[color:var(--granate)]" : "text-white/55 group-hover:text-white/85"}`} />
       )}
-      <span className="flex-1 leading-none">{item.label}</span>
-      {badge > 0 && <span className="min-w-4 h-4 px-1 rounded-full bg-[#FF6E00] text-white text-[9px] font-black flex items-center justify-center shrink-0" title={`${badge} usuario(s) pendientes de aceptar`}>{badge}</span>}
+      <span className="flex-1 leading-none">{t(item.label)}</span>
+      {badge > 0 && <span className="min-w-4 h-4 px-1 rounded-full bg-[#FF6E00] text-white text-[9px] font-black flex items-center justify-center shrink-0" title={t("{n} usuario(s) pendientes de aceptar", { n: badge })}>{badge}</span>}
       
     </Link>
   );
 }
 
 function MyTeamNav({ onClose, notificationCount }) {
+  const t = useT();
   const location = useLocation();
   const [open, setOpen] = useState(location.pathname.startsWith("/MyTeam"));
   const isActive = location.pathname.startsWith("/MyTeam");
@@ -91,7 +95,7 @@ function MyTeamNav({ onClose, notificationCount }) {
             </div>
           )}
         </div>
-        <span className="flex-1 text-left leading-none">Mi Equipo</span>
+        <span className="flex-1 text-left leading-none">{t("Mi Equipo")}</span>
         <motion.div animate={{ rotate: open ? 90 : 0 }} transition={{ duration: 0.2 }}>
           <ChevronRight className="w-3 h-3 opacity-50" />
         </motion.div>
@@ -114,7 +118,7 @@ function MyTeamNav({ onClose, notificationCount }) {
                     className={`flex items-center gap-2 px-2 py-1.5 rounded-[6px] text-[10px] transition-all nav-label
                       ${active ? "bg-white/20 text-white" : "text-white/60 hover:text-white hover:bg-white/10"}`}>
                     <sub.icon className={`w-3 h-3 shrink-0 ${active ? "text-[color:var(--naranja)]" : "text-white/40"}`} />
-                    {sub.label}
+                    {t(sub.label)}
                   </Link>
                 );
               })}
@@ -127,6 +131,7 @@ function MyTeamNav({ onClose, notificationCount }) {
 }
 
 function PlayerSidebar({ onClose = () => {} }) {
+  const t = useT();
   const { user, logout } = useAuth();
   return (
     <div className="flex flex-col h-full" style={{ background: "var(--granate)" }}>
@@ -137,15 +142,16 @@ function PlayerSidebar({ onClose = () => {} }) {
         </Link>
       </div>
       <nav className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5">
-        <NavItem item={{ label: "Mi equipo", path: "/PlayerTeam", icon: Users }} onClick={onClose} />
-        <NavItem item={{ label: "Mi ficha y estadísticas", path: "/PlayerProfile", icon: UserCheck }} onClick={onClose} />
-        <NavItem item={{ label: "Avisos", path: "/Avisos", icon: Bell }} onClick={onClose} />
+        <NavItem item={{ label: msg("Mi equipo"), path: "/PlayerTeam", icon: Users }} onClick={onClose} />
+        <NavItem item={{ label: msg("Mi ficha y estadísticas"), path: "/PlayerProfile", icon: UserCheck }} onClick={onClose} />
+        <NavItem item={{ label: msg("Avisos"), path: "/Avisos", icon: Bell }} onClick={onClose} />
       </nav>
       <div className="px-2 py-3 border-t border-white/10">
         <div className="flex items-center gap-2 px-1.5 py-1.5">
           <p className="text-white text-[11px] font-bold truncate flex-1" style={{ fontFamily: "var(--font-display)" }}>{user?.full_name?.split(" ")[0]}</p>
-          <button onClick={logout} aria-label="Salir" className="text-white/60 hover:text-white"><LogOut className="w-4 h-4" /></button>
+          <button onClick={logout} aria-label={t("Salir")} title={t("Cerrar sesión")} className="text-white/60 hover:text-white"><LogOut className="w-4 h-4" /></button>
         </div>
+        <LanguageSelector tone="dark" className="px-1.5 pt-1" />
       </div>
     </div>
   );
@@ -156,6 +162,7 @@ function Sidebar(props) {
 }
 
 function StaffSidebar({ onClose = () => {} }) {
+  const t = useT();
   const { user, logout } = useAuth();
   const { isCoordinator, appRole, selectedTeamId, perms } = useTeamAccess();
   const pendingUsers = usePendingUsers(isCoordinator);
@@ -195,30 +202,30 @@ function StaffSidebar({ onClose = () => {} }) {
   const myProfilePath = myStaffId ? `/CoachProfile?id=${myStaffId}` : user?.id ? `/CoachProfile?userId=${user.id}` : null;
 
   const adminNav = [
-    { label: "Panel", path: "/Dashboard", icon: LayoutDashboard },
-    { label: "Calendario", path: "/Calendar", icon: CalendarDays },
-    { label: "Equipos", path: "/Teams", icon: Shield },
-    { label: "Jugadores", path: "/Players", icon: Users },
-    { label: "Personal", path: "/Coaches", icon: UserCheck },
-    { label: "Accesos", path: "/Accesos", icon: UserCog },
-    { label: "Temporada", path: "/Season", icon: CalendarRange },
-    { label: "Campos", path: "/Fields", icon: MapPin },
+    { label: msg("Panel"), path: "/Dashboard", icon: LayoutDashboard },
+    { label: msg("Calendario"), path: "/Calendar", icon: CalendarDays },
+    { label: msg("Equipos"), path: "/Teams", icon: Shield },
+    { label: msg("Jugadores"), path: "/Players", icon: Users },
+    { label: msg("Personal"), path: "/Coaches", icon: UserCheck },
+    { label: msg("Accesos"), path: "/Accesos", icon: UserCog },
+    { label: msg("Temporada"), path: "/Season", icon: CalendarRange },
+    { label: msg("Campos"), path: "/Fields", icon: MapPin },
   ];
 
   const toolsNav = [
-    { key: "stats", label: "Estadísticas", path: "/Stats", icon: BarChart2 },
-    { key: "methodology", label: "Metodología", path: "/Methodology", icon: BookOpen },
-    { key: "tactics", label: "Táctica", path: "/Tactics", icon: Target },
-    { key: "scouting", label: "Scouting", path: "/Scouting", icon: Binoculars },
-    { key: "reports", label: "Informes", path: "/Reports", icon: FileText },
-    { key: "material", label: "Material", path: "/Material", icon: Package },
+    { key: "stats", label: msg("Estadísticas"), path: "/Stats", icon: BarChart2 },
+    { key: "methodology", label: msg("Metodología"), path: "/Methodology", icon: BookOpen },
+    { key: "tactics", label: msg("Táctica"), path: "/Tactics", icon: Target },
+    { key: "scouting", label: msg("Scouting"), path: "/Scouting", icon: Binoculars },
+    { key: "reports", label: msg("Informes"), path: "/Reports", icon: FileText },
+    { key: "material", label: msg("Material"), path: "/Material", icon: Package },
   ].filter((item) => perms.tools.includes(item.key));
 
   // Quien ve a todos los jugadores sin ser coordinación (porteros, psicología, fisio…) tiene su propio bloque de club
   const clubNav = [
-    perms.panel && { label: "Panel del club", path: "/Dashboard", icon: LayoutDashboard },
-    perms.allTeams && { label: "Jugadores", path: "/Players", icon: Users },
-    perms.canViewCoachProfiles && { label: "Personal", path: "/Coaches", icon: UserCheck },
+    perms.panel && { label: msg("Panel del club"), path: "/Dashboard", icon: LayoutDashboard },
+    perms.allTeams && { label: msg("Jugadores"), path: "/Players", icon: Users },
+    perms.canViewCoachProfiles && { label: msg("Personal"), path: "/Coaches", icon: UserCheck },
   ].filter(Boolean);
 
   return (
@@ -240,26 +247,26 @@ function StaffSidebar({ onClose = () => {} }) {
       <nav className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5">
         {isCoordinator && (
           <>
-            <SectionLabel>Administración</SectionLabel>
+            <SectionLabel>{msg("Administración")}</SectionLabel>
             {adminNav.map(item => <NavItem key={item.path} item={item} onClick={onClose} badge={item.path === "/Accesos" ? pendingUsers.length : 0} />)}
           </>
         )}
 
         {!isCoordinator && clubNav.length > 0 && (
           <>
-            <SectionLabel>Club</SectionLabel>
+            <SectionLabel>{msg("Club")}</SectionLabel>
             {clubNav.map(item => <NavItem key={item.path} item={item} onClick={onClose} />)}
           </>
         )}
 
         {myProfilePath && (
           <>
-            <SectionLabel>Mi perfil</SectionLabel>
+            <SectionLabel>{msg("Mi perfil")}</SectionLabel>
             <Link to={myProfilePath} onClick={onClose}
               style={{ borderLeft: "3px solid transparent" }}
               className="group flex items-center gap-2.5 pl-2 pr-2.5 py-1.5 rounded-[6px] transition-all duration-150 nav-label text-[11px] text-white/75 hover:text-white hover:bg-white/10">
               <UserCheck className="shrink-0 w-3.5 h-3.5 text-white/55 group-hover:text-white/85" />
-              <span className="flex-1 leading-none">Perfil y feedback</span>
+              <span className="flex-1 leading-none">{t("Perfil y feedback")}</span>
               {unreadCount > 0 && (
                 <span className="bg-red-500 text-white text-[8px] font-black rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none">{unreadCount}</span>
               )}
@@ -267,22 +274,22 @@ function StaffSidebar({ onClose = () => {} }) {
           </>
         )}
 
-        <SectionLabel>Comunicación</SectionLabel>
-        <NavItem item={{ label: "Avisos", path: "/Avisos", icon: Bell }} onClick={onClose} />
+        <SectionLabel>{msg("Comunicación")}</SectionLabel>
+        <NavItem item={{ label: msg("Avisos"), path: "/Avisos", icon: Bell }} onClick={onClose} />
         {user?.player_id && user.role !== "admin" && (
-          <NavItem item={{ label: "Mi ficha de jugador", path: `/PlayerProfile?id=${user.player_id}&as=player`, icon: UserCheck }} onClick={onClose} />
+          <NavItem item={{ label: msg("Mi ficha de jugador"), path: `/PlayerProfile?id=${user.player_id}&as=player`, icon: UserCheck }} onClick={onClose} />
         )}
 
         {perms.myTeam && (
           <>
-            <SectionLabel>Mi Equipo</SectionLabel>
+            <SectionLabel>{msg("Mi Equipo")}</SectionLabel>
             <MyTeamNav onClose={onClose} notificationCount={notificationCount} />
           </>
         )}
 
         {toolsNav.length > 0 && (
           <>
-            <SectionLabel>Herramientas</SectionLabel>
+            <SectionLabel>{msg("Herramientas")}</SectionLabel>
             {toolsNav.map(item => <NavItem key={item.path} item={item} onClick={onClose} />)}
           </>
         )}
@@ -301,20 +308,22 @@ function StaffSidebar({ onClose = () => {} }) {
                 {user.full_name?.split(" ")[0]}
               </p>
               <p className="text-white/60 text-[9px] truncate leading-tight" style={{ fontFamily: "var(--font-display)" }}>
-                {ROLE_DISPLAY[appRole] || ROLE_DISPLAY[user?.role] || appRole || ""}
+                {ROLE_DISPLAY[appRole] ? t(ROLE_DISPLAY[appRole]) : ROLE_DISPLAY[user?.role] ? t(ROLE_DISPLAY[user.role]) : appRole || ""}
               </p>
             </div>
-            <button onClick={() => logout()} className="p-1 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-colors shrink-0" title="Cerrar sesión">
+            <button onClick={() => logout()} className="p-1 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-colors shrink-0" title={t("Cerrar sesión")}>
               <LogOut className="w-3 h-3" />
             </button>
           </div>
         )}
+        <LanguageSelector tone="dark" className="px-1.5" />
       </div>
     </div>
   );
 }
 
 export default function Layout() {
+  const t = useT();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isCoordinator } = useTeamAccess();
   const pendingUsersCount = usePendingUsers(isCoordinator).length;
@@ -359,7 +368,7 @@ export default function Layout() {
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center shadow-sm" style={{ background: "var(--granate)" }}>
         <div className="flex items-center gap-2">
-          <button onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menú" className="relative p-2 -ml-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors">
+          <button onClick={() => setMobileOpen(!mobileOpen)} aria-label={t("Menú")} className="relative p-2 -ml-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             {pendingUsersCount > 0 && !mobileOpen && <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-[#FF6E00] border border-[#73000A]" />}
           </button>

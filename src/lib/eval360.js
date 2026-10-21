@@ -88,12 +88,12 @@ export const GK_TECH_ITEMS = [
 // PENDIENTE DE REVISIÓN (Nacho): lista provisional; se ajustará con calma.
 // "gk_posicionamiento" y "gk_reinicio" pasan aquí desde Técnica (en el catálogo son competencias defensiva y ofensiva).
 export const GK_TACTICAL_ITEMS = [
-  { id: "gk_t_salida", label: "Ofrecerse en la salida: línea de pase segura y hombre libre", competency: `${GK.ofensivas[0]} ${GK.ofensivas[1]}` },
+  { id: "gk_t_salida", label: "Ofrecerse en la salida: línea de pase segura y hombre libre", competency: [GK.ofensivas[0], GK.ofensivas[1]] },
   { id: "gk_t_corto_largo", label: "Corto o largo según la presión del rival", competency: GK.ofensivas[3] },
   { id: "gk_reinicio", label: "Reinicio rápido del juego", competency: GK.ofensivas[4] },
   { id: "gk_posicionamiento", label: "Posicionamiento y distancia con la línea defensiva", competency: GK.defensivas[0] },
   { id: "gk_t_area", label: "Control del área y de la espalda de la defensa", competency: GK.defensivas[1] },
-  { id: "gk_t_salir_quedarse", label: "Cuándo salir y cuándo quedarse (resolver de pie antes que ir al suelo)", competency: `${GK.defensivas[2]} ${GK.defensivas[3]}` },
+  { id: "gk_t_salir_quedarse", label: "Cuándo salir y cuándo quedarse (resolver de pie antes que ir al suelo)", competency: [GK.defensivas[2], GK.defensivas[3]] },
   { id: "gk_t_libre_presion", label: "Hacer de libre cuando el equipo presiona alto", competency: GK.defensivas[4] },
   { id: "gk_t_comunicacion", label: "Comunicación y mando para organizar la defensa", competency: GK.mentales[1] },
 ];

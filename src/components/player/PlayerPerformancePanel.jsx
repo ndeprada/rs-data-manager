@@ -11,6 +11,7 @@ import { eventMinutes } from "@/lib/matchDuration";
 import { participationOf, minutesAlerts, playerLevel } from "@/lib/participation";
 import { useParticipationContext } from "@/lib/useParticipation";
 import { ReasonChips, FormatPills, FORMAT_OPTIONS, PctPill, alertText } from "@/components/stats/ParticipationBits";
+import { useT, useFormat } from "@/i18n";
 
 function StatBox({ label, value, sub, color = "gray" }) {
   const colors = {
@@ -62,6 +63,8 @@ function StarRating({ value }) {
 }
 
 export default function PlayerPerformancePanel({ playerId }) {
+  const t = useT();
+  const loc = useFormat();
   const { data: raw_stats = [] } = useQuery({
     queryKey: ["matchstats", playerId],
     queryFn: () => base44.entities.MatchStats.filter({ player_id: playerId }, "date"),
@@ -141,7 +144,7 @@ export default function PlayerPerformancePanel({ playerId }) {
 
   const chartData = Object.keys(monthMap).sort().map((key) => {
     const m = monthMap[key];
-    const label = new Date(key + "-01").toLocaleDateString("es-ES", { month: "short", year: "2-digit" });
+    const label = new Date(key + "-01").toLocaleDateString(loc.tag, { month: "short", year: "2-digit" });
     const avgR = m.ratings.length > 0
       ? parseFloat((m.ratings.reduce((a, b) => a + b, 0) / m.ratings.length).toFixed(1))
       : null;
@@ -160,65 +163,65 @@ export default function PlayerPerformancePanel({ playerId }) {
             {fmtOptions.length > 2 && (
               <div className="px-4 py-2"><FormatPills value={fmt} onChange={setFmt} options={fmtOptions} /></div>
             )}
-            <MiniRow title="Participación">
-              <Mini label="Convoc." value={pb.conv} />
-              <Mini label="Jugó" value={pb.played} />
-              <Mini label="Titular" value={pb.titular} />
-              <Mini label={pb.suplenteSin > 0 ? `Suplente (${pb.suplenteSin} sin jugar)` : "Suplente"} value={pb.suplente} />
-              <Mini label="No convocado" value={pb.noConv} />
+            <MiniRow title={t("Participación")}>
+              <Mini label={t("Convoc.")} value={pb.conv} />
+              <Mini label={t("Jugó")} value={pb.played} />
+              <Mini label={t("Titular")} value={pb.titular} />
+              <Mini label={pb.suplenteSin > 0 ? t("Suplente ({n} sin jugar)", { n: pb.suplenteSin }) : t("Suplente")} value={pb.suplente} />
+              <Mini label={t("No convocado")} value={pb.noConv} />
             </MiniRow>
             {pb.noConv > 0 && (
-              <MiniRow title="Ausencias"><ReasonChips reasons={pb.reasons} /></MiniRow>
+              <MiniRow title={t("Ausencias")}><ReasonChips reasons={pb.reasons} /></MiniRow>
             )}
-            <MiniRow title="Minutos">
-              <Mini label="Totales" value={`${pb.mins}'`} />
-              <Mini label={`partidos disponibles (de ${pb.totalMatches})`} value={pb.availMatches} />
+            <MiniRow title={t("Minutos")}>
+              <Mini label={t("Totales")} value={`${pb.mins}'`} />
+              <Mini label={t("partidos disponibles (de {n})", { n: pb.totalMatches })} value={pb.availMatches} />
             </MiniRow>
-            <MiniRow title="% y media">
-              <Mini label={`de ${pb.availMin}' disponibles`} value={<PctPill value={pb.pctAvail} level={level} />} />
-              <Mini label="media/part. disponible" value={pb.avgAvail != null ? `${pb.avgAvail}'` : "—"} />
-              <Mini label={`de ${pb.totalMin}' totales`} value={pb.pctTotal != null ? `${pb.pctTotal}%` : "—"} />
-              <Mini label="media/part. total" value={pb.avgTotal != null ? `${pb.avgTotal}'` : "—"} />
+            <MiniRow title={t("% y media")}>
+              <Mini label={t("de {n}' disponibles", { n: pb.availMin })} value={<PctPill value={pb.pctAvail} level={level} />} />
+              <Mini label={t("media/part. disponible")} value={pb.avgAvail != null ? `${pb.avgAvail}'` : "—"} />
+              <Mini label={t("de {n}' totales", { n: pb.totalMin })} value={pb.pctTotal != null ? `${pb.pctTotal}%` : "—"} />
+              <Mini label={t("media/part. total")} value={pb.avgTotal != null ? `${pb.avgTotal}'` : "—"} />
             </MiniRow>
             {alerts.length > 0 && (
               <div className="px-4 py-2 bg-red-50 text-[11px] text-red-800 flex items-start gap-2 first:rounded-t-2xl last:rounded-b-2xl">
                 <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                <p><b>Por debajo del mínimo de minutos.</b> {alerts.map(alertText).join(" · ")}</p>
+                <p><b>{t("Por debajo del mínimo de minutos.")}</b> {alerts.map(alertText).join(" · ")}</p>
               </div>
             )}
           </>
         ) : (
           <>
-            <MiniRow title="Participación">
-              <Mini label="Convoc." value={totalConvocatorias} />
-              <Mini label="Jugados" value={partidos} />
-              <Mini label="Titular" value={titular} />
-              <Mini label="Suplente" value={suplente} />
+            <MiniRow title={t("Participación")}>
+              <Mini label={t("Convoc.")} value={totalConvocatorias} />
+              <Mini label={t("Jugados")} value={partidos} />
+              <Mini label={t("Titular")} value={titular} />
+              <Mini label={t("Suplente")} value={suplente} />
             </MiniRow>
-            <MiniRow title="Minutos">
-              <Mini label="Totales" value={`${totalMins}'`} />
-              <Mini label={`de ${maxMins}'`} value={`${minsPct}%`} />
-              <Mini label="Media/partido" value={partidos > 0 ? `${Math.round(totalMins / partidos)}'` : "—"} />
+            <MiniRow title={t("Minutos")}>
+              <Mini label={t("Totales")} value={`${totalMins}'`} />
+              <Mini label={t("de {n}'", { n: maxMins })} value={`${minsPct}%`} />
+              <Mini label={t("Media/partido")} value={partidos > 0 ? `${Math.round(totalMins / partidos)}'` : "—"} />
             </MiniRow>
           </>
         )}
-        <MiniRow title="Ofensiva">
-          <Mini label="Goles" value={totalGoals} />
-          <Mini label="Asist." value={totalAssists} />
-          <Mini label="G+A/partido" value={partidos > 0 ? ((totalGoals + totalAssists) / partidos).toFixed(2) : "—"} />
-          {!playerMode && <Mini label="Valoración" value={avgRating ? `${avgRating} ★` : "—"} />}
+        <MiniRow title={t("Ofensiva")}>
+          <Mini label={t("Goles")} value={totalGoals} />
+          <Mini label={t("Asist.")} value={totalAssists} />
+          <Mini label={t("G+A/partido")} value={partidos > 0 ? ((totalGoals + totalAssists) / partidos).toFixed(2) : "—"} />
+          {!playerMode && <Mini label={t("Valoración")} value={avgRating ? `${avgRating} ★` : "—"} />}
         </MiniRow>
-        <MiniRow title="Disciplina">
-          <Mini label="🟨 Amarillas" value={totalYellow} />
-          <Mini label="🟨🟨 Doble am." value={totalDoubleYellow} />
-          <Mini label="🟥 Rojas" value={totalRed} />
+        <MiniRow title={t("Disciplina")}>
+          <Mini label={t("🟨 Amarillas")} value={totalYellow} />
+          <Mini label={t("🟨🟨 Doble am.")} value={totalDoubleYellow} />
+          <Mini label={t("🟥 Rojas")} value={totalRed} />
         </MiniRow>
       </div>
 
       {/* Gráfica evolución */}
       {chartData.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-          <h3 className="font-semibold text-gray-900 mb-4">Evolución a lo largo de la temporada</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">{t("Evolución a lo largo de la temporada")}</h3>
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -227,11 +230,11 @@ export default function PlayerPerformancePanel({ playerId }) {
               <YAxis yAxisId="asistencia" orientation="right" domain={[0, 100]} tick={{ fontSize: 11, fill: "#9ca3af" }} unit="%" />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }}
-                formatter={(value, name) => name === "Valoración (★)" ? [`${value} ★`, name] : [`${value}%`, name]}
+                formatter={(value, name) => name === t("Valoración (★)") ? [`${value} ★`, name] : [`${value}%`, name]}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              {!playerMode && <Line yAxisId="rating" type="monotone" dataKey="rating" name="Valoración (★)" stroke="#FF6E00" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />}
-              <Line yAxisId="asistencia" type="monotone" dataKey="asistencia" name="Asistencia (%)" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
+              {!playerMode && <Line yAxisId="rating" type="monotone" dataKey="rating" name={t("Valoración (★)")} stroke="#FF6E00" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />}
+              <Line yAxisId="asistencia" type="monotone" dataKey="asistencia" name={t("Asistencia (%)")} stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -240,7 +243,7 @@ export default function PlayerPerformancePanel({ playerId }) {
       {chartData.length === 0 && (
         <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center shadow-sm text-gray-400 text-sm flex items-center justify-center gap-2">
           <Trophy className="w-4 h-4 text-gray-300" />
-          <p>Registra partidos para ver la evolución del jugador</p>
+          <p>{t("Registra partidos para ver la evolución del jugador")}</p>
         </div>
       )}
     </div>

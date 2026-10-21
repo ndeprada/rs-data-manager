@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { WEAK_FOOT_FIELD, WEAK_FOOT_LEVELS, weakFootRating } from "@/lib/weakFoot";
 import { FootIndicator } from "./PlayerPositionBadges";
+import { useT } from "@/i18n";
 
 /**
  * Lateralidad del jugador + dominio de la pierna no hábil.
@@ -13,6 +14,7 @@ import { FootIndicator } from "./PlayerPositionBadges";
  * Un ambidiestro cuenta siempre con 5 estrellas y no se edita.
  */
 export default function PlayerFoot({ player, light = false, mode = "view" }) {
+  const t = useT();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const rate = useMutation({
@@ -38,13 +40,13 @@ export default function PlayerFoot({ player, light = false, mode = "view" }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button" aria-label="Valorar la pierna no hábil"
+        <button type="button" aria-label={t("Valorar la pierna no hábil")}
           className={`rounded-md px-1.5 py-0.5 -mx-1.5 -my-0.5 transition-colors ${light ? "hover:bg-gray-100" : "hover:bg-white/10"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400`}>
           {indicator}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 p-1.5">
-        <p className="px-2 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">Dominio de la pierna no hábil</p>
+        <p className="px-2 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">{t("Dominio de la pierna no hábil")}</p>
         <div className="space-y-0.5">
           {[5, 4, 3, 2, 1].map((n) => {
             const lv = WEAK_FOOT_LEVELS[n];
@@ -58,8 +60,8 @@ export default function PlayerFoot({ player, light = false, mode = "view" }) {
                   ))}
                 </span>
                 <span className="min-w-0 leading-tight">
-                  <span className="block text-xs font-bold text-gray-800">{lv.label}</span>
-                  <span className="block text-[10px] text-gray-500">{lv.hint}</span>
+                  <span className="block text-xs font-bold text-gray-800">{t(lv.label)}</span>
+                  <span className="block text-[10px] text-gray-500">{t(lv.hint)}</span>
                 </span>
               </button>
             );
@@ -67,10 +69,10 @@ export default function PlayerFoot({ player, light = false, mode = "view" }) {
         </div>
         {rating && (
           <button type="button" onClick={() => choose(null)} className="mt-1 w-full rounded-md px-2 py-1.5 text-left text-[11px] font-medium text-gray-500 hover:bg-gray-50">
-            Quitar valoración
+            {t("Quitar valoración")}
           </button>
         )}
-        <p className="px-2 pt-1.5 pb-1 text-[10px] text-gray-400">Solo la ve el cuerpo técnico. El jugador no la ve.</p>
+        <p className="px-2 pt-1.5 pb-1 text-[10px] text-gray-400">{t("Solo la ve el cuerpo técnico. El jugador no la ve.")}</p>
       </PopoverContent>
     </Popover>
   );

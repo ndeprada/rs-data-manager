@@ -16,6 +16,7 @@ import F7PositionGuide from "@/components/player/F7PositionGuide";
 import { stageOf, f7Info } from "@/lib/f7Positions";
 import { getPositionList } from "@/lib/playerPositions";
 import { isF7Team } from "@/lib/teamOrder";
+import { useT, useFormat, msg } from "@/i18n";
 
 function currentQuarter() {
   const d = new Date();
@@ -25,12 +26,13 @@ const today = () => new Date().toISOString().slice(0, 10);
 const emptyForm = () => ({ visible: null, date: today(), period: currentQuarter(), evaluator: "", scores: {}, strengths: "", improve: "", notes: "" });
 
 function AreaBars({ avg }) {
+  const t = useT();
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
       {AREAS.map((a) => (
         <div key={a.key}>
           <div className="flex items-baseline justify-between mb-1">
-            <span className="text-xs text-gray-500">{a.label}</span>
+            <span className="text-xs text-gray-500">{t(a.label)}</span>
             <span className="text-sm font-black" style={{ color: scoreColor(avg[a.key]) }}>{avg[a.key] ?? "—"}</span>
           </div>
           <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -43,10 +45,11 @@ function AreaBars({ avg }) {
 }
 
 function ScoreRow({ label, hint, value, onChange }) {
+  const t = useT();
   return (
     <div className="py-2 border-b border-gray-100 last:border-b-0">
-      <p className="text-sm text-gray-800">{label}</p>
-      {hint && <p className="text-[11px] text-gray-400 leading-snug mt-0.5">{hint}</p>}
+      <p className="text-sm text-gray-800">{t(label)}</p>
+      {hint && <p className="text-[11px] text-gray-400 leading-snug mt-0.5">{Array.isArray(hint) ? hint.map((h) => t(h)).join(" ") : t(hint)}</p>}
       <div className="mb-1.5" />
       <div className="flex gap-1 flex-wrap">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
@@ -69,6 +72,8 @@ function ScoreRow({ label, hint, value, onChange }) {
 }
 
 function EvalCard({ ev, areas, onEdit, onDelete, onToggleVisible, readOnly }) {
+  const t = useT();
+  const { tag } = useFormat();
   const [open, setOpen] = useState(false);
   const avg = computeAverages(ev.scores, areas);
   // Notas de criterios que ya no existen para este puesto (se conservan, pero no cuentan en la media)
@@ -77,23 +82,23 @@ function EvalCard({ ev, areas, onEdit, onDelete, onToggleVisible, readOnly }) {
     <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
       <div className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50" onClick={() => setOpen(!open)}>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 text-sm">{ev.period || "Evaluación"}</p>
+          <p className="font-semibold text-gray-900 text-sm">{ev.period || t("Evaluación")}</p>
           <p className="text-xs text-gray-400">
-            {ev.date ? new Date(ev.date).toLocaleDateString("es-ES") : ""}{ev.evaluator ? ` · ${ev.evaluator}` : ""}
+            {ev.date ? new Date(ev.date).toLocaleDateString(tag) : ""}{ev.evaluator ? ` · ${ev.evaluator}` : ""}
           </p>
         </div>
         <div className="hidden sm:flex items-center gap-2">
           {AREAS.map((a) => (
-            <span key={a.key} className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-50 border border-gray-100" style={{ color: scoreColor(avg[a.key]) }} title={a.label}>
-              {a.label.slice(0, 3)} {avg[a.key] ?? "—"}
+            <span key={a.key} className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-50 border border-gray-100" style={{ color: scoreColor(avg[a.key]) }} title={t(a.label)}>
+              {t(a.label).slice(0, 3)} {avg[a.key] ?? "—"}
             </span>
           ))}
         </div>
         <span className="text-sm font-black px-2.5 py-1 rounded-full text-white" style={{ background: scoreColor(avg.overall) }}>{avg.overall ?? "—"}</span>
         {!readOnly && <VisibilityBadge value={ev.visible_to_player} onToggle={(v) => onToggleVisible(ev, v)} />}
         {!readOnly && <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-          <button onClick={() => onEdit(ev)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
-          <button onClick={() => onDelete(ev.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+          <button onClick={() => onEdit(ev)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700" title={t("Editar")}><Pencil className="w-3.5 h-3.5" /></button>
+          <button onClick={() => onDelete(ev.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500" title={t("Eliminar")}><Trash2 className="w-3.5 h-3.5" /></button>
         </div>}
         {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
       </div>
@@ -105,13 +110,13 @@ function EvalCard({ ev, areas, onEdit, onDelete, onToggleVisible, readOnly }) {
               if (!rated.length) return null;
               return (
                 <div key={a.key}>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">{a.label} · {avg[a.key]}{a.pendingReview && <span className="ml-1.5 normal-case tracking-normal text-orange-600">(en revisión)</span>}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">{t(a.label)} · {avg[a.key]}{a.pendingReview && <span className="ml-1.5 normal-case tracking-normal text-orange-600">{t("(en revisión)")}</span>}</p>
                   <div className="space-y-1">
                     {rated.map((it) => {
                       const v = ev.scores[a.key][it.id];
                       return (
                         <div key={it.id} className="flex items-center justify-between gap-2 text-xs">
-                          <span className="text-gray-700">{it.label}</span>
+                          <span className="text-gray-700">{t(it.label)}</span>
                           <span className="font-bold shrink-0 w-6 text-center rounded text-white" style={{ background: scoreColor(v) }}>{v}</span>
                         </div>
                       );
@@ -121,10 +126,10 @@ function EvalCard({ ev, areas, onEdit, onDelete, onToggleVisible, readOnly }) {
               );
             })}
           </div>
-          {legacy && <p className="text-[11px] text-gray-400">Evaluación hecha con criterios anteriores de este puesto: las notas que ya no existen se conservan, pero no cuentan en las medias.</p>}
-          {[["Puntos fuertes", ev.strengths], ["A mejorar", ev.improve], ["Observaciones", ev.notes]].map(([t, v]) => v ? (
-            <div key={t}>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">{t}</p>
+          {legacy && <p className="text-[11px] text-gray-400">{t("Evaluación hecha con criterios anteriores de este puesto: las notas que ya no existen se conservan, pero no cuentan en las medias.")}</p>}
+          {[[msg("Puntos fuertes"), ev.strengths], [msg("A mejorar"), ev.improve], [msg("Observaciones"), ev.notes]].map(([k, v]) => v ? (
+            <div key={k}>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">{t(k)}</p>
               <p className="text-sm text-gray-700 whitespace-pre-line">{v}</p>
             </div>
           ) : null)}
@@ -135,6 +140,7 @@ function EvalCard({ ev, areas, onEdit, onDelete, onToggleVisible, readOnly }) {
 }
 
 export default function Evaluation360Section({ player, playerId, team }) {
+  const t = useT();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -199,7 +205,7 @@ export default function Evaluation360Section({ player, playerId, team }) {
   const live = computeAverages(form.scores, areas);
   const latest = evals[0];
   const latestAvg = latest ? computeAverages(latest.scores, areas) : null;
-  const tabs = [...areas.map((a) => ({ key: a.key, label: a.label, pending: !!a.pendingReview })), { key: "cierre", label: "Cierre" }];
+  const tabs = [...areas.map((a) => ({ key: a.key, label: a.label, pending: !!a.pendingReview })), { key: "cierre", label: msg("Cierre") }];
   const curArea = areas.find((a) => a.key === tab);
 
   return (
@@ -211,19 +217,19 @@ export default function Evaluation360Section({ player, playerId, team }) {
             <Radar className="w-5 h-5" style={{ color: "var(--granate)" }} />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900">Evaluación 360</h3>
-            <p className="text-sm text-gray-500">Perfil general de <strong>{playerFirstName(player)}</strong>: técnica, táctica, física y mental (1-10). Es el punto de partida; el trabajo concreto se planifica en el plan de desarrollo.</p>
+            <h3 className="font-semibold text-gray-900">{t("Evaluación 360")}</h3>
+            <p className="text-sm text-gray-500">{t("Perfil general de")} <strong>{playerFirstName(player)}</strong>{t(": técnica, táctica, física y mental (1-10). Es el punto de partida; el trabajo concreto se planifica en el plan de desarrollo.")}</p>
           </div>
           </div>
           {!playerMode && <Button variant="club" onClick={openNew} className="shrink-0 w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" /> Nueva evaluación
+            <Plus className="w-4 h-4 mr-2" /> {t("Nueva evaluación")}
           </Button>}
         </div>
         {latestAvg && (
           <div className="mt-4 pt-4 border-t border-gray-100">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Última evaluación · {latest.period || ""}</p>
-              <span className="text-sm font-black px-2.5 py-1 rounded-full text-white" style={{ background: scoreColor(latestAvg.overall) }}>Media {latestAvg.overall ?? "—"}</span>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{t("Última evaluación")} · {latest.period || ""}</p>
+              <span className="text-sm font-black px-2.5 py-1 rounded-full text-white" style={{ background: scoreColor(latestAvg.overall) }}>{t("Media")} {latestAvg.overall ?? "—"}</span>
             </div>
             <AreaBars avg={latestAvg} />
           </div>
@@ -231,11 +237,11 @@ export default function Evaluation360Section({ player, playerId, team }) {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-6 text-gray-400">Cargando...</div>
+        <div className="text-center py-6 text-gray-400">{t("Cargando...")}</div>
       ) : evals.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center shadow-sm">
-          <p className="text-gray-500 font-medium">Aún no hay evaluaciones 360</p>
-          <p className="text-gray-400 text-sm mt-1">Crea la primera para tener el perfil básico del jugador.</p>
+          <p className="text-gray-500 font-medium">{t("Aún no hay evaluaciones 360")}</p>
+          <p className="text-gray-400 text-sm mt-1">{t("Crea la primera para tener el perfil básico del jugador.")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -245,19 +251,19 @@ export default function Evaluation360Section({ player, playerId, team }) {
 
       <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
         <DialogContent className="bg-white border-gray-200 max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="text-gray-900">{editing ? "Editar evaluación 360" : "Nueva evaluación 360"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-gray-900">{editing ? t("Editar evaluación 360") : t("Nueva evaluación 360")}</DialogTitle></DialogHeader>
           <form onSubmit={submit} className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-gray-700">Fecha *</Label>
+                <Label className="text-gray-700">{t("Fecha *")}</Label>
                 <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required className="border-gray-200" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-gray-700">Periodo</Label>
+                <Label className="text-gray-700">{t("Periodo")}</Label>
                 <Input value={form.period} onChange={(e) => setForm({ ...form, period: e.target.value })} className="border-gray-200" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-gray-700">Evaluador</Label>
+                <Label className="text-gray-700">{t("Evaluador")}</Label>
                 <Input value={form.evaluator} onChange={(e) => setForm({ ...form, evaluator: e.target.value })} className="border-gray-200" />
               </div>
             </div>
@@ -266,19 +272,19 @@ export default function Evaluation360Section({ player, playerId, team }) {
 
             {isF7 && (hasF7Position
               ? <F7PositionGuide player={player} className="rounded-xl border border-gray-100 p-3" />
-              : <p className="text-[11px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">Aún no tiene posición de fútbol 7. En «Editar» del perfil puedes elegirla (portero, lateral, central, mediapunta o extremo) y aquí verás sus cualidades y los contenidos a trabajar.</p>)}
+              : <p className="text-[11px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">{t("Aún no tiene posición de fútbol 7. En «Editar» del perfil puedes elegirla (portero, lateral, central, mediapunta o extremo) y aquí verás sus cualidades y los contenidos a trabajar.")}</p>)}
 
             <div className="flex gap-1 border-b border-gray-100 overflow-x-auto">
-              {tabs.map((t) => {
-                const v = t.key === "cierre" ? null : live[t.key];
+              {tabs.map((tb) => {
+                const v = tb.key === "cierre" ? null : live[tb.key];
                 return (
                   <button
-                    key={t.key}
+                    key={tb.key}
                     type="button"
-                    onClick={() => setTab(t.key)}
-                    className={`px-3 py-2 text-sm font-semibold border-b-2 whitespace-nowrap ${tab === t.key ? "border-[#73000A] text-[#73000A]" : "border-transparent text-gray-500"}`}
+                    onClick={() => setTab(tb.key)}
+                    className={`px-3 py-2 text-sm font-semibold border-b-2 whitespace-nowrap ${tab === tb.key ? "border-[#73000A] text-[#73000A]" : "border-transparent text-gray-500"}`}
                   >
-                    {t.label}{t.pending ? <span className="ml-1 text-[10px] font-semibold text-orange-600" title="Ítems pendientes de revisión">· en revisión</span> : null}{v != null ? <span className="ml-1.5 text-xs font-black" style={{ color: scoreColor(v) }}>{v}</span> : null}
+                    {t(tb.label)}{tb.pending ? <span className="ml-1 text-[10px] font-semibold text-orange-600" title={t("Ítems pendientes de revisión")}>{t("· en revisión")}</span> : null}{v != null ? <span className="ml-1.5 text-xs font-black" style={{ color: scoreColor(v) }}>{v}</span> : null}
                   </button>
                 );
               })}
@@ -286,10 +292,10 @@ export default function Evaluation360Section({ player, playerId, team }) {
 
             {curArea && (
               <div>
-                <p className="text-xs text-gray-400 mb-1">{curArea.hint}. Toca una nota; vuelve a tocarla para quitarla.</p>
+                <p className="text-xs text-gray-400 mb-1">{t(curArea.hint)}. {t("Toca una nota; vuelve a tocarla para quitarla.")}</p>
                 {curArea.pendingReview && (
                   <p className="text-[11px] text-orange-700 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2 my-2">
-                    Ítems pendientes de revisión: lista provisional basada en las competencias del portero. Pueden cambiar.
+                    {t("Ítems pendientes de revisión: lista provisional basada en las competencias del portero. Pueden cambiar.")}
                   </p>
                 )}
                 {curArea.items.map((it) => (
@@ -300,25 +306,25 @@ export default function Evaluation360Section({ player, playerId, team }) {
 
             {tab === "cierre" && (
               <div className="space-y-3">
-                <div className="rounded-xl bg-gray-50 p-3"><AreaBars avg={live} /><p className="text-sm text-gray-600 mt-3">Media global: <strong style={{ color: scoreColor(live.overall) }}>{live.overall ?? "—"}</strong></p></div>
+                <div className="rounded-xl bg-gray-50 p-3"><AreaBars avg={live} /><p className="text-sm text-gray-600 mt-3">{t("Media global:")} <strong style={{ color: scoreColor(live.overall) }}>{live.overall ?? "—"}</strong></p></div>
                 <div className="space-y-1.5">
-                  <Label className="text-gray-700">Puntos fuertes (al menos tres)</Label>
+                  <Label className="text-gray-700">{t("Puntos fuertes (al menos tres)")}</Label>
                   <Textarea rows={3} value={form.strengths} onChange={(e) => setForm({ ...form, strengths: e.target.value })} className="border-gray-200" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-gray-700">Áreas de mejora (dos o tres)</Label>
+                  <Label className="text-gray-700">{t("Áreas de mejora (dos o tres)")}</Label>
                   <Textarea rows={3} value={form.improve} onChange={(e) => setForm({ ...form, improve: e.target.value })} className="border-gray-200" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-gray-700">Observaciones</Label>
+                  <Label className="text-gray-700">{t("Observaciones")}</Label>
                   <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="border-gray-200" />
                 </div>
               </div>
             )}
 
             <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={close}>Cancelar</Button>
-              <Button variant="club" type="submit" disabled={save.isPending}>{editing ? "Guardar" : "Crear evaluación"}</Button>
+              <Button type="button" variant="outline" onClick={close}>{t("Cancelar")}</Button>
+              <Button variant="club" type="submit" disabled={save.isPending}>{editing ? t("Guardar") : t("Crear evaluación")}</Button>
             </div>
           </form>
         </DialogContent>
@@ -327,12 +333,12 @@ export default function Evaluation360Section({ player, playerId, team }) {
       <AlertDialog open={!!deleteId} onOpenChange={(o) => { if (!o) setDeleteId(null); }}>
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar evaluación?</AlertDialogTitle>
-            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+            <AlertDialogTitle>{t("¿Eliminar evaluación?")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("Esta acción no se puede deshacer.")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => del.mutate(deleteId)} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => del.mutate(deleteId)} className="bg-red-600 hover:bg-red-700 text-white">{t("Eliminar")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -16,11 +16,12 @@ export function scoreParts(m) {
 }
 
 /** Texto para el tooltip: «Bufalà 2 - 1 Nosotros» (o «Nosotros 3 - 1 Rival» en casa). undefined si no hay resultado. */
-export function scoreTitle(m, ourName = "Nosotros") {
+export function scoreTitle(m, ourName, t = (s) => s) {
   const p = scoreParts(m);
   if (!p) return undefined;
-  const rival = m.opponent || "Rival";
-  return p.away ? `${rival} ${p.left} - ${p.right} ${ourName}` : `${ourName} ${p.left} - ${p.right} ${rival}`;
+  const rival = m.opponent || t("Rival");
+  const us = ourName || t("Nosotros");
+  return p.away ? `${rival} ${p.left} - ${p.right} ${us}` : `${us} ${p.left} - ${p.right} ${rival}`;
 }
 
 /** «2 - 1» en orden local-visitante (o null si no hay resultado) */

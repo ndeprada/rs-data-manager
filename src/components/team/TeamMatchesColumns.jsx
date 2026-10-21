@@ -1,33 +1,35 @@
 import React from "react";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { ChevronRight } from "lucide-react";
 import { resultOf, HomeAwayIcon } from "@/components/match/MatchesTimeline";
 import { useMatchStatus } from "@/lib/matchStatus";
 import { usePlayerMode } from "@/lib/playerMode";
 import { scoreText, scoreTitle } from "@/lib/matchScore";
 import { isCancelled, cancelText, cancelWord } from "@/lib/eventCancel";
+import { useT, useDateLocale, msg } from "@/i18n";
 
-const CHIP = { victoria: ["V", "#16a34a"], empate: ["E", "#ea580c"], derrota: ["D", "#dc2626"] };
+const CHIP = { victoria: [msg("V"), "#16a34a"], empate: [msg("E"), "#ea580c"], derrota: [msg("D"), "#dc2626"] };
 
 function Row({ m, onOpen, reasons, soft }) {
+  const t = useT();
+  const locale = useDateLocale();
   const r = resultOf(m);
   return (
     <button type="button" onClick={() => onOpen?.(m)} className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-gray-50 text-left group">
       <div className="w-12 shrink-0 text-xs font-bold text-gray-500 leading-tight">
-        {format(new Date(m.date), "d MMM", { locale: es })}
+        {format(new Date(m.date), "d MMM", { locale })}
         <span className="block text-[10px] font-normal text-gray-400">{format(new Date(m.date), "HH:mm")}</span>
       </div>
       <HomeAwayIcon match={m} className="w-4 h-4 shrink-0" />
       {m.opponent_logo_url ? <img src={m.opponent_logo_url} alt="" loading="lazy" className="w-5 h-5 object-contain shrink-0" /> : <span className="w-5 shrink-0" />}
-      <span className="flex-1 min-w-0 truncate text-sm font-normal text-gray-900">{m.opponent || m.title || "Rival"}</span>
-      {isCancelled(m) && <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300" title={cancelText(m)}>{cancelWord(m)}</span>}
-      {reasons && <span title={reasons.join(" · ")} className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Pendiente</span>}
-      {!reasons && soft && <span title={soft.join(" · ")} className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 border border-gray-200">Pendiente</span>}
+      <span className="flex-1 min-w-0 truncate text-sm font-normal text-gray-900">{m.opponent || m.title || t("Rival")}</span>
+      {isCancelled(m) && <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300" title={cancelText(m, t)}>{t(cancelWord(m))}</span>}
+      {reasons && <span title={reasons.join(" · ")} className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">{t("Pendiente")}</span>}
+      {!reasons && soft && <span title={soft.join(" · ")} className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 border border-gray-200">{t("Pendiente")}</span>}
       {r ? (
         <span className="flex items-center gap-1.5 shrink-0">
-          <span className="text-sm font-black" style={{ fontFamily: "var(--font-display)" }} title={scoreTitle(m)}>{scoreText(m, "-")}</span>
-          <span className="w-5 h-5 rounded text-[10px] font-black text-white flex items-center justify-center" style={{ background: CHIP[r][1] }}>{CHIP[r][0]}</span>
+          <span className="text-sm font-black" style={{ fontFamily: "var(--font-display)" }} title={scoreTitle(m, undefined, t)}>{scoreText(m, "-")}</span>
+          <span className="w-5 h-5 rounded text-[10px] font-black text-white flex items-center justify-center" style={{ background: CHIP[r][1] }}>{t(CHIP[r][0])}</span>
         </span>
       ) : (
         <span className="text-[11px] text-gray-400 shrink-0">{m.location ? m.location.slice(0, 18) : ""}</span>
@@ -50,6 +52,7 @@ function Column({ title, rows, empty, onOpen, pending, soft }) {
 
 // Últimos partidos jugados (izquierda) y próximos (derecha), 3 y 3.
 export default function TeamMatchesColumns({ matches, onOpen, count = 3 }) {
+  const t = useT();
   const { pending: allPending, soft: allSoft } = useMatchStatus();
   const pending = usePlayerMode() ? undefined : allPending;
   const soft = usePlayerMode() ? undefined : allSoft;
@@ -58,8 +61,8 @@ export default function TeamMatchesColumns({ matches, onOpen, count = 3 }) {
   const next = matches.filter((m) => new Date(m.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, count);
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      <Column title="Últimos partidos" rows={last} empty="Sin partidos jugados" onOpen={onOpen} pending={pending} soft={soft} />
-      <Column title="Próximos partidos" rows={next} empty="Sin partidos programados" onOpen={onOpen} />
+      <Column title={t("Últimos partidos")} rows={last} empty={t("Sin partidos jugados")} onOpen={onOpen} pending={pending} soft={soft} />
+      <Column title={t("Próximos partidos")} rows={next} empty={t("Sin partidos programados")} onOpen={onOpen} />
     </div>
   );
 }

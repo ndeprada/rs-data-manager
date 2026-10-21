@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, RefreshCw, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getCategoryLabel } from "@/components/fcfCategories";
+import { useT, msg } from "@/i18n";
 
-const FORM = { G: ["V", "#16a34a"], E: ["E", "#ea580c"], P: ["D", "#dc2626"] };
+const FORM = { G: [msg("V"), "#16a34a"], E: [msg("E"), "#ea580c"], P: [msg("D"), "#dc2626"] };
 const logoUrl = (f) => (f ? `https://files.fcf.cat/escudos/clubes/escudos/${f}` : null);
 const shortName = (n) => String(n || "").replace(/\s+/g, " ").replace(/ ([A-Z])$/, " $1").trim();
 
@@ -15,6 +16,7 @@ async function fetchStanding(teamId) {
 }
 
 export default function FCFTeamStanding({ team }) {
+  const t = useT();
   const [full, setFull] = useState(false);
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["fcf-standing", team.id],
@@ -42,13 +44,13 @@ export default function FCFTeamStanding({ team }) {
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {me && (
-            <span className="text-xs font-black mr-1" style={{ color: "var(--granate)" }}>{me.pos}º · {me.pts} pts</span>
+            <span className="text-xs font-black mr-1" style={{ color: "var(--granate)" }}>{t("{pos}º · {pts} pts", { pos: me.pos, pts: me.pts })}</span>
           )}
-          <button onClick={() => refetch()} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600" title="Actualizar">
+          <button onClick={() => refetch()} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600" title={t("Actualizar")}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
           </button>
           {team.fcf_group_url && (
-            <a href={team.fcf_group_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600" title="Ver en FCF">
+            <a href={team.fcf_group_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600" title={t("Ver en FCF")}>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
@@ -60,7 +62,7 @@ export default function FCFTeamStanding({ team }) {
       ) : isError || !data?.available ? (
         <div className="flex items-center gap-2 text-sm text-gray-400 p-4">
           <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-          <span>Clasificación no disponible por ahora. <button onClick={() => refetch()} className="underline hover:text-gray-600">Reintentar</button></span>
+          <span>{t("Clasificación no disponible por ahora.")} <button onClick={() => refetch()} className="underline hover:text-gray-600">{t("Reintentar")}</button></span>
         </div>
       ) : (
         <>
@@ -68,13 +70,13 @@ export default function FCFTeamStanding({ team }) {
             <thead>
               <tr className="text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50">
                 <th className="py-1.5 pl-3 text-left font-bold w-6">#</th>
-                <th className="py-1.5 text-left font-bold">Equipo</th>
-                <th className="py-1.5 text-center font-bold">PJ</th>
-                <th className="py-1.5 text-center font-bold hidden sm:table-cell">G</th>
-                <th className="py-1.5 text-center font-bold hidden sm:table-cell">E</th>
-                <th className="py-1.5 text-center font-bold hidden sm:table-cell">P</th>
-                <th className="py-1.5 text-center font-bold">DG</th>
-                <th className="py-1.5 pr-3 text-center font-bold">Pts</th>
+                <th className="py-1.5 text-left font-bold">{t("Equipo")}</th>
+                <th className="py-1.5 text-center font-bold">{t("PJ")}</th>
+                <th className="py-1.5 text-center font-bold hidden sm:table-cell">{t("G")}</th>
+                <th className="py-1.5 text-center font-bold hidden sm:table-cell">{t("E")}</th>
+                <th className="py-1.5 text-center font-bold hidden sm:table-cell">{t("P")}</th>
+                <th className="py-1.5 text-center font-bold">{t("DG")}</th>
+                <th className="py-1.5 pr-3 text-center font-bold">{t("Pts")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -103,12 +105,12 @@ export default function FCFTeamStanding({ team }) {
           <div className="px-3 py-2 border-t border-gray-100 flex items-center justify-between">
             <div className="flex gap-1">
               {(me?.form || []).slice().reverse().map((f, i) => (
-                <span key={i} className="w-5 h-5 rounded text-[10px] font-black text-white flex items-center justify-center" style={{ background: (FORM[f] || ["?", "#9ca3af"])[1] }}>{(FORM[f] || ["?"])[0]}</span>
+                <span key={i} className="w-5 h-5 rounded text-[10px] font-black text-white flex items-center justify-center" style={{ background: (FORM[f] || ["?", "#9ca3af"])[1] }}>{FORM[f] ? t(FORM[f][0]) : "?"}</span>
               ))}
             </div>
             {rows.length > 6 && (
               <button onClick={() => setFull((v) => !v)} className="text-xs font-bold inline-flex items-center gap-1" style={{ color: "var(--granate)" }}>
-                {full ? <>Ver menos <ChevronUp className="w-3.5 h-3.5" /></> : <>Clasificación completa <ChevronDown className="w-3.5 h-3.5" /></>}
+                {full ? <>{t("Ver menos")} <ChevronUp className="w-3.5 h-3.5" /></> : <>{t("Clasificación completa")} <ChevronDown className="w-3.5 h-3.5" /></>}
               </button>
             )}
           </div>

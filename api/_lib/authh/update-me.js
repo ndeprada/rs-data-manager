@@ -7,7 +7,8 @@ const REQUESTABLE_FUNCTIONS = [
   'preparador_fisico', 'psicologo', 'fisioterapeuta', 'jugador', 'familiar',
 ];
 // Datos de perfil que cada persona puede cambiarse a sí misma
-const PROFILE_FIELDS = ['full_name', 'first_name', 'last_name', 'phone', 'photo_url', 'notes', 'birth_date', 'birth_country', 'birth_region', 'birth_province', 'birth_city'];
+const PROFILE_FIELDS = ['full_name', 'first_name', 'last_name', 'phone', 'photo_url', 'notes', 'birth_date', 'birth_country', 'birth_region', 'birth_province', 'birth_city', 'language'];
+const LANGUAGES = ['es', 'en', 'fr', 'ca'];
 // Datos de la solicitud de acceso (solo mientras no tenga acceso aprobado)
 const REQUEST_FIELDS = ['person_type', 'app_role_pending', 'requested_assignments', 'requested_team_id'];
 
@@ -31,6 +32,11 @@ export default async function handler(req, res) {
     PROFILE_FIELDS.forEach((k) => {
       if (k in body) patch[k] = body[k];
     });
+
+    if ('language' in patch && !LANGUAGES.includes(patch.language)) {
+      res.status(400).json({ error: 'invalid_language' });
+      return;
+    }
 
     if (canRequest) {
       REQUEST_FIELDS.forEach((k) => {

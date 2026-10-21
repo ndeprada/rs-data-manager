@@ -1,3 +1,4 @@
+import { msg } from '@/i18n/translate.js';
 // Activar / desactivar avisos push en este dispositivo.
 import { base44 } from '@/api/base44Client';
 
@@ -26,9 +27,9 @@ export async function pushState() {
 
 export async function enablePush() {
   const { key } = await base44.club.vapid();
-  if (!key) throw new Error('Los avisos aún no están configurados en el servidor.');
+  if (!key) throw new Error(msg('Los avisos aún no están configurados en el servidor.'));
   const perm = await Notification.requestPermission();
-  if (perm !== 'granted') throw new Error('No se concedió el permiso de notificaciones.');
+  if (perm !== 'granted') throw new Error(msg('No se concedió el permiso de notificaciones.'));
   const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.register('/sw.js'));
   await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();

@@ -1,14 +1,16 @@
 import React from "react";
+import { useT } from "@/i18n";
 
 // Espalda de la camiseta de Racing Sarrià con el dorsal del jugador (blanca; naranja para porteros)
 export default function JerseyBack({ number, goalkeeper = false, className = "w-11 h-12" }) {
+  const t = useT();
   const fill = goalkeeper ? "#FF6E00" : "#F4F4F4";
   const stroke = goalkeeper ? "#B84C00" : "#CFCFCF";
   const ink = goalkeeper ? "#FFFFFF" : "#73000A";
   const len = String(number).length;
   const size = len >= 3 ? 36 : len === 2 ? 48 : 56;
   return (
-    <svg viewBox="0 0 120 130" className={`shrink-0 drop-shadow-md ${className}`} role="img" aria-label={`Camiseta dorsal ${number}`}>
+    <svg viewBox="0 0 120 130" className={`shrink-0 drop-shadow-md ${className}`} role="img" aria-label={t("Camiseta dorsal {n}", { n: number })}>
       <path
         d="M40,6 L28,10 L6,26 L16,48 L30,42 L30,122 L90,122 L90,42 L104,48 L114,26 L92,10 L80,6 Q60,17 40,6 Z"
         fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round"
