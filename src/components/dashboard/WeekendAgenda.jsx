@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import EventWeather from "@/components/EventWeather";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { format, addDays, parseISO, startOfDay } from "date-fns";
@@ -332,6 +333,7 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
                     {/* Hour */}
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className="font-bold text-gray-900">{format(parseISO(ev.date), "HH:mm")}</span>
+                      <EventWeather event={ev} rain className="ml-2 text-xs" />
                     </td>
                     {/* Home/Away */}
                     <td className="px-3 py-2 whitespace-nowrap">

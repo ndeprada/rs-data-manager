@@ -3,6 +3,7 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, 
 import { es } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
+import EventWeather from "@/components/EventWeather";
 
 const EVENT_TYPE_COLORS = {
   partido_amistoso: "#73000A",   // granate
@@ -102,6 +103,7 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
                         <img src={evt.opponent_logo_url} alt="" loading="lazy" className="inline-block w-4 h-4 object-contain bg-white rounded-sm mr-1 align-middle" />
                       )}
                       {evt.title}
+                      <EventWeather event={evt} onDark className="!flex mt-0.5 text-[9px] font-semibold opacity-90" />
                     </div>
                   ))
                 )}

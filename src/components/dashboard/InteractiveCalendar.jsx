@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import EventWeather from "@/components/EventWeather";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, parseISO } from "date-fns";
@@ -145,6 +146,7 @@ export default function InteractiveCalendar({ events = [], teams = [] }) {
                     <p className="text-xs text-gray-400 mt-1">
                       {format(parseISO(event.date), "HH:mm")}
                       {event.location && ` · ${event.location}`}
+                      <EventWeather event={event} rain className="ml-2 text-[11px] align-middle" />
                     </p>
                   </div>
                 </div>

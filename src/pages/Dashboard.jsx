@@ -8,6 +8,7 @@ import { es } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import FCFClassificationsPanel from "../components/dashboard/FCFClassificationsPanel";
 import WeekendAgenda from "../components/dashboard/WeekendAgenda";
+import EventWeather from "@/components/EventWeather";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { playerFullName } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
@@ -361,7 +362,10 @@ export default function Dashboard() {
                   const off = isCancelled(e);
                   const content = (
                     <div className={`rounded-md px-1 sm:px-2.5 py-1 sm:py-1.5 hover:brightness-95 transition ${off ? "opacity-60" : ""}`} style={{ background: off ? "#f3f4f6" : m ? "var(--granate-pale)" : "#f9fafb", outline: isToday ? "1px solid var(--naranja)" : undefined }}>
-                      <p className={`text-[9px] sm:text-[10px] font-bold ${off ? "line-through" : ""}`} style={{ color: m ? "var(--granate)" : "var(--naranja)" }}>{format(new Date(e.date), "HH:mm")}</p>
+                      <div className="flex flex-wrap items-center justify-between gap-x-1">
+                        <p className={`text-[9px] sm:text-[10px] font-bold ${off ? "line-through" : ""}`} style={{ color: m ? "var(--granate)" : "var(--naranja)" }}>{format(new Date(e.date), "HH:mm")}</p>
+                        <EventWeather event={e} className="text-[8px] sm:text-[10px]" />
+                      </div>
                       <p className={`text-[9px] sm:text-xs font-semibold text-gray-900 leading-tight line-clamp-3 sm:line-clamp-2 break-words ${off ? "line-through" : ""}`}>{m ? (e.opponent ? `${teamName(e.team_id)} vs ${e.opponent}` : e.title) : (e.title || "Entrenamiento")}</p>
                       {!m && <p className="text-[8px] sm:text-[10px] text-gray-500 leading-tight break-words">{teamName(e.team_id)}</p>}
                       {off && <p className="text-[8px] sm:text-[10px] font-bold text-gray-500 leading-tight break-words" title={cancelText(e)}>{cancelText(e)}</p>}

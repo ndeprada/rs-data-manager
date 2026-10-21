@@ -1,5 +1,6 @@
 import { query } from './db.js';
 import { buildGuestIndex } from './rosterMatch.js';
+import { validCoords } from '../../src/lib/weather.js';
 
 export const CLUB_CODE = '40493342';
 const BASE = `https://www.fcf.cat/api/clubs/${CLUB_CODE}`;
@@ -251,6 +252,9 @@ export async function syncFcf() {
           fcf_competition: clean(m.NOMBRE_COMPETICION || ''),
           fcf_group: clean(m.GRUPO || ''),
         };
+        // Coordenadas del campo (las publica la FCF): sirven para la previsión del tiempo a la hora del partido
+        const field = validCoords(m.LATITUD, m.LONGITUD);
+        if (field) { data.location_lat = field.lat; data.location_lng = field.lng; }
         if (crest) data.fcf_opponent_logo = `https://files.fcf.cat/escudos/clubes/escudos/${crest}`;
         if (played) { data.score_home = Number(home ? hg : ag); data.score_away = Number(home ? ag : hg); }
         const existing = eventByActa.get(String(m.CODACTA));
