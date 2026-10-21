@@ -15,7 +15,9 @@ import { Repeat } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { notifyTeamPush, notifyTeamsPush, pushResultText } from "@/lib/notifyTeam";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
-import { CLUB_ALL, CLUB_EVENT_TYPE, clubEventCopies } from "@/lib/clubEvent";
+import { CLUB_EVENT_TYPE, clubEventCopies, scopeLabel } from "@/lib/clubEvent";
+import { sortTeams } from "@/lib/teamOrder";
+import EventTargetPicker from "@/components/myteam/EventTargetPicker";
 
 const EVENT_TYPES = [
   { value: "entrenamiento",        label: "Entrenamiento" },
@@ -43,14 +45,14 @@ const WEEKDAYS = [
   { dow: 4, label: "J", name: "Jueves" }, { dow: 5, label: "V", name: "Viernes" }, { dow: 6, label: "S", name: "Sábado" }, { dow: 0, label: "D", name: "Domingo" },
 ];
 
-const buildDefaultNotificationMessage = (form, teams) => {
-  const team = teams?.find(t => t.id === form.teamId);
-  const wholeClub = form.teamId === CLUB_ALL;
+// `scope`: a quién llega cuando el evento es para varios equipos («Todo el club», «Juvenil A, Cadet S16 A», «5 equipos»)
+const buildDefaultNotificationMessage = (form, teams, scope = "") => {
+  const team = form.multi ? null : teams?.find(t => t.id === form.teamId);
   const eventLabel = EVENT_TYPES.find(t => t.value === form.type)?.label || form.type;
   const dateStr = form.date ? `${form.date}T${form.time}:00` : "";
   const formattedDate = dateStr ? format(new Date(dateStr), "dd/MM/yyyy 'a las' HH:mm") : "";
   const title = form.title?.trim() || (MATCH_TYPES.includes(form.type) && form.opponent ? `vs ${form.opponent}` : eventLabel);
-  return `Se ha añadido un nuevo evento al calendario:\n\n📌 ${title}\n🏷️ Tipo: ${eventLabel}\n📅 Fecha: ${formattedDate}${form.location ? `\n📍 Lugar: ${form.location}` : ""}${team ? `\n🛡️ Equipo: ${team.name}` : wholeClub ? "\n🛡️ Para todo el club" : ""}${form.notes ? `\n📝 Notas: ${form.notes}` : ""}`;
+  return `Se ha añadido un nuevo evento al calendario:\n\n📌 ${title}\n🏷️ Tipo: ${eventLabel}\n📅 Fecha: ${formattedDate}${form.location ? `\n📍 Lugar: ${form.location}` : ""}${team ? `\n🛡️ Equipo: ${team.name}` : scope ? (scope === "Todo el club" ? "\n🛡️ Para todo el club" : `\n🛡️ Equipos: ${scope}`) : ""}${form.notes ? `\n📝 Notas: ${form.notes}` : ""}`;
 };
 
 const FREQ_OPTIONS = [
@@ -97,6 +99,8 @@ const buildEmptyForm = (date, teamId, recurring = false) => ({
   opponent: "",
   notes: "",
   teamId: teamId || "",
+  multi: false,      // coordinación: crear el evento en varios equipos a la vez
+  teamIds: [],
   recurring,
   frequency: "weekly",
   weekdays: [(date || new Date()).getDay()],
@@ -133,8 +137,23 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
   const isMultiday = MULTIDAY_TYPES.includes(form.type);
   const typeLabel = EVENT_TYPES.find(t => t.value === form.type)?.label || "";
   const showTeamSelector = !teamId && teams && teams.length > 0;
-  // Coordinación puede crear el evento para todos los equipos a la vez (una copia en cada uno)
-  const allTeams = showTeamSelector && isCoordinator && form.teamId === CLUB_ALL;
+  // Coordinación puede crear el evento en varios equipos a la vez (una copia en cada uno, unidas por club_event_id)
+  const canMulti = showTeamSelector && isCoordinator;
+  const picked = canMulti && form.multi ? sortTeams(teams).filter(t => form.teamIds.includes(t.id)) : [];
+  const groupMode = picked.length > 1;
+  const scope = groupMode ? scopeLabel(picked, teams) : "";
+  const targetTeamId = form.multi ? picked[0]?.id : (form.teamId || teamId);
+  const hasTarget = !showTeamSelector || (form.multi ? picked.length > 0 : !!form.teamId);
+  // Con varios equipos no hay partidos (cada uno tiene su rival) ni repetición semanal
+  const typeOptions = form.multi ? EVENT_TYPES.filter(t => !MATCH_TYPES.includes(t.value)) : EVENT_TYPES;
+  const changeTarget = (patch) => setForm(prev => {
+    const next = { ...prev, ...patch };
+    if (patch.multi === true) {
+      next.recurring = false;
+      if (prev.type === "entrenamiento" || MATCH_TYPES.includes(prev.type)) next.type = CLUB_EVENT_TYPE;
+    }
+    return next;
+  });
 
   // Parse current date for preview
   const parsedDate = form.date ? parseISO(form.date) : new Date();
@@ -163,21 +182,17 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
     if (!createdEvent?.team_id) return;
     const team = teams?.find(t => t.id === createdEvent.team_id);
     const title = form.title?.trim() || (isMatch && form.opponent ? `vs ${form.opponent}` : typeLabel);
+    const body = form.notification_message || buildDefaultNotificationMessage(form, teams, scope);
     try {
-      const r = allTeams
+      const r = groupMode
         ? await notifyTeamsPush({
-            teamIds: null,
-            label: "Todo el club · aviso de evento",
-            title: `📅 Evento del club: ${title}`,
-            body: form.notification_message || buildDefaultNotificationMessage(form, teams),
-          })
-        : await notifyTeamPush({
-            teamId: createdEvent.team_id,
-            teamName: team?.name,
+            teamIds: scope === "Todo el club" ? null : picked.map(t => t.id),
+            label: `${scope} · aviso de evento`,
             title: `📅 Nuevo evento: ${title}`,
-            body: form.notification_message || buildDefaultNotificationMessage(form, teams),
-          });
-      toast({ title: allTeams ? "Aviso enviado a todo el club" : "Aviso enviado al equipo", description: pushResultText(r) });
+            body,
+          })
+        : await notifyTeamPush({ teamId: createdEvent.team_id, teamName: team?.name, title: `📅 Nuevo evento: ${title}`, body });
+      toast({ title: groupMode ? `Aviso enviado: ${scope}` : "Aviso enviado al equipo", description: pushResultText(r) });
     } catch (e) {
       toast({ title: "El evento se ha creado, pero no se pudo enviar el aviso", description: e?.message || "Inténtalo desde Avisos.", variant: "destructive" });
     }
@@ -185,8 +200,8 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const seriesId = form.recurring && !allTeams ? crypto.randomUUID() : undefined;
-      const occurrences = form.recurring && !allTeams
+      const seriesId = form.recurring && !form.multi ? crypto.randomUUID() : undefined;
+      const occurrences = form.recurring && !form.multi
         ? getOccurrenceDates(form.series_from, form.recurrence_until, form.weekdays, form.frequency).filter(d => !(form.excluded || []).includes(format(d, "yyyy-MM-dd")))
         : [parsedDate];
 
@@ -194,9 +209,9 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
       const endOf = (dStr) => (isMultiday && form.end_date_multiday
         ? `${form.end_date_multiday}T${form.end_time_multiday}:00`
         : (form.end_time ? `${dStr}T${form.end_time}:00` : undefined));
-      // Todos los equipos: una copia por equipo, unidas por club_event_id
-      if (allTeams) {
-        const copies = clubEventCopies({ ...data, date: `${dStr0}T${form.time}:00`, end_date: endOf(dStr0) }, teams, crypto.randomUUID());
+      // Varios equipos: una copia por equipo, unidas por club_event_id
+      if (groupMode) {
+        const copies = clubEventCopies({ ...data, date: `${dStr0}T${form.time}:00`, end_date: endOf(dStr0) }, picked, crypto.randomUUID());
         const created = [];
         for (let i = 0; i < copies.length; i += 10) created.push(...(await Promise.all(copies.slice(i, i + 10).map((c) => base44.entities.Event.create(c)))));
         return created;
@@ -231,7 +246,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
     createMutation.mutate({
       title,
       type: form.type,
-      team_id: allTeams ? undefined : (form.teamId || teamId),
+      team_id: groupMode ? undefined : targetTeamId,
       location: form.location || undefined,
       field_id: form.field_id || undefined,
       location_url: form.location_url.trim() || undefined,
@@ -255,22 +270,14 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Team selector (Calendar mode) */}
+          {/* Equipo o equipos (modo Calendario) */}
           {showTeamSelector && (
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Equipo *</p>
-              <Select value={form.teamId} onValueChange={v => setForm(prev => ({
-                ...prev, teamId: v, recurring: v === CLUB_ALL ? false : prev.recurring,
-                type: v === CLUB_ALL && prev.type === "entrenamiento" ? CLUB_EVENT_TYPE : prev.type,
-              }))}>
-                <SelectTrigger className="border-gray-200"><SelectValue placeholder="Seleccionar equipo…" /></SelectTrigger>
-                <SelectContent>
-                  {isCoordinator && <SelectItem value={CLUB_ALL}>★ Todos los equipos del club</SelectItem>}
-                  {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {allTeams && <p className="text-[11px] text-gray-500 mt-1">Se creará en el calendario de los {teams.length} equipos. Después podrás editarlo o borrarlo en todos a la vez.</p>}
-            </div>
+            <EventTargetPicker
+              teams={teams}
+              canMulti={canMulti}
+              value={{ multi: form.multi, teamId: form.teamId, teamIds: form.teamIds }}
+              onChange={changeTarget}
+            />
           )}
 
           {/* Tipo */}
@@ -279,7 +286,7 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
             <Select value={form.type} onValueChange={v => set("type", v)}>
               <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {EVENT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                {typeOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -367,12 +374,12 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
                   id="send_notif"
                   checked={form.send_notification}
                   onCheckedChange={v => {
-                    const msg = v ? buildDefaultNotificationMessage({ ...form }, teams) : "";
+                    const msg = v ? buildDefaultNotificationMessage({ ...form }, teams, scope) : "";
                     setForm(prev => ({ ...prev, send_notification: !!v, notification_message: msg }));
                   }}
                 />
                 <label htmlFor="send_notif" className="text-sm font-medium text-gray-700 cursor-pointer">
-                  {allTeams ? "Avisar a todo el club en el móvil (notificación de la app)" : "Avisar al equipo en el móvil (notificación de la app)"}
+                  {groupMode ? `Avisar en el móvil a: ${scope} (notificación de la app)` : "Avisar al equipo en el móvil (notificación de la app)"}
                 </label>
               </div>
               {form.send_notification && (
@@ -391,8 +398,8 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
             </div>
           )}
 
-          {/* Recurrencia (no con «todos los equipos»: sería una copia por equipo y por fecha) */}
-          {!allTeams && <div className="border border-gray-200 rounded-lg p-3 space-y-3">
+          {/* Recurrencia (no con varios equipos: sería una copia por equipo y por fecha) */}
+          {!form.multi && <div className="border border-gray-200 rounded-lg p-3 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Repeat className="w-4 h-4 text-gray-400" />
@@ -475,11 +482,11 @@ export default function CreateEventDialog({ open, onOpenChange, date, teamId, te
 
           <div className="flex gap-3 pt-1">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancelar</Button>
-            <Button variant="club" type="submit" disabled={createMutation.isPending || (form.recurring && !allTeams && previewDates.length === 0) || (showTeamSelector && !form.teamId)} className="flex-1">
+            <Button variant="club" type="submit" disabled={createMutation.isPending || (form.recurring && previewDates.length === 0) || !hasTarget} className="flex-1">
               {createMutation.isPending
                 ? "Guardando…"
-                : allTeams
-                  ? `Crear en los ${teams.length} equipos`
+                : groupMode
+                  ? `Crear en los ${picked.length} equipos`
                   : form.recurring
                   ? `Crear ${previewDates.length} eventos`
                   : "Crear evento"}

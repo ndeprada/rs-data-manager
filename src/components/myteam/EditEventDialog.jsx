@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Upload, Ban } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
-import { clubSiblings } from "@/lib/clubEvent";
+import { clubSiblings, scopeLabel } from "@/lib/clubEvent";
 import { sortTeams } from "@/lib/teamOrder";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
 import CancelEventDialog from "@/components/myteam/CancelEventDialog";
@@ -73,6 +73,10 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
     queryKey: ["fields"],
     queryFn: () => base44.entities.Field.list(),
   });
+  // A qué equipos llega este evento (si es de varios)
+  const groupTeams = group.map((e) => teams.find((t) => t.id === e.team_id)).filter(Boolean);
+  const groupScope = scopeLabel(groupTeams, teams, 6);
+  const groupTitle = group.length > 1 ? (groupScope === "Todo el club" ? "Evento de todo el club" : `Evento en ${group.length} equipos`) : "Evento de varios equipos";
 
   useEffect(() => {
     if (event) {
@@ -270,7 +274,8 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
             )}
             {event.club_event_id && (
               <div className="rounded-md border border-red-100 bg-red-50/60 px-3 py-2 space-y-1.5">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--granate)]">Evento de todo el club{group.length > 1 ? ` · ${group.length} equipos` : ""}</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--granate)]">{groupTitle}{group.length > 1 && groupScope === "Todo el club" ? ` · ${group.length} equipos` : ""}</p>
+                {group.length > 1 && groupScope && groupScope !== "Todo el club" && !/^\d+ equipos$/.test(groupScope) && <p className="text-[11px] text-gray-500">{groupScope}</p>}
                 {canApplyAll ? (
                   <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
                     <Checkbox checked={applyAll} onCheckedChange={(v) => setApplyAll(!!v)} /> Aplicar los cambios a todos los equipos
@@ -414,7 +419,7 @@ export default function EditEventDialog({ open, onOpenChange, event }) {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar evento?</AlertDialogTitle>
             <AlertDialogDescription>
-              {event.series_id ? "Este evento forma parte de una serie recurrente. Esta acción no se puede deshacer." : canApplyAll ? "Es un evento de todo el club: puedes borrarlo solo en este equipo o en todos. Esta acción no se puede deshacer." : "Esta acción no se puede deshacer."}
+              {event.series_id ? "Este evento forma parte de una serie recurrente. Esta acción no se puede deshacer." : canApplyAll ? `Es un evento de ${groupScope === "Todo el club" ? "todo el club" : "varios equipos"}: puedes borrarlo solo en este equipo o en todos. Esta acción no se puede deshacer.` : "Esta acción no se puede deshacer."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

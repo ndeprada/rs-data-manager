@@ -124,7 +124,7 @@ export default function CancelEventDialog({ open, onOpenChange, event, onDone })
             </div>
             {canApplyAll && (
               <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
-                <Checkbox checked={applyAll} onCheckedChange={(v) => setApplyAll(!!v)} /> Aplicarlo a los {group.length} equipos (evento de todo el club)
+                <Checkbox checked={applyAll} onCheckedChange={(v) => setApplyAll(!!v)} /> Aplicarlo a los {group.length} equipos (es el mismo evento)
               </label>
             )}
             {canNotify && (

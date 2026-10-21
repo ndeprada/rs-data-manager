@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { clubEventCopies, clubSiblings, isClubEvent, CLUB_ALL, CLUB_EVENT_TYPE } from '../src/lib/clubEvent.js';
+import { clubEventCopies, clubSiblings, isClubEvent, teamSets, scopeLabel, CLUB_EVENT_TYPE } from '../src/lib/clubEvent.js';
 import { bulkTargets, TRAINING_TYPES } from '../src/lib/eventCancel.js';
 import { cancelNotice, bulkNotice } from '../src/lib/cancelNotice.js';
 
@@ -8,12 +8,26 @@ const teams = [{ id: 't1' }, { id: 't2' }, { id: 't2' }, { id: 't3' }, { id: '' 
 const copies = clubEventCopies({ title: 'Fiesta', type: CLUB_EVENT_TYPE, date: '2026-12-20T12:00' }, teams, 'g1');
 assert.deepEqual(copies.map((c) => c.team_id), ['t1', 't2', 't3'], 'una por equipo, sin repetidos ni vacíos');
 assert.ok(copies.every((c) => c.club_event_id === 'g1' && c.title === 'Fiesta' && c.date === '2026-12-20T12:00'));
-assert.equal(CLUB_ALL, '__all__');
 const all = [...copies.map((c, i) => ({ ...c, id: `e${i}` })), { id: 'x', team_id: 't1', title: 'Entreno' }];
 assert.equal(clubSiblings(all, all[1]).length, 3, 'las copias del mismo evento');
 assert.deepEqual(clubSiblings(all, all[3]), [], 'un evento normal no tiene copias');
 assert.equal(isClubEvent(all[0]), true);
 assert.equal(isClubEvent(all[3]), false);
+
+// Selecciones rápidas: todos / fútbol 11 / fútbol 7 (solo las que tienen equipos)
+const tm = [{ id: 'a', name: 'Primer Equipo' }, { id: 'b', name: 'Juvenil A' }, { id: 'c', name: 'Aleví S12 A' }, { id: 'd', name: 'Prebenjamí S8 A' }, null, { name: 'sin id' }];
+const f7 = (t) => ['c', 'd'].includes(t.id);
+assert.deepEqual(teamSets(tm, f7).map((s) => [s.key, s.ids.join('')]), [['all', 'abcd'], ['f11', 'ab'], ['f7', 'cd']]);
+assert.deepEqual(teamSets([{ id: 'a' }], () => false).map((s) => s.key), ['all', 'f11'], 'sin equipos de fútbol 7 no sale esa opción');
+assert.deepEqual(teamSets([], f7), []);
+
+// A quién llega el evento
+assert.equal(scopeLabel(tm.slice(0, 4), tm.slice(0, 4)), 'Todo el club');
+assert.equal(scopeLabel([tm[0], tm[1]], tm.slice(0, 4)), 'Primer Equipo, Juvenil A');
+assert.equal(scopeLabel(tm.slice(0, 3), tm.slice(0, 4)), 'Primer Equipo, Juvenil A, Aleví S12 A');
+assert.equal(scopeLabel(tm.slice(0, 3), tm.slice(0, 5).concat([{ id: 'e', name: 'E' }]), 2), '3 equipos');
+assert.equal(scopeLabel([], tm), '');
+assert.equal(scopeLabel([{ id: 'x', name: 'Único' }], [{ id: 'x', name: 'Único' }]), 'Único', 'con un solo equipo en el club no es «todo el club»');
 
 // Qué se cancela en bloque: entrenos (y partidos si se pide) entre dos días, sin repetir los ya cancelados
 const ev = (id, team, type, date, extra = {}) => ({ id, team_id: team, type, date, ...extra });
