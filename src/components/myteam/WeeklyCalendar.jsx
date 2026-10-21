@@ -131,7 +131,7 @@ function EventCard({ event, navigate, onEventClick }) {
             <span className={`text-[9px] font-semibold ${off ? "line-through" : ""}`} style={{ color: styles.accent }}>
               {timeStr}{endTimeStr ? ` – ${endTimeStr}` : ""}
             </span>
-            <EventWeather event={event} rain className="ml-auto text-[9px]" />
+            <EventWeather event={event} rain size="sm" className="ml-auto" />
           </div>
         )}
 
@@ -282,7 +282,7 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
                             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                               <span className="text-[9px] font-bold uppercase" style={{ color: styles.pillText }}>{off ? cancelText(ev) : meta.label}</span>
                               {timeStr && <span className={`text-[9px] text-gray-400 ${off ? "line-through" : ""}`}>{timeStr}</span>}
-                              <EventWeather event={ev} rain className="text-[9px]" />
+                              <EventWeather event={ev} rain size="sm" />
                               {ev.location && <span className="text-[9px] text-gray-400 truncate max-w-[120px]">{ev.location}</span>}
                             </div>
                           </div>

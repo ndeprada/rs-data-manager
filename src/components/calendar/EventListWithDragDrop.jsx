@@ -145,7 +145,7 @@ export default function EventListWithDragDrop({
                                         <Clock className="w-4 h-4 text-gray-400" />
                                         {format(new Date(event.date), "HH:mm")}
                                       </div>
-                                      <EventWeather event={event} rain className="text-xs" />
+                                      <EventWeather event={event} rain size="md" />
                                       {team && (
                                         <div className="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-gray-700">
                                           {team.name}

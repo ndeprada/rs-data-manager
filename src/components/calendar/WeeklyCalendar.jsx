@@ -103,7 +103,7 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
                         <img src={evt.opponent_logo_url} alt="" loading="lazy" className="inline-block w-4 h-4 object-contain bg-white rounded-sm mr-1 align-middle" />
                       )}
                       {evt.title}
-                      <EventWeather event={evt} onDark className="!flex mt-0.5 text-[9px] font-semibold opacity-90" />
+                      <EventWeather event={evt} onDark size="sm" className="!flex mt-1" />
                     </div>
                   ))
                 )}

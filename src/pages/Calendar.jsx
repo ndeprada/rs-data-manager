@@ -347,7 +347,7 @@ export default function Calendar() {
                               )}
                             </div>
                           </div>
-                          <span className="shrink-0 flex flex-col items-end gap-0.5"><span className="text-xs font-bold text-gray-500">{format(new Date(event.date), "HH:mm")}</span><EventWeather event={event} rain className="text-[10px]" /></span>
+                          <span className="shrink-0 flex flex-col items-end gap-0.5"><span className="text-xs font-bold text-gray-500">{format(new Date(event.date), "HH:mm")}</span><EventWeather event={event} rain size="sm" /></span>
                           <div className="flex gap-0.5 shrink-0">
                             <button onClick={e => { e.stopPropagation(); setAttendanceEvent(showAttendance ? null : event); }}
                               className={`p-1 rounded transition-colors ${showAttendance ? "bg-green-100 text-green-700" : "hover:bg-green-50 text-gray-300 hover:text-green-600"}`} title="Asistencia">
@@ -497,7 +497,7 @@ export default function Calendar() {
                               )}
                             </div>
                           </div>
-                          <span className="shrink-0 flex flex-col items-end gap-0.5"><span className="text-xs font-bold text-gray-500">{format(new Date(event.date), "HH:mm")}</span><EventWeather event={event} rain className="text-[10px]" /></span>
+                          <span className="shrink-0 flex flex-col items-end gap-0.5"><span className="text-xs font-bold text-gray-500">{format(new Date(event.date), "HH:mm")}</span><EventWeather event={event} rain size="sm" /></span>
                           <div className="flex gap-0.5 shrink-0">
                             <button onClick={e => { e.stopPropagation(); setAttendanceEvent(showAttendance ? null : event); }}
                               className={`p-1 rounded transition-colors ${showAttendance ? "bg-green-100 text-green-700" : "hover:bg-green-50 text-gray-300 hover:text-green-600"}`} title="Asistencia">

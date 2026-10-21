@@ -146,7 +146,7 @@ export default function InteractiveCalendar({ events = [], teams = [] }) {
                     <p className="text-xs text-gray-400 mt-1">
                       {format(parseISO(event.date), "HH:mm")}
                       {event.location && ` · ${event.location}`}
-                      <EventWeather event={event} rain className="ml-2 text-[11px] align-middle" />
+                      <EventWeather event={event} rain size="sm" className="ml-2 align-middle" />
                     </p>
                   </div>
                 </div>
