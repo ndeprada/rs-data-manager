@@ -14,7 +14,11 @@ assert.equal(eventPlace({ type: 'sesion_teorica' }), null, 'sesión teórica: si
 assert.equal(eventPlace({ type: 'sesion_video' }), null);
 assert.deepEqual(eventPlace({ type: 'partido_liga', location: 'Camp Sant Genís', location_lat: 41.42, location_lng: 2.14 }), { lat: 41.42, lng: 2.14, name: 'Camp Sant Genís' });
 assert.equal(eventPlace({ type: 'partido_liga', location: 'Camp X' }), null, 'partido sin coordenadas: sin previsión');
-assert.equal(eventPlace({ type: 'partido_amistoso', location_lat: '', location_lng: '' }), null);
+assert.equal(eventPlace({ type: 'partido_amistoso', location_lat: '', location_lng: '' }), null, 'amistoso sin saber si es en casa: sin previsión');
+assert.equal(eventPlace({ type: 'partido_amistoso', is_home: false }), null, 'amistoso fuera sin coordenadas: sin previsión');
+assert.equal(eventPlace({ type: 'partido_amistoso', is_home: true }), TRAINING_PLACE, 'amistoso en casa sin coordenadas: Teixonera');
+assert.equal(eventPlace({ type: 'partido_amistoso', is_home: true, location_lat: 41.5, location_lng: 2.2, location: 'Otro campo' }).name, 'Otro campo', 'si hay coordenadas manda el campo');
+assert.equal(eventPlace({ type: 'partido_liga', is_home: true }), null, 'liga en casa sin coordenadas: se espera a la sincronización con la FCF');
 assert.equal(eventPlace({ type: 'reunion_equipo' }), null);
 assert.equal(eventPlace({ type: 'evento_club' }), null);
 assert.equal(eventPlace(null), null);

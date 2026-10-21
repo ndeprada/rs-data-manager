@@ -25,12 +25,14 @@ export function validCoords(lat, lng) {
 // Lugar de un evento para la previsión, o null si no se puede saber:
 //  · entrenos al aire libre → Teixonera
 //  · partidos (y torneos) → las coordenadas del campo que guarda la sincronización con la FCF
+//  · amistosos en casa sin coordenadas (los que se crean a mano) → Teixonera, donde juega el club en casa
 export function eventPlace(ev) {
   if (!ev) return null;
   if (OUTDOOR_TRAINING_TYPES.includes(ev.type)) return TRAINING_PLACE;
   if (MATCH_TYPES_WEATHER.includes(ev.type)) {
     const c = validCoords(ev.location_lat, ev.location_lng);
-    return c ? { ...c, name: ev.location || "" } : null;
+    if (c) return { ...c, name: ev.location || "" };
+    return ev.type === "partido_amistoso" && ev.is_home === true ? TRAINING_PLACE : null;
   }
   return null;
 }
