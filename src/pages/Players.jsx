@@ -4,7 +4,7 @@ import PlayerName from "@/components/common/PlayerName";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Users, Plus, Pencil, Trash2, Search, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Users, User as UserIcon, UsersRound, Plus, Pencil, Trash2, Search, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -76,6 +76,7 @@ export default function Players() {
   const [filterPosition, setFilterPosition] = useState(new Set());
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterNat, setFilterNat] = useState("all");
+  const [filterAccount, setFilterAccount] = useState("all");
   const [sortKey, setSortKey] = useState("last_name");
   const [sortDir, setSortDir] = useState("asc");
   const [view, setView] = useState("current"); // current | history
@@ -114,6 +115,14 @@ export default function Players() {
     queryKey: ["players_archived"],
     queryFn: () => base44.entities.Player.archived({}, "only"),
   });
+  // Cuentas vinculadas (propia del jugador o de un familiar): solo para quien gestiona jugadores
+  const { data: accounts } = useQuery({
+    queryKey: ["playerAccounts"],
+    queryFn: () => base44.club.playerAccounts(),
+    enabled: !!perms.editPlayers,
+    retry: false,
+  });
+  const accOf = (id) => ({ own: accounts?.own?.[id] || 0, family: accounts?.family?.[id] || 0, pending: accounts?.pending?.[id] || 0 });
   const historyCount = new Set([...archivedPlayers.map((p) => p.id), ...players.filter((p) => p.status === "baja").map((p) => p.id)]).size;
 
   const deleteMutation = useMutation({
@@ -134,11 +143,13 @@ export default function Players() {
     const matchLaterality = filterLaterality === "all" || p.laterality === filterLaterality;
     const matchPosition = filterPosition.size === 0 || filterPosition.has(p.position);
     const matchStatus = filterStatus === "all" || p.status === filterStatus;
+    const acc = accOf(p.id);
+    const matchAccount = filterAccount === "all" || (filterAccount === "own" ? acc.own > 0 : filterAccount === "family" ? acc.family > 0 : acc.own === 0 && acc.family === 0);
     const matchNat = filterNat === "all" || (filterNat === "foreign" ? isForeign(p) : filterNat === "ESP" ? countryOf(p)?.a3 === "ESP" : countryOf(p)?.a3 === filterNat);
-    return matchNat && matchSearch && matchTeam && matchYear && matchLaterality && matchPosition && matchStatus;
+    return matchNat && matchSearch && matchTeam && matchYear && matchLaterality && matchPosition && matchStatus && matchAccount;
   });
 
-  const hasFilters = search || filterTeam !== "all" || filterYear !== "all" || filterLaterality !== "all" || filterPosition.size > 0 || filterStatus !== "all" || filterNat !== "all";
+  const hasFilters = search || filterTeam !== "all" || filterYear !== "all" || filterLaterality !== "all" || filterPosition.size > 0 || filterStatus !== "all" || filterNat !== "all" || filterAccount !== "all";
 
   const sorted = [...filtered].sort((a, b) => {
     let aVal, bVal;
@@ -245,6 +256,17 @@ export default function Players() {
               <SelectItem value="baja">{t("Baja")}</SelectItem>
             </SelectContent>
           </Select>
+          {accounts && (
+            <Select value={filterAccount} onValueChange={setFilterAccount}>
+              <SelectTrigger className="w-[160px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder={t("Cuenta")} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("Cuenta: todas")}</SelectItem>
+                <SelectItem value="own">{t("Con cuenta propia")}</SelectItem>
+                <SelectItem value="family">{t("Con familiar vinculado")}</SelectItem>
+                <SelectItem value="none">{t("Sin cuenta")}</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-x-4 gap-y-2 items-center">
@@ -267,7 +289,7 @@ export default function Players() {
             <p className="text-xs text-gray-500">{filtered.length === 1 ? t("{n} resultado", { n: 1 }) : t("{n} resultados", { n: filtered.length })}</p>
             {hasFilters && (
               <button
-                onClick={() => { setSearch(""); setFilterTeam("all"); setFilterYear("all"); setFilterLaterality("all"); setFilterPosition(new Set()); setFilterStatus("all"); setFilterNat("all"); }}
+                onClick={() => { setSearch(""); setFilterTeam("all"); setFilterYear("all"); setFilterLaterality("all"); setFilterPosition(new Set()); setFilterStatus("all"); setFilterNat("all"); setFilterAccount("all"); }}
                 className="text-xs font-semibold underline" style={{ color: "var(--granate)" }}
               >
                 {t("Limpiar filtros")}
@@ -303,6 +325,7 @@ export default function Players() {
                    <th className="text-center px-3 py-2 font-bold hidden lg:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("laterality")}>{t("Lateralidad")}<SortIcon col="laterality" /></th>
                    <th className="text-center px-3 py-2 font-bold hidden sm:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("jersey_number")}>{t("Dorsal")}<SortIcon col="jersey_number" /></th>
                    <th className="text-center px-3 py-2 font-bold cursor-pointer hover:text-gray-700" onClick={() => handleSort("status")}>{t("Estado")}<SortIcon col="status" /></th>
+                   {accounts && <th className="text-center px-3 py-2 font-bold">{t("Cuenta")}</th>}
                    <th className="px-3 py-2"></th>
                  </tr>
               </thead>
@@ -339,6 +362,22 @@ export default function Players() {
                           "bg-gray-100 text-gray-400 border-gray-200"
                         }`} style={{ fontFamily: "var(--font-display)" }}>{player.status || "activo"}</span>
                       </td>
+                      {accounts && (() => {
+                        const acc = accOf(player.id);
+                        const none = acc.own === 0 && acc.family === 0;
+                        return (
+                          <td className="px-3 py-1.5 text-center">
+                            <div className="inline-flex items-center gap-1.5">
+                              <span title={acc.own ? t("Tiene su propia cuenta") : t("Sin cuenta propia")}><UserIcon className={`w-4 h-4 ${acc.own ? "text-green-600" : "text-gray-200"}`} /></span>
+                              <span title={acc.family ? t("Familiar vinculado: {n}", { n: acc.family }) : acc.pending ? t("Solicitud de familiar pendiente: {n}", { n: acc.pending }) : t("Sin familiar vinculado")} className="inline-flex items-center">
+                                <UsersRound className={`w-4 h-4 ${acc.family ? "text-blue-600" : acc.pending ? "text-amber-500" : "text-gray-200"}`} />
+                                {acc.family > 1 && <span className="text-[10px] font-bold text-blue-600 ml-0.5">{acc.family}</span>}
+                              </span>
+                              {none && !acc.pending && <span className="sr-only">{t("Sin cuenta")}</span>}
+                            </div>
+                          </td>
+                        );
+                      })()}
                       <td className="px-3 py-1.5 text-right">
                         {perms.editPlayers && (
                           <div className="flex justify-end gap-1">

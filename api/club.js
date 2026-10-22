@@ -296,6 +296,25 @@ export default async function handler(req, res) {
       })));
     }
 
+    // Qué jugadores tienen cuenta vinculada (propia o de un familiar). Solo cifras por jugador, sin datos personales.
+    if (a === 'player_accounts') {
+      if (!isCoord(user)) return res.status(403).json({ error: 'forbidden' });
+      const [users, links] = await Promise.all([byType('User'), byType('GuardianLink')]);
+      const approved = new Map(users.filter((u) => isApprovedUser(u.data)).map((u) => [u.id, u.data]));
+      const own = {}, family = {}, pending = {};
+      for (const u of users) {
+        const pid = u.data.player_id;
+        if (pid && isApprovedUser(u.data)) own[pid] = (own[pid] || 0) + 1;
+      }
+      for (const l of links) {
+        const pid = l.data.player_id;
+        if (!pid) continue;
+        if (l.data.status === 'approved' && approved.has(l.data.user_id)) family[pid] = (family[pid] || 0) + 1;
+        else if (l.data.status === 'pending') pending[pid] = (pending[pid] || 0) + 1;
+      }
+      return res.status(200).json({ own, family, pending });
+    }
+
     // Solicitudes pendientes de todos los jugadores (para la pantalla de solicitudes del admin)
     if (a === 'pending_links') {
       if (!isAdmin(user)) return res.status(403).json({ error: 'forbidden' });

@@ -139,6 +139,7 @@ export const base44 = {
     myLinks: () => clubGet('my_links'),
     playerLinks: (player_id) => clubGet('player_links', { player_id }),
     pendingLinks: () => clubGet('pending_links'),
+    playerAccounts: () => clubGet('player_accounts'),
     decideLink: (link_id, decision) => clubPost('link_decision', { link_id, decision }),
     createLink: (user_id, player_id, relationship) => clubPost('link_create', { user_id, player_id, relationship }),
     // Cierre de temporada (coordinación)
