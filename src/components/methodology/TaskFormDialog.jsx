@@ -9,7 +9,8 @@ import { Upload, X, Loader } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { GAME_MOMENTS, TACTICAL_ASPECTS, SESSION_PHASES, DIFFICULTY_LEVELS } from "./methodologyConfig";
 import { useToast } from "@/components/ui/use-toast";
-import FieldDrawingBoard from "./FieldDrawingBoard";
+import BoardEditor from "@/components/board/BoardEditor";
+import { hasBoard } from "@/lib/board";
 
 const TASK_TYPES = [
   { value: "parejas", label: "Parejas" },
@@ -34,7 +35,7 @@ const EMPTY_TASK = {
   session_phase: "parte_principal", difficulty: "media",
   task_type: "",
   game_moment: "ninguno", tactical_aspect: "ninguno",
-  notes: "", diagram_url: "", media_files: [],
+  notes: "", diagram_url: "", board: null, media_files: [],
   football_format: "ambos", players_count: "", space: "", tags: [],
   principles: "", sub_principles: "", corrections: "", scoring: "", variants: "",
   coaching_points_1e: "", coaching_points_ea_m: "", coaching_points_ea_i: ""
@@ -45,11 +46,13 @@ export { TASK_TYPES };
 export default function TaskFormDialog({ open, onOpenChange, task, onSave, teams = [] }) {
   const [form, setForm] = useState(EMPTY_TASK);
   const [uploading, setUploading] = useState(false);
+  const [boardOpen, setBoardOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (task) setForm({ ...EMPTY_TASK, ...task });
     else setForm(EMPTY_TASK);
+    setBoardOpen(hasBoard(task?.board));
   }, [task, open]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -266,27 +269,31 @@ export default function TaskFormDialog({ open, onOpenChange, task, onSave, teams
               placeholder="Puntos de atención adicionales..." rows={2} className="mt-1" />
           </div>
 
-          {/* Diagrama - Tablero de dibujo */}
+          {/* Diagrama - pizarra de dibujo y animación */}
           <div>
-            <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">Diagrama / Dibujo sobre campo</Label>
-            <div className="mt-2">
-              <FieldDrawingBoard
-                value={form.diagram_url}
-                onChange={(dataUrl) => set("diagram_url", dataUrl)}
-              />
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">Dibujo sobre campo</Label>
+              <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setBoardOpen((o) => !o)}>
+                {boardOpen ? "Ocultar dibujo" : hasBoard(form.board) ? "Editar dibujo" : "Añadir dibujo"}
+              </Button>
             </div>
+            {boardOpen && (
+              <div className="mt-2">
+                <BoardEditor value={form.board} onChange={(b) => set("board", b)} filename={form.name ? form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") : "tarea"} />
+              </div>
+            )}
             {/* También permite subir imagen externa */}
             <div className="mt-2 flex items-center gap-2">
-              <span className="text-[10px] text-gray-400">o sube una imagen:</span>
+              <span className="text-[10px] text-gray-400">{form.diagram_url ? "Imagen guardada:" : "o sube una imagen:"}</span>
               <label className="flex items-center gap-1.5 px-2 py-1 border border-dashed border-gray-300 rounded cursor-pointer hover:border-gray-400 transition-colors text-[10px] text-gray-500">
                 <Upload className="w-3 h-3" />
                 {uploading ? "Subiendo..." : "Subir imagen"}
                 <input type="file" accept="image/*" onChange={handleUploadDiagram} className="hidden" disabled={uploading} />
               </label>
-              {form.diagram_url && form.diagram_url.startsWith("http") && (
+              {form.diagram_url && (
                 <div className="relative w-16 h-10 rounded border overflow-hidden bg-gray-50">
                   <img src={form.diagram_url} alt="diagrama" className="w-full h-full object-cover" />
-                  <button onClick={() => set("diagram_url", "")} className="absolute top-0.5 right-0.5 bg-black/50 rounded-full p-0.5">
+                  <button type="button" onClick={() => set("diagram_url", "")} className="absolute top-0.5 right-0.5 bg-black/50 rounded-full p-0.5" aria-label="Quitar la imagen">
                     <X className="w-2 h-2 text-white" />
                   </button>
                 </div>

@@ -1,5 +1,7 @@
 import React from "react";
 import { Clock, Zap, Edit2, Trash2, Plus } from "lucide-react";
+import { PitchView } from "@/components/sessions/PitchBoard";
+import { hasBoard } from "@/lib/board";
 import { getGameMoment, getSessionPhase, getDifficulty } from "./methodologyConfig";
 
 export default function TaskCard({ task, onEdit, onDelete, onAddToSession, compact = false }) {
@@ -31,11 +33,15 @@ export default function TaskCard({ task, onEdit, onDelete, onAddToSession, compa
       <div className="h-1 w-full" style={{ background: phase.color }} />
 
       {/* Diagram/image preview */}
-      {task.diagram_url && (
+      {hasBoard(task.board) ? (
+        <div className="h-36 overflow-hidden bg-white flex justify-center border-b border-gray-100">
+          <PitchView board={task.board} style={{ height: "100%", width: "auto", maxWidth: "100%" }} />
+        </div>
+      ) : task.diagram_url ? (
         <div className="h-32 overflow-hidden bg-gray-50">
           <img src={task.diagram_url} alt={task.name} className="w-full h-full object-cover" />
         </div>
-      )}
+      ) : null}
 
       <div className="p-3 space-y-2">
         <div className="flex items-start justify-between gap-2">
