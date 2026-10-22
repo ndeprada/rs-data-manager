@@ -131,7 +131,7 @@ export function canManageTeamWith(perms, teamId, coachTeamIds = []) {
 // ── Reglas del servidor sobre entidades ──────────────────────────────────────
 export const MEDICAL_ENTITIES = new Set(['Injury', 'PlayerDocument']);
 export const PLAYER_EVAL_ENTITIES = new Set(['Evaluation360', 'PDI', 'PDIGoal']);
-export const COACH_EVAL_ENTITIES = new Set(['CoachFeedback', 'CoachPDI', 'CoachEval360', 'CoachMatchNote', 'CoachSessionObs']);
+export const COACH_EVAL_ENTITIES = new Set(['CoachFeedback', 'CoachPDI', 'CoachEval360', 'CoachMatchNote', 'CoachSessionObs', 'CoachQuarterClose']);
 // Sesiones de entrenamiento: son personales de cada entrenador (owner_id). Las ve toda la coordinación, pero solo las cambia su autor.
 export const SESSION_ENTITIES = new Set(['CoachSession']);
 // Campos de la ficha del jugador que solo escribe quien puede editar fichas (entrenadores y coordinación)
@@ -144,6 +144,7 @@ export function ownerCanSeeCoachDoc(entity, doc) {
     case 'CoachPDI': return doc.visibility === 'publicado';
     case 'CoachEval360': return doc.status === 'publicada' || doc.kind === 'autoevaluacion';
     case 'CoachSessionObs': return doc.status === 'publicada';
+    case 'CoachQuarterClose': return doc.status === 'publicado';
     default: return false; // CoachMatchNote: solo quien evalúa
   }
 }
@@ -212,7 +213,10 @@ export function checkRoleWrite({ perms, entity, method, body = {}, existing = nu
       return isOwn(existing) && existing.kind === 'autoevaluacion' && (body.kind === undefined || body.kind === 'autoevaluacion') ? { ok: true } : deny;
     }
     // Observación de sesión: la escribe y la publica solo quien evalúa; el entrenador la lee cuando se publica y no la cambia
-    if (entity === 'CoachSessionObs') return deny;
+    // Cierre trimestral: lo hace y lo publica solo quien evalúa
+    if (entity === 'CoachSessionObs' || entity === 'CoachQuarterClose') return deny;
+    // El estado de cada anotación (pendiente / seguir trabajando / asimilado) lo fija quien evalúa, no quien la recibe
+    if (body.progress !== undefined) return deny;
     if (update && isOwn(existing) && ownerCanSeeCoachDoc(entity, existing) && body.status === undefined && body.visibility === undefined) return { ok: true };
     return deny;
   }

@@ -104,6 +104,14 @@ assert.equal(cw('entrenador', 'CoachSessionObs', 'PUT', { scores: {} }, { staff_
 assert.equal(cw('entrenador', 'CoachSessionObs', 'PUT', { status: 'borrador' }, { staff_id: 'staff1', status: 'publicada' }), false, 'no la despublica');
 assert.equal(cw('entrenador', 'CoachSessionObs', 'DELETE', {}, { staff_id: 'staff1', status: 'publicada' }), false);
 
+// Cierre trimestral y estado del feedback: solo lo fija quien evalúa
+assert.equal(cw('coordinador_general', 'CoachQuarterClose', 'POST', { staff_id: 'staff2', season: '2026-2027', quarter: 'q1', status: 'cerrado' }), true);
+assert.equal(cw('entrenador', 'CoachQuarterClose', 'POST', { staff_id: 'staff1', status: 'publicado' }), false, 'no cierra ni publica su propio trimestre');
+assert.equal(cw('entrenador', 'CoachQuarterClose', 'PUT', { note: 'x' }, { staff_id: 'staff1', status: 'publicado' }), false);
+assert.equal(cw('entrenador', 'CoachFeedback', 'PUT', { progress: 'asimilado' }, { staff_id: 'staff1', status: 'enviado' }), false, 'no se marca el estado a sí mismo');
+assert.equal(cw('entrenador', 'CoachFeedback', 'PUT', { replies: [] }, { staff_id: 'staff1', status: 'enviado' }), true, 'sí puede contestar');
+assert.equal(cw('coordinador_general', 'CoachFeedback', 'PUT', { progress: 'seguir' }, { staff_id: 'staff2', status: 'borrador' }), true);
+
 // ── Lecturas ──
 const docs = [{ id: 1, staff_id: 'staff1', status: 'enviado' }, { id: 2, staff_id: 'staff1', status: 'borrador' }, { id: 3, staff_id: 'staff2', status: 'enviado' }];
 const read = (r, entity, d, ownIds) => filterRoleRead({ perms: p(r), entity, docs: d, ownIds }).map((x) => x.id);
@@ -114,6 +122,7 @@ assert.deepEqual(read('entrenador', 'CoachMatchNote', [{ id: 9, staff_id: 'staff
 assert.deepEqual(read('entrenador', 'CoachEval360', [{ id: 1, staff_id: 'staff1', status: 'borrador', kind: 'evaluacion' }, { id: 2, staff_id: 'staff1', status: 'borrador', kind: 'autoevaluacion' }, { id: 3, staff_id: 'staff1', status: 'publicada', kind: 'evaluacion' }], own), [2, 3]);
 assert.deepEqual(read('entrenador', 'CoachSessionObs', [{ id: 1, staff_id: 'staff1', status: 'borrador' }, { id: 2, staff_id: 'staff1', status: 'publicada' }, { id: 3, staff_id: 'staff2', status: 'publicada' }], own), [2], 'solo las publicadas y suyas');
 assert.deepEqual(read('coordinador_general', 'CoachSessionObs', [{ id: 1, staff_id: 'staff1', status: 'borrador' }, { id: 2, staff_id: 'staff2', status: 'publicada' }], own), [1, 2]);
+assert.deepEqual(read('entrenador', 'CoachQuarterClose', [{ id: 1, staff_id: 'staff1', status: 'cerrado' }, { id: 2, staff_id: 'staff1', status: 'publicado' }, { id: 3, staff_id: 'staff2', status: 'publicado' }], own), [2], 'solo los trimestres publicados y suyos');
 assert.deepEqual(read('entrenador_porteros', 'Injury', [{ id: 1 }]), [], 'porteros no ve lesiones');
 assert.deepEqual(read('psicologo', 'Injury', [{ id: 1 }]), [1]);
 assert.deepEqual(read('fisioterapeuta', 'PDI', [{ id: 1 }]), [], 'el fisio no ve el PDI');

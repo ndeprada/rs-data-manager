@@ -1,0 +1,20 @@
+// Cierre trimestral de la Evaluación 360 y estado del feedback
+export default [
+  ["Publicado al entrenador", "Published to the coach", "Publié à l'entraîneur", "Publicat a l'entrenador"],
+  ["Cerrado, sin publicar", "Closed, not published", "Clôturé, non publié", "Tancat, sense publicar"],
+  ["Trimestre abierto", "Open quarter", "Trimestre ouvert", "Trimestre obert"],
+  ["Observaciones sin publicar: {n}", "Unpublished observations: {n}", "Observations non publiées : {n}", "Observacions sense publicar: {n}"],
+  ["Cerrar trimestre", "Close quarter", "Clôturer le trimestre", "Tanca el trimestre"],
+  ["Reabrir", "Reopen", "Rouvrir", "Reobre"],
+  ["Publicar novedades", "Publish new items", "Publier les nouveautés", "Publica les novetats"],
+  ["Retirar publicación", "Withdraw publication", "Retirer la publication", "Retira la publicació"],
+  ["Sigue en seguimiento de trimestres anteriores", "Still being followed from earlier quarters", "Toujours suivi depuis les trimestres précédents", "Continua en seguiment de trimestres anteriors"],
+  ["Al publicar, el entrenador verá las observaciones de este trimestre y el estado de su feedback compartido. El feedback interno y las notas privadas no se publican nunca. Lo que quede en «Seguir trabajando» pasa al trimestre siguiente.",
+    "On publishing, the coach will see this quarter's observations and the status of their shared feedback. Internal feedback and private notes are never published. Anything left in “Keep working on it” carries over to the next quarter.",
+    "À la publication, l'entraîneur verra les observations de ce trimestre et l'état de son feedback partagé. Le feedback interne et les notes privées ne sont jamais publiés. Ce qui reste en « Continuer à travailler » passe au trimestre suivant.",
+    "En publicar, l'entrenador veurà les observacions d'aquest trimestre i l'estat del seu feedback compartit. El feedback intern i les notes privades no es publiquen mai. El que quedi en «Continuar treballant» passa al trimestre següent."],
+  ["Solo cerrar", "Close only", "Clôturer seulement", "Només tanca"],
+  ["Cerrar y publicar al entrenador", "Close and publish to the coach", "Clôturer et publier à l'entraîneur", "Tanca i publica a l'entrenador"],
+  ["Seguir trabajando", "Keep working on it", "Continuer à travailler", "Continuar treballant"],
+  ["Asimilado", "Mastered", "Assimilé", "Assimilat"],
+];
