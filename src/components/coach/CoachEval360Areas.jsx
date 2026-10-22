@@ -73,7 +73,10 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
   const seasonRange = quarterRange(CURRENT_SEASON, "all");
   const periods = useMemo(() => periodsOf(closes, CURRENT_SEASON).filter((p) => canEvaluate || isPublished(p)), [closes, canEvaluate]);
   const openRange = useMemo(() => openPeriodRange(closes, CURRENT_SEASON), [closes]);
-  const period = periodPick || (canEvaluate ? OPEN : ALL);
+  // Compartir el periodo abierto: el entrenador ve las observaciones a medida que se hacen (el feedback compartido ya lo ve siempre)
+  const liveDoc = closes.find((c) => c.season === CURRENT_SEASON && c.status === "abierto") || null;
+  const shareLive = !!liveDoc?.share_live;
+  const period = periodPick || OPEN;
   const closeOfPeriod = periods.find((p) => p.id === period) || null;
   const range = period === OPEN ? openRange : closeOfPeriod ? closeOfPeriod.range : period === ALL ? seasonRange : openRange;
   const state = period === OPEN ? "abierto" : isPublished(closeOfPeriod) ? "publicado" : closeOfPeriod ? "cerrado" : "abierto";
@@ -133,6 +136,17 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
       if (action === "close" || action === "closePublish") setPeriodPick(newId || OPEN);
       if (action === "reopen") setPeriodPick(OPEN);
     },
+  });
+  const liveMutation = useMutation({
+    mutationFn: async (on) => {
+      const now = new Date().toISOString();
+      const data = { status: "abierto", share_live: on, author_id: author?.id || null, author_name: author?.name || "" };
+      if (liveDoc) await base44.entities.CoachQuarterClose.update(liveDoc.id, data);
+      else await base44.entities.CoachQuarterClose.create({ staff_id: staffId, season: CURRENT_SEASON, ...data });
+      if (on) await Promise.all(unpublishedObs(allObs, openRange).map((o) => base44.entities.CoachSessionObs.update(o.id, { status: "publicada", published_at: now })));
+      else await Promise.all(allObs.filter((o) => o.status === "publicada" && inRange(o.date, openRange)).map((o) => base44.entities.CoachSessionObs.update(o.id, { status: "borrador", published_at: null })));
+    },
+    onSuccess: refreshClose,
   });
   const openClosing = () => { setCloseForm({ label: "", from: openRange.from, to: today < openRange.from ? openRange.from : today }); setClosing(true); };
   const closeError = closing ? validatePeriod({ from: closeForm.from, to: closeForm.to, closes, season: CURRENT_SEASON, today }) : null;
@@ -196,7 +210,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
         </div>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Periodo")}>
           {[
-            ...(canEvaluate ? [{ id: OPEN, text: t("Periodo abierto") }] : []),
+            { id: OPEN, text: canEvaluate ? t("Periodo abierto") : t("Periodo en curso") },
             ...periods.map((p) => ({ id: p.id, text: periodLabel(p) + (canEvaluate && !isPublished(p) ? " · " + t("sin publicar") : "") })),
             { id: ALL, text: t("Toda la temporada") },
           ].map((q) => (
@@ -221,7 +235,17 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
             {state === "publicado" && pendingObs.length > 0 && <span className="text-amber-700 font-semibold">{t("Observaciones sin publicar: {n}", { n: pendingObs.length })}</span>}
           </p>
           <div className="flex gap-1.5 flex-wrap">
-            {state === "abierto" && <Button size="sm" variant="outline" className="text-xs bg-white" onClick={openClosing}><Lock className="w-3.5 h-3.5 mr-1" /> {t("Cerrar periodo")}</Button>}
+            {state === "abierto" && (
+              <>
+                <button type="button" role="switch" aria-checked={shareLive} disabled={liveMutation.isPending} onClick={() => liveMutation.mutate(!shareLive)}
+                  title={t("Si lo activas, el entrenador ve cada observación en cuanto la guardas. Si no, la verá cuando publiques el periodo al cerrarlo.")}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-md border transition-colors ${shareLive ? "bg-green-50 border-green-200 text-green-700" : "bg-white border-gray-200 text-gray-500"}`}>
+                  <span className={`w-7 h-4 rounded-full relative transition-colors ${shareLive ? "bg-green-500" : "bg-gray-300"}`}><span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${shareLive ? "left-3.5" : "left-0.5"}`} /></span>
+                  {t("Compartir con el entrenador mientras está abierto")}
+                </button>
+                <Button size="sm" variant="outline" className="text-xs bg-white" onClick={openClosing}><Lock className="w-3.5 h-3.5 mr-1" /> {t("Cerrar periodo")}</Button>
+              </>
+            )}
             {state === "cerrado" && (
               <>
                 <Button size="sm" variant="outline" className="text-xs bg-white" disabled={closeMutation.isPending} onClick={() => closeMutation.mutate({ action: "reopen" })}><Undo2 className="w-3.5 h-3.5 mr-1" /> {t("Reabrir")}</Button>
@@ -381,7 +405,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
               <p className="text-xs text-gray-500">{t("Al publicar, el entrenador verá las observaciones de este periodo y el estado de su feedback compartido. El feedback interno y las notas privadas no se publican nunca. Lo que quede en «Seguir trabajando» pasa a los periodos siguientes.")}</p>
               <div className="flex justify-end gap-2 flex-wrap pt-1">
                 <Button variant="outline" onClick={() => setClosing(false)}>{t("Cancelar")}</Button>
-                <Button variant="outline" disabled={!!closeError || closeMutation.isPending} onClick={() => closeMutation.mutate({ action: "close", form: closeForm })}>{t("Solo cerrar")}</Button>
+                {!shareLive && <Button variant="outline" disabled={!!closeError || closeMutation.isPending} onClick={() => closeMutation.mutate({ action: "close", form: closeForm })}>{t("Solo cerrar")}</Button>}
                 <Button variant="club" disabled={!!closeError || closeMutation.isPending} onClick={() => closeMutation.mutate({ action: "closePublish", form: closeForm })}>{t("Cerrar y publicar al entrenador")}</Button>
               </div>
             </div>
@@ -391,7 +415,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
 
       {dlg && (
         <AreaObsDialog key={`${dlg.area}-${dlg.editing?.id || "new"}`} area={dlg.area} editing={dlg.editing} staffId={staffId} teamIds={teamIds} teamName={teamName}
-          author={author} onClose={() => setDlg(null)} onSaved={(id) => setObsPick(id || SUMMARY)} />
+          author={author} autoPublishFrom={shareLive ? openRange.from : null} onClose={() => setDlg(null)} onSaved={(id) => setObsPick(id || SUMMARY)} />
       )}
     </div>
   );

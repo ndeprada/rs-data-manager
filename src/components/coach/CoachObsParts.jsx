@@ -180,7 +180,8 @@ export function SummaryView({ observations, area, agg }) {
 }
 
 // Formulario de una observación (nueva o editada) de un área. Se monta solo mientras está abierto.
-export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, author, onClose, onSaved }) {
+// autoPublishFrom: si el periodo abierto se comparte con el entrenador, las observaciones nuevas desde esa fecha se publican al guardarlas
+export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, author, autoPublishFrom = null, onClose, onSaved }) {
   const t = useT();
   const avg = useAvg();
   const qc = useQueryClient();
@@ -204,7 +205,11 @@ export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, autho
         season: editing?.season || CURRENT_SEASON,
         author_id: editing?.author_id || author?.id || "", author_name: editing?.author_name || author?.name || "",
       };
-      if (!editing) data.status = "borrador";
+      if (!editing) {
+        const live = !!autoPublishFrom && data.date >= autoPublishFrom;
+        data.status = live ? "publicada" : "borrador";
+        if (live) data.published_at = new Date().toISOString();
+      }
       return editing ? base44.entities.CoachSessionObs.update(editing.id, data) : base44.entities.CoachSessionObs.create(data);
     },
     onSuccess: (res) => { invalidate(); onSaved?.(res?.id || editing?.id); onClose(); },
