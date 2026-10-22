@@ -1,0 +1,21 @@
+// Feedback de entrenadores por áreas (pestaña Feedback de la ficha del entrenador).
+export default [
+  ["Gestión humana", "People management", "Gestion humaine", "Gestió humana"],
+  ["Puntualidad, vestuario, material y normas del club", "Punctuality, changing room, equipment and club rules", "Ponctualité, vestiaire, matériel et règles du club", "Puntualitat, vestidor, material i normes del club"],
+  ["Datos en la app y comunicación con las familias", "Data in the app and communication with families", "Données dans l'application et communication avec les familles", "Dades a l'app i comunicació amb les famílies"],
+  ["Entrenamientos y sesiones", "Training and sessions", "Entraînements et séances", "Entrenaments i sessions"],
+  ["Preparación y dirección del partido", "Match preparation and management", "Préparation et direction du match", "Preparació i direcció del partit"],
+  ["Comunicación y trato con jugadores y cuerpo técnico", "Communication and dealings with players and the coaching staff", "Communication et relations avec les joueurs et le staff technique", "Comunicació i tracte amb jugadors i cos tècnic"],
+  ["Positivo", "Positive", "Positif", "Positiu"],
+  ["Compartida", "Shared", "Partagée", "Compartida"],
+  ["Interna", "Internal", "Interne", "Interna"],
+  ["Área", "Area", "Domaine", "Àrea"],
+  ["Elige un área", "Choose an area", "Choisissez un domaine", "Tria una àrea"],
+  ["Anotaciones del día a día. El entrenador solo ve las que compartes.", "Day-to-day notes. The coach only sees the ones you share.", "Notes du quotidien. L'entraîneur ne voit que celles que vous partagez.", "Anotacions del dia a dia. L'entrenador només veu les que comparteixes."],
+  ["Compartir con el entrenador", "Share with the coach", "Partager avec l'entraîneur", "Comparteix amb l'entrenador"],
+  ["Dejar de compartir", "Stop sharing", "Ne plus partager", "Deixa de compartir"],
+  ["El entrenador la verá y podrá responder.", "The coach will see it and can reply.", "L'entraîneur la verra et pourra répondre.", "L'entrenador la veurà i podrà respondre."],
+  ["Solo la ve coordinación.", "Only coordination can see it.", "Seule la coordination la voit.", "Només la veu coordinació."],
+  ["Guardar y compartir", "Save and share", "Enregistrer et partager", "Desa i comparteix"],
+  ["Qué has visto y qué convendría mejorar…", "What you saw and what could be improved…", "Ce que vous avez vu et ce qu'il conviendrait d'améliorer…", "Què has vist i què convindria millorar…"],
+];

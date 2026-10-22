@@ -17,6 +17,8 @@ import CoachMatchNotesSection from "@/components/coach/CoachMatchNotesSection";
 import CoachFeedbackSection from "@/components/coach/CoachFeedbackSection";
 import CoachEval360Section from "@/components/coach/CoachEval360Section";
 import CoachMethodSection from "@/components/coach/CoachMethodSection";
+
+const SHOW_PDI_TAB = false;
 import ImageCropDialog from "@/components/ImageCropDialog";
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 import { TEAM_ROLES } from "@/lib/staffRoles";
@@ -192,8 +194,8 @@ export default function CoachProfile() {
   const canViewReports = isCoordinatorGeneral || (isCoordinator && coordCanSeeTeam()) || reviewsAllCoaches;
   // Solo coordinador de la etapa correspondiente (o general/admin, o el área de psicología) puede crear evaluaciones
   const canEvaluate = isCoordinatorGeneral || (isCoordinator && coordCanSeeTeam()) || reviewsAllCoaches;
-  // El entrenador siempre ve su propia pestaña PDI (para ver informes publicados y dejar feedback)
-  const showPDITab = canViewReports || isOwnProfile;
+  // PDI en stand-by (decisión de Nacho): más adelante será consecuencia de la Evaluación 360. Los datos y el código se conservan.
+  const showPDITab = SHOW_PDI_TAB && (canViewReports || isOwnProfile);
   const showFeedbackTab = canViewReports || isOwnProfile;
 
   const updatePhotoMutation = useMutation({
@@ -467,11 +469,6 @@ export default function CoachProfile() {
               {t("Evaluación 360")}
             </TabsTrigger>
           )}
-          {showFeedbackTab && (
-            <TabsTrigger value="metodologia"  style={{ fontFamily: "var(--font-display)" }}>
-              {t("Metodología")}
-            </TabsTrigger>
-          )}
           {showPDITab && (
             <TabsTrigger value="pdi"  style={{ fontFamily: "var(--font-display)" }}>
               {t("PDI · Plan Desarrollo Individual")}
@@ -502,7 +499,7 @@ export default function CoachProfile() {
         )}
 
         {showFeedbackTab && (
-          <TabsContent value="eval360" className="mt-4">
+          <TabsContent value="eval360" className="mt-4 space-y-8">
             <CoachEval360Section
               staffId={member._isUser ? `user_${member._userId}` : staffId}
               teamIds={[...new Set([...(memberAssignments || []).map(a => a.team_id), member.team_id].filter(Boolean))]}
@@ -510,11 +507,6 @@ export default function CoachProfile() {
               isOwnProfile={!!isOwnProfile}
               author={{ id: user?.id, name: user?.full_name }}
             />
-          </TabsContent>
-        )}
-
-        {showFeedbackTab && (
-          <TabsContent value="metodologia" className="mt-4">
             <CoachMethodSection
               staffId={member._isUser ? `user_${member._userId}` : staffId}
               ownerUserId={member._isUser ? member._userId : linkedUser?.id}

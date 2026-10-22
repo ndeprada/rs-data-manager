@@ -7,5 +7,6 @@ import b2x from "./screens/b2x.js";
 import b3 from "./screens/b3.js";
 import b3x from "./screens/b3x.js";
 import cm from "./screens/cm.js";
+import fb from "./screens/fb.js";
 
-export default [...b1, ...b1x, ...b1y, ...b2, ...b2x, ...b3, ...b3x, ...cm];
+export default [...b1, ...b1x, ...b1y, ...b2, ...b2x, ...b3, ...b3x, ...cm, ...fb];
