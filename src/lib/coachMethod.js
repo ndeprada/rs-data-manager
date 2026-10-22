@@ -59,15 +59,17 @@ export const ALL_CRITERIA = OBS_BLOCKS.flatMap((b) => b.criteria);
 export const emptyScores = () => Object.fromEntries(ALL_CRITERIA.map((c) => [c.key, null]));
 export const emptyNotes = () => Object.fromEntries(OBS_BLOCKS.map((b) => [b.key, ""]));
 
-const round1 = (n) => Math.round(n * 10) / 10;
+export const round1 = (n) => Math.round(n * 10) / 10;
 
 // Medias de una observación: por bloque y global. «No observable» y los criterios sin valorar no cuentan.
-export function obsSummary(scores = {}) {
+// `areaBlocks` = bloques de criterios del área (por defecto los de Metodología, que son los de siempre).
+export function obsSummary(scores = {}, areaBlocks = OBS_BLOCKS) {
   const blocks = {};
   let sum = 0;
   let n = 0;
   let notObservable = 0;
-  for (const b of OBS_BLOCKS) {
+  const total = areaBlocks.reduce((a, b) => a + b.criteria.length, 0);
+  for (const b of areaBlocks) {
     const vals = b.criteria.map((c) => scores?.[c.key]);
     const scored = vals.filter(isScored);
     notObservable += vals.filter((v) => v === NOT_OBSERVABLE).length;
@@ -75,7 +77,7 @@ export function obsSummary(scores = {}) {
     sum += scored.reduce((a, v) => a + v, 0);
     n += scored.length;
   }
-  return { overall: n ? round1(sum / n) : null, answered: n, notObservable, total: ALL_CRITERIA.length, blocks };
+  return { overall: n ? round1(sum / n) : null, answered: n, notObservable, total, blocks };
 }
 
 // Color de una media (1–4) para pintarla

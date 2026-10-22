@@ -15,8 +15,7 @@ import { useAuth } from "@/lib/AuthContext";
 import CoachPDISection from "@/components/coach/CoachPDISection";
 import CoachMatchNotesSection from "@/components/coach/CoachMatchNotesSection";
 import CoachFeedbackSection from "@/components/coach/CoachFeedbackSection";
-import CoachEval360Section from "@/components/coach/CoachEval360Section";
-import CoachMethodSection from "@/components/coach/CoachMethodSection";
+import CoachEval360Areas from "@/components/coach/CoachEval360Areas";
 
 const SHOW_PDI_TAB = false;
 import ImageCropDialog from "@/components/ImageCropDialog";
@@ -499,15 +498,8 @@ export default function CoachProfile() {
         )}
 
         {showFeedbackTab && (
-          <TabsContent value="eval360" className="mt-4 space-y-8">
-            <CoachEval360Section
-              staffId={member._isUser ? `user_${member._userId}` : staffId}
-              teamIds={[...new Set([...(memberAssignments || []).map(a => a.team_id), member.team_id].filter(Boolean))]}
-              canEvaluate={canEvaluate}
-              isOwnProfile={!!isOwnProfile}
-              author={{ id: user?.id, name: user?.full_name }}
-            />
-            <CoachMethodSection
+          <TabsContent value="eval360" className="mt-4">
+            <CoachEval360Areas
               staffId={member._isUser ? `user_${member._userId}` : staffId}
               ownerUserId={member._isUser ? member._userId : linkedUser?.id}
               teamIds={[...new Set([...(memberAssignments || []).map(a => a.team_id), member.team_id].filter(Boolean))]}

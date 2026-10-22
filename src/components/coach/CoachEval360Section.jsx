@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Plus, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,7 +76,8 @@ function EvalView({ ev }) {
   );
 }
 
-export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate, isOwnProfile, author }) {
+// readOnly = historial de las evaluaciones 360 anteriores a las áreas: solo se consultan (y la coordinación puede ocultarlas o mostrarlas al entrenador)
+export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate, isOwnProfile, author, readOnly = false }) {
   const t = useT();
   const dfl = useDateLocale();
   const qc = useQueryClient();
@@ -85,6 +86,7 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ title: "", team_id: "", kind: "evaluacion", sections: emptySections() });
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [histOpen, setHistOpen] = useState(false);
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: all = [] } = useQuery({
@@ -140,10 +142,23 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
   };
   const setSec = (key, patch) => setForm((f) => ({ ...f, sections: { ...f.sections, [key]: { ...f.sections[key], ...patch } } }));
 
-  const canEditCurrent = current && (canEvaluate || (isOwnProfile && current.kind === "autoevaluacion"));
+  const canEditCurrent = !readOnly && current && (canEvaluate || (isOwnProfile && current.kind === "autoevaluacion"));
+
+  if (readOnly && list.length === 0) return null;
 
   return (
-    <div className="space-y-4">
+    <div className={readOnly ? "space-y-4 border-t border-gray-200 pt-4" : "space-y-4"}>
+      {readOnly ? (
+        <button type="button" onClick={() => setHistOpen((o) => !o)} aria-expanded={histOpen} className="w-full flex items-center justify-between gap-3 text-left">
+          <span>
+            <span className="block text-sm font-black uppercase" style={{ ...FONT, color: "var(--granate)" }}>
+              {t("Evaluaciones 360 anteriores")} <span className="text-xs font-normal text-gray-400">{list.length}</span>
+            </span>
+            <span className="block text-xs text-gray-400">{t("Historial en solo lectura. Las evaluaciones nuevas se hacen por áreas.")}</span>
+          </span>
+          {histOpen ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
+        </button>
+      ) : (
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-lg font-black uppercase" style={{ ...FONT, color: "var(--granate)" }}>{t("Evaluación 360")}</h2>
@@ -162,8 +177,9 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
           )}
         </div>
       </div>
+      )}
 
-      {list.length === 0 ? (
+      {(!readOnly || histOpen) && (list.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 rounded p-8 text-center">
           <p className="text-gray-400 text-sm">{canEvaluate ? t("Aún no hay evaluaciones de este entrenador") : t("Todavía no hay evaluaciones publicadas")}</p>
         </div>
@@ -204,8 +220,9 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
             </>
           )}
         </>
-      )}
+      ))}
 
+      {!readOnly && (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-white border-gray-200 max-h-[90vh] overflow-y-auto max-w-3xl">
           <DialogHeader><DialogTitle>{form.kind === "autoevaluacion" ? t("Autoevaluación") : editing ? t("Editar evaluación") : t("Nueva evaluación")}</DialogTitle></DialogHeader>
@@ -264,6 +281,7 @@ export default function CoachEval360Section({ staffId, teamIds = [], canEvaluate
           </div>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   );
 }

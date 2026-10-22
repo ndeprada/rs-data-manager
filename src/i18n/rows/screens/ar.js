@@ -1,0 +1,43 @@
+// Evaluación 360 de entrenadores por áreas: criterios de Hábitos, Gestión, Partidos y Gestión humana, trimestres y pantalla de la 360.
+export default [
+  ["Cinco áreas: lo que se observa en el campo y el feedback del día a día.", "Five areas: what is observed on the pitch and day-to-day feedback.", "Cinq domaines : ce qui est observé sur le terrain et le feedback du quotidien.", "Cinc àrees: el que s'observa al camp i el feedback del dia a dia."],
+  ["Observaciones: {n}", "Observations: {n}", "Observations : {n}", "Observacions: {n}"],
+  ["Feedback: {n}", "Feedback: {n}", "Feedback : {n}", "Feedback: {n}"],
+  ["Evaluar", "Evaluate", "Évaluer", "Avalua"],
+  ["Evaluar esta área", "Evaluate this area", "Évaluer ce domaine", "Avalua aquesta àrea"],
+  ["No hay observaciones de esta área en este periodo", "There are no observations for this area in this period", "Il n'y a aucune observation pour ce domaine sur cette période", "No hi ha observacions d'aquesta àrea en aquest període"],
+  ["Feedback del área", "Area feedback", "Feedback du domaine", "Feedback de l'àrea"],
+  ["No hay feedback de esta área en este periodo", "There is no feedback for this area in this period", "Il n'y a aucun feedback pour ce domaine sur cette période", "No hi ha feedback d'aquesta àrea en aquest període"],
+  ["Media de cada criterio en el periodo", "Average of each criterion over the period", "Moyenne de chaque critère sur la période", "Mitjana de cada criteri en el període"],
+  ["Evaluaciones 360 anteriores", "Previous 360 evaluations", "Évaluations 360 précédentes", "Avaluacions 360 anteriors"],
+  ["Historial en solo lectura. Las evaluaciones nuevas se hacen por áreas.", "Read-only history. New evaluations are done by area.", "Historique en lecture seule. Les nouvelles évaluations se font par domaine.", "Historial de només lectura. Les avaluacions noves es fan per àrees."],
+  ["Hasta diciembre", "Until December", "Jusqu'en décembre", "Fins al desembre"],
+  ["Enero–marzo", "January–March", "Janvier–mars", "Gener–març"],
+  ["Abril–junio", "April–June", "Avril–juin", "Abril–juny"],
+  // Hábitos
+  ["Es puntual en entrenamientos y partidos", "Is punctual at training sessions and matches", "Est ponctuel aux entraînements et aux matchs", "És puntual als entrenaments i als partits"],
+  ["Controla el vestuario", "Keeps control of the changing room", "Gère le vestiaire", "Controla el vestidor"],
+  ["Usa y cuida bien el material", "Uses and looks after the equipment well", "Utilise et prend soin du matériel", "Fa servir i cuida bé el material"],
+  ["Tiene el campo y el material preparados", "Has the pitch and equipment ready", "A le terrain et le matériel prêts", "Té el camp i el material preparats"],
+  ["Cumple y hace cumplir las normas del club", "Follows and enforces the club rules", "Respecte et fait respecter les règles du club", "Compleix i fa complir les normes del club"],
+  // Gestión
+  ["Mantiene los datos al día en la app", "Keeps the data up to date in the app", "Tient les données à jour dans l'application", "Manté les dades al dia a l'app"],
+  ["Registra las sesiones", "Records the sessions", "Enregistre les séances", "Registra les sessions"],
+  ["Se comunica bien con las familias", "Communicates well with families", "Communique bien avec les familles", "Es comunica bé amb les famílies"],
+  ["Avisa de lesiones e incidencias", "Reports injuries and incidents", "Signale les blessures et les incidents", "Avisa de lesions i incidències"],
+  ["Cumple los plazos administrativos", "Meets administrative deadlines", "Respecte les délais administratifs", "Compleix els terminis administratius"],
+  // Partidos
+  ["Prepara el partido", "Prepares for the match", "Prépare le match", "Prepara el partit"],
+  ["Dirige bien durante el partido", "Manages the team well during the match", "Dirige bien l'équipe pendant le match", "Dirigeix bé durant el partit"],
+  ["Gestiona los minutos de los jugadores", "Manages players' playing time", "Gère le temps de jeu des joueurs", "Gestiona els minuts dels jugadors"],
+  ["Aplica el sistema de juego", "Applies the system of play", "Applique le système de jeu", "Aplica el sistema de joc"],
+  ["Gestiona el banquillo", "Manages the bench", "Gère le banc", "Gestiona el banc"],
+  ["Charlas adecuadas antes y después del partido", "Appropriate team talks before and after the match", "Causeries adaptées avant et après le match", "Xerrades adequades abans i després del partit"],
+  // Gestión humana
+  ["Se comunica bien con los jugadores", "Communicates well with the players", "Communique bien avec les joueurs", "Es comunica bé amb els jugadors"],
+  ["Cuida el trato y el clima de grupo", "Looks after how people are treated and the group atmosphere", "Veille aux relations et à l'ambiance du groupe", "Cuida el tracte i el clima de grup"],
+  ["Gestiona los conflictos", "Handles conflicts", "Gère les conflits", "Gestiona els conflictes"],
+  ["Refuerza y motiva a los jugadores", "Encourages and motivates the players", "Encourage et motive les joueurs", "Reforça i motiva els jugadors"],
+  ["Se relaciona bien con el cuerpo técnico", "Gets on well with the coaching staff", "S'entend bien avec le staff technique", "Es relaciona bé amb el cos tècnic"],
+  ["Atiende a cada jugador de forma individual", "Gives each player individual attention", "Accorde une attention individuelle à chaque joueur", "Atén cada jugador de manera individual"],
+];
