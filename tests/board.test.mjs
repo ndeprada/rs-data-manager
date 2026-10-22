@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   normalizeBoard, hasBoard, addFrame, removeFrame, duplicateFrame, moveFrame, addElement, removeElement, patchElement,
   lerpFrames, ghostsOf, toView, fromView, fieldOf, hitTest, shiftElement, arrowPoints, emptyBoard, MAX_FRAMES, frameCount, changeField,
+  FIELDS, teamsOf, teamOf, tokenColor, chipOf, tokenR, DEFAULT_CHIP, CHIP_RANGE, arrowFlight, arrowProps, dashArray, liftNormal, fontOf,
 } from "../src/lib/board.js";
 
 const token = (id, x, y, team = "a") => ({ id, k: "token", x, y, team, label: "" });
@@ -164,4 +165,93 @@ test("al cambiar de campo, lo dibujado se reescala en proporción", () => {
   assert.deepEqual([half.frames[0].els[2].x2, half.frames[0].els[2].y2, half.frames[0].els[2].cy], [68, 52.5, 26.3]);
   assert.equal(changeField(b, "full"), b);
   assert.equal(b.frames[0].els[0].y, 52.5, "el original no se toca");
+});
+
+test("hay cinco campos y uno desconocido cae en medio campo", () => {
+  assert.deepEqual(FIELDS.map((f) => f.id), ["full", "tq", "half", "f7", "free"]);
+  assert.equal(fieldOf("tq").h, 78.75);
+  assert.equal(fieldOf("f7").w, 45);
+  assert.equal(fieldOf("f7").h, 65);
+  assert.equal(fieldOf("inventado").id, "half");
+});
+
+test("cinco equipos con color propio y los valores por defecto cuando faltan", () => {
+  const base = teamsOf({});
+  assert.equal(base.length, 5);
+  assert.deepEqual(base.map((t) => t.id), ["a", "b", "c", "gk", "n"]);
+  const b = { teams: [{ id: "b", name: "Rojos", color: "#ff0000" }, { id: "zz", name: "No existe", color: "#000" }] };
+  const t = teamsOf(b);
+  assert.equal(t.length, 5, "no se cuelan equipos que no existen");
+  assert.equal(t.find((x) => x.id === "b").name, "Rojos");
+  assert.equal(t.find((x) => x.id === "a").name, "Equipo A", "lo no cambiado conserva el valor por defecto");
+  assert.equal(teamOf(b, "b").color, "#ff0000");
+  assert.equal(tokenColor(b, { team: "b" }), "#ff0000");
+  assert.equal(tokenColor(b, { team: "b", color: "#00ff00" }), "#00ff00", "el color propio de la ficha manda");
+});
+
+test("el tamaño de las fichas tiene un mínimo y un máximo y cada ficha puede ser mayor o menor", () => {
+  assert.equal(chipOf({}), DEFAULT_CHIP);
+  assert.equal(chipOf({ chipSize: 0.1 }), CHIP_RANGE[0]);
+  assert.equal(chipOf({ chipSize: 99 }), CHIP_RANGE[1]);
+  assert.equal(chipOf({ chipSize: 2 }), 2);
+  assert.equal(tokenR(2, { size: 1.5 }), 3);
+  assert.equal(tokenR(2, {}), 2);
+});
+
+test("normalizeBoard conserva los equipos y el tamaño de ficha elegidos", () => {
+  const b = normalizeBoard({ v: 2, field: "f7", look: "color", orient: "h", chipSize: 2.2, teams: [{ id: "a", name: "Local", color: "#123456" }], frames: [{ id: "f", els: [] }] });
+  assert.equal(b.chipSize, 2.2);
+  assert.equal(teamOf(b, "a").name, "Local");
+  assert.equal(b.field, "f7");
+  assert.equal(normalizeBoard({ v: 2, frames: [] }).chipSize, undefined);
+});
+
+test("un pase aéreo se curva de lado, a mitad de camino lo máximo, y cae donde acaba la flecha", () => {
+  const a = { k: "arrow", x1: 10, y1: 60, x2: 10, y2: 20, air: true, lift: 8 };
+  const flat = arrowPoints(a, 24);
+  const fly = arrowFlight(a, "v", 24);
+  assert.equal(fly.length, flat.length);
+  assert.deepEqual(fly[0], flat[0], "sale del suelo");
+  assert.deepEqual(fly[24], flat[24], "cae en el mismo sitio");
+  assert.equal(fly[12].y, flat[12].y, "un pase recto hacia arriba se curva hacia un lado, no a lo largo");
+  assert.equal(fly[12].x, flat[12].x + 8, "del lado derecho de la pantalla");
+  assert.deepEqual(arrowFlight({ ...a, lift: -8 }, "v", 24)[12], { x: flat[12].x - 8, y: flat[12].y }, "altura negativa = otro lado");
+  assert.deepEqual(arrowFlight({ ...a, air: false }, "v", 24), flat, "sin aire, la trayectoria es la del suelo");
+});
+
+test("el vuelo se curva hacia arriba en pantalla cuando el pase va de lado, también con el campo girado", () => {
+  const side = { x1: 10, y1: 40, x2: 50, y2: 40 };
+  assert.deepEqual(liftNormal(side, "v"), { x: 0, y: -1 }, "campo vertical: arriba es y menor");
+  const n = liftNormal({ x1: 40, y1: 10, x2: 40, y2: 50 }, "h");
+  assert.deepEqual({ x: Math.abs(n.x), y: Math.abs(n.y) }, { x: 1, y: 0 }, "campo horizontal: un pase a lo largo del eje y va de lado en pantalla");
+  assert.equal(n.x, 1, "y se curva hacia arriba en pantalla (x del campo mayor)");
+  assert.deepEqual(liftNormal({ x1: 5, y1: 5, x2: 5, y2: 5 }, "v"), { x: 0, y: -1 }, "sin recorrido, hacia arriba");
+});
+
+test("los valores por defecto de las flechas antiguas se mantienen y los nuevos se respetan", () => {
+  assert.deepEqual(arrowProps({ style: "pass" }), { width: 0.55, dash: "dashed", wavy: false, pointer: "arrow", border: false, alpha: 1 });
+  assert.equal(arrowProps({ style: "dribble" }).wavy, true);
+  assert.equal(arrowProps({ style: "move" }).dash, "solid");
+  const custom = arrowProps({ style: "pass", dash: "dotted", width: 1.2, border: true, pointer: "bar", wavy: true });
+  assert.deepEqual(custom, { width: 1.2, dash: "dotted", wavy: true, pointer: "bar", border: true, alpha: 1 });
+  assert.equal(dashArray("solid", 1), undefined);
+  assert.ok(dashArray("dashed", 1).includes(" "));
+  assert.ok(dashArray("dotted", 1).startsWith("0.01"));
+});
+
+test("hitTest respeta el tamaño de la ficha, la rotación de la portería y la trayectoria aérea", () => {
+  const small = { id: "s", k: "token", x: 20, y: 20, team: "a" };
+  assert.equal(hitTest([small], { x: 22.4, y: 20 }, { chip: 0.8 }), null, "una ficha pequeña no se agarra desde lejos");
+  assert.equal(hitTest([small], { x: 22.4, y: 20 }, { chip: 3 })?.id, "s");
+  const goal = { id: "g", k: "goal", x: 30, y: 30, w: 6, rot: 90 };
+  assert.equal(hitTest([goal], { x: 30, y: 32.5 })?.id, "g", "girada 90º, la portería se alarga en vertical");
+  assert.equal(hitTest([goal], { x: 33, y: 30 }), null);
+  const air = { id: "p", k: "arrow", style: "pass", x1: 10, y1: 40, x2: 50, y2: 40, air: true, lift: 10 };
+  assert.equal(hitTest([air], { x: 30, y: 30 }, { orient: "v" })?.id, "p", "se agarra por la línea de vuelo (punto más alto)");
+  assert.equal(hitTest([air], { x: 30, y: 40 }, { orient: "v" }), null, "pero no por el suelo, donde solo hay sombra");
+});
+
+test("tipografías conocidas y una de reserva", () => {
+  assert.ok(fontOf("serif").includes("Georgia"));
+  assert.ok(fontOf("no-existe").includes("Arial"));
 });

@@ -1,39 +1,44 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ChevronLeft, ChevronRight, Circle, Copy, Download, Flag, MousePointer2, MoveUpRight, Pause, Play, Plus, Repeat, RotateCw, Spline, Square, Triangle, Type, Trash2, Undo2 } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, Circle, Copy, Download, Flag, MousePointer2, MoveUpRight, Pause, Play, Plus, Repeat, RotateCw, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
-  FIELDS, LOOKS, MAX_FRAMES, TEAMS, addElement, addFrame, byRank, changeField, defaultControl, duplicateFrame, fieldOf, fromView, ghostsOf,
-  hitTest, isMovable, lerpFrames, lookOf, moveFrame, newId, normalizeBoard, patchElement, removeElement, removeFrame, shiftElement,
+  AIR_MAX, FIELDS, LOOKS, MAX_FRAMES, addElement, addFrame, arrowPoints, byRank, changeField, chipOf, defaultControl, duplicateFrame, fieldOf, fromView, ghostsOf,
+  hitTest, isMovable, lerpFrames, lookOf, moveFrame, newId, normalizeBoard, patchElement, removeElement, removeFrame, shiftElement, teamsOf, liftNormal,
 } from "@/lib/board";
-import Board, { TEAM_COLORS } from "./BoardSvg";
+import Board from "./BoardSvg";
+import BoardProps, { ARROW_PRESETS, KIND_LABEL, typeOfArrow } from "./BoardProps";
 import { boardToPngBlob, downloadBlob } from "./exportPng";
 
-// Editor de la pizarra: fichas, balón, conos, porterías, flechas (rectas o curvas), zonas y textos, con fotogramas para
-// animar el movimiento. Mismo editor para tareas de entrenamiento, tácticas y balón parado.
+// Editor de la pizarra: fichas de hasta cinco equipos (cada uno de su color), balón, conos, porterías, flechas (rectas,
+// curvas o por el aire), zonas y textos, con fotogramas para animar el movimiento. Mismo editor para tareas de
+// entrenamiento, tácticas y balón parado.
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const round = (n) => Math.round(n * 10) / 10;
 
-const TOOLS = [
-  { id: "select", label: "Mover", icon: MousePointer2 },
-  { id: "a", label: "Equipo A", icon: Circle, color: TEAM_COLORS.a },
-  { id: "b", label: "Equipo B", icon: Circle, color: TEAM_COLORS.b },
-  { id: "c", label: "Comodín", icon: Circle, color: TEAM_COLORS.c },
-  { id: "gk", label: "Portero", icon: Circle, color: TEAM_COLORS.gk },
-  { id: "ball", label: "Balón", icon: Circle, color: "#111827", ring: true },
+const TEAM_IDS = ["a", "b", "c", "gk", "n"];
+const OBJECT_TOOLS = [
+  { id: "ball", label: "Balón", icon: Circle, ring: true },
   { id: "cone", label: "Cono", icon: Triangle, color: "#f97316" },
   { id: "goal", label: "Portería", icon: Flag, color: "#6b7280" },
+];
+const LINE_TOOLS = [
   { id: "move", label: "Desplazamiento", icon: MoveUpRight },
   { id: "pass", label: "Pase", icon: Spline, color: "#2563eb" },
+  { id: "air", label: "Pase aéreo (con sombra)", icon: TrendingUp, color: "#2563eb" },
   { id: "dribble", label: "Conducción", icon: Activity, color: "#73000A" },
   { id: "zone", label: "Zona", icon: Square },
   { id: "text", label: "Texto", icon: Type },
 ];
-const TEAM_TOOLS = ["a", "b", "c", "gk"];
-const ARROW_TOOLS = ["move", "pass", "dribble"];
+const ARROW_TOOLS = ["move", "pass", "air", "dribble"];
+const KIND_OF_TOOL = { ball: "ball", cone: "cone", goal: "goal", move: "arrow", pass: "arrow", air: "arrow", dribble: "arrow", zone: "zone", text: "text" };
 const SPEEDS = [{ id: 2600, label: "Lenta" }, { id: 1500, label: "Normal" }, { id: 800, label: "Rápida" }];
 const MAX_HISTORY = 30;
+
+// Lo último que se eligió para cada herramienta se recuerda para lo siguiente que se dibuje
+const BRUSH0 = { ...ARROW_PRESETS, ball: {}, cone: { shape: "tri" }, goal: { w: 7.32 }, zone: {}, text: { size: 3 } };
+const BRUSH_KEYS = ["shape", "color", "size", "w", "width", "dash", "border", "borderColor", "pointer", "fill", "fillOpacity", "stroke", "strokeWidth", "font", "bold", "lift"];
+const toolOfEl = (el) => (el.k === "arrow" ? typeOfArrow(el) : ["ball", "cone", "goal", "zone", "text"].includes(el.k) ? el.k : null);
 
 const selectCls = "h-8 rounded-md border border-gray-200 bg-white px-2 text-xs";
 
@@ -48,10 +53,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const field = fieldOf(board.field);
   const orient = board.orient;
   const look = lookOf(board.look);
+  const chip = chipOf(board);
+  const teams = teamsOf(board);
   const [fi, setFi] = useState(0);
   const [tool, setTool] = useState("select");
   const [selId, setSelId] = useState(null);
   const [draft, setDraft] = useState(null);
+  const [brush, setBrush] = useState(BRUSH0);
   const [history, setHistory] = useState([]);
   const [playing, setPlaying] = useState(false);
   const [anim, setAnim] = useState(null);
@@ -64,6 +72,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const drag = useRef(null);
   const live = useRef(board);
   live.current = board;
+  const coalesce = useRef({ key: null, at: 0 });
 
   const last = board.frames.length - 1;
   const idx = Math.min(fi, last);
@@ -73,16 +82,23 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   useEffect(() => { if (selId && !selected && !playing) setSelId(null); }, [selId, selected, playing]);
   useEffect(() => { if (fi > last) setFi(last); }, [fi, last]);
 
-  const commit = (next, { record = true } = {}) => {
-    if (record) setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), live.current]);
+  // Los cambios seguidos de un mismo control (deslizador, selector de color) cuentan como uno solo al deshacer.
+  const commit = (next, { record = true, key = null } = {}) => {
+    if (record) {
+      const now = Date.now();
+      const same = key && coalesce.current.key === key && now - coalesce.current.at < 900;
+      if (!same) setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), live.current]);
+      coalesce.current = { key, at: now };
+    }
     onChange(next);
   };
-  const undo = () => setHistory((h) => {
-    if (!h.length) return h;
-    onChange(h[h.length - 1]);
+  const undo = () => {
+    if (!history.length) return;
+    onChange(history[history.length - 1]);
+    setHistory(history.slice(0, -1));
     setSelId(null);
-    return h.slice(0, -1);
-  });
+    coalesce.current = { key: null, at: 0 };
+  };
 
   // ── Reproducción ─────────────────────────────────────────────────────────────────────────────────────────────────
   const stop = () => { setPlaying(false); setAnim(null); };
@@ -117,13 +133,25 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const ghosts = !playing && trails && prev ? ghostsOf(prev, cur) : [];
 
   // ── Puntero ──────────────────────────────────────────────────────────────────────────────────────────────────────
-  const point = (e) => {
+  const toField = (e) => {
     const svg = svgRef.current;
     const pt = svg.createSVGPoint();
     pt.x = e.clientX; pt.y = e.clientY;
-    const v = pt.matrixTransform(svg.getScreenCTM().inverse());
-    const p = fromView(field, orient, v);
+    return fromView(field, orient, pt.matrixTransform(svg.getScreenCTM().inverse()));
+  };
+  const point = (e) => {
+    const p = toField(e);
     return { x: round(clamp(p.x, -2, field.w + 2)), y: round(clamp(p.y, -2, field.h + 2)) };
+  };
+  // Altura máxima de un pase aéreo (hacia el lado indicado por sign) para que su punto más alto siga dentro de lo que se ve
+  const liftMax = (a, sign) => {
+    const g = arrowPoints(a, 24)[12], n = liftNormal(a, orient);
+    let m = AIR_MAX;
+    for (const [pos, dir, lo, hi] of [[g.x, n.x * sign, -2, field.w + 2], [g.y, n.y * sign, -2, field.h + 2]]) {
+      if (dir > 1e-6) m = Math.min(m, (hi - pos) / dir);
+      else if (dir < -1e-6) m = Math.min(m, (lo - pos) / dir);
+    }
+    return Math.max(1, m);
   };
 
   const setEls = (els, opts) => commit({ ...live.current, frames: live.current.frames.map((f, i) => (i === idx ? { ...f, els } : f)) }, opts);
@@ -136,39 +164,52 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const handle = e.target?.dataset?.h;
     if (handle && selected?.k === "arrow") {
-      drag.current = { mode: "handle", h: handle, id: selected.id, snapshot: live.current };
+      drag.current = { mode: "handle", h: handle, id: selected.id, arrow: selected, snapshot: live.current };
       return;
     }
-    const target = hitTest([...cur.els].sort(byRank), p);
-    if (tool === "select" || (target && !["zone", ...ARROW_TOOLS].includes(tool))) {
+    const target = hitTest([...cur.els].sort(byRank), p, { orient, chip });
+    const drawing = tool === "zone" || ARROW_TOOLS.includes(tool);
+    if (tool === "select" || (target && !drawing)) {
       if (target) {
         setSelId(target.id);
         drag.current = { mode: "move", id: target.id, from: p, moved: false, snapshot: live.current };
       } else setSelId(null);
       return;
     }
-    if (TEAM_TOOLS.includes(tool)) return add({ id: newId(), k: "token", x: p.x, y: p.y, team: tool, label: "" });
-    if (["ball", "cone", "goal"].includes(tool)) return add({ id: newId(), k: tool, x: p.x, y: p.y });
-    if (tool === "text") return add({ id: newId(), k: "text", x: p.x, y: p.y, text: "Texto" });
-    if (ARROW_TOOLS.includes(tool)) { setDraft({ k: "arrow", style: tool, x1: p.x, y1: p.y, x2: p.x, y2: p.y }); drag.current = { mode: "draw" }; return; }
-    if (tool === "zone") { setDraft({ k: "zone", x: p.x, y: p.y, w: 0, h: 0 }); drag.current = { mode: "draw" }; }
+    if (TEAM_IDS.includes(tool)) return add({ id: newId(), k: "token", x: p.x, y: p.y, team: tool, label: "" });
+    if (tool === "ball") return add({ id: newId(), k: "ball", x: p.x, y: p.y, ...brush.ball });
+    if (tool === "cone") return add({ id: newId(), k: "cone", x: p.x, y: p.y, ...brush.cone });
+    if (tool === "goal") return add({ id: newId(), k: "goal", x: p.x, y: p.y, rot: 0, ...brush.goal });
+    if (tool === "text") return add({ id: newId(), k: "text", x: p.x, y: p.y, text: "Texto", ...brush.text });
+    if (ARROW_TOOLS.includes(tool)) { setDraft({ k: "arrow", ...brush[tool], x1: p.x, y1: p.y, x2: p.x, y2: p.y }); drag.current = { mode: "draw" }; return; }
+    if (tool === "zone") { setDraft({ k: "zone", ...brush.zone, x: p.x, y: p.y, w: 0, h: 0 }); drag.current = { mode: "draw" }; }
   };
 
   const onMove = (e) => {
     const d = drag.current;
     if (!d) return;
-    const p = point(e);
     if (d.mode === "draw") {
+      const p = point(e);
       setDraft((c) => (c ? (c.k === "arrow" ? { ...c, x2: p.x, y2: p.y } : { ...c, w: round(p.x - c.x), h: round(p.y - c.y) }) : c));
       return;
     }
     if (d.mode === "handle") {
-      const key = d.h === "p1" ? { x1: p.x, y1: p.y } : d.h === "p2" ? { x2: p.x, y2: p.y } : { cx: p.x, cy: p.y };
-      onChange(patchElement(d.snapshot, idx, d.id, key));
+      let patch;
+      if (d.h === "l") {
+        const g = arrowPoints(d.arrow, 24)[12], n = liftNormal(d.arrow, orient), r = toField(e);
+        const raw = (r.x - g.x) * n.x + (r.y - g.y) * n.y;
+        const sign = raw < 0 ? -1 : 1;
+        patch = { lift: sign * clamp(round(Math.abs(raw)), 1, liftMax(d.arrow, sign)) };
+      } else {
+        const p = point(e);
+        patch = d.h === "p1" ? { x1: p.x, y1: p.y } : d.h === "p2" ? { x2: p.x, y2: p.y } : { cx: p.x, cy: p.y };
+      }
+      onChange(patchElement(d.snapshot, idx, d.id, patch));
       d.moved = true;
       return;
     }
     if (d.mode === "move") {
+      const p = point(e);
       const dx = p.x - d.from.x, dy = p.y - d.from.y;
       if (!d.moved && Math.hypot(dx, dy) < 0.6) return;
       d.moved = true;
@@ -181,29 +222,55 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const d = drag.current;
     drag.current = null;
     if (!d) return;
-    if ((d.mode === "move" || d.mode === "handle") && d.moved) setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), d.snapshot]);
+    if ((d.mode === "move" || d.mode === "handle") && d.moved) {
+      setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), d.snapshot]);
+      coalesce.current = { key: null, at: 0 };
+    }
     if (d.mode === "draw" && draft) {
       const big = draft.k === "arrow" ? Math.hypot(draft.x2 - draft.x1, draft.y2 - draft.y1) > 2.5 : Math.abs(draft.w) > 2.5 && Math.abs(draft.h) > 2.5;
-      if (big) add({ id: newId(), ...draft });
+      if (big) {
+        const { curved, ...rest } = draft;
+        const el = { id: newId(), ...rest };
+        if (curved && el.k === "arrow") Object.assign(el, defaultControl(el));
+        add(el);
+      }
       setDraft(null);
     }
   };
 
-  // ── Elemento seleccionado ────────────────────────────────────────────────────────────────────────────────────────
-  const patchSel = (patch, allFrames = false) => commit(patchElement(board, idx, selId, patch, { allFrames }));
+  // ── Propiedades ──────────────────────────────────────────────────────────────────────────────────────────────────
+  // Sobre un elemento seleccionado se cambia el elemento; sin selección, la herramienta activa (lo siguiente que se dibuje).
+  const patchSel = (patch, key = null) => {
+    if (!selected) return;
+    const allFrames = isMovable(selected) && !("x" in patch) && !("y" in patch);
+    commit(patchElement(live.current, idx, selId, patch, { allFrames }), { key: key || Object.keys(patch).join(",") });
+    const t = toolOfEl(selected);
+    const keep = Object.fromEntries(Object.entries(patch).filter(([k]) => BRUSH_KEYS.includes(k)));
+    if (selected.k === "arrow" && "cx" in patch) keep.curved = patch.cx != null;
+    if (t && Object.keys(keep).length) setBrush((b) => ({ ...b, [t]: { ...b[t], ...keep } }));
+  };
+  const patchBrush = (patch) => setBrush((b) => ({ ...b, [tool]: { ...b[tool], ...patch } }));
+  const setArrowType = (t) => {
+    if (selected?.k === "arrow") patchSel({ ...ARROW_PRESETS[t], lift: t === "air" ? Number(selected.lift) || 6 : selected.lift }, "type");
+    else pickTool(t);
+  };
+  const patchTeam = (id, patch) => commit({ ...live.current, teams: teamsOf(live.current).map((t) => (t.id === id ? { ...t, ...patch } : t)) }, { key: `team-${id}-${Object.keys(patch)[0]}` });
+  const setChip = (v) => commit({ ...live.current, chipSize: round(v) }, { key: "chip" });
+
   const delSel = (onlyHere = false) => { commit(removeElement(board, idx, selId, { onlyHere })); setSelId(null); };
   const dupSel = () => {
     if (!selected) return;
-    const copy = shiftElement({ ...selected, id: newId() }, 3, 3);
-    add(copy);
+    add(shiftElement({ ...selected, id: newId() }, 3, 3));
   };
   const clearFrame = () => { if (cur.els.length) { setEls([]); setSelId(null); } };
 
   const addPlayer = (p) => {
-    const team = TEAM_TOOLS.includes(tool) ? tool : "a";
+    const team = TEAM_IDS.includes(tool) ? tool : "a";
     const n = cur.els.filter((e) => e.k === "token").length;
     add({ id: newId(), k: "token", x: round(Math.min(8 + (n % 6) * 10, field.w - 4)), y: round(6 + Math.floor(n / 6) * 7), team, label: p.label });
   };
+
+  const pickTool = (id) => { setTool(id); if (id !== "select") setSelId(null); stop(); };
 
   // ── Fotogramas ───────────────────────────────────────────────────────────────────────────────────────────────────
   const goFrame = (i) => { stop(); setFi(i); setSelId(null); setDraft(null); };
@@ -228,6 +295,40 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const cursor = tool === "select" || playing ? "default" : "crosshair";
   const hasEls = board.frames.some((f) => f.els.length);
 
+  // Qué muestra el panel de propiedades: el elemento seleccionado o la herramienta elegida
+  const brushEl = !selected && !playing
+    ? TEAM_IDS.includes(tool) ? { k: "token", team: tool }
+      : KIND_OF_TOOL[tool] ? { k: KIND_OF_TOOL[tool], ...brush[tool] } : null
+    : null;
+  const panelEl = !playing ? selected || brushEl : null;
+  const teamBtn = (id) => teams.find((t) => t.id === id);
+
+  const toolBtn = (t, content) => {
+    const on = tool === t.id;
+    return (
+      <button
+        key={t.id}
+        type="button"
+        title={t.label}
+        aria-label={t.label}
+        aria-pressed={on}
+        onClick={() => pickTool(t.id)}
+        className={`h-8 min-w-8 px-1.5 rounded-md border text-[11px] font-semibold flex items-center gap-1 ${on ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+      >
+        {content(on)}
+      </button>
+    );
+  };
+  const iconTool = (t) => toolBtn(t, (on) => {
+    const Icon = t.icon;
+    return (
+      <>
+        <Icon className="w-3.5 h-3.5" style={on || !t.color ? undefined : { color: t.color }} />
+        <span className="hidden sm:inline">{t.label.replace(/ \(.*\)/, "")}</span>
+      </>
+    );
+  });
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-1.5">
@@ -247,25 +348,22 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1">
-        {TOOLS.map((t) => {
-          const Icon = t.icon;
-          const on = tool === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              title={t.label}
-              aria-label={t.label}
-              aria-pressed={on}
-              onClick={() => { setTool(t.id); if (t.id !== "select") setSelId(null); stop(); }}
-              className={`h-8 min-w-8 px-1.5 rounded-md border text-[11px] font-semibold flex items-center gap-1 ${on ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-            >
-              <Icon className="w-3.5 h-3.5" style={on || !t.color ? undefined : { color: t.color }} fill={TEAM_TOOLS.includes(t.id) ? (on ? "#fff" : t.color) : "none"} />
-              <span className="hidden sm:inline">{t.label}</span>
-            </button>
-          );
+      <div className="flex flex-wrap items-center gap-1">
+        {toolBtn({ id: "select", label: "Mover" }, () => (<><MousePointer2 className="w-3.5 h-3.5" /><span className="hidden sm:inline">Mover</span></>))}
+        <span className="w-px h-5 bg-gray-200 mx-0.5" aria-hidden="true" />
+        {TEAM_IDS.map((id) => {
+          const t = teamBtn(id);
+          return toolBtn({ id, label: t.name }, (on) => (
+            <>
+              <Circle className="w-3.5 h-3.5" fill={t.color} style={{ color: on ? "#fff" : t.color }} />
+              <span className="hidden md:inline max-w-[64px] truncate">{t.name}</span>
+            </>
+          ));
         })}
+        <span className="w-px h-5 bg-gray-200 mx-0.5" aria-hidden="true" />
+        {OBJECT_TOOLS.map(iconTool)}
+        <span className="w-px h-5 bg-gray-200 mx-0.5" aria-hidden="true" />
+        {LINE_TOOLS.map(iconTool)}
       </div>
 
       <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex justify-center">
@@ -286,6 +384,37 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           onPointerCancel={onUp}
         />
       </div>
+
+      {panelEl && (
+        <div className={`rounded-lg border px-2 py-1.5 space-y-1.5 ${selected ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-200"}`} data-testid="board-props">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+              {selected ? KIND_LABEL[selected.k] : `Lo siguiente que dibujes${TEAM_IDS.includes(tool) ? "" : ` (${KIND_LABEL[panelEl.k].toLowerCase()})`}`}
+            </span>
+            {selected && <span className="text-[11px] text-amber-800 flex-1 min-w-[80px]">{selected.k === "arrow" ? "Arrastra la flecha o sus puntos" : isMovable(selected) && board.frames.length > 1 ? "Arrástrala en cada fotograma" : "Arrastra para moverla"}</span>}
+          </div>
+          <BoardProps
+            key={selected ? selected.id : `tool-${tool}`}
+            el={panelEl}
+            brush={!selected}
+            board={board}
+            look={look}
+            patch={selected ? patchSel : patchBrush}
+            onType={setArrowType}
+            patchTeam={patchTeam}
+            setChip={setChip}
+          />
+          {selected && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs" onClick={dupSel} title="Duplicar"><Copy className="w-3.5 h-3.5" /> Duplicar</Button>
+              {isMovable(selected) && board.frames.length > 1 && (
+                <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => delSel(true)} title="Quitar solo de este fotograma">Solo aquí</Button>
+              )}
+              <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs text-red-600" onClick={() => delSel(false)} title={isMovable(selected) && board.frames.length > 1 ? "Quitar de todos los fotogramas" : "Quitar"}><Trash2 className="w-3.5 h-3.5" /> Quitar</Button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-1.5">
         <Button type="button" size="sm" className="h-8 px-2.5 gap-1 text-xs" onClick={() => (playing ? stop() : setPlaying(true))} disabled={board.frames.length < 2} title={board.frames.length < 2 ? "Añade otro fotograma para animar" : playing ? "Parar" : "Reproducir la animación"}>
@@ -321,54 +450,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       )}
       {error && <p className="text-xs text-red-600" role="alert">{error}</p>}
 
-      {selected && !playing && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5">
-          {selected.k === "token" && (
-            <>
-              <Input value={selected.label || ""} onChange={(e) => patchSel({ label: e.target.value }, true)} placeholder="Nombre" className="h-7 w-28 text-xs" aria-label="Nombre de la ficha" />
-              <div className="flex gap-1">
-                {TEAMS.map((t) => (
-                  <button key={t.id} type="button" title={t.label} aria-label={t.label} onClick={() => patchSel({ team: t.id }, true)}
-                    className={`w-5 h-5 rounded-full border-2 ${selected.team === t.id ? "border-gray-900" : "border-white"}`} style={{ background: TEAM_COLORS[t.id] }} />
-                ))}
-              </div>
-            </>
-          )}
-          {selected.k === "text" && <Input value={selected.text || ""} onChange={(e) => patchSel({ text: e.target.value })} className="h-7 w-40 text-xs" aria-label="Texto" />}
-          {selected.k === "arrow" && (
-            <>
-              <select value={selected.style} onChange={(e) => patchSel({ style: e.target.value })} className="h-7 rounded-md border border-gray-200 bg-white px-1.5 text-xs" aria-label="Tipo de flecha">
-                <option value="move">Desplazamiento</option>
-                <option value="pass">Pase</option>
-                <option value="dribble">Conducción</option>
-              </select>
-              <select value={selected.pointer || "arrow"} onChange={(e) => patchSel({ pointer: e.target.value })} className="h-7 rounded-md border border-gray-200 bg-white px-1.5 text-xs" aria-label="Punta de la flecha">
-                <option value="arrow">Flecha</option>
-                <option value="bar">Barra</option>
-                <option value="none">Sin punta</option>
-              </select>
-              <button type="button" aria-pressed={selected.cx != null} onClick={() => patchSel(selected.cx != null ? { cx: undefined, cy: undefined } : defaultControl(selected))}
-                className={`h-7 px-2 rounded-md border text-xs font-semibold ${selected.cx != null ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200"}`}>Curva</button>
-            </>
-          )}
-          {selected.k === "zone" && (
-            <select value={selected.shape || "rect"} onChange={(e) => patchSel({ shape: e.target.value })} className="h-7 rounded-md border border-gray-200 bg-white px-1.5 text-xs" aria-label="Forma de la zona">
-              <option value="rect">Rectángulo</option>
-              <option value="ellipse">Elipse</option>
-            </select>
-          )}
-          <span className="text-[11px] text-amber-800 flex-1 min-w-[80px]">{selected.k === "arrow" ? "Arrastra la flecha o sus puntos" : isMovable(selected) && board.frames.length > 1 ? "Arrástrala en cada fotograma" : "Arrastra para moverla"}</span>
-          <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={dupSel} title="Duplicar"><Copy className="w-3.5 h-3.5" /></Button>
-          {isMovable(selected) && board.frames.length > 1 && (
-            <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => delSel(true)} title="Quitar solo de este fotograma">Solo aquí</Button>
-          )}
-          <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-red-600" onClick={() => delSel(false)} title={isMovable(selected) && board.frames.length > 1 ? "Quitar de todos los fotogramas" : "Quitar"}><Trash2 className="w-3.5 h-3.5" /></Button>
-        </div>
-      )}
-
       {roster.length > 0 && (
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1">Añadir jugador (usa el color elegido: equipo A, B, comodín o portero)</p>
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1">Añadir jugador (con el color del equipo elegido arriba)</p>
           <div className="flex flex-wrap gap-1">
             {roster.map((p) => (
               <button key={p.id} type="button" onClick={() => addPlayer(p)}
