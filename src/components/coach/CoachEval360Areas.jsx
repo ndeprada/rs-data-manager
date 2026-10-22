@@ -6,23 +6,33 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Plus, Pencil, Lock, Send, Undo2, CornerDownRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useT, useFormat } from "@/i18n";
+import { useT, useFormat, msg } from "@/i18n";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
 import { COACH_AREAS, areaInfo, feedbackArea, hasLegacySections, isShared } from "@/lib/coachAreas";
 import { avgColor } from "@/lib/coachMethod";
 import { obsAreaOf, aggregateArea } from "@/lib/coachAreaCriteria";
-import { QUARTERS, WHOLE_SEASON, quarterRange, quarterOf, inRange } from "@/lib/coachQuarters";
+import { quarterRange, inRange } from "@/lib/coachQuarters";
 import { ObsView, SummaryView, AreaObsDialog } from "@/components/coach/CoachObsParts";
 import SessionData from "@/components/coach/CoachSessionData";
 import CoachEval360Section from "@/components/coach/CoachEval360Section";
 import { FEEDBACK_SECTIONS } from "@/components/coach/CoachFeedbackSection";
 import {
-  FEEDBACK_PROGRESS, progressOf, progressInfo, countByProgress, closeOf, quarterState, unpublishedObs, carriedFeedback, progressVisibleToCoach, CLOSE_STATUS,
-} from "@/lib/coachQuarterClose";
+  FEEDBACK_PROGRESS, progressOf, progressInfo, countByProgress, periodsOf, openPeriodRange, validatePeriod, isPublished, unpublishedObs, carriedFeedback, progressVisibleToCoach, CLOSE_STATUS,
+} from "@/lib/coachPeriods";
 
 const FONT = { fontFamily: "var(--font-display)" };
 const SUMMARY = "summary";
+const OPEN = "open";
+const ALL = "all";
+const CLOSE_ERRORS = {
+  missing: msg("Indica las dos fechas"),
+  order: msg("La fecha «Hasta» no puede ser anterior a «Desde»"),
+  future: msg("No se puede cerrar con fechas futuras"),
+  season: msg("La fecha «Desde» es anterior a esta temporada"),
+  overlap: msg("Estas fechas se pisan con otro periodo ya cerrado"),
+};
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 const byDateDesc = (a, b) => (b.date || "").localeCompare(a.date || "");
 
@@ -30,11 +40,12 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
   const t = useT();
   const { locale, num } = useFormat();
   const qc = useQueryClient();
-  const [quarter, setQuarter] = useState(() => quarterOf(todayStr()));
+  const [periodPick, setPeriodPick] = useState(null);
   const [areaPick, setAreaPick] = useState(null);
   const [obsPick, setObsPick] = useState(SUMMARY);
   const [dlg, setDlg] = useState(null);
   const [closing, setClosing] = useState(false);
+  const [closeForm, setCloseForm] = useState({ label: "", from: "", to: "" });
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: allObs = [] } = useQuery({
@@ -56,14 +67,24 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
   const avgText = (n) => (n == null ? "—" : num(n, { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
   const shortDate = (d) => (d ? format(new Date(`${String(d).slice(0, 10)}T12:00:00`), "d MMM", { locale }) : "");
 
-  // El entrenador solo ve lo publicado y lo compartido; coordinación lo ve todo
-  const range = quarterRange(CURRENT_SEASON, quarter);
-  const perArea = useMemo(() => Object.fromEntries(COACH_AREAS.map((a) => {
-    const obs = allObs.filter((o) => (canEvaluate || o.status === "publicada") && obsAreaOf(o) === a.key && inRange(o.date, range)).sort(byDateDesc);
-    const fb = allFb.filter((f) => (canEvaluate || isShared(f)) && feedbackArea(f) === a.key && inRange(f.date, range)).sort(byDateDesc);
-    const carried = carriedFeedback(allFb, CURRENT_SEASON, quarter).filter((f) => (canEvaluate || isShared(f)) && feedbackArea(f) === a.key).sort(byDateDesc);
+  // Periodos: el abierto (todo lo que aún no está en un periodo cerrado) y los cerrados, con las fechas que eligió quien evaluó.
+  // El entrenador solo ve los periodos publicados y, en «Toda la temporada», lo publicado y lo compartido.
+  const today = todayStr();
+  const seasonRange = quarterRange(CURRENT_SEASON, "all");
+  const periods = useMemo(() => periodsOf(closes, CURRENT_SEASON).filter((p) => canEvaluate || isPublished(p)), [closes, canEvaluate]);
+  const openRange = useMemo(() => openPeriodRange(closes, CURRENT_SEASON), [closes]);
+  const period = periodPick || (canEvaluate ? OPEN : ALL);
+  const closeOfPeriod = periods.find((p) => p.id === period) || null;
+  const range = period === OPEN ? openRange : closeOfPeriod ? closeOfPeriod.range : period === ALL ? seasonRange : openRange;
+  const state = period === OPEN ? "abierto" : isPublished(closeOfPeriod) ? "publicado" : closeOfPeriod ? "cerrado" : "abierto";
+  const statsFor = (r, carriedFrom) => Object.fromEntries(COACH_AREAS.map((a) => {
+    const obs = allObs.filter((o) => (canEvaluate || o.status === "publicada") && obsAreaOf(o) === a.key && inRange(o.date, r)).sort(byDateDesc);
+    const fb = allFb.filter((f) => (canEvaluate || isShared(f)) && feedbackArea(f) === a.key && inRange(f.date, r)).sort(byDateDesc);
+    const carried = carriedFrom ? carriedFeedback(allFb, CURRENT_SEASON, carriedFrom).filter((f) => (canEvaluate || isShared(f)) && feedbackArea(f) === a.key).sort(byDateDesc) : [];
     return [a.key, { obs, fb, carried, agg: aggregateArea(obs, a.key) }];
-  })), [allObs, allFb, canEvaluate, quarter, range.from, range.to]); // eslint-disable-line react-hooks/exhaustive-deps
+  }));
+  const perArea = useMemo(() => statsFor(range, period === ALL ? null : range), [allObs, allFb, canEvaluate, period, range.from, range.to]); // eslint-disable-line react-hooks/exhaustive-deps
+  const periodLabel = (p) => p.label || `${shortDate(p.range.from)} – ${shortDate(p.range.to)}`;
 
   const areaKey = areaPick || COACH_AREAS.find((a) => perArea[a.key].obs.length || perArea[a.key].fb.length)?.key || COACH_AREAS[0].key;
   const area = areaInfo(areaKey);
@@ -71,7 +92,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
   const current = obsPick !== SUMMARY ? data.obs.find((o) => o.id === obsPick) || null : null;
 
   const pickArea = (key) => { setAreaPick(key); setObsPick(SUMMARY); };
-  const pickQuarter = (id) => { setQuarter(id); setObsPick(SUMMARY); };
+  const pickPeriod = (id) => { setPeriodPick(id); setObsPick(SUMMARY); };
 
   const refreshClose = () => { qc.invalidateQueries({ queryKey: ["coachSessionObs", staffId] }); qc.invalidateQueries({ queryKey: ["coachQuarterClose", staffId] }); };
   const progressMutation = useMutation({
@@ -79,32 +100,43 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
     onSuccess: () => qc.invalidateQueries({ queryKey: ["coachFeedback", staffId] }),
   });
 
-  // Cierre del trimestre: queda anotado (cerrado) y, si se decide, se publica al entrenador lo observado en ese periodo
-  const close = closeOf(closes, CURRENT_SEASON, quarter);
-  const state = quarterState(close);
-  const pendingObs = unpublishedObs(allObs, range);
-  const saveClose = async (status) => {
+  // Cierre del periodo: quien evalúa indica a qué fechas corresponde; queda cerrado y, si decide, se publica al entrenador
+  const pendingObs = state === "publicado" ? unpublishedObs(allObs, range) : [];
+  const saveClose = async (existing, status, extra = {}) => {
     const now = new Date().toISOString();
-    const data = { status, closed_at: close?.closed_at || now, published_at: status === CLOSE_STATUS.published ? now : null, author_id: author?.id || null, author_name: author?.name || "" };
-    if (close) await base44.entities.CoachQuarterClose.update(close.id, data);
-    else await base44.entities.CoachQuarterClose.create({ staff_id: staffId, season: CURRENT_SEASON, quarter, ...data });
+    const data = { status, closed_at: existing?.closed_at || now, published_at: status === CLOSE_STATUS.published ? now : null, author_id: author?.id || null, author_name: author?.name || "", ...extra };
+    if (existing) return base44.entities.CoachQuarterClose.update(existing.id, data);
+    return base44.entities.CoachQuarterClose.create({ staff_id: staffId, season: CURRENT_SEASON, ...data });
   };
   const closeMutation = useMutation({
-    mutationFn: async (action) => {
+    mutationFn: async ({ action, form }) => {
       const now = new Date().toISOString();
-      if (action === "close") await saveClose(CLOSE_STATUS.closed);
-      if (action === "publish") {
+      if (action === "close" || action === "closePublish") {
+        const r = { from: form.from, to: form.to };
+        const created = await saveClose(null, action === "close" ? CLOSE_STATUS.closed : CLOSE_STATUS.published, { from: form.from, to: form.to, label: form.label.trim() });
+        if (action === "closePublish") await Promise.all(unpublishedObs(allObs, r).map((o) => base44.entities.CoachSessionObs.update(o.id, { status: "publicada", published_at: now })));
+        return created?.id || null;
+      }
+      if (action === "publish" && closeOfPeriod) {
         await Promise.all(unpublishedObs(allObs, range).map((o) => base44.entities.CoachSessionObs.update(o.id, { status: "publicada", published_at: now })));
-        await saveClose(CLOSE_STATUS.published);
+        await saveClose(closeOfPeriod, CLOSE_STATUS.published, { from: closeOfPeriod.range.from, to: closeOfPeriod.range.to });
       }
-      if (action === "retract") {
+      if (action === "retract" && closeOfPeriod) {
         await Promise.all(allObs.filter((o) => o.status === "publicada" && inRange(o.date, range)).map((o) => base44.entities.CoachSessionObs.update(o.id, { status: "borrador", published_at: null })));
-        await saveClose(CLOSE_STATUS.closed);
+        await saveClose(closeOfPeriod, CLOSE_STATUS.closed, { from: closeOfPeriod.range.from, to: closeOfPeriod.range.to });
       }
-      if (action === "reopen" && close) await base44.entities.CoachQuarterClose.delete(close.id);
+      if (action === "reopen" && closeOfPeriod) await base44.entities.CoachQuarterClose.delete(closeOfPeriod.id);
+      return null;
     },
-    onSuccess: () => { refreshClose(); setClosing(false); },
+    onSuccess: (newId, { action }) => {
+      refreshClose(); setClosing(false);
+      if (action === "close" || action === "closePublish") setPeriodPick(newId || OPEN);
+      if (action === "reopen") setPeriodPick(OPEN);
+    },
   });
+  const openClosing = () => { setCloseForm({ label: "", from: openRange.from, to: today < openRange.from ? openRange.from : today }); setClosing(true); };
+  const closeError = closing ? validatePeriod({ from: closeForm.from, to: closeForm.to, closes, season: CURRENT_SEASON, today }) : null;
+  const closeStats = useMemo(() => (closing && !closeError ? statsFor({ from: closeForm.from, to: closeForm.to }, null) : null), [closing, closeError, closeForm.from, closeForm.to, allObs, allFb]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Estado de una anotación: quien evalúa lo cambia; el entrenador lo ve cuando se ha publicado el trimestre de esa anotación
   const progressControl = (f) => {
@@ -154,7 +186,6 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
   );
 
   const evaluate = (key) => { setAreaPick(key); setObsPick(SUMMARY); setDlg({ area: key, editing: null }); };
-  const quarterOptions = [...QUARTERS, WHOLE_SEASON];
 
   return (
     <div className="space-y-4">
@@ -164,37 +195,43 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
           <p className="text-xs text-gray-400">{t("Cinco áreas: lo que se observa en el campo y el feedback del día a día.")}</p>
         </div>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Periodo")}>
-          {quarterOptions.map((q) => (
-            <button key={q.id} type="button" onClick={() => pickQuarter(q.id)} aria-pressed={quarter === q.id}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${quarter === q.id ? "text-white border-transparent" : "text-gray-600 border-gray-200 bg-white hover:bg-gray-50"}`}
-              style={quarter === q.id ? { background: "var(--granate)" } : undefined}>
-              {t(q.label)}
+          {[
+            ...(canEvaluate ? [{ id: OPEN, text: t("Periodo abierto") }] : []),
+            ...periods.map((p) => ({ id: p.id, text: periodLabel(p) + (canEvaluate && !isPublished(p) ? " · " + t("sin publicar") : "") })),
+            { id: ALL, text: t("Toda la temporada") },
+          ].map((q) => (
+            <button key={q.id} type="button" onClick={() => pickPeriod(q.id)} aria-pressed={period === q.id}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${period === q.id ? "text-white border-transparent" : "text-gray-600 border-gray-200 bg-white hover:bg-gray-50"}`}
+              style={period === q.id ? { background: "var(--granate)" } : undefined}>
+              {q.text}
             </button>
           ))}
         </div>
       </div>
 
-      {canEvaluate && quarter !== WHOLE_SEASON.id && (
+      {canEvaluate && period !== ALL && (
         <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg border border-gray-200 bg-white px-3 py-2">
           <p className="text-xs text-gray-600 flex items-center gap-1.5 flex-wrap">
             <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${state === "publicado" ? "bg-green-100 text-green-700 border-green-200" : state === "cerrado" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}>
-              {state === "publicado" ? t("Publicado al entrenador") : state === "cerrado" ? t("Cerrado, sin publicar") : t("Trimestre abierto")}
+              {state === "publicado" ? t("Publicado al entrenador") : state === "cerrado" ? t("Cerrado, sin publicar") : t("Periodo abierto")}
             </span>
-            {state === "publicado" && close?.published_at && <span className="text-gray-400">{shortDate(close.published_at)}</span>}
+            {state === "abierto"
+              ? <span className="text-gray-400">{t("Desde el {date}", { date: shortDate(openRange.from) })}</span>
+              : <span className="text-gray-400">{closeOfPeriod?.label ? `${closeOfPeriod.label} · ` : ""}{shortDate(range.from)} – {shortDate(range.to)}{state === "publicado" && closeOfPeriod?.published_at ? ` · ${t("publicado el {date}", { date: shortDate(closeOfPeriod.published_at) })}` : ""}</span>}
             {state === "publicado" && pendingObs.length > 0 && <span className="text-amber-700 font-semibold">{t("Observaciones sin publicar: {n}", { n: pendingObs.length })}</span>}
           </p>
           <div className="flex gap-1.5 flex-wrap">
-            {state === "abierto" && <Button size="sm" variant="outline" className="text-xs bg-white" onClick={() => setClosing(true)}><Lock className="w-3.5 h-3.5 mr-1" /> {t("Cerrar trimestre")}</Button>}
+            {state === "abierto" && <Button size="sm" variant="outline" className="text-xs bg-white" onClick={openClosing}><Lock className="w-3.5 h-3.5 mr-1" /> {t("Cerrar periodo")}</Button>}
             {state === "cerrado" && (
               <>
-                <Button size="sm" variant="outline" className="text-xs bg-white" disabled={closeMutation.isPending} onClick={() => closeMutation.mutate("reopen")}><Undo2 className="w-3.5 h-3.5 mr-1" /> {t("Reabrir")}</Button>
-                <Button size="sm" variant="club" className="text-xs" disabled={closeMutation.isPending} onClick={() => closeMutation.mutate("publish")}><Send className="w-3.5 h-3.5 mr-1" /> {t("Publicar al entrenador")}</Button>
+                <Button size="sm" variant="outline" className="text-xs bg-white" disabled={closeMutation.isPending} onClick={() => closeMutation.mutate({ action: "reopen" })}><Undo2 className="w-3.5 h-3.5 mr-1" /> {t("Reabrir")}</Button>
+                <Button size="sm" variant="club" className="text-xs" disabled={closeMutation.isPending} onClick={() => closeMutation.mutate({ action: "publish" })}><Send className="w-3.5 h-3.5 mr-1" /> {t("Publicar al entrenador")}</Button>
               </>
             )}
             {state === "publicado" && (
               <>
-                {pendingObs.length > 0 && <Button size="sm" variant="club" className="text-xs" disabled={closeMutation.isPending} onClick={() => closeMutation.mutate("publish")}><Send className="w-3.5 h-3.5 mr-1" /> {t("Publicar novedades")}</Button>}
-                <Button size="sm" variant="outline" className="text-xs bg-white" disabled={closeMutation.isPending} onClick={() => closeMutation.mutate("retract")}><Undo2 className="w-3.5 h-3.5 mr-1" /> {t("Retirar publicación")}</Button>
+                {pendingObs.length > 0 && <Button size="sm" variant="club" className="text-xs" disabled={closeMutation.isPending} onClick={() => closeMutation.mutate({ action: "publish" })}><Send className="w-3.5 h-3.5 mr-1" /> {t("Publicar novedades")}</Button>}
+                <Button size="sm" variant="outline" className="text-xs bg-white" disabled={closeMutation.isPending} onClick={() => closeMutation.mutate({ action: "retract" })}><Undo2 className="w-3.5 h-3.5 mr-1" /> {t("Retirar publicación")}</Button>
               </>
             )}
           </div>
@@ -293,7 +330,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
             <ul className="space-y-1.5">
               {data.fb.map((f) => renderFb(f, false))}
               {data.carried.length > 0 && (
-                <li className="pt-1 text-[11px] font-bold uppercase text-amber-700 flex items-center gap-1"><CornerDownRight className="w-3 h-3" /> {t("Sigue en seguimiento de trimestres anteriores")}</li>
+                <li className="pt-1 text-[11px] font-bold uppercase text-amber-700 flex items-center gap-1"><CornerDownRight className="w-3 h-3" /> {t("Sigue en seguimiento de periodos anteriores")}</li>
               )}
               {data.carried.map((f) => renderFb(f, true))}
             </ul>
@@ -306,28 +343,46 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
       {closing && (
         <Dialog open onOpenChange={(v) => { if (!v) setClosing(false); }}>
           <DialogContent className="bg-white border-gray-200 max-w-lg max-h-[92vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{t("Cerrar trimestre")} · {t(QUARTERS.find((q) => q.id === quarter)?.label || "")}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("Cerrar periodo")}</DialogTitle></DialogHeader>
             <div className="space-y-3">
-              <ul className="divide-y divide-gray-100 border border-gray-200 rounded">
-                {COACH_AREAS.map((a) => {
-                  const d = perArea[a.key];
-                  const c = countByProgress(d.fb);
-                  return (
-                    <li key={a.key} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                      <span className="font-bold" style={{ color: a.color }}>{t(a.label)}</span>
-                      <span className="text-xs text-gray-500 text-right">
-                        <b className="text-gray-800 tabular-nums">{avgText(d.agg.overall)}</b> · {t("Observaciones: {n}", { n: d.obs.length })} · {t("Feedback: {n}", { n: d.fb.length })}
-                        {d.fb.length > 0 && <><br />{FEEDBACK_PROGRESS.map((p) => `${t(p.label)}: ${c[p.key]}`).join(" · ")}</>}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="text-xs text-gray-500">{t("Al publicar, el entrenador verá las observaciones de este trimestre y el estado de su feedback compartido. El feedback interno y las notas privadas no se publican nunca. Lo que quede en «Seguir trabajando» pasa al trimestre siguiente.")}</p>
+              <p className="text-xs text-gray-500">{t("Indica a qué fechas corresponde esta evaluación. Quedará guardada como historial y podrás publicarla al entrenador.")}</p>
+              <div>
+                <label className="text-xs font-semibold text-gray-600">{t("Nombre (opcional)")}</label>
+                <Input value={closeForm.label} onChange={(e) => setCloseForm((f) => ({ ...f, label: e.target.value }))} placeholder={t("Ej.: Hasta Navidad")} className="mt-1 h-9 border-gray-200" maxLength={60} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-semibold text-gray-600">{t("Desde")}</label>
+                  <Input type="date" value={closeForm.from} min={seasonRange.from} max={today} onChange={(e) => setCloseForm((f) => ({ ...f, from: e.target.value }))} className="mt-1 h-9 border-gray-200" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600">{t("Hasta")}</label>
+                  <Input type="date" value={closeForm.to} min={closeForm.from || seasonRange.from} max={today} onChange={(e) => setCloseForm((f) => ({ ...f, to: e.target.value }))} className="mt-1 h-9 border-gray-200" />
+                </div>
+              </div>
+              {closeError && <p className="text-xs font-semibold text-red-600">{t(CLOSE_ERRORS[closeError])}</p>}
+              {closeStats && (
+                <ul className="divide-y divide-gray-100 border border-gray-200 rounded">
+                  {COACH_AREAS.map((a) => {
+                    const d = closeStats[a.key];
+                    const c = countByProgress(d.fb);
+                    return (
+                      <li key={a.key} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                        <span className="font-bold" style={{ color: a.color }}>{t(a.label)}</span>
+                        <span className="text-xs text-gray-500 text-right">
+                          <b className="text-gray-800 tabular-nums">{avgText(d.agg.overall)}</b> · {t("Observaciones: {n}", { n: d.obs.length })} · {t("Feedback: {n}", { n: d.fb.length })}
+                          {d.fb.length > 0 && <><br />{FEEDBACK_PROGRESS.map((p) => `${t(p.label)}: ${c[p.key]}`).join(" · ")}</>}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              <p className="text-xs text-gray-500">{t("Al publicar, el entrenador verá las observaciones de este periodo y el estado de su feedback compartido. El feedback interno y las notas privadas no se publican nunca. Lo que quede en «Seguir trabajando» pasa a los periodos siguientes.")}</p>
               <div className="flex justify-end gap-2 flex-wrap pt-1">
                 <Button variant="outline" onClick={() => setClosing(false)}>{t("Cancelar")}</Button>
-                <Button variant="outline" disabled={closeMutation.isPending} onClick={() => closeMutation.mutate("close")}>{t("Solo cerrar")}</Button>
-                <Button variant="club" disabled={closeMutation.isPending} onClick={() => closeMutation.mutate("publish")}>{t("Cerrar y publicar al entrenador")}</Button>
+                <Button variant="outline" disabled={!!closeError || closeMutation.isPending} onClick={() => closeMutation.mutate({ action: "close", form: closeForm })}>{t("Solo cerrar")}</Button>
+                <Button variant="club" disabled={!!closeError || closeMutation.isPending} onClick={() => closeMutation.mutate({ action: "closePublish", form: closeForm })}>{t("Cerrar y publicar al entrenador")}</Button>
               </div>
             </div>
           </DialogContent>
