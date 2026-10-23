@@ -49,7 +49,8 @@ function section(title, list) {
   if (!list?.length) return [];
   const groups = groupPlayers(list);
   const titles = groups.length > 1 || groups[0].group !== NO_POSITION;
-  return ["", `*${title} (${list.length}):*`, ...groups.flatMap(({ group, players }) => [...(titles ? [`_${group}_`] : []), ...players.map(playerLine)])];
+  // una línea en blanco entre una posición y la siguiente para que se distingan
+  return ["", `*${title} (${list.length}):*`, ...groups.flatMap(({ group, players }, i) => [...(i > 0 ? [""] : []), ...(titles ? [`_${group}_`] : []), ...players.map(playerLine)])];
 }
 
 /** Líneas de «Observaciones»: 👕 equipación que deben traer y ℹ️ información extra; solo las que estén escritas. */
@@ -66,17 +67,24 @@ export function buildConvocationText({ event, team, convocados = [], noConvocado
   const date = event?.date ? new Date(event.date) : null;
   const day = date ? format(date, "EEEE d 'de' MMMM", { locale: es }) : "";
   const time = date ? format(date, "HH:mm") : "";
+  // Partido (con rival): «🏠 Jugamos en casa · Campo» o «✈️ Jugamos fuera · Campo» (como en el resto de la app, sin dato = casa);
+  // sin rival (torneo, evento…) solo el campo. El enlace del mapa, si lo hay, va en su línea.
   const where = [event?.location, event?.location_url].filter(Boolean).join(" · ");
+  const place = event?.opponent
+    ? [[event.is_home === false ? "✈️ Jugamos fuera" : "🏠 Jugamos en casa", event.location].filter(Boolean).join(" · "), event.location_url ? `📍 ${event.location_url}` : ""]
+    : [where && `📍 ${where}`];
   const obs = observationLines({ kit, info });
   const lines = [
     `*CONVOCATORIA · ${team?.name || ""}*`,
     event?.opponent ? `🆚 ${event.opponent}` : (event?.title ? `🏆 ${event.title}` : ""),
     `📅 ${day}`,
     `⏰ Partido: ${time}${callupTime ? ` · Convocatoria: ${callupTime}` : ""}`,
-    where ? `📍 ${where}` : "",
+    ...place,
+  ].filter(Boolean);
+  lines.push(
     ...section("✅ Convocados", convocados),
     ...section("❌ No convocados", noConvocados),
     ...(obs.length ? ["", "*Observaciones:*", ...obs] : []),
-  ];
+  );
   return lines.filter((l, i) => l !== "" || lines[i - 1] !== "").join("\n").trim();
 }

@@ -47,21 +47,35 @@ test("el mensaje lleva convocados y no convocados, cada lista por posición y co
   assert.ok(lines.includes("🆚 CE Europa"));
   assert.ok(lines.includes("📅 domingo 25 de octubre"));
   assert.ok(lines.includes("⏰ Partido: 11:30 · Convocatoria: 10:45"));
-  assert.ok(lines.includes("📍 Camp Municipal"));
+  assert.ok(lines.includes("🏠 Jugamos en casa · Camp Municipal"), "sin dato de local/visitante = en casa, con el nombre del campo al lado");
+  assert.ok(!lines.some((l) => l.startsWith("📍")), "sin enlace de mapa no hay línea 📍");
   const iConv = lines.indexOf("*✅ Convocados (5):*"), iNot = lines.indexOf("*❌ No convocados (4):*");
   assert.ok(iConv > 0 && iNot > iConv, "primero los convocados y después los no convocados");
   assert.deepEqual(lines.slice(iConv + 1, iNot - 1), [
-    "_Porteros_", "1 · Hugo Pérez",
-    "_Defensas_", "5 · Eric Alba", "4 · Nil Costa",
-    "_Centrocampistas_", "6 · Pau Soler",
+    "_Porteros_", "1 · Hugo Pérez", "",
+    "_Defensas_", "5 · Eric Alba", "4 · Nil Costa", "",
+    "_Centrocampistas_", "6 · Pau Soler", "",
     "_Delanteros_", "9 · Marc Vila",
-  ]);
+  ], "una línea en blanco entre cada posición");
   assert.deepEqual(lines.slice(iNot + 1), [
-    "_Defensas_", "3 · Joan Ruiz",
-    "_Centrocampistas_", "8 · Leo Ferrer",
-    "_Delanteros_", "11 · Álex Mas",
+    "_Defensas_", "3 · Joan Ruiz", "",
+    "_Centrocampistas_", "8 · Leo Ferrer", "",
+    "_Delanteros_", "11 · Álex Mas", "",
     "_Sin posición_", "• Biel Roca",
   ]);
+});
+
+test("en casa o fuera: 🏠 / ✈️ con el campo al lado; el enlace del mapa va aparte; sin rival no se dice", () => {
+  const base = { team, convocados: [squad[3]] };
+  const home = buildConvocationText({ ...base, event: { ...event, is_home: true, location_url: "https://maps.example/campo" } }).split("\n");
+  const iHome = home.indexOf("🏠 Jugamos en casa · Camp Municipal");
+  assert.ok(iHome > 0 && home[iHome + 1] === "📍 https://maps.example/campo");
+  const away = buildConvocationText({ ...base, event: { ...event, is_home: false, location: "Camp de l'Europa" } }).split("\n");
+  assert.ok(away.includes("✈️ Jugamos fuera · Camp de l'Europa") && !away.some((l) => l.includes("🏠")));
+  const noField = buildConvocationText({ ...base, event: { ...event, is_home: false, location: "" } }).split("\n");
+  assert.ok(noField.includes("✈️ Jugamos fuera"));
+  const torneo = buildConvocationText({ ...base, event: { date: event.date, title: "Torneo de Navidad", location: "Pabellón", is_home: true } }).split("\n");
+  assert.ok(torneo.includes("📍 Pabellón") && !torneo.some((l) => l.includes("Jugamos")));
 });
 
 test("sin no convocados no hay segunda lista; si nadie tiene posición no hay títulos de grupo", () => {
