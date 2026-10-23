@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildConvocationText, groupPlayers, dorsalOf, observationLines, GROUP_ORDER } from "../src/lib/convocationMessage.js";
+import { buildConvocationText, groupPlayers, dorsalOf, observationLines, sideLabel, GROUP_ORDER } from "../src/lib/convocationMessage.js";
 
 const p = (id, first, last, position, jersey_number, extra = {}) => ({ id, first_name: first, last_name: last, position, jersey_number, ...extra });
 const event = { date: new Date(2026, 9, 25, 11, 30).toISOString(), opponent: "CE Europa", location: "Camp Municipal", location_url: "" };
@@ -111,4 +111,12 @@ test("observationLines: 👕 y ℹ️ solo si están escritas (también las usa 
   assert.deepEqual(observationLines({ kit: "Solo equipación", info: "  " }), ["👕 Solo equipación"]);
   assert.deepEqual(observationLines({}), []);
   assert.deepEqual(observationLines(), []);
+});
+
+test("sideLabel: casa o fuera solo en partidos con rival (también lo usa el aviso al móvil)", () => {
+  assert.equal(sideLabel({ opponent: "CE Europa", is_home: true }), "🏠 Jugamos en casa");
+  assert.equal(sideLabel({ opponent: "CE Europa", is_home: false }), "✈️ Jugamos fuera");
+  assert.equal(sideLabel({ opponent: "CE Europa" }), "🏠 Jugamos en casa");
+  assert.equal(sideLabel({ title: "Torneo", is_home: false }), "");
+  assert.equal(sideLabel(undefined), "");
 });

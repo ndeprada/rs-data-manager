@@ -53,6 +53,9 @@ function section(title, list) {
   return ["", `*${title} (${list.length}):*`, ...groups.flatMap(({ group, players }, i) => [...(i > 0 ? [""] : []), ...(titles ? [`_${group}_`] : []), ...players.map(playerLine)])];
 }
 
+/** «🏠 Jugamos en casa» / «✈️ Jugamos fuera» para un partido (con rival); "" si no hay rival. Sin dato de local/visitante = en casa, como en el resto de la app. */
+export const sideLabel = (event) => (event?.opponent ? (event.is_home === false ? "✈️ Jugamos fuera" : "🏠 Jugamos en casa") : "");
+
 /** Líneas de «Observaciones»: 👕 equipación que deben traer y ℹ️ información extra; solo las que estén escritas. */
 export function observationLines({ kit = "", info = "" } = {}) {
   const k = String(kit || "").trim(), i = String(info || "").trim();
@@ -71,7 +74,7 @@ export function buildConvocationText({ event, team, convocados = [], noConvocado
   // sin rival (torneo, evento…) solo el campo. El enlace del mapa, si lo hay, va en su línea.
   const where = [event?.location, event?.location_url].filter(Boolean).join(" · ");
   const place = event?.opponent
-    ? [[event.is_home === false ? "✈️ Jugamos fuera" : "🏠 Jugamos en casa", event.location].filter(Boolean).join(" · "), event.location_url ? `📍 ${event.location_url}` : ""]
+    ? [[sideLabel(event), event.location].filter(Boolean).join(" · "), event.location_url ? `📍 ${event.location_url}` : ""]
     : [where && `📍 ${where}`];
   const obs = observationLines({ kit, info });
   const lines = [
