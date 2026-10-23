@@ -883,6 +883,100 @@ export function spreadElements(board, index, ids, factor) {
   return setFrameEls(board, index, board.frames[index].els.map((e) => (sel.has(e.id) && e.k !== "link" ? move(e) : e)));
 }
 
+// ── Alinear y repartir ─────────────────────────────────────────────────────────────────────────────────────────────
+// Todo se hace «como se ve en pantalla»: «izquierda» es la izquierda del dibujo aunque el campo esté girado. Solo cambia las
+// posiciones del fotograma actual (las de los demás fotogramas son suyas).
+
+// Un desplazamiento en pantalla (dx a la derecha, dy hacia abajo) expresado en metros del campo según la orientación
+export function viewDelta(orient, dx, dy) {
+  switch (orient) {
+    case "h": return { dx: -dy, dy: dx };
+    case "vi": return { dx: -dx, dy: -dy };
+    case "hi": return { dx: dy, dy: -dx };
+    default: return { dx, dy };
+  }
+}
+// Caja de un elemento tal como se ve en pantalla (x0,y0 = esquina de arriba a la izquierda); null si no tiene sitio propio
+function viewBounds(board, el) {
+  const b = elementBounds(el, chipOf(board));
+  if (!b) return null;
+  const field = fieldOf(board.field);
+  const p = toView(field, board.orient, { x: b.x0, y: b.y0 }), q = toView(field, board.orient, { x: b.x1, y: b.y1 });
+  return { x0: Math.min(p.x, q.x), y0: Math.min(p.y, q.y), x1: Math.max(p.x, q.x), y1: Math.max(p.y, q.y) };
+}
+// Elementos elegidos con su caja en pantalla (los conectores quedan fuera: salen de sus fichas)
+function boxesOf(board, index, ids) {
+  const sel = new Set(ids);
+  return board.frames[index].els.filter((e) => sel.has(e.id)).map((e) => ({ el: e, b: viewBounds(board, e) })).filter((x) => x.b);
+}
+function shiftMany(board, index, moves) {
+  const sel = new Map(moves.map((m) => [m.id, m]));
+  let changed = false;
+  const els = board.frames[index].els.map((e) => {
+    const m = sel.get(e.id);
+    if (!m || (!m.dx && !m.dy)) return e;
+    const d = viewDelta(board.orient, m.dx, m.dy);
+    changed = true;
+    return shiftElement(e, d.dx, d.dy);
+  });
+  return changed ? setFrameEls(board, index, els) : board;
+}
+
+// Alinea lo elegido con un borde o con el centro del conjunto. where: left · hcenter · right · top · vcenter · bottom
+export function alignElements(board, index, ids, where) {
+  const items = boxesOf(board, index, ids);
+  if (items.length < 2) return board;
+  const u = unionBounds(items.map((x) => x.b));
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const moves = items.map(({ el, b }) => {
+    let dx = 0, dy = 0;
+    if (where === "left") dx = u.x0 - b.x0;
+    else if (where === "right") dx = u.x1 - b.x1;
+    else if (where === "hcenter") dx = (u.x0 + u.x1) / 2 - (b.x0 + b.x1) / 2;
+    else if (where === "top") dy = u.y0 - b.y0;
+    else if (where === "bottom") dy = u.y1 - b.y1;
+    else if (where === "vcenter") dy = (u.y0 + u.y1) / 2 - (b.y0 + b.y1) / 2;
+    return { id: el.id, dx: r2(dx), dy: r2(dy) };
+  });
+  return shiftMany(board, index, moves);
+}
+
+// Reparte lo elegido con el mismo hueco entre cosas a lo ancho (axis «h») o a lo alto (axis «v»); lo de los extremos no se mueve.
+// Hacen falta al menos tres.
+export function distributeElements(board, index, ids, axis) {
+  const items = boxesOf(board, index, ids);
+  if (items.length < 3) return board;
+  const lo = axis === "h" ? "x0" : "y0", hi = axis === "h" ? "x1" : "y1";
+  const sorted = items.map((x, i) => ({ ...x, i })).sort((a, b) => (a.b[lo] + a.b[hi]) - (b.b[lo] + b.b[hi]) || a.i - b.i);
+  const first = sorted[0], end = sorted[sorted.length - 1];
+  const span = end.b[hi] - first.b[lo];
+  const used = sorted.reduce((s, x) => s + (x.b[hi] - x.b[lo]), 0);
+  const gap = (span - used) / (sorted.length - 1);
+  const r2 = (n) => Math.round(n * 100) / 100;
+  let at = first.b[lo];
+  const moves = sorted.map((x) => {
+    const d = r2(at - x.b[lo]);
+    at += x.b[hi] - x.b[lo] + gap;
+    return axis === "h" ? { id: x.el.id, dx: d, dy: 0 } : { id: x.el.id, dx: 0, dy: d };
+  });
+  return shiftMany(board, index, moves);
+}
+
+// Sube o baja lo elegido un puesto de la lista de capas (sin fijarse en si se solapan): dir +1 hacia delante, -1 hacia atrás
+export function stepLayer(board, index, ids, dir) {
+  const sel = new Set(ids);
+  const order = drawOrder(board.frames[index].els);
+  const list = [...order];
+  const at = list.map((_, i) => i);
+  for (const i of dir > 0 ? at.reverse() : at) {
+    const j = i + dir;
+    if (!sel.has(list[i].id) || j < 0 || j >= list.length || sel.has(list[j].id)) continue;
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  if (list.every((e, i) => e.id === order[i].id)) return board;
+  return setFrameEls(board, index, withLayers(list));
+}
+
 // Un mismo color para todo lo elegido (en las zonas es el relleno)
 export function recolorElements(board, index, ids, color) {
   return mapElements(board, index, ids, (e) => {

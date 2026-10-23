@@ -1,11 +1,16 @@
 import React from "react";
-import { BringToFront, ChevronDown, ChevronUp, Copy, Minus, Plus, SendToBack, Trash2, X } from "lucide-react";
+import {
+  AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween,
+  BringToFront, ChevronDown, ChevronUp, Circle, Copy, Minus, MoveUpRight, Plus, SendToBack, Square, Trash2, Triangle, Type, Waypoints, X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { isCarried, teamsOf } from "@/lib/board";
+import { drawOrder, elementBounds, isCarried, teamOf, teamsOf } from "@/lib/board";
 import { ChipGlyph } from "./BoardSvg";
-import { ColorPick, Row, Toggle } from "./BoardControls";
+import { ColorPick, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon, Row, Toggle } from "./BoardControls";
+import { typeOfArrow } from "./BoardProps";
 
-// Panel de varios elementos a la vez (selección múltiple) y botones de capas (orden de dibujo), que también se usan con uno solo.
+// Panel de varios elementos a la vez (selección múltiple), botones de capas (orden de dibujo, también con uno solo) y la lista de
+// capas del fotograma.
 
 const PLURAL = {
   token: ["ficha", "fichas"], ball: ["balón", "balones"], cone: ["cono", "conos"], goal: ["portería", "porterías"], pole: ["pica", "picas"],
@@ -29,7 +34,7 @@ export function LayerButtons({ onLayer }) {
     { id: "back", label: "Al fondo", icon: SendToBack, title: "Poner debajo de todo" },
   ];
   return (
-    <div className="flex items-center gap-1" role="group" aria-label="Capas">
+    <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Capas">
       <span className="text-[11px] font-semibold text-gray-600">Capas</span>
       {items.map(({ id, label, icon: Icon, title }) => (
         <Button key={id} type="button" size="sm" variant="outline" className={btn} onClick={() => onLayer(id)} title={title}>
@@ -51,12 +56,46 @@ function Step({ label, onLess, onMore, lessTitle, moreTitle }) {
   );
 }
 
+const ALIGNS = [
+  { id: "left", icon: AlignStartVertical, title: "Alinear a la izquierda" },
+  { id: "hcenter", icon: AlignCenterVertical, title: "Centrar de izquierda a derecha" },
+  { id: "right", icon: AlignEndVertical, title: "Alinear a la derecha" },
+  { id: "top", icon: AlignStartHorizontal, title: "Alinear arriba" },
+  { id: "vcenter", icon: AlignCenterHorizontal, title: "Centrar de arriba abajo" },
+  { id: "bottom", icon: AlignEndHorizontal, title: "Alinear abajo" },
+];
+const DISTRIBUTES = [
+  { id: "h", icon: AlignHorizontalSpaceBetween, title: "Repartir a lo ancho con el mismo hueco (las de los extremos no se mueven)" },
+  { id: "v", icon: AlignVerticalSpaceBetween, title: "Repartir a lo alto con el mismo hueco (las de los extremos no se mueven)" },
+];
+
+/** Alinear (izquierda, centro, derecha, arriba, medio, abajo) y repartir con el mismo hueco, siempre «como se ve» en pantalla */
+export function AlignBar({ onAlign, onDistribute, canDistribute }) {
+  const iconBtn = "h-7 w-7 p-0";
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Alinear">
+        <span className="text-[11px] font-semibold text-gray-600">Alinear</span>
+        {ALIGNS.map(({ id, icon: Icon, title }) => (
+          <Button key={id} type="button" size="sm" variant="outline" className={iconBtn} onClick={() => onAlign(id)} title={title} aria-label={title}><Icon className="w-3.5 h-3.5" /></Button>
+        ))}
+      </div>
+      <div className="flex items-center gap-1" role="group" aria-label="Repartir">
+        <span className="text-[11px] font-semibold text-gray-600">Repartir</span>
+        {DISTRIBUTES.map(({ id, icon: Icon, title }) => (
+          <Button key={id} type="button" size="sm" variant="outline" className={iconBtn} onClick={() => onDistribute(id)} disabled={!canDistribute} title={canDistribute ? title : "Para repartir hacen falta al menos tres cosas"} aria-label={title}><Icon className="w-3.5 h-3.5" /></Button>
+        ))}
+      </div>
+    </>
+  );
+}
+
 /**
  * els       elementos elegidos (dos o más)
  * frames    número de fotogramas (para «Solo aquí»)
- * onTeam / onColor / onFeet / onResize(factor) / onSpread(factor) / onLayer(dónde) / onDup / onDel(soloAquí) / onClear
+ * onTeam / onColor / onFeet / onResize(factor) / onSpread(factor) / onAlign(dónde) / onDistribute(eje) / onLayer(dónde) / onDup / onDel(soloAquí) / onClear
  */
-export default function MultiPanel({ els, board, look, frames, onTeam, onColor, onFeet, onResize, onSpread, onLayer, onDup, onDel, onClear }) {
+export default function MultiPanel({ els, board, look, frames, onTeam, onColor, onFeet, onResize, onSpread, onAlign, onDistribute, onLayer, onDup, onDel, onClear }) {
   const tokens = els.filter((e) => e.k === "token");
   const teams = teamsOf(board);
   const teamOfAll = tokens.length && tokens.every((t) => t.team === tokens[0].team) ? tokens[0].team : null;
@@ -99,6 +138,9 @@ export default function MultiPanel({ els, board, look, frames, onTeam, onColor, 
       <Row>
         {sizable && <Step label="Tamaño" onLess={() => onResize(1 / 1.15)} onMore={() => onResize(1.15)} lessTitle="Más pequeño" moreTitle="Más grande" />}
         {spreadable && <Step label="Separación" onLess={() => onSpread(1 / 1.15)} onMore={() => onSpread(1.15)} lessTitle="Juntar" moreTitle="Separar" />}
+      </Row>
+      <Row>
+        {spreadable && <AlignBar onAlign={onAlign} onDistribute={onDistribute} canDistribute={els.filter((e) => elementBounds(e)).length > 2} />}
         <LayerButtons onLayer={onLayer} />
       </Row>
       <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
@@ -106,6 +148,87 @@ export default function MultiPanel({ els, board, look, frames, onTeam, onColor, 
         {carried && frames > 1 && <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onDel(true)} title="Quitar solo de este fotograma">Solo aquí</Button>}
         <Button type="button" size="sm" variant="outline" className={`${btn} text-red-600`} onClick={() => onDel(false)} title={carried && frames > 1 ? "Quitar de todos los fotogramas" : "Quitar"}><Trash2 className="w-3.5 h-3.5" /> Quitar</Button>
       </div>
+    </div>
+  );
+}
+
+// ── Lista de capas del fotograma ───────────────────────────────────────────────────────────────────────────────────
+
+const ARROW_NAME = { move: "Desplazamiento", pass: "Pase", air: "Pase aéreo", dribble: "Conducción" };
+const LINK_NAME = { line: "línea", zone: "zona", mesh: "red" };
+const SINGULAR = Object.fromEntries(Object.entries(PLURAL).map(([k, [one]]) => [k, one.charAt(0).toUpperCase() + one.slice(1)]));
+
+/** Nombre corto de un elemento para la lista de capas */
+export function layerName(el, board) {
+  if (el.k === "token") {
+    const n = String(el.inner || el.label || "").trim();
+    return n ? `Ficha ${n}` : `Ficha · ${teamOf(board, el.team).name}`;
+  }
+  if (el.k === "arrow") return ARROW_NAME[typeOfArrow(el)] || "Flecha";
+  if (el.k === "text") { const t = String(el.text || "").trim(); return t ? `Texto «${t.length > 22 ? `${t.slice(0, 21)}…` : t}»` : "Texto"; }
+  if (el.k === "link") return `Conector (${LINK_NAME[el.mode || "line"] || "línea"})`;
+  return SINGULAR[el.k] || el.k;
+}
+
+const KIND_ICON = { ball: Circle, cone: Triangle, goal: GoalIcon, pole: PoleIcon, hurdle: HurdleIcon, ladder: LadderIcon, dummy: DummyIcon, text: Type, link: Waypoints, arrow: MoveUpRight };
+function LayerGlyph({ el, board, look }) {
+  if (el.k === "token") return <ChipGlyph board={board} el={el} look={look} size={18} />;
+  if (el.k === "zone") return <span className="w-4 h-4 rounded-[3px] border" style={{ background: el.fill || "#93c5fd", opacity: 0.8, borderColor: el.stroke || "#6b7280" }} aria-hidden="true" />;
+  const Icon = KIND_ICON[el.k] || Square;
+  const color = el.k === "cone" ? "#f97316" : el.k === "arrow" ? el.color || "#374151" : undefined;
+  return <Icon className="w-4 h-4 text-gray-500" style={color ? { color } : undefined} />;
+}
+
+/**
+ * els       elementos del fotograma actual
+ * sel       ids elegidos
+ * onPick(id, sumar)  elegir (o sumar / quitar de lo elegido si `sumar`)
+ * onStep(id, dir)    dir +1 = un puesto hacia delante, -1 = un puesto hacia atrás
+ */
+export function LayerList({ els, board, look, sel, onPick, onStep }) {
+  const rows = drawOrder(els).slice().reverse(); // arriba del todo = lo que se ve por delante
+  const box = React.useRef(null);
+  const first = sel[0];
+  // al elegir algo en el dibujo, su fila se deja a la vista dentro de la lista (sin mover la página)
+  React.useEffect(() => {
+    const c = box.current;
+    const row = c && first ? c.querySelector(`[data-layer="${CSS.escape(first)}"]`) : null;
+    if (!row) return;
+    if (row.offsetTop < c.scrollTop) c.scrollTop = row.offsetTop;
+    else if (row.offsetTop + row.offsetHeight > c.scrollTop + c.clientHeight) c.scrollTop = row.offsetTop + row.offsetHeight - c.clientHeight;
+  }, [first, rows.length]);
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white" data-testid="board-layers">
+      <div className="flex items-center gap-2 px-2 pt-1.5">
+        <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500">Capas · {rows.length}</span>
+        <span className="text-[11px] text-gray-500">Lo de arriba se ve por delante</span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="px-2 py-2 text-[11px] text-gray-500">No hay nada en este fotograma.</p>
+      ) : (
+        <ul ref={box} className="relative max-h-48 overflow-y-auto px-1 py-1 space-y-0.5" aria-label="Capas del fotograma">
+          {rows.map((el, i) => {
+            const on = sel.includes(el.id);
+            const name = layerName(el, board);
+            return (
+              <li key={el.id} data-layer={el.id} className={`flex items-center gap-1.5 rounded-md border pl-1.5 pr-0.5 h-8 ${on ? "bg-amber-100 border-amber-300" : "border-transparent hover:bg-gray-50"}`}>
+                <button
+                  type="button"
+                  className="flex-1 min-w-0 h-full flex items-center gap-2 text-left text-xs text-gray-800"
+                  aria-pressed={on}
+                  title={`Elegir: ${name}`}
+                  onClick={(e) => onPick(el.id, e.shiftKey || e.ctrlKey || e.metaKey)}
+                >
+                  <span className="w-5 flex items-center justify-center shrink-0"><LayerGlyph el={el} board={board} look={look} /></span>
+                  <span className="truncate">{name}</span>
+                </button>
+                <button type="button" className="h-7 w-7 rounded-md flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent" disabled={i === 0} onClick={() => onStep(el.id, 1)} title={`Subir un puesto: ${name}`} aria-label={`Subir ${name}`}><ChevronUp className="w-4 h-4" /></button>
+                <button type="button" className="h-7 w-7 rounded-md flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent" disabled={i === rows.length - 1} onClick={() => onStep(el.id, -1)} title={`Bajar un puesto: ${name}`} aria-label={`Bajar ${name}`}><ChevronDown className="w-4 h-4" /></button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

@@ -1,16 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, BoxSelect, ChevronLeft, ChevronRight, Circle, Copy, Film, Image as ImageIcon, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, SquareCheckBig, TrendingUp, Triangle, Type, Trash2, Undo2, Waypoints } from "lucide-react";
+import { Activity, BoxSelect, ChevronLeft, ChevronRight, Circle, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, SquareCheckBig, TrendingUp, Triangle, Type, Trash2, Undo2, Waypoints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, arrowPoints, changeField, chipOf, defaultControl, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView,
+  AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView,
   boardMode, boardSpeed, ghostsOf, hitTest, isCarried, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, materialOf, moveFrame, moveLayer, newId, normalizeBoard, orderForLine, orientOf, patchElement, recolorElements, removeElement,
-  removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setFeetOf, setTeamOf, shiftElement, spreadElements, teamInUse, teamsOf, liftNormal, zoneCorners,
+  removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setFeetOf, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph } from "./BoardSvg";
 import { DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon } from "./BoardControls";
 import BoardProps, { ARROW_PRESETS, KIND_LABEL, typeOfArrow } from "./BoardProps";
 import BoardDownloads from "./BoardDownloads";
-import MultiPanel, { LayerButtons } from "./BoardMulti";
+import MultiPanel, { LayerButtons, LayerList } from "./BoardMulti";
 
 // Editor de la pizarra: fichas de hasta cinco equipos (cada uno de su color), balón, conos, porterías, flechas (rectas,
 // curvas o por el aire), zonas y textos, con fotogramas para animar el movimiento. Mismo editor para tareas de
@@ -71,6 +71,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const [tool, setTool] = useState("select");
   const [sel, setSel] = useState([]); // ids elegidos (uno o varios)
   const [multiMode, setMultiMode] = useState(false); // «Varios»: tocar suma o quita de lo elegido
+  const [layersOpen, setLayersOpen] = useState(false); // lista de capas del fotograma
   const [draft, setDraft] = useState(null);
   const [pick, setPick] = useState([]);
   const [brush, setBrush] = useState(BRUSH0);
@@ -377,7 +378,16 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const teamMany = (t) => commit(setTeamOf(live.current, idx, sel, t));
   const feetMany = (on) => commit(setFeetOf(live.current, idx, sel, on));
   // Capas: lo elegido (una o varias cosas) sube o baja en el orden de dibujo de este fotograma
-  const layer = (where) => commit(moveLayer(live.current, idx, sel, where, chip));
+  const commitIfChanged = (next) => { if (next !== live.current) commit(next); };
+  const layer = (where) => commitIfChanged(moveLayer(live.current, idx, sel, where, chip));
+  const alignMany = (where) => commitIfChanged(alignElements(live.current, idx, sel, where));
+  const distributeMany = (axis) => commitIfChanged(distributeElements(live.current, idx, sel, axis));
+  // Lista de capas: elegir una fila y subir o bajar esa cosa un puesto
+  const pickLayer = (id, add) => {
+    if (tool !== "select") pickTool("select");
+    setSel((s) => (add || multiMode ? (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]) : [id]));
+  };
+  const stepOne = (id, dir) => commitIfChanged(stepLayer(live.current, idx, [id], dir));
   const selectAll = () => { setTool("select"); setDraft(null); setPick([]); setSel(cur.els.filter((e) => e.k !== "link").map((e) => e.id)); };
   const clearFrame = () => { if (cur.els.length) { setEls([]); setSel([]); } };
 
@@ -515,6 +525,16 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         >
           <SquareCheckBig className="w-3.5 h-3.5" /><span className="hidden sm:inline">Todo</span>
         </button>
+        <button
+          type="button"
+          title="Lista de capas: elegir cualquier cosa del fotograma y subirla o bajarla"
+          aria-label="Lista de capas"
+          aria-pressed={layersOpen}
+          onClick={() => setLayersOpen((o) => !o)}
+          className={`h-8 min-w-8 px-1.5 rounded-md border text-[11px] font-semibold flex items-center gap-1 ${layersOpen ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+        >
+          <Layers className="w-3.5 h-3.5" /><span className="hidden sm:inline">Capas</span>
+        </button>
         <span className="w-px h-5 bg-gray-200 mx-0.5" aria-hidden="true" />
         {teams.map((t) => toolBtn({ id: t.id, label: t.name }, () => (
           <>
@@ -583,6 +603,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           onFeet={feetMany}
           onResize={resizeMany}
           onSpread={spreadMany}
+          onAlign={alignMany}
+          onDistribute={distributeMany}
           onLayer={layer}
           onDup={dupMany}
           onDel={delMany}
@@ -624,6 +646,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           )}
         </div>
       )}
+
+      {layersOpen && !playing && <LayerList els={cur.els} board={board} look={look} sel={sel} onPick={pickLayer} onStep={stepOne} />}
 
       {!imageMode && <div className="flex flex-wrap items-center gap-1.5">
         <Button type="button" size="sm" className="h-8 px-2.5 gap-1 text-xs" onClick={() => (playing ? stop() : setPlaying(true))} disabled={board.frames.length < 2} title={board.frames.length < 2 ? "Añade otro fotograma para animar" : playing ? "Parar" : "Reproducir la animación"}>

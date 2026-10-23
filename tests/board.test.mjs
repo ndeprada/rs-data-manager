@@ -8,7 +8,7 @@ import {
   LOOKS, lookOf, ORIENTS, orientOf, orientAngle, viewBox, fieldTurn, upVec, MAX_TEAMS, DEFAULT_TEAMS, addTeam, removeTeam, teamInUse, chipStyle, contrastColor, CHIP_PATTERNS,
   MATERIALS, materialOf, ladderRungs, faceOf, faceToward, setAllFeet, ballStyle, BALL_PATTERNS, isLinkable, byRank,
   boardMode, isAnimation, boardSpeed, animationDuration, elsAtTime, ANIM_HOLD,
-  drawOrder, hasLayers, placeElement, moveLayer, elementBounds, elementsInBox, resizeElements, spreadElements, recolorElements, setTeamOf, setFeetOf, removeElements,
+  drawOrder, hasLayers, placeElement, moveLayer, elementBounds, elementsInBox, resizeElements, spreadElements, recolorElements, setTeamOf, setFeetOf, removeElements, viewDelta, alignElements, distributeElements, stepLayer,
 } from "../src/lib/board.js";
 
 const token = (id, x, y, team = "a") => ({ id, k: "token", x, y, team, label: "" });
@@ -783,4 +783,97 @@ test("quitar varios a la vez, de todos los fotogramas o solo del actual", () => 
   assert.deepEqual(all.frames.map((f) => f.els.map((e) => e.id)), [["t3"], ["t3"]]);
   const here = removeElements(b, 0, ["t1", "t2"], { onlyHere: true });
   assert.deepEqual(here.frames.map((f) => f.els.length), [1, 3]);
+});
+
+// ── Alinear, repartir y lista de capas ──────────────────────────────────────────────────────────────────────────
+const xy = (b, id, i = 0) => { const e = b.frames[i].els.find((x) => x.id === id); return [e.x, e.y]; };
+
+test("alinear respecto al conjunto: izquierda, derecha, centro, arriba y abajo", () => {
+  const b = boardWith([token("a", 10, 10), token("b", 20, 30), token("c", 40, 20)]);
+  const ids = ["a", "b", "c"];
+  assert.deepEqual(["a", "b", "c"].map((id) => xy(alignElements(b, 0, ids, "left"), id)[0]), [10, 10, 10]);
+  assert.deepEqual(["a", "b", "c"].map((id) => xy(alignElements(b, 0, ids, "right"), id)[0]), [40, 40, 40]);
+  assert.deepEqual(["a", "b", "c"].map((id) => xy(alignElements(b, 0, ids, "hcenter"), id)[0]), [25, 25, 25]);
+  assert.deepEqual(["a", "b", "c"].map((id) => xy(alignElements(b, 0, ids, "top"), id)[1]), [10, 10, 10]);
+  assert.deepEqual(["a", "b", "c"].map((id) => xy(alignElements(b, 0, ids, "bottom"), id)[1]), [30, 30, 30]);
+  assert.deepEqual(["a", "b", "c"].map((id) => xy(alignElements(b, 0, ids, "vcenter"), id)[1]), [20, 20, 20]);
+  assert.equal(alignElements(b, 0, ["a"], "left"), b, "con uno solo no hay nada que alinear");
+  assert.equal(alignElements(alignElements(b, 0, ids, "left"), 0, ids, "left").frames[0].els[1].x, 10, "alinear dos veces da lo mismo");
+});
+
+test("alinear usa los bordes de cada cosa, no su centro: una zona grande y una ficha", () => {
+  const b = boardWith([zone("z", 10, 10, 20, 10), token("t", 40, 14)]);
+  const r = alignElements(b, 0, ["z", "t"], "top");
+  assert.equal(r.frames[0].els.find((e) => e.id === "z").y, 10, "la zona ya está arriba");
+  const r2 = r.frames[0].els.find((e) => e.id === "t");
+  assert.ok(Math.abs(r2.y - tokenR(DEFAULT_CHIP, r2) - 10) < 0.06, "el borde de arriba de la ficha queda a la altura del de la zona");
+});
+
+test("alinear y repartir son «como se ve»: con el campo girado, izquierda sigue siendo la izquierda de la pantalla", () => {
+  for (const orient of ["v", "vi", "h", "hi"]) {
+    const b = { ...boardWith([token("a", 10, 10), token("b", 30, 25), token("c", 20, 40)]), orient };
+    const field = fieldOf(b.field);
+    const viewX = (r, id) => { const [x, y] = xy(r, id); return toView(field, orient, { x, y }).x; };
+    const left = alignElements(b, 0, ["a", "b", "c"], "left");
+    const xs = ["a", "b", "c"].map((id) => viewX(left, id));
+    assert.ok(Math.max(...xs) - Math.min(...xs) < 0.06, `${orient}: quedan en la misma vertical de pantalla`);
+    const before = ["a", "b", "c"].map((id) => viewX(b, id));
+    assert.ok(Math.abs(xs[0] - Math.min(...before)) < 0.06, `${orient}: el borde es el de más a la izquierda`);
+    const top = alignElements(b, 0, ["a", "b", "c"], "top");
+    const viewY = (id) => { const [x, y] = xy(top, id); return toView(field, orient, { x, y }).y; };
+    const ys = ["a", "b", "c"].map(viewY);
+    assert.ok(Math.max(...ys) - Math.min(...ys) < 0.06, `${orient}: quedan a la misma altura de pantalla`);
+  }
+  assert.deepEqual(viewDelta("v", 2, 3), { dx: 2, dy: 3 });
+  assert.deepEqual(viewDelta("vi", 2, 3), { dx: -2, dy: -3 });
+  const field = fieldOf("half");
+  for (const o of ["h", "hi"]) {
+    const p = { x: 12, y: 20 }, q = fromView(field, o, { x: toView(field, o, p).x + 2, y: toView(field, o, p).y + 3 });
+    const d = viewDelta(o, 2, 3);
+    assert.ok(Math.abs(q.x - (p.x + d.dx)) < 0.01 && Math.abs(q.y - (p.y + d.dy)) < 0.01, `${o}: el desplazamiento coincide con toView/fromView`);
+  }
+});
+
+test("alinear solo toca el fotograma actual y deja los conectores donde están", () => {
+  let b = addFrame(boardWith([token("a", 10, 10), token("b", 20, 30)]), 0).board;
+  b = addElement(b, 0, { id: "l", k: "link", mode: "line", ids: ["a", "b"] });
+  const r = alignElements(b, 0, ["a", "b", "l"], "left");
+  assert.deepEqual(xy(r, "b", 0), [10, 30]);
+  assert.deepEqual(xy(r, "b", 1), [20, 30], "el fotograma 2 no cambia");
+});
+
+test("repartir deja el mismo hueco entre cosas y no mueve las de los extremos", () => {
+  const b = boardWith([token("a", 10, 10), token("b", 14, 22), token("c", 38, 30), token("d", 50, 5)]);
+  const r = distributeElements(b, 0, ["a", "b", "c", "d"], "h");
+  assert.deepEqual([xy(r, "a")[0], xy(r, "d")[0]], [10, 50], "los extremos no se mueven");
+  const xs = ["a", "b", "c", "d"].map((id) => xy(r, id)[0]);
+  assert.ok(Math.abs(xs[1] - xs[0] - (xs[2] - xs[1])) < 0.11 && Math.abs(xs[2] - xs[1] - (xs[3] - xs[2])) < 0.11, "igualmente separadas: " + xs.join(", "));
+  assert.deepEqual(["a", "b", "c", "d"].map((id) => xy(r, id)[1]), [10, 22, 30, 5], "la otra dirección no cambia");
+  const v = distributeElements(b, 0, ["a", "b", "c", "d"], "v");
+  const ys = ["d", "a", "b", "c"].map((id) => xy(v, id)[1]);
+  assert.ok(Math.abs(ys[1] - ys[0] - (ys[2] - ys[1])) < 0.11 && Math.abs(ys[2] - ys[1] - (ys[3] - ys[2])) < 0.11, "a lo alto también: " + ys.join(", "));
+  assert.equal(distributeElements(b, 0, ["a", "b"], "h"), b, "hacen falta tres");
+  assert.equal(distributeElements(distributeElements(b, 0, ["a", "b", "c", "d"], "h"), 0, ["a", "b", "c", "d"], "h").frames[0].els.length, 4);
+});
+
+test("repartir cuenta el tamaño de cada cosa: una zona ancha entre dos fichas", () => {
+  const b = boardWith([token("a", 10, 10), zone("z", 14, 5, 20, 6), token("c", 60, 10)]);
+  const r = distributeElements(b, 0, ["a", "z", "c"], "h");
+  const rA = tokenR(DEFAULT_CHIP, token("a", 0, 0));
+  const aRight = xy(r, "a")[0] + rA, zLeft = xy(r, "z")[0], zRight = zLeft + 20, cLeft = xy(r, "c")[0] - rA;
+  assert.ok(Math.abs((zLeft - aRight) - (cLeft - zRight)) < 0.11, "los huecos entre bordes son iguales");
+});
+
+test("subir o bajar un puesto de la lista de capas, sin fijarse en si se solapan", () => {
+  const b = boardWith([token("a", 5, 5), token("b", 40, 40), token("c", 20, 20)]); // sin capas: salen en este orden
+  const up = stepLayer(b, 0, ["a"], 1);
+  assert.deepEqual(drawOrder(up.frames[0].els).map((e) => e.id), ["b", "a", "c"], "a pasa un puesto por delante aunque b esté lejos");
+  const down = stepLayer(up, 0, ["a"], -1);
+  assert.deepEqual(drawOrder(down.frames[0].els).map((e) => e.id), ["a", "b", "c"]);
+  assert.equal(stepLayer(b, 0, ["c"], 1), b, "el de arriba no puede subir más");
+  assert.equal(stepLayer(b, 0, ["a"], -1), b, "el de abajo no puede bajar más");
+  const group = stepLayer(b, 0, ["a", "b"], 1);
+  assert.deepEqual(drawOrder(group.frames[0].els).map((e) => e.id), ["c", "a", "b"], "el grupo se mueve junto y conserva su orden");
+  const bottom = stepLayer(stepLayer(b, 0, ["c"], -1), 0, ["a", "c"], -1);
+  assert.deepEqual(drawOrder(bottom.frames[0].els).map((e) => e.id).slice(0, 2), ["a", "c"]);
 });
