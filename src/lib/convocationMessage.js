@@ -52,6 +52,12 @@ function section(title, list) {
   return ["", `*${title} (${list.length}):*`, ...groups.flatMap(({ group, players }) => [...(titles ? [`_${group}_`] : []), ...players.map(playerLine)])];
 }
 
+/** Líneas de «Observaciones»: 👕 equipación que deben traer y ℹ️ información extra; solo las que estén escritas. */
+export function observationLines({ kit = "", info = "" } = {}) {
+  const k = String(kit || "").trim(), i = String(info || "").trim();
+  return [k && `👕 ${k}`, i && `ℹ️ ${i}`].filter(Boolean);
+}
+
 /**
  * event · team · convocados · noConvocados (listas de jugadores) · callupTime ("HH:mm")
  * kit   equipación que deben traer (👕)      info   cualquier otra información (ℹ️)
@@ -61,7 +67,7 @@ export function buildConvocationText({ event, team, convocados = [], noConvocado
   const day = date ? format(date, "EEEE d 'de' MMMM", { locale: es }) : "";
   const time = date ? format(date, "HH:mm") : "";
   const where = [event?.location, event?.location_url].filter(Boolean).join(" · ");
-  const obs = [String(kit || "").trim() && `👕 ${String(kit).trim()}`, String(info || "").trim() && `ℹ️ ${String(info).trim()}`].filter(Boolean);
+  const obs = observationLines({ kit, info });
   const lines = [
     `*CONVOCATORIA · ${team?.name || ""}*`,
     event?.opponent ? `🆚 ${event.opponent}` : (event?.title ? `🏆 ${event.title}` : ""),

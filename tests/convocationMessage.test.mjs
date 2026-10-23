@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildConvocationText, groupPlayers, dorsalOf, GROUP_ORDER } from "../src/lib/convocationMessage.js";
+import { buildConvocationText, groupPlayers, dorsalOf, observationLines, GROUP_ORDER } from "../src/lib/convocationMessage.js";
 
 const p = (id, first, last, position, jersey_number, extra = {}) => ({ id, first_name: first, last_name: last, position, jersey_number, ...extra });
 const event = { date: new Date(2026, 9, 25, 11, 30).toISOString(), opponent: "CE Europa", location: "Camp Municipal", location_url: "" };
@@ -89,4 +89,12 @@ test("sin rival se usa el título del evento y sin hora de convocatoria solo la 
   assert.ok(text.includes("⏰ Partido: 11:30\n") || text.includes("⏰ Partido: 11:30"));
   assert.ok(!text.includes("Convocatoria: "));
   assert.ok(!text.includes("\n\n\n"), "nunca dos líneas en blanco seguidas");
+});
+
+test("observationLines: 👕 y ℹ️ solo si están escritas (también las usa el aviso al móvil)", () => {
+  assert.deepEqual(observationLines({ kit: " Chándal ", info: "Traed agua" }), ["👕 Chándal", "ℹ️ Traed agua"]);
+  assert.deepEqual(observationLines({ kit: "", info: "Solo info" }), ["ℹ️ Solo info"]);
+  assert.deepEqual(observationLines({ kit: "Solo equipación", info: "  " }), ["👕 Solo equipación"]);
+  assert.deepEqual(observationLines({}), []);
+  assert.deepEqual(observationLines(), []);
 });

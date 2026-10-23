@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { matchesPlayerSearch } from "@/lib/playerName";
-import { buildConvocationText, dorsalOf, groupPlayers } from "@/lib/convocationMessage";
+import { buildConvocationText, dorsalOf, groupPlayers, observationLines } from "@/lib/convocationMessage";
 import { NO_CONV_REASONS } from "@/lib/participation";
 import { useAutosave } from "@/lib/useAutosave";
 import SaveStatus from "@/components/common/SaveStatus";
@@ -58,6 +58,8 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
   // Mensaje para el grupo de WhatsApp (siempre en español): convocados y no convocados por posición, con dorsal y observaciones
   const buildWa = () => buildConvocationText({ event, team, convocados, noConvocados, callupTime, kit, info: observations });
   const waDefault = buildWa();
+  // Aviso al móvil: partido, hora y campo, y debajo 👕 equipación y ℹ️ información extra si están escritas
+  const pushBase = `${event?.opponent ? `vs ${event.opponent} · ` : ""}${event?.date ? format(new Date(event.date), "EEEE d MMM HH:mm", { locale: dfl }) : ""}${callupTime ? ` · Convocatoria ${callupTime}` : ""}\n${event?.location || ""}`.trim();
   const [waMsg, setWaMsg] = useState(waDefault);
   const [copied, setCopied] = useState(false);
   const copyWa = async () => {
@@ -104,7 +106,7 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
               key={open ? "open" : "closed"}
               fixed={{ player_ids: convocados.map(p => p.id), label: `Convocados (${convocados.length})` }}
               defaultTitle={`Convocatoria · ${team?.name || ""}`}
-              defaultBody={`${event?.opponent ? `vs ${event.opponent} · ` : ""}${event?.date ? format(new Date(event.date), "EEEE d MMM HH:mm", { locale: dfl }) : ""}${callupTime ? ` · Convocatoria ${callupTime}` : ""}\n${event?.location || ""}`.trim()}
+              defaultBody={[pushBase, ...observationLines({ kit, info: observations })].join("\n")}
             />
           </div>
 
