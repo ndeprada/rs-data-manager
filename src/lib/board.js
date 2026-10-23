@@ -295,8 +295,8 @@ export const setFrameEls = (board, index, els) => ({
 // Añade un elemento. Lo que se mueve (y los conectores) entra en todos los fotogramas (forma parte del ejercicio);
 // flechas, zonas y textos solo en el fotograma actual.
 export function addElement(board, index, el) {
-  if (!isCarried(el)) return setFrameEls(board, index, [...board.frames[index].els, el]);
-  const next = { ...board, frames: board.frames.map((f) => ({ ...f, els: [...f.els, clone(el)] })) };
+  if (!isCarried(el)) return setFrameEls(board, index, placeElement(board.frames[index].els, el));
+  const next = { ...board, frames: board.frames.map((f) => ({ ...f, els: placeElement(f.els, clone(el)) })) };
   return el.k === "link" ? pruneLinks(next) : next;
 }
 
@@ -734,3 +734,171 @@ export function shiftElement(el, dx, dy) {
 
 export const RANK = { zone: 0, link: 0.5, ladder: 0.9, goal: 1, cone: 1, hurdle: 1.1, pole: 1.2, dummy: 1.3, ball: 2, arrow: 3, token: 4, text: 5 };
 export const byRank = (a, b) => (RANK[a.k] ?? 2) - (RANK[b.k] ?? 2);
+
+// ── Capas (orden de dibujo) ────────────────────────────────────────────────────────────────────────────────────────
+// Sin orden elegido, cada tipo de elemento tiene su capa por defecto (RANK: zonas al fondo, fichas arriba, textos encima de todo).
+// Al subir o bajar un elemento, el fotograma pasa a guardar `z` en todos sus elementos (0 = el del fondo) y manda ese orden.
+// El orden es de cada fotograma (como la posición): lo que se cambia en uno no toca los demás.
+const layerOf = (el) => (Number.isFinite(el.z) ? el.z : RANK[el.k] ?? 2);
+export const hasLayers = (els) => els.some((e) => Number.isFinite(e.z));
+// Elementos de abajo arriba, tal como se dibujan (a igualdad de capa, en el orden en que están guardados)
+export const drawOrder = (els) => els.map((e, i) => [e, i]).sort((a, b) => layerOf(a[0]) - layerOf(b[0]) || a[1] - b[1]).map(([e]) => e);
+const withLayers = (list) => list.map((e, i) => (e.z === i ? e : { ...e, z: i }));
+
+// Mete un elemento nuevo en su capa por defecto: encima de lo de su misma clase o inferior y debajo de lo que va por encima.
+export function placeElement(els, el) {
+  const { z: _z, ...bare } = el;
+  if (!hasLayers(els)) return [...els, bare];
+  const order = drawOrder(els);
+  const rank = RANK[bare.k] ?? 2;
+  let at = 0;
+  for (let i = order.length - 1; i >= 0; i--) if ((RANK[order[i].k] ?? 2) <= rank) { at = i + 1; break; }
+  return withLayers([...order.slice(0, at), bare, ...order.slice(at)]);
+}
+
+// Caja que ocupa un elemento en el campo (metros); null si no tiene sitio propio (los conectores salen de sus fichas).
+export function elementBounds(el, chip = DEFAULT_CHIP) {
+  const box = (cx, cy, hx, hy) => ({ x0: cx - hx, y0: cy - hy, x1: cx + hx, y1: cy + hy });
+  const turned = (hw, hh, deg) => {
+    const a = ((Number(deg) || 0) * Math.PI) / 180;
+    return [Math.abs(hw * Math.cos(a)) + Math.abs(hh * Math.sin(a)), Math.abs(hw * Math.sin(a)) + Math.abs(hh * Math.cos(a))];
+  };
+  const k = Number(el?.size) || 1;
+  if (!el) return null;
+  if (el.k === "token") { const r = tokenR(chip, el); return box(el.x, el.y, r, r); }
+  if (el.k === "ball") { const r = Math.max(0.7, chip * 0.55) * k; return box(el.x, el.y, r, r); }
+  if (el.k === "cone") return box(el.x, el.y, 1.3 * k, 1.5 * k);
+  if (el.k === "goal") {
+    const gw = el.w || 7.32, gd = Math.max(1.1, Math.min(2.4, gw * 0.4));
+    const [hx, hy] = turned(gw / 2, gd / 2, el.rot);
+    return box(el.x, el.y, hx, hy);
+  }
+  const mat = materialOf(el.k);
+  if (mat) { const [hx, hy] = turned(mat.hw * k, mat.hh * k, el.rot); return box(el.x, el.y, hx, hy); }
+  if (el.k === "text") { const fs = Number(el.size) || 3; return box(el.x, el.y, Math.max(3, (el.text || "").length * fs * 0.3), fs * 0.7); }
+  if (el.k === "arrow") {
+    const xs = [el.x1, el.x2], ys = [el.y1, el.y2];
+    if (el.cx != null) { xs.push(el.cx); ys.push(el.cy); }
+    return { x0: Math.min(...xs) - 0.8, y0: Math.min(...ys) - 0.8, x1: Math.max(...xs) + 0.8, y1: Math.max(...ys) + 0.8 };
+  }
+  if (el.k === "zone") return zoneBox(el);
+  return null;
+}
+export const boundsOverlap = (a, b) => !!a && !!b && a.x0 <= b.x1 && b.x0 <= a.x1 && a.y0 <= b.y1 && b.y0 <= a.y1;
+export function unionBounds(list) {
+  const l = list.filter(Boolean);
+  if (!l.length) return null;
+  return { x0: Math.min(...l.map((b) => b.x0)), y0: Math.min(...l.map((b) => b.y0)), x1: Math.max(...l.map((b) => b.x1)), y1: Math.max(...l.map((b) => b.y1)) };
+}
+
+// Sube o baja lo elegido en el orden de dibujo. where: «front» (encima de todo) · «back» (debajo de todo) · «up» / «down» (un
+// nivel: pasa por encima / por debajo del siguiente elemento con el que se solapa, que es lo que se nota en pantalla).
+export function moveLayer(board, index, ids, where, chip = DEFAULT_CHIP) {
+  const frame = board.frames[index];
+  const sel = new Set(ids);
+  const order = drawOrder(frame.els);
+  const chosen = order.filter((e) => sel.has(e.id));
+  if (!chosen.length) return board;
+  let list;
+  if (where === "front") list = [...order.filter((e) => !sel.has(e.id)), ...chosen];
+  else if (where === "back") list = [...chosen, ...order.filter((e) => !sel.has(e.id))];
+  else {
+    list = [...order];
+    const dir = where === "up" ? 1 : -1;
+    // empezando por lo que está más cerca del extremo hacia el que se mueve, para que el grupo conserve su orden
+    for (const e of dir > 0 ? [...chosen].reverse() : chosen) {
+      const i = list.findIndex((x) => x.id === e.id);
+      const mine = elementBounds(e, chip);
+      for (let j = i + dir; j >= 0 && j < list.length; j += dir) {
+        if (sel.has(list[j].id) || !boundsOverlap(mine, elementBounds(list[j], chip))) continue;
+        list.splice(i, 1);
+        list.splice(j, 0, e);
+        break;
+      }
+    }
+  }
+  if (list.every((e, i) => e.id === order[i].id)) return board; // nada que cambiar
+  return setFrameEls(board, index, withLayers(list));
+}
+
+// ── Varios elementos a la vez ──────────────────────────────────────────────────────────────────────────────────────
+
+// Lo que queda dentro de un recuadro (x, y, w, h; w y h pueden ser negativos): las piezas y textos por su posición, las flechas
+// si empiezan y acaban dentro y las zonas si caben enteras. Los conectores no se eligen: van con sus fichas.
+export function elementsInBox(els, box) {
+  const x0 = Math.min(box.x, box.x + box.w), x1 = Math.max(box.x, box.x + box.w);
+  const y0 = Math.min(box.y, box.y + box.h), y1 = Math.max(box.y, box.y + box.h);
+  const inside = (x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
+  return els.filter((e) => {
+    if (e.k === "link") return false;
+    if (e.k === "arrow") return inside(e.x1, e.y1) && inside(e.x2, e.y2);
+    if (e.k === "zone") { const b = zoneBox(e); return inside(b.x0, b.y0) && inside(b.x1, b.y1); }
+    return inside(e.x, e.y);
+  }).map((e) => e.id);
+}
+
+// Aplica `fn` a los elementos de `ids`: lo que pasa de un fotograma a otro (fichas, material…) en todos los fotogramas y lo demás
+// (flechas, zonas, textos) solo en el fotograma actual, igual que al cambiar un elemento suelto.
+function mapElements(board, index, ids, fn) {
+  const sel = new Set(ids);
+  return { ...board, frames: board.frames.map((f, i) => ({ ...f, els: f.els.map((e) => (sel.has(e.id) && (i === index || isCarried(e)) ? fn(e) : e)) })) };
+}
+const clampTo = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+// Más grande o más pequeño (factor 1,15 / 0,87…): el tamaño de las fichas, balón, conos y material, el ancho de las porterías, el
+// tamaño de los textos y el grosor de las flechas. Las zonas y los conectores no tienen tamaño propio.
+export function resizeElements(board, index, ids, factor) {
+  const r2 = (n) => Math.round(n * 100) / 100;
+  return mapElements(board, index, ids, (e) => {
+    const size = Number(e.size) || (e.k === "text" ? 3 : 1);
+    if (e.k === "token") return { ...e, size: clampTo(r2(size * factor), 0.4, 3) };
+    if (e.k === "ball" || e.k === "cone" || materialOf(e.k)) return { ...e, size: clampTo(r2(size * factor), 0.6, 2.2) };
+    if (e.k === "text") return { ...e, size: clampTo(Math.round(size * factor * 10) / 10, 1.5, 10) };
+    if (e.k === "goal") return { ...e, w: clampTo(Math.round((e.w || 7.32) * factor * 10) / 10, 1, 12) };
+    if (e.k === "arrow") return { ...e, width: clampTo(Math.round(arrowProps(e).width * factor * 20) / 20, 0.2, 2) };
+    return e;
+  });
+}
+
+// Separa o junta lo elegido respecto a su centro (factor > 1 separa): cambia las posiciones, no el tamaño de cada cosa.
+export function spreadElements(board, index, ids, factor) {
+  const field = fieldOf(board.field);
+  const sel = new Set(ids);
+  const els = board.frames[index].els.filter((e) => sel.has(e.id) && e.k !== "link");
+  const b = unionBounds(els.map((e) => elementBounds(e)));
+  if (!b || els.length < 2) return board;
+  const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+  const sx = (x) => round(clampTo(cx + (x - cx) * factor, -2, field.w + 2));
+  const sy = (y) => round(clampTo(cy + (y - cy) * factor, -2, field.h + 2));
+  const move = (e) => {
+    if (e.k === "arrow") {
+      const o = { ...e, x1: sx(e.x1), y1: sy(e.y1), x2: sx(e.x2), y2: sy(e.y2) };
+      if (e.cx != null) { o.cx = sx(e.cx); o.cy = sy(e.cy); }
+      return o;
+    }
+    if (e.k === "zone" && isQuad(e)) return { ...e, pts: e.pts.map((q) => ({ x: sx(q.x), y: sy(q.y) })) };
+    if (e.k === "zone") { const x = sx(e.x), y = sy(e.y); return { ...e, x, y, w: round(sx(e.x + e.w) - x), h: round(sy(e.y + e.h) - y) }; }
+    return { ...e, x: sx(e.x), y: sy(e.y) };
+  };
+  return setFrameEls(board, index, board.frames[index].els.map((e) => (sel.has(e.id) && e.k !== "link" ? move(e) : e)));
+}
+
+// Un mismo color para todo lo elegido (en las zonas es el relleno)
+export function recolorElements(board, index, ids, color) {
+  return mapElements(board, index, ids, (e) => {
+    if (e.k === "zone") return { ...e, fill: color, ...(e.fillOpacity == null ? { fillOpacity: 0.35 } : {}) };
+    return { ...e, color };
+  });
+}
+// Equipo y pies de las fichas elegidas (en todos los fotogramas)
+export const setTeamOf = (board, index, ids, team) => mapElements(board, index, ids, (e) => (e.k === "token" ? { ...e, team } : e));
+export function setFeetOf(board, index, ids, on) {
+  return mapElements(board, index, ids, (e) => {
+    if (e.k !== "token") return e;
+    if (on) return { ...e, feet: true };
+    const { feet: _f, face: _a, ...rest } = e;
+    return rest;
+  });
+}
+export const removeElements = (board, index, ids, opts) => ids.reduce((b, id) => removeElement(b, index, id, opts), board);
+

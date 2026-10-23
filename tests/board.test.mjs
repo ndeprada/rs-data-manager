@@ -8,6 +8,7 @@ import {
   LOOKS, lookOf, ORIENTS, orientOf, orientAngle, viewBox, fieldTurn, upVec, MAX_TEAMS, DEFAULT_TEAMS, addTeam, removeTeam, teamInUse, chipStyle, contrastColor, CHIP_PATTERNS,
   MATERIALS, materialOf, ladderRungs, faceOf, faceToward, setAllFeet, ballStyle, BALL_PATTERNS, isLinkable, byRank,
   boardMode, isAnimation, boardSpeed, animationDuration, elsAtTime, ANIM_HOLD,
+  drawOrder, hasLayers, placeElement, moveLayer, elementBounds, elementsInBox, resizeElements, spreadElements, recolorElements, setTeamOf, setFeetOf, removeElements,
 } from "../src/lib/board.js";
 
 const token = (id, x, y, team = "a") => ({ id, k: "token", x, y, team, label: "" });
@@ -605,4 +606,181 @@ test("línea de tiempo del vídeo: espera al principio, recorre cada paso y espe
   assert.equal(at(ANIM_HOLD.start + 1500).x, 30);
   assert.equal(at(ANIM_HOLD.start + 2000).x, 40);
   assert.equal(at(ANIM_HOLD.start + 5000).x, 40, "después del final se queda en el último");
+});
+
+// ── Capas y selección múltiple ──────────────────────────────────────────────────────────────────────────────────────
+
+const zone = (id, x = 0, y = 0, w = 20, h = 20) => ({ id, k: "zone", x, y, w, h });
+const textEl = (id, x, y) => ({ id, k: "text", x, y, text: "Hola" });
+const boardWith = (els) => ({ ...emptyBoard(), frames: [{ id: "f1", els }] });
+const idsOf = (els) => drawOrder(els).map((e) => e.id);
+
+test("sin orden elegido se dibuja por capas por defecto: zona, balón, flecha, ficha, texto", () => {
+  const els = [textEl("tx", 5, 5), token("t1", 5, 5), arrow("ar"), { id: "bl", k: "ball", x: 5, y: 5 }, zone("z1")];
+  assert.deepEqual(idsOf(els), ["z1", "bl", "ar", "t1", "tx"]);
+  assert.equal(hasLayers(els), false);
+});
+
+test("subir al frente y enviar al fondo guardan el orden y mandan sobre las capas por defecto", () => {
+  const b = boardWith([zone("z1"), token("t1", 5, 5), token("t2", 6, 6), textEl("tx", 5, 5)]);
+  const front = moveLayer(b, 0, ["z1"], "front");
+  assert.deepEqual(idsOf(front.frames[0].els), ["t1", "t2", "tx", "z1"], "la zona queda encima de todo");
+  assert.equal(hasLayers(front.frames[0].els), true);
+  const back = moveLayer(front, 0, ["tx"], "back");
+  assert.deepEqual(idsOf(back.frames[0].els), ["tx", "t1", "t2", "z1"]);
+  assert.deepEqual(b.frames[0].els.map((e) => e.z), [undefined, undefined, undefined, undefined], "el original no se toca");
+});
+
+test("subir y bajar un nivel pasan por encima o por debajo de lo que se solapa, no de lo que está lejos", () => {
+  // t1 y t2 se solapan; t3 está lejos
+  const b = boardWith([token("t1", 10, 10), token("t3", 60, 60), token("t2", 11, 10)]);
+  const up = moveLayer(b, 0, ["t1"], "up");
+  assert.deepEqual(idsOf(up.frames[0].els), ["t3", "t2", "t1"], "t1 pasa por encima de t2 (se solapan)");
+  const down = moveLayer(up, 0, ["t1"], "down");
+  assert.deepEqual(idsOf(down.frames[0].els), ["t3", "t1", "t2"]);
+  // lo que no se solapa con nada por encima no cambia
+  assert.equal(moveLayer(b, 0, ["t3"], "up"), b);
+  assert.equal(moveLayer(b, 0, ["t1"], "down"), b, "ya está debajo");
+});
+
+test("subir varios a la vez conserva su orden relativo", () => {
+  const b = boardWith([token("a", 10, 10), token("b", 10.5, 10), token("c", 11, 10)]);
+  const up = moveLayer(b, 0, ["a", "b"], "up");
+  assert.deepEqual(idsOf(up.frames[0].els), ["c", "a", "b"]);
+  const front = moveLayer(b, 0, ["a", "b"], "front");
+  assert.deepEqual(idsOf(front.frames[0].els), ["c", "a", "b"]);
+  const back = moveLayer(b, 0, ["c", "b"], "back");
+  assert.deepEqual(idsOf(back.frames[0].els), ["b", "c", "a"]);
+});
+
+test("el orden de capas es de cada fotograma", () => {
+  let b = addFrame(boardWith([zone("z1"), token("t1", 5, 5)]), 0).board;
+  b = addElement(b, 0, zone("z2", 1, 1, 5, 5));
+  const r = moveLayer(b, 0, ["t1"], "back");
+  assert.equal(hasLayers(r.frames[0].els), true);
+  assert.equal(hasLayers(r.frames[1].els), false);
+});
+
+test("un elemento nuevo entra en su capa por defecto aunque el fotograma ya tenga orden propio", () => {
+  let b = boardWith([zone("z1"), token("t1", 5, 5), textEl("tx", 5, 5)]);
+  b = moveLayer(b, 0, ["z1"], "front"); // t1, tx, z1
+  b = addElement(b, 0, token("t2", 20, 20));
+  assert.deepEqual(idsOf(b.frames[0].els), ["t1", "tx", "z1", "t2"], "entra encima de lo que sea de su clase o inferior");
+  const ts = b.frames[0].els.map((e) => e.z).sort((x, y) => x - y);
+  assert.deepEqual(ts, [0, 1, 2, 3], "z queda numerado sin huecos");
+  // sin orden propio no se guarda ningún z
+  const plain = addElement(boardWith([token("t1", 5, 5)]), 0, zone("z9"));
+  assert.equal(hasLayers(plain.frames[0].els), false);
+  assert.equal(placeElement([token("a", 1, 1)], { ...token("b", 2, 2), z: 7 })[1].z, undefined);
+});
+
+test("los elementos que pasan de fotograma entran también en el orden de los demás fotogramas", () => {
+  let b = addFrame(boardWith([token("t0", 5, 5), token("t1", 5.5, 5)]), 0).board;
+  b = moveLayer(b, 1, ["t0"], "front");
+  assert.equal(hasLayers(b.frames[1].els), true);
+  b = addElement(b, 0, token("t2", 9, 9));
+  assert.equal(b.frames[0].els.length, 3);
+  assert.equal(b.frames[1].els.length, 3);
+  assert.equal(hasLayers(b.frames[0].els), false, "el otro fotograma sigue sin orden propio");
+  assert.deepEqual(b.frames[1].els.map((e) => e.z).sort((x, y) => x - y), [0, 1, 2], "y en este el elemento nuevo queda numerado");
+});
+
+test("elementBounds da la caja de cada elemento y null para un conector", () => {
+  const t = elementBounds(token("t", 10, 20));
+  assert.ok(t.x0 < 10 && t.x1 > 10 && t.y0 < 20 && t.y1 > 20);
+  const g = elementBounds({ id: "g", k: "goal", x: 30, y: 5, w: 6, rot: 0 });
+  assert.ok(g.x1 - g.x0 >= 6 && g.y1 - g.y0 < 6);
+  const turned = elementBounds({ id: "g", k: "goal", x: 30, y: 5, w: 6, rot: 90 });
+  assert.ok(turned.y1 - turned.y0 >= 6 - 1e-9, "girada 90° es más alta que ancha");
+  const a = elementBounds({ id: "a", k: "arrow", x1: 0, y1: 0, x2: 10, y2: 4 });
+  assert.ok(a.x0 < 0 && a.x1 > 10 && a.y1 > 4);
+  assert.deepEqual(elementBounds(zone("z", 2, 3, 5, 6)), { x0: 2, y0: 3, x1: 7, y1: 9 });
+  assert.equal(elementBounds({ id: "l", k: "link", ids: [] }), null);
+});
+
+test("el recuadro elige piezas por su posición, flechas y zonas solo si caben enteras y nunca los conectores", () => {
+  const els = [
+    token("in", 10, 10), token("out", 40, 40),
+    { id: "ar-in", k: "arrow", style: "move", x1: 5, y1: 5, x2: 15, y2: 15 },
+    { id: "ar-half", k: "arrow", style: "move", x1: 5, y1: 5, x2: 45, y2: 45 },
+    zone("z-in", 2, 2, 10, 10), zone("z-big", 0, 0, 60, 60),
+    { id: "lk", k: "link", ids: ["in", "out"] },
+  ];
+  assert.deepEqual(elementsInBox(els, { x: 0, y: 0, w: 20, h: 20 }).sort(), ["ar-in", "in", "z-in"].sort());
+  assert.deepEqual(elementsInBox(els, { x: 20, y: 20, w: -20, h: -20 }).sort(), ["ar-in", "in", "z-in"].sort(), "vale arrastrar hacia arriba o hacia la izquierda");
+});
+
+test("más grande / más pequeño cambia el tamaño de cada cosa a su manera y respeta los límites", () => {
+  const b = boardWith([token("t1", 5, 5), { id: "c1", k: "cone", x: 8, y: 8 }, { id: "g1", k: "goal", x: 30, y: 3, w: 6 }, textEl("tx", 9, 9), { ...arrow("ar"), width: 0.8 }, zone("z1")]);
+  const big = resizeElements(b, 0, ["t1", "c1", "g1", "tx", "ar", "z1"], 1.5);
+  const byId = Object.fromEntries(big.frames[0].els.map((e) => [e.id, e]));
+  assert.equal(byId.t1.size, 1.5);
+  assert.equal(byId.c1.size, 1.5);
+  assert.equal(byId.g1.w, 9);
+  assert.equal(byId.tx.size, 4.5);
+  assert.equal(byId.ar.width, 1.2);
+  assert.deepEqual(byId.z1, zone("z1"), "una zona no tiene tamaño propio");
+  const huge = resizeElements(resizeElements(big, 0, ["t1", "c1", "g1", "tx", "ar"], 3), 0, ["t1", "c1", "g1", "tx", "ar"], 3);
+  const h = Object.fromEntries(huge.frames[0].els.map((e) => [e.id, e]));
+  assert.equal(h.t1.size, 3);
+  assert.equal(h.c1.size, 2.2);
+  assert.equal(h.g1.w, 12);
+  assert.equal(h.tx.size, 10);
+  assert.equal(h.ar.width, 2);
+});
+
+test("el tamaño de lo que pasa de fotograma en fotograma vale en todos; el de flechas y textos, solo en el actual", () => {
+  let b = addFrame(boardWith([token("t1", 5, 5)]), 0).board;
+  b = addElement(b, 0, textEl("tx", 9, 9));
+  b = addElement(b, 1, textEl("tx2", 9, 9));
+  const r = resizeElements(b, 0, ["t1", "tx", "tx2"], 2);
+  assert.equal(r.frames[0].els.find((e) => e.id === "t1").size, 2);
+  assert.equal(r.frames[1].els.find((e) => e.id === "t1").size, 2);
+  assert.equal(r.frames[0].els.find((e) => e.id === "tx").size, 6);
+  assert.equal(r.frames[1].els.find((e) => e.id === "tx2").size, undefined, "otro fotograma: no se toca");
+});
+
+test("separar y juntar mueven las posiciones respecto al centro y no cambian los tamaños", () => {
+  const b = boardWith([token("a", 10, 10), token("b", 20, 10), token("c", 15, 20), token("fuera", 50, 50)]);
+  const wide = spreadElements(b, 0, ["a", "b", "c"], 2);
+  const at = (id) => wide.frames[0].els.find((e) => e.id === id);
+  assert.ok(at("b").x - at("a").x > 19 && at("b").x - at("a").x < 21, "la distancia entre a y b se dobla");
+  assert.equal(at("fuera").x, 50, "lo no elegido no se toca");
+  assert.equal(at("a").size, undefined);
+  const back = spreadElements(wide, 0, ["a", "b", "c"], 0.5);
+  assert.ok(Math.abs(back.frames[0].els.find((e) => e.id === "a").x - 10) < 0.3);
+  assert.equal(spreadElements(b, 0, ["a"], 2), b, "con uno solo no hay nada que separar");
+  const z = spreadElements(boardWith([zone("z", 10, 10, 10, 10), token("t", 40, 40)]), 0, ["z", "t"], 1.5);
+  assert.ok(z.frames[0].els[0].w > 10, "la zona crece");
+});
+
+test("el color elegido se aplica a todo; en las zonas es el relleno", () => {
+  const b = boardWith([token("t1", 5, 5), { id: "c1", k: "cone", x: 8, y: 8 }, zone("z1"), { ...zone("z2"), fillOpacity: 0.6 }]);
+  const r = recolorElements(b, 0, ["t1", "c1", "z1", "z2"], "#2563eb");
+  const byId = Object.fromEntries(r.frames[0].els.map((e) => [e.id, e]));
+  assert.equal(byId.t1.color, "#2563eb");
+  assert.equal(byId.c1.color, "#2563eb");
+  assert.equal(byId.z1.fill, "#2563eb");
+  assert.equal(byId.z1.fillOpacity, 0.35, "una zona sin transparencia propia se ve al ponerle color");
+  assert.equal(byId.z2.fillOpacity, 0.6);
+});
+
+test("equipo y pies de varias fichas a la vez, en todos los fotogramas", () => {
+  let b = addFrame(boardWith([token("t1", 5, 5), token("t2", 9, 9), { id: "c1", k: "cone", x: 8, y: 8 }]), 0).board;
+  const team = setTeamOf(b, 0, ["t1", "c1"], "b");
+  assert.equal(team.frames[1].els.find((e) => e.id === "t1").team, "b");
+  assert.equal(team.frames[0].els.find((e) => e.id === "t2").team, "a");
+  assert.equal(team.frames[0].els.find((e) => e.id === "c1").team, undefined, "solo las fichas tienen equipo");
+  const feet = setFeetOf(b, 0, ["t1", "t2"], true);
+  assert.equal(feet.frames[1].els.find((e) => e.id === "t2").feet, true);
+  const gone = setFeetOf(setFeetOf(b, 0, ["t1"], true), 0, ["t1"], false);
+  assert.equal("feet" in gone.frames[0].els.find((e) => e.id === "t1"), false);
+});
+
+test("quitar varios a la vez, de todos los fotogramas o solo del actual", () => {
+  const b = addFrame(boardWith([token("t1", 5, 5), token("t2", 9, 9), token("t3", 12, 12)]), 0).board;
+  const all = removeElements(b, 0, ["t1", "t2"]);
+  assert.deepEqual(all.frames.map((f) => f.els.map((e) => e.id)), [["t3"], ["t3"]]);
+  const here = removeElements(b, 0, ["t1", "t2"], { onlyHere: true });
+  assert.deepEqual(here.frames.map((f) => f.els.length), [1, 3]);
 });

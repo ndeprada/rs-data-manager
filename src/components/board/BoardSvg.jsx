@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  arrowFlight, arrowProps, arrowPoints, ballStyle, byRank, chipOf, chipStyle, contrastColor, dashArray, faceOf, fieldOf, fieldTurn, fontOf, isQuad, ladderRungs, linkProps, linkShape,
+  arrowFlight, arrowProps, arrowPoints, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, drawOrder, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
   lookOf, materialOf, orientAngle, orientOf, teamsOf, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
@@ -748,6 +748,14 @@ function MarkNumbers({ ids, els, ctx }) {
 }
 
 // Recuadro con el que se eligen varias fichas a la vez
+// Caja que rodea a todo lo elegido cuando son varias cosas (se ve que se moverán juntas)
+function GroupBox({ ids, els, ctx }) {
+  const b = unionBounds(els.filter((e) => ids.includes(e.id)).map((e) => elementBounds(e, ctx.chip)));
+  if (!b) return null;
+  const a = toView(ctx.field, ctx.orient, { x: b.x0, y: b.y0 }), c = toView(ctx.field, ctx.orient, { x: b.x1, y: b.y1 });
+  const pad = 1.2;
+  return <rect x={Math.min(a.x, c.x) - pad} y={Math.min(a.y, c.y) - pad} width={Math.abs(a.x - c.x) + 2 * pad} height={Math.abs(a.y - c.y) + 2 * pad} fill="none" stroke="#f59e0b" strokeWidth={0.35} strokeDasharray="2 1.2" opacity={0.9} pointerEvents="none" />;
+}
 function BoxMark({ box, ctx }) {
   const a = toView(ctx.field, ctx.orient, { x: box.x, y: box.y }), b = toView(ctx.field, ctx.orient, { x: box.x + box.w, y: box.y + box.h });
   return <rect x={Math.min(a.x, b.x)} y={Math.min(a.y, b.y)} width={Math.abs(a.x - b.x)} height={Math.abs(a.y - b.y)} fill="#f59e0b" fillOpacity={0.12} stroke="#f59e0b" strokeWidth={0.4} strokeDasharray="1.6 1.2" pointerEvents="none" />;
@@ -767,13 +775,15 @@ export function Item({ el, ctx, els = [], selected = false, handles = false }) {
  * ghosts  [{ …elemento, from, to }] posición anterior de lo que se ha movido (rastro)
  * draft   flecha o zona que se está dibujando
  */
-const Board = React.forwardRef(function Board({ board, els, selId = null, marks = [], markNumbers = false, ghosts = [], draft = null, handles = false, className = "", style, label = "Dibujo", ...rest }, ref) {
+const Board = React.forwardRef(function Board({ board, els, selId = null, selIds = null, marks = [], markNumbers = false, ghosts = [], draft = null, handles = false, className = "", style, label = "Dibujo", ...rest }, ref) {
   const field = fieldOf(board.field);
   const orient = orientOf(board.orient);
   const look = lookOf(board.look);
   const vb = viewBox(field, orient);
   const ctx = { board, field, orient, look, chip: chipOf(board) };
-  const selEl = selId ? els.find((e) => e.id === selId) : null;
+  // Una sola cosa elegida (selId) o varias (selIds): con varias no hay tiradores, solo la marca de cada una y la caja del grupo
+  const sel = selIds || (selId ? [selId] : []);
+  const selEl = sel.length === 1 ? els.find((e) => e.id === sel[0]) : null;
   return (
     <svg ref={ref} xmlns="http://www.w3.org/2000/svg" viewBox={vb.join(" ")} className={className} style={style} preserveAspectRatio="xMidYMid meet" role="img" aria-label={label} {...rest}>
       <defs>
@@ -794,7 +804,8 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, marks 
           </g>
         );
       })}
-      {[...els].sort(byRank).map((el) => <Item key={el.id} el={el} els={els} ctx={ctx} selected={el.id === selId || (el.k !== "link" && marks.includes(el.id))} handles={handles} />)}
+      {drawOrder(els).map((el) => <Item key={el.id} el={el} els={els} ctx={ctx} selected={sel.includes(el.id) || (el.k !== "link" && marks.includes(el.id))} handles={handles} />)}
+      {handles && sel.length > 1 && <GroupBox ids={sel} els={els} ctx={ctx} />}
       {markNumbers && marks.length > 0 && <MarkNumbers ids={marks} els={els} ctx={ctx} />}
       {handles && selEl && isQuad(selEl) && <QuadHandles el={selEl} ctx={ctx} />}
       {handles && selEl && ((selEl.k === "token" && selEl.feet) || materialOf(selEl.k)) && <TurnHandle el={selEl} ctx={ctx} />}

@@ -1,15 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ChevronLeft, ChevronRight, Circle, Copy, Film, Image as ImageIcon, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Waypoints } from "lucide-react";
+import { Activity, BoxSelect, ChevronLeft, ChevronRight, Circle, Copy, Film, Image as ImageIcon, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, SquareCheckBig, TrendingUp, Triangle, Type, Trash2, Undo2, Waypoints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, arrowPoints, byRank, changeField, chipOf, defaultControl, duplicateFrame, faceToward, fieldOf, fromView,
-  boardMode, boardSpeed, ghostsOf, hitTest, isCarried, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, materialOf, moveFrame, newId, normalizeBoard, orderForLine, orientOf, patchElement, removeElement,
-  removeFrame, removeTeam, setAllChips, setAllFeet, shiftElement, teamInUse, teamsOf, liftNormal, zoneCorners,
+  AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, arrowPoints, changeField, chipOf, defaultControl, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView,
+  boardMode, boardSpeed, ghostsOf, hitTest, isCarried, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, materialOf, moveFrame, moveLayer, newId, normalizeBoard, orderForLine, orientOf, patchElement, recolorElements, removeElement,
+  removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setFeetOf, setTeamOf, shiftElement, spreadElements, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph } from "./BoardSvg";
 import { DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon } from "./BoardControls";
 import BoardProps, { ARROW_PRESETS, KIND_LABEL, typeOfArrow } from "./BoardProps";
 import BoardDownloads from "./BoardDownloads";
+import MultiPanel, { LayerButtons } from "./BoardMulti";
 
 // Editor de la pizarra: fichas de hasta cinco equipos (cada uno de su color), balón, conos, porterías, flechas (rectas,
 // curvas o por el aire), zonas y textos, con fotogramas para animar el movimiento. Mismo editor para tareas de
@@ -68,7 +69,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const isTeamTool = (id) => teamIds.includes(id);
   const [fi, setFi] = useState(0);
   const [tool, setTool] = useState("select");
-  const [selId, setSelId] = useState(null);
+  const [sel, setSel] = useState([]); // ids elegidos (uno o varios)
+  const [multiMode, setMultiMode] = useState(false); // «Varios»: tocar suma o quita de lo elegido
   const [draft, setDraft] = useState(null);
   const [pick, setPick] = useState([]);
   const [brush, setBrush] = useState(BRUSH0);
@@ -90,8 +92,17 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const idx = imageMode ? 0 : Math.min(fi, last);
   const cur = board.frames[idx];
   const prev = idx > 0 ? board.frames[idx - 1] : null;
-  const selected = cur.els.find((e) => e.id === selId) || null;
-  useEffect(() => { if (selId && !selected && !playing) setSelId(null); }, [selId, selected, playing]);
+  // Con una sola cosa elegida se edita con su panel y sus tiradores; con varias, con el panel de grupo
+  const selId = sel.length === 1 ? sel[0] : null;
+  const setSelId = (id) => setSel(id ? [id] : []);
+  const selected = selId ? cur.els.find((e) => e.id === selId) || null : null;
+  const selEls = sel.map((id) => cur.els.find((e) => e.id === id)).filter(Boolean);
+  const multi = sel.length > 1 && selEls.length > 1;
+  useEffect(() => {
+    if (playing || !sel.length) return;
+    const alive = sel.filter((id) => cur.els.some((e) => e.id === id));
+    if (alive.length !== sel.length) setSel(alive);
+  }, [sel, cur, playing]);
   useEffect(() => { if (fi > last) setFi(last); }, [fi, last]);
 
   // Los cambios seguidos de un mismo control (deslizador, selector de color) cuentan como uno solo al deshacer.
@@ -107,8 +118,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const undo = () => {
     if (!history.length) return;
     onChange(history[history.length - 1]);
-    setHistory(history.slice(0, -1));
-    setSelId(null);
+    setHistory(history.slice(0, -1)); // lo elegido sigue elegido (si ya no existe, se suelta solo)
     coalesce.current = { key: null, at: 0 };
   };
 
@@ -181,21 +191,37 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     }
     // Unir fichas: se toca cada ficha (o se arrastra un recuadro) para elegirlas; luego se crea el conector
     if (tool === "link") {
-      const hit = hitTest(cur.els.filter(isLinkable).sort(byRank), p, { orient, chip });
+      const hit = hitTest(drawOrder(cur.els.filter(isLinkable)), p, { orient, chip });
       if (hit) setPick((pk) => (pk.includes(hit.id) ? pk.filter((i) => i !== hit.id) : [...pk, hit.id]));
       else { drag.current = { mode: "box", from: p }; setDraft({ k: "box", x: p.x, y: p.y, w: 0, h: 0 }); }
       return;
     }
     // Con las herramientas de colocar (fichas, balón…) una zona o un conector no se «agarra» por dentro: ahí se coloca
-    const sorted = [...cur.els].sort(byRank);
+    const sorted = drawOrder(cur.els);
+    const additive = tool === "select" && (multiMode || e.shiftKey || e.ctrlKey || e.metaKey);
     const target = hitTest(tool === "select" ? sorted : sorted.filter((el) => el.k !== "zone" && el.k !== "link"), p, { orient, chip });
     const drawing = tool === "zone" || tool === "quad" || ARROW_TOOLS.includes(tool);
     if (tool === "select" || (target && !drawing)) {
       if (target) {
-        setSelId(target.id);
+        // «Varios» o Mayús/Ctrl: suma o quita esa cosa de lo elegido, sin arrastrar
+        if (additive) {
+          // una zona o un conector ocupa mucho sitio: arrastrando desde ahí se dibuja el recuadro y, si solo se toca, se suma o se quita
+          if (target.k === "zone" || target.k === "link") { drag.current = { mode: "marquee", from: p, add: true, tap: target.id }; setDraft({ k: "box", x: p.x, y: p.y, w: 0, h: 0 }); return; }
+          setSel((s) => (s.includes(target.id) ? s.filter((i) => i !== target.id) : [...s, target.id]));
+          drag.current = null;
+          return;
+        }
+        // arrastrar una de varias elegidas las mueve todas; tocarla sin arrastrar deja solo esa
+        const inGroup = sel.length > 1 && sel.includes(target.id);
+        if (!inGroup) setSel([target.id]);
         // un conector no se arrastra: su forma sale de las fichas que une
-        drag.current = target.k === "link" ? null : { mode: "move", id: target.id, from: p, moved: false, snapshot: live.current };
-      } else setSelId(null);
+        drag.current = target.k === "link" && !inGroup ? null : { mode: "move", ids: inGroup ? sel : [target.id], only: inGroup ? target.id : null, from: p, moved: false, snapshot: live.current };
+      } else {
+        // espacio vacío: recuadro para elegir varias cosas a la vez
+        if (!additive) setSel([]);
+        drag.current = { mode: "marquee", from: p, add: additive };
+        setDraft({ k: "box", x: p.x, y: p.y, w: 0, h: 0 });
+      }
       return;
     }
     if (isTeamTool(tool)) return add({ id: newId(), k: "token", x: p.x, y: p.y, team: tool, label: "", ...brush.token });
@@ -211,7 +237,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const onMove = (e) => {
     const d = drag.current;
     if (!d) return;
-    if (d.mode === "draw" || d.mode === "box") {
+    if (d.mode === "draw" || d.mode === "box" || d.mode === "marquee") {
       const p = point(e);
       setDraft((c) => (c ? (c.k === "arrow" ? { ...c, x2: p.x, y2: p.y } : { ...c, w: round(p.x - c.x), h: round(p.y - c.y) }) : c));
       return;
@@ -243,7 +269,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       const dx = p.x - d.from.x, dy = p.y - d.from.y;
       if (!d.moved && Math.hypot(dx, dy) < 0.6) return;
       d.moved = true;
-      const els = d.snapshot.frames[idx].els.map((el) => (el.id === d.id ? shiftElement(el, dx, dy) : el));
+      const els = d.snapshot.frames[idx].els.map((el) => (d.ids.includes(el.id) ? shiftElement(el, dx, dy) : el));
       onChange({ ...d.snapshot, frames: d.snapshot.frames.map((f, i) => (i === idx ? { ...f, els } : f)) });
     }
   };
@@ -255,6 +281,14 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if ((d.mode === "move" || d.mode === "handle") && d.moved) {
       setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), d.snapshot]);
       coalesce.current = { key: null, at: 0 };
+    }
+    if (d.mode === "move" && !d.moved && d.only) setSel([d.only]);
+    if (d.mode === "marquee") {
+      if (draft && Math.abs(draft.w) > 1 && Math.abs(draft.h) > 1) {
+        const ids = elementsInBox(cur.els, draft);
+        setSel((s) => (d.add ? [...s, ...ids.filter((i) => !s.includes(i))] : ids));
+      } else if (d.tap) setSel((s) => (s.includes(d.tap) ? s.filter((i) => i !== d.tap) : [...s, d.tap]));
+      setDraft(null);
     }
     if (d.mode === "box") {
       if (draft && Math.abs(draft.w) > 1.5 && Math.abs(draft.h) > 1.5) {
@@ -323,7 +357,29 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (!selected) return;
     add(shiftElement({ ...selected, id: newId() }, 3, 3));
   };
-  const clearFrame = () => { if (cur.els.length) { setEls([]); setSelId(null); } };
+  // Varios elegidos a la vez
+  const delMany = (onlyHere = false) => { commit(removeElements(live.current, idx, sel, { onlyHere })); setSel([]); };
+  const dupMany = () => {
+    let b = live.current;
+    const ids = [];
+    for (const e of selEls.filter((x) => x.k !== "link")) {
+      const copy = shiftElement({ ...e, id: newId() }, 3, 3);
+      ids.push(copy.id);
+      b = addElement(b, idx, copy);
+    }
+    if (!ids.length) return;
+    commit(b);
+    setSel(ids);
+  };
+  const resizeMany = (f) => commit(resizeElements(live.current, idx, sel, f));
+  const spreadMany = (f) => commit(spreadElements(live.current, idx, sel, f));
+  const colorMany = (c) => commit(recolorElements(live.current, idx, sel, c));
+  const teamMany = (t) => commit(setTeamOf(live.current, idx, sel, t));
+  const feetMany = (on) => commit(setFeetOf(live.current, idx, sel, on));
+  // Capas: lo elegido (una o varias cosas) sube o baja en el orden de dibujo de este fotograma
+  const layer = (where) => commit(moveLayer(live.current, idx, sel, where, chip));
+  const selectAll = () => { setTool("select"); setDraft(null); setPick([]); setSel(cur.els.filter((e) => e.k !== "link").map((e) => e.id)); };
+  const clearFrame = () => { if (cur.els.length) { setEls([]); setSel([]); } };
 
   const addPlayer = (p) => {
     const team = isTeamTool(tool) ? tool : "a";
@@ -331,7 +387,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     add({ id: newId(), k: "token", x: round(Math.min(8 + (n % 6) * 10, field.w - 4)), y: round(6 + Math.floor(n / 6) * 7), team, label: p.label });
   };
 
-  const pickTool = (id) => { setTool(id); if (id !== "select") setSelId(null); setPick([]); setDraft(null); stop(); };
+  const pickTool = (id) => { setTool(id); if (id !== "select") { setSel([]); setMultiMode(false); } setPick([]); setDraft(null); stop(); };
 
   // Conector entre las fichas elegidas: línea (de un extremo al otro), zona (contorno que las envuelve) o red (todas con todas)
   const makeLink = (mode) => {
@@ -439,6 +495,26 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
 
       <div className="flex flex-wrap items-center gap-1">
         {toolBtn({ id: "select", label: "Mover" }, () => (<><MousePointer2 className="w-3.5 h-3.5" /><span className="hidden sm:inline">Mover</span></>))}
+        <button
+          type="button"
+          title="Varios: toca cada cosa para sumarla o quitarla de lo elegido (en el ordenador también con Mayús)"
+          aria-label="Elegir varios"
+          aria-pressed={multiMode}
+          onClick={() => { if (tool !== "select") pickTool("select"); setMultiMode((m) => !m); }}
+          className={`h-8 min-w-8 px-1.5 rounded-md border text-[11px] font-semibold flex items-center gap-1 ${multiMode ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+        >
+          <BoxSelect className="w-3.5 h-3.5" /><span className="hidden sm:inline">Varios</span>
+        </button>
+        <button
+          type="button"
+          title="Elegir todo lo del fotograma"
+          aria-label="Elegir todo"
+          onClick={selectAll}
+          disabled={!cur.els.length || playing}
+          className="h-8 min-w-8 px-1.5 rounded-md border text-[11px] font-semibold flex items-center gap-1 bg-white text-gray-600 border-gray-200 hover:bg-gray-50 disabled:opacity-40"
+        >
+          <SquareCheckBig className="w-3.5 h-3.5" /><span className="hidden sm:inline">Todo</span>
+        </button>
         <span className="w-px h-5 bg-gray-200 mx-0.5" aria-hidden="true" />
         {teams.map((t) => toolBtn({ id: t.id, label: t.name }, () => (
           <>
@@ -462,7 +538,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           ref={svgRef}
           board={board}
           els={shownEls}
-          selId={playing ? null : selId}
+          selIds={playing ? [] : sel}
           marks={playing ? [] : tool === "link" ? pick : selected?.k === "link" ? selected.ids || [] : []}
           markNumbers={!playing && (tool === "link" || (selected?.k === "link" && (selected.mode || "line") === "line"))}
           ghosts={ghosts}
@@ -496,6 +572,24 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         </div>
       )}
 
+      {multi && !playing && (
+        <MultiPanel
+          els={selEls}
+          board={board}
+          look={look}
+          frames={board.frames.length}
+          onTeam={teamMany}
+          onColor={colorMany}
+          onFeet={feetMany}
+          onResize={resizeMany}
+          onSpread={spreadMany}
+          onLayer={layer}
+          onDup={dupMany}
+          onDel={delMany}
+          onClear={() => setSel([])}
+        />
+      )}
+
       {panelEl && (
         <div className={`rounded-lg border px-2 py-1.5 space-y-1.5 ${selected ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-200"}`} data-testid="board-props">
           <div className="flex flex-wrap items-center gap-2">
@@ -520,6 +614,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           />
           {selected && (
             <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <LayerButtons onLayer={layer} />
               {selected.k !== "link" && <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs" onClick={dupSel} title="Duplicar"><Copy className="w-3.5 h-3.5" /> Duplicar</Button>}
               {isCarried(selected) && board.frames.length > 1 && (
                 <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => delSel(true)} title="Quitar solo de este fotograma">Solo aquí</Button>
@@ -577,6 +672,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           </div>
         </div>
       )}
+      {hasEls && tool === "select" && !sel.length && !playing && <p className="text-[11px] text-gray-400">Toca algo para elegirlo. Para elegir varias cosas, arrastra un recuadro por el campo o activa «Varios».</p>}
       {!hasEls && <p className="text-[11px] text-gray-400">Elige una herramienta y toca el campo. Con «+» añades un fotograma para animar el movimiento.</p>}
     </div>
   );
