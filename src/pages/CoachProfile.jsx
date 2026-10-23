@@ -457,29 +457,30 @@ export default function CoachProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue={showFeedbackTab ? "feedback" : "notes"}>
-        <TabsList>
+        {/* Una sola fila; en móvil, si no caben todas, se desliza hacia un lado (como las pestañas del resto de la app) */}
+        <TabsList className="flex-nowrap overflow-x-auto [&>*]:shrink-0">
           {showFeedbackTab && (
-            <TabsTrigger value="feedback"  style={{ fontFamily: "var(--font-display)" }}>
+            <TabsTrigger value="feedback" className="px-2 text-[11px] sm:px-3 sm:text-xs" style={{ fontFamily: "var(--font-display)" }}>
               {t("Feedback")}
             </TabsTrigger>
           )}
           {showFeedbackTab && (
-            <TabsTrigger value="eval360"  style={{ fontFamily: "var(--font-display)" }}>
+            <TabsTrigger value="eval360" className="px-2 text-[11px] sm:px-3 sm:text-xs" style={{ fontFamily: "var(--font-display)" }}>
               {t("Evaluación 360")}
             </TabsTrigger>
           )}
           {showPDITab && (
-            <TabsTrigger value="pdi"  style={{ fontFamily: "var(--font-display)" }}>
+            <TabsTrigger value="pdi" className="px-2 text-[11px] sm:px-3 sm:text-xs" style={{ fontFamily: "var(--font-display)" }}>
               {t("PDI · Plan Desarrollo Individual")}
             </TabsTrigger>
           )}
           {canViewReports && (
-            <TabsTrigger value="matches"  style={{ fontFamily: "var(--font-display)" }}>
+            <TabsTrigger value="matches" className="px-2 text-[11px] sm:px-3 sm:text-xs" style={{ fontFamily: "var(--font-display)" }}>
               {t("Notas privadas")}
             </TabsTrigger>
           )}
           {member.notes && (
-            <TabsTrigger value="notes"  style={{ fontFamily: "var(--font-display)" }}>
+            <TabsTrigger value="notes" className="px-2 text-[11px] sm:px-3 sm:text-xs" style={{ fontFamily: "var(--font-display)" }}>
               {t("Info")}
             </TabsTrigger>
           )}
