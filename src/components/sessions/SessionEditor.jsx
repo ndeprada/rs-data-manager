@@ -12,8 +12,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, CalendarCheck, ChevronDown, ChevronRight, Eye, Lock, Plus, Users } from "lucide-react";
+import { ArrowLeft, CalendarCheck, ChevronDown, ChevronRight, Eye, Library, Lock, Plus, Users } from "lucide-react";
 import TaskEditor from "./TaskEditor";
+import LibraryTaskPicker from "./LibraryTaskPicker";
+import { useToast } from "@/components/ui/use-toast";
+import { libraryToSessionTask } from "@/lib/taskLibrary";
 import SessionPreview from "./SessionPreview";
 import { longDate, matchRefOf, playerShortName, posShort, sortRoster, todayStr } from "./sessionHelpers";
 import {
@@ -181,6 +184,9 @@ export default function SessionEditor({ session, draft, teams, sessions = [], on
   const { user } = useAuth();
   const { perms } = useTeamAccess();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [libPart, setLibPart] = useState(null);
+  const [justLoaded, setJustLoaded] = useState(null);
   const idRef = useRef(session?.id || null);
   const [form, setForm] = useState(() => stripMeta(session || draft));
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -230,6 +236,21 @@ export default function SessionEditor({ session, draft, teams, sessions = [], on
   const moveTask = (part, i, dir) => setTasks(part, (ts) => { const a = [...ts]; const j = i + dir; if (j < 0 || j >= a.length) return ts; [a[i], a[j]] = [a[j], a[i]]; return a; });
   const duplicateTask = (part, i) => setTasks(part, (ts) => { const a = [...ts]; a.splice(i + 1, 0, { ...JSON.parse(JSON.stringify(ts[i])), id: emptyTask().id }); return a; });
   const addTask = (part) => setTasks(part, (ts) => [...ts, emptyTask(part === "initial" ? "inicial" : "principal")]);
+  // Cargar una tarea de la biblioteca: va al primer hueco en blanco o, si no hay, se añade al final (hasta el máximo de la parte)
+  const TASK_LIMIT = { initial: 2, main: 4 };
+  const pickFromLibrary = (lib) => {
+    const part = libPart;
+    if (!part) return;
+    const current = form[part]?.tasks || [];
+    const blankId = current.find(isBlankTask)?.id;
+    if (!blankId && current.length >= TASK_LIMIT[part]) {
+      toast({ title: "No queda hueco para otra tarea", description: "Abre la tarea que quieras cambiar y pulsa «Cargar de la biblioteca» dentro de ella.", variant: "destructive" });
+      return;
+    }
+    const t = libraryToSessionTask(lib, part === "initial" ? "inicial" : "principal");
+    setTasks(part, (ts) => (blankId ? ts.map((x) => (x.id === blankId ? t : x)) : [...ts, t]));
+    setJustLoaded(t.id);
+  };
 
   const changeTeam = (teamId) => {
     const t = teams.find((x) => x.id === teamId);
@@ -336,9 +357,12 @@ export default function SessionEditor({ session, draft, teams, sessions = [], on
             <TaskEditor key={t.id} task={t} index={i} label="Tarea inicial" stage={stage} roster={roster}
               onChange={(patch) => patchTask("initial", t.id, patch)} onRemove={() => removeTask("initial", t)}
               onMove={(d) => moveTask("initial", i, d)} onDuplicate={() => duplicateTask("initial", i)}
-              canMoveUp={i > 0} canMoveDown={i < initialTasks.length - 1} defaultOpen={i === 0 && isBlankTask(t)} />
+              canMoveUp={i > 0} canMoveDown={i < initialTasks.length - 1} defaultOpen={(i === 0 && isBlankTask(t)) || t.id === justLoaded} />
           ))}
-          {initialTasks.length < 2 && <Button type="button" variant="outline" size="sm" onClick={() => addTask("initial")}><Plus className="w-4 h-4 mr-1" /> Añadir tarea inicial</Button>}
+          <div className="flex flex-wrap gap-2">
+            {initialTasks.length < 2 && <Button type="button" variant="outline" size="sm" onClick={() => addTask("initial")}><Plus className="w-4 h-4 mr-1" /> Añadir tarea inicial</Button>}
+            <Button type="button" variant="outline" size="sm" onClick={() => setLibPart("initial")}><Library className="w-4 h-4 mr-1" /> Cargar de la biblioteca</Button>
+          </div>
         </div>
       </Card>
 
@@ -348,9 +372,12 @@ export default function SessionEditor({ session, draft, teams, sessions = [], on
             <TaskEditor key={t.id} task={t} index={i} label="Tarea" stage={stage} roster={roster}
               onChange={(patch) => patchTask("main", t.id, patch)} onRemove={() => removeTask("main", t)}
               onMove={(d) => moveTask("main", i, d)} onDuplicate={() => duplicateTask("main", i)}
-              canMoveUp={i > 0} canMoveDown={i < mainTasks.length - 1} defaultOpen={i === 0 && isBlankTask(t)} />
+              canMoveUp={i > 0} canMoveDown={i < mainTasks.length - 1} defaultOpen={(i === 0 && isBlankTask(t)) || t.id === justLoaded} />
           ))}
-          {mainTasks.length < 4 && <Button type="button" variant="outline" size="sm" onClick={() => addTask("main")}><Plus className="w-4 h-4 mr-1" /> Añadir tarea {mainTasks.length === 3 ? "(cuarta)" : ""}</Button>}
+          <div className="flex flex-wrap gap-2">
+            {mainTasks.length < 4 && <Button type="button" variant="outline" size="sm" onClick={() => addTask("main")}><Plus className="w-4 h-4 mr-1" /> Añadir tarea {mainTasks.length === 3 ? "(cuarta)" : ""}</Button>}
+            <Button type="button" variant="outline" size="sm" onClick={() => setLibPart("main")}><Library className="w-4 h-4 mr-1" /> Cargar de la biblioteca</Button>
+          </div>
         </div>
       </Card>
 
@@ -362,6 +389,7 @@ export default function SessionEditor({ session, draft, teams, sessions = [], on
         <Textarea value={form.notes || ""} onChange={(e) => set({ notes: e.target.value })} placeholder="Material, sesión de vídeo, cosas a recordar…" rows={3} />
       </Card>
 
+      <LibraryTaskPicker key={libPart || "none"} open={!!libPart} onOpenChange={(o) => { if (!o) setLibPart(null); }} part={libPart === "initial" ? "inicial" : "principal"} onPick={pickFromLibrary} />
       <SessionPreview open={previewOpen} onOpenChange={setPreviewOpen} session={sheetSession} team={team} players={roster} matchRef={form.match_ref} />
     </fieldset>
   );

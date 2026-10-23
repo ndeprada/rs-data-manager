@@ -5,6 +5,9 @@ import {
   lerpFrames, ghostsOf, toView, fromView, fieldOf, hitTest, shiftElement, arrowPoints, emptyBoard, MAX_FRAMES, frameCount, changeField,
   FIELDS, teamsOf, teamOf, tokenColor, chipOf, tokenR, DEFAULT_CHIP, CHIP_RANGE, arrowFlight, arrowProps, dashArray, liftNormal, fontOf, setAllChips,
   isQuad, zoneBox, zoneCorners, zoneShapePatch, convexHull, linkShape, linkProps, orderForLine, pruneLinks, isCarried,
+  LOOKS, lookOf, ORIENTS, orientOf, orientAngle, viewBox, fieldTurn, upVec, MAX_TEAMS, DEFAULT_TEAMS, addTeam, removeTeam, teamInUse, chipStyle, contrastColor, CHIP_PATTERNS,
+  MATERIALS, materialOf, ladderRungs, faceOf, faceToward, setAllFeet, ballStyle, BALL_PATTERNS, isLinkable, byRank,
+  boardMode, isAnimation, boardSpeed, animationDuration, elsAtTime, ANIM_HOLD,
 } from "../src/lib/board.js";
 
 const token = (id, x, y, team = "a") => ({ id, k: "token", x, y, team, label: "" });
@@ -177,18 +180,87 @@ test("hay cinco campos y uno desconocido cae en medio campo", () => {
   assert.equal(fieldOf("inventado").id, "half");
 });
 
-test("cinco equipos con color propio y los valores por defecto cuando faltan", () => {
+test("cuatro equipos de partida con color propio; Neutro solo si un dibujo antiguo lo usa", () => {
   const base = teamsOf({});
-  assert.equal(base.length, 5);
-  assert.deepEqual(base.map((t) => t.id), ["a", "b", "c", "gk", "n"]);
-  const b = { teams: [{ id: "b", name: "Rojos", color: "#ff0000" }, { id: "zz", name: "No existe", color: "#000" }] };
+  assert.deepEqual(base.map((t) => t.id), ["a", "b", "c", "gk"]);
+  assert.deepEqual(base.map((t) => t.color), ["#73000A", "#2563eb", "#f59e0b", "#16a34a"], "granate, azul, amarillo comodín y verde portero");
+  const b = { teams: [{ id: "b", name: "Rojos", color: "#ff0000" }] };
   const t = teamsOf(b);
-  assert.equal(t.length, 5, "no se cuelan equipos que no existen");
+  assert.equal(t.length, 4);
   assert.equal(t.find((x) => x.id === "b").name, "Rojos");
   assert.equal(t.find((x) => x.id === "a").name, "Equipo A", "lo no cambiado conserva el valor por defecto");
   assert.equal(teamOf(b, "b").color, "#ff0000");
   assert.equal(tokenColor(b, { team: "b" }), "#ff0000");
   assert.equal(tokenColor(b, { team: "b", color: "#00ff00" }), "#00ff00", "el color propio de la ficha manda");
+  const old = { frames: [{ els: [token("x", 1, 1, "n")] }] };
+  assert.deepEqual(teamsOf(old).map((x) => x.id), ["a", "b", "c", "gk", "n"], "el Neutro de los dibujos antiguos sigue existiendo");
+});
+
+test("equipos nuevos: se crean con color distinto, se limitan y solo se quitan los propios sin fichas", () => {
+  let b = emptyBoard();
+  const r = addTeam(b);
+  assert.equal(r.id, "t1");
+  b = r.board;
+  const nuevo = teamsOf(b).find((t) => t.id === "t1");
+  assert.equal(nuevo.name, "Equipo 5");
+  assert.ok(!DEFAULT_TEAMS.some((d) => d.color.toLowerCase() === nuevo.color.toLowerCase()), "el color no repite el de otro equipo");
+  assert.equal(addTeam(b).id, "t2");
+  const withTok = addElement(b, 0, token("p", 5, 5, "t1"));
+  assert.ok(teamInUse(withTok, "t1"));
+  assert.equal(removeTeam(withTok, "t1"), withTok, "con fichas no se quita");
+  assert.equal(removeTeam(b, "a"), b, "los de partida no se quitan");
+  assert.deepEqual(teamsOf(removeTeam(b, "t1")).map((t) => t.id), ["a", "b", "c", "gk"]);
+  let full = emptyBoard();
+  for (let i = 0; i < MAX_TEAMS + 3; i++) full = addTeam(full).board;
+  assert.equal(teamsOf(full).length, MAX_TEAMS);
+  assert.equal(addTeam(full).id, null);
+});
+
+test("diseño de ficha: lo del equipo, y lo propio de la ficha manda; el texto contrasta con el relleno", () => {
+  const b = { teams: [{ id: "a", name: "A", color: "#73000A", pattern: "sash", color2: "#ffffff", stroke: "#facc15" }] };
+  assert.deepEqual(chipStyle(b, { team: "a" }), { pattern: "sash", color: "#73000A", color2: "#ffffff", stroke: "#facc15" });
+  const own = chipStyle(b, { team: "a", pattern: "v", color: "#2563eb", color2: "#000000", stroke: "#ffffff" });
+  assert.deepEqual(own, { pattern: "v", color: "#2563eb", color2: "#000000", stroke: "#ffffff" });
+  const plain = chipStyle({}, { team: "b" });
+  assert.equal(plain.pattern, "solid");
+  assert.equal(plain.stroke, null, "sin borde propio se usa el del modo visual");
+  assert.equal(contrastColor("#73000A"), "#ffffff");
+  assert.equal(contrastColor("#fde047"), "#111827");
+  assert.equal(contrastColor("no-es-un-color"), "#111827");
+  assert.ok(CHIP_PATTERNS.length >= 5 && CHIP_PATTERNS[0].id === "solid");
+});
+
+test("seis modos visuales y uno desconocido cae en blanco", () => {
+  assert.deepEqual(LOOKS.map((l) => l.id), ["blanco", "blanco-liso", "blanco-cuadros", "color", "color-cuadros", "bn"]);
+  assert.equal(lookOf("color-cuadros"), "color-cuadros");
+  assert.equal(lookOf("inventado"), "blanco");
+  assert.equal(normalizeBoard({ v: 2, field: "tq", look: "blanco-liso", frames: [{ els: [] }] }).look, "blanco-liso");
+});
+
+test("cuatro orientaciones del campo: ida y vuelta de puntos, vista y arriba en pantalla", () => {
+  const f = fieldOf("full");
+  const p = { x: 20, y: 30 };
+  assert.deepEqual(ORIENTS.map((o) => o.id), ["v", "vi", "h", "hi"]);
+  for (const o of ["v", "vi", "h", "hi"]) assert.deepEqual(fromView(f, o, toView(f, o, p)), p, `ida y vuelta en ${o}`);
+  assert.deepEqual(toView(f, "vi", p), { x: 48, y: 75 });
+  assert.deepEqual(toView(f, "hi", p), { x: 75, y: 20 });
+  assert.deepEqual(toView(f, "hi", { x: 0, y: 0 }), { x: 105, y: 0 }, "en horizontal derecha la portería a atacar queda a la derecha");
+  assert.deepEqual(toView(f, "h", { x: 0, y: 0 }), { x: 0, y: 68 }, "en horizontal izquierda queda a la izquierda");
+  assert.deepEqual(toView(f, "vi", { x: 34, y: 0 }), { x: 34, y: 105 }, "en vertical invertido queda abajo");
+  assert.deepEqual(viewBox(f, "hi"), viewBox(f, "h"));
+  assert.deepEqual(viewBox(f, "vi"), viewBox(f, "v"));
+  assert.equal(viewBox(f, "h")[2], 111);
+  assert.equal(orientOf("raro"), "v");
+  assert.deepEqual([orientAngle("v"), orientAngle("vi"), orientAngle("h"), orientAngle("hi")], [0, 180, -90, 90]);
+  assert.equal(fieldTurn(f, "v"), undefined);
+  assert.equal(normalizeBoard({ v: 2, field: "full", orient: "hi", frames: [{ els: [] }] }).orient, "hi");
+  assert.equal(normalizeBoard({ v: 2, field: "full", orient: "zz", frames: [{ els: [] }] }).orient, "v");
+  // «arriba en pantalla» coincide con lo que dibuja toView: un paso hacia arriba en pantalla cae en el vector upVec del campo
+  for (const o of ["v", "vi", "h", "hi"]) {
+    const a = toView(f, o, { x: 30, y: 50 }), u = upVec(o);
+    const b = toView(f, o, { x: 30 + u.x, y: 50 + u.y });
+    assert.ok(b.y < a.y && Math.abs(b.x - a.x) < 1e-9, `arriba en ${o}`);
+  }
 });
 
 test("el tamaño de las fichas tiene un mínimo y un máximo y cada ficha puede ser mayor o menor", () => {
@@ -429,4 +501,108 @@ test("al cambiar de campo un conector queda tal cual (no tiene coordenadas propi
   assert.deepEqual(l.ids, ["a", "b"]);
   assert.equal(Number.isNaN(l.x), false);
   assert.ok(!("x" in l));
+});
+
+test("el conector une las fichas en el orden de sus ids, sea cual sea su posición", () => {
+  const els = [token("a", 10, 10), token("b", 50, 10), token("c", 30, 10)];
+  const l = { id: "l", k: "link", mode: "line", ids: ["b", "a", "c"] };
+  const g = linkShape(l, els);
+  assert.deepEqual(g.pts.map((p) => p.x), [50, 10, 30], "la línea va b → a → c, no la más cercana");
+  assert.deepEqual(linkShape({ ...l, closed: true }, els).closed, true);
+});
+
+test("material nuevo (pica, valla, escalera, maniquí): se mueve, se agarra girado y por encima o debajo según su tipo", () => {
+  assert.deepEqual(MATERIALS.map((m) => m.id), ["pole", "hurdle", "ladder", "dummy"]);
+  assert.equal(materialOf("ladder").label, "Escalera");
+  assert.equal(materialOf("goal"), null);
+  for (const k of ["pole", "hurdle", "ladder", "dummy"]) assert.ok(isCarried({ k }), `${k} pasa de un fotograma a otro`);
+  const ladder = { id: "l", k: "ladder", x: 30, y: 40, rot: 0 };
+  assert.equal(hitTest([ladder], { x: 30, y: 42.5 }).id, "l", "extremo largo de la escalera");
+  assert.equal(hitTest([ladder], { x: 35, y: 40 }), null, "fuera por el lado");
+  const turned = { ...ladder, rot: 90 };
+  assert.equal(hitTest([turned], { x: 33, y: 40 })?.id, "l", "girada 90° se extiende a lo ancho");
+  assert.equal(hitTest([turned], { x: 30, y: 42.5 }), null);
+  const big = { ...ladder, size: 2 };
+  assert.equal(hitTest([big], { x: 30, y: 45 })?.id, "l", "el tamaño agranda la zona de agarre");
+  assert.equal(ladderRungs({}), 8);
+  assert.equal(ladderRungs({ rungs: 99 }), 12);
+  assert.equal(ladderRungs({ rungs: 1 }), 4);
+  assert.ok(byRank({ k: "ladder" }, { k: "token" }) < 0, "la escalera queda por debajo de las fichas");
+  assert.ok(isLinkable({ k: "pole" }) && isLinkable({ k: "dummy" }) && !isLinkable({ k: "ladder" }));
+  assert.deepEqual(shiftElement(ladder, 2, -3), { ...ladder, x: 32, y: 37 });
+  const wide = changeField({ ...emptyBoard("full"), frames: [{ id: "f", els: [{ id: "h", k: "hurdle", x: 34, y: 52.5 }] }] }, "half");
+  assert.equal(wide.frames[0].els[0].x, 34);
+  assert.equal(wide.frames[0].els[0].y, 26.3, "al cambiar de campo se reescala como el resto");
+});
+
+test("pies y orientación de la ficha: ángulo hacia donde apunta el dedo, por fotograma, y la animación gira por el camino corto", () => {
+  assert.equal(faceOf({}), 0);
+  assert.equal(faceOf({ face: -90 }), 270);
+  assert.equal(faceOf({ face: 450 }), 90);
+  const from = { x: 20, y: 20 };
+  assert.equal(faceToward(from, { x: 20, y: 5 }), 0, "hacia arriba = a la portería a atacar");
+  assert.equal(faceToward(from, { x: 35, y: 20 }), 90);
+  assert.equal(faceToward(from, { x: 20, y: 40 }), 180);
+  assert.equal(faceToward(from, { x: 5, y: 20 }), 270);
+  assert.equal(faceToward(from, { x: 21, y: 4 }) % 5, 0, "se ajusta de 5 en 5 grados");
+  const a = { id: "f1", els: [{ ...token("p", 10, 10), feet: true, face: 350 }] };
+  const b = { id: "f2", els: [{ ...token("p", 30, 10), feet: true, face: 10 }] };
+  const mid = lerpFrames(a, b, 0.5).find((e) => e.id === "p");
+  assert.ok(Math.abs(faceOf(mid) - 0) < 0.01 || Math.abs(faceOf(mid) - 360) < 0.01, "de 350° a 10° pasa por 0°, no por 180°: " + faceOf(mid));
+  // el cambio de orientación vale solo para su fotograma; los pies valen para todos
+  let board = addFrame({ ...emptyBoard(), frames: [{ id: "f1", els: [{ ...token("p", 10, 10), feet: true }] }] }, 0).board;
+  board = patchElement(board, 1, "p", { face: 120 });
+  assert.equal(board.frames[0].els[0].face, undefined);
+  assert.equal(board.frames[1].els[0].face, 120);
+  const sinPies = setAllFeet(board, false);
+  assert.ok(sinPies.frames.every((f) => f.els[0].feet === undefined && f.els[0].face === undefined));
+  assert.ok(setAllFeet(sinPies, true).frames.every((f) => f.els[0].feet === true));
+});
+
+test("diseño del balón: sin estilo guardado es el de siempre y los colores se respetan", () => {
+  assert.deepEqual(ballStyle({}), { pattern: "dot", color: "#ffffff", color2: "#111827", stroke: null });
+  assert.deepEqual(ballStyle({ pattern: "classic", color: "#fde047", color2: "#000", stroke: "#f00" }), { pattern: "classic", color: "#fde047", color2: "#000", stroke: "#f00" });
+  assert.deepEqual(BALL_PATTERNS.map((p) => p.id), ["classic", "dot", "plain", "stripe"]);
+});
+
+test("tipo de dibujo: sin elegir se deduce de los fotogramas y los fotogramas se conservan al pasar a imagen", () => {
+  assert.equal(boardMode(null), "image");
+  assert.equal(boardMode(emptyBoard()), "image");
+  const dos = addFrame(emptyBoard(), 0).board;
+  assert.equal(boardMode(dos), "anim");
+  assert.equal(isAnimation(dos), true);
+  const imagen = normalizeBoard({ ...dos, mode: "image" });
+  assert.equal(boardMode(imagen), "image");
+  assert.equal(imagen.frames.length, 2, "no se pierde ningún fotograma");
+  assert.equal(isAnimation(imagen), false);
+  const animUno = normalizeBoard({ ...emptyBoard(), mode: "anim" });
+  assert.equal(boardMode(animUno), "anim");
+  assert.equal(isAnimation(animUno), false, "con un solo fotograma no hay animación que reproducir");
+  assert.equal(normalizeBoard({ ...dos, mode: "otra" }).mode, undefined, "un valor raro se ignora");
+});
+
+test("velocidad de la animación: se guarda con el dibujo y un valor raro vuelve a normal", () => {
+  assert.equal(boardSpeed({}), 1500);
+  assert.equal(boardSpeed({ speed: 800 }), 800);
+  assert.equal(boardSpeed({ speed: 123 }), 1500);
+  assert.equal(normalizeBoard({ ...emptyBoard(), speed: 2600 }).speed, 2600);
+  assert.equal(normalizeBoard({ ...emptyBoard(), speed: 9 }).speed, undefined);
+});
+
+test("línea de tiempo del vídeo: espera al principio, recorre cada paso y espera al final", () => {
+  let b = { ...emptyBoard(), frames: [{ id: "f1", els: [token("p", 0, 0)] }] };
+  assert.equal(animationDuration(b), 0, "con un fotograma no hay vídeo");
+  b = addFrame(b, 0).board;
+  b = patchElement(b, 1, "p", { x: 20, y: 10 });
+  b = addFrame(b, 1).board;
+  b = patchElement(b, 2, "p", { x: 40, y: 10 });
+  assert.equal(animationDuration(b, { speed: 1000 }), ANIM_HOLD.start + 2000 + ANIM_HOLD.end);
+  const at = (ms) => elsAtTime(b, ms, { speed: 1000 }).find((e) => e.id === "p");
+  assert.equal(at(0).x, 0, "al empezar está en el primer fotograma");
+  assert.equal(at(ANIM_HOLD.start).x, 0);
+  assert.equal(at(ANIM_HOLD.start + 500).x, 10, "a mitad del primer paso");
+  assert.equal(at(ANIM_HOLD.start + 1000).x, 20);
+  assert.equal(at(ANIM_HOLD.start + 1500).x, 30);
+  assert.equal(at(ANIM_HOLD.start + 2000).x, 40);
+  assert.equal(at(ANIM_HOLD.start + 5000).x, 40, "después del final se queda en el último");
 });

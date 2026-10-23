@@ -72,9 +72,16 @@ function TaskBody({ task }) {
   );
 }
 
+// Dibujo de la tarea en la ficha: el de la pizarra o, si no hay, la imagen que venía de la biblioteca
+const hasDrawing = (t) => hasBoard(t.board) || Boolean(t.diagram_url);
+function Drawing({ task, full, half }) {
+  if (hasBoard(task.board)) return <PitchView board={task.board} style={{ width: "100%", maxHeight: task.board.field === "full" ? full : half }} />;
+  return <img src={task.diagram_url} alt="" style={{ width: "100%", maxHeight: full, objectFit: "contain" }} />;
+}
+
 function MainTasks({ tasks }) {
   const cols = Math.max(1, Math.min(tasks.length, 4));
-  const anyBoard = tasks.some((t) => hasBoard(t.board));
+  const anyBoard = tasks.some(hasDrawing);
   const line = (i) => (i === 0 ? "none" : "0.3mm solid #cbb");
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
@@ -86,7 +93,7 @@ function MainTasks({ tasks }) {
       ))}
       {anyBoard && tasks.map((t, i) => (
         <div key={`d${t.id}`} style={{ gridColumn: i + 1, gridRow: 3, borderLeft: line(i), borderTop: "0.3mm solid #d8c4c8", background: "#e9efe9", padding: "1mm", display: "flex", justifyContent: "center", alignItems: "center", minWidth: 0 }}>
-          {hasBoard(t.board) && <PitchView board={t.board} style={{ width: "100%", maxHeight: t.board.field === "full" ? "88mm" : "52mm" }} />}
+          {hasDrawing(t) && <Drawing task={t} full="88mm" half="52mm" />}
         </div>
       ))}
     </div>
@@ -106,7 +113,7 @@ export default function SessionSheet({ session, team, players = [], matchRef }) 
   const showAtt = roster.length > 0 && session.show_attendance !== false;
   const initialTitle = initial.map((t) => (t.title || "").toUpperCase()).filter(Boolean).join(" + ");
   const initialMins = initial.map((t) => taskMinutes(t)).filter(Boolean);
-  const boards = initial.filter((t) => hasBoard(t.board));
+  const boards = initial.filter(hasDrawing);
   const match = session.match_ref || matchRef || "";
 
   const cell = { border: "0.2mm solid #e3d9db", padding: "0.5mm 1mm", fontSize: "6.2pt", lineHeight: 1.2, verticalAlign: "middle" };
@@ -196,7 +203,7 @@ export default function SessionSheet({ session, team, players = [], matchRef }) 
           </div>
           {boards.map((t) => (
             <div key={t.id} style={{ borderTop: "0.3mm solid #d8c4c8", background: "#e9efe9", padding: "1mm", display: "flex", justifyContent: "center" }}>
-              <PitchView board={t.board} style={{ width: "100%", maxHeight: t.board.field === "full" ? "60mm" : "40mm" }} />
+              <Drawing task={t} full="60mm" half="40mm" />
             </div>
           ))}
         </div>

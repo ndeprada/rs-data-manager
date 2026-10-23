@@ -13,8 +13,8 @@ export { FIELDS } from "@/lib/board";
  * onChange (nuevoValor) => void
  * roster   [{ id, label }] nombres para añadir fichas con un toque
  */
-export default function PitchBoard({ value, onChange, roster = [] }) {
-  return <BoardEditor value={value} onChange={onChange} roster={roster} filename="tarea" />;
+export default function PitchBoard({ value, onChange, roster = [], filename = "tarea" }) {
+  return <BoardEditor value={value} onChange={onChange} roster={roster} filename={filename} modes />;
 }
 
 // Vista de solo lectura (ficha impresa y vista previa): primer fotograma (o el indicado) en el modo visual del dibujo.

@@ -20,27 +20,92 @@ export const FIELDS = [
 ];
 export const fieldOf = (id) => FIELDS.find((f) => f.id === id) || FIELDS.find((f) => f.id === "half");
 
-// Modos visuales: pensados para pantalla y para imprimir sin gastar tinta.
+// Modos visuales: pensados para pantalla y para imprimir sin gastar tinta. «blanco» y «color» son los de siempre (con
+// franjas); los demás ids son nuevos (liso y cuadrícula).
 export const LOOKS = [
-  { id: "blanco", label: "Campo blanco, fichas de color" },
-  { id: "color", label: "Campo verde" },
+  { id: "blanco", label: "Blanco y gris (franjas)" },
+  { id: "blanco-liso", label: "Blanco liso" },
+  { id: "blanco-cuadros", label: "Blanco y gris (cuadrícula)" },
+  { id: "color", label: "Verde (franjas)" },
+  { id: "color-cuadros", label: "Verde (cuadrícula)" },
   { id: "bn", label: "Blanco y negro (impresión)" },
 ];
 export const DEFAULT_LOOK = "blanco";
 export const lookOf = (id) => LOOKS.find((l) => l.id === id)?.id || DEFAULT_LOOK;
 
-// Hasta cinco equipos, cada uno con su nombre y su color (cualquiera). Los ids se mantienen por compatibilidad.
+// Equipos: cuatro de partida (granate, azul, amarillo y verde de portero), todos con nombre y color libres, y se pueden crear
+// más (hasta MAX_TEAMS). `n` (Neutro) es de los dibujos antiguos: solo aparece si hay fichas que lo usan.
+export const MAX_TEAMS = 8;
 export const DEFAULT_TEAMS = [
   { id: "a", name: "Equipo A", color: "#73000A" },
   { id: "b", name: "Equipo B", color: "#2563eb" },
   { id: "c", name: "Comodín", color: "#f59e0b" },
   { id: "gk", name: "Portero", color: "#16a34a" },
-  { id: "n", name: "Neutro", color: "#374151" },
 ];
+const NEUTRAL_TEAM = { id: "n", name: "Neutro", color: "#374151" };
 export const TEAMS = DEFAULT_TEAMS.map((t) => ({ id: t.id, label: t.name }));
-export const teamsOf = (board) => DEFAULT_TEAMS.map((d) => ({ ...d, ...(board?.teams || []).find((t) => t?.id === d.id) }));
+const TEAM_COLORS = ["#7c3aed", "#ec4899", "#0d9488", "#f97316", "#06b6d4", "#84cc16", "#92400e", "#ffffff", "#111827"];
+
+export function teamsOf(board) {
+  const saved = Array.isArray(board?.teams) ? board.teams.filter((t) => t && t.id) : [];
+  const out = DEFAULT_TEAMS.map((d) => ({ ...d, ...saved.find((t) => t.id === d.id) }));
+  for (const t of saved) if (!DEFAULT_TEAMS.some((d) => d.id === t.id)) out.push({ name: "Equipo", color: "#6b7280", ...(t.id === "n" ? NEUTRAL_TEAM : {}), ...t });
+  const usesNeutral = (board?.frames || []).some((f) => (f.els || []).some((e) => e.k === "token" && e.team === "n"));
+  if (usesNeutral && !out.some((t) => t.id === "n")) out.push({ ...NEUTRAL_TEAM });
+  return out;
+}
 export const teamOf = (board, id) => teamsOf(board).find((t) => t.id === id) || DEFAULT_TEAMS[0];
 export const tokenColor = (board, el) => el.color || teamOf(board, el.team).color;
+
+// Equipo nuevo: id propio, siguiente color que no esté en uso. Devuelve { board, id } (id null si ya hay el máximo).
+export function addTeam(board) {
+  const teams = teamsOf(board);
+  if (teams.length >= MAX_TEAMS) return { board, id: null };
+  const ids = new Set(teams.map((t) => t.id));
+  let n = 1;
+  while (ids.has(`t${n}`)) n++;
+  const used = new Set(teams.map((t) => String(t.color).toLowerCase()));
+  const color = TEAM_COLORS.find((c) => !used.has(c)) || TEAM_COLORS[0];
+  const team = { id: `t${n}`, name: `Equipo ${teams.length + 1}`, color };
+  return { board: { ...board, teams: [...teams, team] }, id: team.id };
+}
+// Quitar un equipo creado a mano (los de partida no se quitan) siempre que ninguna ficha lo use.
+export const teamInUse = (board, id) => board.frames.some((f) => f.els.some((e) => e.k === "token" && e.team === id));
+export function removeTeam(board, id) {
+  if (DEFAULT_TEAMS.some((d) => d.id === id) || teamInUse(board, id)) return board;
+  return { ...board, teams: teamsOf(board).filter((t) => t.id !== id) };
+}
+
+// Diseño de las fichas: color de relleno, segundo color del dibujo y borde, por equipo y, si se quiere, por ficha suelta.
+export const CHIP_PATTERNS = [
+  { id: "solid", label: "Lisa" },
+  { id: "sash", label: "Banda cruzada" },
+  { id: "v", label: "Líneas verticales" },
+  { id: "h", label: "Líneas horizontales" },
+  { id: "halves", label: "Mitades" },
+];
+// Diseño del balón: color, segundo color (los dibujos) y estilo. Sin estilo guardado es el de antes (punto central).
+export const BALL_PATTERNS = [
+  { id: "classic", label: "Clásico" },
+  { id: "dot", label: "Punto" },
+  { id: "plain", label: "Liso" },
+  { id: "stripe", label: "Franja" },
+];
+export const ballStyle = (el) => ({ pattern: el?.pattern || "dot", color: el?.color || "#ffffff", color2: el?.color2 || "#111827", stroke: el?.stroke || null });
+
+export function contrastColor(hex) {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hex || "").trim());
+  if (!m) return "#111827";
+  const h = m[1].length === 3 ? m[1].split("").map((c) => c + c).join("") : m[1];
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.35 ? "#ffffff" : "#111827";
+}
+// Diseño de una ficha: lo suyo si lo tiene, si no lo del equipo. stroke null = el borde por defecto del modo visual.
+export function chipStyle(board, el) {
+  const t = teamOf(board, el.team);
+  const color = el.color || t.color;
+  return { pattern: el.pattern || t.pattern || "solid", color, color2: el.color2 || t.color2 || contrastColor(color), stroke: el.stroke || t.stroke || null };
+}
 
 // Radio base de las fichas (metros) y tamaño de cada una (múltiplo del base)
 export const DEFAULT_CHIP = 1.5;
@@ -76,13 +141,45 @@ export const GOAL_SIZES = [
   { id: "f11", label: "Grande", w: 7.32 },
 ];
 
-const MOVABLE = new Set(["token", "ball", "cone", "goal"]);
+// Material de entrenamiento que se dibuja con giro y tamaño: media anchura (hw) y media longitud (hh) en metros con tamaño 1.
+// Con giro 0 la pica y el maniquí miran hacia arriba, la valla es una barra horizontal y la escalera se extiende a lo largo.
+export const MATERIALS = [
+  { id: "pole", label: "Pica", hw: 0.9, hh: 1.7, color: "#eab308" },
+  { id: "hurdle", label: "Valla", hw: 1.6, hh: 1.0, color: "#2563eb" },
+  { id: "ladder", label: "Escalera", hw: 0.85, hh: 3.1, color: "#f59e0b" },
+  { id: "dummy", label: "Maniquí", hw: 1.25, hh: 0.95, color: "#6b7280" },
+];
+export const materialOf = (k) => MATERIALS.find((m) => m.id === k) || null;
+export const LADDER_RUNGS = [4, 12];
+export const ladderRungs = (el) => Math.min(LADDER_RUNGS[1], Math.max(LADDER_RUNGS[0], Math.round(Number(el?.rungs) || 8)));
+
+// Ficha con pies: mira hacia `face` (grados, sentido horario desde «hacia la portería a atacar» en coordenadas de campo).
+export const faceOf = (el) => (((Number(el?.face) || 0) % 360) + 360) % 360;
+export const FACE_STEP = 5;
+// Ángulo de orientación (grados) de una ficha para el punto del campo `target`, desde la ficha `from`.
+export const faceToward = (from, target, step = FACE_STEP) => {
+  const a = (Math.atan2(target.x - from.x, -(target.y - from.y)) * 180) / Math.PI;
+  const snapped = Math.round(a / step) * step;
+  return ((snapped % 360) + 360) % 360;
+};
+// Pies o no en todas las fichas (todos los fotogramas)
+export function setAllFeet(board, on) {
+  const tweak = (e) => {
+    if (e.k !== "token") return e;
+    if (on) return { ...e, feet: true };
+    const { feet: _f, face: _a, ...rest } = e;
+    return rest;
+  };
+  return { ...board, frames: board.frames.map((f) => ({ ...f, els: f.els.map(tweak) })) };
+}
+
+const MOVABLE = new Set(["token", "ball", "cone", "goal", "pole", "hurdle", "ladder", "dummy"]);
 export const isMovable = (el) => MOVABLE.has(el?.k);
 // Lo que pasa de un fotograma al siguiente con el mismo id: lo que se mueve y los conectores (que unen fichas por su id y
 // siguen sus posiciones). Flechas, zonas y textos son de su fotograma.
 export const isCarried = (el) => isMovable(el) || el?.k === "link";
-// Lo que se puede unir con un conector: fichas, conos y balón (puntos, no porterías)
-export const isLinkable = (el) => el?.k === "token" || el?.k === "cone" || el?.k === "ball";
+// Lo que se puede unir con un conector: fichas, conos, balón, picas y maniquíes (puntos, no porterías ni escaleras)
+export const isLinkable = (el) => ["token", "cone", "ball", "pole", "dummy"].includes(el?.k);
 
 let counter = 0;
 export const newId = () => `e${Date.now().toString(36)}${(counter++).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
@@ -102,7 +199,9 @@ export function normalizeBoard(value) {
       v: BOARD_VERSION,
       field: fieldOf(value.field).id,
       look: lookOf(value.look),
-      orient: value.orient === "h" ? "h" : "v",
+      orient: orientOf(value.orient),
+      ...(value.mode === "image" || value.mode === "anim" ? { mode: value.mode } : {}),
+      ...(SPEED_IDS.includes(value.speed) ? { speed: value.speed } : {}),
       ...(Array.isArray(value.teams) ? { teams: value.teams } : {}),
       ...(value.chipSize ? { chipSize: value.chipSize } : {}),
       frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [] })),
@@ -124,6 +223,14 @@ export const hasBoard = (b) => {
 };
 
 export const frameCount = (b) => (b?.v === BOARD_VERSION ? b.frames.length : 1);
+
+// Tipo de dibujo de una tarea: una imagen (un solo fotograma, el primero) o una animación (varios fotogramas). Sin elegir,
+// se deduce de los fotogramas que tenga. Los fotogramas de una animación se conservan al pasar a imagen, por si se vuelve.
+export const boardMode = (b) => (b?.mode === "image" || b?.mode === "anim" ? b.mode : (b?.frames?.length || 1) > 1 ? "anim" : "image");
+// Velocidad de la animación (ms por paso entre fotogramas), guardada con el dibujo para que reproductor y vídeo la respeten
+export const SPEED_IDS = [800, 1500, 2600];
+export const boardSpeed = (b) => (SPEED_IDS.includes(b?.speed) ? b.speed : 1500);
+export const isAnimation = (b) => boardMode(b) === "anim" && (b?.frames?.length || 0) > 1;
 
 // ── Fotogramas ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -230,6 +337,9 @@ export const IDENTITY_PATCH = ["label", "team"];
 
 // ── Animación ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
+// Giro por el camino más corto
+const lerpAngle = (a, b, k) => a + (((b - a + 540) % 360) - 180) * k;
+
 export const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2);
 
 // Estado intermedio entre dos fotogramas (t de 0 a 1). Devuelve elementos con `opacity`.
@@ -242,7 +352,11 @@ export function lerpFrames(a, b, t) {
     if (isCarried(e)) {
       const n = bById.get(e.id);
       if (n) {
-        out.push(isMovable(e) ? { ...e, x: e.x + (n.x - e.x) * k, y: e.y + (n.y - e.y) * k, opacity: 1 } : { ...e, opacity: 1 });
+        if (isMovable(e)) {
+          const o = { ...e, x: e.x + (n.x - e.x) * k, y: e.y + (n.y - e.y) * k, opacity: 1 };
+          if (e.k === "token" && e.feet && (e.face != null || n.face != null)) o.face = lerpAngle(faceOf(e), faceOf(n), k);
+          out.push(o);
+        } else out.push({ ...e, opacity: 1 });
         bById.delete(e.id);
       } else out.push({ ...e, opacity: 1 - k });
     } else out.push({ ...e, opacity: 1 - k });
@@ -252,6 +366,22 @@ export function lerpFrames(a, b, t) {
     else if (bById.has(e.id)) out.push({ ...e, opacity: k });
   }
   return out;
+}
+
+// Línea de tiempo de la animación completa (para el vídeo): se queda un momento en el primer fotograma, recorre cada
+// transición en `speed` ms y se queda un momento en el último.
+export const ANIM_HOLD = { start: 600, end: 1200 };
+export const animationDuration = (board, { speed = 1500, holdStart = ANIM_HOLD.start, holdEnd = ANIM_HOLD.end } = {}) =>
+  board.frames.length < 2 ? 0 : holdStart + (board.frames.length - 1) * speed + holdEnd;
+export function elsAtTime(board, ms, { speed = 1500, holdStart = ANIM_HOLD.start } = {}) {
+  const frames = board.frames;
+  const n = frames.length;
+  if (n < 2) return frames[0].els;
+  const seg = (ms - holdStart) / speed;
+  if (seg <= 0) return frames[0].els;
+  if (seg >= n - 1) return frames[n - 1].els;
+  const i = Math.floor(seg);
+  return lerpFrames(frames[i], frames[i + 1], seg - i);
 }
 
 // Posición de cada elemento que se mueve entre el fotograma anterior y el actual (rastro en el editor).
@@ -269,10 +399,47 @@ export function ghostsOf(prev, cur) {
 
 // ── Geometría ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
-// Vista horizontal: el campo se gira un cuarto de vuelta; las fichas y los textos se quedan derechos.
-export const toView = (field, orient, p) => (orient === "h" ? { x: p.y, y: field.w - p.x } : { x: p.x, y: p.y });
-export const fromView = (field, orient, p) => (orient === "h" ? { x: round(field.w - p.y), y: round(p.x) } : { x: round(p.x), y: round(p.y) });
-export const viewBox = (field, orient) => (orient === "h" ? [-3, -3, field.h + 6, field.w + 6] : [-3, -3, field.w + 6, field.h + 6]);
+// Orientación del campo en pantalla: vertical (ataca arriba o abajo) u horizontal (ataca a la izquierda o a la derecha). El
+// campo se gira de cuarto en cuarto de vuelta; las fichas y los textos se quedan derechos.
+export const ORIENTS = [
+  { id: "v", label: "Vertical · ataca arriba", angle: 0 },
+  { id: "vi", label: "Vertical · ataca abajo", angle: 180 },
+  { id: "h", label: "Horizontal · ataca a la izquierda", angle: -90 },
+  { id: "hi", label: "Horizontal · ataca a la derecha", angle: 90 },
+];
+export const orientOf = (id) => ORIENTS.find((o) => o.id === id)?.id || "v";
+// Giro (grados, sentido de las agujas del reloj) que lleva el campo de «vertical, ataca arriba» a esa orientación
+export const orientAngle = (o) => ORIENTS.find((x) => x.id === o)?.angle ?? 0;
+export const isSideways = (o) => o === "h" || o === "hi";
+
+export function toView(field, orient, p) {
+  switch (orient) {
+    case "h": return { x: p.y, y: field.w - p.x };
+    case "vi": return { x: field.w - p.x, y: field.h - p.y };
+    case "hi": return { x: field.h - p.y, y: p.x };
+    default: return { x: p.x, y: p.y };
+  }
+}
+export function fromView(field, orient, p) {
+  switch (orient) {
+    case "h": return { x: round(field.w - p.y), y: round(p.x) };
+    case "vi": return { x: round(field.w - p.x), y: round(field.h - p.y) };
+    case "hi": return { x: round(p.y), y: round(field.h - p.x) };
+    default: return { x: round(p.x), y: round(p.y) };
+  }
+}
+export const viewBox = (field, orient) => (isSideways(orient) ? [-3, -3, field.h + 6, field.w + 6] : [-3, -3, field.w + 6, field.h + 6]);
+// Transformación SVG que lleva el campo (dibujado en vertical) a la orientación elegida
+export function fieldTurn(field, orient) {
+  switch (orient) {
+    case "h": return `translate(0 ${field.w}) rotate(-90)`;
+    case "vi": return `translate(${field.w} ${field.h}) rotate(180)`;
+    case "hi": return `translate(${field.h} 0) rotate(90)`;
+    default: return undefined;
+  }
+}
+// Vector de campo → vector de pantalla (solo la parte lineal de toView)
+export const viewVec = (orient, n) => (orient === "h" ? { x: n.y, y: -n.x } : orient === "vi" ? { x: -n.x, y: -n.y } : orient === "hi" ? { x: -n.y, y: n.x } : n);
 
 // Punto de control de una flecha curva (por defecto, la mitad desplazada hacia un lado).
 export const defaultControl = (a) => {
@@ -310,7 +477,7 @@ export function wavyPoints(pts, amp = 0.55, period = 2.6) {
 }
 
 // Arriba en pantalla, expresado en coordenadas de campo.
-export const upVec = (orient) => (orient === "h" ? { x: 1, y: 0 } : { x: 0, y: -1 });
+export const upVec = (orient) => (orient === "h" ? { x: 1, y: 0 } : orient === "vi" ? { x: 0, y: 1 } : orient === "hi" ? { x: -1, y: 0 } : { x: 0, y: -1 });
 export const AIR_MAX = 30;
 
 // Lado hacia el que se curva el vuelo de un pase aéreo: perpendicular al recorrido, del lado «de arriba» de la pantalla
@@ -321,7 +488,7 @@ export function liftNormal(a, orient = "v") {
   const len = Math.hypot(dx, dy);
   if (len < 1e-6) return upVec(orient);
   let n = { x: -dy / len, y: dx / len };
-  const v = orient === "h" ? { x: n.y, y: -n.x } : n;
+  const v = viewVec(orient, n);
   if (v.y > 1e-6 || (Math.abs(v.y) <= 1e-6 && v.x < 0)) n = { x: -n.x, y: -n.y };
   return n;
 }
@@ -498,6 +665,13 @@ export function hitTest(els, p, opts = {}) {
       const lx = dx * Math.cos(a) + dy * Math.sin(a), ly = -dx * Math.sin(a) + dy * Math.cos(a);
       if (Math.abs(lx) < (el.w || 7.32) / 2 + 1.2 && Math.abs(ly) < 2.4) return el;
     }
+    const mat = materialOf(el.k);
+    if (mat) {
+      const a = ((el.rot || 0) * Math.PI) / 180, k = Number(el.size) || 1;
+      const dx = p.x - el.x, dy = p.y - el.y;
+      const lx = dx * Math.cos(a) + dy * Math.sin(a), ly = -dx * Math.sin(a) + dy * Math.cos(a);
+      if (Math.abs(lx) < mat.hw * k + 0.9 && Math.abs(ly) < mat.hh * k + 0.9) return el;
+    }
     if (el.k === "text") {
       const fs = Number(el.size) || 3;
       if (Math.abs(el.x - p.x) < Math.max(6, (el.text || "").length * fs * 0.3) && Math.abs(el.y - p.y) < Math.max(2.4, fs * 0.7)) return el;
@@ -558,5 +732,5 @@ export function shiftElement(el, dx, dy) {
   return { ...el, x: round(el.x + dx), y: round(el.y + dy) };
 }
 
-export const RANK = { zone: 0, link: 0.5, goal: 1, cone: 1, ball: 2, arrow: 3, token: 4, text: 5 };
+export const RANK = { zone: 0, link: 0.5, ladder: 0.9, goal: 1, cone: 1, hurdle: 1.1, pole: 1.2, dummy: 1.3, ball: 2, arrow: 3, token: 4, text: 5 };
 export const byRank = (a, b) => (RANK[a.k] ?? 2) - (RANK[b.k] ?? 2);

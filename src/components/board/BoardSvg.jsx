@@ -1,45 +1,64 @@
 import React from "react";
 import {
-  arrowFlight, arrowPoints, arrowProps, byRank, chipOf, dashArray, fieldOf, fontOf, isQuad, linkProps, linkShape, lookOf, toView, tokenColor, tokenR, viewBox, wavyPoints, zoneBox,
+  arrowFlight, arrowProps, arrowPoints, ballStyle, byRank, chipOf, chipStyle, contrastColor, dashArray, faceOf, fieldOf, fieldTurn, fontOf, isQuad, ladderRungs, linkProps, linkShape,
+  lookOf, materialOf, orientAngle, orientOf, teamsOf, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
-// Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con tres modos visuales:
-//  · blanco  → campo blanco con líneas grises finas y color solo en fichas y flechas (poca tinta al imprimir)
-//  · color   → campo verde con franjas
+// Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
+//  · blanco / blanco-liso / blanco-cuadros → campo blanco con líneas grises finas y color solo en fichas y flechas (poca
+//    tinta al imprimir); con franjas de segadora, liso o con cuadrícula de segadora
+//  · color / color-cuadros → campo verde con franjas o con cuadrícula
 //  · bn      → todo en negro sobre blanco; los equipos se distinguen por el relleno, las flechas por el trazo
 
+const BLANCO = {
+  bg: "#ffffff", margin: "#f0f2f5", stripe: "#f5f7f9", line: "#aab1bc", lineW: 0.24, ink: "#111827",
+  arrows: { move: "#111827", pass: "#2563eb", dribble: "#73000A" },
+  zoneFill: "#2563eb", zoneAlpha: 0.08, zoneLine: "#6b7280", link: "#374151",
+  label: { fill: "#111827", stroke: "#ffffff" }, textFill: "#111827", textStroke: "#ffffff",
+  goal: { fill: "#f3f4f6", stroke: "#4b5563" }, cone: "#f97316", coneStroke: "#ffffff", ball: { fill: "#ffffff", stroke: "#111827" }, chipStroke: "#111827",
+  foot: { fill: "#111827", stroke: "#111827" },
+};
+const COLOR = {
+  bg: "#3f8a4a", stripe: "rgba(255,255,255,0.045)", line: "rgba(255,255,255,0.92)", lineW: 0.35, ink: "#111827",
+  arrows: { move: "#ffffff", pass: "#fde047", dribble: "#fb923c" },
+  zoneFill: "#ffffff", zoneAlpha: 0.1, zoneLine: "#ffffff", link: "#ffffff",
+  label: { fill: "#ffffff", stroke: "#000000" }, textFill: "#ffffff", textStroke: "#000000",
+  goal: { fill: "rgba(255,255,255,0.35)", stroke: "#ffffff" }, cone: "#f97316", coneStroke: "#ffffff", ball: { fill: "#ffffff", stroke: "#111827" }, chipStroke: "#ffffff",
+  foot: { fill: "#111827", stroke: "#ffffff" },
+};
 const STYLE = {
-  blanco: {
-    bg: "#ffffff", margin: "#f0f2f5", stripe: "#f5f7f9", line: "#aab1bc", lineW: 0.24, ink: "#111827",
-    arrows: { move: "#111827", pass: "#2563eb", dribble: "#73000A" },
-    zoneFill: "#2563eb", zoneAlpha: 0.08, zoneLine: "#6b7280", link: "#374151",
-    label: { fill: "#111827", stroke: "#ffffff" }, textFill: "#111827", textStroke: "#ffffff",
-    goal: { fill: "#f3f4f6", stroke: "#4b5563" }, cone: "#f97316", coneStroke: "#ffffff", ball: { fill: "#ffffff", stroke: "#111827" }, chipStroke: "#111827",
-  },
-  color: {
-    bg: "#3f8a4a", stripe: "rgba(255,255,255,0.045)", line: "rgba(255,255,255,0.92)", lineW: 0.35, ink: "#111827",
-    arrows: { move: "#ffffff", pass: "#fde047", dribble: "#fb923c" },
-    zoneFill: "#ffffff", zoneAlpha: 0.1, zoneLine: "#ffffff", link: "#ffffff",
-    label: { fill: "#ffffff", stroke: "#000000" }, textFill: "#ffffff", textStroke: "#000000",
-    goal: { fill: "rgba(255,255,255,0.35)", stroke: "#ffffff" }, cone: "#f97316", coneStroke: "#ffffff", ball: { fill: "#ffffff", stroke: "#111827" }, chipStroke: "#ffffff",
-  },
+  blanco: BLANCO,
+  "blanco-liso": { ...BLANCO, stripe: null, margin: "#ffffff" },
+  "blanco-cuadros": { ...BLANCO, stripe: null, check: "#eef0f3" },
+  color: COLOR,
+  "color-cuadros": { ...COLOR, stripe: null, check: "rgba(255,255,255,0.075)" },
   bn: {
     bg: "#ffffff", line: "#111111", lineW: 0.3, ink: "#111111",
     arrows: { move: "#111111", pass: "#111111", dribble: "#111111" },
     zoneFill: "url(#bn-hatch)", zoneAlpha: 1, zoneLine: "#111111", link: "#111111",
     label: { fill: "#111111", stroke: "#ffffff" }, textFill: "#111111", textStroke: "#ffffff",
     goal: { fill: "#ffffff", stroke: "#111111" }, cone: "#9ca3af", coneStroke: "#111111", ball: { fill: "#ffffff", stroke: "#111111" }, chipStroke: "#111111",
+    foot: { fill: "#111111", stroke: "#111111" },
   },
 };
 export const styleOf = (look) => STYLE[lookOf(look)];
 
-const BN_TEAM = {
-  a: { fill: "#111111", stroke: "#111111" },
-  b: { fill: "#ffffff", stroke: "#111111" },
-  c: { fill: "#9ca3af", stroke: "#111111" },
-  gk: { fill: "url(#bn-stripes)", stroke: "#111111" },
-  n: { fill: "#e5e7eb", stroke: "#111111" },
-};
+// En blanco y negro cada equipo tiene su relleno (en el orden de los equipos): negro, blanco, gris, rayas, y luego más.
+const BN_FILLS = ["#111111", "#ffffff", "#9ca3af", "url(#bn-stripes)", "#e5e7eb", "url(#bn-hatch)", "#4b5563", "url(#bn-dots)"];
+const BN_DARK = new Set(["#111111", "#4b5563"]);
+
+// Cómo se pinta una ficha: relleno (o dibujo de dos colores), borde y color del texto de dentro.
+export function chipPaint(board, el, look) {
+  if (lookOf(look) === "bn") {
+    const i = Math.max(0, teamsOf(board).findIndex((t) => t.id === el.team));
+    const color = BN_FILLS[i % BN_FILLS.length];
+    const dark = BN_DARK.has(color);
+    return { pattern: "solid", color, color2: color, stroke: "#111111", text: dark ? "#ffffff" : "#111111", halo: dark ? "#111111" : "#ffffff" };
+  }
+  const st = chipStyle(board, el);
+  const text = contrastColor(st.color);
+  return { ...st, stroke: st.stroke || styleOf(look).chipStroke, text, halo: text === "#ffffff" ? "#111827" : "#ffffff" };
+}
 
 // ── Campo ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -77,36 +96,54 @@ function Lines({ field, s }) {
   }
   // Campo completo, 3/4 (el completo sin el último cuarto) y fútbol 7
   const H = field.id === "tq" ? 105 : h;
+  const tq = field.id === "tq";
   return (
-    <g clipPath={field.id === "tq" ? "url(#tq-clip)" : undefined}>
-      <rect x={0} y={0} width={w} height={H} {...p} />
-      {end}
-      <g transform={`rotate(180 ${w / 2} ${H / 2})`}>{end}</g>
-      <line x1={0} y1={H / 2} x2={w} y2={H / 2} {...p} />
-      <circle cx={w / 2} cy={H / 2} r={sp.circle} {...p} />
-      <circle cx={w / 2} cy={H / 2} r={0.35} fill={s.line} stroke="none" />
-      {sp.offside ? (
-        <g {...p} strokeDasharray="1.4 1.1">
-          <line x1={0} y1={sp.offside} x2={w} y2={sp.offside} />
-          <line x1={0} y1={H - sp.offside} x2={w} y2={H - sp.offside} />
-        </g>
-      ) : null}
+    <g>
+      <g clipPath={tq ? "url(#tq-clip)" : undefined}>
+        <rect x={0} y={0} width={w} height={H} {...p} />
+        {end}
+        <g transform={`rotate(180 ${w / 2} ${H / 2})`}>{end}</g>
+        <line x1={0} y1={H / 2} x2={w} y2={H / 2} {...p} />
+        <circle cx={w / 2} cy={H / 2} r={sp.circle} {...p} />
+        <circle cx={w / 2} cy={H / 2} r={0.35} fill={s.line} stroke="none" />
+        {sp.offside ? (
+          <g {...p} strokeDasharray="1.4 1.1">
+            <line x1={0} y1={sp.offside} x2={w} y2={sp.offside} />
+            <line x1={0} y1={H - sp.offside} x2={w} y2={H - sp.offside} />
+          </g>
+        ) : null}
+      </g>
+      {/* en el 3/4 el campo se corta antes de la línea de fondo: se cierra con una línea para que no quede un tramo sin pintar */}
+      {tq && <line x1={0} y1={h} x2={w} y2={h} {...p} />}
     </g>
   );
 }
 
 function Field({ field, orient, look, vb }) {
   const s = styleOf(look);
-  const turn = orient === "h" ? `translate(0 ${field.w}) rotate(-90)` : undefined;
   const bands = [];
   if (s.stripe) for (let y = 0; y < field.h; y += 14) bands.push(<rect key={y} x={0} y={y} width={field.w} height={Math.min(7, field.h - y)} fill={s.stripe} />);
   const free = field.id === "free";
+  // Cuadrícula de segadora: casillas de unos 6 m que encajan justo en el ancho del campo
+  const cols = Math.max(4, Math.round(field.w / 6.2)), cell = field.w / cols;
+  const checkId = `chk-${lookOf(look)}-${field.w}`;
   return (
     <>
       <rect x={vb[0]} y={vb[1]} width={vb[2]} height={vb[3]} fill={free ? s.bg : s.margin || s.bg} />
-      <g transform={turn}>
+      <g transform={fieldTurn(field, orient)}>
         {free ? null : <rect x={0} y={0} width={field.w} height={field.h} fill={s.bg} />}
         {free ? null : bands}
+        {!free && s.check && (
+          <>
+            <defs>
+              <pattern id={checkId} width={cell * 2} height={cell * 2} patternUnits="userSpaceOnUse">
+                <rect x={0} y={0} width={cell} height={cell} fill={s.check} />
+                <rect x={cell} y={cell} width={cell} height={cell} fill={s.check} />
+              </pattern>
+            </defs>
+            <rect x={0} y={0} width={field.w} height={field.h} fill={`url(#${checkId})`} />
+          </>
+        )}
         <Lines field={field} s={s} />
       </g>
     </>
@@ -145,15 +182,10 @@ function Arrow({ el, ctx, selected, handles }) {
   const start = flight[0];
   const ground = el.air ? arrowPoints(el, 24).map(toV) : null;
   const apex = el.air ? flight[12] : null;
-  const groundMid = ground ? ground[12] : null;
   return (
     <g opacity={(el.opacity ?? 1) * ap.alpha}>
-      {ground && (
-        <g>
-          <path d={pathOf(ground)} fill="none" stroke="#000" strokeOpacity={0.28} strokeWidth={Math.max(0.35, w * 0.9)} strokeLinecap="round" strokeDasharray="1.2 0.9" />
-          <line x1={apex.x} y1={apex.y} x2={groundMid.x} y2={groundMid.y} stroke="#000" strokeOpacity={0.3} strokeWidth={0.2} strokeDasharray="0.6 0.6" />
-        </g>
-      )}
+      {/* sombra del balón en el suelo: pequeña y muy sutil (sin línea hasta el punto más alto) */}
+      {ground && <path d={pathOf(ground)} fill="none" stroke="#000" strokeOpacity={0.13} strokeWidth={Math.max(0.5, w * 1.1)} strokeLinecap="round" strokeLinejoin="round" />}
       {selected && <path d={d} fill="none" stroke="#f59e0b" strokeWidth={w + 1.6} opacity={0.5} strokeLinecap="round" strokeLinejoin="round" />}
       {ap.border && <path d={d} fill="none" stroke={borderCol} strokeWidth={w + 0.7} strokeDasharray={dash} strokeLinecap={cap} strokeLinejoin="round" />}
       <path d={d} fill="none" stroke={col} strokeWidth={w} strokeDasharray={dash} strokeLinecap={cap} strokeLinejoin="round" />
@@ -184,26 +216,202 @@ function Arrow({ el, ctx, selected, handles }) {
   );
 }
 
+// Relleno de una ficha (en espacio unitario, recortado al círculo): liso o con un dibujo del segundo color
+function ChipFill({ pattern, color, color2 }) {
+  return (
+    <g clipPath="url(#chip-clip)">
+      <rect x={-1} y={-1} width={2} height={2} fill={color} />
+      {pattern === "sash" && <rect x={-1.6} y={-0.31} width={3.2} height={0.62} transform="rotate(45)" fill={color2} />}
+      {pattern === "v" && (
+        <>
+          <rect x={-0.6} y={-1} width={0.4} height={2} fill={color2} />
+          <rect x={0.2} y={-1} width={0.4} height={2} fill={color2} />
+        </>
+      )}
+      {pattern === "h" && (
+        <>
+          <rect x={-1} y={-0.6} width={2} height={0.4} fill={color2} />
+          <rect x={-1} y={0.2} width={2} height={0.4} fill={color2} />
+        </>
+      )}
+      {pattern === "halves" && <rect x={0} y={-1} width={1} height={2} fill={color2} />}
+    </g>
+  );
+}
+
+// Pies de una ficha: dos zapatillas que asoman por delante (el frente es «hacia arriba» en espacio unitario)
+function Feet({ foot }) {
+  return (
+    <>
+      {[-1, 1].map((sx) => <rect key={sx} x={sx * 0.5 - 0.24} y={-1.78} width={0.48} height={1.3} rx={0.24} fill={foot.fill} stroke="#ffffff" strokeWidth={0.1} />)}
+    </>
+  );
+}
+
+// Ficha dibujada: pies (si los tiene), cuerpo con su dibujo, borde y texto de dentro
+function Chip({ el, ctx, c, r, ghost = false }) {
+  const { board, look, orient } = ctx;
+  const s = styleOf(look);
+  const paint = chipPaint(board, el, look);
+  const bn = lookOf(look) === "bn";
+  const sw = Math.max(0.25, r * 0.2);
+  const ang = faceOf(el) + orientAngle(orient);
+  const inner = (el.inner || "").toString().slice(0, 3);
+  const fs = r * (inner.length > 2 ? 0.95 : inner.length > 1 ? 1.2 : 1.5);
+  return (
+    <>
+      {el.feet && <g transform={`translate(${c.x} ${c.y}) rotate(${ang}) scale(${r})`}><Feet foot={s.foot} /></g>}
+      {paint.pattern === "solid" || bn ? (
+        <circle cx={c.x} cy={c.y} r={r} fill={paint.color} stroke={paint.stroke} strokeWidth={sw} />
+      ) : (
+        <>
+          <g transform={`translate(${c.x} ${c.y}) scale(${r})`}><ChipFill pattern={paint.pattern} color={paint.color} color2={paint.color2} /></g>
+          <circle cx={c.x} cy={c.y} r={r} fill="none" stroke={paint.stroke} strokeWidth={sw} />
+        </>
+      )}
+      {inner && !ghost && (
+        <text x={c.x} y={c.y + fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight={800} fill={paint.text} stroke={paint.halo} strokeWidth={Math.max(0.12, fs * (paint.pattern === "solid" || bn ? 0.09 : 0.16))} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{inner}</text>
+      )}
+    </>
+  );
+}
+
+// Ficha pequeña para botones y paneles (con el diseño del equipo o de la ficha)
+export function ChipGlyph({ board, el, look = "blanco", size = 18 }) {
+  const paint = chipPaint(board, el, look);
+  const bn = lookOf(look) === "bn";
+  return (
+    <svg width={size} height={size} viewBox="-1.25 -1.25 2.5 2.5" aria-hidden="true" style={{ flex: "none" }}>
+      <defs>
+        <clipPath id="chip-clip"><circle r="1" /></clipPath>
+        <pattern id="bn-stripes" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.6" height="1.6" fill="#fff" /><rect width="0.8" height="1.6" fill="#111" /></pattern>
+        <pattern id="bn-hatch" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="1.6" stroke="#111" strokeWidth="0.3" /></pattern>
+        <pattern id="bn-dots" width="1.4" height="1.4" patternUnits="userSpaceOnUse"><rect width="1.4" height="1.4" fill="#fff" /><circle cx="0.7" cy="0.7" r="0.3" fill="#111" /></pattern>
+      </defs>
+      {paint.pattern === "solid" || bn ? (
+        <circle r={1} fill={paint.color} stroke={paint.stroke} strokeWidth={0.18} />
+      ) : (
+        <>
+          <ChipFill pattern={paint.pattern} color={paint.color} color2={paint.color2} />
+          <circle r={1} fill="none" stroke={paint.stroke} strokeWidth={0.18} />
+        </>
+      )}
+    </svg>
+  );
+}
+
+// Balón: color, dibujo y borde editables. Sin estilo guardado es el de siempre (punto central).
+function BallBody({ el, c, r, look }) {
+  const s = styleOf(look);
+  const bn = lookOf(look) === "bn";
+  const bs = ballStyle(el);
+  const fill = bn ? "#ffffff" : bs.color;
+  const ink = bn ? "#111111" : el.color2 || s.ball.stroke;
+  const stroke = bn ? "#111111" : bs.stroke || s.ball.stroke;
+  const pent = [0, 1, 2, 3, 4].map((i) => { const a = ((-90 + i * 72) * Math.PI) / 180; return [Math.cos(a), Math.sin(a)]; });
+  return (
+    <>
+      <circle cx={c.x} cy={c.y} r={r} fill={fill} />
+      <g transform={`translate(${c.x} ${c.y}) scale(${r})`}>
+        <g clipPath="url(#chip-clip)">
+          {bs.pattern === "dot" && <circle r={0.36} fill={ink} />}
+          {bs.pattern === "stripe" && <rect x={-1} y={-0.28} width={2} height={0.56} fill={ink} />}
+          {bs.pattern === "classic" && (
+            <>
+              <polygon points={pent.map(([x, y]) => `${(x * 0.4).toFixed(3)},${(y * 0.4).toFixed(3)}`).join(" ")} fill={ink} />
+              {pent.map(([x, y], i) => <line key={`s${i}`} x1={x * 0.4} y1={y * 0.4} x2={x * 0.8} y2={y * 0.8} stroke={ink} strokeWidth={0.1} />)}
+              {pent.map((_, i) => { const a = ((-54 + i * 72) * Math.PI) / 180; return <circle key={`p${i}`} cx={Math.cos(a) * 1.02} cy={Math.sin(a) * 1.02} r={0.32} fill={ink} />; })}
+            </>
+          )}
+        </g>
+      </g>
+      <circle cx={c.x} cy={c.y} r={r} fill="none" stroke={stroke} strokeWidth={0.35} />
+    </>
+  );
+}
+
+// Material con giro: pica, valla, escalera de coordinación y maniquí. Se dibuja en su sitio con la parte de «arriba» hacia −y.
+function MaterialBody({ el, look }) {
+  const mat = materialOf(el.k);
+  const s = styleOf(look);
+  const bn = lookOf(look) === "bn";
+  const k = Number(el.size) || 1;
+  const col = bn ? "#111111" : el.color || mat.color;
+  const edge = bn ? "#111111" : look === "color" || look === "color-cuadros" ? "#ffffff" : "#111827";
+  switch (el.k) {
+    case "pole":
+      return (
+        <>
+          <ellipse cx={0} cy={1.35 * k} rx={0.8 * k} ry={0.42 * k} fill={bn ? "#ffffff" : col} fillOpacity={bn ? 1 : 0.55} stroke={edge} strokeWidth={0.18} />
+          <line x1={0} y1={1.35 * k} x2={0} y2={-1.5 * k} stroke={edge} strokeWidth={0.62 * k + 0.2} strokeLinecap="round" />
+          <line x1={0} y1={1.35 * k} x2={0} y2={-1.5 * k} stroke={bn ? "#ffffff" : col} strokeWidth={0.62 * k} strokeLinecap="round" />
+          <line x1={0} y1={-0.6 * k} x2={0} y2={-1.5 * k} stroke={bn ? "#111111" : "#ffffff"} strokeWidth={0.62 * k} strokeLinecap="butt" strokeOpacity={bn ? 1 : 0.9} />
+        </>
+      );
+    case "hurdle":
+      return (
+        <>
+          {[-1, 1].map((sx) => <line key={sx} x1={sx * 1.35 * k} y1={-0.95 * k} x2={sx * 1.35 * k} y2={0.95 * k} stroke={edge} strokeWidth={0.5 * k + 0.2} strokeLinecap="round" />)}
+          <line x1={-1.35 * k} y1={0} x2={1.35 * k} y2={0} stroke={edge} strokeWidth={0.5 * k + 0.2} strokeLinecap="round" />
+          {[-1, 1].map((sx) => <line key={`c${sx}`} x1={sx * 1.35 * k} y1={-0.95 * k} x2={sx * 1.35 * k} y2={0.95 * k} stroke={bn ? "#ffffff" : col} strokeWidth={0.5 * k} strokeLinecap="round" />)}
+          <line x1={-1.35 * k} y1={0} x2={1.35 * k} y2={0} stroke={bn ? "#ffffff" : col} strokeWidth={0.5 * k} strokeLinecap="round" />
+        </>
+      );
+    case "ladder": {
+      const hw = 0.85 * k, hh = 3.1 * k, n = ladderRungs(el);
+      const rungs = [];
+      for (let i = 0; i <= n; i++) { const y = -hh + (i * 2 * hh) / n; rungs.push(<line key={i} x1={-hw} y1={y} x2={hw} y2={y} stroke={col} strokeWidth={0.28} strokeLinecap="butt" />); }
+      return (
+        <>
+          <rect x={-hw} y={-hh} width={2 * hw} height={2 * hh} fill={bn ? "#ffffff" : col} fillOpacity={bn ? 1 : 0.1} />
+          {rungs}
+          <line x1={-hw} y1={-hh} x2={-hw} y2={hh} stroke={col} strokeWidth={0.4} strokeLinecap="round" />
+          <line x1={hw} y1={-hh} x2={hw} y2={hh} stroke={col} strokeWidth={0.4} strokeLinecap="round" />
+        </>
+      );
+    }
+    case "dummy":
+      return (
+        <>
+          <ellipse cx={0} cy={0.15 * k} rx={1.25 * k} ry={0.75 * k} fill={bn ? "#ffffff" : col} stroke={edge} strokeWidth={0.28} />
+          <circle cx={0} cy={-0.05 * k} r={0.5 * k} fill={bn ? "#ffffff" : col} stroke={edge} strokeWidth={0.25} />
+          <circle cx={0} cy={-0.05 * k} r={0.5 * k} fill="#ffffff" fillOpacity={0.3} />
+        </>
+      );
+    default: return null;
+  }
+}
+
 function Piece({ el, ctx, selected, ghost = false }) {
   const { board, field, orient, look } = ctx;
   const s = styleOf(look);
   const c = toView(field, orient, el);
   const op = (el.opacity ?? 1) * (ghost ? 0.3 : 1);
   const ring = (r) => selected && !ghost && <circle cx={c.x} cy={c.y} r={r} fill="none" stroke="#f59e0b" strokeWidth={0.5} strokeDasharray="1 0.8" />;
+  const mat = materialOf(el.k);
+  if (mat) {
+    const k = Number(el.size) || 1;
+    const rot = (el.rot || 0) + orientAngle(orient);
+    return (
+      <g opacity={op} transform={`translate(${c.x} ${c.y}) rotate(${rot})`}>
+        {selected && !ghost && <rect x={-mat.hw * k - 0.9} y={-mat.hh * k - 0.9} width={2 * mat.hw * k + 1.8} height={2 * mat.hh * k + 1.8} fill="none" stroke="#f59e0b" strokeWidth={0.5} strokeDasharray="1 0.8" />}
+        <MaterialBody el={el} look={look} />
+      </g>
+    );
+  }
   switch (el.k) {
     case "token": {
       const r = tokenR(ctx.chip, el);
-      const bn = look === "bn" ? BN_TEAM[el.team] || BN_TEAM.a : null;
-      const fill = bn ? bn.fill : tokenColor(board, el);
-      const stroke = bn ? bn.stroke : s.chipStroke;
       const fs = Math.max(1.8, r * 1.25);
+      // con los pies hacia abajo, el nombre baja un poco para no taparlos
+      const a = ((faceOf(el) + orientAngle(orient)) * Math.PI) / 180;
+      const down = el.feet ? Math.max(0, -Math.cos(a)) * r * 0.5 : 0;
       return (
         <g opacity={op}>
-          {ring(r + 1.3)}
-          <circle cx={c.x} cy={c.y} r={r} fill={fill} stroke={stroke} strokeWidth={Math.max(0.25, r * 0.2)} />
-          {el.team === "gk" && !bn && !el.color && <circle cx={c.x} cy={c.y} r={r * 0.35} fill="#fff" />}
+          {ring(r * (el.feet ? 1.75 : 1) + 1.3)}
+          <Chip el={el} ctx={ctx} c={c} r={r} ghost={ghost} />
           {el.label && !ghost ? (
-            <text x={c.x} y={c.y + r + fs * 1.05} textAnchor="middle" fontSize={fs} fontWeight={700} fill={s.label.fill} stroke={s.label.stroke} strokeWidth={0.55} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{el.label}</text>
+            <text x={c.x} y={c.y + r + down + fs * 1.05} textAnchor="middle" fontSize={fs} fontWeight={700} fill={s.label.fill} stroke={s.label.stroke} strokeWidth={0.55} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{el.label}</text>
           ) : null}
         </g>
       );
@@ -213,8 +421,7 @@ function Piece({ el, ctx, selected, ghost = false }) {
       return (
         <g opacity={op}>
           {ring(r + 1.2)}
-          <circle cx={c.x} cy={c.y} r={r} fill={s.ball.fill} stroke={s.ball.stroke} strokeWidth={0.35} />
-          <circle cx={c.x} cy={c.y} r={r * 0.36} fill={s.ball.stroke} />
+          <BallBody el={el} c={c} r={r} look={look} />
         </g>
       );
     }
@@ -235,7 +442,7 @@ function Piece({ el, ctx, selected, ghost = false }) {
     case "goal": {
       const gw = el.w || 7.32;
       const gd = Math.max(1.1, Math.min(2.4, gw * 0.4));
-      const rot = (el.rot || 0) + (orient === "h" ? -90 : 0);
+      const rot = (el.rot || 0) + orientAngle(orient);
       const bn = look === "bn";
       const col = bn ? s.goal.stroke : el.color || s.goal.stroke;
       // Vista desde arriba: la boca (postes y larguero) en el borde de abajo y la red hacia atrás, algo más estrecha al fondo
@@ -380,6 +587,45 @@ function Text({ el, ctx, selected }) {
   );
 }
 
+// Tirador para girar: un punto naranja sobre la propia ficha con pies (hacia dónde mira) o sobre el material (hacia dónde apunta)
+function TurnHandle({ el, ctx }) {
+  const c = toView(ctx.field, ctx.orient, el);
+  const mat = materialOf(el.k);
+  const base = mat ? mat.hh * (Number(el.size) || 1) + 0.6 : tokenR(ctx.chip, el) * 1.78;
+  const a = (((mat ? el.rot || 0 : faceOf(el)) + orientAngle(ctx.orient)) * Math.PI) / 180;
+  const R = base + 2.1;
+  const hx = c.x + Math.sin(a) * R, hy = c.y - Math.cos(a) * R;
+  return (
+    <g>
+      <line x1={c.x + Math.sin(a) * base} y1={c.y - Math.cos(a) * base} x2={hx} y2={hy} stroke="#f59e0b" strokeWidth={0.3} />
+      <circle cx={hx} cy={hy} r={1.15} fill="#f59e0b" stroke="#fff" strokeWidth={0.4} pointerEvents="none" />
+      <circle data-h={mat ? "r" : "f"} cx={hx} cy={hy} r={3.4} fill="transparent" />
+    </g>
+  );
+}
+
+// Números del orden en que se han ido tocando las fichas para un conector
+function MarkNumbers({ ids, els, ctx }) {
+  return (
+    <g pointerEvents="none">
+      {ids.map((id, i) => {
+        const el = els.find((e) => e.id === id);
+        if (!el) return null;
+        const c = toView(ctx.field, ctx.orient, el);
+        const r = el.k === "token" ? tokenR(ctx.chip, el) : 1.2;
+        const bx = c.x + r * 0.85 + 0.2, by = c.y - r * 0.85 - 0.2;
+        const fs = i >= 9 ? 1.25 : 1.5;
+        return (
+          <g key={id}>
+            <circle cx={bx} cy={by} r={1.15} fill="#f59e0b" stroke="#fff" strokeWidth={0.3} />
+            <text x={bx} y={by + fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight={800} fill="#fff" style={{ fontFamily: "Arial, sans-serif" }}>{i + 1}</text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 // Recuadro con el que se eligen varias fichas a la vez
 function BoxMark({ box, ctx }) {
   const a = toView(ctx.field, ctx.orient, { x: box.x, y: box.y }), b = toView(ctx.field, ctx.orient, { x: box.x + box.w, y: box.y + box.h });
@@ -400,9 +646,9 @@ export function Item({ el, ctx, els = [], selected = false, handles = false }) {
  * ghosts  [{ …elemento, from, to }] posición anterior de lo que se ha movido (rastro)
  * draft   flecha o zona que se está dibujando
  */
-const Board = React.forwardRef(function Board({ board, els, selId = null, marks = [], ghosts = [], draft = null, handles = false, className = "", style, label = "Dibujo", ...rest }, ref) {
+const Board = React.forwardRef(function Board({ board, els, selId = null, marks = [], markNumbers = false, ghosts = [], draft = null, handles = false, className = "", style, label = "Dibujo", ...rest }, ref) {
   const field = fieldOf(board.field);
-  const orient = board.orient === "h" ? "h" : "v";
+  const orient = orientOf(board.orient);
   const look = lookOf(board.look);
   const vb = viewBox(field, orient);
   const ctx = { board, field, orient, look, chip: chipOf(board) };
@@ -412,6 +658,8 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, marks 
       <defs>
         <pattern id="bn-hatch" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="1.6" stroke="#111" strokeWidth="0.3" /></pattern>
         <pattern id="bn-stripes" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.6" height="1.6" fill="#fff" /><rect width="0.8" height="1.6" fill="#111" /></pattern>
+        <pattern id="bn-dots" width="1.4" height="1.4" patternUnits="userSpaceOnUse"><rect width="1.4" height="1.4" fill="#fff" /><circle cx="0.7" cy="0.7" r="0.3" fill="#111" /></pattern>
+        <clipPath id="chip-clip"><circle r="1" /></clipPath>
         <clipPath id="tq-clip"><rect x="-3" y="-3" width={field.w + 6} height={field.h + 3} /></clipPath>
       </defs>
       <Field field={field} orient={orient} look={look} vb={vb} />
@@ -425,7 +673,9 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, marks 
         );
       })}
       {[...els].sort(byRank).map((el) => <Item key={el.id} el={el} els={els} ctx={ctx} selected={el.id === selId || (el.k !== "link" && marks.includes(el.id))} handles={handles} />)}
+      {markNumbers && marks.length > 0 && <MarkNumbers ids={marks} els={els} ctx={ctx} />}
       {handles && selEl && isQuad(selEl) && <QuadHandles el={selEl} ctx={ctx} />}
+      {handles && selEl && ((selEl.k === "token" && selEl.feet) || materialOf(selEl.k)) && <TurnHandle el={selEl} ctx={ctx} />}
       {draft && draft.k === "box" && <BoxMark box={draft} ctx={ctx} />}
       {draft && draft.k !== "box" && <Item el={{ id: "draft", ...draft }} ctx={ctx} selected />}
     </svg>

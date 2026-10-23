@@ -1,6 +1,7 @@
 import React from "react";
 import { Clock, Zap, Edit2, Trash2, Plus } from "lucide-react";
-import { PitchView } from "@/components/sessions/PitchBoard";
+import BoardPlayer from "@/components/board/BoardPlayer";
+import BoardDownloads from "@/components/board/BoardDownloads";
 import { hasBoard } from "@/lib/board";
 import { getGameMoment, getSessionPhase, getDifficulty } from "./methodologyConfig";
 
@@ -34,8 +35,9 @@ export default function TaskCard({ task, onEdit, onDelete, onAddToSession, compa
 
       {/* Diagram/image preview */}
       {hasBoard(task.board) ? (
-        <div className="h-36 overflow-hidden bg-white flex justify-center border-b border-gray-100">
-          <PitchView board={task.board} style={{ height: "100%", width: "auto", maxWidth: "100%" }} />
+        <div className="relative h-36 overflow-hidden bg-white flex justify-center border-b border-gray-100">
+          <BoardPlayer board={task.board} style={{ height: "100%", width: "auto", maxWidth: "100%" }} />
+          <BoardDownloads board={task.board} filename={task.name} compact className="absolute right-1.5 top-1.5 bg-white/90 rounded-md p-0.5" />
         </div>
       ) : task.diagram_url ? (
         <div className="h-32 overflow-hidden bg-gray-50">

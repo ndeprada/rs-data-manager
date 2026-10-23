@@ -279,7 +279,7 @@ export default function TaskFormDialog({ open, onOpenChange, task, onSave, teams
             </div>
             {boardOpen && (
               <div className="mt-2">
-                <BoardEditor value={form.board} onChange={(b) => set("board", b)} filename={form.name ? form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") : "tarea"} />
+                <BoardEditor value={form.board} onChange={(b) => set("board", b)} filename={form.name || "tarea"} modes />
               </div>
             )}
             {/* También permite subir imagen externa */}

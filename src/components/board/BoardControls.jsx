@@ -144,3 +144,17 @@ export function GoalIcon({ className = "", style }) {
     </svg>
   );
 }
+
+const icon = (children) => function Icon({ className = "", style }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style} aria-hidden="true">
+      {children}
+    </svg>
+  );
+};
+
+/** Iconos del material de entrenamiento para la barra de herramientas. */
+export const PoleIcon = icon(<><path d="M12 3v14" /><ellipse cx="12" cy="19.5" rx="5" ry="2" /></>);
+export const HurdleIcon = icon(<><path d="M4 8h16" /><path d="M6.5 8v11M17.5 8v11" /><path d="M3.5 19h6M14.5 19h6" /></>);
+export const LadderIcon = icon(<><path d="M8 3v18M16 3v18" /><path d="M8 7h8M8 11.5h8M8 16h8" strokeWidth="1.6" /></>);
+export const DummyIcon = icon(<><circle cx="12" cy="6.5" r="3" /><path d="M6 21v-5a6 6 0 0 1 12 0v5z" /></>);

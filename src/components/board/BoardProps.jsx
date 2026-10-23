@@ -1,7 +1,7 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { AIR_MAX, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, arrowProps, chipOf, defaultControl, linkProps, teamsOf, zoneShapePatch } from "@/lib/board";
-import { styleOf } from "./BoardSvg";
+import { AIR_MAX, BALL_PATTERNS, CHIP_PATTERNS, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, LADDER_RUNGS, arrowProps, ballStyle, chipOf, chipStyle, defaultControl, ladderRungs, linkProps, materialOf, teamsOf, zoneShapePatch } from "@/lib/board";
+import { ChipGlyph, styleOf } from "./BoardSvg";
 import { ColorPick, Row, Seg, Slider, Toggle } from "./BoardControls";
 
 // Panel de propiedades de la pizarra: según lo que esté seleccionado (o la herramienta activa, para lo siguiente que se
@@ -22,49 +22,123 @@ export const ARROW_PRESETS = {
 };
 export const typeOfArrow = (a) => (a.air ? "air" : a.style || "move");
 
-export const KIND_LABEL = { token: "Ficha", ball: "Balón", cone: "Cono", goal: "Portería", arrow: "Flecha", zone: "Zona", link: "Conector entre fichas", text: "Texto" };
+export const KIND_LABEL = { token: "Ficha", ball: "Balón", cone: "Cono", goal: "Portería", pole: "Pica", hurdle: "Valla", ladder: "Escalera de coordinación", dummy: "Maniquí", arrow: "Flecha", zone: "Zona", link: "Conector entre fichas", text: "Texto" };
 
 const LINE_OPTS = DASHES.map((d) => ({ id: d.id, label: d.label }));
 const selectCls = "h-7 rounded-md border border-gray-200 bg-white px-1.5 text-xs";
 const pct = (v) => `${Math.round(v * 100)}%`;
 
-function TeamBlock({ teamId, teams, patchTeam, el, patch, board, setChip, brush }) {
-  const team = teams.find((t) => t.id === teamId) || teams[0];
+const OWN_KEYS = ["color", "pattern", "color2", "stroke"];
+const plainBtn = "h-7 px-2 rounded-md border text-[11px] font-semibold bg-white text-gray-600 border-gray-200 hover:bg-gray-50";
+
+// Ficha: texto de dentro, nombre, equipo, diseño (color, dibujo, borde) del equipo o de esta ficha, tamaño y pies
+function TeamBlock({ el, brush, board, look, patch, patchTeam, setChip, setFeet, canRemoveTeam, onRemoveTeam }) {
+  const teams = teamsOf(board);
+  const team = teams.find((t) => t.id === el.team) || teams[0];
+  const hasOwn = !brush && OWN_KEYS.some((k) => el[k] != null);
+  // Por defecto se edita el equipo; «Solo esta ficha» deja el diseño propio de la ficha seleccionada
+  const [scope, setScope] = React.useState(hasOwn ? "chip" : "team");
+  const bn = look === "bn";
+  const editChip = !brush && scope === "chip";
+  const target = editChip ? el : { team: team.id };
+  const shown = chipStyle(board, target);
+  const write = (p) => (editChip ? patch(p) : patchTeam(team.id, p));
   // Los dos deslizadores hablan en el mismo porcentaje (100 % = tamaño por defecto): el de «todas» las iguala
   const base = chipOf(board);
   const pctAll = Math.round((base / DEFAULT_CHIP) * 100);
   const pctOne = Math.round((base / DEFAULT_CHIP) * (Number(el.size) || 1) * 100);
   return (
     <>
+      {!brush && (
+        <Row>
+          <Input value={el.inner || ""} maxLength={3} onChange={(e) => patch({ inner: e.target.value || undefined }, "inner")} placeholder="Nº" className="h-7 w-14 text-xs text-center" aria-label="Texto dentro de la ficha" title="Texto dentro de la ficha (dorsal o letra)" />
+          <Input value={el.label || ""} onChange={(e) => patch({ label: e.target.value }, "label")} placeholder="Nombre" className="h-7 w-28 text-xs" aria-label="Nombre de la ficha" />
+          <div className="flex gap-1" role="group" aria-label="Equipo">
+            {teams.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                title={t.name}
+                aria-label={t.name}
+                aria-pressed={el.team === t.id}
+                onClick={() => patch({ team: t.id })}
+                className={`w-7 h-7 rounded-full flex items-center justify-center border-2 ${el.team === t.id ? "border-gray-900" : "border-transparent"}`}
+              >
+                <ChipGlyph board={board} el={{ team: t.id }} look={look} size={20} />
+              </button>
+            ))}
+          </div>
+        </Row>
+      )}
       <Row>
-        {!brush && (
-          <>
-            <Input value={el.label || ""} onChange={(e) => patch({ label: e.target.value }, "label")} placeholder="Nombre" className="h-7 w-28 text-xs" aria-label="Nombre de la ficha" />
-            <div className="flex gap-1" role="group" aria-label="Equipo">
-              {teams.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  title={t.name}
-                  aria-label={t.name}
-                  aria-pressed={el.team === t.id}
-                  onClick={() => patch({ team: t.id })}
-                  className={`w-6 h-6 rounded-full border-2 ${el.team === t.id ? "border-gray-900" : "border-white shadow-[0_0_0_1px_rgba(0,0,0,.15)]"}`}
-                  style={{ background: t.color }}
-                />
-              ))}
-            </div>
-          </>
-        )}
-        <Input value={team.name} onChange={(e) => patchTeam(team.id, { name: e.target.value })} className="h-7 w-32 text-xs" aria-label="Nombre del equipo" title="Nombre del equipo" />
-        <ColorPick value={team.color} onChange={(c) => patchTeam(team.id, { color: c })} label="Color del equipo" wide />
-        {!brush && <ColorPick value={el.color || ""} onChange={(c) => patch({ color: c || undefined })} label="Solo esta ficha" auto="Del equipo" autoSwatch={team.color} wide />}
+        {!brush && <Seg label="Qué diseño editas" value={scope} options={[{ id: "team", label: "El equipo" }, { id: "chip", label: "Solo esta ficha" }]} onChange={setScope} />}
+        {!editChip && <Input value={team.name} onChange={(e) => patchTeam(team.id, { name: e.target.value })} className="h-7 w-32 text-xs" aria-label="Nombre del equipo" title="Nombre del equipo" />}
+        {canRemoveTeam && <button type="button" className={`${plainBtn} text-red-600`} onClick={() => onRemoveTeam(team.id)}>Quitar este equipo</button>}
       </Row>
+      {bn ? (
+        <p className="text-[11px] text-gray-500">En blanco y negro cada equipo se distingue por su relleno (negro, blanco, gris, rayas…); los colores se ven al cambiar de modo.</p>
+      ) : (
+        <Row>
+          <ChipGlyph board={board} el={target} look={look} size={24} />
+          <ColorPick value={shown.color} onChange={(c) => write({ color: c })} label="Relleno" wide />
+          <select value={shown.pattern} onChange={(e) => write({ pattern: e.target.value })} className={selectCls} aria-label="Dibujo de la ficha">
+            {CHIP_PATTERNS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+          {shown.pattern !== "solid" && <ColorPick value={shown.color2} onChange={(c) => write({ color2: c })} label="Segundo color" wide />}
+          <ColorPick value={editChip ? el.stroke || "" : team.stroke || ""} onChange={(c) => write({ stroke: c || undefined })} label="Borde" auto="Por defecto" autoSwatch={styleOf(look).chipStroke} wide />
+          {editChip && hasOwn && <button type="button" className={plainBtn} onClick={() => patch({ color: undefined, pattern: undefined, color2: undefined, stroke: undefined })} title="Vuelve al diseño del equipo">Quitar cambios de la ficha</button>}
+        </Row>
+      )}
       <Row>
         <Slider label="Todas las fichas" value={pctAll} min={55} max={210} step={5} onChange={(v) => setChip((v / 100) * DEFAULT_CHIP)} fmt={(v) => `${v}%`} />
         {!brush && <Slider label="Solo esta" value={pctOne} min={40} max={250} step={5} onChange={(v) => patch({ size: Math.round(((v / 100) * DEFAULT_CHIP / base) * 100) / 100 }, "size")} fmt={(v) => `${v}%`} />}
       </Row>
-      {!brush && <p className="text-[11px] text-gray-500">«Todas las fichas» las deja todas del mismo tamaño; «Solo esta» cambia únicamente la seleccionada.</p>}
+      <Row>
+        <Toggle on={!!el.feet} onChange={(v) => patch({ feet: v || undefined })} title="Dos pies que asoman por delante: marcan hacia dónde mira o cómo está perfilado el jugador">{brush ? "Fichas nuevas con pies" : "Pies"}</Toggle>
+        <button type="button" className={plainBtn} onClick={() => setFeet(true)}>Pies a todas</button>
+        <button type="button" className={plainBtn} onClick={() => setFeet(false)}>Quitar pies a todas</button>
+      </Row>
+      {!brush && el.feet && <p className="text-[11px] text-gray-500">Arrastra el punto naranja que sale de la ficha para girar hacia dónde mira. En cada fotograma puede mirar a un lado distinto y la animación gira sola.</p>}
+    </>
+  );
+}
+
+// Balón: diseño, colores y tamaño
+function BallBlock({ el, patch, look }) {
+  const bs = ballStyle(el);
+  const s = styleOf(look);
+  const bn = look === "bn";
+  return (
+    <>
+      <Row>
+        <Seg label="Diseño del balón" value={bs.pattern} options={BALL_PATTERNS} onChange={(v) => patch({ pattern: v })} />
+        {!bn && (
+          <>
+            <ColorPick value={el.color || ""} onChange={(c) => patch({ color: c || undefined })} label="Color" auto="Blanco" autoSwatch="#ffffff" wide />
+            <ColorPick value={el.color2 || ""} onChange={(c) => patch({ color2: c || undefined })} label="Dibujo" auto="Según el modo" autoSwatch={s.ball.stroke} wide />
+            <ColorPick value={el.stroke || ""} onChange={(c) => patch({ stroke: c || undefined })} label="Borde" auto="Según el modo" autoSwatch={s.ball.stroke} wide />
+          </>
+        )}
+      </Row>
+      <Row>
+        <Slider label="Tamaño del balón" value={Number(el.size) || 1} min={0.6} max={2.2} step={0.1} onChange={(v) => patch({ size: v }, "size")} fmt={pct} />
+      </Row>
+    </>
+  );
+}
+
+// Pica, valla, escalera de coordinación y maniquí: color, tamaño y (escalera) peldaños; se giran con el punto naranja
+function MaterialBlock({ el, brush, patch, look }) {
+  const mat = materialOf(el.k);
+  const bn = look === "bn";
+  return (
+    <>
+      <Row>
+        {!bn && <ColorPick value={el.color || ""} onChange={(c) => patch({ color: c || undefined })} label="Color" auto="Por defecto" autoSwatch={mat.color} wide />}
+        <Slider label="Tamaño" value={Number(el.size) || 1} min={0.6} max={2.2} step={0.1} onChange={(v) => patch({ size: v }, "size")} fmt={pct} />
+        {el.k === "ladder" && <Slider label="Peldaños" value={ladderRungs(el)} min={LADDER_RUNGS[0]} max={LADDER_RUNGS[1]} step={1} onChange={(v) => patch({ rungs: v }, "rungs")} fmt={(v) => `${v}`} />}
+      </Row>
+      {!brush && <p className="text-[11px] text-gray-500">Arrastra el punto naranja que sale del material para girarlo.</p>}
     </>
   );
 }
@@ -172,18 +246,18 @@ function LinkBlock({ el, patch, look }) {
  * el      elemento seleccionado, o { k, …propiedades de la herramienta } si es para lo siguiente que se dibuje (brush)
  * patch   (cambio, clave?) => void   · onType (tipo de flecha) · patchTeam (id, cambio) · setChip (tamaño de ficha)
  */
-export default function BoardProps({ el, brush = false, board, look, patch, onType, patchTeam, setChip }) {
-  const teams = teamsOf(board);
+export default function BoardProps({ el, brush = false, board, look, patch, onType, patchTeam, setChip, setFeet, canRemoveTeam = false, onRemoveTeam }) {
   const s = styleOf(look);
   switch (el.k) {
     case "token":
-      return <TeamBlock teamId={el.team} teams={teams} patchTeam={patchTeam} el={el} patch={patch} board={board} setChip={setChip} brush={brush} />;
+      return <TeamBlock el={el} brush={brush} board={board} look={look} patch={patch} patchTeam={patchTeam} setChip={setChip} setFeet={setFeet} canRemoveTeam={canRemoveTeam} onRemoveTeam={onRemoveTeam} />;
     case "ball":
-      return (
-        <Row>
-          <Slider label="Tamaño del balón" value={Number(el.size) || 1} min={0.6} max={2.2} step={0.1} onChange={(v) => patch({ size: v }, "size")} fmt={pct} />
-        </Row>
-      );
+      return <BallBlock el={el} patch={patch} look={look} />;
+    case "pole":
+    case "hurdle":
+    case "ladder":
+    case "dummy":
+      return <MaterialBlock el={el} brush={brush} patch={patch} look={look} />;
     case "cone":
       return (
         <Row>
