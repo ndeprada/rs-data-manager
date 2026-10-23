@@ -58,9 +58,10 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, rea
   // Mensaje para el grupo de WhatsApp (siempre en español): convocados y no convocados por posición, con dorsal y observaciones
   const buildWa = () => buildConvocationText({ event, team, convocados, noConvocados, reasons, callupTime, kit, info: observations });
   const waDefault = buildWa();
-  // Aviso al móvil: el mismo contenido que el mensaje de WhatsApp (convocados y no convocados con dorsal y motivo, casa/fuera, 👕 y ℹ️), sin marcas de WhatsApp.
+  // Aviso al móvil: el mismo contenido que el mensaje de WhatsApp (convocados y no convocados con dorsal, casa/fuera, 👕 y ℹ️), sin marcas de WhatsApp
+  // y SIN el motivo de la no convocatoria (decisión de Nacho, 23/10: por ahora el motivo solo va en el mensaje de WhatsApp, que se edita a mano).
   // Le llega a toda la plantilla (convocados y no convocados) para que cada uno vea si está en la lista.
-  const pushBody = buildConvocationText({ event, team, convocados, noConvocados, reasons, callupTime, kit, info: observations, plain: true });
+  const pushBody = buildConvocationText({ event, team, convocados, noConvocados, callupTime, kit, info: observations, plain: true });
   const squadIds = [...new Set([...convocados, ...noConvocados].map(p => p.id))];
   const [waMsg, setWaMsg] = useState(waDefault);
   const [copied, setCopied] = useState(false);
