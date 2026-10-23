@@ -30,7 +30,11 @@
     },
     "observations": {
       "type": "string",
-      "description": "Observaciones para los jugadores (uniforme, material, etc.)"
+      "description": "ℹ️ Información extra para los jugadores (material, comida, desplazamiento…)"
+    },
+    "kit": {
+      "type": "string",
+      "description": "👕 Equipación que deben traer los jugadores"
     },
     "callup_time": {
       "type": "string",

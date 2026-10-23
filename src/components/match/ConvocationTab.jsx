@@ -9,8 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
-import { playerFullName, matchesPlayerSearch } from "@/lib/playerName";
+import { matchesPlayerSearch } from "@/lib/playerName";
+import { buildConvocationText, dorsalOf, groupPlayers } from "@/lib/convocationMessage";
 import { NO_CONV_REASONS } from "@/lib/participation";
 import { useAutosave } from "@/lib/useAutosave";
 import SaveStatus from "@/components/common/SaveStatus";
@@ -20,23 +20,7 @@ const POSITION_LABELS = {
   mediocentro: msg("MC"), interior: msg("INT"), mediapunta: msg("MP"), delantero_centro: msg("DC"), extremo: msg("EXT"),
 };
 
-// Orden exacto dentro de cada grupo
-const POSITION_ORDER = {
-  Porteros:        ["portero"],
-  Defensas:        ["central", "libre", "lateral"],
-  Centrocampistas: ["mediocentro", "interior", "mediapunta"],
-  Delanteros:      ["extremo", "delantero_centro"],
-};
-
-const POSITION_GROUP = {
-  portero: msg("Porteros"),
-  central: msg("Defensas"), libre: msg("Defensas"), lateral: msg("Defensas"),
-  mediocentro: msg("Centrocampistas"), interior: msg("Centrocampistas"), mediapunta: msg("Centrocampistas"),
-  extremo: msg("Delanteros"), delantero_centro: msg("Delanteros"),
-};
-
-const GROUP_ORDER = [msg("Porteros"), msg("Defensas"), msg("Centrocampistas"), msg("Delanteros"), msg("Sin posición")];
-
+// El orden por posición (porteros, defensas, centrocampistas, delanteros) y el mensaje de WhatsApp están en @/lib/convocationMessage
 const GROUP_COLORS = {
   Porteros:        { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-800" },
   Defensas:        { bg: "bg-blue-50",   border: "border-blue-200",   text: "text-blue-800" },
@@ -45,33 +29,35 @@ const GROUP_COLORS = {
   "Sin posición":  { bg: "bg-gray-50",   border: "border-gray-200",   text: "text-gray-700" },
 };
 
-// Mensaje corto para pegar en el grupo de WhatsApp (negritas con *…*)
 import Composer from "@/components/avisos/Composer";
 import { useT, msg, useDateLocale } from "@/i18n";
 
-function buildWhatsappText({ event, team, convocados, callupTime, observations }) {
-  const day = event?.date ? format(new Date(event.date), "EEEE d 'de' MMMM", { locale: es }) : "";
-  const time = event?.date ? format(new Date(event.date), "HH:mm") : "";
-  const where = [event?.location, event?.location_url].filter(Boolean).join(" · ");
-  const lines = [
-    `*CONVOCATORIA · ${team?.name || ""}*`,
-    event?.opponent ? `🆚 ${event.opponent}` : (event?.title ? `🏆 ${event.title}` : ""),
-    `📅 ${day}`,
-    `⏰ Partido: ${time}${callupTime ? ` · Convocatoria: ${callupTime}` : ""}`,
-    where ? `📍 ${where}` : "",
-    "",
-    `*Convocados (${convocados.length}):*`,
-    ...convocados.map((p, i) => `${i + 1}. ${playerFullName(p)}`),
-    observations ? `\n*Observaciones:*\n${observations}` : "",
-  ];
-  return lines.filter((l, i) => l !== "" || lines[i - 1] !== "").join("\n").trim();
+// Los jugadores de una lista (convocados o no) por posición y con el dorsal al lado
+function PlayerColumn({ players, mark, markClass, numClass }) {
+  return (
+    <div className="space-y-1.5">
+      {groupPlayers(players).map(({ group, players: list }) => (
+        <div key={group} className="space-y-0.5">
+          {list.map(p => (
+            <p key={p.id} className={`text-xs flex items-baseline gap-1 ${markClass}`}>
+              <span aria-hidden="true">{mark}</span>
+              <span className={`w-5 text-right tabular-nums font-bold shrink-0 ${numClass}`}>{dorsalOf(p)}</span>
+              <span className="min-w-0"><PlayerName player={p} /></span>
+            </p>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ── Preview / Notify Modal ───────────────────────────────
-function NotifyModal({ open, onClose, event, team, convocados, noConvocados, callupTime, observations, onMarkNotified, sending }) {
+function NotifyModal({ open, onClose, event, team, convocados, noConvocados, callupTime, kit, observations, onMarkNotified, sending }) {
   const t = useT();
   const dfl = useDateLocale();
-  const waDefault = buildWhatsappText({ event, team, convocados, callupTime, observations });
+  // Mensaje para el grupo de WhatsApp (siempre en español): convocados y no convocados por posición, con dorsal y observaciones
+  const buildWa = () => buildConvocationText({ event, team, convocados, noConvocados, callupTime, kit, info: observations });
+  const waDefault = buildWa();
   const [waMsg, setWaMsg] = useState(waDefault);
   const [copied, setCopied] = useState(false);
   const copyWa = async () => {
@@ -81,7 +67,7 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
   };
 
   useEffect(() => {
-    if (open) setWaMsg(buildWhatsappText({ event, team, convocados, callupTime, observations }));
+    if (open) setWaMsg(buildWa());
   }, [open]);
 
   return (
@@ -96,19 +82,11 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, cal
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <p className="text-[10px] font-black uppercase tracking-wider text-green-700 mb-2">{t("Convocados ({length})", { length: convocados.length })}</p>
-              <div className="space-y-0.5">
-                {convocados.map(p => (
-                  <p key={p.id} className="text-xs text-green-800">✓ <PlayerName player={p} /></p>
-                ))}
-              </div>
+              <PlayerColumn players={convocados} mark="✓" markClass="text-green-800" numClass="text-green-600" />
             </div>
             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
               <p className="text-[10px] font-black uppercase tracking-wider text-red-700 mb-2">{t("No convocados ({length})", { length: noConvocados.length })}</p>
-              <div className="space-y-0.5">
-                {noConvocados.map(p => (
-                  <p key={p.id} className="text-xs text-red-800">✗ <PlayerName player={p} /></p>
-                ))}
-              </div>
+              <PlayerColumn players={noConvocados} mark="✗" markClass="text-red-800" numClass="text-red-500" />
             </div>
           </div>
 
@@ -153,7 +131,8 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
   const [reasons, setReasons] = useState({});
   const [notes, setNotes] = useState("");
   const [callupTime, setCallupTime] = useState("");
-  const [observations, setObservations] = useState("");
+  const [kit, setKit] = useState(""); // 👕 equipación que deben traer
+  const [observations, setObservations] = useState(""); // ℹ️ información extra (las observaciones de antes pasan a ser esta)
   const [guestSearch, setGuestSearch] = useState("");
   const [showGuestSearch, setShowGuestSearch] = useState(false);
   const [showNotifyModal, setShowNotifyModal] = useState(false);
@@ -171,14 +150,15 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
   });
 
   // Lo que se guarda. El motivo de cada jugador no convocado queda guardado para las estadísticas de ausencias.
-  const buildForm = (ids, why, n, callup, obs) => ({
+  const buildForm = (ids, why, n, callup, obs, kitText) => ({
     player_ids: ids,
     notes: n,
     callup_time: callup,
     observations: obs,
+    kit: kitText,
     absence_reasons: Object.fromEntries(Object.entries(why).filter(([id, r]) => r && !ids.includes(id))),
   });
-  const form = buildForm(convocadoIds, reasons, notes, callupTime, observations);
+  const form = buildForm(convocadoIds, reasons, notes, callupTime, observations, kit);
 
   // Carga de lo guardado y guardado automático (no se guarda nada hasta que lo guardado esté cargado)
   const [hydrated, setHydrated] = useState(false);
@@ -206,8 +186,9 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
       setNotes(convocation.notes || "");
       setCallupTime(convocation.callup_time || "");
       setObservations(convocation.observations || "");
+      setKit(convocation.kit || "");
       setReasons(why);
-      autosave.reset(buildForm(ids, why, convocation.notes || "", convocation.callup_time || "", convocation.observations || ""));
+      autosave.reset(buildForm(ids, why, convocation.notes || "", convocation.callup_time || "", convocation.observations || "", convocation.kit || ""));
     }
     setHydrated(true);
   }, [isFetched, convocation?.id]);
@@ -237,25 +218,9 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
     setConvocadoIds(prev => prev.includes(pid) ? prev.filter(id => id !== pid) : [...prev, pid]);
   };
 
-  // Group and sort players
+  // Jugadores por grupo de posición (porteros, defensas, centrocampistas, delanteros) y, dentro de cada grupo, por posición y apellido
   const activePlayers = players.filter(p => p.status !== "baja");
-  const playersByGroup = {};
-  activePlayers.forEach(p => {
-    const group = POSITION_GROUP[p.position] || "Sin posición";
-    if (!playersByGroup[group]) playersByGroup[group] = [];
-    playersByGroup[group].push(p);
-  });
-
-  // Sort within each group by position order, then last_name
-  Object.keys(playersByGroup).forEach(group => {
-    const posOrder = POSITION_ORDER[group] || [];
-    playersByGroup[group].sort((a, b) => {
-      const ai = posOrder.indexOf(a.position);
-      const bi = posOrder.indexOf(b.position);
-      if (ai !== bi) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-      return a.last_name.localeCompare(b.last_name);
-    });
-  });
+  const playerGroups = groupPlayers(activePlayers);
 
   const guestPlayers = allPlayers.filter(p =>
     p.team_id !== teamId &&
@@ -368,7 +333,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
 
       {/* ── Player list by group ── */}
       <div className="space-y-3">
-        {GROUP_ORDER.filter(g => playersByGroup[g]).map(group => {
+        {playerGroups.map(({ group, players: groupList }) => {
           const colors = GROUP_COLORS[group];
           return (
             <div key={group}>
@@ -376,10 +341,10 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
                 <span className={`text-[10px] font-black uppercase tracking-widest ${colors.text}`} style={{ fontFamily: "var(--font-display)" }}>
                   {t(group)}
                 </span>
-                <span className="text-[10px] text-gray-400">({playersByGroup[group].length})</span>
+                <span className="text-[10px] text-gray-400">({groupList.length})</span>
               </div>
               <div className="border border-t-0 border-gray-200 rounded-b-lg overflow-hidden divide-y divide-gray-100">
-                {playersByGroup[group].map(player => {
+                {groupList.map(player => {
                   const isConv = convocadoIds.includes(player.id);
                   return (
                     <div key={player.id}
@@ -426,13 +391,33 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
         <p className="text-[10px] font-black uppercase tracking-wider text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
           {t("Observaciones")}
         </p>
-        <Textarea
-          value={observations}
-          onChange={e => setObservations(e.target.value)}
-          rows={3}
-          className="border-gray-200 text-sm"
-          placeholder={t("Uniforme, material necesario, indicaciones especiales…")}
-        />
+        <div className="flex items-start gap-2.5">
+          <span className="text-lg leading-8 shrink-0" aria-hidden="true">👕</span>
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] text-gray-400 block leading-none mb-1">{t("Equipación que deben traer")}</span>
+            <Input
+              value={kit}
+              onChange={e => setKit(e.target.value)}
+              className="border-gray-200 text-sm"
+              placeholder={t("Camiseta, pantalón, medias, chándal…")}
+              aria-label={t("Equipación que deben traer")}
+            />
+          </div>
+        </div>
+        <div className="flex items-start gap-2.5">
+          <span className="text-lg leading-8 shrink-0" aria-hidden="true">ℹ️</span>
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] text-gray-400 block leading-none mb-1">{t("Información extra")}</span>
+            <Textarea
+              value={observations}
+              onChange={e => setObservations(e.target.value)}
+              rows={2}
+              className="border-gray-200 text-sm"
+              placeholder={t("Material, comida, desplazamiento o cualquier otra indicación…")}
+              aria-label={t("Información extra")}
+            />
+          </div>
+        </div>
         <div className="pt-1">
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Notas internas")}</p>
           <Textarea
@@ -454,6 +439,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
         convocados={convocados}
         noConvocados={noConvocados}
         callupTime={callupTime}
+        kit={kit}
         observations={observations}
         onMarkNotified={handleMarkNotified}
         sending={sending}
