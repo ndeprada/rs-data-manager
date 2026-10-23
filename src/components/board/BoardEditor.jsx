@@ -3,7 +3,7 @@ import { Activity, BoxSelect, ChevronLeft, ChevronRight, Circle, Copy, Film, Ima
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView,
-  boardMode, boardSpeed, ghostsOf, hitTest, isCarried, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, materialOf, moveFrame, moveLayer, newId, normalizeBoard, orderForLine, orientOf, patchElement, recolorElements, removeElement,
+  boardMode, boardSpeed, ghostsOf, hitTest, isCarried, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
   removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setFeetOf, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph } from "./BoardSvg";
@@ -388,8 +388,27 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     setSel((s) => (add || multiMode ? (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]) : [id]));
   };
   const stepOne = (id, dir) => commitIfChanged(stepLayer(live.current, idx, [id], dir));
+  const moveRow = (id, pos) => commitIfChanged(moveLayerTo(live.current, idx, id, pos));
   const selectAll = () => { setTool("select"); setDraft(null); setPick([]); setSel(cur.els.filter((e) => e.k !== "link").map((e) => e.id)); };
   const clearFrame = () => { if (cur.els.length) { setEls([]); setSel([]); } };
+
+  // Teclado (con el foco dentro del editor y sin estar escribiendo en un campo): Supr o Retroceso quitan lo elegido y las flechas lo
+  // mueven 0,5 m (con Mayús, 2 m) según la pantalla; varias pulsaciones seguidas cuentan como un solo paso al deshacer.
+  const onKey = (e) => {
+    if (playing || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || !sel.length) return;
+    if (e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable=true], [role=slider]")) return;
+    if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      if (sel.length > 1) delMany(false); else if (selId) delSel(false);
+      return;
+    }
+    const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!dir) return;
+    e.preventDefault();
+    const step = e.shiftKey ? 2 : 0.5;
+    const next = nudgeElements(live.current, idx, sel, dir[0] * step, dir[1] * step);
+    if (next !== live.current) commit(next, { key: "nudge" });
+  };
 
   const addPlayer = (p) => {
     const team = isTeamTool(tool) ? tool : "a";
@@ -457,7 +476,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const setMode = (m) => { stop(); setFi(0); setSelId(null); setPick([]); setDraft(null); commit({ ...live.current, mode: m }); };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 outline-none" tabIndex={-1} onKeyDown={onKey}>
       {modes && (
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 space-y-1" data-testid="board-mode">
           <div className="flex flex-wrap items-center gap-2">
@@ -647,7 +666,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         </div>
       )}
 
-      {layersOpen && !playing && <LayerList els={cur.els} board={board} look={look} sel={sel} onPick={pickLayer} onStep={stepOne} />}
+      {layersOpen && !playing && <LayerList els={cur.els} board={board} look={look} sel={sel} onPick={pickLayer} onStep={stepOne} onMoveTo={moveRow} />}
 
       {!imageMode && <div className="flex flex-wrap items-center gap-1.5">
         <Button type="button" size="sm" className="h-8 px-2.5 gap-1 text-xs" onClick={() => (playing ? stop() : setPlaying(true))} disabled={board.frames.length < 2} title={board.frames.length < 2 ? "Añade otro fotograma para animar" : playing ? "Parar" : "Reproducir la animación"}>

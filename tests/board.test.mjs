@@ -8,7 +8,7 @@ import {
   LOOKS, lookOf, ORIENTS, orientOf, orientAngle, viewBox, fieldTurn, upVec, MAX_TEAMS, DEFAULT_TEAMS, addTeam, removeTeam, teamInUse, chipStyle, contrastColor, CHIP_PATTERNS,
   MATERIALS, materialOf, ladderRungs, faceOf, faceToward, setAllFeet, ballStyle, BALL_PATTERNS, isLinkable, byRank,
   boardMode, isAnimation, boardSpeed, animationDuration, elsAtTime, ANIM_HOLD,
-  drawOrder, hasLayers, placeElement, moveLayer, elementBounds, elementsInBox, resizeElements, spreadElements, recolorElements, setTeamOf, setFeetOf, removeElements, viewDelta, alignElements, distributeElements, stepLayer,
+  drawOrder, hasLayers, placeElement, moveLayer, elementBounds, elementsInBox, resizeElements, spreadElements, recolorElements, setTeamOf, setFeetOf, removeElements, viewDelta, alignElements, distributeElements, stepLayer, moveLayerTo, nudgeElements,
 } from "../src/lib/board.js";
 
 const token = (id, x, y, team = "a") => ({ id, k: "token", x, y, team, label: "" });
@@ -876,4 +876,51 @@ test("subir o bajar un puesto de la lista de capas, sin fijarse en si se solapan
   assert.deepEqual(drawOrder(group.frames[0].els).map((e) => e.id), ["c", "a", "b"], "el grupo se mueve junto y conserva su orden");
   const bottom = stepLayer(stepLayer(b, 0, ["c"], -1), 0, ["a", "c"], -1);
   assert.deepEqual(drawOrder(bottom.frames[0].els).map((e) => e.id).slice(0, 2), ["a", "c"]);
+});
+
+// ── Teclado (flechas) y arrastrar filas de la lista de capas ────────────────────────────────────────────────────────
+test("las flechas del teclado mueven según la pantalla, también con el campo girado", () => {
+  for (const orient of ["v", "vi", "h", "hi"]) {
+    const b = { ...boardWith([token("a", 20, 20), token("b", 30, 25)]), orient };
+    const field = fieldOf(b.field);
+    const view = (r, id) => { const [x, y] = xy(r, id); return toView(field, orient, { x, y }); };
+    const right = nudgeElements(b, 0, ["a", "b"], 2, 0);
+    const down = nudgeElements(b, 0, ["a", "b"], 0, 0.5);
+    for (const id of ["a", "b"]) {
+      assert.ok(Math.abs(view(right, id).x - view(b, id).x - 2) < 0.06 && Math.abs(view(right, id).y - view(b, id).y) < 0.06, `${orient}: derecha = 2 m a la derecha de la pantalla`);
+      assert.ok(Math.abs(view(down, id).y - view(b, id).y - 0.5) < 0.06 && Math.abs(view(down, id).x - view(b, id).x) < 0.06, `${orient}: abajo = 0,5 m hacia abajo de la pantalla`);
+    }
+  }
+});
+
+test("las flechas no sacan lo elegido del campo y solo tocan el fotograma actual", () => {
+  const b = addFrame(boardWith([token("a", 1, 30), token("b", 20, 30), token("c", 40, 30)]), 0).board;
+  const f = fieldOf(b.field);
+  let r = b;
+  for (let i = 0; i < 40; i++) r = nudgeElements(r, 0, ["a", "b"], -2, 0);
+  const u = elementBounds(r.frames[0].els.find((e) => e.id === "a"));
+  assert.ok(u.x0 >= -2.06, "no pasa de 2 m fuera del borde: " + u.x0);
+  assert.equal(xy(r, "b")[0] - xy(r, "a")[0], 19, "el grupo conserva la distancia entre sus cosas");
+  assert.equal(xy(r, "c")[0], 40, "lo no elegido no se mueve");
+  assert.deepEqual(xy(r, "a", 1), [1, 30], "el fotograma 2 no cambia");
+  assert.equal(nudgeElements(r, 0, ["a", "b"], -2, 0), r, "contra el borde ya no cambia nada");
+  let far = boardWith([token("z", f.w - 1, 5)]);
+  for (let i = 0; i < 30; i++) far = nudgeElements(far, 0, ["z"], 2, 0);
+  assert.ok(elementBounds(far.frames[0].els[0]).x1 <= f.w + 2.06);
+  assert.equal(nudgeElements(b, 0, [], 1, 0), b);
+  const withLink = addElement(boardWith([token("a", 20, 20), token("b", 30, 20)]), 0, { id: "l", k: "link", mode: "line", ids: ["a", "b"] });
+  const moved = nudgeElements(withLink, 0, ["a", "b", "l"], 2, 0);
+  assert.equal(moved.frames[0].els.find((e) => e.id === "l").ids.length, 2, "el conector sigue igual y va con sus fichas");
+});
+
+test("poner una cosa en un puesto concreto de la lista de capas", () => {
+  const b = boardWith([token("a", 5, 5), token("b", 40, 40), token("c", 20, 20), token("d", 30, 30)]);
+  const ids = (r) => drawOrder(r.frames[0].els).map((e) => e.id);
+  assert.deepEqual(ids(moveLayerTo(b, 0, "a", 3)), ["b", "c", "d", "a"], "al frente del todo");
+  assert.deepEqual(ids(moveLayerTo(b, 0, "d", 0)), ["d", "a", "b", "c"], "al fondo del todo");
+  assert.deepEqual(ids(moveLayerTo(b, 0, "a", 2)), ["b", "c", "a", "d"], "en medio");
+  assert.equal(moveLayerTo(b, 0, "b", 1), b, "si ya está en ese puesto no cambia nada");
+  assert.deepEqual(ids(moveLayerTo(b, 0, "a", 99)), ["b", "c", "d", "a"], "un puesto de más se queda en el extremo");
+  assert.equal(moveLayerTo(b, 0, "nada", 1), b);
+  assert.ok(moveLayerTo(b, 0, "a", 3).frames[0].els.every((e) => Number.isFinite(e.z)), "el fotograma pasa a guardar el orden");
 });

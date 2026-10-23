@@ -977,6 +977,34 @@ export function stepLayer(board, index, ids, dir) {
   return setFrameEls(board, index, withLayers(list));
 }
 
+// Pone una cosa en un puesto concreto de la lista de capas (0 = la del fondo): lo que se hace al arrastrar una fila de la lista
+export function moveLayerTo(board, index, id, pos) {
+  const order = drawOrder(board.frames[index].els);
+  const from = order.findIndex((e) => e.id === id);
+  if (from < 0) return board;
+  const to = clampTo(Math.round(pos), 0, order.length - 1);
+  if (to === from) return board;
+  const list = [...order];
+  const [e] = list.splice(from, 1);
+  list.splice(to, 0, e);
+  return setFrameEls(board, index, withLayers(list));
+}
+
+// Mueve lo elegido con las flechas del teclado: dx a la derecha y dy hacia abajo, en metros y «como se ve» en pantalla. No lo saca
+// del campo (se queda a 2 m del borde como mucho) y solo cambia el fotograma actual, igual que arrastrarlo.
+export function nudgeElements(board, index, ids, dx, dy) {
+  const field = fieldOf(board.field);
+  const items = boxesOf(board, index, ids);
+  if (!items.length) return board;
+  const u = unionBounds(items.map((x) => elementBounds(x.el, chipOf(board))));
+  const d = viewDelta(board.orient, dx, dy);
+  const ddx = clampTo(d.dx, Math.min(0, -2 - u.x0), Math.max(0, field.w + 2 - u.x1));
+  const ddy = clampTo(d.dy, Math.min(0, -2 - u.y0), Math.max(0, field.h + 2 - u.y1));
+  if (!ddx && !ddy) return board;
+  const sel = new Set(items.map((x) => x.el.id));
+  return setFrameEls(board, index, board.frames[index].els.map((e) => (sel.has(e.id) ? shiftElement(e, ddx, ddy) : e)));
+}
+
 // Un mismo color para todo lo elegido (en las zonas es el relleno)
 export function recolorElements(board, index, ids, color) {
   return mapElements(board, index, ids, (e) => {

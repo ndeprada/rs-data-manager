@@ -1,7 +1,7 @@
 import React from "react";
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween,
-  BringToFront, ChevronDown, ChevronUp, Circle, Copy, Minus, MoveUpRight, Plus, SendToBack, Square, Trash2, Triangle, Type, Waypoints, X,
+  BringToFront, ChevronDown, ChevronUp, Circle, Copy, GripVertical, Minus, MoveUpRight, Plus, SendToBack, Square, Trash2, Triangle, Type, Waypoints, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { drawOrder, elementBounds, isCarried, teamOf, teamsOf } from "@/lib/board";
@@ -184,11 +184,28 @@ function LayerGlyph({ el, board, look }) {
  * sel       ids elegidos
  * onPick(id, sumar)  elegir (o sumar / quitar de lo elegido si `sumar`)
  * onStep(id, dir)    dir +1 = un puesto hacia delante, -1 = un puesto hacia atrás
+ * onMoveTo(id, pos)  al soltar una fila arrastrada: nuevo puesto en el orden de dibujo (0 = el del fondo)
  */
-export function LayerList({ els, board, look, sel, onPick, onStep }) {
+export function LayerList({ els, board, look, sel, onPick, onStep, onMoveTo }) {
   const rows = drawOrder(els).slice().reverse(); // arriba del todo = lo que se ve por delante
   const box = React.useRef(null);
+  const [drag, setDrag] = React.useState(null); // { id, from, over }: fila que se está arrastrando y fila sobre la que está
   const first = sel[0];
+  // Fila sobre la que está el puntero (la lista puede estar desplazada); al acercarse a un borde se desplaza sola
+  const rowAt = (clientY) => {
+    const c = box.current;
+    if (!c) return 0;
+    const r = c.getBoundingClientRect();
+    if (clientY < r.top + 22) c.scrollTop -= 10;
+    else if (clientY > r.bottom - 22) c.scrollTop += 10;
+    const items = [...c.querySelectorAll("li")];
+    const at = items.findIndex((li) => clientY < li.getBoundingClientRect().bottom);
+    return at < 0 ? items.length - 1 : at;
+  };
+  const endDrag = (commit) => {
+    if (commit && drag && drag.over !== drag.from) onMoveTo?.(drag.id, rows.length - 1 - drag.over);
+    setDrag(null);
+  };
   // al elegir algo en el dibujo, su fila se deja a la vista dentro de la lista (sin mover la página)
   React.useEffect(() => {
     const c = box.current;
@@ -211,7 +228,22 @@ export function LayerList({ els, board, look, sel, onPick, onStep }) {
             const on = sel.includes(el.id);
             const name = layerName(el, board);
             return (
-              <li key={el.id} data-layer={el.id} className={`flex items-center gap-1.5 rounded-md border pl-1.5 pr-0.5 h-8 ${on ? "bg-amber-100 border-amber-300" : "border-transparent hover:bg-gray-50"}`}>
+              <li
+                key={el.id}
+                data-layer={el.id}
+                className={`flex items-center gap-1 rounded-md border pl-0.5 pr-0.5 h-8 ${on ? "bg-amber-100 border-amber-300" : "border-transparent hover:bg-gray-50"} ${drag?.id === el.id ? "opacity-50" : ""} ${drag && drag.over === i && drag.from !== i ? (drag.over < drag.from ? "shadow-[0_-2px_0_0_#d97706]" : "shadow-[0_2px_0_0_#d97706]") : ""}`}
+              >
+                <span
+                  role="img"
+                  aria-label={`Arrastrar para cambiar de capa: ${name}`}
+                  title="Arrastra para cambiar de capa"
+                  className="h-7 w-5 flex items-center justify-center text-gray-400 cursor-grab touch-none shrink-0"
+                  style={{ touchAction: "none" }}
+                  onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture?.(e.pointerId); setDrag({ id: el.id, from: i, over: i }); }}
+                  onPointerMove={(e) => { if (drag?.id === el.id) { const over = rowAt(e.clientY); if (over !== drag.over) setDrag((d) => (d ? { ...d, over } : d)); } }}
+                  onPointerUp={() => endDrag(true)}
+                  onPointerCancel={() => endDrag(false)}
+                ><GripVertical className="w-4 h-4" /></span>
                 <button
                   type="button"
                   className="flex-1 min-w-0 h-full flex items-center gap-2 text-left text-xs text-gray-800"
