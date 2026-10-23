@@ -16,7 +16,7 @@ const BLANCO = {
   zoneFill: "#2563eb", zoneAlpha: 0.08, zoneLine: "#6b7280", link: "#374151",
   label: { fill: "#111827", stroke: "#ffffff" }, textFill: "#111827", textStroke: "#ffffff",
   goal: { fill: "#f3f4f6", stroke: "#4b5563" }, cone: "#f97316", coneStroke: "#ffffff", ball: { fill: "#ffffff", stroke: "#111827" }, chipStroke: "#111827",
-  foot: { fill: "#111827", stroke: "#111827" },
+  foot: { fill: "#111827", stroke: "#6b7280" }, shadow: 0.26,
 };
 const COLOR = {
   bg: "#3f8a4a", stripe: "rgba(255,255,255,0.045)", line: "rgba(255,255,255,0.92)", lineW: 0.35, ink: "#111827",
@@ -24,7 +24,7 @@ const COLOR = {
   zoneFill: "#ffffff", zoneAlpha: 0.1, zoneLine: "#ffffff", link: "#ffffff",
   label: { fill: "#ffffff", stroke: "#000000" }, textFill: "#ffffff", textStroke: "#000000",
   goal: { fill: "rgba(255,255,255,0.35)", stroke: "#ffffff" }, cone: "#f97316", coneStroke: "#ffffff", ball: { fill: "#ffffff", stroke: "#111827" }, chipStroke: "#ffffff",
-  foot: { fill: "#111827", stroke: "#ffffff" },
+  foot: { fill: "#111827", stroke: "#ffffff" }, shadow: 0.36,
 };
 const STYLE = {
   blanco: BLANCO,
@@ -38,7 +38,7 @@ const STYLE = {
     zoneFill: "url(#bn-hatch)", zoneAlpha: 1, zoneLine: "#111111", link: "#111111",
     label: { fill: "#111111", stroke: "#ffffff" }, textFill: "#111111", textStroke: "#ffffff",
     goal: { fill: "#ffffff", stroke: "#111111" }, cone: "#9ca3af", coneStroke: "#111111", ball: { fill: "#ffffff", stroke: "#111111" }, chipStroke: "#111111",
-    foot: { fill: "#111111", stroke: "#111111" },
+    foot: { fill: "#111111", stroke: "#111111" }, shadow: 0,
   },
 };
 export const styleOf = (look) => STYLE[lookOf(look)];
@@ -239,36 +239,102 @@ function ChipFill({ pattern, color, color2 }) {
   );
 }
 
-// Pies de una ficha: dos zapatillas que asoman por delante (el frente es «hacia arriba» en espacio unitario)
-function Feet({ foot }) {
+// Relieve y sombra de las fichas. Todo son degradados y formas (sin filtros SVG) para que se vea igual en pantalla, en el PNG
+// y en el vídeo, y para que animar muchas fichas no pese.
+//  · chip-shade: capa neutra sobre el relleno (luz arriba a la izquierda, borde más oscuro abajo a la derecha): vale para cualquier color o dibujo
+//  · chip-shadow: sombra suave en el suelo (más opaca en el centro, se desvanece en el borde)
+//  · boot-shade: la bota se oscurece hacia un lado para que parezca redondeada
+export function ChipDefs() {
   return (
     <>
-      {[-1, 1].map((sx) => <rect key={sx} x={sx * 0.5 - 0.24} y={-1.78} width={0.48} height={1.3} rx={0.24} fill={foot.fill} stroke="#ffffff" strokeWidth={0.1} />)}
+      <radialGradient id="chip-shade" cx="0.36" cy="0.3" r="0.82">
+        <stop offset="0" stopColor="#ffffff" stopOpacity="0.5" />
+        <stop offset="0.42" stopColor="#ffffff" stopOpacity="0.05" />
+        <stop offset="0.74" stopColor="#000000" stopOpacity="0.06" />
+        <stop offset="1" stopColor="#000000" stopOpacity="0.34" />
+      </radialGradient>
+      <radialGradient id="chip-shadow" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stopColor="#000000" stopOpacity="1" />
+        <stop offset="0.6" stopColor="#000000" stopOpacity="0.85" />
+        <stop offset="0.86" stopColor="#000000" stopOpacity="0.3" />
+        <stop offset="1" stopColor="#000000" stopOpacity="0" />
+      </radialGradient>
+      <linearGradient id="boot-shade" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stopColor="#ffffff" stopOpacity="0.3" />
+        <stop offset="0.45" stopColor="#ffffff" stopOpacity="0" />
+        <stop offset="1" stopColor="#000000" stopOpacity="0.38" />
+      </linearGradient>
     </>
   );
 }
 
-// Ficha dibujada: pies (si los tiene), cuerpo con su dibujo, borde y texto de dentro
+// Dirección de la luz: arriba a la izquierda de la pantalla, así que la sombra cae hacia abajo y a la derecha (en unidades de radio)
+const SHADOW = { x: 0.16, y: 0.26 };
+
+// Bota vista desde arriba, apuntando hacia −y (largo 1,7 y ancho ~0,74 en la puntera, centrada en el origen). La suela asoma como un
+// borde claro alrededor de la parte de arriba, que lleva cordones, una franja lateral y un brillo en la puntera.
+const BOOT = "M0 -0.85 C0.27 -0.85 0.38 -0.55 0.37 -0.25 C0.36 0 0.3 0.2 0.27 0.45 C0.25 0.78 -0.25 0.78 -0.27 0.45 C-0.3 0.2 -0.36 0 -0.37 -0.25 C-0.38 -0.55 -0.27 -0.85 0 -0.85 Z";
+function BootShape({ foot, flat }) {
+  // En blanco y negro (impresión) la bota es solo contorno, para gastar poca tinta; el resto lleva relieve
+  const ink = flat ? "#111111" : "#ffffff";
+  const op = flat ? 1 : 0.85;
+  return (
+    <>
+      <path d={BOOT} fill="#f3f4f6" stroke={foot.stroke} strokeWidth={flat ? 0.1 : 0.07} strokeLinejoin="round" />
+      <g transform="translate(0 -0.02) scale(0.78 0.9)">
+        <path d={BOOT} fill={flat ? "#ffffff" : foot.fill} stroke={flat ? "#111111" : "none"} strokeWidth={flat ? 0.09 : 0} strokeLinejoin="round" />
+        {!flat && <path d={BOOT} fill="url(#boot-shade)" />}
+      </g>
+      <path d="M-0.15 -0.3 H0.15 M-0.16 -0.17 H0.16 M-0.16 -0.04 H0.16" stroke={ink} strokeOpacity={op} strokeWidth={0.05} strokeLinecap="round" fill="none" />
+      <path d="M0.25 -0.52 C0.29 -0.3 0.26 -0.02 0.2 0.25" stroke={ink} strokeOpacity={op} strokeWidth={0.06} strokeLinecap="round" fill="none" />
+      {!flat && <path d="M-0.17 -0.68 C-0.1 -0.76 0.05 -0.76 0.11 -0.69" stroke="#ffffff" strokeOpacity={0.45} strokeWidth={0.06} strokeLinecap="round" fill="none" />}
+    </>
+  );
+}
+
+// Pies de una ficha: dos botas paralelas que asoman por delante (el frente es «hacia arriba» en espacio unitario), la derecha un poco adelantada
+const BOOTS = [{ x: -0.41, y: -1.2, rot: -4 }, { x: 0.41, y: -1.28, rot: 4 }];
+function Feet({ foot, flat, shadow = 0, ang = 0 }) {
+  // la sombra no gira con la ficha: se pone con el desvío de la luz deshecho el giro
+  const a = (ang * Math.PI) / 180;
+  const ox = SHADOW.x * Math.cos(a) + SHADOW.y * Math.sin(a);
+  const oy = -SHADOW.x * Math.sin(a) + SHADOW.y * Math.cos(a);
+  return (
+    <>
+      {shadow > 0 && BOOTS.map((b, i) => (
+        <g key={`s${i}`} transform={`translate(${b.x + ox * 0.7} ${b.y + oy * 0.7}) rotate(${b.rot})`}>
+          <path d={BOOT} fill="#000" fillOpacity={shadow * 0.5} stroke="#000" strokeOpacity={shadow * 0.25} strokeWidth={0.2} strokeLinejoin="round" />
+        </g>
+      ))}
+      {BOOTS.map((b, i) => (
+        <g key={i} transform={`translate(${b.x} ${b.y}) rotate(${b.rot})`}><BootShape foot={foot} flat={flat} /></g>
+      ))}
+    </>
+  );
+}
+
+// Ficha dibujada: sombra, pies (si los tiene), cuerpo con su dibujo y relieve, borde y texto de dentro
 function Chip({ el, ctx, c, r, ghost = false }) {
   const { board, look, orient } = ctx;
   const s = styleOf(look);
   const paint = chipPaint(board, el, look);
   const bn = lookOf(look) === "bn";
-  const sw = Math.max(0.25, r * 0.2);
+  const sw = Math.max(0.2, r * 0.13);
   const ang = faceOf(el) + orientAngle(orient);
   const inner = (el.inner || "").toString().slice(0, 3);
   const fs = r * (inner.length > 2 ? 0.95 : inner.length > 1 ? 1.2 : 1.5);
+  const shadow = ghost ? 0 : s.shadow || 0;
   return (
     <>
-      {el.feet && <g transform={`translate(${c.x} ${c.y}) rotate(${ang}) scale(${r})`}><Feet foot={s.foot} /></g>}
+      {shadow > 0 && <circle cx={c.x + SHADOW.x * r} cy={c.y + SHADOW.y * r} r={r * 1.14} fill="url(#chip-shadow)" fillOpacity={shadow} />}
+      {el.feet && <g transform={`translate(${c.x} ${c.y}) rotate(${ang}) scale(${r})`}><Feet foot={s.foot} flat={bn} shadow={shadow} ang={ang} /></g>}
       {paint.pattern === "solid" || bn ? (
-        <circle cx={c.x} cy={c.y} r={r} fill={paint.color} stroke={paint.stroke} strokeWidth={sw} />
+        <circle cx={c.x} cy={c.y} r={r} fill={paint.color} stroke={bn ? paint.stroke : "none"} strokeWidth={sw} />
       ) : (
-        <>
-          <g transform={`translate(${c.x} ${c.y}) scale(${r})`}><ChipFill pattern={paint.pattern} color={paint.color} color2={paint.color2} /></g>
-          <circle cx={c.x} cy={c.y} r={r} fill="none" stroke={paint.stroke} strokeWidth={sw} />
-        </>
+        <g transform={`translate(${c.x} ${c.y}) scale(${r})`}><ChipFill pattern={paint.pattern} color={paint.color} color2={paint.color2} /></g>
       )}
+      {!bn && <circle cx={c.x} cy={c.y} r={r} fill="url(#chip-shade)" />}
+      {!bn && <circle cx={c.x} cy={c.y} r={r} fill="none" stroke={paint.stroke} strokeWidth={sw} />}
       {inner && !ghost && (
         <text x={c.x} y={c.y + fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight={800} fill={paint.text} stroke={paint.halo} strokeWidth={Math.max(0.12, fs * (paint.pattern === "solid" || bn ? 0.09 : 0.16))} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{inner}</text>
       )}
@@ -287,15 +353,15 @@ export function ChipGlyph({ board, el, look = "blanco", size = 18 }) {
         <pattern id="bn-stripes" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.6" height="1.6" fill="#fff" /><rect width="0.8" height="1.6" fill="#111" /></pattern>
         <pattern id="bn-hatch" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="1.6" stroke="#111" strokeWidth="0.3" /></pattern>
         <pattern id="bn-dots" width="1.4" height="1.4" patternUnits="userSpaceOnUse"><rect width="1.4" height="1.4" fill="#fff" /><circle cx="0.7" cy="0.7" r="0.3" fill="#111" /></pattern>
+        <ChipDefs />
       </defs>
       {paint.pattern === "solid" || bn ? (
-        <circle r={1} fill={paint.color} stroke={paint.stroke} strokeWidth={0.18} />
+        <circle r={1} fill={paint.color} stroke={bn ? paint.stroke : "none"} strokeWidth={0.18} />
       ) : (
-        <>
-          <ChipFill pattern={paint.pattern} color={paint.color} color2={paint.color2} />
-          <circle r={1} fill="none" stroke={paint.stroke} strokeWidth={0.18} />
-        </>
+        <ChipFill pattern={paint.pattern} color={paint.color} color2={paint.color2} />
       )}
+      {!bn && <circle r={1} fill="url(#chip-shade)" />}
+      {!bn && <circle r={1} fill="none" stroke={paint.stroke} strokeWidth={0.18} />}
     </svg>
   );
 }
@@ -408,7 +474,7 @@ function Piece({ el, ctx, selected, ghost = false }) {
       const down = el.feet ? Math.max(0, -Math.cos(a)) * r * 0.5 : 0;
       return (
         <g opacity={op}>
-          {ring(r * (el.feet ? 1.75 : 1) + 1.3)}
+          {ring(r * (el.feet ? 2.1 : 1) + 1.3)}
           <Chip el={el} ctx={ctx} c={c} r={r} ghost={ghost} />
           {el.label && !ghost ? (
             <text x={c.x} y={c.y + r + down + fs * 1.05} textAnchor="middle" fontSize={fs} fontWeight={700} fill={s.label.fill} stroke={s.label.stroke} strokeWidth={0.55} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{el.label}</text>
@@ -591,7 +657,7 @@ function Text({ el, ctx, selected }) {
 function TurnHandle({ el, ctx }) {
   const c = toView(ctx.field, ctx.orient, el);
   const mat = materialOf(el.k);
-  const base = mat ? mat.hh * (Number(el.size) || 1) + 0.6 : tokenR(ctx.chip, el) * 1.78;
+  const base = mat ? mat.hh * (Number(el.size) || 1) + 0.6 : tokenR(ctx.chip, el) * 2.12;
   const a = (((mat ? el.rot || 0 : faceOf(el)) + orientAngle(ctx.orient)) * Math.PI) / 180;
   const R = base + 2.1;
   const hx = c.x + Math.sin(a) * R, hy = c.y - Math.cos(a) * R;
@@ -660,6 +726,7 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, marks 
         <pattern id="bn-stripes" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.6" height="1.6" fill="#fff" /><rect width="0.8" height="1.6" fill="#111" /></pattern>
         <pattern id="bn-dots" width="1.4" height="1.4" patternUnits="userSpaceOnUse"><rect width="1.4" height="1.4" fill="#fff" /><circle cx="0.7" cy="0.7" r="0.3" fill="#111" /></pattern>
         <clipPath id="chip-clip"><circle r="1" /></clipPath>
+        <ChipDefs />
         <clipPath id="tq-clip"><rect x="-3" y="-3" width={field.w + 6} height={field.h + 3} /></clipPath>
       </defs>
       <Field field={field} orient={orient} look={look} vb={vb} />
