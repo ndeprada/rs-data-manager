@@ -4,20 +4,20 @@ import { playerFullName } from "./playerName.js";
 import { msg } from "../i18n/translate.js";
 
 // Mensaje de la convocatoria para pegar en el grupo de WhatsApp, y orden de los jugadores por posición (porteros, defensas,
-// centrocampistas, delanteros) que usan tanto la pestaña Convocatoria como el aviso. El mensaje va siempre en español.
+// medios, delanteros) que usan tanto la pestaña Convocatoria como el aviso. El mensaje va siempre en español.
 
 export const POSITION_GROUP = {
   portero: msg("Porteros"),
   central: msg("Defensas"), libre: msg("Defensas"), lateral: msg("Defensas"),
-  mediocentro: msg("Centrocampistas"), interior: msg("Centrocampistas"), mediapunta: msg("Centrocampistas"),
+  mediocentro: msg("Medios"), interior: msg("Medios"), mediapunta: msg("Medios"),
   extremo: msg("Delanteros"), delantero_centro: msg("Delanteros"),
 };
-export const GROUP_ORDER = [msg("Porteros"), msg("Defensas"), msg("Centrocampistas"), msg("Delanteros"), msg("Sin posición")];
+export const GROUP_ORDER = [msg("Porteros"), msg("Defensas"), msg("Medios"), msg("Delanteros"), msg("Sin posición")];
 // Orden exacto dentro de cada grupo
 export const POSITION_ORDER = {
   Porteros: ["portero"],
   Defensas: ["central", "libre", "lateral"],
-  Centrocampistas: ["mediocentro", "interior", "mediapunta"],
+  Medios: ["mediocentro", "interior", "mediapunta"],
   Delanteros: ["extremo", "delantero_centro"],
 };
 const NO_POSITION = "Sin posición";
@@ -41,16 +41,26 @@ export function groupPlayers(players) {
   });
 }
 
-// «7 · Pablo García»; sin dorsal, «• Pablo García»
-const playerLine = (p) => { const d = dorsalOf(p); return d ? `${d} · ${playerFullName(p)}` : `• ${playerFullName(p)}`; };
+// Motivo de no convocatoria tal como va en el mensaje (siempre en español). «Otro» y «sin motivo» no escriben nada:
+// el texto se puede editar a mano en el mensaje antes de copiarlo.
+const REASON_TEXT = { lesion: "lesión", enfermo: "enfermo", sancion: "sanción", descanso: "descanso", decision_tecnica: "decisión técnica", viaje: "viaje", estudios: "estudios" };
+export const reasonText = (reason) => REASON_TEXT[reason] || "";
 
-// Una lista (convocados o no convocados) por posición. Si nadie tiene posición no se pintan los títulos de grupo.
+// «7 · Pablo García»; sin dorsal, «• Pablo García»; con motivo, «7 · Pablo García (lesión)»
+const playerLine = (p, reason = "") => { const d = dorsalOf(p); return `${d ? `${d} ·` : "•"} ${playerFullName(p)}${reason ? ` (${reason})` : ""}`; };
+
+// Convocados: por posición con su título y una línea en blanco entre posiciones. Si nadie tiene posición no se pintan los títulos.
 function section(title, list) {
   if (!list?.length) return [];
   const groups = groupPlayers(list);
   const titles = groups.length > 1 || groups[0].group !== NO_POSITION;
-  // una línea en blanco entre una posición y la siguiente para que se distingan
-  return ["", `*${title} (${list.length}):*`, ...groups.flatMap(({ group, players }, i) => [...(i > 0 ? [""] : []), ...(titles ? [`_${group}_`] : []), ...players.map(playerLine)])];
+  return ["", `*${title} (${list.length}):*`, ...groups.flatMap(({ group, players }, i) => [...(i > 0 ? [""] : []), ...(titles ? [`_${group}_`] : []), ...players.map((p) => playerLine(p))])];
+}
+
+// No convocados: una lista seguida, ordenada por posición (porteros, defensas, medios, delanteros) pero sin escribir la posición, con el motivo si lo hay.
+function sectionNoCall(title, list, reasons) {
+  if (!list?.length) return [];
+  return ["", `*${title} (${list.length}):*`, ...groupPlayers(list).flatMap(({ players }) => players.map((p) => playerLine(p, reasonText(reasons?.[p.id]))))];
 }
 
 /** «🏠 Jugamos en casa» / «✈️ Jugamos fuera» para un partido (con rival); "" si no hay rival. Sin dato de local/visitante = en casa, como en el resto de la app. */
@@ -64,9 +74,10 @@ export function observationLines({ kit = "", info = "" } = {}) {
 
 /**
  * event · team · convocados · noConvocados (listas de jugadores) · callupTime ("HH:mm")
+ * reasons  motivo de cada no convocado por id de jugador (absence_reasons: lesion, sancion, decision_tecnica…)
  * kit   equipación que deben traer (👕)      info   cualquier otra información (ℹ️)
  */
-export function buildConvocationText({ event, team, convocados = [], noConvocados = [], callupTime = "", kit = "", info = "" }) {
+export function buildConvocationText({ event, team, convocados = [], noConvocados = [], reasons = {}, callupTime = "", kit = "", info = "" }) {
   const date = event?.date ? new Date(event.date) : null;
   const day = date ? format(date, "EEEE d 'de' MMMM", { locale: es }) : "";
   const time = date ? format(date, "HH:mm") : "";
@@ -86,7 +97,7 @@ export function buildConvocationText({ event, team, convocados = [], noConvocado
   ].filter(Boolean);
   lines.push(
     ...section("✅ Convocados", convocados),
-    ...section("❌ No convocados", noConvocados),
+    ...sectionNoCall("❌ No convocados", noConvocados, reasons),
     ...(obs.length ? ["", "*Observaciones:*", ...obs] : []),
   );
   return lines.filter((l, i) => l !== "" || lines[i - 1] !== "").join("\n").trim();

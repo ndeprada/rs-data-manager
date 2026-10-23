@@ -356,7 +356,7 @@ export default [
   ["Remate","Finish","Finition","Rematada"],
   ["Porteros","Goalkeepers","Gardiens","Porters"],
   ["Defensas","Defenders","Défenseurs","Defenses"],
-  ["Centrocampistas","Midfielders","Milieux","Migcampistes"],
+  ["Medios","Midfielders","Milieux","Migcampistes"],
   ["Delanteros","Forwards","Attaquants","Davanters"],
   ["Avisar de la convocatoria","Notify about the squad selection","Informer de la convocation","Avisar de la convocatòria"],
   ["Convocados ({length})","Called up ({length})","Convoqués ({length})","Convocats ({length})"],

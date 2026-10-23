@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildConvocationText, groupPlayers, dorsalOf, observationLines, sideLabel, GROUP_ORDER } from "../src/lib/convocationMessage.js";
+import { buildConvocationText, groupPlayers, dorsalOf, observationLines, sideLabel, reasonText, GROUP_ORDER } from "../src/lib/convocationMessage.js";
 
 const p = (id, first, last, position, jersey_number, extra = {}) => ({ id, first_name: first, last_name: last, position, jersey_number, ...extra });
 const event = { date: new Date(2026, 9, 25, 11, 30).toISOString(), opponent: "CE Europa", location: "Camp Municipal", location_url: "" };
@@ -20,7 +20,7 @@ const squad = [
 
 test("jugadores por posición: porteros, defensas, centrocampistas, delanteros y sin posición", () => {
   const g = groupPlayers(squad);
-  assert.deepEqual(g.map((x) => x.group), ["Porteros", "Defensas", "Centrocampistas", "Delanteros", "Sin posición"]);
+  assert.deepEqual(g.map((x) => x.group), ["Porteros", "Defensas", "Medios", "Delanteros", "Sin posición"]);
   assert.deepEqual(g.map((x) => x.group), GROUP_ORDER);
   assert.deepEqual(g[1].players.map((x) => x.id), ["c2", "c1", "l1"], "defensas: centrales (por apellido) y luego laterales");
   assert.deepEqual(g[2].players.map((x) => x.id), ["m1", "i1"], "mediocentro antes que interior");
@@ -54,15 +54,25 @@ test("el mensaje lleva convocados y no convocados, cada lista por posición y co
   assert.deepEqual(lines.slice(iConv + 1, iNot - 1), [
     "_Porteros_", "1 · Hugo Pérez", "",
     "_Defensas_", "5 · Eric Alba", "4 · Nil Costa", "",
-    "_Centrocampistas_", "6 · Pau Soler", "",
+    "_Medios_", "6 · Pau Soler", "",
     "_Delanteros_", "9 · Marc Vila",
   ], "una línea en blanco entre cada posición");
-  assert.deepEqual(lines.slice(iNot + 1), [
-    "_Defensas_", "3 · Joan Ruiz", "",
-    "_Centrocampistas_", "8 · Leo Ferrer", "",
-    "_Delanteros_", "11 · Álex Mas", "",
-    "_Sin posición_", "• Biel Roca",
-  ]);
+  // no convocados: una lista seguida, ordenada por posición pero sin escribir la posición (ni líneas en blanco)
+  assert.deepEqual(lines.slice(iNot + 1), ["3 · Joan Ruiz", "8 · Leo Ferrer", "11 · Álex Mas", "• Biel Roca"]);
+  assert.ok(!lines.slice(iNot).some((l) => l.startsWith("_")), "los no convocados no llevan títulos de posición");
+});
+
+test("no convocados: el motivo va entre paréntesis y «otro» o sin motivo no escriben nada (se edita a mano en el mensaje)", () => {
+  const conv = squad.filter((x) => x.id === "g1");
+  const not = squad.filter((x) => ["c1", "c2", "m1", "e1", "x1"].includes(x.id));
+  const reasons = { c1: "lesion", c2: "decision_tecnica", m1: "sancion", e1: "otro", g1: "lesion" };
+  const lines = buildConvocationText({ event, team, convocados: conv, noConvocados: not, reasons }).split("\n");
+  const iNot = lines.indexOf("*❌ No convocados (5):*");
+  assert.deepEqual(lines.slice(iNot + 1), ["5 · Eric Alba (decisión técnica)", "4 · Nil Costa (lesión)", "6 · Pau Soler (sanción)", "11 · Álex Mas", "• Biel Roca"]);
+  assert.ok(!lines.slice(0, iNot).some((l) => l.includes("(lesión)")), "los convocados no llevan motivo aunque tengan uno guardado");
+  assert.deepEqual(["lesion", "enfermo", "sancion", "descanso", "decision_tecnica", "viaje", "estudios", "otro", "sin_motivo", undefined].map(reasonText), ["lesión", "enfermo", "sanción", "descanso", "decisión técnica", "viaje", "estudios", "", "", ""]);
+  const sinMotivos = buildConvocationText({ event, team, convocados: conv, noConvocados: not }).split("\n");
+  assert.ok(sinMotivos.includes("4 · Nil Costa") && !sinMotivos.some((l) => !l.startsWith("*") && l.includes("(")), "sin motivos guardados, ninguna línea de jugador lleva paréntesis");
 });
 
 test("en casa o fuera: 🏠 / ✈️ con el campo al lado; el enlace del mapa va aparte; sin rival no se dice", () => {

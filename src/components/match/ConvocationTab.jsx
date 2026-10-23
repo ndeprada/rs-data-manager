@@ -20,11 +20,11 @@ const POSITION_LABELS = {
   mediocentro: msg("MC"), interior: msg("INT"), mediapunta: msg("MP"), delantero_centro: msg("DC"), extremo: msg("EXT"),
 };
 
-// El orden por posición (porteros, defensas, centrocampistas, delanteros) y el mensaje de WhatsApp están en @/lib/convocationMessage
+// El orden por posición (porteros, defensas, medios, delanteros) y el mensaje de WhatsApp están en @/lib/convocationMessage
 const GROUP_COLORS = {
   Porteros:        { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-800" },
   Defensas:        { bg: "bg-blue-50",   border: "border-blue-200",   text: "text-blue-800" },
-  Centrocampistas: { bg: "bg-green-50",  border: "border-green-200",  text: "text-green-800" },
+  Medios:          { bg: "bg-green-50",  border: "border-green-200",  text: "text-green-800" },
   Delanteros:      { bg: "bg-red-50",    border: "border-red-200",    text: "text-red-800" },
   "Sin posición":  { bg: "bg-gray-50",   border: "border-gray-200",   text: "text-gray-700" },
 };
@@ -52,11 +52,11 @@ function PlayerColumn({ players, mark, markClass, numClass }) {
 }
 
 // ── Preview / Notify Modal ───────────────────────────────
-function NotifyModal({ open, onClose, event, team, convocados, noConvocados, callupTime, kit, observations, onMarkNotified, sending }) {
+function NotifyModal({ open, onClose, event, team, convocados, noConvocados, reasons, callupTime, kit, observations, onMarkNotified, sending }) {
   const t = useT();
   const dfl = useDateLocale();
   // Mensaje para el grupo de WhatsApp (siempre en español): convocados y no convocados por posición, con dorsal y observaciones
-  const buildWa = () => buildConvocationText({ event, team, convocados, noConvocados, callupTime, kit, info: observations });
+  const buildWa = () => buildConvocationText({ event, team, convocados, noConvocados, reasons, callupTime, kit, info: observations });
   const waDefault = buildWa();
   // Aviso al móvil: partido y hora; debajo «🏠 Jugamos en casa / ✈️ Jugamos fuera · campo» y, si están escritas, las líneas 👕 y ℹ️
   const pushBase = [
@@ -443,6 +443,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
         team={team}
         convocados={convocados}
         noConvocados={noConvocados}
+        reasons={reasons}
         callupTime={callupTime}
         kit={kit}
         observations={observations}
