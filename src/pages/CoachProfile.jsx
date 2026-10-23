@@ -22,6 +22,7 @@ import ImageCropDialog from "@/components/ImageCropDialog";
 import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 import { TEAM_ROLES } from "@/lib/staffRoles";
 import { syncAssignments, syncUserTeamsForStaff, buildLinks, deleteStaffPerson, revokedAccess } from "@/lib/staffLink";
+import { stageSeesCoach } from "@/lib/coachStage";
 import { useT, msg } from "@/i18n";
 
 const ROLE_LABELS = {
@@ -77,7 +78,7 @@ export default function CoachProfile() {
   });
 
   // Assignments del miembro actual (se carga después de conocer staffId)
-  const { data: memberAssignments = [] } = useQuery({
+  const { data: memberAssignments = [], isLoading: isLoadingAssignments } = useQuery({
     queryKey: ["team_staff_assignments", staffId || `user_${userId}`],
     queryFn: async () => {
       if (staffId) {
@@ -121,7 +122,8 @@ export default function CoachProfile() {
     })
     .filter(Boolean);
 
-  const isLoading = isLoadingStaff || isLoadingUsers;
+  // Los equipos de la persona deciden si un coordinador de etapa puede verla: hasta que se cargan no se decide el acceso
+  const isLoading = isLoadingStaff || isLoadingUsers || isLoadingAssignments;
 
   // Construir el objeto `member` según si es StaffMember o User
   const rawMember = staffId
@@ -154,24 +156,16 @@ export default function CoachProfile() {
     (user?.email && member?.email?.toLowerCase() === user.email.toLowerCase()) ||
     (!!staffId && !!user?.staff_member_id && user.staff_member_id === staffId);
 
-  // Coordinador F7 solo ve entrenadores de equipos F7, etc.
-  const F7_CATEGORIES = ["f7", "f7", "benjami", "alevin", "prebenjami", "benjamin"]; // detect by category string
-  const isF7Team = (t) => {
-    if (!t) return false;
-    const cat = (t.category || "").toLowerCase();
-    return cat.includes("alevin") || cat.includes("benjamin") || cat.includes("benjami") || cat.includes("prebenjami") || cat.includes("ludica") || cat.includes("f7");
-  };
-  const isF11Team = (t) => {
-    if (!t) return false;
-    const cat = (t.category || "").toLowerCase();
-    return !isF7Team(t) && (cat.includes("juvenil") || cat.includes("cadet") || cat.includes("infantil") || cat.includes("primera") || cat.includes("segona") || cat.includes("tercera") || cat.includes("preferent") || cat.includes("lliga") || cat.includes("copa") || cat.includes("divisio") || cat.includes("nacional") || cat.includes("federal") || cat.includes("f11"));
-  };
+  // Coordinador F7 solo ve entrenadores que llevan algún equipo F7, y el de F11 los que llevan alguno de F11.
+  // Se miran TODOS los equipos de la persona (puede llevar uno de F7 y otro de F11), no solo el primero.
+  const coachTeamIds = assignedTeams.length > 0
+    ? assignedTeams.map(tm => tm.id)
+    : (member?.team_ids?.length ? member.team_ids : (member?.team_id ? [member.team_id] : []));
+  const coachTeams = coachTeamIds.map(id => teams.find(tm => tm.id === id)).filter(Boolean);
 
   const coordCanSeeTeam = () => {
     if (isCoordinatorGeneral) return true;
-    if (coordType === "coordinador_f7") return isF7Team(team);
-    if (coordType === "coordinador_f11") return isF11Team(team);
-    return false;
+    return stageSeesCoach(coordType, coachTeams);
   };
 
   // Eliminar a una persona del cuerpo técnico: solo administración, nunca a uno mismo ni a otros administradores
@@ -378,12 +372,12 @@ export default function CoachProfile() {
       {/* Header */}
       <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
         <div className="h-2 w-full" style={{ background: "var(--granate)" }} />
-        <div className="p-6 flex flex-wrap gap-6 items-start">
-          <div className="relative group">
+        <div className="p-4 sm:p-6 flex flex-wrap gap-x-4 gap-y-3 sm:gap-6 items-start">
+          <div className="relative group shrink-0">
             {member.photo_url ? (
-              <img src={member.photo_url} alt={`${member.first_name} ${member.last_name}`} className="w-28 h-28 rounded-full object-cover shrink-0" />
+              <img src={member.photo_url} alt={`${member.first_name} ${member.last_name}`} className="w-20 h-20 sm:w-28 sm:h-28 rounded-full object-cover shrink-0" />
             ) : (
-              <div className="w-28 h-28 rounded-full flex items-center justify-center text-white font-black text-5xl shrink-0"
+              <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-white font-black text-3xl sm:text-5xl shrink-0"
                 style={{ background: "var(--granate)", fontFamily: "var(--font-display)" }}>
                 {member.first_name?.[0]}{member.last_name?.[0]}
               </div>
@@ -400,9 +394,9 @@ export default function CoachProfile() {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3">
-              <div>
-                <h1 className="text-2xl font-black uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
+            <div className="flex items-start sm:items-center gap-2 sm:gap-3">
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-black uppercase break-words" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
                   {member.first_name} {member.last_name}
                 </h1>
                 <p className="text-sm font-bold uppercase tracking-wide mt-0.5" style={{ color: "var(--naranja)", fontFamily: "var(--font-display)" }}>
@@ -410,19 +404,22 @@ export default function CoachProfile() {
                 </p>
               </div>
               {canEdit && (
-                <button onClick={handleOpenEditDialog} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title={t("Editar perfil")}>
+                <button onClick={handleOpenEditDialog} className="p-2 shrink-0 hover:bg-gray-100 rounded-lg transition-colors" title={t("Editar perfil")}>
                   <Edit2 className="w-4 h-4 text-gray-400 hover:text-gray-600" />
                 </button>
               )}
             </div>
             {assignedTeams.length > 0 ? (
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
                 {assignedTeams.map(tm => (
-                  <div key={tm.assignment_id} className="flex items-center gap-1.5 text-sm text-gray-600">
-                    <Shield className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                    <span>{tm.name}</span>
+                  <div key={tm.assignment_id} className="flex flex-wrap items-center gap-x-1.5 text-sm text-gray-600">
+                    {/* El equipo y su icono no se parten; si no cabe, el rol pasa entero a la línea siguiente */}
+                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                      <Shield className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      {tm.name}
+                    </span>
                     {tm.team_role && (
-                      <span className="text-xs text-gray-400">· {TEAM_ROLE_LABELS[tm.team_role] ? t(TEAM_ROLE_LABELS[tm.team_role]) : tm.team_role}</span>
+                      <span className="text-xs text-gray-400 whitespace-nowrap">· {TEAM_ROLE_LABELS[tm.team_role] ? t(TEAM_ROLE_LABELS[tm.team_role]) : tm.team_role}</span>
                     )}
                   </div>
                 ))}
@@ -433,24 +430,27 @@ export default function CoachProfile() {
                 <span className="text-sm text-gray-600">{team.name}</span>
               </div>
             )}
-            <div className="flex flex-wrap gap-4 mt-3">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
               {member.phone && (
                 <a href={`tel:${member.phone}`} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900">
-                  <Phone className="w-3.5 h-3.5 text-gray-400" /> {member.phone}
+                  <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" /> {member.phone}
                 </a>
               )}
               {member.email && (
-                <a href={`mailto:${member.email}`} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900">
-                  <Mail className="w-3.5 h-3.5 text-gray-400" /> {member.email}
+                <a href={`mailto:${member.email}`} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 min-w-0 break-all">
+                  <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" /> {member.email}
                 </a>
               )}
             </div>
           </div>
           {canDelete && (
-            <button type="button" onClick={() => setDeleteOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 rounded-full px-3 py-1.5 transition-colors">
-              <Trash2 className="w-3.5 h-3.5" /> {member._isUser ? t("Quitar acceso") : t("Eliminar del personal")}
-            </button>
+            // En móvil va en su propia fila, debajo de los datos, para que no se solape con el nombre
+            <div className="basis-full sm:basis-auto">
+              <button type="button" onClick={() => setDeleteOpen(true)}
+                className="flex items-center gap-1.5 text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 rounded-full px-3 py-1.5 transition-colors">
+                <Trash2 className="w-3.5 h-3.5" /> {member._isUser ? t("Quitar acceso") : t("Eliminar del personal")}
+              </button>
+            </div>
           )}
         </div>
       </div>

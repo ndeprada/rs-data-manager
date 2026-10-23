@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { buildLinks } from "@/lib/staffLink";
 import { STAFF_FUNCTION_VALUES, teamRoleLabel } from "@/lib/staffRoles";
 import { compareTeams, teamRank } from "@/lib/teamOrder";
+import { stageSeesCoach, STAGE_COORD_ROLES } from "@/lib/coachStage";
 import TabBar from "@/components/common/TabBar";
 import StaffTable from "@/components/coach/StaffTable";
 
@@ -68,13 +69,6 @@ export default function Coaches() {
       </div>
     );
   }
-
-  const isF7Team = (t) => {
-    if (!t) return false;
-    const cat = (t.category || "").toLowerCase();
-    return cat.includes("alevin") || cat.includes("benjamin") || cat.includes("benjami") || cat.includes("prebenjami") || cat.includes("ludica") || cat.includes("f7");
-  };
-  const isF11Team = (t) => !isF7Team(t);
 
   // Una persona = una tarjeta: los usuarios registrados se enlazan con su ficha de personal
   // (por vínculo, email sin mayúsculas o nombre) y solo salen aparte si no tienen ficha.
@@ -163,10 +157,9 @@ export default function Coaches() {
     if (s._isAdmin) return filterTeam === "all";
     const teamIdsOfS = (s.team_list || []).map(a => a.team_id);
     if (filterTeam !== "all" && !teamIdsOfS.includes(filterTeam)) return false;
-    if (!isCoordinatorGeneral) {
-      const sTeams = teamIdsOfS.map(id => teams.find(t => t.id === id));
-      if (coordType === "coordinador_f7" && !sTeams.some(isF7Team)) return false;
-      if (coordType === "coordinador_f11" && !sTeams.some(isF11Team)) return false;
+    if (!isCoordinatorGeneral && STAGE_COORD_ROLES.includes(coordType)) {
+      // Cada coordinador de etapa ve a quien lleve algún equipo de su etapa (misma regla que la ficha: lib/coachStage.js)
+      if (!stageSeesCoach(coordType, teamIdsOfS.map(id => teams.find(t => t.id === id)))) return false;
     }
     return true;
   });
