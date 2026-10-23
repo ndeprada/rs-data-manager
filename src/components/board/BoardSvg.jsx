@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  arrowFlight, arrowPoints, arrowProps, byRank, chipOf, dashArray, fieldOf, fontOf, lookOf, toView, tokenColor, tokenR, viewBox, wavyPoints,
+  arrowFlight, arrowPoints, arrowProps, byRank, chipOf, dashArray, fieldOf, fontOf, isQuad, linkProps, linkShape, lookOf, toView, tokenColor, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con tres modos visuales:
@@ -12,21 +12,21 @@ const STYLE = {
   blanco: {
     bg: "#ffffff", margin: "#f0f2f5", stripe: "#f5f7f9", line: "#aab1bc", lineW: 0.24, ink: "#111827",
     arrows: { move: "#111827", pass: "#2563eb", dribble: "#73000A" },
-    zoneFill: "#2563eb", zoneAlpha: 0.08, zoneLine: "#6b7280",
+    zoneFill: "#2563eb", zoneAlpha: 0.08, zoneLine: "#6b7280", link: "#374151",
     label: { fill: "#111827", stroke: "#ffffff" }, textFill: "#111827", textStroke: "#ffffff",
     goal: { fill: "#f3f4f6", stroke: "#4b5563" }, cone: "#f97316", coneStroke: "#ffffff", ball: { fill: "#ffffff", stroke: "#111827" }, chipStroke: "#111827",
   },
   color: {
     bg: "#3f8a4a", stripe: "rgba(255,255,255,0.045)", line: "rgba(255,255,255,0.92)", lineW: 0.35, ink: "#111827",
     arrows: { move: "#ffffff", pass: "#fde047", dribble: "#fb923c" },
-    zoneFill: "#ffffff", zoneAlpha: 0.1, zoneLine: "#ffffff",
+    zoneFill: "#ffffff", zoneAlpha: 0.1, zoneLine: "#ffffff", link: "#ffffff",
     label: { fill: "#ffffff", stroke: "#000000" }, textFill: "#ffffff", textStroke: "#000000",
     goal: { fill: "rgba(255,255,255,0.35)", stroke: "#ffffff" }, cone: "#f97316", coneStroke: "#ffffff", ball: { fill: "#ffffff", stroke: "#111827" }, chipStroke: "#ffffff",
   },
   bn: {
     bg: "#ffffff", line: "#111111", lineW: 0.3, ink: "#111111",
     arrows: { move: "#111111", pass: "#111111", dribble: "#111111" },
-    zoneFill: "url(#bn-hatch)", zoneAlpha: 1, zoneLine: "#111111",
+    zoneFill: "url(#bn-hatch)", zoneAlpha: 1, zoneLine: "#111111", link: "#111111",
     label: { fill: "#111111", stroke: "#ffffff" }, textFill: "#111111", textStroke: "#ffffff",
     goal: { fill: "#ffffff", stroke: "#111111" }, cone: "#9ca3af", coneStroke: "#111111", ball: { fill: "#ffffff", stroke: "#111111" }, chipStroke: "#111111",
   },
@@ -271,9 +271,8 @@ function Piece({ el, ctx, selected, ghost = false }) {
 function Zone({ el, ctx, selected }) {
   const { field, orient, look } = ctx;
   const s = styleOf(look);
-  const a = toView(field, orient, { x: el.x, y: el.y });
-  const b = toView(field, orient, { x: el.x + el.w, y: el.y + el.h });
-  const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(a.x - b.x), h = Math.abs(a.y - b.y);
+  const toV = (p) => toView(field, orient, p);
+  const quad = isQuad(el);
   const bn = look === "bn";
   const alpha = el.fillOpacity ?? s.zoneAlpha;
   const hatch = bn;
@@ -289,14 +288,81 @@ function Zone({ el, ctx, selected }) {
     strokeDasharray: dash,
     opacity: el.opacity ?? 1,
   };
-  const pad = 0.9 + (border ? sw / 2 : 0);
   const mark = { fill: "none", stroke: "#f59e0b", strokeWidth: 0.4, strokeDasharray: "1.6 1.2" };
+  if (quad) {
+    const pts = el.pts.map(toV).map((q) => `${q.x},${q.y}`).join(" ");
+    return (
+      <g>
+        {/* la marca de selección va por detrás (como la de las flechas) para no tapar el color del borde elegido */}
+        {selected && <polygon points={pts} fill="none" stroke="#f59e0b" strokeWidth={sw + 1.6} strokeLinejoin="round" opacity={0.5} />}
+        <polygon points={pts} strokeLinejoin="round" {...common} />
+      </g>
+    );
+  }
+  const { x0, y0, x1, y1 } = zoneBox(el);
+  const a = toV({ x: x0, y: y0 }), b = toV({ x: x1, y: y1 });
+  const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(a.x - b.x), h = Math.abs(a.y - b.y);
+  const pad = 0.9 + (border ? sw / 2 : 0);
   return (
     <g>
       {el.shape === "ellipse" ? <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...common} /> : <rect x={x} y={y} width={w} height={h} {...common} />}
       {selected && (el.shape === "ellipse"
         ? <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2 + pad} ry={h / 2 + pad} {...mark} />
         : <rect x={x - pad} y={y - pad} width={w + 2 * pad} height={h + 2 * pad} {...mark} />)}
+    </g>
+  );
+}
+
+// Conector entre fichas: línea, zona o red según el tipo; su forma sale de dónde estén las fichas en ese momento.
+function Link({ el, ctx, els, selected }) {
+  const { field, orient, look } = ctx;
+  const s = styleOf(look);
+  const g = linkShape(el, els);
+  if (!g) return null;
+  const lp = linkProps(el);
+  const toV = (p) => toView(field, orient, p);
+  const bn = look === "bn";
+  const col = bn ? s.link : el.color || s.link;
+  const sw = lp.width;
+  const dash = dashArray(lp.dash, sw * 1.4);
+  const stroke = { stroke: col, strokeWidth: sw, strokeDasharray: dash, strokeLinecap: "round", strokeLinejoin: "round", fill: "none" };
+  const halo = { stroke: "#f59e0b", strokeWidth: sw + 1.6, opacity: 0.5, strokeLinecap: "round", strokeLinejoin: "round", fill: "none" };
+  let body = null;
+  if (g.kind === "zone") {
+    const pts = g.poly.map(toV).map((q) => `${q.x},${q.y}`).join(" ");
+    body = (
+      <>
+        {selected && <polygon points={pts} {...halo} />}
+        <polygon points={pts} {...stroke} stroke={lp.border ? col : "none"} fill={lp.fillOpacity > 0 ? (bn ? "url(#bn-hatch)" : col) : "none"} fillOpacity={bn ? 1 : lp.fillOpacity} />
+      </>
+    );
+  } else if (g.kind === "line") {
+    const d = pathOf(g.pts.map(toV)) + (g.closed ? " Z" : "");
+    body = (
+      <>
+        {selected && <path d={d} {...halo} />}
+        <path d={d} {...stroke} />
+      </>
+    );
+  } else {
+    const d = g.segs.map(([a, b]) => { const p = toV(a), q = toV(b); return `M ${p.x.toFixed(2)} ${p.y.toFixed(2)} L ${q.x.toFixed(2)} ${q.y.toFixed(2)}`; }).join(" ");
+    body = (
+      <>
+        {selected && <path d={d} {...halo} />}
+        <path d={d} {...stroke} />
+      </>
+    );
+  }
+  return <g opacity={el.opacity ?? 1}>{body}</g>;
+}
+
+// Esquinas de una zona libre para arrastrarlas (van en la capa de encima, para que ninguna ficha las tape)
+function QuadHandles({ el, ctx }) {
+  const toV = (p) => toView(ctx.field, ctx.orient, p);
+  return (
+    <g>
+      {el.pts.map((q, i) => { const c = toV(q); return <circle key={`v${i}`} cx={c.x} cy={c.y} r={1.3} fill="#fff" stroke="#f59e0b" strokeWidth={0.5} pointerEvents="none" />; })}
+      {el.pts.map((q, i) => { const c = toV(q); return <circle key={`h${i}`} data-h={`q${i}`} cx={c.x} cy={c.y} r={3.2} fill="transparent" />; })}
     </g>
   );
 }
@@ -314,7 +380,14 @@ function Text({ el, ctx, selected }) {
   );
 }
 
-export function Item({ el, ctx, selected = false, handles = false }) {
+// Recuadro con el que se eligen varias fichas a la vez
+function BoxMark({ box, ctx }) {
+  const a = toView(ctx.field, ctx.orient, { x: box.x, y: box.y }), b = toView(ctx.field, ctx.orient, { x: box.x + box.w, y: box.y + box.h });
+  return <rect x={Math.min(a.x, b.x)} y={Math.min(a.y, b.y)} width={Math.abs(a.x - b.x)} height={Math.abs(a.y - b.y)} fill="#f59e0b" fillOpacity={0.12} stroke="#f59e0b" strokeWidth={0.4} strokeDasharray="1.6 1.2" pointerEvents="none" />;
+}
+
+export function Item({ el, ctx, els = [], selected = false, handles = false }) {
+  if (el.k === "link") return <Link el={el} ctx={ctx} els={els} selected={selected} />;
   if (el.k === "arrow") return <Arrow el={el} ctx={ctx} selected={selected} handles={handles} />;
   if (el.k === "zone") return <Zone el={el} ctx={ctx} selected={selected} />;
   if (el.k === "text") return <Text el={el} ctx={ctx} selected={selected} />;
@@ -327,12 +400,13 @@ export function Item({ el, ctx, selected = false, handles = false }) {
  * ghosts  [{ …elemento, from, to }] posición anterior de lo que se ha movido (rastro)
  * draft   flecha o zona que se está dibujando
  */
-const Board = React.forwardRef(function Board({ board, els, selId = null, ghosts = [], draft = null, handles = false, className = "", style, label = "Dibujo", ...rest }, ref) {
+const Board = React.forwardRef(function Board({ board, els, selId = null, marks = [], ghosts = [], draft = null, handles = false, className = "", style, label = "Dibujo", ...rest }, ref) {
   const field = fieldOf(board.field);
   const orient = board.orient === "h" ? "h" : "v";
   const look = lookOf(board.look);
   const vb = viewBox(field, orient);
   const ctx = { board, field, orient, look, chip: chipOf(board) };
+  const selEl = selId ? els.find((e) => e.id === selId) : null;
   return (
     <svg ref={ref} xmlns="http://www.w3.org/2000/svg" viewBox={vb.join(" ")} className={className} style={style} preserveAspectRatio="xMidYMid meet" role="img" aria-label={label} {...rest}>
       <defs>
@@ -350,8 +424,10 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, ghosts
           </g>
         );
       })}
-      {[...els].sort(byRank).map((el) => <Item key={el.id} el={el} ctx={ctx} selected={el.id === selId} handles={handles} />)}
-      {draft && <Item el={{ id: "draft", ...draft }} ctx={ctx} selected />}
+      {[...els].sort(byRank).map((el) => <Item key={el.id} el={el} els={els} ctx={ctx} selected={el.id === selId || (el.k !== "link" && marks.includes(el.id))} handles={handles} />)}
+      {handles && selEl && isQuad(selEl) && <QuadHandles el={selEl} ctx={ctx} />}
+      {draft && draft.k === "box" && <BoxMark box={draft} ctx={ctx} />}
+      {draft && draft.k !== "box" && <Item el={{ id: "draft", ...draft }} ctx={ctx} selected />}
     </svg>
   );
 });

@@ -78,6 +78,11 @@ export const GOAL_SIZES = [
 
 const MOVABLE = new Set(["token", "ball", "cone", "goal"]);
 export const isMovable = (el) => MOVABLE.has(el?.k);
+// Lo que pasa de un fotograma al siguiente con el mismo id: lo que se mueve y los conectores (que unen fichas por su id y
+// siguen sus posiciones). Flechas, zonas y textos son de su fotograma.
+export const isCarried = (el) => isMovable(el) || el?.k === "link";
+// Lo que se puede unir con un conector: fichas, conos y balón (puntos, no porterías)
+export const isLinkable = (el) => el?.k === "token" || el?.k === "cone" || el?.k === "ball";
 
 let counter = 0;
 export const newId = () => `e${Date.now().toString(36)}${(counter++).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
@@ -126,7 +131,7 @@ export const frameCount = (b) => (b?.v === BOARD_VERSION ? b.frames.length : 1);
 export function addFrame(board, after = board.frames.length - 1) {
   if (board.frames.length >= MAX_FRAMES) return { board, index: after };
   const src = board.frames[Math.min(Math.max(after, 0), board.frames.length - 1)];
-  const frame = { id: newId(), els: clone(src.els.filter(isMovable)) };
+  const frame = { id: newId(), els: clone(src.els.filter(isCarried)) };
   const frames = [...board.frames];
   frames.splice(after + 1, 0, frame);
   return { board: { ...board, frames }, index: after + 1 };
@@ -136,7 +141,7 @@ export function addFrame(board, after = board.frames.length - 1) {
 export function duplicateFrame(board, index) {
   if (board.frames.length >= MAX_FRAMES) return { board, index };
   const src = board.frames[index];
-  const els = clone(src.els).map((e) => (isMovable(e) ? e : { ...e, id: newId() }));
+  const els = clone(src.els).map((e) => (isCarried(e) ? e : { ...e, id: newId() }));
   const frames = [...board.frames];
   frames.splice(index + 1, 0, { id: newId(), els });
   return { board: { ...board, frames }, index: index + 1 };
@@ -167,6 +172,8 @@ export function changeField(board, id) {
       if (e.cx != null) { o.cx = round(e.cx * kx); o.cy = round(e.cy * ky); }
       return o;
     }
+    if (e.k === "link") return e;
+    if (e.k === "zone" && isQuad(e)) return { ...e, pts: e.pts.map((q) => ({ x: round(q.x * kx), y: round(q.y * ky) })) };
     if (e.k === "zone") return { ...e, x: round(e.x * kx), y: round(e.y * ky), w: round(e.w * kx), h: round(e.h * ky) };
     return { ...e, x: round(e.x * kx), y: round(e.y * ky) };
   };
@@ -178,19 +185,39 @@ export const setFrameEls = (board, index, els) => ({
   frames: board.frames.map((f, i) => (i === index ? { ...f, els } : f)),
 });
 
-// Añade un elemento. Lo que se mueve entra en todos los fotogramas en la misma posición (forma parte del ejercicio);
+// Añade un elemento. Lo que se mueve (y los conectores) entra en todos los fotogramas (forma parte del ejercicio);
 // flechas, zonas y textos solo en el fotograma actual.
 export function addElement(board, index, el) {
-  if (!isMovable(el)) return setFrameEls(board, index, [...board.frames[index].els, el]);
-  return { ...board, frames: board.frames.map((f) => ({ ...f, els: [...f.els, clone(el)] })) };
+  if (!isCarried(el)) return setFrameEls(board, index, [...board.frames[index].els, el]);
+  const next = { ...board, frames: board.frames.map((f) => ({ ...f, els: [...f.els, clone(el)] })) };
+  return el.k === "link" ? pruneLinks(next) : next;
 }
 
 // Quita un elemento: de todos los fotogramas (lo habitual) o solo del actual.
 export function removeElement(board, index, id, { onlyHere = false } = {}) {
   const el = board.frames[index]?.els.find((e) => e.id === id);
   if (!el) return board;
-  if (onlyHere || !isMovable(el)) return setFrameEls(board, index, board.frames[index].els.filter((e) => e.id !== id));
-  return { ...board, frames: board.frames.map((f) => ({ ...f, els: f.els.filter((e) => e.id !== id) })) };
+  if (onlyHere || !isCarried(el)) return pruneLinks(setFrameEls(board, index, board.frames[index].els.filter((e) => e.id !== id)));
+  return pruneLinks({ ...board, frames: board.frames.map((f) => ({ ...f, els: f.els.filter((e) => e.id !== id) })) });
+}
+
+// Un conector solo vale si todavía tiene al menos dos fichas en su fotograma: se le quitan las que ya no están y, si
+// se queda sin pareja, desaparece.
+export function pruneLinks(board) {
+  let changed = false;
+  const frames = board.frames.map((f) => {
+    if (!f.els.some((e) => e.k === "link")) return f;
+    const here = new Set(f.els.filter(isMovable).map((e) => e.id));
+    const els = [];
+    for (const e of f.els) {
+      if (e.k !== "link") { els.push(e); continue; }
+      const ids = (e.ids || []).filter((id) => here.has(id));
+      if (ids.length === (e.ids || []).length) els.push(e);
+      else { changed = true; if (ids.length >= 2) els.push({ ...e, ids }); }
+    }
+    return { ...f, els };
+  });
+  return changed ? { ...board, frames } : board;
 }
 
 export const patchElement = (board, index, id, patch, { allFrames = false } = {}) => ({
@@ -206,22 +233,22 @@ export const IDENTITY_PATCH = ["label", "team"];
 export const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2);
 
 // Estado intermedio entre dos fotogramas (t de 0 a 1). Devuelve elementos con `opacity`.
+// Los conectores que están en los dos fotogramas se quedan fijos (su forma sale de las fichas, que sí se mueven).
 export function lerpFrames(a, b, t) {
   const k = ease(Math.min(1, Math.max(0, t)));
   const out = [];
-  const bById = new Map(b.els.filter(isMovable).map((e) => [e.id, e]));
+  const bById = new Map(b.els.filter(isCarried).map((e) => [e.id, e]));
   for (const e of a.els) {
-    if (isMovable(e)) {
+    if (isCarried(e)) {
       const n = bById.get(e.id);
       if (n) {
-        const arrow = { ...e, x: e.x + (n.x - e.x) * k, y: e.y + (n.y - e.y) * k, opacity: 1 };
-        out.push(arrow);
+        out.push(isMovable(e) ? { ...e, x: e.x + (n.x - e.x) * k, y: e.y + (n.y - e.y) * k, opacity: 1 } : { ...e, opacity: 1 });
         bById.delete(e.id);
       } else out.push({ ...e, opacity: 1 - k });
     } else out.push({ ...e, opacity: 1 - k });
   }
   for (const e of b.els) {
-    if (!isMovable(e)) out.push({ ...e, opacity: k });
+    if (!isCarried(e)) out.push({ ...e, opacity: k });
     else if (bById.has(e.id)) out.push({ ...e, opacity: k });
   }
   return out;
@@ -334,6 +361,129 @@ export function arrowProps(a) {
 }
 export const dashArray = (dash, w) => (dash === "dashed" ? `${(w * 3 + 1).toFixed(2)} ${(w * 2 + 0.5).toFixed(2)}` : dash === "dotted" ? `0.01 ${(w * 2.2 + 0.4).toFixed(2)}` : undefined);
 
+// ── Zonas y conectores ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+// Zona de cuatro esquinas movibles: guarda sus esquinas en `pts` (en vez de x, y, w, h).
+export const isQuad = (z) => z?.k === "zone" && z.shape === "quad" && Array.isArray(z.pts) && z.pts.length === 4;
+
+// Rectángulo que ocupa una zona, sea del tipo que sea (w y h pueden ser negativos si se dibujó hacia arriba o a la izquierda)
+export function zoneBox(z) {
+  if (isQuad(z)) {
+    const xs = z.pts.map((q) => q.x), ys = z.pts.map((q) => q.y);
+    return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
+  }
+  return { x0: Math.min(z.x, z.x + z.w), y0: Math.min(z.y, z.y + z.h), x1: Math.max(z.x, z.x + z.w), y1: Math.max(z.y, z.y + z.h) };
+}
+
+// Las cuatro esquinas de una zona (para pintarla o moverlas): las suyas si es libre, o las del rectángulo
+export function zoneCorners(z) {
+  if (isQuad(z)) return z.pts;
+  const { x0, y0, x1, y1 } = zoneBox(z);
+  return [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+}
+
+// Cambio de forma de una zona. Pasar a «libre» la deja como un rectángulo con las cuatro esquinas sueltas; volver a
+// rectángulo o elipse usa el rectángulo que la envuelve.
+export function zoneShapePatch(z, shape) {
+  if (shape === "quad") {
+    if (isQuad(z)) return {};
+    return { shape: "quad", pts: zoneCorners(z).map((q) => ({ x: round(q.x), y: round(q.y) })), x: undefined, y: undefined, w: undefined, h: undefined };
+  }
+  if (isQuad(z)) {
+    const { x0, y0, x1, y1 } = zoneBox(z);
+    return { shape, x: round(x0), y: round(y0), w: round(x1 - x0), h: round(y1 - y0), pts: undefined };
+  }
+  return { shape };
+}
+
+const pointInPoly = (p, poly) => {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+};
+const distToSeg = (p, a, b) => {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const t = Math.min(1, Math.max(0, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(a.x + t * dx - p.x, a.y + t * dy - p.y);
+};
+const distToPoly = (p, pts, closed) => {
+  let m = Infinity;
+  for (let i = 1; i < pts.length; i++) m = Math.min(m, distToSeg(p, pts[i - 1], pts[i]));
+  if (closed && pts.length > 2) m = Math.min(m, distToSeg(p, pts[pts.length - 1], pts[0]));
+  return m;
+};
+
+// Envolvente convexa (el contorno que abarca a todos los puntos)
+export function convexHull(points) {
+  const pts = [...points].sort((a, b) => a.x - b.x || a.y - b.y).filter((p, i, arr) => !i || p.x !== arr[i - 1].x || p.y !== arr[i - 1].y);
+  if (pts.length < 3) return pts;
+  const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const half = (list) => {
+    const h = [];
+    for (const p of list) {
+      while (h.length >= 2 && cross(h[h.length - 2], h[h.length - 1], p) <= 0) h.pop();
+      h.push(p);
+    }
+    h.pop();
+    return h;
+  };
+  return [...half(pts), ...half([...pts].reverse())];
+}
+
+// Conector entre fichas: { k:'link', ids:[…], mode:'line'|'zone'|'mesh', color, width, dash, closed, fillOpacity, border }.
+//  · línea  → cadena que une las fichas en el orden de `ids` (opcionalmente cerrada)
+//  · zona   → contorno que envuelve a todas las fichas, relleno
+//  · red    → todas las fichas unidas entre sí
+// No guarda posiciones: la forma sale de dónde estén las fichas en cada momento, así que sigue sus movimientos.
+export function linkProps(l) {
+  const mode = l?.mode === "zone" || l?.mode === "mesh" ? l.mode : "line";
+  return {
+    mode,
+    width: l?.width ?? (mode === "mesh" ? 0.22 : mode === "zone" ? 0.35 : 0.45),
+    dash: l?.dash || "solid",
+    closed: !!l?.closed,
+    fillOpacity: l?.fillOpacity ?? 0.18,
+    border: l?.border !== false,
+  };
+}
+
+// Forma de un conector con las fichas tal como están en `els`; null si no quedan al menos dos.
+//   { kind:'line', pts, closed } · { kind:'zone', poly } · { kind:'mesh', segs:[[a,b],…] }
+export function linkShape(link, els) {
+  const byId = new Map(els.filter(isLinkable).map((e) => [e.id, e]));
+  const pts = (link.ids || []).map((id) => byId.get(id)).filter(Boolean).map((e) => ({ x: e.x, y: e.y }));
+  if (pts.length < 2) return null;
+  const { mode, closed } = linkProps(link);
+  if (mode === "mesh") {
+    const segs = [];
+    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) segs.push([pts[i], pts[j]]);
+    return { kind: "mesh", segs };
+  }
+  if (mode === "zone") {
+    const poly = convexHull(pts);
+    if (poly.length >= 3) return { kind: "zone", poly };
+    return { kind: "line", pts: poly, closed: false };
+  }
+  return { kind: "line", pts, closed: closed && pts.length > 2 };
+}
+
+// Orden natural para unir con una línea: de un extremo al otro de la fila (a lo largo de la dirección en la que más se
+// reparten las fichas, tal como se ven en pantalla). items: [{ id, x, y }] → ids ordenados.
+export function orderForLine(items, field, orient = "v") {
+  if (items.length < 3) return items.map((e) => e.id);
+  const v = items.map((e) => ({ id: e.id, ...toView(field, orient, e) }));
+  const mx = v.reduce((a, p) => a + p.x, 0) / v.length, my = v.reduce((a, p) => a + p.y, 0) / v.length;
+  let sxx = 0, syy = 0, sxy = 0;
+  for (const p of v) { sxx += (p.x - mx) ** 2; syy += (p.y - my) ** 2; sxy += (p.x - mx) * (p.y - my); }
+  const ang = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  let ux = Math.cos(ang), uy = Math.sin(ang);
+  if (ux < -1e-6 || (Math.abs(ux) <= 1e-6 && uy < 0)) { ux = -ux; uy = -uy; }
+  return v.map((p) => ({ id: p.id, t: (p.x - mx) * ux + (p.y - my) * uy })).sort((a, b) => a.t - b.t).map((p) => p.id);
+}
+
 // Elemento bajo el punto p (coordenadas de campo); de arriba abajo. opts: { orient, chip }
 export function hitTest(els, p, opts = {}) {
   const orient = opts.orient || "v";
@@ -362,10 +512,35 @@ export function hitTest(els, p, opts = {}) {
       }
     }
     if (el.k === "zone") {
-      const x0 = Math.min(el.x, el.x + el.w), x1 = Math.max(el.x, el.x + el.w), y0 = Math.min(el.y, el.y + el.h), y1 = Math.max(el.y, el.y + el.h);
-      const inside = p.x >= x0 - 1.5 && p.x <= x1 + 1.5 && p.y >= y0 - 1.5 && p.y <= y1 + 1.5;
-      const core = p.x > x0 + 1.5 && p.x < x1 - 1.5 && p.y > y0 + 1.5 && p.y < y1 - 1.5;
-      if (inside && !core) return el;
+      // Con relleno visible se agarra también por dentro (queda por debajo de lo demás); sin relleno, solo por el borde
+      const filled = (el.fillOpacity ?? 1) > 0;
+      if (isQuad(el)) {
+        if ((filled && pointInPoly(p, el.pts)) || distToPoly(p, el.pts, true) < 1.5) return el;
+      } else {
+        const { x0, y0, x1, y1 } = zoneBox(el);
+        const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+        let outer, core;
+        if (el.shape === "ellipse") {
+          const ell = (m) => ((p.x - cx) / Math.max((x1 - x0) / 2 + m, 0.1)) ** 2 + ((p.y - cy) / Math.max((y1 - y0) / 2 + m, 0.1)) ** 2;
+          outer = ell(1.5) <= 1;
+          core = ell(-1.5) < 1;
+        } else {
+          outer = p.x >= x0 - 1.5 && p.x <= x1 + 1.5 && p.y >= y0 - 1.5 && p.y <= y1 + 1.5;
+          core = p.x > x0 + 1.5 && p.x < x1 - 1.5 && p.y > y0 + 1.5 && p.y < y1 - 1.5;
+        }
+        if (outer && (filled || !core)) return el;
+      }
+    }
+    if (el.k === "link") {
+      const g = linkShape(el, els);
+      if (!g) continue;
+      const lp = linkProps(el);
+      const tol = 2 + lp.width * 0.5;
+      if (g.kind === "zone") {
+        if ((lp.fillOpacity > 0 && pointInPoly(p, g.poly)) || distToPoly(p, g.poly, true) < tol) return el;
+      } else if (g.kind === "line") {
+        if (distToPoly(p, g.pts, g.closed) < tol) return el;
+      } else if (g.segs.some(([a, b]) => distToSeg(p, a, b) < tol)) return el;
     }
   }
   return null;
@@ -373,6 +548,8 @@ export function hitTest(els, p, opts = {}) {
 
 // Mueve un elemento (todo su conjunto de coordenadas) dx, dy.
 export function shiftElement(el, dx, dy) {
+  if (el.k === "link") return el;
+  if (isQuad(el)) return { ...el, pts: el.pts.map((q) => ({ x: round(q.x + dx), y: round(q.y + dy) })) };
   if (el.k === "arrow") {
     const o = { ...el, x1: round(el.x1 + dx), y1: round(el.y1 + dy), x2: round(el.x2 + dx), y2: round(el.y2 + dy) };
     if (el.cx != null) { o.cx = round(el.cx + dx); o.cy = round(el.cy + dy); }
@@ -381,5 +558,5 @@ export function shiftElement(el, dx, dy) {
   return { ...el, x: round(el.x + dx), y: round(el.y + dy) };
 }
 
-export const RANK = { zone: 0, goal: 1, cone: 1, ball: 2, arrow: 3, token: 4, text: 5 };
+export const RANK = { zone: 0, link: 0.5, goal: 1, cone: 1, ball: 2, arrow: 3, token: 4, text: 5 };
 export const byRank = (a, b) => (RANK[a.k] ?? 2) - (RANK[b.k] ?? 2);

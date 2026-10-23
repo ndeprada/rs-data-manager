@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ChevronLeft, ChevronRight, Circle, Copy, Download, MousePointer2, MoveUpRight, Pause, Play, Plus, Repeat, RotateCw, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2 } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, Circle, Copy, Download, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, RotateCw, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Waypoints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MAX_FRAMES, addElement, addFrame, arrowPoints, byRank, changeField, chipOf, defaultControl, duplicateFrame, fieldOf, fromView, ghostsOf,
-  hitTest, isMovable, lerpFrames, lookOf, moveFrame, newId, normalizeBoard, patchElement, removeElement, removeFrame, setAllChips, shiftElement, teamsOf, liftNormal,
+  hitTest, isCarried, isLinkable, isMovable, isQuad, lerpFrames, lookOf, moveFrame, newId, normalizeBoard, orderForLine, patchElement, removeElement, removeFrame, setAllChips,
+  shiftElement, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board from "./BoardSvg";
 import { GoalIcon } from "./BoardControls";
@@ -29,17 +30,19 @@ const LINE_TOOLS = [
   { id: "air", label: "Pase aéreo (con sombra)", icon: TrendingUp, color: "#2563eb" },
   { id: "dribble", label: "Conducción", icon: Activity, color: "#73000A" },
   { id: "zone", label: "Zona", icon: Square },
+  { id: "quad", label: "Zona 4 esquinas", icon: Pentagon },
+  { id: "link", label: "Unir fichas", icon: Waypoints },
   { id: "text", label: "Texto", icon: Type },
 ];
 const ARROW_TOOLS = ["move", "pass", "air", "dribble"];
-const KIND_OF_TOOL = { ball: "ball", cone: "cone", goal: "goal", move: "arrow", pass: "arrow", air: "arrow", dribble: "arrow", zone: "zone", text: "text" };
+const KIND_OF_TOOL = { ball: "ball", cone: "cone", goal: "goal", move: "arrow", pass: "arrow", air: "arrow", dribble: "arrow", zone: "zone", quad: "zone", text: "text" };
 const SPEEDS = [{ id: 2600, label: "Lenta" }, { id: 1500, label: "Normal" }, { id: 800, label: "Rápida" }];
 const MAX_HISTORY = 30;
 
 // Lo último que se eligió para cada herramienta se recuerda para lo siguiente que se dibuje
-const BRUSH0 = { ...ARROW_PRESETS, ball: {}, cone: { shape: "tri" }, goal: { w: 7.32 }, zone: {}, text: { size: 3 } };
+const BRUSH0 = { ...ARROW_PRESETS, ball: {}, cone: { shape: "tri" }, goal: { w: 7.32 }, zone: {}, quad: { shape: "quad" }, text: { size: 3 } };
 const BRUSH_KEYS = ["shape", "color", "size", "w", "width", "dash", "border", "borderColor", "pointer", "fill", "fillOpacity", "stroke", "strokeWidth", "font", "bold", "lift"];
-const toolOfEl = (el) => (el.k === "arrow" ? typeOfArrow(el) : ["ball", "cone", "goal", "zone", "text"].includes(el.k) ? el.k : null);
+const toolOfEl = (el) => (el.k === "arrow" ? typeOfArrow(el) : el.k === "zone" ? (isQuad(el) ? "quad" : "zone") : ["ball", "cone", "goal", "text"].includes(el.k) ? el.k : null);
 
 const selectCls = "h-8 rounded-md border border-gray-200 bg-white px-2 text-xs";
 
@@ -60,6 +63,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const [tool, setTool] = useState("select");
   const [selId, setSelId] = useState(null);
   const [draft, setDraft] = useState(null);
+  const [pick, setPick] = useState([]);
   const [brush, setBrush] = useState(BRUSH0);
   const [history, setHistory] = useState([]);
   const [playing, setPlaying] = useState(false);
@@ -164,16 +168,26 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const p = point(e);
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const handle = e.target?.dataset?.h;
-    if (handle && selected?.k === "arrow") {
-      drag.current = { mode: "handle", h: handle, id: selected.id, arrow: selected, snapshot: live.current };
+    if (handle && (selected?.k === "arrow" || (isQuad(selected) && /^q[0-3]$/.test(handle)))) {
+      drag.current = { mode: "handle", h: handle, id: selected.id, el: selected, snapshot: live.current };
       return;
     }
-    const target = hitTest([...cur.els].sort(byRank), p, { orient, chip });
-    const drawing = tool === "zone" || ARROW_TOOLS.includes(tool);
+    // Unir fichas: se toca cada ficha (o se arrastra un recuadro) para elegirlas; luego se crea el conector
+    if (tool === "link") {
+      const hit = hitTest(cur.els.filter(isLinkable).sort(byRank), p, { orient, chip });
+      if (hit) setPick((pk) => (pk.includes(hit.id) ? pk.filter((i) => i !== hit.id) : [...pk, hit.id]));
+      else { drag.current = { mode: "box", from: p }; setDraft({ k: "box", x: p.x, y: p.y, w: 0, h: 0 }); }
+      return;
+    }
+    // Con las herramientas de colocar (fichas, balón…) una zona o un conector no se «agarra» por dentro: ahí se coloca
+    const sorted = [...cur.els].sort(byRank);
+    const target = hitTest(tool === "select" ? sorted : sorted.filter((el) => el.k !== "zone" && el.k !== "link"), p, { orient, chip });
+    const drawing = tool === "zone" || tool === "quad" || ARROW_TOOLS.includes(tool);
     if (tool === "select" || (target && !drawing)) {
       if (target) {
         setSelId(target.id);
-        drag.current = { mode: "move", id: target.id, from: p, moved: false, snapshot: live.current };
+        // un conector no se arrastra: su forma sale de las fichas que une
+        drag.current = target.k === "link" ? null : { mode: "move", id: target.id, from: p, moved: false, snapshot: live.current };
       } else setSelId(null);
       return;
     }
@@ -183,13 +197,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (tool === "goal") return add({ id: newId(), k: "goal", x: p.x, y: p.y, rot: 0, ...brush.goal });
     if (tool === "text") return add({ id: newId(), k: "text", x: p.x, y: p.y, text: "Texto", ...brush.text });
     if (ARROW_TOOLS.includes(tool)) { setDraft({ k: "arrow", ...brush[tool], x1: p.x, y1: p.y, x2: p.x, y2: p.y }); drag.current = { mode: "draw" }; return; }
-    if (tool === "zone") { setDraft({ k: "zone", ...brush.zone, x: p.x, y: p.y, w: 0, h: 0 }); drag.current = { mode: "draw" }; }
+    if (tool === "zone" || tool === "quad") { setDraft({ k: "zone", ...brush[tool], x: p.x, y: p.y, w: 0, h: 0 }); drag.current = { mode: "draw" }; }
   };
 
   const onMove = (e) => {
     const d = drag.current;
     if (!d) return;
-    if (d.mode === "draw") {
+    if (d.mode === "draw" || d.mode === "box") {
       const p = point(e);
       setDraft((c) => (c ? (c.k === "arrow" ? { ...c, x2: p.x, y2: p.y } : { ...c, w: round(p.x - c.x), h: round(p.y - c.y) }) : c));
       return;
@@ -197,10 +211,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (d.mode === "handle") {
       let patch;
       if (d.h === "l") {
-        const g = arrowPoints(d.arrow, 24)[12], n = liftNormal(d.arrow, orient), r = toField(e);
+        const g = arrowPoints(d.el, 24)[12], n = liftNormal(d.el, orient), r = toField(e);
         const raw = (r.x - g.x) * n.x + (r.y - g.y) * n.y;
         const sign = raw < 0 ? -1 : 1;
-        patch = { lift: sign * clamp(round(Math.abs(raw)), 1, liftMax(d.arrow, sign)) };
+        patch = { lift: sign * clamp(round(Math.abs(raw)), 1, liftMax(d.el, sign)) };
+      } else if (/^q[0-3]$/.test(d.h)) {
+        const p = point(e), i = Number(d.h[1]);
+        patch = { pts: d.el.pts.map((q, j) => (j === i ? { x: p.x, y: p.y } : q)) };
       } else {
         const p = point(e);
         patch = d.h === "p1" ? { x1: p.x, y1: p.y } : d.h === "p2" ? { x2: p.x, y2: p.y } : { cx: p.x, cy: p.y };
@@ -227,13 +244,29 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), d.snapshot]);
       coalesce.current = { key: null, at: 0 };
     }
+    if (d.mode === "box") {
+      if (draft && Math.abs(draft.w) > 1.5 && Math.abs(draft.h) > 1.5) {
+        const x0 = Math.min(draft.x, draft.x + draft.w), x1 = Math.max(draft.x, draft.x + draft.w);
+        const y0 = Math.min(draft.y, draft.y + draft.h), y1 = Math.max(draft.y, draft.y + draft.h);
+        const inside = cur.els.filter((el) => isLinkable(el) && el.x >= x0 && el.x <= x1 && el.y >= y0 && el.y <= y1).map((el) => el.id);
+        setPick((pk) => [...pk, ...inside.filter((id) => !pk.includes(id))]);
+      }
+      setDraft(null);
+    }
     if (d.mode === "draw" && draft) {
       const big = draft.k === "arrow" ? Math.hypot(draft.x2 - draft.x1, draft.y2 - draft.y1) > 2.5 : Math.abs(draft.w) > 2.5 && Math.abs(draft.h) > 2.5;
       if (big) {
         const { curved, ...rest } = draft;
         const el = { id: newId(), ...rest };
         if (curved && el.k === "arrow") Object.assign(el, defaultControl(el));
+        if (el.k === "zone" && el.shape === "quad") {
+          // zona libre: nace como un rectángulo cuyas cuatro esquinas se pueden mover por separado
+          el.pts = zoneCorners(el).map((q) => ({ x: round(q.x), y: round(q.y) }));
+          delete el.x; delete el.y; delete el.w; delete el.h;
+        }
         add(el);
+        // Una zona recién dibujada queda lista para moverla o ajustarla (con la herramienta de zona activa, tocar encima dibujaría otra)
+        if (el.k === "zone") setTool("select");
       }
       setDraft(null);
     }
@@ -243,10 +276,11 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   // Sobre un elemento seleccionado se cambia el elemento; sin selección, la herramienta activa (lo siguiente que se dibuje).
   const patchSel = (patch, key = null) => {
     if (!selected) return;
-    const allFrames = isMovable(selected) && !("x" in patch) && !("y" in patch);
+    const allFrames = isCarried(selected) && !("x" in patch) && !("y" in patch);
     commit(patchElement(live.current, idx, selId, patch, { allFrames }), { key: key || Object.keys(patch).join(",") });
     const t = toolOfEl(selected);
     const keep = Object.fromEntries(Object.entries(patch).filter(([k]) => BRUSH_KEYS.includes(k)));
+    if (keep.shape && (t === "quad" || keep.shape === "quad")) delete keep.shape; // la forma libre tiene su propia herramienta
     if (selected.k === "arrow" && "cx" in patch) keep.curved = patch.cx != null;
     if (t && Object.keys(keep).length) setBrush((b) => ({ ...b, [t]: { ...b[t], ...keep } }));
   };
@@ -271,11 +305,22 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     add({ id: newId(), k: "token", x: round(Math.min(8 + (n % 6) * 10, field.w - 4)), y: round(6 + Math.floor(n / 6) * 7), team, label: p.label });
   };
 
-  const pickTool = (id) => { setTool(id); if (id !== "select") setSelId(null); stop(); };
+  const pickTool = (id) => { setTool(id); if (id !== "select") setSelId(null); setPick([]); setDraft(null); stop(); };
+
+  // Conector entre las fichas elegidas: línea (de un extremo al otro), zona (contorno que las envuelve) o red (todas con todas)
+  const makeLink = (mode) => {
+    const items = pick.map((id) => cur.els.find((e) => e.id === id)).filter(Boolean);
+    if (items.length < (mode === "zone" ? 3 : 2)) return;
+    const link = { id: newId(), k: "link", mode, ids: orderForLine(items, field, orient) };
+    commit(addElement(live.current, idx, link));
+    setPick([]);
+    setTool("select");
+    setSelId(link.id);
+  };
 
   // ── Fotogramas ───────────────────────────────────────────────────────────────────────────────────────────────────
-  const goFrame = (i) => { stop(); setFi(i); setSelId(null); setDraft(null); };
-  const frameOp = (fn) => { stop(); const r = fn(live.current, idx); commit(r.board); setFi(r.index); setSelId(null); };
+  const goFrame = (i) => { stop(); setFi(i); setSelId(null); setDraft(null); setPick([]); };
+  const frameOp = (fn) => { stop(); const r = fn(live.current, idx); commit(r.board); setFi(r.index); setSelId(null); setPick([]); };
 
   const exportPng = async () => {
     setBusy(true);
@@ -373,6 +418,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           board={board}
           els={shownEls}
           selId={playing ? null : selId}
+          marks={playing ? [] : tool === "link" ? pick : selected?.k === "link" ? selected.ids || [] : []}
           ghosts={ghosts}
           draft={draft}
           handles={!playing}
@@ -386,13 +432,31 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         />
       </div>
 
+      {tool === "link" && !playing && (
+        <div className="rounded-lg border px-2 py-1.5 space-y-1.5 bg-gray-50 border-gray-200" data-testid="link-bar">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500">Unir fichas</span>
+            <span className="text-[11px] text-gray-600 flex-1 min-w-[120px]">
+              {pick.length ? `${pick.length} ${pick.length === 1 ? "elegida" : "elegidas"}` : "Toca las fichas que quieras unir, o arrastra un recuadro sobre ellas (también vale con conos y balón)."}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-gray-600">Crear</span>
+            <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={pick.length < 2} onClick={() => makeLink("line")} title="Una línea de un extremo al otro de las fichas">Línea</Button>
+            <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={pick.length < 3} onClick={() => makeLink("zone")} title="Una zona que envuelve a todas las fichas">Zona</Button>
+            <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={pick.length < 2} onClick={() => makeLink("mesh")} title="Todas las fichas unidas entre sí">Red</Button>
+            <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs ml-auto" disabled={!pick.length} onClick={() => setPick([])}>Borrar elección</Button>
+          </div>
+        </div>
+      )}
+
       {panelEl && (
         <div className={`rounded-lg border px-2 py-1.5 space-y-1.5 ${selected ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-200"}`} data-testid="board-props">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
               {selected ? KIND_LABEL[selected.k] : `Lo siguiente que dibujes${TEAM_IDS.includes(tool) ? "" : ` (${KIND_LABEL[panelEl.k].toLowerCase()})`}`}
             </span>
-            {selected && <span className="text-[11px] text-amber-800 flex-1 min-w-[80px]">{selected.k === "arrow" ? "Arrastra la flecha o sus puntos" : isMovable(selected) && board.frames.length > 1 ? "Arrástrala en cada fotograma" : "Arrastra para moverla"}</span>}
+            {selected && <span className="text-[11px] text-amber-800 flex-1 min-w-[80px]">{selected.k === "arrow" ? "Arrastra la flecha o sus puntos" : selected.k === "link" ? "Sigue a sus fichas: mueve las fichas para cambiar la figura" : isQuad(selected) ? "Arrastra la zona o sus esquinas" : isMovable(selected) && board.frames.length > 1 ? "Arrástrala en cada fotograma" : "Arrastra para moverla"}</span>}
           </div>
           <BoardProps
             key={selected ? selected.id : `tool-${tool}`}
@@ -407,11 +471,11 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           />
           {selected && (
             <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-              <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs" onClick={dupSel} title="Duplicar"><Copy className="w-3.5 h-3.5" /> Duplicar</Button>
-              {isMovable(selected) && board.frames.length > 1 && (
+              {selected.k !== "link" && <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs" onClick={dupSel} title="Duplicar"><Copy className="w-3.5 h-3.5" /> Duplicar</Button>}
+              {isCarried(selected) && board.frames.length > 1 && (
                 <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => delSel(true)} title="Quitar solo de este fotograma">Solo aquí</Button>
               )}
-              <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs text-red-600" onClick={() => delSel(false)} title={isMovable(selected) && board.frames.length > 1 ? "Quitar de todos los fotogramas" : "Quitar"}><Trash2 className="w-3.5 h-3.5" /> Quitar</Button>
+              <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs text-red-600" onClick={() => delSel(false)} title={isCarried(selected) && board.frames.length > 1 ? "Quitar de todos los fotogramas" : "Quitar"}><Trash2 className="w-3.5 h-3.5" /> Quitar</Button>
             </div>
           )}
         </div>

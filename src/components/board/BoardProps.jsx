@@ -1,6 +1,6 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { AIR_MAX, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, arrowProps, chipOf, defaultControl, teamsOf } from "@/lib/board";
+import { AIR_MAX, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, arrowProps, chipOf, defaultControl, linkProps, teamsOf, zoneShapePatch } from "@/lib/board";
 import { styleOf } from "./BoardSvg";
 import { ColorPick, Row, Seg, Slider, Toggle } from "./BoardControls";
 
@@ -22,7 +22,7 @@ export const ARROW_PRESETS = {
 };
 export const typeOfArrow = (a) => (a.air ? "air" : a.style || "move");
 
-export const KIND_LABEL = { token: "Ficha", ball: "Balón", cone: "Cono", goal: "Portería", arrow: "Flecha", zone: "Zona", text: "Texto" };
+export const KIND_LABEL = { token: "Ficha", ball: "Balón", cone: "Cono", goal: "Portería", arrow: "Flecha", zone: "Zona", link: "Conector entre fichas", text: "Texto" };
 
 const LINE_OPTS = DASHES.map((d) => ({ id: d.id, label: d.label }));
 const selectCls = "h-7 rounded-md border border-gray-200 bg-white px-1.5 text-xs";
@@ -102,7 +102,7 @@ function ArrowBlock({ el, brush, patch, onType, look }) {
   );
 }
 
-function ZoneBlock({ el, patch, look }) {
+function ZoneBlock({ el, brush, patch, look }) {
   const border = el.border !== false;
   const alpha = el.fillOpacity ?? styleOf(look).zoneAlpha;
   const transp = Math.round((1 - Math.min(1, Math.max(0, alpha))) * 100);
@@ -110,7 +110,14 @@ function ZoneBlock({ el, patch, look }) {
   return (
     <>
       <Row>
-        <Seg label="Forma" value={el.shape || "rect"} options={[{ id: "rect", label: "Rectángulo" }, { id: "ellipse", label: "Elipse" }]} onChange={(v) => patch({ shape: v })} />
+        {!(brush && el.shape === "quad") && (
+          <Seg
+            label="Forma"
+            value={el.shape || "rect"}
+            options={[{ id: "rect", label: "Rectángulo" }, { id: "ellipse", label: "Elipse" }, ...(brush ? [] : [{ id: "quad", label: "4 esquinas" }])]}
+            onChange={(v) => patch(brush ? { shape: v } : zoneShapePatch(el, v))}
+          />
+        )}
         <ColorPick
           value={el.fill || ""}
           onChange={(c) => patch(c ? { fill: c, ...(el.fillOpacity == null ? { fillOpacity: 0.35 } : {}) } : { fill: undefined })}
@@ -131,6 +138,32 @@ function ZoneBlock({ el, patch, look }) {
           </>
         )}
       </Row>
+    </>
+  );
+}
+
+function LinkBlock({ el, patch, look }) {
+  const lp = linkProps(el);
+  const n = (el.ids || []).length;
+  const transp = Math.round((1 - Math.min(1, Math.max(0, lp.fillOpacity))) * 100);
+  return (
+    <>
+      <Row>
+        <Seg label="Tipo de conector" value={lp.mode} options={[{ id: "line", label: "Línea" }, { id: "zone", label: "Zona" }, { id: "mesh", label: "Red" }]} onChange={(v) => patch({ mode: v })} />
+        {lp.mode === "line" && n > 2 && <Toggle on={lp.closed} onChange={(v) => patch({ closed: v })} title="Unir también la última ficha con la primera">Cerrar</Toggle>}
+        <ColorPick value={el.color || ""} onChange={(c) => patch({ color: c || undefined })} label="Color" auto="Según el modo" autoSwatch={styleOf(look).link} wide />
+      </Row>
+      <Row>
+        <Seg label="Trazo" value={lp.dash} options={LINE_OPTS} onChange={(v) => patch({ dash: v })} />
+        <Slider label="Grosor" value={lp.width} min={0.1} max={1.6} step={0.05} onChange={(v) => patch({ width: v }, "width")} fmt={(v) => v.toFixed(2)} />
+      </Row>
+      {lp.mode === "zone" && (
+        <Row>
+          <Slider label="Transparencia" value={transp} min={0} max={100} step={5} onChange={(v) => patch({ fillOpacity: Math.round((1 - v / 100) * 100) / 100 }, "fillOpacity")} fmt={(v) => `${v}%`} />
+          <Toggle on={lp.border} onChange={(v) => patch({ border: v })}>Borde</Toggle>
+        </Row>
+      )}
+      <p className="text-[11px] text-gray-500">Une {n} fichas y se mueve con ellas: arrastra las fichas para cambiar la figura.</p>
     </>
   );
 }
@@ -182,7 +215,9 @@ export default function BoardProps({ el, brush = false, board, look, patch, onTy
     case "arrow":
       return <ArrowBlock el={el} brush={brush} patch={patch} onType={onType} look={look} />;
     case "zone":
-      return <ZoneBlock el={el} patch={patch} look={look} />;
+      return <ZoneBlock el={el} brush={brush} patch={patch} look={look} />;
+    case "link":
+      return <LinkBlock el={el} patch={patch} look={look} />;
     case "text":
       return (
         <>

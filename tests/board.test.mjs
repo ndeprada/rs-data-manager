@@ -4,6 +4,7 @@ import {
   normalizeBoard, hasBoard, addFrame, removeFrame, duplicateFrame, moveFrame, addElement, removeElement, patchElement,
   lerpFrames, ghostsOf, toView, fromView, fieldOf, hitTest, shiftElement, arrowPoints, emptyBoard, MAX_FRAMES, frameCount, changeField,
   FIELDS, teamsOf, teamOf, tokenColor, chipOf, tokenR, DEFAULT_CHIP, CHIP_RANGE, arrowFlight, arrowProps, dashArray, liftNormal, fontOf, setAllChips,
+  isQuad, zoneBox, zoneCorners, zoneShapePatch, convexHull, linkShape, linkProps, orderForLine, pruneLinks, isCarried,
 } from "../src/lib/board.js";
 
 const token = (id, x, y, team = "a") => ({ id, k: "token", x, y, team, label: "" });
@@ -135,12 +136,13 @@ test("la vista horizontal gira el campo y vuelve al mismo punto", () => {
   assert.deepEqual(toView(f, "h", { x: 0, y: 0 }), { x: 0, y: 68 });
 });
 
-test("hitTest encuentra fichas, flechas y el borde de las zonas", () => {
+test("hitTest encuentra fichas, flechas y las zonas (por dentro si tienen relleno)", () => {
   const els = [{ id: "z", k: "zone", x: 10, y: 10, w: 20, h: 20 }, arrow("a1"), token("t1", 50, 50)];
   assert.equal(hitTest(els, { x: 50.5, y: 50 })?.id, "t1");
   assert.equal(hitTest(els, { x: 5, y: 1.5 })?.id, "a1");
   assert.equal(hitTest(els, { x: 10, y: 20 })?.id, "z");
-  assert.equal(hitTest(els, { x: 20, y: 20 }), null, "el interior de la zona no se agarra");
+  assert.equal(hitTest(els, { x: 20, y: 20 })?.id, "z", "una zona con relleno se agarra también por dentro");
+  assert.equal(hitTest([{ ...els[0], fillOpacity: 0 }], { x: 20, y: 20 }), null, "sin relleno, el interior no se agarra");
   assert.equal(hitTest(els, { x: 60, y: 60 }), null);
 });
 
@@ -273,4 +275,158 @@ test("«todas las fichas» las deja exactamente del mismo tamaño, también las 
   assert.equal(b.frames[0].els[0].size, 0.6, "el original no se toca");
   assert.equal(setAllChips(b, 99).chipSize, CHIP_RANGE[1]);
   assert.equal(setAllChips(b, 0.1).chipSize, CHIP_RANGE[0]);
+});
+
+// ── Zonas que se pueden mover, zona de cuatro esquinas y conectores ────────────────────────────────────────────────────
+
+const rectZone = (o = {}) => ({ id: "z1", k: "zone", shape: "rect", x: 10, y: 10, w: 20, h: 12, ...o });
+
+test("una zona con relleno se agarra por dentro; sin relleno, solo por el borde; una ficha encima manda", () => {
+  const z = rectZone();
+  assert.equal(hitTest([z], { x: 20, y: 16 })?.id, "z1", "por dentro");
+  assert.equal(hitTest([z], { x: 10.5, y: 16 })?.id, "z1", "por el borde");
+  assert.equal(hitTest([z], { x: 40, y: 16 }), null, "fuera");
+  const hollow = rectZone({ fillOpacity: 0 });
+  assert.equal(hitTest([hollow], { x: 20, y: 16 }), null, "sin relleno, el interior no se agarra");
+  assert.equal(hitTest([hollow], { x: 10.5, y: 16 })?.id, "z1");
+  const t = token("t1", 20, 16);
+  assert.equal(hitTest([z, t], { x: 20, y: 16 })?.id, "t1", "la ficha va por encima de la zona");
+});
+
+test("una elipse no se agarra por las esquinas de su rectángulo", () => {
+  const e = rectZone({ shape: "ellipse" });
+  assert.equal(hitTest([e], { x: 20, y: 16 })?.id, "z1");
+  assert.equal(hitTest([e], { x: 10.6, y: 10.6 }), null, "esquina vacía");
+});
+
+test("una zona también se agarra si se dibujó hacia arriba o a la izquierda (w y h negativos)", () => {
+  const z = rectZone({ x: 30, y: 22, w: -20, h: -12 });
+  assert.equal(hitTest([z], { x: 20, y: 16 })?.id, "z1");
+  assert.deepEqual(zoneBox(z), { x0: 10, y0: 10, x1: 30, y1: 22 });
+});
+
+test("zona de cuatro esquinas: se agarra, se mueve entera y se pasa de rectángulo a libre y vuelta", () => {
+  const z = rectZone();
+  const toQuad = { ...z, ...zoneShapePatch(z, "quad") };
+  assert.ok(isQuad(toQuad));
+  assert.equal(toQuad.pts.length, 4);
+  assert.deepEqual(zoneBox(toQuad), { x0: 10, y0: 10, x1: 30, y1: 22 });
+  // se tuerce una esquina: trapecio
+  const trap = { ...toQuad, pts: [{ x: 14, y: 10 }, { x: 26, y: 10 }, { x: 30, y: 22 }, { x: 10, y: 22 }] };
+  assert.equal(hitTest([trap], { x: 20, y: 16 })?.id, "z1", "por dentro");
+  assert.equal(hitTest([trap], { x: 11, y: 11 }), null, "el hueco que deja el trapecio en la esquina no se agarra");
+  const moved = shiftElement(trap, 5, -3);
+  assert.deepEqual(moved.pts[0], { x: 19, y: 7 });
+  assert.deepEqual(trap.pts[0], { x: 14, y: 10 }, "el original no se toca");
+  const back = { ...trap, ...zoneShapePatch(trap, "rect") };
+  assert.equal(back.shape, "rect");
+  assert.equal(back.pts, undefined);
+  assert.deepEqual([back.x, back.y, back.w, back.h], [10, 10, 20, 12]);
+  assert.deepEqual(zoneCorners(z).length, 4);
+});
+
+test("al cambiar de campo, las esquinas de una zona libre se reescalan", () => {
+  const z = { id: "q", k: "zone", shape: "quad", pts: [{ x: 10, y: 10 }, { x: 30, y: 10 }, { x: 30, y: 20 }, { x: 10, y: 20 }] };
+  const b = changeField(addElement(emptyBoard("full"), 0, z), "half");
+  const q = b.frames[0].els[0];
+  assert.ok(isQuad(q));
+  assert.equal(q.pts[2].y, 10, "20 m de 105 pasan a 10 m de 52,5");
+  assert.equal(q.pts[2].x, 30);
+});
+
+test("la envolvente convexa deja fuera los puntos de dentro", () => {
+  const hull = convexHull([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }, { x: 5, y: 5 }, { x: 5, y: 0 }]);
+  assert.equal(hull.length, 4);
+  assert.ok(!hull.some((p) => p.x === 5));
+});
+
+test("una línea defensiva se une de un extremo al otro aunque se elijan las fichas desordenadas", () => {
+  const field = fieldOf("full");
+  const line = [token("d3", 40, 70), token("d1", 10, 72), token("d4", 58, 69), token("d2", 25, 71)];
+  assert.deepEqual(orderForLine(line, field, "v"), ["d1", "d2", "d3", "d4"]);
+  // en horizontal, de izquierda a derecha en pantalla = de y menor a mayor... la fila va a lo largo de x del campo, que sube en pantalla
+  const h = orderForLine(line, field, "h");
+  assert.equal(h.length, 4);
+  assert.deepEqual([...h].sort(), ["d1", "d2", "d3", "d4"]);
+  assert.deepEqual(orderForLine(line.slice(0, 2), field, "v"), ["d3", "d1"], "con dos fichas se respeta el orden elegido");
+});
+
+test("el conector sale de dónde están las fichas: línea, zona o red", () => {
+  const els = [token("a", 10, 10), token("b", 30, 10), token("c", 30, 30), token("d", 10, 30), token("e", 20, 20)];
+  const base = { id: "l1", k: "link", ids: ["a", "b", "c", "d", "e"] };
+  const line = linkShape({ ...base, mode: "line" }, els);
+  assert.equal(line.kind, "line");
+  assert.equal(line.pts.length, 5);
+  assert.equal(line.closed, false);
+  assert.equal(linkShape({ ...base, mode: "line", closed: true }, els).closed, true);
+  const zone = linkShape({ ...base, mode: "zone" }, els);
+  assert.equal(zone.kind, "zone");
+  assert.equal(zone.poly.length, 4, "la ficha del centro queda dentro del contorno");
+  const mesh = linkShape({ ...base, mode: "mesh" }, els);
+  assert.equal(mesh.segs.length, 10, "5 fichas → 10 uniones");
+  // sigue a las fichas
+  const moved = els.map((e) => (e.id === "e" ? { ...e, x: 45, y: 20 } : e));
+  assert.equal(linkShape({ ...base, mode: "zone" }, moved).poly.length, 5, "al sacar una ficha del cuadrado, el contorno la incluye");
+  // sin fichas suficientes no hay nada que pintar
+  assert.equal(linkShape({ ...base, ids: ["a"] }, els), null);
+  assert.equal(linkShape({ ...base, ids: ["a", "zz"] }, els), null);
+  // tres fichas en fila no hacen una zona: queda como línea
+  assert.equal(linkShape({ id: "l2", k: "link", mode: "zone", ids: ["a", "b", "x"] }, [...els, token("x", 50, 10)]).kind, "line");
+  assert.equal(linkProps({}).mode, "line");
+  assert.equal(linkProps({ mode: "zone" }).fillOpacity, 0.18);
+});
+
+test("el conector se agarra por su línea, o por dentro si es una zona rellena, y las fichas van por encima", () => {
+  const els = [token("a", 10, 10), token("b", 30, 10), token("c", 20, 30)];
+  const line = { id: "l", k: "link", mode: "line", ids: ["a", "b", "c"] };
+  assert.equal(hitTest([...els, line], { x: 20, y: 10.5 })?.id, "l");
+  assert.equal(hitTest([...els, line], { x: 20, y: 20 }), null, "una línea no se agarra por dentro");
+  const zone = { ...line, mode: "zone" };
+  assert.equal(hitTest([zone, ...els], { x: 20, y: 18 })?.id, "l");
+  assert.equal(hitTest([zone, ...els], { x: 10, y: 10 })?.id, "a", "la ficha manda sobre el conector");
+  assert.equal(shiftElement(line, 5, 5), line, "un conector no se desplaza solo");
+});
+
+test("un conector va en todos los fotogramas, no desaparece al animar y se limpia si se quitan sus fichas", () => {
+  let b = emptyBoard("full");
+  b = addElement(b, 0, token("a", 10, 10));
+  b = addElement(b, 0, token("b", 30, 10));
+  b = addElement(b, 0, token("c", 20, 30));
+  b = addFrame(b, 0).board;
+  const link = { id: "l", k: "link", mode: "zone", ids: ["a", "b", "c"] };
+  assert.ok(isCarried(link));
+  b = addElement(b, 0, link);
+  assert.deepEqual(b.frames.map((f) => f.els.filter((e) => e.k === "link").length), [1, 1], "entra en los dos fotogramas");
+  // un fotograma nuevo lo hereda
+  assert.equal(addFrame(b, 1).board.frames[2].els.some((e) => e.id === "l"), true);
+  // animación: las fichas se mueven y el conector se queda una sola vez, sin fundirse
+  b = patchElement(b, 1, "c", { x: 40, y: 50 });
+  const mid = lerpFrames(b.frames[0], b.frames[1], 0.5);
+  assert.equal(mid.filter((e) => e.id === "l").length, 1);
+  assert.equal(mid.find((e) => e.id === "l").opacity, 1);
+  // quitar una ficha de todos los fotogramas: el conector se queda con dos
+  const two = removeElement(b, 0, "c");
+  assert.deepEqual(two.frames[0].els.find((e) => e.k === "link").ids, ["a", "b"]);
+  // quitar otra: sin pareja, desaparece
+  const none = removeElement(two, 0, "b");
+  assert.equal(none.frames.some((f) => f.els.some((e) => e.k === "link")), false);
+  // quitar una ficha solo de un fotograma afecta solo al conector de ese fotograma
+  const here = removeElement(b, 1, "c", { onlyHere: true });
+  assert.equal(here.frames[0].els.find((e) => e.k === "link").ids.length, 3);
+  assert.equal(here.frames[1].els.find((e) => e.k === "link").ids.length, 2);
+  assert.equal(pruneLinks(b), b, "sin cambios, no se rehace nada");
+  // las fotos duplicadas conservan los conectores
+  assert.ok(duplicateFrame(b, 0).board.frames[1].els.some((e) => e.id === "l"));
+});
+
+test("al cambiar de campo un conector queda tal cual (no tiene coordenadas propias)", () => {
+  let b = emptyBoard("full");
+  b = addElement(b, 0, token("a", 10, 10));
+  b = addElement(b, 0, token("b", 30, 10));
+  b = addElement(b, 0, { id: "l", k: "link", mode: "line", ids: ["a", "b"] });
+  const r = changeField(b, "half");
+  const l = r.frames[0].els.find((e) => e.k === "link");
+  assert.deepEqual(l.ids, ["a", "b"]);
+  assert.equal(Number.isNaN(l.x), false);
+  assert.ok(!("x" in l));
 });
