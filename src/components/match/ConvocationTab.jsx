@@ -10,8 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { matchesPlayerSearch } from "@/lib/playerName";
-import { buildConvocationText, dorsalOf, groupPlayers, observationLines, sideLabel } from "@/lib/convocationMessage";
-import { NO_CONV_REASONS } from "@/lib/participation";
+import { buildConvocationText, dorsalOf, groupPlayers, observationLines, reasonText, sideLabel } from "@/lib/convocationMessage";
+import { NO_CONV_REASONS, reasonShort } from "@/lib/participation";
 import { useAutosave } from "@/lib/useAutosave";
 import SaveStatus from "@/components/common/SaveStatus";
 
@@ -32,8 +32,9 @@ const GROUP_COLORS = {
 import Composer from "@/components/avisos/Composer";
 import { useT, msg, useDateLocale } from "@/i18n";
 
-// Los jugadores de una lista (convocados o no) por posición y con el dorsal al lado
-function PlayerColumn({ players, mark, markClass, numClass }) {
+// Los jugadores de una lista (convocados o no) por posición y con el dorsal al lado; con `reasons`, el motivo de cada uno (los no convocados)
+function PlayerColumn({ players, mark, markClass, numClass, reasons }) {
+  const t = useT();
   return (
     <div className="space-y-1.5">
       {groupPlayers(players).map(({ group, players: list }) => (
@@ -42,7 +43,7 @@ function PlayerColumn({ players, mark, markClass, numClass }) {
             <p key={p.id} className={`text-xs flex items-baseline gap-1 ${markClass}`}>
               <span aria-hidden="true">{mark}</span>
               <span className={`w-5 text-right tabular-nums font-bold shrink-0 ${numClass}`}>{dorsalOf(p)}</span>
-              <span className="min-w-0"><PlayerName player={p} /></span>
+              <span className="min-w-0"><PlayerName player={p} />{reasons && reasonText(reasons[p.id]) && <span className="ml-1 text-[10px] opacity-70">({t(reasonShort(reasons[p.id]))})</span>}</span>
             </p>
           ))}
         </div>
@@ -91,7 +92,7 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, rea
             </div>
             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
               <p className="text-[10px] font-black uppercase tracking-wider text-red-700 mb-2">{t("No convocados ({length})", { length: noConvocados.length })}</p>
-              <PlayerColumn players={noConvocados} mark="✗" markClass="text-red-800" numClass="text-red-500" />
+              <PlayerColumn players={noConvocados} mark="✗" markClass="text-red-800" numClass="text-red-500" reasons={reasons} />
             </div>
           </div>
 
