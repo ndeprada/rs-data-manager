@@ -243,7 +243,7 @@ function ChipFill({ pattern, color, color2 }) {
 // y en el vídeo, y para que animar muchas fichas no pese.
 //  · chip-shade: capa neutra sobre el relleno (luz arriba a la izquierda, borde más oscuro abajo a la derecha): vale para cualquier color o dibujo
 //  · chip-shadow: sombra suave en el suelo (más opaca en el centro, se desvanece en el borde)
-//  · boot-shade: la bota se oscurece hacia un lado para que parezca redondeada
+//  · foot-shade / cone-shade: el pie y el cono se oscurecen hacia un lado para que parezcan redondeados
 export function ChipDefs() {
   return (
     <>
@@ -259,10 +259,15 @@ export function ChipDefs() {
         <stop offset="0.86" stopColor="#000000" stopOpacity="0.3" />
         <stop offset="1" stopColor="#000000" stopOpacity="0" />
       </radialGradient>
-      <linearGradient id="boot-shade" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stopColor="#ffffff" stopOpacity="0.3" />
-        <stop offset="0.45" stopColor="#ffffff" stopOpacity="0" />
-        <stop offset="1" stopColor="#000000" stopOpacity="0.38" />
+      <linearGradient id="foot-shade" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stopColor="#ffffff" stopOpacity="0.28" />
+        <stop offset="0.5" stopColor="#ffffff" stopOpacity="0" />
+        <stop offset="1" stopColor="#000000" stopOpacity="0.3" />
+      </linearGradient>
+      <linearGradient id="cone-shade" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stopColor="#ffffff" stopOpacity="0.4" />
+        <stop offset="0.5" stopColor="#ffffff" stopOpacity="0" />
+        <stop offset="1" stopColor="#000000" stopOpacity="0.28" />
       </linearGradient>
     </>
   );
@@ -271,43 +276,41 @@ export function ChipDefs() {
 // Dirección de la luz: arriba a la izquierda de la pantalla, así que la sombra cae hacia abajo y a la derecha (en unidades de radio)
 const SHADOW = { x: 0.16, y: 0.26 };
 
-// Bota vista desde arriba, apuntando hacia −y (largo 1,7 y ancho ~0,74 en la puntera, centrada en el origen). La suela asoma como un
-// borde claro alrededor de la parte de arriba, que lleva cordones, una franja lateral y un brillo en la puntera.
-const BOOT = "M0 -0.85 C0.27 -0.85 0.38 -0.55 0.37 -0.25 C0.36 0 0.3 0.2 0.27 0.45 C0.25 0.78 -0.25 0.78 -0.27 0.45 C-0.3 0.2 -0.36 0 -0.37 -0.25 C-0.38 -0.55 -0.27 -0.85 0 -0.85 Z";
-function BootShape({ foot, flat }) {
-  // En blanco y negro (impresión) la bota es solo contorno, para gastar poca tinta; el resto lleva relieve
-  const ink = flat ? "#111111" : "#ffffff";
-  const op = flat ? 1 : 0.85;
+// Desvío de la sombra de un objeto dentro de un grupo girado `rot` grados: sigue cayendo hacia abajo-derecha de la pantalla (h = largo en m)
+function lightVec(rot, h) {
+  const a = (rot * Math.PI) / 180, dx = (SHADOW.x / SHADOW.y) * h, dy = h;
+  return { x: dx * Math.cos(a) + dy * Math.sin(a), y: -dx * Math.sin(a) + dy * Math.cos(a) };
+}
+
+// Sombra de un objeto: su misma forma en negro, desplazada y con un borde más suave. `children(g)` dibuja la forma con `g` de más
+// de grosor (0 = forma exacta, >0 = borde suave). Todo en un grupo con opacidad para que las formas que se solapan no oscurezcan dos veces.
+function Shadow({ amount, v, halo = 0.45, children }) {
+  if (!amount) return null;
   return (
-    <>
-      <path d={BOOT} fill="#f3f4f6" stroke={foot.stroke} strokeWidth={flat ? 0.1 : 0.07} strokeLinejoin="round" />
-      <g transform="translate(0 -0.02) scale(0.78 0.9)">
-        <path d={BOOT} fill={flat ? "#ffffff" : foot.fill} stroke={flat ? "#111111" : "none"} strokeWidth={flat ? 0.09 : 0} strokeLinejoin="round" />
-        {!flat && <path d={BOOT} fill="url(#boot-shade)" />}
-      </g>
-      <path d="M-0.15 -0.3 H0.15 M-0.16 -0.17 H0.16 M-0.16 -0.04 H0.16" stroke={ink} strokeOpacity={op} strokeWidth={0.05} strokeLinecap="round" fill="none" />
-      <path d="M0.25 -0.52 C0.29 -0.3 0.26 -0.02 0.2 0.25" stroke={ink} strokeOpacity={op} strokeWidth={0.06} strokeLinecap="round" fill="none" />
-      {!flat && <path d="M-0.17 -0.68 C-0.1 -0.76 0.05 -0.76 0.11 -0.69" stroke="#ffffff" strokeOpacity={0.45} strokeWidth={0.06} strokeLinecap="round" fill="none" />}
-    </>
+    <g transform={`translate(${v.x.toFixed(3)} ${v.y.toFixed(3)})`} opacity={amount}>
+      <g opacity={0.45}>{children(halo)}</g>
+      {children(0)}
+    </g>
   );
 }
 
-// Pies de una ficha: dos botas paralelas que asoman por delante (el frente es «hacia arriba» en espacio unitario), la derecha un poco adelantada
-const BOOTS = [{ x: -0.41, y: -1.2, rot: -4 }, { x: 0.41, y: -1.28, rot: 4 }];
+// Pies de una ficha: dos zapatillas cortas que asoman por delante (el frente es «hacia arriba» en espacio unitario). Sencillas a propósito:
+// un óvalo oscuro con borde claro y un poco de volumen; en blanco y negro (impresión) solo contorno.
+const FOOT_X = 0.5, FOOT_W = 0.48, FOOT_Y = -1.42, FOOT_H = 0.9;
 function Feet({ foot, flat, shadow = 0, ang = 0 }) {
   // la sombra no gira con la ficha: se pone con el desvío de la luz deshecho el giro
-  const a = (ang * Math.PI) / 180;
-  const ox = SHADOW.x * Math.cos(a) + SHADOW.y * Math.sin(a);
-  const oy = -SHADOW.x * Math.sin(a) + SHADOW.y * Math.cos(a);
+  const v = lightVec(ang, SHADOW.y * 0.8);
+  const rect = { y: FOOT_Y, width: FOOT_W, height: FOOT_H, rx: FOOT_W / 2 };
   return (
     <>
-      {shadow > 0 && BOOTS.map((b, i) => (
-        <g key={`s${i}`} transform={`translate(${b.x + ox * 0.7} ${b.y + oy * 0.7}) rotate(${b.rot})`}>
-          <path d={BOOT} fill="#000" fillOpacity={shadow * 0.5} stroke="#000" strokeOpacity={shadow * 0.25} strokeWidth={0.2} strokeLinejoin="round" />
-        </g>
+      {shadow > 0 && [-1, 1].map((sx) => (
+        <rect key={`s${sx}`} {...rect} x={sx * FOOT_X - FOOT_W / 2 + v.x} y={FOOT_Y + v.y} fill="#000" fillOpacity={shadow * 0.55} stroke="#000" strokeOpacity={shadow * 0.25} strokeWidth={0.18} />
       ))}
-      {BOOTS.map((b, i) => (
-        <g key={i} transform={`translate(${b.x} ${b.y}) rotate(${b.rot})`}><BootShape foot={foot} flat={flat} /></g>
+      {[-1, 1].map((sx) => (
+        <g key={sx}>
+          <rect {...rect} x={sx * FOOT_X - FOOT_W / 2} fill={flat ? "#ffffff" : foot.fill} stroke={flat ? "#111111" : "#ffffff"} strokeWidth={0.1} />
+          {!flat && <rect {...rect} x={sx * FOOT_X - FOOT_W / 2} fill="url(#foot-shade)" />}
+        </g>
       ))}
     </>
   );
@@ -367,7 +370,7 @@ export function ChipGlyph({ board, el, look = "blanco", size = 18 }) {
 }
 
 // Balón: color, dibujo y borde editables. Sin estilo guardado es el de siempre (punto central).
-function BallBody({ el, c, r, look }) {
+function BallBody({ el, c, r, look, shadow = 0 }) {
   const s = styleOf(look);
   const bn = lookOf(look) === "bn";
   const bs = ballStyle(el);
@@ -377,6 +380,7 @@ function BallBody({ el, c, r, look }) {
   const pent = [0, 1, 2, 3, 4].map((i) => { const a = ((-90 + i * 72) * Math.PI) / 180; return [Math.cos(a), Math.sin(a)]; });
   return (
     <>
+      {shadow > 0 && <circle cx={c.x + SHADOW.x * r * 1.1} cy={c.y + SHADOW.y * r * 1.1} r={r * 1.12} fill="url(#chip-shadow)" fillOpacity={shadow} />}
       <circle cx={c.x} cy={c.y} r={r} fill={fill} />
       <g transform={`translate(${c.x} ${c.y}) scale(${r})`}>
         <g clipPath="url(#chip-clip)">
@@ -391,32 +395,43 @@ function BallBody({ el, c, r, look }) {
           )}
         </g>
       </g>
+      {!bn && <circle cx={c.x} cy={c.y} r={r} fill="url(#chip-shade)" />}
       <circle cx={c.x} cy={c.y} r={r} fill="none" stroke={stroke} strokeWidth={0.35} />
     </>
   );
 }
 
 // Material con giro: pica, valla, escalera de coordinación y maniquí. Se dibuja en su sitio con la parte de «arriba» hacia −y.
-function MaterialBody({ el, look }) {
+function MaterialBody({ el, look, rot = 0, shadow = 0 }) {
   const mat = materialOf(el.k);
-  const s = styleOf(look);
   const bn = lookOf(look) === "bn";
   const k = Number(el.size) || 1;
   const col = bn ? "#111111" : el.color || mat.color;
   const edge = bn ? "#111111" : look === "color" || look === "color-cuadros" ? "#ffffff" : "#111827";
+  const sh = (h) => lightVec(rot, h * k);
   switch (el.k) {
     case "pole":
       return (
         <>
+          <Shadow amount={shadow} v={sh(0.7)}>{(g) => <line x1={0} y1={1.35 * k} x2={0} y2={-1.5 * k} stroke="#000" strokeWidth={0.62 * k + g} strokeLinecap="round" />}</Shadow>
           <ellipse cx={0} cy={1.35 * k} rx={0.8 * k} ry={0.42 * k} fill={bn ? "#ffffff" : col} fillOpacity={bn ? 1 : 0.55} stroke={edge} strokeWidth={0.18} />
           <line x1={0} y1={1.35 * k} x2={0} y2={-1.5 * k} stroke={edge} strokeWidth={0.62 * k + 0.2} strokeLinecap="round" />
           <line x1={0} y1={1.35 * k} x2={0} y2={-1.5 * k} stroke={bn ? "#ffffff" : col} strokeWidth={0.62 * k} strokeLinecap="round" />
           <line x1={0} y1={-0.6 * k} x2={0} y2={-1.5 * k} stroke={bn ? "#111111" : "#ffffff"} strokeWidth={0.62 * k} strokeLinecap="butt" strokeOpacity={bn ? 1 : 0.9} />
+          {!bn && <line x1={-0.14 * k} y1={1.2 * k} x2={-0.14 * k} y2={-1.35 * k} stroke="#ffffff" strokeOpacity={0.4} strokeWidth={0.16 * k} strokeLinecap="round" />}
         </>
       );
     case "hurdle":
       return (
         <>
+          <Shadow amount={shadow} v={sh(0.5)}>
+            {(g) => (
+              <>
+                {[-1, 1].map((sx) => <line key={sx} x1={sx * 1.35 * k} y1={-0.95 * k} x2={sx * 1.35 * k} y2={0.95 * k} stroke="#000" strokeWidth={0.5 * k + g} strokeLinecap="round" />)}
+                <line x1={-1.35 * k} y1={0} x2={1.35 * k} y2={0} stroke="#000" strokeWidth={0.5 * k + g} strokeLinecap="round" />
+              </>
+            )}
+          </Shadow>
           {[-1, 1].map((sx) => <line key={sx} x1={sx * 1.35 * k} y1={-0.95 * k} x2={sx * 1.35 * k} y2={0.95 * k} stroke={edge} strokeWidth={0.5 * k + 0.2} strokeLinecap="round" />)}
           <line x1={-1.35 * k} y1={0} x2={1.35 * k} y2={0} stroke={edge} strokeWidth={0.5 * k + 0.2} strokeLinecap="round" />
           {[-1, 1].map((sx) => <line key={`c${sx}`} x1={sx * 1.35 * k} y1={-0.95 * k} x2={sx * 1.35 * k} y2={0.95 * k} stroke={bn ? "#ffffff" : col} strokeWidth={0.5 * k} strokeLinecap="round" />)}
@@ -425,12 +440,21 @@ function MaterialBody({ el, look }) {
       );
     case "ladder": {
       const hw = 0.85 * k, hh = 3.1 * k, n = ladderRungs(el);
-      const rungs = [];
-      for (let i = 0; i <= n; i++) { const y = -hh + (i * 2 * hh) / n; rungs.push(<line key={i} x1={-hw} y1={y} x2={hw} y2={y} stroke={col} strokeWidth={0.28} strokeLinecap="butt" />); }
+      const ys = [];
+      for (let i = 0; i <= n; i++) ys.push(-hh + (i * 2 * hh) / n);
       return (
         <>
+          <Shadow amount={shadow * 0.8} v={sh(0.22)} halo={0.25}>
+            {(g) => (
+              <>
+                {ys.map((y, i) => <line key={i} x1={-hw} y1={y} x2={hw} y2={y} stroke="#000" strokeWidth={0.28 + g} />)}
+                <line x1={-hw} y1={-hh} x2={-hw} y2={hh} stroke="#000" strokeWidth={0.4 + g} strokeLinecap="round" />
+                <line x1={hw} y1={-hh} x2={hw} y2={hh} stroke="#000" strokeWidth={0.4 + g} strokeLinecap="round" />
+              </>
+            )}
+          </Shadow>
           <rect x={-hw} y={-hh} width={2 * hw} height={2 * hh} fill={bn ? "#ffffff" : col} fillOpacity={bn ? 1 : 0.1} />
-          {rungs}
+          {ys.map((y, i) => <line key={i} x1={-hw} y1={y} x2={hw} y2={y} stroke={col} strokeWidth={0.28} strokeLinecap="butt" />)}
           <line x1={-hw} y1={-hh} x2={-hw} y2={hh} stroke={col} strokeWidth={0.4} strokeLinecap="round" />
           <line x1={hw} y1={-hh} x2={hw} y2={hh} stroke={col} strokeWidth={0.4} strokeLinecap="round" />
         </>
@@ -439,9 +463,18 @@ function MaterialBody({ el, look }) {
     case "dummy":
       return (
         <>
+          <Shadow amount={shadow} v={sh(0.55)}>
+            {(g) => (
+              <>
+                <ellipse cx={0} cy={0.15 * k} rx={1.25 * k + g / 2} ry={0.75 * k + g / 2} fill="#000" />
+                <circle cx={0} cy={-0.05 * k} r={0.5 * k + g / 2} fill="#000" />
+              </>
+            )}
+          </Shadow>
           <ellipse cx={0} cy={0.15 * k} rx={1.25 * k} ry={0.75 * k} fill={bn ? "#ffffff" : col} stroke={edge} strokeWidth={0.28} />
+          {!bn && <ellipse cx={0} cy={0.15 * k} rx={1.25 * k} ry={0.75 * k} fill="url(#chip-shade)" />}
           <circle cx={0} cy={-0.05 * k} r={0.5 * k} fill={bn ? "#ffffff" : col} stroke={edge} strokeWidth={0.25} />
-          <circle cx={0} cy={-0.05 * k} r={0.5 * k} fill="#ffffff" fillOpacity={0.3} />
+          {!bn && <circle cx={0} cy={-0.05 * k} r={0.5 * k} fill="url(#chip-shade)" />}
         </>
       );
     default: return null;
@@ -461,7 +494,7 @@ function Piece({ el, ctx, selected, ghost = false }) {
     return (
       <g opacity={op} transform={`translate(${c.x} ${c.y}) rotate(${rot})`}>
         {selected && !ghost && <rect x={-mat.hw * k - 0.9} y={-mat.hh * k - 0.9} width={2 * mat.hw * k + 1.8} height={2 * mat.hh * k + 1.8} fill="none" stroke="#f59e0b" strokeWidth={0.5} strokeDasharray="1 0.8" />}
-        <MaterialBody el={el} look={look} />
+        <MaterialBody el={el} look={look} rot={rot} shadow={ghost ? 0 : s.shadow || 0} />
       </g>
     );
   }
@@ -471,10 +504,10 @@ function Piece({ el, ctx, selected, ghost = false }) {
       const fs = Math.max(1.8, r * 1.25);
       // con los pies hacia abajo, el nombre baja un poco para no taparlos
       const a = ((faceOf(el) + orientAngle(orient)) * Math.PI) / 180;
-      const down = el.feet ? Math.max(0, -Math.cos(a)) * r * 0.5 : 0;
+      const down = el.feet ? Math.max(0, -Math.cos(a)) * r * 0.45 : 0;
       return (
         <g opacity={op}>
-          {ring(r * (el.feet ? 2.1 : 1) + 1.3)}
+          {ring(r * (el.feet ? 1.5 : 1) + 1.3)}
           <Chip el={el} ctx={ctx} c={c} r={r} ghost={ghost} />
           {el.label && !ghost ? (
             <text x={c.x} y={c.y + r + down + fs * 1.05} textAnchor="middle" fontSize={fs} fontWeight={700} fill={s.label.fill} stroke={s.label.stroke} strokeWidth={0.55} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{el.label}</text>
@@ -487,20 +520,31 @@ function Piece({ el, ctx, selected, ghost = false }) {
       return (
         <g opacity={op}>
           {ring(r + 1.2)}
-          <BallBody el={el} c={c} r={r} look={look} />
+          <BallBody el={el} c={c} r={r} look={look} shadow={ghost ? 0 : s.shadow || 0} />
         </g>
       );
     }
     case "cone": {
       const k = Number(el.size) || 1;
       const col = look === "bn" ? s.cone : el.color || s.cone;
+      const bn = look === "bn";
+      const sd = ghost ? 0 : s.shadow || 0;
+      const tri = `${c.x},${c.y - 1.5 * k} ${c.x + 1.3 * k},${c.y + 1.1 * k} ${c.x - 1.3 * k},${c.y + 1.1 * k}`;
       return (
         <g opacity={op}>
           {ring(2.4 * k)}
           {el.shape === "flat" ? (
-            <circle cx={c.x} cy={c.y} r={0.9 * k} fill={col} stroke={s.coneStroke} strokeWidth={0.3} />
+            <>
+              <Shadow amount={sd} v={lightVec(0, 0.22 * k)} halo={0.3}>{(g) => <circle cx={c.x} cy={c.y} r={0.9 * k + g / 2} fill="#000" />}</Shadow>
+              <circle cx={c.x} cy={c.y} r={0.9 * k} fill={col} stroke={s.coneStroke} strokeWidth={0.3} />
+              {!bn && <circle cx={c.x} cy={c.y} r={0.9 * k} fill="url(#chip-shade)" />}
+            </>
           ) : (
-            <polygon points={`${c.x},${c.y - 1.5 * k} ${c.x + 1.3 * k},${c.y + 1.1 * k} ${c.x - 1.3 * k},${c.y + 1.1 * k}`} fill={col} stroke={s.coneStroke} strokeWidth={0.3} />
+            <>
+              <Shadow amount={sd} v={lightVec(0, 0.42 * k)}>{(g) => <polygon points={tri} fill="#000" stroke="#000" strokeWidth={g} strokeLinejoin="round" />}</Shadow>
+              <polygon points={tri} fill={col} stroke={s.coneStroke} strokeWidth={0.3} strokeLinejoin="round" />
+              {!bn && <polygon points={tri} fill="url(#cone-shade)" />}
+            </>
           )}
         </g>
       );
@@ -528,6 +572,17 @@ function Piece({ el, ctx, selected, ghost = false }) {
       return (
         <g opacity={op} transform={`translate(${c.x} ${c.y}) rotate(${rot})`}>
           {selected && !ghost && <rect x={-gw / 2 - 1.2} y={by - 1.1} width={gw + 2.4} height={gd + 2.2} fill="none" stroke="#f59e0b" strokeWidth={0.5} strokeDasharray="1 0.8" />}
+          <Shadow amount={ghost ? 0 : s.shadow || 0} v={lightVec(rot, 0.6)} halo={0.3}>
+            {(g) => (
+              <>
+                <polygon points={`${-gw / 2},${fy} ${gw / 2},${fy} ${gw / 2 - inset},${by} ${-gw / 2 + inset},${by}`} fill="#000" fillOpacity={0.22} />
+                <path d={`M ${-gw / 2} ${fy} L ${-gw / 2 + inset} ${by} L ${gw / 2 - inset} ${by} L ${gw / 2} ${fy}`} stroke="#000" strokeWidth={0.3 + g} fill="none" strokeLinejoin="round" strokeLinecap="round" />
+                <line x1={-gw / 2} y1={fy} x2={gw / 2} y2={fy} stroke="#000" strokeWidth={0.55 + g} strokeLinecap="round" />
+                <circle cx={-gw / 2} cy={fy} r={0.38 + g / 2} fill="#000" />
+                <circle cx={gw / 2} cy={fy} r={0.38 + g / 2} fill="#000" />
+              </>
+            )}
+          </Shadow>
           <polygon points={`${-gw / 2},${fy} ${gw / 2},${fy} ${gw / 2 - inset},${by} ${-gw / 2 + inset},${by}`} fill={bn ? "#ffffff" : col} fillOpacity={bn ? 1 : 0.1} />
           <path d={mesh.join(" ")} stroke={col} strokeOpacity={0.7} strokeWidth={0.13} fill="none" />
           <path d={`M ${-gw / 2} ${fy} L ${-gw / 2 + inset} ${by} L ${gw / 2 - inset} ${by} L ${gw / 2} ${fy}`} stroke={col} strokeWidth={0.3} fill="none" strokeLinejoin="round" strokeLinecap="round" />
@@ -657,7 +712,7 @@ function Text({ el, ctx, selected }) {
 function TurnHandle({ el, ctx }) {
   const c = toView(ctx.field, ctx.orient, el);
   const mat = materialOf(el.k);
-  const base = mat ? mat.hh * (Number(el.size) || 1) + 0.6 : tokenR(ctx.chip, el) * 2.12;
+  const base = mat ? mat.hh * (Number(el.size) || 1) + 0.6 : tokenR(ctx.chip, el) * 1.5;
   const a = (((mat ? el.rot || 0 : faceOf(el)) + orientAngle(ctx.orient)) * Math.PI) / 180;
   const R = base + 2.1;
   const hx = c.x + Math.sin(a) * R, hy = c.y - Math.cos(a) * R;
