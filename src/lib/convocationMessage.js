@@ -49,18 +49,22 @@ export const reasonText = (reason) => REASON_TEXT[reason] || "";
 // «7 · Pablo García»; sin dorsal, «• Pablo García»; con motivo, «7 · Pablo García (lesión)»
 const playerLine = (p, reason = "") => { const d = dorsalOf(p); return `${d ? `${d} ·` : "•"} ${playerFullName(p)}${reason ? ` (${reason})` : ""}`; };
 
+// Marcas de WhatsApp (*negrita*, _cursiva_); en el texto «plain» (aviso al móvil) se quitan porque ahí saldrían como asteriscos y guiones bajos.
+const bold = (text, plain) => (plain ? text : `*${text}*`);
+const ital = (text, plain) => (plain ? text : `_${text}_`);
+
 // Convocados: por posición con su título y una línea en blanco entre posiciones. Si nadie tiene posición no se pintan los títulos.
-function section(title, list) {
+function section(title, list, plain) {
   if (!list?.length) return [];
   const groups = groupPlayers(list);
   const titles = groups.length > 1 || groups[0].group !== NO_POSITION;
-  return ["", `*${title} (${list.length}):*`, ...groups.flatMap(({ group, players }, i) => [...(i > 0 ? [""] : []), ...(titles ? [`_${group}_`] : []), ...players.map((p) => playerLine(p))])];
+  return ["", bold(`${title} (${list.length}):`, plain), ...groups.flatMap(({ group, players }, i) => [...(i > 0 ? [""] : []), ...(titles ? [ital(group, plain)] : []), ...players.map((p) => playerLine(p))])];
 }
 
 // No convocados: una lista seguida, ordenada por posición (porteros, defensas, medios, delanteros) pero sin escribir la posición, con el motivo si lo hay.
-function sectionNoCall(title, list, reasons) {
+function sectionNoCall(title, list, reasons, plain) {
   if (!list?.length) return [];
-  return ["", `*${title} (${list.length}):*`, ...groupPlayers(list).flatMap(({ players }) => players.map((p) => playerLine(p, reasonText(reasons?.[p.id]))))];
+  return ["", bold(`${title} (${list.length}):`, plain), ...groupPlayers(list).flatMap(({ players }) => players.map((p) => playerLine(p, reasonText(reasons?.[p.id]))))];
 }
 
 /** «🏠 Jugamos en casa» / «✈️ Jugamos fuera» para un partido (con rival); "" si no hay rival. Sin dato de local/visitante = en casa, como en el resto de la app. */
@@ -75,9 +79,10 @@ export function observationLines({ kit = "", info = "" } = {}) {
 /**
  * event · team · convocados · noConvocados (listas de jugadores) · callupTime ("HH:mm")
  * reasons  motivo de cada no convocado por id de jugador (absence_reasons: lesion, sancion, decision_tecnica…)
+ * plain    true = texto para el aviso al móvil: mismo contenido pero sin la línea del título (ya va en el título del aviso) ni las marcas de WhatsApp
  * kit   equipación que deben traer (👕)      info   cualquier otra información (ℹ️)
  */
-export function buildConvocationText({ event, team, convocados = [], noConvocados = [], reasons = {}, callupTime = "", kit = "", info = "" }) {
+export function buildConvocationText({ event, team, convocados = [], noConvocados = [], reasons = {}, callupTime = "", kit = "", info = "", plain = false }) {
   const date = event?.date ? new Date(event.date) : null;
   const day = date ? format(date, "EEEE d 'de' MMMM", { locale: es }) : "";
   const time = date ? format(date, "HH:mm") : "";
@@ -89,16 +94,16 @@ export function buildConvocationText({ event, team, convocados = [], noConvocado
     : [where && `📍 ${where}`];
   const obs = observationLines({ kit, info });
   const lines = [
-    `*CONVOCATORIA · ${team?.name || ""}*`,
+    ...(plain ? [] : [`*CONVOCATORIA · ${team?.name || ""}*`]),
     event?.opponent ? `🆚 ${event.opponent}` : (event?.title ? `🏆 ${event.title}` : ""),
     `📅 ${day}`,
     `⏰ Partido: ${time}${callupTime ? ` · Convocatoria: ${callupTime}` : ""}`,
     ...place,
   ].filter(Boolean);
   lines.push(
-    ...section("✅ Convocados", convocados),
-    ...sectionNoCall("❌ No convocados", noConvocados, reasons),
-    ...(obs.length ? ["", "*Observaciones:*", ...obs] : []),
+    ...section("✅ Convocados", convocados, plain),
+    ...sectionNoCall("❌ No convocados", noConvocados, reasons, plain),
+    ...(obs.length ? ["", bold("Observaciones:", plain), ...obs] : []),
   );
   return lines.filter((l, i) => l !== "" || lines[i - 1] !== "").join("\n").trim();
 }

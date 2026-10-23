@@ -224,7 +224,7 @@ export default async function handler(req, res) {
       if (a === 'preview') return res.status(200).json({ recipients: list.length, with_push: rows.length });
 
       const title = String(body.title || '').trim().slice(0, 100);
-      const text = String(body.body || '').trim().slice(0, 600);
+      const text = String(body.body || '').trim().slice(0, 1800); // la convocatoria con listas de jugadores supera los 600
       if (!title || !text) return res.status(400).json({ error: 'title_and_body_required' });
       if (list.length === 0) return res.status(400).json({ error: 'no_recipients' });
       const url = typeof body.url === 'string' && body.url.startsWith('/') ? body.url : '/Avisos';

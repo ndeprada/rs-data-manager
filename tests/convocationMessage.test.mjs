@@ -130,3 +130,29 @@ test("sideLabel: casa o fuera solo en partidos con rival (también lo usa el avi
   assert.equal(sideLabel({ title: "Torneo", is_home: false }), "");
   assert.equal(sideLabel(undefined), "");
 });
+
+test("texto para el aviso al móvil (plain): el mismo contenido que WhatsApp, sin título ni marcas *negrita* / _cursiva_", () => {
+  const conv = squad.filter((x) => ["g1", "c1", "c2", "m1", "d1"].includes(x.id));
+  const not = squad.filter((x) => ["l1", "e1"].includes(x.id));
+  const args = { event: { ...event, is_home: false }, team, convocados: conv, noConvocados: not, reasons: { l1: "lesion" }, callupTime: "10:45", kit: "Chándal del club", info: "Traed agua" };
+  const wa = buildConvocationText(args).split("\n");
+  const plain = buildConvocationText({ ...args, plain: true }).split("\n");
+  assert.equal(plain[0], "🆚 CE Europa", "sin la línea CONVOCATORIA: ya va en el título del aviso");
+  assert.ok(!plain.join("\n").includes("*") && !plain.some((l) => /^_.*_$/.test(l)), "sin marcas de WhatsApp");
+  assert.deepEqual(plain.slice(plain.indexOf("✅ Convocados (5):")), [
+    "✅ Convocados (5):",
+    "Porteros", "1 · Hugo Pérez", "",
+    "Defensas", "5 · Eric Alba", "4 · Nil Costa", "",
+    "Medios", "6 · Pau Soler", "",
+    "Delanteros", "9 · Marc Vila",
+    "",
+    "❌ No convocados (2):",
+    "3 · Joan Ruiz (lesión)", "11 · Álex Mas",
+    "",
+    "Observaciones:", "👕 Chándal del club", "ℹ️ Traed agua",
+  ]);
+  assert.ok(plain.includes("✈️ Jugamos fuera · Camp Municipal") && plain.includes("⏰ Partido: 11:30 · Convocatoria: 10:45"));
+  // todo lo demás coincide con el de WhatsApp una vez quitadas las marcas
+  const strip = (l) => l.replace(/^\*(.*)\*$/, "$1").replace(/^_(.*)_$/, "$1");
+  assert.deepEqual(wa.slice(1).map(strip), plain);
+});

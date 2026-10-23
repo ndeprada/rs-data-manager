@@ -31,8 +31,8 @@ const Chip = ({ on, onClick, children }) => (
 );
 
 // Formulario para enviar un aviso eligiendo equipos y tipo de destinatario.
-// `fixed` (opcional) = { player_ids, label } para avisar solo a un grupo concreto de jugadores (p. ej. los convocados).
-export default function Composer({ fixed = null, defaultTitle = "", defaultBody = "", defaultUrl, onSent }) {
+// `fixed` (opcional) = { player_ids, label } para avisar solo a un grupo concreto de jugadores (p. ej. toda la plantilla de un partido).
+export default function Composer({ fixed = null, defaultTitle = "", defaultBody = "", defaultUrl, onSent, bodyRows = 4 }) {
   const t = useT();
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -152,7 +152,7 @@ export default function Composer({ fixed = null, defaultTitle = "", defaultBody 
       <div className="space-y-2">
         <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder={t("Título")}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2" />
-        <Textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={600} rows={4} placeholder={t("Mensaje")} />
+        <Textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={1800} rows={bodyRows} placeholder={t("Mensaje")} />
       </div>
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-gray-400">

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { matchesPlayerSearch } from "@/lib/playerName";
-import { buildConvocationText, dorsalOf, groupPlayers, observationLines, reasonText, sideLabel } from "@/lib/convocationMessage";
+import { buildConvocationText, dorsalOf, groupPlayers, reasonText } from "@/lib/convocationMessage";
 import { NO_CONV_REASONS, reasonShort } from "@/lib/participation";
 import { useAutosave } from "@/lib/useAutosave";
 import SaveStatus from "@/components/common/SaveStatus";
@@ -55,15 +55,13 @@ function PlayerColumn({ players, mark, markClass, numClass, reasons }) {
 // ── Preview / Notify Modal ───────────────────────────────
 function NotifyModal({ open, onClose, event, team, convocados, noConvocados, reasons, callupTime, kit, observations, onMarkNotified, sending }) {
   const t = useT();
-  const dfl = useDateLocale();
   // Mensaje para el grupo de WhatsApp (siempre en español): convocados y no convocados por posición, con dorsal y observaciones
   const buildWa = () => buildConvocationText({ event, team, convocados, noConvocados, reasons, callupTime, kit, info: observations });
   const waDefault = buildWa();
-  // Aviso al móvil: partido y hora; debajo «🏠 Jugamos en casa / ✈️ Jugamos fuera · campo» y, si están escritas, las líneas 👕 y ℹ️
-  const pushBase = [
-    `${event?.opponent ? `vs ${event.opponent} · ` : ""}${event?.date ? format(new Date(event.date), "EEEE d MMM HH:mm", { locale: dfl }) : ""}${callupTime ? ` · Convocatoria ${callupTime}` : ""}`.trim(),
-    [sideLabel(event), event?.location].filter(Boolean).join(" · "),
-  ].filter(Boolean).join("\n");
+  // Aviso al móvil: el mismo contenido que el mensaje de WhatsApp (convocados y no convocados con dorsal y motivo, casa/fuera, 👕 y ℹ️), sin marcas de WhatsApp.
+  // Le llega a toda la plantilla (convocados y no convocados) para que cada uno vea si está en la lista.
+  const pushBody = buildConvocationText({ event, team, convocados, noConvocados, reasons, callupTime, kit, info: observations, plain: true });
+  const squadIds = [...new Set([...convocados, ...noConvocados].map(p => p.id))];
   const [waMsg, setWaMsg] = useState(waDefault);
   const [copied, setCopied] = useState(false);
   const copyWa = async () => {
@@ -108,9 +106,10 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, rea
             <p className="text-xs font-bold uppercase tracking-wider text-gray-600 flex items-center gap-1.5"><Bell className="w-3.5 h-3.5" /> {t("Aviso al móvil (app)")}</p>
             <Composer
               key={open ? "open" : "closed"}
-              fixed={{ player_ids: convocados.map(p => p.id), label: `Convocados (${convocados.length})` }}
+              fixed={{ player_ids: squadIds, label: `Toda la plantilla (${squadIds.length})` }}
               defaultTitle={`Convocatoria · ${team?.name || ""}`}
-              defaultBody={[pushBase, ...observationLines({ kit, info: observations })].join("\n")}
+              defaultBody={pushBody}
+              bodyRows={12}
             />
           </div>
 
