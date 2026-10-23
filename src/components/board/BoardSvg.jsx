@@ -10,11 +10,11 @@ import {
 
 const STYLE = {
   blanco: {
-    bg: "#ffffff", line: "#9ca3af", lineW: 0.32, ink: "#111827",
+    bg: "#ffffff", margin: "#f0f2f5", stripe: "#f5f7f9", line: "#aab1bc", lineW: 0.24, ink: "#111827",
     arrows: { move: "#111827", pass: "#2563eb", dribble: "#73000A" },
     zoneFill: "#2563eb", zoneAlpha: 0.08, zoneLine: "#6b7280",
     label: { fill: "#111827", stroke: "#ffffff" }, textFill: "#111827", textStroke: "#ffffff",
-    goal: { fill: "#f3f4f6", stroke: "#6b7280" }, cone: "#f97316", coneStroke: "#ffffff", ball: { fill: "#ffffff", stroke: "#111827" }, chipStroke: "#111827",
+    goal: { fill: "#f3f4f6", stroke: "#4b5563" }, cone: "#f97316", coneStroke: "#ffffff", ball: { fill: "#ffffff", stroke: "#111827" }, chipStroke: "#111827",
   },
   color: {
     bg: "#3f8a4a", stripe: "rgba(255,255,255,0.045)", line: "rgba(255,255,255,0.92)", lineW: 0.35, ink: "#111827",
@@ -53,7 +53,7 @@ const SPEC = {
 function Lines({ field, s }) {
   const { w, h } = field;
   if (field.id === "free") return null;
-  const p = { fill: "none", stroke: s.line, strokeWidth: s.lineW };
+  const p = { fill: "none", stroke: s.line, strokeWidth: s.lineW, strokeLinejoin: "round", strokeLinecap: "round" };
   const sp = field.id === "f7" ? SPEC.f7 : SPEC.f11;
   const arcX = sp.arc ? Math.sqrt(Math.max(sp.arc ** 2 - (sp.ah - sp.spot) ** 2, 0)) : 0;
   const end = (
@@ -62,7 +62,8 @@ function Lines({ field, s }) {
       <rect x={w / 2 - sp.gw / 2} y={0} width={sp.gw} height={sp.gh} />
       {sp.arc ? <path d={`M ${w / 2 - arcX} ${sp.ah} A ${sp.arc} ${sp.arc} 0 0 0 ${w / 2 + arcX} ${sp.ah}`} /> : null}
       <rect x={w / 2 - sp.goalW / 2} y={-1.8} width={sp.goalW} height={1.8} />
-      <circle cx={w / 2} cy={sp.spot} r={0.4} fill={s.line} stroke="none" />
+      <path d={`M 0 1 A 1 1 0 0 0 1 0 M ${w - 1} 0 A 1 1 0 0 0 ${w} 1`} />
+      <circle cx={w / 2} cy={sp.spot} r={0.35} fill={s.line} stroke="none" />
     </g>
   );
   if (field.id === "half") {
@@ -83,7 +84,7 @@ function Lines({ field, s }) {
       <g transform={`rotate(180 ${w / 2} ${H / 2})`}>{end}</g>
       <line x1={0} y1={H / 2} x2={w} y2={H / 2} {...p} />
       <circle cx={w / 2} cy={H / 2} r={sp.circle} {...p} />
-      <circle cx={w / 2} cy={H / 2} r={0.4} fill={s.line} stroke="none" />
+      <circle cx={w / 2} cy={H / 2} r={0.35} fill={s.line} stroke="none" />
       {sp.offside ? (
         <g {...p} strokeDasharray="1.4 1.1">
           <line x1={0} y1={sp.offside} x2={w} y2={sp.offside} />
@@ -99,11 +100,13 @@ function Field({ field, orient, look, vb }) {
   const turn = orient === "h" ? `translate(0 ${field.w}) rotate(-90)` : undefined;
   const bands = [];
   if (s.stripe) for (let y = 0; y < field.h; y += 14) bands.push(<rect key={y} x={0} y={y} width={field.w} height={Math.min(7, field.h - y)} fill={s.stripe} />);
+  const free = field.id === "free";
   return (
     <>
-      <rect x={vb[0]} y={vb[1]} width={vb[2]} height={vb[3]} fill={s.bg} />
+      <rect x={vb[0]} y={vb[1]} width={vb[2]} height={vb[3]} fill={free ? s.bg : s.margin || s.bg} />
       <g transform={turn}>
-        {field.id === "free" ? null : bands}
+        {free ? null : <rect x={0} y={0} width={field.w} height={field.h} fill={s.bg} />}
+        {free ? null : bands}
         <Lines field={field} s={s} />
       </g>
     </>
@@ -222,10 +225,7 @@ function Piece({ el, ctx, selected, ghost = false }) {
         <g opacity={op}>
           {ring(2.4 * k)}
           {el.shape === "flat" ? (
-            <g>
-              <circle cx={c.x} cy={c.y} r={1.1 * k} fill={col} stroke={s.coneStroke} strokeWidth={0.3} />
-              <circle cx={c.x} cy={c.y} r={0.5 * k} fill="none" stroke={s.coneStroke} strokeWidth={0.25} opacity={0.8} />
-            </g>
+            <circle cx={c.x} cy={c.y} r={0.9 * k} fill={col} stroke={s.coneStroke} strokeWidth={0.3} />
           ) : (
             <polygon points={`${c.x},${c.y - 1.5 * k} ${c.x + 1.3 * k},${c.y + 1.1 * k} ${c.x - 1.3 * k},${c.y + 1.1 * k}`} fill={col} stroke={s.coneStroke} strokeWidth={0.3} />
           )}
@@ -234,12 +234,33 @@ function Piece({ el, ctx, selected, ghost = false }) {
     }
     case "goal": {
       const gw = el.w || 7.32;
-      const gd = Math.max(0.9, Math.min(1.8, gw * 0.3));
+      const gd = Math.max(1.1, Math.min(2.4, gw * 0.4));
       const rot = (el.rot || 0) + (orient === "h" ? -90 : 0);
+      const bn = look === "bn";
+      const col = bn ? s.goal.stroke : el.color || s.goal.stroke;
+      // Vista desde arriba: la boca (postes y larguero) en el borde de abajo y la red hacia atrás, algo más estrecha al fondo
+      const inset = Math.min(gd * 0.3, gw * 0.12);
+      const fy = gd / 2, by = -gd / 2;
+      const nx = Math.min(16, Math.max(3, Math.round(gw / 0.6)));
+      const ny = Math.max(2, Math.round(gd / 0.45));
+      const mesh = [];
+      for (let i = 1; i < nx; i++) {
+        const t = i / nx;
+        mesh.push(`M ${(-gw / 2 + t * gw).toFixed(2)} ${fy} L ${(-gw / 2 + inset + t * (gw - 2 * inset)).toFixed(2)} ${by}`);
+      }
+      for (let j = 1; j < ny; j++) {
+        const v = j / ny, y = fy - v * gd, x = gw / 2 - v * inset;
+        mesh.push(`M ${(-x).toFixed(2)} ${y.toFixed(2)} L ${x.toFixed(2)} ${y.toFixed(2)}`);
+      }
       return (
         <g opacity={op} transform={`translate(${c.x} ${c.y}) rotate(${rot})`}>
-          {selected && !ghost && <rect x={-gw / 2 - 1.2} y={-gd / 2 - 1.1} width={gw + 2.4} height={gd + 2.2} fill="none" stroke="#f59e0b" strokeWidth={0.5} strokeDasharray="1 0.8" />}
-          <rect x={-gw / 2} y={-gd / 2} width={gw} height={gd} fill={s.goal.fill} stroke={s.goal.stroke} strokeWidth={0.45} />
+          {selected && !ghost && <rect x={-gw / 2 - 1.2} y={by - 1.1} width={gw + 2.4} height={gd + 2.2} fill="none" stroke="#f59e0b" strokeWidth={0.5} strokeDasharray="1 0.8" />}
+          <polygon points={`${-gw / 2},${fy} ${gw / 2},${fy} ${gw / 2 - inset},${by} ${-gw / 2 + inset},${by}`} fill={bn ? "#ffffff" : col} fillOpacity={bn ? 1 : 0.1} />
+          <path d={mesh.join(" ")} stroke={col} strokeOpacity={0.7} strokeWidth={0.13} fill="none" />
+          <path d={`M ${-gw / 2} ${fy} L ${-gw / 2 + inset} ${by} L ${gw / 2 - inset} ${by} L ${gw / 2} ${fy}`} stroke={col} strokeWidth={0.3} fill="none" strokeLinejoin="round" strokeLinecap="round" />
+          <line x1={-gw / 2} y1={fy} x2={gw / 2} y2={fy} stroke={col} strokeWidth={0.55} strokeLinecap="round" />
+          <circle cx={-gw / 2} cy={fy} r={0.38} fill={col} />
+          <circle cx={gw / 2} cy={fy} r={0.38} fill={col} />
         </g>
       );
     }
@@ -263,12 +284,21 @@ function Zone({ el, ctx, selected }) {
   const common = {
     fill,
     fillOpacity: hatch ? 1 : alpha,
-    stroke: selected ? "#f59e0b" : border ? (bn ? s.zoneLine : el.stroke || s.zoneLine) : "none",
-    strokeWidth: selected && !border ? 0.45 : sw,
-    strokeDasharray: selected && !border ? "1.6 1.2" : dash,
+    stroke: border ? (bn ? s.zoneLine : el.stroke || s.zoneLine) : "none",
+    strokeWidth: sw,
+    strokeDasharray: dash,
     opacity: el.opacity ?? 1,
   };
-  return el.shape === "ellipse" ? <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...common} /> : <rect x={x} y={y} width={w} height={h} {...common} />;
+  const pad = 0.9 + (border ? sw / 2 : 0);
+  const mark = { fill: "none", stroke: "#f59e0b", strokeWidth: 0.4, strokeDasharray: "1.6 1.2" };
+  return (
+    <g>
+      {el.shape === "ellipse" ? <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...common} /> : <rect x={x} y={y} width={w} height={h} {...common} />}
+      {selected && (el.shape === "ellipse"
+        ? <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2 + pad} ry={h / 2 + pad} {...mark} />
+        : <rect x={x - pad} y={y - pad} width={w + 2 * pad} height={h + 2 * pad} {...mark} />)}
+    </g>
+  );
 }
 
 function Text({ el, ctx, selected }) {

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   normalizeBoard, hasBoard, addFrame, removeFrame, duplicateFrame, moveFrame, addElement, removeElement, patchElement,
   lerpFrames, ghostsOf, toView, fromView, fieldOf, hitTest, shiftElement, arrowPoints, emptyBoard, MAX_FRAMES, frameCount, changeField,
-  FIELDS, teamsOf, teamOf, tokenColor, chipOf, tokenR, DEFAULT_CHIP, CHIP_RANGE, arrowFlight, arrowProps, dashArray, liftNormal, fontOf,
+  FIELDS, teamsOf, teamOf, tokenColor, chipOf, tokenR, DEFAULT_CHIP, CHIP_RANGE, arrowFlight, arrowProps, dashArray, liftNormal, fontOf, setAllChips,
 } from "../src/lib/board.js";
 
 const token = (id, x, y, team = "a") => ({ id, k: "token", x, y, team, label: "" });
@@ -254,4 +254,23 @@ test("hitTest respeta el tamaño de la ficha, la rotación de la portería y la 
 test("tipografías conocidas y una de reserva", () => {
   assert.ok(fontOf("serif").includes("Georgia"));
   assert.ok(fontOf("no-existe").includes("Arial"));
+});
+
+test("«todas las fichas» las deja exactamente del mismo tamaño, también las que tenían uno propio", () => {
+  let b = emptyBoard("full");
+  b = addElement(b, 0, { ...token("t1", 10, 10), size: 0.6 });
+  b = addElement(b, 0, { ...token("t2", 20, 10), size: 0.8 });
+  b = addElement(b, 0, token("t3", 30, 10));
+  b = addElement(b, 0, { id: "b1", k: "ball", x: 5, y: 5, size: 1.4 });
+  b = addFrame(b, 0).board;
+  const r = setAllChips(b, 1.2);
+  assert.equal(r.chipSize, 1.2);
+  for (const f of r.frames) {
+    const sizes = f.els.filter((e) => e.k === "token").map((e) => tokenR(chipOf(r), e));
+    assert.deepEqual(sizes, [1.2, 1.2, 1.2], "todas iguales en cada fotograma");
+  }
+  assert.equal(r.frames[0].els.find((e) => e.k === "ball").size, 1.4, "el balón no cambia");
+  assert.equal(b.frames[0].els[0].size, 0.6, "el original no se toca");
+  assert.equal(setAllChips(b, 99).chipSize, CHIP_RANGE[1]);
+  assert.equal(setAllChips(b, 0.1).chipSize, CHIP_RANGE[0]);
 });

@@ -1,6 +1,6 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { AIR_MAX, CHIP_RANGE, DASHES, FONTS, GOAL_SIZES, arrowProps, chipOf, defaultControl, teamsOf } from "@/lib/board";
+import { AIR_MAX, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, arrowProps, chipOf, defaultControl, teamsOf } from "@/lib/board";
 import { styleOf } from "./BoardSvg";
 import { ColorPick, Row, Seg, Slider, Toggle } from "./BoardControls";
 
@@ -30,6 +30,10 @@ const pct = (v) => `${Math.round(v * 100)}%`;
 
 function TeamBlock({ teamId, teams, patchTeam, el, patch, board, setChip, brush }) {
   const team = teams.find((t) => t.id === teamId) || teams[0];
+  // Los dos deslizadores hablan en el mismo porcentaje (100 % = tamaño por defecto): el de «todas» las iguala
+  const base = chipOf(board);
+  const pctAll = Math.round((base / DEFAULT_CHIP) * 100);
+  const pctOne = Math.round((base / DEFAULT_CHIP) * (Number(el.size) || 1) * 100);
   return (
     <>
       <Row>
@@ -57,9 +61,10 @@ function TeamBlock({ teamId, teams, patchTeam, el, patch, board, setChip, brush 
         {!brush && <ColorPick value={el.color || ""} onChange={(c) => patch({ color: c || undefined })} label="Solo esta ficha" auto="Del equipo" autoSwatch={team.color} wide />}
       </Row>
       <Row>
-        <Slider label="Tamaño de las fichas" value={chipOf(board)} min={CHIP_RANGE[0]} max={CHIP_RANGE[1]} step={0.1} onChange={setChip} fmt={(v) => `${v.toFixed(1)}`} />
-        {!brush && <Slider label="Esta ficha" value={Number(el.size) || 1} min={0.6} max={2} step={0.1} onChange={(v) => patch({ size: v }, "size")} fmt={pct} />}
+        <Slider label="Todas las fichas" value={pctAll} min={55} max={210} step={5} onChange={(v) => setChip((v / 100) * DEFAULT_CHIP)} fmt={(v) => `${v}%`} />
+        {!brush && <Slider label="Solo esta" value={pctOne} min={40} max={250} step={5} onChange={(v) => patch({ size: Math.round(((v / 100) * DEFAULT_CHIP / base) * 100) / 100 }, "size")} fmt={(v) => `${v}%`} />}
       </Row>
+      {!brush && <p className="text-[11px] text-gray-500">«Todas las fichas» las deja todas del mismo tamaño; «Solo esta» cambia únicamente la seleccionada.</p>}
     </>
   );
 }
@@ -106,7 +111,14 @@ function ZoneBlock({ el, patch, look }) {
     <>
       <Row>
         <Seg label="Forma" value={el.shape || "rect"} options={[{ id: "rect", label: "Rectángulo" }, { id: "ellipse", label: "Elipse" }]} onChange={(v) => patch({ shape: v })} />
-        <ColorPick value={el.fill || ""} onChange={(c) => patch({ fill: c || undefined })} label="Relleno" auto="Según el modo" autoSwatch={fillAuto} wide />
+        <ColorPick
+          value={el.fill || ""}
+          onChange={(c) => patch(c ? { fill: c, ...(el.fillOpacity == null ? { fillOpacity: 0.35 } : {}) } : { fill: undefined })}
+          label="Relleno"
+          auto="Según el modo"
+          autoSwatch={fillAuto}
+          wide
+        />
         <Slider label="Transparencia" value={transp} min={0} max={100} step={5} onChange={(v) => patch({ fillOpacity: Math.round((1 - v / 100) * 100) / 100 }, "fillOpacity")} fmt={(v) => `${v}%`} />
       </Row>
       <Row>
@@ -157,6 +169,9 @@ export default function BoardProps({ el, brush = false, board, look, patch, onTy
               options={GOAL_SIZES.map((g) => ({ id: g.id, label: `${g.label} (${g.w} m)` }))}
               onChange={(id) => patch({ w: GOAL_SIZES.find((g) => g.id === id).w })}
             />
+          </Row>
+          <Row>
+            <ColorPick value={el.color || ""} onChange={(c) => patch({ color: c || undefined })} label="Color y red" auto="Por defecto" autoSwatch={s.goal.stroke} wide />
           </Row>
           <Row>
             <Slider label="Ancho" value={el.w || 7.32} min={1} max={12} step={0.5} onChange={(v) => patch({ w: v }, "w")} fmt={(v) => `${v} m`} />

@@ -134,3 +134,13 @@ export function Row({ title, children }) {
     </div>
   );
 }
+
+/** Icono de portería (marco con red) para la barra de herramientas. */
+export function GoalIcon({ className = "", style }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style} aria-hidden="true">
+      <path d="M3 19V6h18v13" />
+      <path d="M3 11h18M3 15.5h18M8 6v13M13 6v13M18 6v13" strokeWidth="1.1" />
+    </svg>
+  );
+}

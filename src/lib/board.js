@@ -48,6 +48,17 @@ export const CHIP_RANGE = [0.8, 3.2];
 export const chipOf = (board) => Math.min(CHIP_RANGE[1], Math.max(CHIP_RANGE[0], Number(board?.chipSize) || DEFAULT_CHIP));
 export const tokenR = (base, el) => base * (Number(el?.size) || 1);
 
+// Mismo tamaño para todas las fichas: fija el tamaño base y quita los tamaños sueltos de cada ficha (en todos los fotogramas).
+export function setAllChips(board, radius) {
+  const chipSize = Math.round(Math.min(CHIP_RANGE[1], Math.max(CHIP_RANGE[0], radius)) * 100) / 100;
+  const plain = (e) => {
+    if (e.k !== "token" || e.size == null) return e;
+    const { size: _size, ...rest } = e;
+    return rest;
+  };
+  return { ...board, chipSize, frames: board.frames.map((f) => ({ ...f, els: f.els.map(plain) })) };
+}
+
 export const FONTS = [
   { id: "sans", label: "Normal", css: "Arial, Helvetica, sans-serif" },
   { id: "cond", label: "Condensada", css: "'IBM Plex Sans Condensed', 'Arial Narrow', Arial, sans-serif" },

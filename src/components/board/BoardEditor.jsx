@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ChevronLeft, ChevronRight, Circle, Copy, Download, Flag, MousePointer2, MoveUpRight, Pause, Play, Plus, Repeat, RotateCw, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2 } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, Circle, Copy, Download, MousePointer2, MoveUpRight, Pause, Play, Plus, Repeat, RotateCw, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MAX_FRAMES, addElement, addFrame, arrowPoints, byRank, changeField, chipOf, defaultControl, duplicateFrame, fieldOf, fromView, ghostsOf,
-  hitTest, isMovable, lerpFrames, lookOf, moveFrame, newId, normalizeBoard, patchElement, removeElement, removeFrame, shiftElement, teamsOf, liftNormal,
+  hitTest, isMovable, lerpFrames, lookOf, moveFrame, newId, normalizeBoard, patchElement, removeElement, removeFrame, setAllChips, shiftElement, teamsOf, liftNormal,
 } from "@/lib/board";
 import Board from "./BoardSvg";
+import { GoalIcon } from "./BoardControls";
 import BoardProps, { ARROW_PRESETS, KIND_LABEL, typeOfArrow } from "./BoardProps";
 import { boardToPngBlob, downloadBlob } from "./exportPng";
 
@@ -20,7 +21,7 @@ const TEAM_IDS = ["a", "b", "c", "gk", "n"];
 const OBJECT_TOOLS = [
   { id: "ball", label: "Balón", icon: Circle, ring: true },
   { id: "cone", label: "Cono", icon: Triangle, color: "#f97316" },
-  { id: "goal", label: "Portería", icon: Flag, color: "#6b7280" },
+  { id: "goal", label: "Portería", icon: GoalIcon, color: "#6b7280" },
 ];
 const LINE_TOOLS = [
   { id: "move", label: "Desplazamiento", icon: MoveUpRight },
@@ -255,7 +256,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     else pickTool(t);
   };
   const patchTeam = (id, patch) => commit({ ...live.current, teams: teamsOf(live.current).map((t) => (t.id === id ? { ...t, ...patch } : t)) }, { key: `team-${id}-${Object.keys(patch)[0]}` });
-  const setChip = (v) => commit({ ...live.current, chipSize: round(v) }, { key: "chip" });
+  const setChip = (radius) => commit(setAllChips(live.current, radius), { key: "chip" });
 
   const delSel = (onlyHere = false) => { commit(removeElement(board, idx, selId, { onlyHere })); setSelId(null); };
   const dupSel = () => {
