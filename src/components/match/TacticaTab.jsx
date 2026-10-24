@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import RichTextBox from "./RichTextBox";
 import RivalReport from "./RivalReport";
 import { playerFirstName, playerFullName, matchesPlayerSearch } from "@/lib/playerName";
-import { FORMATIONS_F11, FORMATIONS_F7, FORMATION_POSITIONS } from "@/lib/matchFormations";
+import { FORMATION_POSITIONS, formationsFor, isFormationOf, formationOptions, formationLabel } from "@/lib/matchFormations";
 import { useT, msg } from "@/i18n";
 
 // ── Draggable Football Field ────────────────────────────
@@ -210,7 +210,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const t = useT();
   const qc = useQueryClient();
   const isF7 = footballFormat === "f7";
-  const formations = isF7 ? FORMATIONS_F7 : FORMATIONS_F11;
+  const formations = formationsFor(isF7);
   const validDefault = formations[0];
   const teamPlayers = [...players.filter(p => p.status !== "baja")].sort((a, b) => (POS_ORDER.indexOf(a.position) - POS_ORDER.indexOf(b.position)) || (a.last_name || "").localeCompare(b.last_name || ""));
 
@@ -245,7 +245,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
     loaded.current = true;
     if (plan) {
       planId.current = plan.id;
-      if (formations.includes(plan.formation)) setFormation(plan.formation);
+      if (isFormationOf(isF7, plan.formation)) setFormation(plan.formation);
       setPositions(plan.positions || null);
       setLineup(plan.lineup || []);
       setPlanAttack(plan.plan_attack || "");
@@ -261,7 +261,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
       try {
         const old = JSON.parse(localStorage.getItem(`tactica_${event?.id}`) || "null");
         if (old) {
-          if (formations.includes(old.formation)) setFormation(old.formation);
+          if (isFormationOf(isF7, old.formation)) setFormation(old.formation);
           setPlanAttack(old.planPropio || "");
           setRival(r => ({ ...r, notes: old.planRival || "" }));
         }
@@ -269,7 +269,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
     }
   }, [isFetched]);
 
-  const validFormation = formations.includes(formation) ? formation : validDefault;
+  const validFormation = isFormationOf(isF7, formation) ? formation : validDefault;
   const defaultPositions = FORMATION_POSITIONS[validFormation] || [];
   const currentPositions = positions || defaultPositions;
   const nSlots = defaultPositions.length;
@@ -333,7 +333,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
     setPdfBusy(true);
     try {
       await downloadMatchSheetPDF({
-        event, team, formation: validFormation, positions: currentPositions, slots, captainId: slotIds.includes(captain) ? captain : "",
+        event, team, formation: formationLabel(validFormation), positions: currentPositions, slots, captainId: slotIds.includes(captain) ? captain : "",
         kit, gkKit, gkKitBench: gkKit2 || gkKit, kits: KITS, gkKits: GK_KITS, benchPlayers, planAttack, planDefense, planSet,
         ourLogoUrl: team?.logo_url || CLUB_LOGO_URL, opponentLogoUrl: event?.opponent_logo_url,
       });
@@ -358,8 +358,8 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
             <p className="text-sm font-bold text-gray-900">{t("Once inicial")} <span className="text-gray-400 font-normal text-xs">({filled}/{nSlots})</span></p>
             <div className="flex items-center gap-2">
               <Select value={validFormation} onValueChange={handleFormationChange}>
-                <SelectTrigger className="w-28 h-8 text-xs border-gray-200"><SelectValue /></SelectTrigger>
-                <SelectContent>{formations.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                <SelectTrigger className={`${isF7 ? "w-52" : "w-28"} h-8 text-xs border-gray-200`}><SelectValue>{t(formationLabel(validFormation))}</SelectValue></SelectTrigger>
+                <SelectContent>{formationOptions(isF7, validFormation).map(f => <SelectItem key={f} value={f}>{t(formationLabel(f))}</SelectItem>)}</SelectContent>
               </Select>
               <button onClick={() => setPositions(null)} title={t("Restablecer posiciones")} className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50"><RotateCcw className="w-3.5 h-3.5" /></button>
               {starterIds?.length > 0 && <button onClick={fillFromActa} title={t("Rellenar con los titulares del acta")} className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50"><Wand2 className="w-3.5 h-3.5" /></button>}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import * as jspdfMod from 'jspdf';
-import { FORMATION_POSITIONS } from '../src/lib/matchFormations.js';
+import { FORMATION_POSITIONS, FORMATIONS_F11, FORMATIONS_F7, LEGACY_F7 } from '../src/lib/matchFormations.js';
 import { lineupLayout, firstSurname, fitText, LINEUP } from '../src/lib/matchSheetLayout.js';
 
 const jsPDF = jspdfMod.jsPDF || jspdfMod.default?.jsPDF || jspdfMod.default;
@@ -25,7 +25,7 @@ const cut = fitText('Maximiliano Bartolomé', 12, widthOf, true, 10, 6.5);
 assert.equal(cut.size, 6.5);
 assert.ok(cut.text.endsWith('.') && widthOf(cut.text, cut.size, true) <= 12 + 1e-6, 'acorta con punto');
 
-// Nombres de peor caso (largos y compuestos) en las 13 formaciones: nada se pisa, todo cabe en el campo y se lee mejor que antes
+// Nombres de peor caso (largos y compuestos) en todas las formaciones (F11, F7 y las antiguas de F7): nada se pisa, todo cabe en el campo y se lee mejor que antes
 const WORST = [
   ['Maximiliano', 'Fernández de la Vega'], ['Joan Pau', 'Rodríguez Gil'], ['Bartolomé', 'Puigdomènech'], ['Alessandro', 'Casanovas'],
   ['Cristian', 'Domínguez'], ['Guillermo', 'Hernández'], ['Sebastián', 'Villanueva'], ['Maximiliano', 'Giménez'],
@@ -36,7 +36,7 @@ const hit = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
 const circleBox = (L) => ({ x0: L.cx - L.r, x1: L.cx + L.r, y0: L.cy - L.r, y1: L.cy + L.r });
 
 const formations = Object.keys(FORMATION_POSITIONS);
-assert.equal(formations.length, 13);
+assert.deepEqual([...formations].sort(), [...new Set([...FORMATIONS_F11, ...FORMATIONS_F7, ...LEGACY_F7])].sort(), 'todas las formaciones, y solo ellas');
 for (const f of formations) {
   const positions = FORMATION_POSITIONS[f];
   const slots = positions.map((_, i) => ({ id: `p${i}`, first_name: WORST[i % WORST.length][0], last_name: WORST[i % WORST.length][1] }));
