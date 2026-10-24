@@ -10,5 +10,6 @@ import cm from "./screens/cm.js";
 import fb from "./screens/fb.js";
 import ar from "./screens/ar.js";
 import qc from "./screens/qc.js";
+import mj from "./screens/mj.js";
 
-export default [...b1, ...b1x, ...b1y, ...b2, ...b2x, ...b3, ...b3x, ...cm, ...fb, ...ar, ...qc];
+export default [...b1, ...b1x, ...b1y, ...b2, ...b2x, ...b3, ...b3x, ...cm, ...fb, ...ar, ...qc, ...mj];

@@ -17,10 +17,20 @@ export const OBS_SCALE = [
   { value: 3, label: msg("Alcanzado"), hint: msg("Se cumple con suficiente regularidad."), color: "#16a34a" },
   { value: 4, label: msg("Superado"), hint: msg("Se cumple con autonomía y sirve de referencia."), color: "#0369a1" },
 ];
+// Escala de los indicadores del modelo de juego en el partido (TFM 4.8.12): mismas notas 1–4 y mismos colores, con las etiquetas del TFM.
+// Valora al equipo: si reconoce la situación, elige la respuesta del modelo y la reproduce.
+export const MODEL_SCALE = [
+  { value: 1, label: msg("No aparece"), hint: msg("Se produjo, pero no se reconoció o reprodujo."), color: OBS_SCALE[0].color },
+  { value: 2, label: msg("Puntual"), hint: msg("Apareció en algunas situaciones, de forma aislada."), color: OBS_SCALE[1].color },
+  { value: 3, label: msg("Frecuente"), hint: msg("Se reprodujo habitualmente, con algunos errores o falta de continuidad."), color: OBS_SCALE[2].color },
+  { value: 4, label: msg("Asimilado"), hint: msg("Correcta interpretación, continuidad y autonomía en contextos diferentes."), color: OBS_SCALE[3].color },
+];
+// Escala que corresponde a un bloque de criterios (los del modelo de juego llevan `scale: "model"`)
+export const scaleOf = (block) => (block?.scale === "model" ? MODEL_SCALE : OBS_SCALE);
 // Criterio que no se pudo ver en esa sesión (como el «0 No observable» del apartado 4.8.12): no cuenta en las medias
 export const NOT_OBSERVABLE = 0;
 export const NOT_OBSERVABLE_LABEL = msg("No observable");
-export const scaleInfo = (v) => OBS_SCALE.find((s) => s.value === v) || null;
+export const scaleInfo = (v, scale = OBS_SCALE) => scale.find((s) => s.value === v) || null;
 export const isScored = (v) => Number.isInteger(v) && v >= 1 && v <= 4;
 
 // ── Criterios ────────────────────────────────────────────────────────────────

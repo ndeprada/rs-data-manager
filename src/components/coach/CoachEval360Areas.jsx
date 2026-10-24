@@ -14,6 +14,7 @@ import { COACH_AREAS, areaInfo, feedbackArea, hasLegacySections, isShared } from
 import { avgColor } from "@/lib/coachMethod";
 import { obsAreaOf, aggregateArea } from "@/lib/coachAreaCriteria";
 import { quarterRange, inRange } from "@/lib/coachQuarters";
+import { isStageF7 } from "@/lib/coachStage";
 import { ObsView, SummaryView, AreaObsDialog } from "@/components/coach/CoachObsParts";
 import SessionData from "@/components/coach/CoachSessionData";
 import CoachEval360Section from "@/components/coach/CoachEval360Section";
@@ -64,6 +65,8 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
     enabled: !!staffId,
   });
   const teamName = (id) => teams.find((x) => x.id === id)?.name || "";
+  // Formato de juego del equipo (fútbol 7 hasta el S12, fútbol 11 desde el S13), para proponerlo al evaluar el modelo de juego
+  const teamFormat = (id) => { const tm = teams.find((x) => x.id === id); return tm ? (isStageF7(tm) ? "f7" : "f11") : null; };
   const avgText = (n) => (n == null ? "—" : num(n, { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
   const shortDate = (d) => (d ? format(new Date(`${String(d).slice(0, 10)}T12:00:00`), "d MMM", { locale }) : "");
 
@@ -414,7 +417,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
       )}
 
       {dlg && (
-        <AreaObsDialog key={`${dlg.area}-${dlg.editing?.id || "new"}`} area={dlg.area} editing={dlg.editing} staffId={staffId} teamIds={teamIds} teamName={teamName}
+        <AreaObsDialog key={`${dlg.area}-${dlg.editing?.id || "new"}`} area={dlg.area} editing={dlg.editing} staffId={staffId} teamIds={teamIds} teamName={teamName} teamFormat={teamFormat}
           author={author} autoPublishFrom={shareLive ? openRange.from : null} onClose={() => setDlg(null)} onSaved={(id) => setObsPick(id || SUMMARY)} />
       )}
     </div>

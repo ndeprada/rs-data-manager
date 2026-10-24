@@ -6,11 +6,11 @@ export const COACH_AREAS = [
   { key: "habitos", label: msg("Hábitos"), hint: msg("Puntualidad, vestuario, material y normas del club"), color: "#B33A00" },
   { key: "gestion", label: msg("Gestión"), hint: msg("Datos en la app y comunicación con las familias"), color: "#475569" },
   { key: "metodologia", label: msg("Metodología"), hint: msg("Entrenamientos y sesiones"), color: "#73000A" },
-  { key: "partidos", label: msg("Partidos"), hint: msg("Preparación y dirección del partido"), color: "#FF6E00" },
+  { key: "partidos", label: msg("Partido y modelo de juego"), hint: msg("Gestión del partido y aplicación del modelo de juego del club"), color: "#FF6E00" },
   { key: "humana", label: msg("Gestión humana"), hint: msg("Comunicación y trato con jugadores y cuerpo técnico"), color: "#0f766e" },
 ];
 
-// Todo el feedback anterior (por partido) cuenta como «Partidos»
+// Todo el feedback anterior (por partido) cuenta como «Partido y modelo de juego» (la clave interna sigue siendo «partidos»)
 export const DEFAULT_AREA = "partidos";
 
 export const areaInfo = (key) => COACH_AREAS.find((a) => a.key === key) || COACH_AREAS.find((a) => a.key === DEFAULT_AREA);
