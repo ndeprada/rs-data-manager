@@ -1,18 +1,18 @@
 import { query } from './db.js';
 import { buildGuestIndex } from './rosterMatch.js';
 import { validCoords } from '../../src/lib/weather.js';
+import { fcfFetch } from './fcfHttp.js';
 
 export const CLUB_CODE = '40493342';
 const BASE = `https://www.fcf.cat/api/clubs/${CLUB_CODE}`;
-const UA =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 async function getJson(url) {
-  const r = await fetch(url, { headers: { 'user-agent': UA, accept: 'application/json' } });
+  const r = await fcfFetch(url);
   if (!r.ok) throw new Error(`FCF ${r.status} en ${url}`);
   const j = await r.json();
   return j.data !== undefined ? j.data : j;
 }
+export { getJson as getFcfJson };
 
 const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
 const strip = (s) => clean(s).normalize('NFD').replace(/[̀-ͯ]/g, '');

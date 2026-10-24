@@ -1,12 +1,12 @@
 import { query } from './db.js';
 import { getCurrentUser } from './auth.js';
+import { fcfFetch } from './fcfHttp.js';
 
 const API = 'https://www.fcf.cat/api/competition';
-const UA = 'Mozilla/5.0 (compatible; RSDataManager/1.0)';
 const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
 async function fetchJson(path) {
-  const r = await fetch(`${API}/${path}`, { headers: { 'user-agent': UA, accept: 'application/json' } });
+  const r = await fcfFetch(`${API}/${path}`);
   if (!r.ok) throw new Error(`FCF ${r.status} ${path}`);
   const j = await r.json();
   return j.data !== undefined ? j.data : j;
