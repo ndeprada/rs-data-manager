@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   FORMATIONS_F11, FORMATIONS_F7, LEGACY_F7, FORMATION_POSITIONS, FORMATION_LABELS, F7_SLOT_ROLES,
-  formationLabel, formationsFor, isFormationOf, formationOptions, normalizeFormation,
+  formationLabel, formationsFor, isFormationOf, formationOptions, normalizeFormation, formatOfFormation, tacticsFormat,
 } from '../src/lib/matchFormations.js';
 
 // Fútbol 7: los cuatro sistemas del club, el base (3-1-2 con extremos abiertos) primero, que es el que sale por defecto
@@ -80,3 +80,41 @@ assert.equal(formationLabel('3-2-1 base'), '3-1-2 · Base');
 assert.equal(formationLabel('2-3-1'), '2-3-1');
 for (const k of Object.keys(FORMATION_LABELS)) assert.ok(k in FORMATION_POSITIONS, `${k}: etiqueta de una formación que existe`);
 console.log('matchFormations OK');
+
+// formatOfFormation: 7 huecos = F7 (también las antiguas y los alias), 11 = F11, lo demás null
+{
+  for (const f of [...FORMATIONS_F7, ...LEGACY_F7, "3-2-1 base", "3-2-1 medios"]) assert.equal(formatOfFormation(f), "f7", f);
+  for (const f of FORMATIONS_F11) assert.equal(formatOfFormation(f), "f11", f);
+  assert.equal(formatOfFormation("inventada"), null);
+  assert.equal(formatOfFormation(""), null);
+  assert.equal(formatOfFormation(undefined), null);
+}
+
+// tacticsFormat: un equipo de S12 hacia abajo prepara el partido en F7 aunque el partido venga como F11
+{
+  // el caso real: partidos de S12 sincronizados con la FCF llegaban con football_format «f11»
+  assert.equal(tacticsFormat({ planFormation: undefined, eventFormat: "f11", teamIsF7: true }), "f7");
+  assert.equal(tacticsFormat({ planFormation: undefined, eventFormat: undefined, teamIsF7: true }), "f7");
+  assert.equal(tacticsFormat({ planFormation: null, eventFormat: "f7", teamIsF7: true }), "f7");
+}
+
+// tacticsFormat: equipos de F11 y partidos sin dato
+{
+  assert.equal(tacticsFormat({ planFormation: undefined, eventFormat: "f11", teamIsF7: false }), "f11");
+  assert.equal(tacticsFormat({ planFormation: undefined, eventFormat: undefined, teamIsF7: false }), "f11");
+  assert.equal(tacticsFormat({ planFormation: undefined, eventFormat: undefined }), "f11");
+  // un partido marcado F7 de un equipo que no es de F7 (p. ej. un amistoso) se sigue respetando
+  assert.equal(tacticsFormat({ planFormation: undefined, eventFormat: "f7", teamIsF7: false }), "f7");
+}
+
+// tacticsFormat: el plan ya guardado manda (no se le cambia la alineación a nadie)
+{
+  // S12 con un plan guardado en F11 antes de esta corrección: sigue en F11 con sus 11 huecos
+  assert.equal(tacticsFormat({ planFormation: "4-3-3", eventFormat: "f11", teamIsF7: true }), "f11");
+  assert.equal(tacticsFormat({ planFormation: "4-4-2", eventFormat: "f7", teamIsF7: true }), "f11");
+  // y al revés: plan de F7 en un equipo de F11
+  assert.equal(tacticsFormat({ planFormation: "3-1-2", eventFormat: "f11", teamIsF7: false }), "f7");
+  assert.equal(tacticsFormat({ planFormation: "3-2-1 base", eventFormat: undefined, teamIsF7: false }), "f7");
+  // formación guardada que no se reconoce: se decide por el equipo
+  assert.equal(tacticsFormat({ planFormation: "inventada", eventFormat: "f11", teamIsF7: true }), "f7");
+}

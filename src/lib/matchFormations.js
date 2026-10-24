@@ -30,6 +30,25 @@ export const isFormationOf = (isF7, f) => formationsFor(isF7).includes(f) || (is
 /** Formaciones para el desplegable: las del formato y, si el partido usa una antigua, esa también. */
 export const formationOptions = (isF7, current) => (isF7 && LEGACY_F7.includes(current) ? [...FORMATIONS_F7, current] : formationsFor(isF7));
 
+/** Formato de una formación guardada según sus huecos (7 = fútbol 7, 11 = fútbol 11); null si no se reconoce. */
+export const formatOfFormation = (f) => {
+  const n = FORMATION_POSITIONS[normalizeFormation(f)]?.length;
+  return n === 7 ? "f7" : n === 11 ? "f11" : null;
+};
+
+/**
+ * Formato con el que se abre la pestaña Táctica de un partido ("f7" | "f11"):
+ *  1. el del plan ya guardado (así no se le cambia a nadie la alineación que dejó);
+ *  2. si aún no hay plan, el de la etapa del equipo (`teamIsF7`: en Racing Sarrià se juega a F7 hasta el S12);
+ *  3. si no, el que tenga guardado el partido.
+ * El formato guardado en el partido no manda sobre la etapa del equipo: los partidos de S12 sincronizados con la FCF llegaban como F11.
+ */
+export function tacticsFormat({ planFormation, eventFormat, teamIsF7 }) {
+  const saved = planFormation ? formatOfFormation(planFormation) : null;
+  if (saved) return saved;
+  return teamIsF7 || eventFormat === "f7" ? "f7" : "f11";
+}
+
 // Quién ocupa cada hueco en los sistemas de F7 (el hueco 0 es siempre el portero). Solo documenta y sirve a los tests.
 export const F7_SLOT_ROLES = {
   "3-1-2":        ["portero", "lateral", "central", "lateral", "mediapunta", "extremo", "extremo"],

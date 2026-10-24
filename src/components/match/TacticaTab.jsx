@@ -12,7 +12,8 @@ import RichTextBox from "./RichTextBox";
 import RivalReport from "./RivalReport";
 import { playerFirstName, playerFullName, matchesPlayerSearch } from "@/lib/playerName";
 import { f7Markings } from "@/lib/pitchGeometry";
-import { FORMATION_POSITIONS, formationsFor, isFormationOf, formationOptions, formationLabel, normalizeFormation } from "@/lib/matchFormations";
+import { isF7Team } from "@/lib/teamOrder";
+import { FORMATION_POSITIONS, formationsFor, isFormationOf, formationOptions, formationLabel, normalizeFormation, tacticsFormat } from "@/lib/matchFormations";
 import { useT, msg } from "@/i18n";
 
 // ── Draggable Football Field ────────────────────────────
@@ -230,7 +231,13 @@ function Plan({ title, hint, value, onChange: set, placeholder, minHeight = 140,
 export default function TacticaTab({ event, players, convocadoIds, starterIds, footballFormat, team }) {
   const t = useT();
   const qc = useQueryClient();
-  const isF7 = footballFormat === "f7";
+  const { data: plan, isFetched } = useQuery({
+    queryKey: ["matchplan", event?.id],
+    queryFn: () => base44.entities.MatchPlan.filter({ event_id: event.id }).then(d => d[0] || null),
+    enabled: !!event?.id,
+  });
+  // Formato: el del plan guardado; si no hay, la etapa del equipo (S12 hacia abajo = fútbol 7) y, si no, el del partido
+  const isF7 = tacticsFormat({ planFormation: plan?.formation, eventFormat: footballFormat, teamIsF7: team ? isF7Team(team) : false }) === "f7";
   const formations = formationsFor(isF7);
   const validDefault = formations[0];
   const teamPlayers = [...players.filter(p => p.status !== "baja")].sort((a, b) => (POS_ORDER.indexOf(a.position) - POS_ORDER.indexOf(b.position)) || (a.last_name || "").localeCompare(b.last_name || ""));
@@ -253,12 +260,6 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const loaded = useRef(false);
   const planId = useRef(null);
   const chain = useRef(Promise.resolve());
-
-  const { data: plan, isFetched } = useQuery({
-    queryKey: ["matchplan", event?.id],
-    queryFn: () => base44.entities.MatchPlan.filter({ event_id: event.id }).then(d => d[0] || null),
-    enabled: !!event?.id,
-  });
 
   // Carga inicial (una vez): plan guardado, o el borrador antiguo de este navegador
   useEffect(() => {
