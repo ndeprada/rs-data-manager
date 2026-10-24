@@ -16,6 +16,8 @@ import { OBS_SCALE, NOT_OBSERVABLE, NOT_OBSERVABLE_LABEL, scaleInfo, scaleOf, av
 import { areaBlocks, emptyAreaScores, emptyAreaNotes, areaSummary, pruneForFormats } from "@/lib/coachAreaCriteria";
 import { GAME_FORMATS, GAME_FORMAT_LABELS, obsFormat, obsFormats } from "@/lib/coachModelGame";
 import { areaInfo } from "@/lib/coachAreas";
+import { modelImagesOf } from "@/lib/modelImages";
+import { ImagesToggle, ImagesStrip, ImageZoom } from "./ModelImages";
 
 const FONT = { fontFamily: "var(--font-display)" };
 const NONE = "__none";
@@ -194,6 +196,8 @@ export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, teamF
   const isMethod = area === "metodologia";
   const isMatch = area === "partidos";
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [openImgs, setOpenImgs] = useState({}); // indicadores con las figuras del TFM desplegadas
+  const [zoom, setZoom] = useState(null); // { image, label }
   const [form, setForm] = useState(() => {
     // Partido y modelo de juego: el formato (F7 / F11) sale del equipo; en una observación anterior sin formato se deja sin elegir
     const fmt = !isMatch ? null : editing ? obsFormat(editing) : teamFormat?.(teamIds[0]) || null;
@@ -325,11 +329,14 @@ export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, teamF
                     <ScaleLegend scale={scale} />
                   </div>
                 )}
-                {b.criteria.map((c) => (
+                {b.criteria.map((c) => {
+                  const imgs = modelImagesOf(c);
+                  return (
                   <div key={c.key} className="flex items-center justify-between gap-2 flex-wrap border border-gray-100 rounded px-2.5 py-1.5">
                     <div className="flex-1 min-w-[12rem]">
                       <p className="text-sm text-gray-700 leading-snug">{t(c.label)}</p>
                       {c.hint && <p className="text-[11px] text-gray-400 leading-snug mt-0.5">{t(c.hint)}</p>}
+                      {imgs.length > 0 && <ImagesToggle count={imgs.length} open={!!openImgs[c.key]} onClick={() => setOpenImgs((o) => ({ ...o, [c.key]: !o[c.key] }))} />}
                     </div>
                     <div className="flex gap-1">
                       {scale.map((sc) => {
@@ -343,8 +350,10 @@ export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, teamF
                       <button type="button" aria-pressed={form.scores[c.key] === NOT_OBSERVABLE} title={t(NOT_OBSERVABLE_LABEL)} onClick={() => setScore(c.key, NOT_OBSERVABLE)}
                         className={`px-1.5 h-8 rounded text-[10px] font-black border transition-colors ${form.scores[c.key] === NOT_OBSERVABLE ? "bg-gray-500 text-white border-transparent" : "text-gray-400 border-gray-200 bg-white hover:bg-gray-50"}`}>{t("N/O")}</button>
                     </div>
+                    {imgs.length > 0 && openImgs[c.key] && <ImagesStrip images={imgs} label={t(c.label)} onZoom={(image) => setZoom({ image, label: t(c.label) })} />}
                   </div>
-                ))}
+                  );
+                })}
                 <Textarea rows={2} value={form.notes[b.key] || ""} onChange={(e) => setNote(b.key, e.target.value)} placeholder={t("Observación breve…")} className="border-gray-200 text-sm" />
               </div>
             );
@@ -366,6 +375,7 @@ export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, teamF
             </Button>
           </div>
         </div>
+        {zoom && <ImageZoom image={zoom.image} label={zoom.label} onClose={() => setZoom(null)} />}
       </DialogContent>
     </Dialog>
   );

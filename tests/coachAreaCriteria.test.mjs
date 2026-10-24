@@ -5,7 +5,8 @@ import {
   AREA_BLOCKS, areaBlocks, areaCriteria, obsAreaOf, emptyAreaScores, emptyAreaNotes, areaSummary, aggregateArea, pruneForFormats,
 } from '../src/lib/coachAreaCriteria.js';
 import { QUARTERS, quarterRange, quarterOf, inRange } from '../src/lib/coachQuarters.js';
-import { MODEL_BLOCKS, GAME_FORMATS, obsFormat, obsFormats, modelBlocks } from '../src/lib/coachModelGame.js';
+import { MODEL_BLOCKS, GAME_FORMATS, obsFormat, obsFormats, modelBlocks, criterionImages, modelImageIds } from '../src/lib/coachModelGame.js';
+import { readdirSync, statSync } from 'node:fs';
 import { MODEL_SCALE, OBS_SCALE, scaleOf, scaleInfo } from '../src/lib/coachMethod.js';
 
 // ── Criterios por área ──
@@ -175,5 +176,30 @@ for (const d of ['2026-08-01', '2026-11-15', '2026-12-31', '2027-01-01', '2027-0
 assert.equal(inRange('2027-01-01T10:00', quarterRange('2026-2027', 'q1')), false);
 assert.equal(inRange('2026-12-31T23:00', quarterRange('2026-2027', 'q1')), true, 'con hora también');
 assert.equal(inRange('', quarterRange('2026-2027', 'q1')), false);
+
+// ── Figuras del TFM de cada indicador (src/assets/modelo-juego) ──
+const IMG_DIR = new URL('../src/assets/modelo-juego/', import.meta.url);
+const files = readdirSync(IMG_DIR).filter((f) => f.endsWith('.webp')).map((f) => f.replace(/\.webp$/, ''));
+const used = modelImageIds();
+for (const id of used) assert.ok(files.includes(id), `falta el archivo de la figura ${id}`);
+assert.deepEqual(files.filter((f) => !used.includes(f)), [], 'no sobra ninguna figura sin usar');
+for (const id of files) assert.ok(statSync(new URL(`${id}.webp`, IMG_DIR)).size < 60 * 1024, `${id}: figura demasiado pesada (se descarga en el móvil)`);
+for (const f of GAME_FORMATS) {
+  for (const b of MODEL_BLOCKS[f]) {
+    for (const c of b.criteria) {
+      const imgs = criterionImages(c);
+      assert.ok(imgs.length >= 1, `${c.key}: lleva al menos una figura`);
+      assert.equal(new Set(imgs.map((i) => i.id)).size, imgs.length, `${c.key}: sin figuras repetidas`);
+      // Con varias figuras, o todas tienen pie o ninguna (como en el TFM)
+      const withCaption = imgs.filter((i) => i.caption).length;
+      assert.ok(withCaption === 0 || withCaption === imgs.length, `${c.key}: pies a medias`);
+    }
+  }
+}
+assert.equal(criterionImages(areaBlocks('partidos')[0].criteria[0]).length, 0, 'los criterios de gestión no llevan figuras');
+assert.equal(criterionImages(undefined).length, 0);
+// «Juego en bloque» de F7 usa las mismas dos figuras en ataque y en defensa (así viene en el TFM)
+const f7bloque = (bi) => MODEL_BLOCKS.f7[bi].criteria.find((c) => /_bloque$/.test(c.key));
+assert.deepEqual(criterionImages(f7bloque(0)).map((i) => i.id), criterionImages(f7bloque(1)).map((i) => i.id));
 
 console.log('coachAreaCriteria OK');
