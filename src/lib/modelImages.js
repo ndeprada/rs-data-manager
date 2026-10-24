@@ -1,5 +1,5 @@
 // Archivos de las figuras del modelo de juego (src/assets/modelo-juego/<id>.webp, sacadas del TFM). Vite los publica con huella en el nombre
-// y caché larga, y solo se descargan cuando alguien despliega las imágenes de un indicador (las URL se cargan sin incluir los archivos en el código).
+// (en assets/, que vercel.json no marca como «sin caché»), y solo se descargan cuando alguien despliega las imágenes de un indicador (las URL se cargan sin incluir los archivos en el código).
 const FILES = import.meta.glob("../assets/modelo-juego/*.webp", { eager: true, query: "?url", import: "default" });
 const BY_ID = Object.fromEntries(Object.entries(FILES).map(([path, url]) => [path.split("/").pop().replace(/\.webp$/, ""), url]));
 
