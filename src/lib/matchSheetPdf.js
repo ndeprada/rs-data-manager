@@ -3,7 +3,8 @@ import * as jspdfMod from "jspdf";
 const jsPDF = jspdfMod.jsPDF || jspdfMod.default?.jsPDF || jspdfMod.default;
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { playerFirstName, playerFullName } from "@/lib/playerName";
+import { playerFirstName } from "@/lib/playerName";
+import { lineupLayout, firstSurname, fitText, LINEUP } from "@/lib/matchSheetLayout";
 import { drawRichText } from "@/lib/richTextPdf";
 
 const GRANATE = [115, 0, 10];
@@ -33,15 +34,6 @@ function addImageFit(doc, img, x, y, w, h) {
   const r = Math.min(w / img.w, h / img.h);
   const iw = img.w * r, ih = img.h * r;
   try { doc.addImage(img.data, "PNG", x + (w - iw) / 2, y + (h - ih) / 2, iw, ih); } catch { /* imagen no válida */ }
-}
-
-const PARTICLES = ["de", "del", "la", "las", "los", "da", "di", "van", "von", "el", "i"];
-function firstSurname(last = "") {
-  const t = last.trim().split(/\s+/).filter(Boolean);
-  if (t.length <= 1) return t[0] || "";
-  let i = 0;
-  while (i < t.length - 1 && PARTICLES.includes(t[i].toLowerCase())) i++;
-  return t.slice(0, i + 1).join(" ");
 }
 
 function drawPitch(doc, x0, y0, pw, ph) {
@@ -96,32 +88,33 @@ export async function downloadMatchSheetPDF({ event, team, formation, positions,
   doc.setFont("helvetica", "bold"); doc.setFontSize(10);
   doc.text(`ONCE INICIAL  ·  ${formation}`, lx, ly - 1.5);
   drawPitch(doc, lx, ly, pw, ph);
-  const s = pw / 300;
   const colorsFor = (p, gk = gkKit) => (p?.position === "portero" ? (gkKits[gk] || gkKits.naranja) : (kits[kit] || kits["1"]));
+  const widthOf = (text, pt, bold) => { doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(pt); return doc.getTextWidth(text); };
+  const layout = lineupLayout(slots, positions, pw, ph, widthOf);
   slots.forEach((p, i) => {
-    const pos = positions[i];
-    if (!pos) return;
-    const cx = lx + (pos[0] / 100) * pw, cy = ly + (pos[1] / 100) * ph;
+    const L = layout[i];
+    if (!L) return;
+    const cx = lx + L.cx, cy = ly + L.cy, r = L.r;
     const k = colorsFor(p);
-    const r = 5;
-    if (!p) {
+    if (L.empty) {
       doc.setDrawColor(160, 160, 160); doc.setLineDashPattern([1, 1], 0); doc.setLineWidth(0.3);
       doc.circle(cx, cy, r, "S"); doc.setLineDashPattern([], 0);
       return;
     }
     doc.setFillColor(...hex(k.fill)); doc.setDrawColor(...hex(k.stroke)); doc.setLineWidth(0.7);
     doc.circle(cx, cy, r, "FD");
-    doc.setTextColor(...hex(k.num)); doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-    doc.text(String(p.jersey_number || p.first_name?.[0] || ""), cx, cy + 1.3, { align: "center" });
+    doc.setTextColor(...hex(k.num)); doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
+    doc.text(String(p.jersey_number || p.first_name?.[0] || ""), cx, cy + 1.25, { align: "center" });
     if (p.id === captainId) {
       doc.setFillColor(252, 221, 9); doc.setDrawColor(120, 90, 0); doc.setLineWidth(0.25);
       doc.circle(cx + r - 0.5, cy - r + 0.5, 1.9, "FD");
       doc.setTextColor(60, 40, 0); doc.setFontSize(6); doc.text("C", cx + r - 0.5, cy - r + 1.5, { align: "center" });
     }
-    doc.setTextColor(30, 30, 30); doc.setFont("helvetica", "bold"); doc.setFontSize(6.6);
-    doc.text(playerFirstName(p), cx, cy + r + 2.6, { align: "center" });
-    doc.setFont("helvetica", "normal");
-    doc.text(firstSurname(p.last_name), cx, cy + r + 5.4, { align: "center" });
+    doc.setTextColor(30, 30, 30); doc.setFontSize(L.size);
+    L.lines.forEach((ln) => {
+      doc.setFont("helvetica", ln.bold ? "bold" : "normal");
+      doc.text(ln.text, cx, ly + ln.y, { align: "center" });
+    });
   });
 
   // ── Banquillo ──
@@ -138,8 +131,9 @@ export async function downloadMatchSheetPDF({ event, team, formation, positions,
     doc.circle(bx + 3.2, by, 3.2, "FD");
     doc.setTextColor(...hex(k.num)); doc.setFont("helvetica", "bold"); doc.setFontSize(7.5);
     doc.text(String(p.jersey_number || p.first_name?.[0] || ""), bx + 3.2, by + 1, { align: "center" });
-    doc.setTextColor(30, 30, 30); doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
-    doc.text(doc.splitTextToSize(`${playerFirstName(p)} ${firstSurname(p.last_name)}`, 36)[0], bx + 8, by + 1.1);
+    const nm = fitText(`${playerFirstName(p)} ${firstSurname(p.last_name)}`, 41, widthOf, false, LINEUP.benchPt, 7.5);
+    doc.setTextColor(30, 30, 30); doc.setFont("helvetica", "normal"); doc.setFontSize(nm.size);
+    doc.text(nm.text, bx + 8, by + 1.2);
     by += step;
   });
   if (!benchPlayers.length) {
