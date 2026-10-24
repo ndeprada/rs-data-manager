@@ -19,6 +19,7 @@ import { matchPlayerIds, withGuests } from "@/lib/matchPlayers";
 
 import TabBar from "@/components/common/TabBar";
 import { useT, useDateLocale, msg } from "@/i18n";
+import { matchFormat } from "@/lib/matchFormat";
 function Shield({ src, name, canUpload, onUpload }) {
   const t = useT();
   const inputRef = useRef(null);
@@ -311,7 +312,7 @@ export default function MatchDetail() {
           players={players}
           convocadoIds={convocation?.player_ids || []}
           starterIds={convocation?.starters || []}
-          footballFormat={event?.football_format}
+          footballFormat={matchFormat(event, team)}
           team={team}
         />
       )}

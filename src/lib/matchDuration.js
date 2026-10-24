@@ -1,5 +1,6 @@
 // Duración del partido y minutos jugados según el acta. Funciones puras (se prueban con tests).
 import { isPrimerEquipo } from './primerEquipo.js';
+import { matchFormat } from './matchFormat.js';
 import { msg } from "../i18n/translate.js";
 
 // Duraciones que se pueden elegir en el acta (da igual el formato: cada categoría juega la suya)
@@ -54,7 +55,7 @@ export function totalMinutes(duration) {
   return /^\d+$/.test(d) && Number(d) > 0 ? Number(d) : 90;
 }
 
-export const eventMinutes = (ev, team) => totalMinutes(ev?.match_duration || defaultDuration(ev?.football_format, team));
+export const eventMinutes = (ev, team) => totalMinutes(ev?.match_duration || defaultDuration(matchFormat(ev, team), team));
 
 // Minutos de un jugador del equipo según los eventos del acta:
 // titular = desde el 0 hasta que sale (cambio, roja o 2ª amarilla) o hasta el final; suplente = desde que entra hasta que sale o el final.

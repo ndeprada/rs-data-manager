@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { playerFullName } from "@/lib/playerName";
+import { matchFormat, teamPlaysF7 } from "@/lib/matchFormat";
 import { calcMinutesPlayed, actaMinutes, totalMinutes, defaultDuration, teamDefaultDuration, durationLabel, DURATIONS } from "@/lib/matchDuration";
 import LineupSummary from "@/components/match/LineupSummary";
 import GoalClassifier from "@/components/match/GoalClassifier";
@@ -122,8 +123,10 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
   const t = useT();
   const queryClient = useQueryClient();
 
-  const [format, setFormat] = useState(event?.football_format || "f11");
-  const [duration, setDuration] = useState(event?.match_duration || defaultDuration(event?.football_format, team));
+  // Formato: el de la etapa del equipo (S12 hacia abajo = fútbol 7) y, si no, el del partido
+  const teamF7 = teamPlaysF7(team);
+  const [format, setFormat] = useState(matchFormat(event, team));
+  const [duration, setDuration] = useState(event?.match_duration || defaultDuration(matchFormat(event, team), team));
   const [durationTouched, setDurationTouched] = useState(false); // el entrenador ya ha elegido: no se le cambia sola
   const [defaultSaved, setDefaultSaved] = useState(false);
   const [savingDefault, setSavingDefault] = useState(false);
@@ -171,9 +174,11 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
 
   const matchMinutes = getMatchMinutes(format, duration, team);
 
-  // Si el equipo llega después de abrir el acta, un partido sin duración propia toma la del equipo
+  // Si el equipo llega después de abrir el acta, un partido sin duración propia toma la del equipo, y un equipo de fútbol 7 pasa a F7
   useEffect(() => {
-    if (!durationTouched && !event?.match_duration) setDuration(defaultDuration(format, team));
+    const f = matchFormat({ football_format: format }, team);
+    if (f !== format) setFormat(f);
+    if (!durationTouched && !event?.match_duration) setDuration(defaultDuration(f, team));
   }, [team?.default_match_duration, team?.category, team?.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Duración habitual del equipo: la que haya guardado el entrenador o, si no, la de su categoría
@@ -443,7 +448,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Formato")}</p>
-            <Select value={format} onValueChange={changeFormat}>
+            <Select value={format} onValueChange={changeFormat} disabled={teamF7}>
               <SelectTrigger className="w-36 border-gray-200 h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>{FOOTBALL_FORMATS.map(f => <SelectItem key={f.value} value={f.value}>{t(f.label)}</SelectItem>)}</SelectContent>
             </Select>

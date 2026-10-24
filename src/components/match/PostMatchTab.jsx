@@ -10,6 +10,7 @@ import { calcMinutesPlayed, getMatchMinutes } from "@/components/match/ActaTab";
 import { useAutosave } from "@/lib/useAutosave";
 import SaveStatus from "@/components/common/SaveStatus";
 import { useT, msg } from "@/i18n";
+import { matchFormat } from "@/lib/matchFormat";
 
 const POSITION_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
 const STAR_LABELS = ["", msg("Mal"), msg("Bien"), msg("Muy bien")];
@@ -109,7 +110,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
     value: form,
     enabled: seeded,
     save: async (v) => {
-      const matchMinutes = getMatchMinutes(event?.football_format, event?.match_duration, team);
+      const matchMinutes = getMatchMinutes(matchFormat(event, team), event?.match_duration, team);
       for (const p of played) {
         const row = v.rows[p.id] || {};
         const existing = known.current.get(p.id);

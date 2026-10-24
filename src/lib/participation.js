@@ -1,6 +1,7 @@
 // Participación de un jugador en los partidos: titular, suplente, no convocado (y por qué), minutos y porcentajes.
 // Funciones puras (se prueban con tests). Los partidos que se pasan ya vienen filtrados (cerrados y del tipo elegido).
 import { defaultDuration, totalMinutes } from './matchDuration.js';
+import { matchFormat, teamPlaysF7 } from './matchFormat.js';
 import { msg } from "../i18n/translate.js";
 
 // Motivos por los que un jugador no está convocado (los mismos que se eligen en la pestaña Convocatoria).
@@ -51,7 +52,8 @@ export function playerLevel(part, format = 'all') {
 const partsOf = (duration) => { const m = String(duration || '').match(/^(\d+)x(\d+)$/); return m ? Number(m[1]) : null; };
 
 // Formato del partido: el guardado o, si no lo hay, el que se deduce de la duración (4 cuartos = fútbol 7)
-export function formatOfEvent(ev, duration) {
+export function formatOfEvent(ev, duration, team) {
+  if (teamPlaysF7(team)) return 'f7'; // manda la etapa del equipo (S12 hacia abajo = fútbol 7)
   if (ev?.football_format === 'f7' || ev?.football_format === 'f11') return ev.football_format;
   return partsOf(duration) === 4 ? 'f7' : 'f11';
 }
@@ -98,9 +100,10 @@ export function participationOf(player, ctx) {
     if (!called && !own) continue;
 
     // Duración del partido: la suya o, si no la tiene, la habitual de su equipo
-    const evDuration = ev.match_duration || defaultDuration(ev.football_format, ctx.teamsById.get(ev.team_id));
+    const evTeam = ctx.teamsById.get(ev.team_id);
+    const evDuration = ev.match_duration || defaultDuration(matchFormat(ev, evTeam), evTeam);
     const total = totalMinutes(evDuration);
-    const targets = [out.all, out[formatOfEvent(ev, evDuration)]];
+    const targets = [out.all, out[formatOfEvent(ev, evDuration, evTeam)]];
 
     if (called) {
       const minutes = stat?.minutes_played || 0;

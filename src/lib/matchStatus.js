@@ -5,6 +5,7 @@ import { usePlayerMode } from "@/lib/playerMode";
 import { isFinished } from "@/lib/matchTiming";
 import { isCancelled } from "@/lib/eventCancel";
 import { msg } from "../i18n/translate.js";
+import { minPlayersOf } from "./matchFormat.js";
 
 // Las estadísticas principales y las alertas de "pendiente de gestionar" son solo de partidos de liga
 // (competición oficial), ya disputados y completamente cerrados (convocatoria, alineación y minutos).
@@ -17,13 +18,13 @@ export const STAT_SCOPES = [
 ];
 export const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 
-const minPlayers = (ev) => (ev.football_format === "f7" ? 7 : ev.football_format === "f5" ? 5 : 11);
 
 export { isFinished };
 
 // Motivos por los que un partido disputado sigue pendiente de gestionar.
-export function pendingReasons(ev, conv, evStats) {
-  const n = minPlayers(ev);
+// `team`: su equipo (en los de fútbol 7, de S12 hacia abajo, bastan 7 convocados y 7 titulares, aunque el partido venga marcado como F11)
+export function pendingReasons(ev, conv, evStats, team) {
+  const n = minPlayersOf(ev, team);
   const reasons = [];
   const called = conv?.player_ids?.length || 0;
   if (!conv || called === 0) reasons.push(msg("Sin convocatoria"));
@@ -52,8 +53,10 @@ export function useMatchStatus() {
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
   const { data: convocs = [] } = useQuery({ queryKey: ["convocatorias_all"], queryFn: () => base44.entities.Convocatoria.list() });
   const { data: stats = [] } = useQuery({ queryKey: ["matchstats_all"], queryFn: () => base44.entities.MatchStats.list() });
+  const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   return useMemo(() => {
     const now = new Date();
+    const teamBy = new Map(teams.map((t) => [t.id, t]));
     const convBy = new Map(convocs.map((c) => [c.event_id, c]));
     const statsBy = new Map();
     for (const s of stats) { if (!statsBy.has(s.event_id)) statsBy.set(s.event_id, []); statsBy.get(s.event_id).push(s); }
@@ -64,17 +67,17 @@ export function useMatchStatus() {
       if (ev.type === "torneo" || ev.type === "partido_amistoso") {
         // Sin alerta: cuentan en sus propias estadísticas y, si falta algo, solo se avisa en gris
         countedOther.add(ev.id);
-        if (!playerMode) { const r = pendingReasons(ev, convBy.get(ev.id), statsBy.get(ev.id)); if (r.length) soft.set(ev.id, r); }
+        if (!playerMode) { const r = pendingReasons(ev, convBy.get(ev.id), statsBy.get(ev.id), teamBy.get(ev.team_id)); if (r.length) soft.set(ev.id, r); }
         continue;
       }
       if (!STAT_TYPES.includes(ev.type)) continue;
       // El jugador no ve las estadísticas de sus compañeros: el servidor le indica si el partido está cerrado
       if (playerMode) { if (ev.stats_closed) counted.add(ev.id); else pending.set(ev.id, [msg("Pendiente de cerrar")]); continue; }
-      const reasons = pendingReasons(ev, convBy.get(ev.id), statsBy.get(ev.id));
+      const reasons = pendingReasons(ev, convBy.get(ev.id), statsBy.get(ev.id), teamBy.get(ev.team_id));
       if (reasons.length) pending.set(ev.id, reasons); else counted.add(ev.id);
     }
     return { counted, pending, soft, countedOther, events };
-  }, [events, convocs, stats, playerMode]);
+  }, [events, convocs, stats, teams, playerMode]);
 }
 
 // Deja solo las estadísticas del tipo de partido pedido (por defecto, liga cerrada). Las sin partido asociado

@@ -5,7 +5,8 @@ import {
 } from '../src/lib/participation.js';
 
 const teams = [
-  { id: 'A', name: 'Aleví S11 A', category: 'primera_divisio_alevin_s11' },
+  // equipo genérico (sin etapa conocida): aquí el formato lo da cada partido; los de fútbol 7 por etapa (S12 hacia abajo) se prueban más abajo
+  { id: 'A', name: 'Equipo A', category: 'otra', default_match_duration: '4x15' },
   { id: 'B', name: 'Cadet S16 A', category: 'cadet_primera_divisio_s16' },
 ];
 const mk = (id, team_id) => ({ id, team_id });
@@ -176,6 +177,25 @@ assert.equal(playerLevel(e), 'ok');                 // p9: 50 % en F11, por enci
 assert.equal(formatOfEvent({ football_format: 'f7' }, '2x45'), 'f7');
 assert.equal(formatOfEvent({}, '4x10'), 'f7');
 assert.equal(formatOfEvent({}, '2x40'), 'f11');
+// un equipo de S12 hacia abajo es de fútbol 7 aunque el partido venga marcado como F11 (o por duración)
+assert.equal(formatOfEvent({ football_format: 'f11' }, '2x45', { name: 'Aleví S12 A' }), 'f7');
+assert.equal(formatOfEvent({}, '2x40', { name: 'Aleví S12 A' }), 'f7');
+assert.equal(formatOfEvent({ football_format: 'f11' }, '2x35', { name: 'Infantil S13 A' }), 'f11');
+
+// Un equipo de S12 hacia abajo cuenta siempre como fútbol 7 en las estadísticas, aunque el partido venga marcado como F11
+{
+  const s12 = [{ id: 'S', name: 'Aleví S12 A', category: 'primera_divisio_alevin_s12' }];
+  const ctx12 = buildContext({
+    events: [{ id: 's1', team_id: 'S', football_format: 'f11' }, { id: 's2', team_id: 'S' }],
+    convocs: [{ event_id: 's1', team_id: 'S', player_ids: ['q1'], starters: ['q1'] }, { event_id: 's2', team_id: 'S', player_ids: ['q1'], starters: ['q1'] }],
+    stats: [{ event_id: 's1', player_id: 'q1', minutes_played: 30 }, { event_id: 's2', player_id: 'q1', minutes_played: 30 }],
+    teams: s12,
+  });
+  const q = participationOf(mk('q1', 'S'), ctx12);
+  assert.equal(q.f7.conv, 2);
+  assert.equal(q.f11.conv, 0);
+  assert.equal(q.f7.totalMin, 120); // 4 cuartos de 15' por ser Aleví, no 90'
+}
 
 assert.equal(reasonShort('lesion'), 'Lesión');
 assert.equal(reasonShort(NO_REASON), 'Sin motivo');

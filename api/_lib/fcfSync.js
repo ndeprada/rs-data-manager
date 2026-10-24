@@ -1,6 +1,7 @@
 import { query } from './db.js';
 import { buildGuestIndex } from './rosterMatch.js';
 import { validCoords } from '../../src/lib/weather.js';
+import { teamPlaysF7 } from '../../src/lib/matchFormat.js';
 import { fcfFetch } from './fcfHttp.js';
 
 export const CLUB_CODE = '40493342';
@@ -65,9 +66,9 @@ function currentSeason() {
   return d.getMonth() >= 6 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
 }
 
+// Una sola regla para toda la app (src/lib/matchFormat.js): de Aleví S12 hacia abajo se juega a fútbol 7
 function isF7(catName) {
-  const c = norm(catName);
-  return /(alevi s11|benjami|prebenjami)/.test(c);
+  return teamPlaysF7({ name: catName, category: categorySlug(catName) });
 }
 
 function splitName(full) {

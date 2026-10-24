@@ -9,6 +9,7 @@ import {
   permissionsOf, canManageTeamWith, checkRoleWrite, filterRoleRead, staffIdsOfUser, checkSessionWrite,
   MEDICAL_ENTITIES, PLAYER_EVAL_ENTITIES, COACH_EVAL_ENTITIES, SESSION_ENTITIES, PLAYER_STAFF_FIELDS,
 } from '../../src/lib/permissions.js';
+import { minPlayersOf } from '../../src/lib/matchFormat.js';
 
 const PERMISSION_FIELDS = new Set([
   'role', 'app_role', 'player_id', 'app_role_pending', 'access_status', 'person_type',
@@ -127,8 +128,8 @@ export function playerView(entity, doc, scope, userId) {
 }
 
 // Mismo criterio que la app: convocatoria completa, alineación completa y minutos de todos los titulares.
-function matchClosed(ev, conv, evStats) {
-  const n = ev.football_format === 'f7' ? 7 : ev.football_format === 'f5' ? 5 : 11;
+function matchClosed(ev, conv, evStats, team) {
+  const n = minPlayersOf(ev, team); // 7 en los equipos de fútbol 7 (S12 hacia abajo), 11 en el resto
   if (!conv || (conv.player_ids || []).length < n) return false;
   const starters = conv.starters || [];
   if (starters.length < n) return false;
@@ -147,7 +148,9 @@ export async function playerFilterDocs(user, entity, docs) {
     const convBy = new Map(cv.map((r) => [r.data.event_id, r.data]));
     const statsBy = new Map();
     for (const r of ms) { if (!statsBy.has(r.data.event_id)) statsBy.set(r.data.event_id, []); statsBy.get(r.data.event_id).push(r.data); }
-    closed = (d) => matchClosed(d, convBy.get(d.id), statsBy.get(d.id) || []);
+    const { rows: tm } = await query(`select data from entities where entity_type = 'Team' and id::text = $1`, [String(scope.teamId)]);
+    const team = tm[0]?.data || null;
+    closed = (d) => matchClosed(d, convBy.get(d.id), statsBy.get(d.id) || [], team);
   }
   const out = [];
   for (const d of docs) {

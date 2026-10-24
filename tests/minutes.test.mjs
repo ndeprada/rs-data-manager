@@ -88,6 +88,9 @@ assert.equal(eventMinutes({ football_format: 'f11', match_duration: '2x35' }, ca
 assert.equal(eventMinutes({ football_format: 'f11' }, { ...cadet, default_match_duration: '2x35' }), 70);
 assert.equal(eventMinutes({ football_format: 'f7' }, T('Equipo raro', 'otra')), 60);
 assert.equal(eventMinutes({ football_format: 'f11' }, T('Prebenjamí S8 A', 'prebenjami_s8')), 40);
+// un partido de S12 marcado como F11 sigue siendo de fútbol 7: 4 cuartos de 15' del equipo (nunca 90')
+assert.equal(eventMinutes({ football_format: 'f11' }, T('Aleví S12 A', 'primera_divisio_alevin_s12')), 60);
+assert.equal(eventMinutes({ football_format: 'f11' }, { name: 'Aleví S12 A' }), 60);
 assert.equal(defaultDuration('f7', cadet), '2x40');
 
 // Minutos del acta con la duración de cada categoría: titular sin cambios = partido completo
