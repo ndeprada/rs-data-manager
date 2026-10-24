@@ -174,7 +174,7 @@ export default function Teams() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
          <PageTitle kicker={t("Administración")} title={t("Equipos")} subtitle={t("Gestión de equipos del club")} />
-         <div className="flex items-center gap-2">
+         <div className="flex flex-wrap items-center gap-2">
            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
              <button
                onClick={() => setViewMode("list")}
