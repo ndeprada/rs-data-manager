@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import RichTextBox from "./RichTextBox";
 import RivalReport from "./RivalReport";
 import { playerFirstName, playerFullName, matchesPlayerSearch } from "@/lib/playerName";
-import { FORMATION_POSITIONS, formationsFor, isFormationOf, formationOptions, formationLabel } from "@/lib/matchFormations";
+import { FORMATION_POSITIONS, formationsFor, isFormationOf, formationOptions, formationLabel, normalizeFormation } from "@/lib/matchFormations";
 import { useT, msg } from "@/i18n";
 
 // ── Draggable Football Field ────────────────────────────
@@ -245,7 +245,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
     loaded.current = true;
     if (plan) {
       planId.current = plan.id;
-      if (isFormationOf(isF7, plan.formation)) setFormation(plan.formation);
+      if (isFormationOf(isF7, normalizeFormation(plan.formation))) setFormation(normalizeFormation(plan.formation));
       setPositions(plan.positions || null);
       setLineup(plan.lineup || []);
       setPlanAttack(plan.plan_attack || "");
@@ -261,7 +261,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
       try {
         const old = JSON.parse(localStorage.getItem(`tactica_${event?.id}`) || "null");
         if (old) {
-          if (isFormationOf(isF7, old.formation)) setFormation(old.formation);
+          if (isFormationOf(isF7, normalizeFormation(old.formation))) setFormation(normalizeFormation(old.formation));
           setPlanAttack(old.planPropio || "");
           setRival(r => ({ ...r, notes: old.planRival || "" }));
         }

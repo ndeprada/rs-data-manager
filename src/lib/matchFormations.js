@@ -4,25 +4,26 @@ export const FORMATIONS_F11 = ["4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "3-4-3", "5
 // Fútbol 7 (etapas S8 a S12), según el modelo del club (TFM: posicionamiento básico, 4.8.13/4.8.14) y lo que pidió Nacho el 25/10/2026.
 // La primera es la táctica por defecto: el sistema base. Las claves se guardan en cada plan de partido (no cambiarlas); lo que ve
 // la gente es la etiqueta (`FORMATION_LABELS`).
-//   «3-2-1 base»   portero · central y dos laterales MÁS ADELANTADOS que el central · dos extremos abiertos · mediapunta algo por debajo de los extremos
-//   «3-2-1 medios» la misma defensa · dos medios y un solo punta
-//   «3-1-2 puntas» la misma defensa · un mediapunta y dos puntas
-//   «2-3-1»        dos atrás, tres en medio y un punta (sin cambios respecto a lo que ya había)
-export const FORMATIONS_F7 = ["3-2-1 base", "3-2-1 medios", "3-1-2 puntas", "2-3-1"];
-// Sistemas de F7 anteriores: ya no se ofrecen, pero se siguen entendiendo para que un partido ya preparado con ellos se vea igual que lo dejó
+//   «3-1-2»        BASE: portero · central y dos laterales MÁS ADELANTADOS que el central · mediapunta · dos extremos abiertos, por encima del mediapunta
+//   «3-1-2 puntas» la misma defensa y mediapunta · dos puntas (por dentro) en lugar de los extremos abiertos
+//   «3-2-1»        la misma defensa · dos medios y un solo punta
+//   «2-3-1»        dos atrás, tres en medio y un punta
+export const FORMATIONS_F7 = ["3-1-2", "3-1-2 puntas", "3-2-1", "2-3-1"];
+// Sistemas de F7 anteriores que ya no se ofrecen, pero se siguen entendiendo para que un partido ya preparado con ellos se vea igual que lo dejó
 // (aparecen en el desplegable solo si ese partido los usa).
-export const LEGACY_F7 = ["3-2-1", "3-1-2", "2-2-2", "1-3-2"];
+export const LEGACY_F7 = ["2-2-2", "1-3-2"];
+// Claves que estuvieron publicadas unos minutos el 25/10/2026 con otro nombre; se leen como las de ahora.
+const FORMATION_ALIASES = { "3-2-1 base": "3-1-2", "3-2-1 medios": "3-2-1" };
+export const normalizeFormation = (f) => FORMATION_ALIASES[f] || f;
 
 export const FORMATION_LABELS = {
-  "3-2-1 base": "3-2-1 · Base",
-  "3-2-1 medios": "3-2-1 · 2 medios y 1 punta",
+  "3-1-2": "3-1-2 · Base",
   "3-1-2 puntas": "3-1-2 · 2 puntas",
-  "3-2-1": "3-2-1 (antiguo)",
-  "3-1-2": "3-1-2 (antiguo)",
+  "3-2-1": "3-2-1 · 2 medios y 1 punta",
   "2-2-2": "2-2-2 (antiguo)",
   "1-3-2": "1-3-2 (antiguo)",
 };
-export const formationLabel = (f) => FORMATION_LABELS[f] || f;
+export const formationLabel = (f) => FORMATION_LABELS[normalizeFormation(f)] || f;
 export const formationsFor = (isF7) => (isF7 ? FORMATIONS_F7 : FORMATIONS_F11);
 /** ¿Es una formación válida para ese formato? (las antiguas de F7 también) */
 export const isFormationOf = (isF7, f) => formationsFor(isF7).includes(f) || (isF7 && LEGACY_F7.includes(f));
@@ -31,9 +32,9 @@ export const formationOptions = (isF7, current) => (isF7 && LEGACY_F7.includes(c
 
 // Quién ocupa cada hueco en los sistemas de F7 (el hueco 0 es siempre el portero). Solo documenta y sirve a los tests.
 export const F7_SLOT_ROLES = {
-  "3-2-1 base":   ["portero", "lateral", "central", "lateral", "mediapunta", "extremo", "extremo"],
-  "3-2-1 medios": ["portero", "lateral", "central", "lateral", "medio", "medio", "punta"],
+  "3-1-2":        ["portero", "lateral", "central", "lateral", "mediapunta", "extremo", "extremo"],
   "3-1-2 puntas": ["portero", "lateral", "central", "lateral", "mediapunta", "punta", "punta"],
+  "3-2-1":        ["portero", "lateral", "central", "lateral", "medio", "medio", "punta"],
 };
 
 // Positions as [x%, y%] — origin top-left, attack towards top
@@ -49,14 +50,12 @@ export const FORMATION_POSITIONS = {
   "4-5-1":    [[50,88],[18,68],[38,68],[62,68],[82,68],[12,46],[32,44],[52,44],[72,44],[88,46],[50,18]],
   "4-1-4-1":  [[50,88],[18,68],[38,68],[62,68],[82,68],[50,56],[18,40],[38,40],[62,40],[82,40],[50,18]],
   // Fútbol 7, sistemas del club (ataque, hacia arriba). La defensa de tres es la misma en los tres: el central, más atrás, y los dos laterales
-  // por delante de él (y bastante abiertos), como en el posicionamiento básico del TFM. Orden de huecos: portero, lateral izq., central, lateral der., …
-  "3-2-1 base":   [[50,88],[18,62],[50,73],[82,62],[50,40],[11,27],[89,27]],   // mediapunta (50,40) algo por debajo de los extremos abiertos (y 27)
-  "3-2-1 medios": [[50,88],[18,62],[50,73],[82,62],[30,44],[70,44],[50,20]],   // dos medios y un solo punta
-  "3-1-2 puntas": [[50,88],[18,62],[50,73],[82,62],[50,46],[34,22],[66,22]],   // un mediapunta y dos puntas
-  // F7 de antes, sin cambios: «2-3-1» sigue vigente y los de `LEGACY_F7` se conservan para que los partidos ya preparados con ellos se vean igual
-  "3-2-1":    [[50,88],[22,68],[50,68],[78,68],[35,46],[65,46],[50,20]],
+  // por delante de él, como en el posicionamiento básico del TFM. Orden de huecos: portero, lateral izq., central, lateral der., …
+  "3-1-2":        [[50,88],[22,61],[50,70],[78,61],[50,40],[17,26],[83,26]],   // BASE (la de siempre): mediapunta (50,40) algo por debajo de los extremos abiertos (y 26)
+  "3-1-2 puntas": [[50,88],[22,61],[50,70],[78,61],[50,40],[36,22],[64,22]],   // el mismo mediapunta y dos puntas por dentro
+  "3-2-1":        [[50,88],[22,61],[50,70],[78,61],[32,44],[68,44],[50,20]],   // dos medios y un solo punta
   "2-3-1":    [[50,88],[30,72],[70,72],[20,50],[50,46],[80,50],[50,20]],
+  // F7 de antes, sin cambios (solo se ven si un partido ya los usa)
   "2-2-2":    [[50,88],[30,70],[70,70],[30,46],[70,46],[30,22],[70,22]],
-  "3-1-2":    [[50,88],[22,61],[50,70],[78,61],[50,40],[17,26],[83,26]],
   "1-3-2":    [[50,88],[50,72],[22,52],[50,48],[78,52],[30,22],[70,22]],
 };
