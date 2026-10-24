@@ -4,6 +4,7 @@ const jsPDF = jspdfMod.jsPDF || jspdfMod.default?.jsPDF || jspdfMod.default;
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { playerFirstName } from "@/lib/playerName";
+import { f7Markings } from "./pitchGeometry";
 import { lineupLayout, firstSurname, fitText, LINEUP } from "@/lib/matchSheetLayout";
 import { drawRichText } from "@/lib/richTextPdf";
 
@@ -36,7 +37,7 @@ function addImageFit(doc, img, x, y, w, h) {
   try { doc.addImage(img.data, "PNG", x + (w - iw) / 2, y + (h - ih) / 2, iw, ih); } catch { /* imagen no válida */ }
 }
 
-function drawPitch(doc, x0, y0, pw, ph) {
+function drawPitch(doc, x0, y0, pw, ph, isF7 = false) {
   const s = pw / 300;
   doc.setFillColor(238, 246, 238);
   doc.roundedRect(x0, y0, pw, ph, 1.5, 1.5, "F");
@@ -45,6 +46,25 @@ function drawPitch(doc, x0, y0, pw, ph) {
   const m = 12 * s;
   doc.rect(x0 + m, y0 + m, pw - 2 * m, ph - 2 * m);
   doc.line(x0 + m, y0 + ph / 2, x0 + pw - m, y0 + ph / 2);
+  if (isF7) {
+    // Fútbol 7 a escala (45 × 65 m): áreas, punto de penalti, círculo y líneas de fuera de juego a 12 m de cada línea de meta
+    const f = f7Markings(x0 + m, y0 + m, pw - 2 * m, ph - 2 * m);
+    doc.circle(f.centre.x, f.centre.y, f.centre.r);
+    doc.setFillColor(150, 190, 155);
+    doc.circle(f.centre.x, f.centre.y, 0.6, "F");
+    const top = y0 + m, bottom = y0 + ph - m;
+    doc.rect(f.area.x, top, f.area.w, f.area.d);
+    doc.rect(f.goalArea.x, top, f.goalArea.w, f.goalArea.d);
+    doc.rect(f.area.x, bottom - f.area.d, f.area.w, f.area.d);
+    doc.rect(f.goalArea.x, bottom - f.goalArea.d, f.goalArea.w, f.goalArea.d);
+    doc.circle(f.centre.x, top + f.spot, 0.45, "F");
+    doc.circle(f.centre.x, bottom - f.spot, 0.45, "F");
+    doc.setDrawColor(95, 150, 105); doc.setLineWidth(0.4); doc.setLineDashPattern([1.8, 1.4], 0);
+    doc.line(x0 + m, top + f.offside, x0 + pw - m, top + f.offside);
+    doc.line(x0 + m, bottom - f.offside, x0 + pw - m, bottom - f.offside);
+    doc.setLineDashPattern([], 0);
+    return;
+  }
   doc.circle(x0 + pw / 2, y0 + ph / 2, 38 * s);
   doc.setFillColor(150, 190, 155);
   doc.circle(x0 + pw / 2, y0 + ph / 2, 0.6, "F");
@@ -54,7 +74,7 @@ function drawPitch(doc, x0, y0, pw, ph) {
   doc.rect(x0 + pw * 0.34, y0 + ph - m - 28 * s, pw * 0.32, 28 * s);
 }
 
-export async function downloadMatchSheetPDF({ event, team, formation, positions, slots, captainId, kit, gkKit, gkKitBench, kits, gkKits, benchPlayers, planAttack, planDefense, planSet, ourLogoUrl, opponentLogoUrl }) {
+export async function downloadMatchSheetPDF({ event, team, isF7 = false, formation, positions, slots, captainId, kit, gkKit, gkKitBench, kits, gkKits, benchPlayers, planAttack, planDefense, planSet, ourLogoUrl, opponentLogoUrl }) {
   const [ourLogo, oppLogo] = await Promise.all([loadImage(ourLogoUrl), loadImage(opponentLogoUrl)]);
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
   const W = 297, H = 210;
@@ -86,8 +106,8 @@ export async function downloadMatchSheetPDF({ event, team, formation, positions,
   const ph = 148, pw = ph * 300 / 420;
   doc.setTextColor(...GRANATE);
   doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-  doc.text(`ONCE INICIAL  ·  ${formation}`, lx, ly - 1.5);
-  drawPitch(doc, lx, ly, pw, ph);
+  doc.text(`${isF7 ? "SIETE" : "ONCE"} INICIAL  ·  ${formation}`, lx, ly - 1.5);
+  drawPitch(doc, lx, ly, pw, ph, isF7);
   const colorsFor = (p, gk = gkKit) => (p?.position === "portero" ? (gkKits[gk] || gkKits.naranja) : (kits[kit] || kits["1"]));
   const widthOf = (text, pt, bold) => { doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(pt); return doc.getTextWidth(text); };
   const layout = lineupLayout(slots, positions, pw, ph, widthOf);

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import RichTextBox from "./RichTextBox";
 import RivalReport from "./RivalReport";
 import { playerFirstName, playerFullName, matchesPlayerSearch } from "@/lib/playerName";
+import { f7Markings } from "@/lib/pitchGeometry";
 import { FORMATION_POSITIONS, formationsFor, isFormationOf, formationOptions, formationLabel, normalizeFormation } from "@/lib/matchFormations";
 import { useT, msg } from "@/i18n";
 
@@ -27,11 +28,13 @@ const GK_KITS = {
 const kitFor = (player, kit, gkKit) =>
   player?.position === "portero" ? (GK_KITS[gkKit] || GK_KITS.naranja) : (KITS[kit] || KITS["1"]);
 
-function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsChange, onSlotClick, selectedIdx = null }) {
+function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsChange, onSlotClick, selectedIdx = null, isF7 = false }) {
   const t = useT();
   const svgRef = useRef(null);
   const draggingIdx = useRef(null);
   const W = 300, H = 420;
+  const M = 12; // margen: el terreno de juego va de M a W-M y de M a H-M
+  const f7 = isF7 ? f7Markings(M, M, W - 2 * M, H - 2 * M) : null;
 
   const getSVGPoint = useCallback((clientX, clientY) => {
     const svg = svgRef.current;
@@ -94,13 +97,31 @@ function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsC
       {/* Lines */}
       <rect x="12" y="12" width={W-24} height={H-24} fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
       <line x1="12" y1={H/2} x2={W-12} y2={H/2} stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
-      <circle cx={W/2} cy={H/2} r="38" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
+      <circle cx={W/2} cy={H/2} r={f7 ? f7.centre.r : 38} fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
       <circle cx={W/2} cy={H/2} r="3" fill="rgba(255,255,255,0.4)" />
-      {/* Penalty areas */}
-      <rect x={W*0.22} y="12" width={W*0.56} height="72" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" />
-      <rect x={W*0.34} y="12" width={W*0.32} height="28" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.1" />
-      <rect x={W*0.22} y={H-84} width={W*0.56} height="72" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" />
-      <rect x={W*0.34} y={H-40} width={W*0.32} height="28" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.1" />
+      {f7 ? (
+        <>
+          {/* Fútbol 7 a escala (45 × 65 m): áreas, punto de penalti y líneas de fuera de juego a 12 m de cada línea de meta */}
+          <rect x={f7.area.x} y={M} width={f7.area.w} height={f7.area.d} fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" />
+          <rect x={f7.goalArea.x} y={M} width={f7.goalArea.w} height={f7.goalArea.d} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.1" />
+          <rect x={f7.area.x} y={H - M - f7.area.d} width={f7.area.w} height={f7.area.d} fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" />
+          <rect x={f7.goalArea.x} y={H - M - f7.goalArea.d} width={f7.goalArea.w} height={f7.goalArea.d} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.1" />
+          <circle cx={W/2} cy={M + f7.spot} r="1.6" fill="rgba(255,255,255,0.5)" />
+          <circle cx={W/2} cy={H - M - f7.spot} r="1.6" fill="rgba(255,255,255,0.5)" />
+          <g data-testid="f7-offside" stroke="rgba(255,255,255,0.7)" strokeWidth="1.3" strokeDasharray="6 4">
+            <line x1={M} y1={M + f7.offside} x2={W - M} y2={M + f7.offside} />
+            <line x1={M} y1={H - M - f7.offside} x2={W - M} y2={H - M - f7.offside} />
+          </g>
+        </>
+      ) : (
+        <>
+          {/* Penalty areas */}
+          <rect x={W*0.22} y="12" width={W*0.56} height="72" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" />
+          <rect x={W*0.34} y="12" width={W*0.32} height="28" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.1" />
+          <rect x={W*0.22} y={H-84} width={W*0.56} height="72" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" />
+          <rect x={W*0.34} y={H-40} width={W*0.32} height="28" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.1" />
+        </>
+      )}
       {/* Corner arcs */}
       <path d="M12,22 A10,10 0 0,0 22,12" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
       <path d={`M${W-12},22 A10,10 0 0,1 ${W-22},12`} fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
@@ -333,7 +354,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
     setPdfBusy(true);
     try {
       await downloadMatchSheetPDF({
-        event, team, formation: formationLabel(validFormation), positions: currentPositions, slots, captainId: slotIds.includes(captain) ? captain : "",
+        event, team, isF7, formation: formationLabel(validFormation), positions: currentPositions, slots, captainId: slotIds.includes(captain) ? captain : "",
         kit, gkKit, gkKitBench: gkKit2 || gkKit, kits: KITS, gkKits: GK_KITS, benchPlayers, planAttack, planDefense, planSet,
         ourLogoUrl: team?.logo_url || CLUB_LOGO_URL, opponentLogoUrl: event?.opponent_logo_url,
       });
@@ -355,7 +376,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
         {/* ── Once inicial: libre, no depende de la convocatoria ── */}
         <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-sm font-bold text-gray-900">{t("Once inicial")} <span className="text-gray-400 font-normal text-xs">({filled}/{nSlots})</span></p>
+            <p className="text-sm font-bold text-gray-900">{isF7 ? t("Siete inicial") : t("Once inicial")} <span className="text-gray-400 font-normal text-xs">({filled}/{nSlots})</span></p>
             <div className="flex items-center gap-2">
               <Select value={validFormation} onValueChange={handleFormationChange}>
                 <SelectTrigger className={`${isF7 ? "w-52" : "w-28"} h-8 text-xs border-gray-200`}><SelectValue>{t(formationLabel(validFormation))}</SelectValue></SelectTrigger>
@@ -363,7 +384,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
               </Select>
               <button onClick={() => setPositions(null)} title={t("Restablecer posiciones")} className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50"><RotateCcw className="w-3.5 h-3.5" /></button>
               {starterIds?.length > 0 && <button onClick={fillFromActa} title={t("Rellenar con los titulares del acta")} className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50"><Wand2 className="w-3.5 h-3.5" /></button>}
-              {filled > 0 && <button onClick={() => setLineup([])} title={t("Vaciar el once")} className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-red-600 hover:bg-red-50"><Eraser className="w-3.5 h-3.5" /></button>}
+              {filled > 0 && <button onClick={() => setLineup([])} title={isF7 ? t("Vaciar la alineación") : t("Vaciar el once")} className="p-1.5 rounded border border-gray-200 text-gray-400 hover:text-red-600 hover:bg-red-50"><Eraser className="w-3.5 h-3.5" /></button>}
             </div>
           </div>
           <div className="flex items-center justify-center gap-3 flex-wrap">
@@ -417,6 +438,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
                   onPositionsChange={(newPos) => setPositions(newPos)}
                   onSlotClick={onSlotTap}
                   selectedIdx={sel?.kind === "slot" ? sel.i : null}
+                  isF7={isF7}
                 />
               </div>
             </div>
@@ -425,7 +447,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
             <div className="w-full sm:w-44 shrink-0">
               <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1.5">{t("Banquillo")} <span className="font-normal">({benchPlayers.length})</span></p>
               {benchPlayers.length === 0 ? (
-                <p className="text-[11px] text-gray-400">{(convocadoIds || []).length === 0 ? t("Aún no hay convocatoria.") : t("Todos los convocados están en el once.")}</p>
+                <p className="text-[11px] text-gray-400">{(convocadoIds || []).length === 0 ? t("Aún no hay convocatoria.") : (isF7 ? t("Todos los convocados están en la alineación.") : t("Todos los convocados están en el once."))}</p>
               ) : (
                 <div className="flex flex-row flex-wrap sm:flex-col gap-1">
                   {benchPlayers.map((p, idx) => {
@@ -449,7 +471,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
 
           {sel && selPlayer && (
             <div className="flex items-center justify-between gap-2 flex-wrap text-xs bg-yellow-50 border border-yellow-300 rounded-lg px-3 py-2">
-              <span className="text-gray-700"><b>{playerFullName(selPlayer)}</b> seleccionado · {sel.kind === "bench" ? t("toca un hueco del once para meterlo") : t("toca otro jugador para intercambiarlo")}</span>
+              <span className="text-gray-700"><b>{playerFullName(selPlayer)}</b> seleccionado · {sel.kind === "bench" ? (isF7 ? t("toca un hueco de la alineación para meterlo") : t("toca un hueco del once para meterlo")) : t("toca otro jugador para intercambiarlo")}</span>
               <span className="flex items-center gap-1.5">
                 {sel.kind === "slot" && <button onClick={() => { setPickSlot(sel.i); }} className="px-2 py-1 rounded border border-gray-300 text-gray-700 hover:bg-white">{t("Elegir otro jugador")}</button>}
                 {sel.kind === "slot" && <button onClick={() => { setSlot(sel.i, null); setSel(null); }} className="px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-white">{t("Vaciar hueco")}</button>}
