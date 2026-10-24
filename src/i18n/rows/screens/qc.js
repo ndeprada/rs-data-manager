@@ -30,4 +30,13 @@ export default [
   ["Periodo en curso", "Current period", "Période en cours", "Període en curs"],
   ["Si lo activas, el entrenador ve cada observación en cuanto la guardas. Si no, la verá cuando publiques el periodo al cerrarlo.", "If you turn this on, the coach sees each observation as soon as you save it. If not, they will see it when you publish the period on closing.", "Si vous l'activez, l'entraîneur voit chaque observation dès que vous l'enregistrez. Sinon, il la verra quand vous publierez la période à la clôture.", "Si l'actives, l'entrenador veu cada observació tan bon punt la deses. Si no, la veurà quan publiquis el període en tancar-lo."],
   ["Compartir con el entrenador mientras está abierto", "Share with the coach while open", "Partager avec l'entraîneur tant que la période est ouverte", "Comparteix amb l'entrenador mentre és obert"],
+  // Sincronización con la FCF: línea de «Última sincronización» en Equipos
+  ["Última sincronización con la FCF: {when} · {source}", "Last FCF sync: {when} · {source}", "Dernière synchronisation avec la FCF : {when} · {source}", "Última sincronització amb la FCF: {when} · {source}"],
+  ["Última sincronización con la FCF: todavía no consta", "Last FCF sync: not recorded yet", "Dernière synchronisation avec la FCF : aucune enregistrée pour l’instant", "Última sincronització amb la FCF: encara no consta"],
+  ["Sincronizando con la FCF…", "Syncing with the FCF…", "Synchronisation avec la FCF en cours…", "Sincronitzant amb la FCF…"],
+  ["Falló la última sincronización con la FCF ({when}, {source}). Última correcta: {lastOk}", "The last FCF sync failed ({when}, {source}). Last successful one: {lastOk}", "La dernière synchronisation avec la FCF a échoué ({when}, {source}). Dernière réussie : {lastOk}", "Ha fallat l’última sincronització amb la FCF ({when}, {source}). Última correcta: {lastOk}"],
+  ["Falló la última sincronización con la FCF ({when}, {source}). Aún no consta ninguna correcta", "The last FCF sync failed ({when}, {source}). No successful sync on record yet", "La dernière synchronisation avec la FCF a échoué ({when}, {source}). Aucune synchronisation réussie enregistrée", "Ha fallat l’última sincronització amb la FCF ({when}, {source}). Encara no consta cap de correcta"],
+  ["ahora mismo", "just now", "à l’instant", "ara mateix"],
+  ["automática", "automatic", "automatique", "automàtica"],
+  ["manual", "manual", "manuelle", "manual"],
 ];

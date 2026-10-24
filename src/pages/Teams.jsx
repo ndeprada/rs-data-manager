@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import TeamsTable from "@/components/teams/TeamsTable";
 import TeamStaffSection from "@/components/team/TeamStaffSection";
+import FcfSyncLine from "@/components/teams/FcfSyncLine";
 import { buildLinks } from "@/lib/staffLink";
 import { FCF_CATEGORIES, FCF_CATEGORY_GROUPS, getCategoryLabel } from "@/components/fcfCategories";
 
@@ -206,6 +207,7 @@ export default function Teams() {
            </Button>
          </div>
        </div>
+      <FcfSyncLine />
 
       {isLoading ? (
         <div className="bg-white border border-gray-200 p-8 text-center animate-pulse" style={{ borderRadius: "4px" }}>

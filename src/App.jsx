@@ -46,6 +46,7 @@ const FamilyHome = lazyPage(() => import('./pages/FamilyHome'));
 import { TeamAccessProvider } from '@/lib/TeamAccessContext';
 import { lazyPage } from '@/lib/lazyPage';
 import UpdateNotice from '@/components/common/UpdateNotice';
+import AutoFcfSync from '@/components/common/AutoFcfSync';
 import { useTeamAccess } from '@/lib/TeamAccessContext';
 
 const STAFF_ROLES = STAFF_FUNCTION_VALUES;
@@ -135,6 +136,7 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <TeamAccessProvider>
+    <AutoFcfSync />
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route element={<Layout />}>
