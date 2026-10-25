@@ -3,6 +3,7 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, isToday } 
 import { ChevronLeft, ChevronRight, MapPin, Clock, Plus, Home, Plane, Ban } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
+import { scoreText, scoreTitle, playedResult } from "@/lib/matchScore";
 import EventWeather from "@/components/EventWeather";
 import { useT, useDateLocale, msg } from "@/i18n";
 
@@ -65,11 +66,27 @@ function getWeekNumber(date) {
 // Cancelado o suspendido: gris, texto tachado y el motivo debajo
 const OFF_STYLES = { bar: "#9ca3af", bg: "#f9fafb", pill: "#e5e7eb", pillText: "#6b7280", accent: "#6b7280", border: "#e5e7eb" };
 
+// Partido ya jugado: la tarjeta toma el color del resultado (verde victoria, rojo derrota, ámbar empate) y enseña el marcador
+const RESULT_STYLES = {
+  victoria: { solid: "#16a34a", bg: "#f0fdf4", pill: "#dcfce7", border: "#86efac", text: "#166534", word: msg("Victoria") },
+  derrota:  { solid: "#dc2626", bg: "#fef2f2", pill: "#fee2e2", border: "#fca5a5", text: "#991b1b", word: msg("Derrota") },
+  empate:   { solid: "#d97706", bg: "#fffbeb", pill: "#fef3c7", border: "#fcd34d", text: "#92400e", word: msg("Empate") },
+};
+
+// Colores de la tarjeta: suspendido (gris) > resultado (verde/rojo/ámbar) > tipo de evento
+function cardStyles(meta, off, rs) {
+  if (off) return OFF_STYLES;
+  if (rs) return { bar: rs.solid, bg: rs.bg, pill: rs.pill, pillText: rs.text, accent: rs.text, border: rs.border };
+  return COLOR_STYLES[meta.color];
+}
+
 function EventCard({ event, navigate, onEventClick }) {
   const t = useT();
   const meta = EVENT_META[event.type] || { label: event.type, color: "slate" };
   const off = isCancelled(event);
-  const styles = off ? OFF_STYLES : COLOR_STYLES[meta.color];
+  const result = playedResult(event);
+  const rs = result ? RESULT_STYLES[result] : null;
+  const styles = cardStyles(meta, off, rs);
   const isMatch = MATCH_TYPES.includes(event.type);
 
   const onClick = () => {
@@ -124,6 +141,15 @@ function EventCard({ event, navigate, onEventClick }) {
             {isMatch && event.opponent ? `vs ${event.opponent}` : event.title}
           </p>
         </div>
+
+        {/* Resultado (partido ya jugado) */}
+        {rs && (
+          <div className="mt-1.5 rounded-md px-2 py-1 text-center text-white" style={{ background: rs.solid }}
+            title={`${t(rs.word)} · ${scoreTitle(event, undefined, t)}`} data-testid="match-result" data-result={result}>
+            <p className="text-lg font-black leading-none tabular-nums" style={{ fontFamily: "var(--font-display)" }}>{scoreText(event)}</p>
+            <p className="mt-0.5 text-[8px] font-black uppercase tracking-widest leading-none">{t(rs.word)}</p>
+          </div>
+        )}
 
         {/* Time */}
         {timeStr && (
@@ -260,7 +286,9 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
                     dayEvents.map(ev => {
                       const meta = EVENT_META[ev.type] || { label: ev.type, color: "slate" };
                       const off = isCancelled(ev);
-                      const styles = off ? OFF_STYLES : COLOR_STYLES[meta.color];
+                      const result = playedResult(ev);
+                      const rs = result ? RESULT_STYLES[result] : null;
+                      const styles = cardStyles(meta, off, rs);
                       const isMatch = MATCH_TYPES.includes(ev.type);
                       const timeStr = ev.date ? format(new Date(ev.date), "HH:mm") : null;
                       return (
@@ -281,12 +309,18 @@ export default function WeeklyCalendar({ events = [], teamId, onDayClick, onEven
                               {isMatch && ev.opponent ? `vs ${ev.opponent}` : ev.title}
                             </p>
                             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              <span className="text-[9px] font-bold uppercase" style={{ color: styles.pillText }}>{off ? cancelText(ev, t) : t(meta.label)}</span>
+                              <span className="text-[9px] font-bold uppercase" style={{ color: styles.pillText }}>{off ? cancelText(ev, t) : rs ? `${t(meta.label)} · ${t(rs.word)}` : t(meta.label)}</span>
                               {timeStr && <span className={`text-[9px] text-gray-400 ${off ? "line-through" : ""}`}>{timeStr}</span>}
                               <EventWeather event={ev} rain size="sm" />
                               {ev.location && <span className="text-[9px] text-gray-400 truncate max-w-[120px]">{ev.location}</span>}
                             </div>
                           </div>
+                          {rs && (
+                            <span className="shrink-0 rounded-md px-2 py-1 text-sm font-black leading-none tabular-nums text-white" style={{ background: rs.solid, fontFamily: "var(--font-display)" }}
+                              title={`${t(rs.word)} · ${scoreTitle(ev, undefined, t)}`} data-testid="match-result" data-result={result}>
+                              {scoreText(ev)}
+                            </span>
+                          )}
                           <ChevronRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
                         </button>
                       );

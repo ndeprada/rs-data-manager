@@ -29,3 +29,25 @@ export function scoreText(m, sep = " - ") {
   const p = scoreParts(m);
   return p ? `${p.left}${sep}${p.right}` : null;
 }
+
+/** Resultado para nosotros: "victoria" | "derrota" | "empate", o null si el partido no tiene resultado. */
+export function matchResult(m) {
+  const p = scoreParts(m);
+  if (!p) return null;
+  if (p.ours > p.theirs) return "victoria";
+  if (p.ours < p.theirs) return "derrota";
+  return "empate";
+}
+
+const PLAYED_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
+
+/**
+ * Resultado de un partido ya jugado, para pintarlo en la tarjeta del calendario.
+ * null si no es un partido, está suspendido, todavía no ha llegado su hora o no tiene marcador.
+ */
+export function playedResult(m, now = new Date()) {
+  if (!m || !PLAYED_TYPES.includes(m.type) || m.cancelled === true) return null;
+  const when = m.date ? new Date(m.date) : null;
+  if (!when || Number.isNaN(when.getTime()) || when > now) return null;
+  return matchResult(m);
+}
