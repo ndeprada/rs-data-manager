@@ -1,8 +1,8 @@
 import React, { useId, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeftRight, ChevronsUp, Eye, GripVertical, Plus, Target } from "lucide-react";
 import { F7_FIELD } from "@/lib/pitchGeometry";
-import { LEAVE, POSITION_LABEL, statusLabel, zoneTitle } from "@/lib/squadPlan";
-import { CHIP, DOT, LEAVE_TAG } from "./squadPlanUi";
+import { LEAVE, POSITION_LABEL, passText, statusLabel, zoneTitle } from "@/lib/squadPlan";
+import { CHIP, DOT, LEAVE_TAG, PASS_TAG } from "./squadPlanUi";
 
 // Campo de la planificación: un campo a escala (F11 105 × 68 m, F7 65 × 45 m) con todos los puestos siempre a la vista. En pantallas anchas va
 // en horizontal (portería a la izquierda, ataque a la derecha, izquierda del equipo arriba); en estrechas, en vertical (ataque arriba, izquierda
@@ -94,14 +94,16 @@ function PitchSvg({ isF7, vertical }) {
 function Chip({ item, compact, dragging, onOpen, onGrab, wasDrag }) {
   const sale = item.status === "sale";
   const leave = sale && item.leave ? LEAVE[item.leave] : null;
+  const out = item.pass === "out"; // pasa a otro equipo: se ve en su puesto pero no se coloca desde aquí
   const tip = [item.name, item.year, statusLabel(item), item.injured ? "lesionado" : null,
     item.moved ? `puesto cambiado${item.naturalPosition ? ` (en su ficha: ${POSITION_LABEL[item.naturalPosition]})` : ""}` : null].filter(Boolean).join(" · ");
   const open = () => { if (!wasDrag()) onOpen(item); };
   const mark = item.kind === "scout" ? (
     item.status === "seguido" ? <Eye className="w-3 h-3 shrink-0 text-indigo-600" aria-label="Jugador seguido" /> : <Target className="w-3 h-3 shrink-0 text-sky-600" aria-label="Objetivo de scouting" />
   ) : <span className={`w-2 h-2 rounded-full shrink-0 ${DOT[item.status]}`} />;
-  const tags = (leave || item.injured || item.moved) && (
+  const tags = (leave || item.pass || item.injured || item.moved) && (
     <>
+      {item.pass && <span data-testid={`pass-${item.key}`} className={`rounded px-1 text-[9px] font-extrabold uppercase leading-[14px] tracking-wide ${PASS_TAG}`}>{passText(item)}</span>}
       {leave && <span data-testid={`leave-${item.key}`} className={`rounded px-1 text-[9px] font-extrabold uppercase leading-[14px] tracking-wide ${LEAVE_TAG}`}>{leave.label}</span>}
       {item.injured && <span className="text-[10px] font-bold leading-none text-red-700" aria-label="lesionado">✚ lesionado</span>}
       {item.moved && <ArrowLeftRight className="w-3 h-3 text-black/45" aria-label="puesto cambiado" />}
@@ -114,13 +116,13 @@ function Chip({ item, compact, dragging, onOpen, onGrab, wasDrag }) {
       tabIndex={0}
       onClick={open}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(item); } }}
-      onPointerDown={(e) => { if (e.pointerType === "mouse" || e.target.closest?.("[data-grip]")) onGrab(e, item); }}
+      onPointerDown={(e) => { if (!out && (e.pointerType === "mouse" || e.target.closest?.("[data-grip]"))) onGrab(e, item); }}
       data-testid={`chip-${item.key}`}
       data-status={item.status}
       title={tip}
       className={`flex items-stretch gap-0.5 rounded-md border min-h-[30px] text-left shadow-sm cursor-pointer select-none ${compact ? "pr-1" : "pr-1.5"} ${CHIP[item.status] || CHIP.continua} ${dragging ? "opacity-35" : ""}`}
     >
-      <span data-grip="" aria-hidden="true" className={`touch-none cursor-grab shrink-0 flex items-center justify-center text-black/30 ${compact ? "w-3.5" : "w-4"}`}><GripVertical className="w-3.5 h-3.5" /></span>
+      <span data-grip="" aria-hidden="true" className={`shrink-0 flex items-center justify-center text-black/30 ${out ? "invisible" : "touch-none cursor-grab"} ${compact ? "w-3.5" : "w-4"}`}><GripVertical className="w-3.5 h-3.5" /></span>
       {compact ? (
         <span className="flex-1 min-w-0 py-1">
           <span className={nameCls}>{item.name}</span>

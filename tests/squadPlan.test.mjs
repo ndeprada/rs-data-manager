@@ -105,7 +105,7 @@ assert.deepEqual(plan.unplaced.map((i) => i.key), ['p:p9']);
 
 // Resumen: continúan + objetivos = plantilla prevista; las dudas y los que se van, aparte
 const s = plan.summary;
-const B = (o) => ({ continua: 0, duda: 0, sale: 0, club: 0, propia: 0, objetivo: 0, seguido: 0, prevista: 0, ...o });
+const B = (o) => ({ continua: 0, duda: 0, sale: 0, club: 0, propia: 0, pasa: 0, llega: 0, objetivo: 0, seguido: 0, prevista: 0, ...o });
 assert.deepEqual(s.total, B({ continua: 7, duda: 1, sale: 1, objetivo: 2, prevista: 9 }));
 assert.deepEqual(s.groups.Porteros, B({ duda: 1 }));
 assert.deepEqual(s.groups.Defensas, B({ continua: 5, sale: 1, objetivo: 1, prevista: 6 }));
@@ -296,5 +296,72 @@ assert.equal(buildPlan({ players: [P('x', 'A', 'B', 'central')], entries: [{ kin
     assert.deepEqual([e5.find((e) => e.id === 'k2').position, e5.find((e) => e.id === 'k2').side], ['mediocentro', null], 'objetivo: cambia su puesto');
     assert.equal(e5.find((e) => e.id === 'k3').kind, 'need', 'los puestos a reforzar no se tocan');
   }
+}
+
+// ── Pases entre equipos del club: «Pasa a X» en su equipo y «Viene de X» en el equipo destino (solo en el plan) ─────────────────────────
+{
+  const { statusLabel, pdfLists, passText } = await import('../src/lib/squadPlan.js');
+  const teams = [{ id: 'tA', name: 'Cadete A' }, { id: 'tB', name: 'Juvenil B' }];
+  const mk = (id, position, extra = {}) => ({ id, first_name: id.toUpperCase(), last_name: 'Gil', position, status: 'activo', birth_year: 2010, laterality: 'diestro', ...extra });
+  const a1 = mk('a1', 'lateral'), a2 = mk('a2', 'central'), a3 = mk('a3', 'portero'), b1 = mk('b1', 'central');
+  const e1 = { id: 'e1', kind: 'player', season: '2027-2028', team_id: 'tA', ref_id: 'a1', to_team_id: 'tB', status: 'continua', position: 'extremo', side: 'l', note: 'Sube al juvenil' };
+
+  // En su equipo: pasa, no cuenta en la plantilla prevista y se queda en su puesto de la ficha
+  const planA = buildPlan({ players: [a1, a2, a3], entries: [e1], teams, teamId: 'tA' });
+  const out = planA.items.find((i) => i.id === 'a1');
+  assert.deepEqual([out.status, out.pass, out.passTeam.name, out.position, out.moved], ['pasa', 'out', 'Juvenil B', 'lateral', false]);
+  assert.equal(out.zone, 'lateral_r', 'en su equipo sigue en su puesto de la ficha (el puesto del registro es el del equipo destino)');
+  assert.equal(out.note, 'Sube al juvenil');
+  assert.deepEqual([out.passPosition, out.passSide], ['extremo', 'l']);
+  assert.deepEqual([planA.summary.total.pasa, planA.summary.total.prevista, planA.summary.total.continua, planA.summary.total.llega], [1, 2, 2, 0]);
+  assert.equal(planA.summary.groups.Defensas.pasa, 1);
+  assert.equal(statusLabel(out), 'Pasa a Juvenil B');
+  assert.equal(passText(out), 'Pasa a Juvenil B');
+  assert.deepEqual(pdfLists(planA).pases.map((i) => i.id), ['a1']);
+  assert.equal(pdfLists(planA).salen.length, 0, 'pasar a otro equipo no es una baja');
+
+  // En el equipo destino: llega, cuenta como uno más y se coloca en el puesto del registro
+  const planB = buildPlan({ players: [b1], arrivals: [a1], entries: [e1], teams, teamId: 'tB' });
+  const inn = planB.items.find((i) => i.id === 'a1');
+  assert.deepEqual([inn.status, inn.pass, inn.passTeam.name, inn.zone, inn.moved, inn.entryId], ['continua', 'in', 'Cadete A', 'extremo_l', true, 'e1']);
+  assert.deepEqual([planB.summary.total.llega, planB.summary.total.prevista, planB.summary.total.continua, planB.summary.total.pasa], [1, 2, 2, 0]);
+  assert.equal(statusLabel(inn), 'Continúa · viene de Cadete A');
+  assert.deepEqual(pdfLists(planB).pases.map((i) => i.id), ['a1']);
+  assert.equal(planB.zones.find((z) => z.key === 'extremo_l').items.length, 1);
+
+  // Llega «con duda»: no cuenta en la plantilla prevista
+  const planBd = buildPlan({ players: [b1], arrivals: [a1], entries: [{ ...e1, status: 'duda' }], teams, teamId: 'tB' });
+  assert.deepEqual([planBd.items.find((i) => i.id === 'a1').status, planBd.summary.total.duda, planBd.summary.total.prevista, planBd.summary.total.llega], ['duda', 1, 1, 1]);
+
+  // Sin el puesto del registro, va a su puesto de la ficha; sin los datos del jugador (aún no cargados) no sale nada
+  const planBn = buildPlan({ players: [b1], arrivals: [a1], entries: [{ ...e1, position: null, side: null }], teams, teamId: 'tB' });
+  assert.deepEqual([planBn.items.find((i) => i.id === 'a1').zone, planBn.items.find((i) => i.id === 'a1').moved], ['lateral_r', false]);
+  assert.equal(buildPlan({ players: [b1], arrivals: [], entries: [e1], teams, teamId: 'tB' }).items.length, 1);
+
+  // Si el jugador ya está de verdad en el equipo destino (cambio real de equipo), no se duplica; y el pase a sí mismo no cuenta como pase
+  assert.equal(buildPlan({ players: [b1, a1], arrivals: [a1], entries: [e1], teams, teamId: 'tB' }).items.filter((i) => i.id === 'a1').length, 1);
+  assert.equal(buildPlan({ players: [a1], entries: [{ ...e1, to_team_id: 'tA' }], teams, teamId: 'tA' }).items[0].pass, undefined);
+  // Un pase hacia un equipo que ya no existe se llama «otro equipo»
+  assert.equal(buildPlan({ players: [a1], entries: [e1], teams: [], teamId: 'tA' }).items[0].passTeam.name, 'otro equipo');
+  // El pase de un jugador que se dio de baja o que no es de este equipo no aparece
+  assert.equal(buildPlan({ players: [{ ...b1, status: 'baja' }], arrivals: [{ ...a1, status: 'baja' }], entries: [e1], teams, teamId: 'tB' }).items.length, 0);
+
+  // Colocar a alguien que llega: cambia su puesto en el equipo destino y nunca borra el pase, aunque vuelva a su puesto de la ficha
+  const gA1 = planB.items.find((i) => i.id === 'a1');
+  const chMove = moveChange(gA1, zoneByKey('extremo_r'));
+  assert.deepEqual([chMove.patch.position, chMove.patch.side, chMove.blank, 'to_team_id' in chMove.patch], ['extremo', 'r', false, false]);
+  const chNat = moveChange(gA1, zoneByKey('lateral_r'));
+  assert.deepEqual([chNat.patch.position, chNat.blank], [null, false], 'volver a su puesto natural quita el ajuste pero el registro (con el pase) se queda');
+  const moved = withMovedItem([e1], gA1, zoneByKey('extremo_r'));
+  assert.deepEqual([moved.length, moved[0].to_team_id, moved[0].team_id, moved[0].position, moved[0].side], [1, 'tB', 'tA', 'extremo', 'r'], 'conserva el equipo de origen y el pase');
+  assert.equal(withMovedItem([e1], gA1, zoneByKey('lateral_r')).length, 1);
+
+  // Qué se guarda en el registro
+  assert.deepEqual(playerPatch({ status: 'sale', leave: 'club', toTeam: 'tB', note: 'x' }), { status: 'continua', leave: null, position: null, side: null, note: 'x', to_team_id: 'tB' }, 'con pase no hay baja');
+  assert.equal(playerPatch({ status: 'duda', toTeam: 'tB' }).status, 'duda');
+  assert.equal(playerPatch({ toTeam: null }).to_team_id, null, 'quitar el pase');
+  assert.equal('to_team_id' in playerPatch({ status: 'duda' }), false, 'sin decir nada del pase, no se toca');
+  assert.equal(isBlankPlayerPatch(playerPatch({ toTeam: 'tB' })), false);
+  assert.equal(isBlankPlayerPatch(playerPatch({ toTeam: null })), true, 'sin pase y sin nada más, el registro sobra');
 }
 console.log('squadPlan ok');

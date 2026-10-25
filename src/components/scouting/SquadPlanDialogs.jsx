@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Binoculars, ChevronsUp, Eye, Search, Star, Target, Trash2 } from "lucide-react";
+import { ArrowRightLeft, Binoculars, ChevronsUp, Eye, Search, Star, Target, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,9 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { playerFullName, matchesPlayerSearch } from "@/lib/playerName";
 import {
-  STATUS, STATUS_KEYS, LEAVE, LEAVE_KEYS, ROLE, ROLE_KEYS, POSITION_LABEL, ZONES, zoneByKey, zoneTitle, movePatch,
+  STATUS, STATUS_KEYS, PASS_STATUS_KEYS, LEAVE, LEAVE_KEYS, ROLE, ROLE_KEYS, POSITION_LABEL, ZONES, zoneByKey, zoneKeyOf, zoneTitle, movePatch, passText, birthYearOf,
 } from "@/lib/squadPlan";
-import { DOT, STATUS_BTN, DECISION, LEAVE_TAG } from "./squadPlanUi";
+import { DOT, STATUS_BTN, DECISION, LEAVE_TAG, PASS_TAG } from "./squadPlanUi";
 
 // Ventanas de la Planificación: una persona del plan, un puesto (lista, a reforzar) y elegir a un jugador de Scouting.
 
@@ -37,26 +37,42 @@ export function ItemRow({ item, onOpen }) {
   return (
     <button type="button" onClick={() => onOpen(item)} className="w-full flex items-center gap-2 py-1.5 text-left text-sm hover:bg-gray-50 rounded-lg px-1" data-testid={`row-${item.key}`}>
       {item.status === "seguido" ? <Eye className="w-3.5 h-3.5 shrink-0 text-indigo-500" /> : item.status === "objetivo" ? <Target className="w-3.5 h-3.5 shrink-0 text-sky-600" /> : <span className={`w-2 h-2 rounded-full shrink-0 ${DOT[item.status]}`} />}
-      <span className={`font-semibold min-w-0 break-words ${item.status === "sale" ? "line-through text-gray-400" : "text-gray-900"}`}>{item.name}</span>
+      <span className={`font-semibold min-w-0 break-words ${item.status === "sale" ? "line-through text-gray-400" : item.pass === "out" ? "text-gray-500" : "text-gray-900"}`}>{item.name}</span>
       {item.year && <span className="text-xs text-gray-400 tabular-nums shrink-0">{item.year}</span>}
       <span className="text-xs text-gray-500 ml-auto shrink-0">{pos}</span>
       {item.kind === "scout" && DECISION[item.decision] && (
         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${DECISION[item.decision].cls}`}>{DECISION[item.decision].label}</span>
       )}
       {item.status === "sale" && item.leave && <span className={`text-[9px] font-extrabold uppercase px-1 rounded shrink-0 ${LEAVE_TAG}`}>{LEAVE[item.leave].label}</span>}
+      {item.pass && <span className={`text-[9px] font-extrabold uppercase px-1 rounded shrink-0 ${PASS_TAG}`}>{passText(item)}</span>}
     </button>
   );
 }
 
-/** Ventana de una persona del plan: estado, tipo de baja, puesto y nota (jugador del club) o tipo, puesto y nota (jugador de scouting). */
-export function ItemDialog({ item, onClose, onSavePlayer, onSaveScout, onRemoveScout, busy }) {
+const STAY = "stay";
+
+/**
+ * Ventana de una persona del plan: estado, tipo de baja, equipo (pase a otro equipo del club), puesto y nota (jugador del club) o tipo, puesto y nota
+ * (jugador de scouting). Quien llega de otro equipo (`pass:"in"`) solo cambia aquí su estado, su puesto y su nota, o cancela el pase.
+ */
+export function ItemDialog({ item, team, teams = [], onClose, onSavePlayer, onSaveScout, onRemoveScout, onCancelPass, busy }) {
   const isScout = item.kind === "scout";
-  const [status, setStatus] = useState(item.status);
+  const incoming = item.pass === "in";
+  const [toTeam, setToTeam] = useState(item.pass === "out" ? item.passTeam.id : null);
+  const passing = !!toTeam || incoming;
+  const [status, setStatus] = useState(item.pass === "out" ? item.passStatus : item.status);
   const [leave, setLeave] = useState(item.leave || null);
   const [role, setRole] = useState(isScout ? item.status : "objetivo");
   const [note, setNote] = useState(item.note || "");
-  const [zoneKey, setZoneKey] = useState(isScout ? item.zone || AUTO : item.moved ? item.zone || AUTO : AUTO);
+  const [zoneKey, setZoneKey] = useState(
+    isScout ? item.zone || AUTO
+      : item.pass === "out" ? zoneKeyOf(item.passPosition, item.passSide) || AUTO
+        : item.moved ? item.zone || AUTO : AUTO,
+  );
   const s = item.source || {};
+  const otherTeams = teams.filter((t) => t.id !== team?.id);
+  const destName = toTeam ? teams.find((t) => t.id === toTeam)?.name || "otro equipo" : null;
+  const pickTeam = (v) => { setToTeam(v === STAY ? null : v); if (v !== STAY && status === "sale") setStatus("continua"); };
   const natural = item.naturalPosition ? POSITION_LABEL[item.naturalPosition] : null;
   const autoLabel = isScout
     ? (natural ? `Según su ficha de scouting (${natural})` : "Sin puesto (no sale en el campo)")
@@ -65,7 +81,7 @@ export function ItemDialog({ item, onClose, onSavePlayer, onSaveScout, onRemoveS
   const save = () => {
     const mv = zoneKey === AUTO ? { position: null, side: null } : (isScout ? { position: zoneByKey(zoneKey).pos, side: zoneByKey(zoneKey).side || null } : movePatch(item, zoneByKey(zoneKey)));
     if (isScout) onSaveScout(item, { role, ...mv, note });
-    else onSavePlayer(item, { status, leave, ...mv, note });
+    else onSavePlayer(item, { status, leave, ...mv, note, ...(incoming ? {} : { toTeam: toTeam || null }) });
   };
 
   return (
@@ -74,15 +90,21 @@ export function ItemDialog({ item, onClose, onSavePlayer, onSaveScout, onRemoveS
         <DialogHeader>
           <DialogTitle>{playerFullName(s)}</DialogTitle>
           <DialogDescription>
-            {[item.year ? `Nacido en ${item.year}` : null, natural || "Sin posición", isScout ? (item.club || null) : (item.injured ? "Lesionado" : null)].filter(Boolean).join(" · ")}
+            {[item.year ? `Nacido en ${item.year}` : null, natural || "Sin posición", isScout ? (item.club || null) : (item.injured ? "Lesionado" : null), incoming ? `Viene de ${item.passTeam.name}` : null].filter(Boolean).join(" · ")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          {incoming && (
+            <div className="rounded-lg border border-teal-200 bg-teal-50 p-2.5" data-testid="pass-banner">
+              <div className="text-sm font-bold text-teal-900 flex items-center gap-1.5"><ArrowRightLeft className="w-4 h-4" /> Viene de {item.passTeam.name}</div>
+              <p className="text-[11px] text-teal-800 mt-0.5">Solo cuenta en el plan de {team?.name || "este equipo"}: en su ficha de jugador sigue en {item.passTeam.name}.</p>
+            </div>
+          )}
           {!isScout ? (
             <div>
               <Label>Próxima temporada</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {STATUS_KEYS.map((k) => (
+              <div className={`grid gap-2 ${passing ? "grid-cols-2" : "grid-cols-3"}`}>
+                {(passing ? PASS_STATUS_KEYS : STATUS_KEYS).map((k) => (
                   <button key={k} type="button" data-testid={`status-${k}`} onClick={() => setStatus(k)}
                     className={`rounded-lg border-2 px-2 py-2 text-sm font-bold ${status === k ? STATUS_BTN[k] : "border-gray-200 text-gray-500"}`}>{STATUS[k].label}</button>
                 ))}
@@ -118,8 +140,21 @@ export function ItemDialog({ item, onClose, onSavePlayer, onSaveScout, onRemoveS
               </div>
             </div>
           )}
+          {!isScout && !incoming && otherTeams.length > 0 && (
+            <div data-testid="pass-box">
+              <Label>Equipo la próxima temporada</Label>
+              <Select value={toTeam || STAY} onValueChange={(v) => v && pickTeam(v)}>
+                <SelectTrigger data-testid="plan-pass-team"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={STAY}>Sigue en {team?.name || "este equipo"}</SelectItem>
+                  {otherTeams.map((t) => <SelectItem key={t.id} value={t.id}>Pasa a {t.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {toTeam && <p className="text-[11px] text-teal-800 mt-1.5" data-testid="pass-hint">Sale de la plantilla prevista de {team?.name || "este equipo"} y entra en la de {destName}, donde saldrá como «viene de {team?.name || "este equipo"}». En su ficha de jugador no cambia nada.</p>}
+            </div>
+          )}
           <div>
-            <Label>Puesto en el plan</Label>
+            <Label>{destName ? `Puesto en ${destName}` : "Puesto en el plan"}</Label>
             <ZoneSelect value={zoneKey} onChange={setZoneKey} autoLabel={autoLabel} testid="plan-zone" />
             {!isScout && !item.position && zoneKey === AUTO && <p className="text-xs text-amber-700 mt-1.5">Sin posición en su ficha: no sale en el campo. Elige un puesto para colocarlo (solo en este plan).</p>}
             {!isScout && item.moved && zoneKey !== AUTO && <p className="text-[11px] text-gray-500 mt-1.5">Colocado a mano: en su ficha de jugador no cambia nada.</p>}
@@ -132,6 +167,10 @@ export function ItemDialog({ item, onClose, onSavePlayer, onSaveScout, onRemoveS
             {isScout ? (
               <Button type="button" variant="outline" className="text-red-600 border-red-200" onClick={() => onRemoveScout(item)} disabled={busy} data-testid="plan-remove">
                 <Trash2 className="w-4 h-4 mr-1.5" /> Quitar del plan
+              </Button>
+            ) : incoming ? (
+              <Button type="button" variant="outline" className="text-red-600 border-red-200" onClick={() => onCancelPass(item)} disabled={busy} data-testid="plan-cancel-pass">
+                <Trash2 className="w-4 h-4 mr-1.5" /> Cancelar pase
               </Button>
             ) : <span />}
             <div className="flex gap-2">
@@ -146,7 +185,7 @@ export function ItemDialog({ item, onClose, onSavePlayer, onSaveScout, onRemoveS
 }
 
 /** Lista de un puesto: ver a todos los que hay, marcarlo «a reforzar» y añadir a un jugador de scouting. */
-export function ZoneDialog({ zone, onClose, onItem, onAdd, onNeed, busy }) {
+export function ZoneDialog({ zone, onClose, onItem, onAdd, onAddClub, onNeed, busy }) {
   const [note, setNote] = useState(zone.need?.note || "");
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -181,6 +220,9 @@ export function ZoneDialog({ zone, onClose, onItem, onAdd, onNeed, busy }) {
         </div>
         <Button type="button" onClick={() => onAdd(zone)} data-testid="zone-add-target" style={{ background: "var(--granate)" }} className="text-white">
           <Binoculars className="w-4 h-4 mr-1.5" /> Añadir de scouting aquí
+        </Button>
+        <Button type="button" variant="outline" onClick={() => onAddClub(zone)} data-testid="zone-add-club" className="border-teal-300 text-teal-800 hover:bg-teal-50">
+          <ArrowRightLeft className="w-4 h-4 mr-1.5" /> Traer de otro equipo aquí
         </Button>
       </DialogContent>
     </Dialog>
@@ -256,3 +298,65 @@ export function AddTargetDialog({ scouted, taken, zone, onClose, onPick, busy })
   );
 }
 
+
+/**
+ * Traer a un jugador de otro equipo del club al plan de este equipo («viene de…»). Solo cambia el plan: el jugador sigue en su equipo en su ficha.
+ * `passes` = Map jugador → equipo al que ya pasa en el plan (para no pisar un pase hecho desde su equipo).
+ */
+export function AddClubDialog({ players, teams, team, zone, passes, onClose, onPick, busy }) {
+  const [search, setSearch] = useState("");
+  const [teamFilter, setTeamFilter] = useState("all");
+  const nameOf = (id) => teams.find((t) => t.id === id)?.name || "Sin equipo";
+  const others = teams.filter((t) => t.id !== team?.id);
+  const rows = useMemo(() => {
+    const list = players.filter((p) => p.team_id && p.team_id !== team?.id && p.status !== "baja"
+      && (teamFilter === "all" || p.team_id === teamFilter) && (!search || matchesPlayerSearch(p, search)));
+    const samePos = (p) => (zone && p.position === zone.pos ? 0 : 1);
+    return list.sort((a, b) => samePos(a) - samePos(b) || nameOf(a.team_id).localeCompare(nameOf(b.team_id), "es") || playerFullName(a).localeCompare(playerFullName(b), "es")).slice(0, 300);
+  }, [players, search, teamFilter, zone, team, teams]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg" data-testid="plan-club-dialog">
+        <DialogHeader>
+          <DialogTitle>Traer de otro equipo</DialogTitle>
+          <DialogDescription>
+            {zone ? `Saldrá como ${zoneTitle(zone).toLowerCase()} en ${team?.name || "este equipo"}.` : `Saldrá en su puesto de la ficha en ${team?.name || "este equipo"}.`} Solo cambia en el plan: en su ficha de jugador sigue en su equipo.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <Input className="pl-8" placeholder="Buscar por nombre…" value={search} onChange={(e) => setSearch(e.target.value)} data-testid="club-search" />
+          </div>
+          <Select value={teamFilter} onValueChange={(v) => v && setTeamFilter(v)}>
+            <SelectTrigger className="w-40" data-testid="club-filter"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los equipos</SelectItem>
+              {others.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="max-h-72 overflow-y-auto divide-y divide-gray-100" data-testid="club-list">
+          {rows.length === 0 && <p className="text-sm text-gray-400 py-6 text-center">Ningún jugador con ese filtro.</p>}
+          {rows.map((p) => {
+            const to = passes?.get(p.id) || null;
+            const here = to === team?.id;
+            const elsewhere = !!to && !here;
+            const yr = birthYearOf(p);
+            return (
+              <button key={p.id} type="button" disabled={here || elsewhere || busy} onClick={() => onPick(p)} data-testid={`club-${p.id}`}
+                className="w-full flex items-center gap-2 py-2 px-1 text-left text-sm hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-transparent">
+                <span className="font-semibold truncate text-gray-900">{playerFullName(p)}</span>
+                {yr && <span className="text-xs text-gray-400 tabular-nums">{yr}</span>}
+                <span className="text-xs text-gray-500 truncate">{p.position ? POSITION_LABEL[p.position] : "Sin posición"}</span>
+                {here ? <span className="ml-auto text-[10px] font-bold text-teal-700 shrink-0">Ya viene</span>
+                  : elsewhere ? <span className="ml-auto text-[10px] font-bold text-gray-500 shrink-0">Ya pasa a {nameOf(to)}</span>
+                    : <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${PASS_TAG}`}>{nameOf(p.team_id)}</span>}
+              </button>
+            );
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -10,14 +10,15 @@ import { loadImage } from "@/lib/matchSheetPdf";
 import { fitText } from "@/lib/matchSheetLayout";
 import { playerFullName } from "@/lib/playerName";
 import { F7_FIELD } from "@/lib/pitchGeometry";
-import { GROUPS, POSITION_LABEL, LEAVE, pdfLists, squadByGroup, statusLabel, zoneTitle } from "@/lib/squadPlan";
+import { GROUPS, POSITION_LABEL, LEAVE, passText, pdfLists, squadByGroup, statusLabel, zoneTitle } from "@/lib/squadPlan";
 
 const GRANATE = [115, 0, 10];
 const INK = [30, 30, 30];
 const GREY = [110, 110, 110];
 const NEED = [192, 38, 211];
-const TONE = { continua: [22, 163, 74], duda: [217, 119, 6], sale: [220, 38, 38], objetivo: [2, 132, 199], seguido: [99, 102, 241] };
-const FILL = { continua: [255, 255, 255], duda: [254, 243, 199], sale: [254, 226, 226], objetivo: [224, 242, 254], seguido: [238, 242, 255] };
+const PASS = [13, 148, 136]; // etiqueta «Viene de X» / «Pasa a X»
+const TONE = { continua: [22, 163, 74], duda: [217, 119, 6], sale: [220, 38, 38], objetivo: [2, 132, 199], seguido: [99, 102, 241], pasa: [100, 116, 139], pase: PASS };
+const FILL = { continua: [255, 255, 255], duda: [254, 243, 199], sale: [254, 226, 226], objetivo: [224, 242, 254], seguido: [238, 242, 255], pasa: [241, 245, 249] };
 const DECISION = { fichar: "Fichar", seguir_viendo: "Seguir viendo", descartar: "Descartar" };
 
 const W = 297, H = 210, MARGIN = 10, BOTTOM = 197;
@@ -109,7 +110,7 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
   const hx = logo ? 38 : MARGIN; // sin escudo (no se pudo cargar) el texto empieza en el margen
   put(`PLANIFICACIÓN DE PLANTILLA  ·  TEMPORADA ${season}`, hx, 10.5, { pt: 8.5, bold: true, color: GRANATE });
   put(ours, hx, 19.5, { pt: 19, bold: true, maxW: 235 });
-  put(`${isF7 ? "Fútbol 7" : "Fútbol 11"}  ·  ${plan.items.filter((i) => i.kind === "player").length} jugadores ahora  ·  plantilla prevista: ${total.prevista}`, hx, 26.5, { pt: 9.5, color: [90, 90, 90] });
+  put(`${isF7 ? "Fútbol 7" : "Fútbol 11"}  ·  ${plan.items.filter((i) => i.kind === "player" && i.pass !== "in").length} jugadores ahora  ·  plantilla prevista: ${total.prevista}`, hx, 26.5, { pt: 9.5, color: [90, 90, 90] });
   put(`Generado el ${today}`, W - MARGIN, 10.5, { pt: 7.5, color: GREY, align: "right" });
   doc.setDrawColor(...GRANATE); doc.setLineWidth(0.6); doc.line(MARGIN, 32, W - MARGIN, 32);
 
@@ -129,8 +130,9 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
     const right = (yr ? widthOf(yr, 5, false) + 0.9 : 0) + (it.injured ? widthOf("+", 6.5, true) + 0.7 : 0);
     const textW = w - 3.5 - right - 0.7;
     const lines = wrap(it.name, Math.max(textW, 6), NAME_PT, false, 3);
-    const leave = it.status === "sale" && it.leave ? LEAVE[it.leave].label.toUpperCase() : "";
-    return { lines, yr, leave, h: Math.max(3.9, lines.length * PITCH + 1.5) + (leave ? 2.8 : 0) };
+    // Etiqueta bajo el nombre: tipo de baja (rojo) o pase a / desde otro equipo (verde azulado)
+    const leave = it.pass ? passText(it).toUpperCase() : it.status === "sale" && it.leave ? LEAVE[it.leave].label.toUpperCase() : "";
+    return { lines, yr, leave, tagColor: it.pass ? PASS : TONE.sale, h: Math.max(3.9, lines.length * PITCH + 1.5) + (leave ? 2.8 : 0) };
   };
   const drawChip = (it, box, x, y, w) => {
     const k = tone(it);
@@ -141,7 +143,7 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
     doc.setFillColor(...TONE[k]); doc.circle(x + 1.5, y + 2.3, 0.65, "F");
     box.lines.forEach((ln, i) => {
       const by = y + 2.4 + i * PITCH;
-      put(ln, x + 3, by, { pt: NAME_PT, color: k === "sale" ? [150, 60, 60] : INK });
+      put(ln, x + 3, by, { pt: NAME_PT, color: k === "sale" ? [150, 60, 60] : k === "pasa" ? [100, 100, 100] : INK });
       if (k === "sale") { const tw = widthOf(ln, NAME_PT, false); doc.setDrawColor(...TONE.sale); doc.setLineWidth(0.2); doc.line(x + 3, by - 0.55, x + 3 + tw, by - 0.55); }
     });
     let rx = x + w - 0.8;
@@ -149,7 +151,7 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
     if (it.injured) put("+", rx, y + 2.5, { pt: 6.5, bold: true, color: TONE.sale, align: "right" });
     if (box.leave) {
       const tw = widthOf(box.leave, 4.2, true) + 1.8;
-      doc.setFillColor(...TONE.sale); doc.roundedRect(x + 3, y + box.h - 3.3, Math.min(tw, w - 3.8), 2.4, 0.5, 0.5, "F");
+      doc.setFillColor(...box.tagColor); doc.roundedRect(x + 3, y + box.h - 3.3, Math.min(tw, w - 3.8), 2.4, 0.5, 0.5, "F");
       put(box.leave, x + 3.9, y + box.h - 1.6, { pt: 4.2, bold: true, color: [255, 255, 255], maxW: w - 5.5 });
     }
   };
@@ -212,9 +214,11 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
   const dot = (k) => (x, y) => { doc.setFillColor(...TONE[k]); doc.circle(x + 1.2, y - 0.9, 0.8, "F"); };
   const swatch = (k, dash) => (x, y) => { doc.setFillColor(...FILL[k]); doc.setDrawColor(...TONE[k]); doc.setLineWidth(0.25); doc.setLineDashPattern(dash, 0); doc.roundedRect(x, y - 2.3, 3.6, 2.7, 0.5, 0.5, "FD"); doc.setLineDashPattern([], 0); };
   const pill = (x, y) => { doc.setFillColor(...TONE.sale); doc.roundedRect(x, y - 2.2, 3.6, 2.4, 0.5, 0.5, "F"); };
+  const passPill = (x, y) => { doc.setFillColor(...PASS); doc.roundedRect(x, y - 2.2, 3.6, 2.4, 0.5, 0.5, "F"); };
+  const hasPass = total.llega + total.pasa > 0;
   legend([["Continúa", dot("continua")], ["Duda", dot("duda")], ["Baja del club", pill], ["Baja propia", pill], ["lesionado", (x, y) => put("+", x + 1.2, y + 0.2, { pt: 8, bold: true, color: TONE.sale, align: "center" })]], lgy);
   if (hidden) put("«+N más»: la lista completa está en la última página.", lx + pw, lgy, { pt: 6.5, color: GREY, align: "right" });
-  legend([["Objetivo de scouting", swatch("objetivo", [0.8, 0.6])], ["Jugador seguido", swatch("seguido", [0.2, 0.5])], ["Puesto a reforzar", (x, y) => { doc.setDrawColor(...NEED); doc.setLineWidth(0.5); doc.roundedRect(x, y - 2.3, 3.6, 2.7, 0.5, 0.5); }]], lgy + 4.6);
+  legend([["Objetivo de scouting", swatch("objetivo", [0.8, 0.6])], ["Jugador seguido", swatch("seguido", [0.2, 0.5])], ["Puesto a reforzar", (x, y) => { doc.setDrawColor(...NEED); doc.setLineWidth(0.5); doc.roundedRect(x, y - 2.3, 3.6, 2.7, 0.5, 0.5); }], ...(hasPass ? [["Viene de / Pasa a otro equipo", passPill]] : [])], lgy + 4.6);
 
   // ── Columna derecha de la primera página: resumen y puestos a reforzar ──
   let col = { x: lx + pw + 7, w: W - MARGIN - (lx + pw + 7) };
@@ -233,11 +237,14 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
     y += 5.5;
   };
 
-  // Resumen en cinco cuadros
-  const boxW = (col.w - 4 * 1.5) / 5;
+  // Resumen en cinco cuadros (seis si hay pases entre equipos)
   const rest = total.sale - total.club - total.propia;
   const bajasSub = total.sale === 0 ? "" : [total.club ? `${total.club} club` : "", total.propia ? `${total.propia} propia` : "", rest ? `${rest} s/c` : ""].filter(Boolean).join(" · ");
-  [["Continúan", total.continua, "continua", ""], ["Dudas", total.duda, "duda", ""], ["Bajas", total.sale, "sale", bajasSub], ["Objetivos", total.objetivo, "objetivo", ""], ["Seguidos", total.seguido, "seguido", ""]].forEach(([label, n, k, sub], i) => {
+  const pasesSub = [total.llega ? `${total.llega} llegan` : "", total.pasa ? `${total.pasa} pasan` : ""].filter(Boolean).join(" · ");
+  const stats = [["Continúan", total.continua, "continua", ""], ["Dudas", total.duda, "duda", ""], ["Bajas", total.sale, "sale", bajasSub], ["Objetivos", total.objetivo, "objetivo", ""], ["Seguidos", total.seguido, "seguido", ""],
+    ...(hasPass ? [["Pases", total.llega + total.pasa, "pasa", pasesSub]] : [])];
+  const boxW = (col.w - (stats.length - 1) * 1.5) / stats.length;
+  stats.forEach(([label, n, k, sub], i) => {
     const bx = col.x + i * (boxW + 1.5);
     doc.setDrawColor(...TONE[k]); doc.setLineWidth(0.35); doc.setFillColor(...(k === "continua" ? [236, 253, 245] : FILL[k]));
     doc.roundedRect(bx, y, boxW, 15, 1.2, 1.2, "FD");
@@ -251,17 +258,18 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
   put(`PLANTILLA PREVISTA ${season}`, col.x, y + 3, { pt: 9, bold: true, color: GRANATE });
   put(String(total.prevista), col.x + col.w, y + 3.6, { pt: 15, bold: true, color: GRANATE, align: "right" });
   y += 5.5;
-  put("Continúan + objetivos. Dudas, bajas y seguidos, no.", col.x, y + 2.2, { pt: 6, color: GREY });
+  put(hasPass ? "Continúan (y los que llegan) + objetivos. Dudas, bajas, los que pasan y seguidos, no." : "Continúan + objetivos. Dudas, bajas y seguidos, no.", col.x, y + 2.2, { pt: 6, color: GREY, maxW: col.w - 2 });
   y += 5;
-  const cx = [0.27, 0.40, 0.52, 0.64, 0.76, 0.88, 1].map((f) => col.x + f * col.w);
-  ["Línea", "Cont.", "Dudas", "Bajas", "Obj.", "Seg.", "Prev."].forEach((h, i) => put(h.toUpperCase(), i === 0 ? col.x : cx[i], y + 2.4, { pt: 5.5, bold: true, color: GREY, align: i === 0 ? "left" : "right" }));
+  const cx = (hasPass ? [0.23, 0.35, 0.46, 0.57, 0.68, 0.79, 0.90, 1] : [0.27, 0.40, 0.52, 0.64, 0.76, 0.88, 1]).map((f) => col.x + f * col.w);
+  ["Línea", "Cont.", "Dudas", "Bajas", ...(hasPass ? ["Pasa"] : []), "Obj.", "Seg.", "Prev."].forEach((h, i) => put(h.toUpperCase(), i === 0 ? col.x : cx[i], y + 2.4, { pt: 5.5, bold: true, color: GREY, align: i === 0 ? "left" : "right" }));
   y += 3.4; doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2); doc.line(col.x, y, col.x + col.w, y);
   const { groups, sinPosicion } = plan.summary;
-  const lines = [...GROUPS.map((g) => [g, groups[g]]), ...(sinPosicion.continua + sinPosicion.duda + sinPosicion.sale + sinPosicion.objetivo + sinPosicion.seguido > 0 ? [["Sin posición", sinPosicion]] : [])];
+  const lines = [...GROUPS.map((g) => [g, groups[g]]), ...(sinPosicion.continua + sinPosicion.duda + sinPosicion.sale + sinPosicion.pasa + sinPosicion.objetivo + sinPosicion.seguido > 0 ? [["Sin posición", sinPosicion]] : [])];
   for (const [g, r] of lines) {
     y += ROW;
     put(g, col.x, y - 1.1, { pt: 7, bold: true });
-    [r.continua, r.duda || "·", r.sale || "·", r.objetivo || "·", r.seguido || "·", r.prevista].forEach((v, i) => put(String(v), cx[i + 1], y - 1.1, { pt: 7, bold: i === 5, color: [TONE.continua, TONE.duda, TONE.sale, TONE.objetivo, TONE.seguido, INK][i], align: "right" }));
+    const cells = [[r.continua, TONE.continua], [r.duda || "·", TONE.duda], [r.sale || "·", TONE.sale], ...(hasPass ? [[r.pasa || "·", PASS]] : []), [r.objetivo || "·", TONE.objetivo], [r.seguido || "·", TONE.seguido], [r.prevista, INK]];
+    cells.forEach(([v, c], i) => put(String(v), cx[i + 1], y - 1.1, { pt: 7, bold: i === cells.length - 1, color: c, align: "right" }));
   }
   y += 7;
 
@@ -304,7 +312,7 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
   };
   const posOf = (it) => POSITION_LABEL[it.position] || "–";
   const person = (it) => playerFullName(it.source) || it.name;
-  const anyList = lists.objetivos.length + lists.seguidos.length + lists.salen.length + lists.dudas.length + lists.sinPosicion.length > 0;
+  const anyList = lists.objetivos.length + lists.seguidos.length + lists.salen.length + lists.pases.length + lists.dudas.length + lists.sinPosicion.length > 0;
   if (anyList && onFirst) continuation();
 
   if (lists.objetivos.length) {
@@ -318,6 +326,10 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
   if (lists.salen.length) {
     title(`BAJAS · ${lists.salen.length}  (${lists.salen.filter((i) => i.leave === "club").length} del club · ${lists.salen.filter((i) => i.leave === "propia").length} propias)`, TONE.sale);
     table(["Jugador", "Año", "Puesto", "Tipo de baja", "Nota"], lists.salen.map((it) => [person(it), it.year || "–", posOf(it), statusLabel(it), it.note || ""]), () => "sale");
+  }
+  if (lists.pases.length) {
+    title(`PASES ENTRE EQUIPOS · ${lists.pases.length}  (${total.llega} llegan · ${total.pasa} pasan)`, PASS);
+    table(["Jugador", "Año", "Puesto", "Movimiento", "Nota"], lists.pases.map((it) => [person(it), it.year || "–", it.pass === "in" ? posOf(it) : posOf({ position: it.passPosition }), passText(it) + (it.pass === "in" && it.status === "duda" ? " (duda)" : ""), it.note || ""]), () => "pase");
   }
   if (lists.dudas.length) {
     title(`DUDAS · ${lists.dudas.length}`, TONE.duda);
