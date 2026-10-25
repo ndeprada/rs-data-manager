@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Binoculars, Plus, Search, Star, Trash2 } from "lucide-react";
+import { Binoculars, FileDown, Plus, Search, Star, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import FootballField from "@/components/tactics/FootballField";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useToast } from "@/components/ui/use-toast";
 import { teamPlaysF7 } from "@/lib/matchFormat";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
+import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import { playerFullName, matchesPlayerSearch } from "@/lib/playerName";
 import {
-  nextSeason, buildPlan, visibleZones, STATUS, STATUS_KEYS, POSITION_LABEL, POSITIONS, GROUPS, hasSides,
+  nextSeason, buildPlan, visibleZones, zoneRows, STATUS, STATUS_KEYS, POSITION_LABEL, POSITIONS, GROUPS, hasSides,
 } from "@/lib/squadPlan";
 
 // Scouting → Planificación: plantilla prevista de cada equipo para la temporada siguiente, en campograma (ataque hacia arriba, izquierda y
@@ -61,8 +62,7 @@ function Chip({ item, onOpen }) {
 }
 
 function ZoneBox({ zone, onZone, onItem }) {
-  const shown = zone.items.length <= MAX_CHIPS ? zone.items : zone.items.slice(0, MAX_CHIPS - 1);
-  const more = zone.items.length - shown.length;
+  const { shown, more } = zoneRows(zone.items, MAX_CHIPS);
   const empty = zone.items.length === 0;
   return (
     <div data-testid={`zone-${zone.key}`} className="absolute" style={{ left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.w}%`, transform: "translateX(-50%)" }}>
@@ -338,6 +338,17 @@ export default function SquadPlanning() {
     onSuccess: () => { refresh(); setAddOpen(false); setAddZone(null); setZoneOpen(null); toast({ title: "Objetivo añadido al plan." }); },
     onError: fail,
   });
+  // PDF del campograma (el módulo con jsPDF se carga solo al pedirlo, para no engordar Scouting)
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const makePdf = async () => {
+    setPdfBusy(true);
+    try {
+      const { downloadSquadPlanPDF } = await import("@/lib/squadPlanPdf");
+      await downloadSquadPlanPDF({ team, season, isF7, plan, zones, logoUrl: team?.logo_url || CLUB_LOGO_URL });
+    } catch (err) {
+      toast({ title: "No se ha podido crear el PDF", description: err?.message || "Inténtalo de nuevo.", variant: "destructive" });
+    } finally { setPdfBusy(false); }
+  };
   const busy = savePlayer.isPending || saveScout.isPending || removeScout.isPending || addScout.isPending;
 
   const openAdd = (zone = null) => { setAddZone(zone); setAddOpen(true); };
@@ -356,6 +367,9 @@ export default function SquadPlanning() {
         </div>
         <span className="text-xs font-bold uppercase tracking-wide text-gray-500 bg-gray-100 rounded-full px-2.5 py-1" data-testid="plan-season">Temporada {season}</span>
         <div className="ml-auto flex gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={makePdf} disabled={!team || loading || pdfBusy} data-testid="plan-pdf">
+            <FileDown className="w-4 h-4 mr-1.5" /> {pdfBusy ? "Creando…" : "PDF"}
+          </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => setShowAll((v) => !v)} data-testid="plan-showall">{showAll ? "Ocultar puestos vacíos" : "Todos los puestos"}</Button>
           <Button type="button" size="sm" onClick={() => openAdd(null)} style={{ background: "var(--granate)" }} className="text-white" data-testid="plan-add">
             <Binoculars className="w-4 h-4 mr-1.5" /> Añadir de scouting

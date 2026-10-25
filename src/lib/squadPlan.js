@@ -73,6 +73,9 @@ export function birthYearOf(p) {
   return y && y > 1900 ? y : null;
 }
 
+// Orden de las personas de un puesto: jugadores actuales (continúan → dudas → se van) y luego los objetivos de scouting
+const rankOf = (it) => (it.kind === "scout" ? 10 : STATUS_RANK[it.status] ?? 0);
+
 /**
  * Plantilla prevista de un equipo: {zones, items, unplaced, summary, orphans}.
  *  - players: jugadores del equipo (los de baja no cuentan); scouted: jugadores de scouting; entries: `SquadPlanEntry` de ese equipo y temporada.
@@ -129,8 +132,7 @@ export function buildPlan({ players = [], scouted = [], entries = [] } = {}) {
   const sorted = [...items].sort((a, b) => Number(!a.side) - Number(!b.side) || a.name.localeCompare(b.name, "es"));
   const zoneKeyOf = new Map(sorted.map((it) => [it.key, place(it)]));
 
-  const rank = (it) => (it.kind === "scout" ? 10 : STATUS_RANK[it.status] ?? 0);
-  const order = (a, b) => rank(a) - rank(b) || (a.year || 9999) - (b.year || 9999) || a.name.localeCompare(b.name, "es");
+  const order = (a, b) => rankOf(a) - rankOf(b) || (a.year || 9999) - (b.year || 9999) || a.name.localeCompare(b.name, "es");
   const zones = ZONES.map((z) => ({ ...z, items: items.filter((it) => zoneKeyOf.get(it.key) === z.key).sort(order) }));
   const unplaced = items.filter((it) => !zoneKeyOf.get(it.key)).sort(order);
   return { zones, items, unplaced, summary: summarize(items), orphans };
@@ -156,3 +158,38 @@ export function summarize(items) {
 export function visibleZones(plan, format, showAll = false) {
   return plan.zones.filter((z) => showAll || isCoreZone(format, z.key) || z.items.length > 0);
 }
+
+/** Fichas que se dibujan en un puesto con hasta `max` filas: si hay más gente, se ven `max-1` y la última fila es «+N más». */
+export function zoneRows(items, max = 3) {
+  if (items.length <= max) return { shown: items, more: 0 };
+  return { shown: items.slice(0, max - 1), more: items.length - (max - 1) };
+}
+
+// ── PDF del campograma (`src/lib/squadPlanPdf.js`) ──────────────────────────────────────────────────────────────────────────
+export const PDF_ZONE_ROWS = 4;
+const POS_INDEX = Object.fromEntries(POSITIONS.map((p, i) => [p, i]));
+const byPositionThenRank = (a, b) => (POS_INDEX[a.position] ?? 99) - (POS_INDEX[b.position] ?? 99) || rankOf(a) - rankOf(b)
+  || (a.year || 9999) - (b.year || 9999) || a.name.localeCompare(b.name, "es");
+
+/** «Continúa», «Duda», «Se va» u «Objetivo». */
+export const statusLabel = (it) => (it.kind === "scout" ? "Objetivo" : STATUS[it.status]?.label || STATUS.continua.label);
+
+/** Listas aparte del PDF: objetivos de scouting, dudas, los que se van y los que no tienen posición (no salen en el campo). */
+export function pdfLists(plan) {
+  const players = plan.items.filter((i) => i.kind === "player");
+  return {
+    objetivos: plan.items.filter((i) => i.kind === "scout").sort(byPositionThenRank),
+    dudas: players.filter((i) => i.status === "duda").sort(byPositionThenRank),
+    salen: players.filter((i) => i.status === "sale").sort(byPositionThenRank),
+    sinPosicion: plan.unplaced,
+  };
+}
+
+/** Toda la plantilla prevista por líneas (Porteros, Defensas, Medios, Delanteros y «Sin posición»), sin las líneas vacías. */
+export function squadByGroup(items) {
+  const lines = [...GROUPS.map((g) => ({ group: g, items: items.filter((i) => groupOf(i.position) === g) })), { group: "Sin posición", items: items.filter((i) => !groupOf(i.position)) }];
+  return lines.filter((l) => l.items.length).map((l) => ({ ...l, items: [...l.items].sort(byPositionThenRank) }));
+}
+
+/** ¿Algún puesto de los dibujados tiene más gente de la que cabe en el PDF? (entonces se añade la plantilla completa) */
+export const hasHiddenPeople = (zones, max = PDF_ZONE_ROWS) => zones.some((z) => zoneRows(z.items, max).more > 0);

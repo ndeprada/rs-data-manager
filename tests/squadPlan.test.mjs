@@ -120,4 +120,49 @@ assert.equal(empty.summary.total.prevista, 0);
 // Un registro de plan con un estado desconocido se lee como «continúa»
 assert.equal(buildPlan({ players: [P('x', 'A', 'B', 'central')], entries: [{ kind: 'player', ref_id: 'x', status: 'raro' }] }).items[0].status, 'continua');
 
+
+// ── PDF: filas por puesto, listas y plantilla completa ─────────────────────────────────────────────────────────────────────
+{
+  const { zoneRows, pdfLists, squadByGroup, hasHiddenPeople, statusLabel, PDF_ZONE_ROWS } = await import('../src/lib/squadPlan.js');
+  const mk = (n) => Array.from({ length: n }, (_, i) => ({ key: `p:${i}` }));
+  assert.deepEqual([zoneRows(mk(3), 3).shown.length, zoneRows(mk(3), 3).more], [3, 0], 'caben: se ven todos');
+  assert.deepEqual([zoneRows(mk(4), 3).shown.length, zoneRows(mk(4), 3).more], [2, 2], 'no caben: 2 fichas y «+2 más» (la última fila es el «+N más»)');
+  assert.deepEqual([zoneRows(mk(11), 4).shown.length, zoneRows(mk(11), 4).more], [3, 8]);
+  assert.deepEqual([zoneRows(mk(0), 3).shown.length, zoneRows(mk(0), 3).more], [0, 0]);
+  assert.equal(PDF_ZONE_ROWS, 4);
+
+  const players = [
+    { id: 'g1', first_name: 'Pau', last_name: 'Gil', position: 'portero', birth_year: 2014, status: 'activo' },
+    { id: 'c1', first_name: 'Eric', last_name: 'Soler', position: 'central', birth_year: 2014, status: 'activo' },
+    { id: 'c2', first_name: 'Aleix', last_name: 'Bosch', position: 'central', birth_year: 2013, status: 'activo' },
+    { id: 'm1', first_name: 'Dani', last_name: 'Puig', position: 'mediocentro', birth_year: 2014, status: 'activo' },
+    { id: 'x1', first_name: 'Iván', last_name: 'Ruiz', birth_year: 2014, status: 'activo' },
+  ];
+  const scouted = [{ id: 's1', first_name: 'Joan', last_name: 'Pons', position: 'extremo', birth_year: 2014, laterality: 'zurdo', decision: 'fichar' }];
+  const entries = [
+    { id: 'e1', kind: 'player', ref_id: 'c1', status: 'duda', note: 'Valorar en enero' },
+    { id: 'e2', kind: 'player', ref_id: 'm1', status: 'sale' },
+    { id: 'e3', kind: 'scout', ref_id: 's1', position: 'extremo', side: null },
+  ];
+  const plan = buildPlan({ players, scouted, entries });
+  const L = pdfLists(plan);
+  assert.deepEqual(L.objetivos.map((i) => i.id), ['s1']);
+  assert.deepEqual(L.dudas.map((i) => i.id), ['c1']);
+  assert.deepEqual(L.salen.map((i) => i.id), ['m1']);
+  assert.deepEqual(L.sinPosicion.map((i) => i.id), ['x1'], 'sin posición no sale en el campo pero sí en su lista');
+  assert.equal(statusLabel(plan.items.find((i) => i.id === 'c1')), 'Duda');
+  assert.equal(statusLabel(plan.items.find((i) => i.id === 'g1')), 'Continúa');
+  assert.equal(statusLabel(plan.items.find((i) => i.id === 's1')), 'Objetivo');
+
+  const lines = squadByGroup(plan.items);
+  assert.deepEqual(lines.map((l) => l.group), ['Porteros', 'Defensas', 'Medios', 'Delanteros', 'Sin posición']);
+  assert.deepEqual(lines[1].items.map((i) => i.id), ['c2', 'c1'], 'dentro de la línea, por puesto y estado: continúa antes que duda');
+  assert.deepEqual(squadByGroup([]).length, 0, 'sin gente no hay líneas');
+  assert.equal(squadByGroup(plan.items).reduce((n, l) => n + l.items.length, 0), plan.items.length, 'no se pierde a nadie');
+
+  assert.equal(hasHiddenPeople(plan.zones), false, 'un equipo pequeño cabe entero en el campo');
+  const big = buildPlan({ players: Array.from({ length: 9 }, (_, i) => ({ id: `b${i}`, first_name: `J${i}`, last_name: 'X', position: 'central', status: 'activo' })) });
+  assert.equal(hasHiddenPeople(big.zones), true, '9 centrales no caben en 4 filas');
+  assert.equal(hasHiddenPeople(big.zones, 9), false);
+}
 console.log('squadPlan ok');

@@ -37,7 +37,7 @@ function addImageFit(doc, img, x, y, w, h) {
   try { doc.addImage(img.data, "PNG", x + (w - iw) / 2, y + (h - ih) / 2, iw, ih); } catch { /* imagen no válida */ }
 }
 
-function drawPitch(doc, x0, y0, pw, ph, isF7 = false) {
+export function drawPitch(doc, x0, y0, pw, ph, isF7 = false) {
   const s = pw / 300;
   doc.setFillColor(238, 246, 238);
   doc.roundedRect(x0, y0, pw, ph, 1.5, 1.5, "F");
