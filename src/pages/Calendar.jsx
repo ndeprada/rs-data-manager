@@ -6,6 +6,7 @@ import EventAttendanceDialog from "@/components/calendar/EventAttendanceDialog";
 import ConvocatoriaDialog from "@/components/calendar/ConvocatoriaDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
 import EventWeather from "@/components/EventWeather";
+import MatchResultPill, { resultOf } from "@/components/calendar/MatchResultPill";
 import { sortTeams } from "@/lib/teamOrder";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
@@ -332,7 +333,7 @@ export default function Calendar() {
                         <div className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer"
                           onClick={() => { if (isMatch) navigate(`/MatchDetail?id=${event.id}&teamId=${event.team_id}`); }}>
                           <div className="w-7 h-7 rounded flex items-center justify-center text-[10px] font-black text-white shrink-0"
-                            style={{ background: isMatch ? "var(--granate)" : "var(--naranja)", fontFamily: "var(--font-display)" }}>
+                            style={{ background: resultOf(event).rs?.solid || (isMatch ? "var(--granate)" : "var(--naranja)"), fontFamily: "var(--font-display)" }}>
                             {t(getEventLabel(event.type)).slice(0, 2).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -349,7 +350,7 @@ export default function Calendar() {
                               )}
                             </div>
                           </div>
-                          <span className="shrink-0 flex flex-col items-end gap-0.5"><span className="text-xs font-bold text-gray-500">{format(new Date(event.date), "HH:mm")}</span><EventWeather event={event} rain size="sm" /></span>
+                          <span className="shrink-0 flex flex-col items-end gap-0.5"><span className="text-xs font-bold text-gray-500">{format(new Date(event.date), "HH:mm")}</span><MatchResultPill event={event} size="sm" /><EventWeather event={event} rain size="sm" /></span>
                           <div className="flex gap-0.5 shrink-0">
                             <button onClick={e => { e.stopPropagation(); setAttendanceEvent(showAttendance ? null : event); }}
                               className={`p-1 rounded transition-colors ${showAttendance ? "bg-green-100 text-green-700" : "hover:bg-green-50 text-gray-300 hover:text-green-600"}`} title={t("Asistencia")}>
@@ -425,14 +426,15 @@ export default function Calendar() {
                         <div className="hidden sm:flex flex-col gap-0.5 w-full">
                           {dayEvts.slice(0, 2).map((evt) => {
                             const isMatch = isMatchType(evt.type);
-                            const eventColor = isMatch ? "var(--granate)" : "var(--naranja)";
+                            const { rs } = resultOf(evt); // partido jugado: el chip toma el color del resultado y enseña el marcador en vez de la hora
+                            const eventColor = rs ? rs.solid : isMatch ? "var(--granate)" : "var(--naranja)";
                             return (
                               <div key={evt.id}
                                 onClick={(e) => { e.stopPropagation(); isMatch ? navigate(`/MatchDetail?id=${evt.id}&teamId=${evt.team_id}`) : navigate(`/MyTeam/Attendance?eventId=${evt.id}`); }}
                                 className={`text-[9px] truncate px-1.5 py-0.5 rounded-full font-bold text-white hover:opacity-80 transition-opacity cursor-pointer leading-tight w-full ${isCancelled(evt) ? "line-through" : ""}`}
                                 title={isCancelled(evt) ? cancelText(evt, t) : undefined}
                                 style={{ background: isCancelled(evt) ? "#9ca3af" : eventColor }}>
-                                <span className="opacity-80 mr-0.5">{format(new Date(evt.date), "HH:mm")}</span>
+                                {rs ? <MatchResultPill event={evt} size="xs" onDark className="mr-0.5 align-middle" /> : <span className="opacity-80 mr-0.5">{format(new Date(evt.date), "HH:mm")}</span>}
                                 {isMatch && evt.is_home === true && <HomeIcon className="inline w-2.5 h-2.5 mr-0.5 -mt-0.5" />}{isMatch && evt.is_home === false && <PlaneIcon className="inline w-2.5 h-2.5 mr-0.5 -mt-0.5" />}{isMatch && evt.opponent_logo_url && <img src={evt.opponent_logo_url} alt="" className="inline w-3 h-3 object-contain bg-white rounded-full mr-0.5 -mt-0.5" referrerPolicy="no-referrer" />}{evt.title}
                               </div>
                             );
@@ -441,7 +443,7 @@ export default function Calendar() {
                         </div>
                         {/* En el móvil, puntos de color: no caben textos */}
                         <div className="flex sm:hidden flex-wrap gap-0.5 px-0.5">
-                          {dayEvts.slice(0, 6).map((evt) => <span key={evt.id} className="w-2 h-2 rounded-full" style={{ background: isMatchType(evt.type) ? "var(--granate)" : "var(--naranja)" }} />)}
+                          {dayEvts.slice(0, 6).map((evt) => <span key={evt.id} className="w-2 h-2 rounded-full" style={{ background: resultOf(evt).rs?.solid || (isMatchType(evt.type) ? "var(--granate)" : "var(--naranja)") }} />)}
                         </div>
                       </>
                     )}
@@ -482,7 +484,7 @@ export default function Calendar() {
                         <div className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer"
                           onClick={() => { if (isMatch) navigate(`/MatchDetail?id=${event.id}&teamId=${event.team_id}`); }}>
                           <div className="w-7 h-7 rounded flex items-center justify-center text-[10px] font-black text-white shrink-0"
-                            style={{ background: isMatch ? "var(--granate)" : "var(--naranja)", fontFamily: "var(--font-display)" }}>
+                            style={{ background: resultOf(event).rs?.solid || (isMatch ? "var(--granate)" : "var(--naranja)"), fontFamily: "var(--font-display)" }}>
                             {t(getEventLabel(event.type)).slice(0, 2).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -499,7 +501,7 @@ export default function Calendar() {
                               )}
                             </div>
                           </div>
-                          <span className="shrink-0 flex flex-col items-end gap-0.5"><span className="text-xs font-bold text-gray-500">{format(new Date(event.date), "HH:mm")}</span><EventWeather event={event} rain size="sm" /></span>
+                          <span className="shrink-0 flex flex-col items-end gap-0.5"><span className="text-xs font-bold text-gray-500">{format(new Date(event.date), "HH:mm")}</span><MatchResultPill event={event} size="sm" /><EventWeather event={event} rain size="sm" /></span>
                           <div className="flex gap-0.5 shrink-0">
                             <button onClick={e => { e.stopPropagation(); setAttendanceEvent(showAttendance ? null : event); }}
                               className={`p-1 rounded transition-colors ${showAttendance ? "bg-green-100 text-green-700" : "hover:bg-green-50 text-gray-300 hover:text-green-600"}`} title={t("Asistencia")}>

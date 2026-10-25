@@ -3,6 +3,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { format } from "date-fns";
 import { MapPin, Clock, Pencil, Trash2, Users, FileText, ClipboardList, Home as HomeIcon, Plane as PlaneIcon } from "lucide-react";
 import EventWeather from "@/components/EventWeather";
+import MatchResultPill, { resultOf } from "@/components/calendar/MatchResultPill";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
 import { useT, useDateLocale, msg } from "@/i18n";
 
@@ -117,7 +118,7 @@ export default function EventListWithDragDrop({
                                   {/* Icon */}
                                   <div
                                     className="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5"
-                                    style={{ background: isMatch ? "var(--granate)" : "var(--naranja)" }}
+                                    style={{ background: resultOf(event).rs?.solid || (isMatch ? "var(--granate)" : "var(--naranja)") }}
                                   >
                                     {t(getEventLabel(event.type)).slice(0, 2).toUpperCase()}
                                   </div>
@@ -147,6 +148,7 @@ export default function EventListWithDragDrop({
                                         <Clock className="w-4 h-4 text-gray-400" />
                                         {format(new Date(event.date), "HH:mm")}
                                       </div>
+                                      <MatchResultPill event={event} size="md" />
                                       <EventWeather event={event} rain size="md" />
                                       {team && (
                                         <div className="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-gray-700">

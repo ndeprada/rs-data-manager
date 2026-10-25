@@ -3,6 +3,7 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
 import EventWeather from "@/components/EventWeather";
+import MatchResultPill, { resultOf } from "@/components/calendar/MatchResultPill";
 import { useT, useDateLocale } from "@/i18n";
 
 const EVENT_TYPE_COLORS = {
@@ -93,21 +94,25 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
                 {dayEvts.length === 0 ? (
                   <p className="text-[9px] text-gray-300 text-center py-4">{t("Sin eventos")}</p>
                 ) : (
-                  dayEvts.map(evt => (
+                  dayEvts.map(evt => {
+                    const { rs } = resultOf(evt); // partido ya jugado: el bloque toma el color del resultado
+                    return (
                     <div
                       key={evt.id}
                       onClick={e => { e.stopPropagation(); onEventClick(evt); }}
                       className={`text-[9px] px-1.5 py-1 rounded font-bold text-white truncate hover:opacity-75 transition-opacity cursor-pointer leading-tight whitespace-normal ${isCancelled(evt) ? "line-through" : ""}`}
-                      style={{ background: isCancelled(evt) ? "#9ca3af" : getEventColor(evt.type), minHeight: "20px" }}
+                      style={{ background: isCancelled(evt) ? "#9ca3af" : rs ? rs.solid : getEventColor(evt.type), minHeight: "20px" }}
                       title={isCancelled(evt) ? `${evt.title} · ${cancelText(evt, t)}` : evt.title}
                     >
                       {evt.opponent_logo_url && ["partido_liga","partido_amistoso","torneo"].includes(evt.type) && (
                         <img src={evt.opponent_logo_url} alt="" loading="lazy" className="inline-block w-4 h-4 object-contain bg-white rounded-sm mr-1 align-middle" />
                       )}
                       {evt.title}
+                      {rs && <div className="mt-1"><MatchResultPill event={evt} size="xs" onDark /></div>}
                       <EventWeather event={evt} onDark size="sm" className="!flex mt-1" />
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
