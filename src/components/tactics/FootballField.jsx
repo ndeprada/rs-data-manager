@@ -1,12 +1,53 @@
 import React from "react";
+import { f7Markings } from "@/lib/pitchGeometry";
 
-export default function FootballField({ children }) {
+const GRASS = "linear-gradient(180deg, #3d7d4e 0%, #4a9a5f 8%, #3d7d4e 8%, #3d7d4e 16%, #4a9a5f 16%, #4a9a5f 24%, #3d7d4e 24%, #3d7d4e 32%, #4a9a5f 32%, #4a9a5f 40%, #3d7d4e 40%, #3d7d4e 48%, #4a9a5f 48%, #4a9a5f 56%, #3d7d4e 56%, #3d7d4e 64%, #4a9a5f 64%, #4a9a5f 72%, #3d7d4e 72%, #3d7d4e 80%, #4a9a5f 80%, #4a9a5f 88%, #3d7d4e 88%)";
+const LINE = "rgba(255,255,255,0.85)";
+
+// Campo de fútbol 7 a escala (45 × 65 m, portería propia arriba): áreas de 24 × 9 y 12 × 3 m, punto de penalti a 9 m, círculo central de 6 m y
+// líneas de fuera de juego a 12 m de cada línea de meta (mismas medidas que la pestaña Táctica del partido: src/lib/pitchGeometry.js).
+function F7Field({ children }) {
+  const W = 450, H = 650, M = 14;
+  const m = f7Markings(M, M, W - 2 * M, H - 2 * M);
+  const stroke = { fill: "none", stroke: LINE, strokeWidth: 2.5 };
+  return (
+    <div
+      className="relative w-full max-w-md mx-auto select-none"
+      data-testid="tactics-field-f7"
+      style={{ aspectRatio: `${W} / ${H}`, background: GRASS, borderRadius: "4px", overflow: "hidden" }}
+    >
+      <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+        <rect x={M} y={M} width={W - 2 * M} height={H - 2 * M} rx="6" ry="6" {...stroke} />
+        <line x1={M} y1={H / 2} x2={W - M} y2={H / 2} {...stroke} />
+        <circle cx={m.centre.x} cy={m.centre.y} r={m.centre.r} {...stroke} />
+        <circle cx={m.centre.x} cy={m.centre.y} r="4" fill={LINE} />
+        {/* Áreas de arriba y de abajo, y puntos de penalti */}
+        <rect x={m.area.x} y={M} width={m.area.w} height={m.area.d} {...stroke} />
+        <rect x={m.goalArea.x} y={M} width={m.goalArea.w} height={m.goalArea.d} {...stroke} />
+        <rect x={m.area.x} y={H - M - m.area.d} width={m.area.w} height={m.area.d} {...stroke} />
+        <rect x={m.goalArea.x} y={H - M - m.goalArea.d} width={m.goalArea.w} height={m.goalArea.d} {...stroke} />
+        <circle cx={W / 2} cy={M + m.spot} r="4" fill={LINE} />
+        <circle cx={W / 2} cy={H - M - m.spot} r="4" fill={LINE} />
+        {/* Líneas de fuera de juego, a 12 m de cada línea de meta */}
+        <g data-testid="f7-offside" stroke="rgba(255,255,255,0.8)" strokeWidth="2.5" strokeDasharray="14 9">
+          <line x1={M} y1={M + m.offside} x2={W - M} y2={M + m.offside} />
+          <line x1={M} y1={H - M - m.offside} x2={W - M} y2={H - M - m.offside} />
+        </g>
+      </svg>
+      {children}
+    </div>
+  );
+}
+
+/** f7: campo de fútbol 7 (45 × 65 m); si no, campo de fútbol 11. */
+export default function FootballField({ children, f7 = false }) {
+  if (f7) return <F7Field>{children}</F7Field>;
   return (
     <div
       className="relative w-full max-w-md mx-auto select-none"
       style={{
         aspectRatio: "65 / 100",
-        background: "linear-gradient(180deg, #3d7d4e 0%, #4a9a5f 8%, #3d7d4e 8%, #3d7d4e 16%, #4a9a5f 16%, #4a9a5f 24%, #3d7d4e 24%, #3d7d4e 32%, #4a9a5f 32%, #4a9a5f 40%, #3d7d4e 40%, #3d7d4e 48%, #4a9a5f 48%, #4a9a5f 56%, #3d7d4e 56%, #3d7d4e 64%, #4a9a5f 64%, #4a9a5f 72%, #3d7d4e 72%, #3d7d4e 80%, #4a9a5f 80%, #4a9a5f 88%, #3d7d4e 88%)",
+        background: GRASS,
         borderRadius: "4px",
         overflow: "hidden",
       }}

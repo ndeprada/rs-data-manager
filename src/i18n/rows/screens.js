@@ -12,5 +12,6 @@ import ar from "./screens/ar.js";
 import qc from "./screens/qc.js";
 import mj from "./screens/mj.js";
 import tc from "./screens/tc.js";
+import tp from "./screens/tp.js";
 
-export default [...b1, ...b1x, ...b1y, ...b2, ...b2x, ...b3, ...b3x, ...cm, ...fb, ...ar, ...qc, ...mj, ...tc];
+export default [...b1, ...b1x, ...b1y, ...b2, ...b2x, ...b3, ...b3x, ...cm, ...fb, ...ar, ...qc, ...mj, ...tc, ...tp];

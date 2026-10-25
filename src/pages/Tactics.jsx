@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, StickyNote, Move, LayoutGrid, Link as LinkIcon } from "lucide-react";
@@ -12,13 +12,20 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import FootballField from "@/components/tactics/FootballField";
 import PlayerToken from "@/components/tactics/PlayerToken";
-import FreeDragField from "@/components/tactics/FreeDragField";
-import { FORMATIONS, FORMATION_KEYS } from "@/components/tactics/formations";
+import BoardEditor from "@/components/board/BoardEditor";
+import { sortRoster } from "@/components/sessions/sessionHelpers";
+import { FORMATIONS, FORMATION_KEYS, FORMATION_KEYS_F7 } from "@/components/tactics/formations";
 import { playerFullName } from "@/lib/playerName";
+import { teamPlaysF7 } from "@/lib/matchFormat";
+import { tacticsBoardFormat, boardOfTactic, fieldsFor, tokenLabel } from "@/lib/tacticsBoard";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 
 import { PageTitle } from "@/components/common/PageHeader";
 import { useT, useLocaleTag } from "@/i18n";
+// Sistemas que se ofrecen para un equipo: los de fútbol 7 si es de S12 hacia abajo y los de fútbol 11 en los demás
+const keysFor = (team) => (teamPlaysF7(team) ? FORMATION_KEYS_F7 : FORMATION_KEYS);
+const BOARD_SAVE_MS = 600; // la pizarra de jugadas se guarda cuando se deja de tocar, no en cada movimiento del dedo
+
 export default function Tactics() {
   const t = useT();
   const tag = useLocaleTag();
@@ -47,7 +54,7 @@ export default function Tactics() {
     mutationFn: (data) => base44.entities.TacticsBoard.create(data),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["tacticsBoards"] });
-      setActiveBoardId(created.id);
+      selectBoard(created.id);
       setNewBoardDialog(false);
       setNewForm({ name: "", formation: "4-4-2", team_id: "" });
     },
@@ -67,11 +74,62 @@ export default function Tactics() {
     },
   });
 
+  // Al elegir equipo en «Nueva pizarra», la formación pasa a una del formato de ese equipo (la base de fútbol 7, o la de siempre en fútbol 11)
+  const newFormationFor = (teamId, current) => {
+    const keys = keysFor(teams.find((x) => x.id === teamId));
+    return keys.includes(current) ? current : keys[0];
+  };
+
   const activeBoard = boards.find((b) => b.id === activeBoardId);
+  const activeTeam = activeBoard ? teams.find((x) => x.id === activeBoard.team_id) : null;
   const formation = activeBoard ? FORMATIONS[activeBoard.formation] : null;
   const boardPlayers = activeBoard
     ? players.filter((p) => p.team_id === activeBoard.team_id)
     : [];
+  // Fútbol 7 o fútbol 11: el de la formación que ya tiene guardada la pizarra y, si no, el de la etapa del equipo
+  const isF7 = activeBoard ? tacticsBoardFormat(activeBoard, activeTeam) === "f7" : false;
+  const teamKeys = keysFor(activeTeam);
+  // La formación que ya tiene la pizarra sigue en la lista aunque sea del otro formato (p. ej. una pizarra de once de un equipo de S12)
+  const formationKeys = activeBoard && FORMATIONS[activeBoard.formation] && !teamKeys.includes(activeBoard.formation) ? [...teamKeys, activeBoard.formation] : teamKeys;
+  const mixedFormat = !!activeBoard && teamPlaysF7(activeTeam) && !isF7;
+  const totalSlots = formation?.positions.length || (isF7 ? 7 : 11);
+
+  // ── Pizarra de jugadas (pizarra común de src/components/board) ─────────────────────────────────────────────────────────────
+  // Mientras se dibuja se trabaja con una copia local (`draft`) y se guarda 600 ms después del último cambio, o al cambiar de pizarra.
+  const [draft, setDraft] = useState(null); // { id, value }
+  const pending = useRef(null); // lo que falta por guardar: { id, value }
+  const timer = useRef(null);
+  const mutateRef = useRef(null);
+  mutateRef.current = updateMutation.mutate;
+  const flush = () => {
+    clearTimeout(timer.current);
+    const p = pending.current;
+    if (!p) return;
+    pending.current = null;
+    // La lista ya refleja lo último, así que volver a la pizarra enseguida no enseña una versión vieja mientras llega la respuesta
+    queryClient.setQueryData(["tacticsBoards"], (old) => (Array.isArray(old) ? old.map((b) => (b.id === p.id ? { ...b, board: p.value } : b)) : old));
+    mutateRef.current({ id: p.id, data: { board: p.value } });
+  };
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+  useEffect(() => () => flushRef.current(), []);
+  const selectBoard = (id) => { flush(); setDraft(null); setActiveBoardId(id); };
+  const handleBoardChange = (value) => {
+    if (!activeBoard) return;
+    setDraft({ id: activeBoard.id, value });
+    pending.current = { id: activeBoard.id, value };
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => flushRef.current(), BOARD_SAVE_MS);
+  };
+  // Lo que enseña el editor: la copia local mientras se dibuja; si no, la guardada, y en su defecto la pizarra libre antigua ya convertida
+  const savedBoard = activeBoard?.board;
+  const legacyKey = activeBoard ? `${activeBoard.id}|${activeBoard.free_positions?.length || 0}|${players.length}|${isF7}` : "";
+  const startBoard = useMemo(
+    () => (activeBoard ? boardOfTactic(savedBoard ? { board: savedBoard } : activeBoard, { players: boardPlayers, f7: isF7 }) : null),
+    [legacyKey, savedBoard],
+  );
+  const boardValue = draft && activeBoard && draft.id === activeBoard.id ? draft.value : startBoard;
+  const roster = sortRoster(boardPlayers.filter((p) => p.status !== "baja")).map((p) => ({ id: p.id, label: tokenLabel(p) }));
 
   const filteredBoards = selectedTeam === "all"
     ? boards
@@ -96,7 +154,8 @@ export default function Tactics() {
   };
 
   const handleFormationChange = (newFormation) => {
-    if (!activeBoard) return;
+    // Al cambiar de pizarra la lista de sistemas cambia y el desplegable avisa con un valor vacío: no es una elección de nadie
+    if (!activeBoard || !newFormation) return;
     updateMutation.mutate({ id: activeBoard.id, data: { formation: newFormation, assignments: {} } });
   };
 
@@ -105,28 +164,9 @@ export default function Tactics() {
     updateMutation.mutate({ id: activeBoard.id, data: { notes } });
   };
 
-  const handleFreePositionsChange = useCallback((newPositions) => {
-    if (!activeBoard) return;
-    updateMutation.mutate({ id: activeBoard.id, data: { free_positions: newPositions } });
-  }, [activeBoard, updateMutation]);
-
   const handleLinkEvent = (eventId) => {
     if (!activeBoard) return;
     updateMutation.mutate({ id: activeBoard.id, data: { event_id: eventId || null } });
-  };
-
-  const addPlayerToField = (playerId) => {
-    if (!activeBoard) return;
-    const positions = activeBoard.free_positions || [];
-    if (positions.find((p) => p.player_id === playerId)) return;
-    const newPositions = [...positions, { player_id: playerId, x: 50, y: 50 }];
-    updateMutation.mutate({ id: activeBoard.id, data: { free_positions: newPositions } });
-  };
-
-  const removePlayerFromField = (playerId) => {
-    if (!activeBoard) return;
-    const newPositions = (activeBoard.free_positions || []).filter((p) => p.player_id !== playerId);
-    updateMutation.mutate({ id: activeBoard.id, data: { free_positions: newPositions } });
   };
 
   const assignedCount = activeBoard
@@ -175,7 +215,7 @@ export default function Tactics() {
                       key={board.id}
                       className={`flex items-center gap-2 px-4 py-3 cursor-pointer transition-colors ${isActive ? "bg-gray-50 border-l-4" : "hover:bg-gray-50"}`}
                       style={isActive ? { borderLeftColor: "var(--granate)" } : {}}
-                      onClick={() => setActiveBoardId(board.id)}
+                      onClick={() => selectBoard(board.id)}
                     >
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-gray-900 text-sm truncate">{board.name || board.formation}</p>
@@ -252,17 +292,22 @@ export default function Tactics() {
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-gray-500 font-medium uppercase tracking-wider whitespace-nowrap">{t("Formación")}</Label>
                   <Select value={activeBoard.formation} onValueChange={handleFormationChange}>
-                    <SelectTrigger className="h-8 w-32 text-sm border-gray-200"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className={`h-8 text-sm border-gray-200 ${teamKeys === FORMATION_KEYS_F7 ? "w-56" : "w-32"}`}><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {FORMATION_KEYS.map((f) => (
+                      {formationKeys.map((f) => (
                         <SelectItem key={f} value={f}>{t(FORMATIONS[f].label)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <span className="text-xs text-gray-400 ml-auto">{t("{assignedCount}/11 asignados", { assignedCount })}</span>
+                  <span className="text-xs text-gray-400 ml-auto">{t("{assignedCount}/{total} asignados", { assignedCount, total: totalSlots })}</span>
                 </div>
+                {mixedFormat && (
+                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2" style={{ borderRadius: "4px" }} data-testid="tactics-f11-note">
+                    {t("Esta pizarra tiene un sistema de once. Si eliges uno de fútbol 7 pasa a siete y se vacían los jugadores asignados.")}
+                  </p>
+                )}
                 <div className="max-w-sm mx-auto lg:max-w-md">
-                  <FootballField>
+                  <FootballField f7={isF7}>
                     {formation?.positions.map((pos) => (
                       <PlayerToken
                         key={pos.key}
@@ -314,41 +359,18 @@ export default function Tactics() {
                   )}
                 </div>
 
-                <div className="flex gap-4">
-                  {/* Field */}
-                  <div className="flex-1 max-w-sm">
-                    <FreeDragField
-                      players={boardPlayers}
-                      positions={activeBoard.free_positions || []}
-                      onChange={handleFreePositionsChange}
-                    />
-                  </div>
-
-                  {/* Player pool sidebar */}
-                  <div className="w-48 shrink-0 bg-white border border-gray-200 rounded overflow-hidden self-start">
-                    <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("Jugadores")}</p>
-                    </div>
-                    <div className="p-2 space-y-1 max-h-96 overflow-y-auto">
-                      {boardPlayers.filter((p) => p.status !== "baja").map((p) => {
-                        const onField = (activeBoard.free_positions || []).some((fp) => fp.player_id === p.id);
-                        return (
-                          <div key={p.id} className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${onField ? "bg-gray-100 text-gray-400" : "hover:bg-gray-50 text-gray-700 cursor-pointer"}`}
-                            onClick={() => onField ? removePlayerFromField(p.id) : addPlayerToField(p.id)}
-                          >
-                            <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0" style={{ background: onField ? "#9ca3af" : "var(--granate)" }}>
-                              {p.first_name?.[0]}{p.last_name?.[0]}
-                            </span>
-                            <span className="truncate">{playerFullName(p)}</span>
-                            {onField && <span className="ml-auto text-red-400 text-[10px]">✕</span>}
-                          </div>
-                        );
-                      })}
-                      {boardPlayers.length === 0 && <p className="text-xs text-gray-400 p-2">{t("Sin jugadores")}</p>}
-                    </div>
-                  </div>
+                {/* Pizarra común del club (fichas, flechas, zonas, textos y fotogramas para animar), con el campo del formato de la pizarra */}
+                <div data-testid="tactics-board">
+                  <BoardEditor
+                    key={activeBoard.id}
+                    value={boardValue}
+                    onChange={handleBoardChange}
+                    roster={roster}
+                    fields={fieldsFor(isF7, boardValue?.field)}
+                    filename={activeBoard.name || t("Pizarra Táctica")}
+                    modes
+                  />
                 </div>
-                <p className="text-xs text-gray-400 text-center">{t("Haz clic en un jugador para añadirlo al campo. Arrástralo para posicionarlo.")}</p>
               </TabsContent>
             </Tabs>
             </div>
@@ -395,7 +417,7 @@ export default function Tactics() {
             </div>
             <div className="space-y-2">
               <Label>{t("Equipo *")}</Label>
-              <Select value={newForm.team_id} onValueChange={(v) => setNewForm({ ...newForm, team_id: v })}>
+              <Select value={newForm.team_id} onValueChange={(v) => v && setNewForm({ ...newForm, team_id: v, formation: newFormationFor(v, newForm.formation) })}>
                 <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Seleccionar equipo")} /></SelectTrigger>
                 <SelectContent>
                   {teams.filter((t) => canManageTeam(t.id)).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
@@ -404,10 +426,10 @@ export default function Tactics() {
             </div>
             <div className="space-y-2">
               <Label>{t("Formación *")}</Label>
-              <Select value={newForm.formation} onValueChange={(v) => setNewForm({ ...newForm, formation: v })}>
+              <Select value={newForm.formation} onValueChange={(v) => v && setNewForm((f) => ({ ...f, formation: v }))}>
                 <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {FORMATION_KEYS.map((f) => (
+                  {keysFor(teams.find((x) => x.id === newForm.team_id)).map((f) => (
                     <SelectItem key={f} value={f}>{t(FORMATIONS[f].label)}</SelectItem>
                   ))}
                 </SelectContent>
@@ -432,7 +454,7 @@ export default function Tactics() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteMutation.mutate(deleteId)} className="bg-red-600 hover:bg-red-700 text-white">
+            <AlertDialogAction onClick={() => { if (pending.current?.id === deleteId) { clearTimeout(timer.current); pending.current = null; } deleteMutation.mutate(deleteId); }} className="bg-red-600 hover:bg-red-700 text-white">
               {t("Eliminar")}
             </AlertDialogAction>
           </AlertDialogFooter>

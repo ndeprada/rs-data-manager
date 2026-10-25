@@ -1,7 +1,9 @@
 // Positions are expressed as { x: 0-100 (left%), y: 0-100 (top%) }
 // y=0 is goal (top of field view, goalkeeper end), y=100 is attack end
+import { F7_PAGE_FORMATIONS, FORMATION_KEYS_F7 } from "@/lib/tacticsBoard";
 
-export const FORMATIONS = {
+// Fútbol 11 (las de siempre de esta página)
+const FORMATIONS_F11 = {
   "4-4-2": {
     label: "4-4-2",
     positions: [
@@ -100,4 +102,8 @@ export const FORMATIONS = {
   },
 };
 
-export const FORMATION_KEYS = Object.keys(FORMATIONS);
+// Fútbol 7 (S12 hacia abajo): los sistemas del club, con los mismos huecos que la pestaña Táctica del partido (`src/lib/matchFormations.js`)
+export { FORMATION_KEYS_F7 };
+export const FORMATIONS = { ...FORMATIONS_F11, ...F7_PAGE_FORMATIONS };
+// Las de fútbol 11, para equipos de fútbol 11 (los sistemas de siete se piden con FORMATION_KEYS_F7)
+export const FORMATION_KEYS = Object.keys(FORMATIONS_F11);

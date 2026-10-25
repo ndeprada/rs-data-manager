@@ -54,6 +54,7 @@ export const F7_SLOT_ROLES = {
   "3-1-2":        ["portero", "lateral", "central", "lateral", "mediapunta", "extremo", "extremo"],
   "3-1-2 puntas": ["portero", "lateral", "central", "lateral", "mediapunta", "punta", "punta"],
   "3-2-1":        ["portero", "lateral", "central", "lateral", "medio", "medio", "punta"],
+  "2-3-1":        ["portero", "central", "central", "medio", "medio", "medio", "punta"],
 };
 
 // Positions as [x%, y%] — origin top-left, attack towards top
