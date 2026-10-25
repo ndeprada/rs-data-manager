@@ -132,6 +132,8 @@ export function canManageTeamWith(perms, teamId, coachTeamIds = []) {
 export const MEDICAL_ENTITIES = new Set(['Injury', 'PlayerDocument']);
 export const PLAYER_EVAL_ENTITIES = new Set(['Evaluation360', 'PDI', 'PDIGoal']);
 export const COACH_EVAL_ENTITIES = new Set(['CoachFeedback', 'CoachPDI', 'CoachEval360', 'CoachMatchNote', 'CoachSessionObs', 'CoachQuarterClose']);
+// Planificación de plantillas (Scouting → Planificación): quién continúa, quién se va y a quién se quiere fichar. Solo dirección y coordinación.
+export const PLANNING_ENTITIES = new Set(['SquadPlanEntry']);
 // Sesiones de entrenamiento: son personales de cada entrenador (owner_id). Las ve toda la coordinación, pero solo las cambia su autor.
 export const SESSION_ENTITIES = new Set(['CoachSession']);
 // Campos de la ficha del jugador que solo escribe quien puede editar fichas (entrenadores y coordinación)
@@ -200,6 +202,7 @@ export function checkRoleWrite({ perms, entity, method, body = {}, existing = nu
   }
   if (MEDICAL_ENTITIES.has(entity)) return perms.medical === 'edit' ? { ok: true } : { ok: false, error: 'forbidden_role' };
   if (PLAYER_EVAL_ENTITIES.has(entity)) return perms.playerEval === 'edit' ? { ok: true } : { ok: false, error: 'forbidden_role' };
+  if (PLANNING_ENTITIES.has(entity)) return perms.administration ? { ok: true } : { ok: false, error: 'forbidden_role' };
   if (COACH_EVAL_ENTITIES.has(entity)) {
     if (perms.evalCoaches) return { ok: true };
     const isOwn = (d) => !!d && ownIds.has(d.staff_id);
@@ -242,6 +245,7 @@ export function filterRoleRead({ perms, entity, docs, ownIds = new Set(), userId
   if (perms.isAdmin) return docs;
   if (MEDICAL_ENTITIES.has(entity)) return perms.medical === 'none' ? [] : docs;
   if (PLAYER_EVAL_ENTITIES.has(entity)) return perms.playerEval === 'none' ? [] : docs;
+  if (PLANNING_ENTITIES.has(entity)) return perms.administration ? docs : [];
   if (SESSION_ENTITIES.has(entity)) return filterSessionRead({ perms, userId, docs });
   if (COACH_EVAL_ENTITIES.has(entity)) {
     if (perms.coaches !== 'own') return docs;

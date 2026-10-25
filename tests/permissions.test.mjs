@@ -69,8 +69,18 @@ assert.equal(write('entrenador_porteros', 'PDIGoal'), true);
 assert.equal(write('coordinador_general', 'PDI'), true);
 assert.equal(write('fisioterapeuta', 'Evaluation360'), false);
 assert.equal(write('fisioterapeuta', 'PDIGoal', 'PUT'), false);
+// Planificación de plantillas (quién se va, a quién se ficha): solo dirección y coordinación
+for (const r of ['director', 'director_deportivo', 'coordinador_general', 'coordinador_f7', 'coordinador_f11']) assert.equal(write(r, 'SquadPlanEntry'), true, `${r} planifica plantillas`);
+for (const r of ['entrenador', 'entrenador_porteros', 'psicologo', 'preparador_fisico', 'fisioterapeuta']) {
+  assert.equal(write(r, 'SquadPlanEntry'), false, `${r} no escribe en la planificación`);
+  assert.equal(write(r, 'SquadPlanEntry', 'DELETE'), false);
+  assert.deepEqual(filterRoleRead({ perms: p(r), entity: 'SquadPlanEntry', docs: [{ id: 1 }] }), [], `${r} no lee la planificación`);
+}
+assert.deepEqual(filterRoleRead({ perms: p('coordinador_f7'), entity: 'SquadPlanEntry', docs: [{ id: 1 }] }).map((x) => x.id), [1]);
+assert.equal(write('entrenador', 'ScoutedPlayer'), true, 'los jugadores de scouting siguen como estaban');
 // Administración puede todo
 assert.equal(checkRoleWrite({ perms: permissionsOf({ id: 'a', role: 'admin' }), entity: 'CoachFeedback', method: 'DELETE' }).ok, true);
+assert.equal(checkRoleWrite({ perms: permissionsOf({ id: 'a', role: 'admin' }), entity: 'SquadPlanEntry', method: 'POST' }).ok, true);
 // Entidades no sensibles no se tocan
 assert.equal(write('fisioterapeuta', 'Event'), true);
 

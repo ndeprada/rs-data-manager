@@ -44,6 +44,8 @@ export default [
   ["P", "L", "P", "P"],
   ["DG", "GD", "DB", "DG"],
   ["Pts", "Pts", "Pts", "Pts"],
+  ["Pts/PJ", "Pts/P", "Pts/J", "Pts/PJ"],
+  ["Puntos por partido jugado", "Points per game played", "Points par match joué", "Punts per partit jugat"],
   ["Ver menos", "Show less", "Voir moins", "Veure menys"],
   ["Clasificación completa", "Full table", "Classement complet", "Classificació completa"],
 

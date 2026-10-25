@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, RefreshCw, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getCategoryLabel } from "@/components/fcfCategories";
-import { useT, msg } from "@/i18n";
+import { useT, useFormat, msg } from "@/i18n";
 
 const FORM = { G: [msg("V"), "#16a34a"], E: [msg("E"), "#ea580c"], P: [msg("D"), "#dc2626"] };
 const logoUrl = (f) => (f ? `https://files.fcf.cat/escudos/clubes/escudos/${f}` : null);
@@ -17,6 +17,7 @@ async function fetchStanding(teamId) {
 
 export default function FCFTeamStanding({ team }) {
   const t = useT();
+  const fmt = useFormat();
   const [full, setFull] = useState(false);
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["fcf-standing", team.id],
@@ -76,7 +77,8 @@ export default function FCFTeamStanding({ team }) {
                 <th className="py-1.5 text-center font-bold hidden sm:table-cell">{t("E")}</th>
                 <th className="py-1.5 text-center font-bold hidden sm:table-cell">{t("P")}</th>
                 <th className="py-1.5 text-center font-bold">{t("DG")}</th>
-                <th className="py-1.5 pr-3 text-center font-bold">{t("Pts")}</th>
+                <th className="py-1.5 text-center font-bold">{t("Pts")}</th>
+                <th className="py-1.5 pr-3 text-center font-bold" title={t("Puntos por partido jugado")} data-testid="standing-ppg-head">{t("Pts/PJ")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -96,7 +98,10 @@ export default function FCFTeamStanding({ team }) {
                     <td className="py-1.5 text-center hidden sm:table-cell">{r.e}</td>
                     <td className="py-1.5 text-center hidden sm:table-cell">{r.p}</td>
                     <td className="py-1.5 text-center text-gray-600">{r.gf - r.gc > 0 ? `+${r.gf - r.gc}` : r.gf - r.gc}</td>
-                    <td className="py-1.5 pr-3 text-center font-black">{r.pts}</td>
+                    <td className="py-1.5 text-center font-black">{r.pts}</td>
+                    <td className="py-1.5 pr-3 text-center text-gray-500 tabular-nums" data-testid="standing-ppg">
+                      {Number(r.pj) > 0 ? fmt.num(Number(r.pts) / Number(r.pj), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "–"}
+                    </td>
                   </tr>
                 );
               })}

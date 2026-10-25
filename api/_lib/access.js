@@ -7,7 +7,7 @@
 import { query } from './db.js';
 import {
   permissionsOf, canManageTeamWith, checkRoleWrite, filterRoleRead, staffIdsOfUser, checkSessionWrite,
-  MEDICAL_ENTITIES, PLAYER_EVAL_ENTITIES, COACH_EVAL_ENTITIES, SESSION_ENTITIES, PLAYER_STAFF_FIELDS,
+  MEDICAL_ENTITIES, PLAYER_EVAL_ENTITIES, COACH_EVAL_ENTITIES, SESSION_ENTITIES, PLANNING_ENTITIES, PLAYER_STAFF_FIELDS,
 } from '../../src/lib/permissions.js';
 import { minPlayersOf } from '../../src/lib/matchFormat.js';
 
@@ -187,7 +187,7 @@ export async function checkTeamWrite(user, entity, method, body, id) {
 
 // ── Datos sensibles por función: médicos, evaluaciones de jugadores y evaluaciones de entrenadores ─────
 // 'Player' y 'Event' entran para vigilar campos concretos: pierna no hábil (cuerpo técnico) y evento de todo el club (coordinación)
-const ROLE_ENTITIES = new Set([...MEDICAL_ENTITIES, ...PLAYER_EVAL_ENTITIES, ...COACH_EVAL_ENTITIES, ...SESSION_ENTITIES, 'Player', 'Event']);
+const ROLE_ENTITIES = new Set([...MEDICAL_ENTITIES, ...PLAYER_EVAL_ENTITIES, ...COACH_EVAL_ENTITIES, ...SESSION_ENTITIES, ...PLANNING_ENTITIES, 'Player', 'Event']);
 
 const isStaffUser = (user) => !isAdmin(user) && !isPlayerUser(user) && user.app_role !== 'familiar';
 
