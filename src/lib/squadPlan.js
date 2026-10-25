@@ -1,10 +1,14 @@
 // Scouting → Planificación (`src/components/scouting/SquadPlanning.jsx`): plantilla prevista de cada equipo para la temporada siguiente.
 // Lógica pura y sin importaciones de la app (rutas relativas) para poder probarla en Node (tests/squadPlan.test.mjs).
 //
-// Cada jugador actual del equipo está «continúa» salvo que alguien marque «duda» o «sale» (solo entonces se guarda un `SquadPlanEntry`,
-// `kind:"player"`); los objetivos de scouting son entradas `kind:"scout"` con su posición. El campograma tiene el ataque hacia ARRIBA y la portería
-// abajo (como `FORMATION_POSITIONS`), así que izquierda y derecha son las del equipo.
+// Cada jugador actual del equipo está «continúa» salvo que alguien marque «duda» o «se va» (solo entonces, o si se le cambia el puesto o se le
+// pone una nota, se guarda un `SquadPlanEntry` `kind:"player"`). «Se va» se concreta en baja del club o baja propia (`leave`). Los jugadores de
+// Scouting entran al plan como `kind:"scout"`, bien como objetivo (`role:"objetivo"`, cuenta en la plantilla prevista) o bien como jugador
+// seguido (`role:"seguido"`, no cuenta). Un puesto a reforzar es una entrada `kind:"need"` (`ref_id` = clave del puesto). Un jugador o un objetivo
+// puede estar colocado a mano en otro puesto (`position` y `side` del registro mandan sobre la ficha).
+// El campograma tiene el ataque hacia la derecha (o hacia arriba en vertical), así que izquierda y derecha son las del equipo.
 import { tokenLabel } from "./tacticsBoard.js";
+import { playerFullName } from "./playerName.js";
 
 /** Temporada siguiente a «2026-2027» → «2027-2028». */
 export function nextSeason(season) {
@@ -20,6 +24,21 @@ export const STATUS = {
 export const STATUS_KEYS = ["continua", "duda", "sale"];
 const STATUS_RANK = { continua: 0, duda: 1, sale: 2 };
 
+/** Quién decide la baja: el club (no renueva) o el propio jugador/familia (se va por su cuenta). Las dos van en rojo. */
+export const LEAVE = {
+  club: { label: "Baja del club", short: "Club" },
+  propia: { label: "Baja propia", short: "Propia" },
+};
+export const LEAVE_KEYS = ["club", "propia"];
+
+/** Un jugador de Scouting en el plan: objetivo (se quiere fichar, cuenta) o jugador seguido (observado, no cuenta aún). */
+export const ROLE = {
+  objetivo: { label: "Objetivo de scouting" },
+  seguido: { label: "Jugador seguido" },
+};
+export const ROLE_KEYS = ["objetivo", "seguido"];
+const SCOUT_RANK = { objetivo: 10, seguido: 11 };
+
 export const POSITION_LABEL = {
   portero: "Portero", libre: "Libre", central: "Central", lateral: "Lateral", mediocentro: "Mediocentro", interior: "Interior",
   mediapunta: "Mediapunta", extremo: "Extremo", delantero_centro: "Delantero centro",
@@ -32,29 +51,32 @@ const GROUP_OF = {
 export const GROUPS = ["Porteros", "Defensas", "Medios", "Delanteros"];
 export const groupOf = (position) => GROUP_OF[position] || null;
 
-// Puestos del campograma (x, y = esquina superior del puesto, en % del campo; delanteros arriba, portero abajo). `side` = lado del equipo.
+// Puestos del campograma. `line` = línea del campo (0 portero … 5 delanteros) y `lane` = carril del equipo (l izquierda, c centro, r derecha):
+// en horizontal la línea es la columna (portería a la izquierda) y el carril la fila (izquierda del equipo arriba); en vertical, al revés.
+// `x`, `y`, `w` = colocación en % para el PDF (ataque hacia arriba; esquina superior del puesto).
 export const ZONES = [
-  { key: "extremo_l", pos: "extremo", side: "l", label: "Ext. izq.", x: 15, y: 4, w: 27 },
-  { key: "delantero_centro", pos: "delantero_centro", label: "Del. centro", x: 50, y: 4, w: 28 },
-  { key: "extremo_r", pos: "extremo", side: "r", label: "Ext. dcho.", x: 85, y: 4, w: 27 },
-  { key: "mediapunta", pos: "mediapunta", label: "Mediapunta", x: 50, y: 19, w: 28 },
-  { key: "interior_l", pos: "interior", side: "l", label: "Int. izq.", x: 15, y: 34, w: 27 },
-  { key: "mediocentro", pos: "mediocentro", label: "Mediocentro", x: 50, y: 34, w: 28 },
-  { key: "interior_r", pos: "interior", side: "r", label: "Int. dcho.", x: 85, y: 34, w: 27 },
-  { key: "lateral_l", pos: "lateral", side: "l", label: "Lat. izq.", x: 14, y: 49, w: 27 },
-  { key: "central", pos: "central", label: "Central", x: 50, y: 49, w: 28 },
-  { key: "lateral_r", pos: "lateral", side: "r", label: "Lat. dcho.", x: 86, y: 49, w: 27 },
-  { key: "libre", pos: "libre", label: "Libre", x: 50, y: 66, w: 28 },
-  { key: "portero", pos: "portero", label: "Portero", x: 50, y: 82, w: 28 },
+  { key: "extremo_l", pos: "extremo", side: "l", label: "Ext. izq.", line: 5, lane: "l", x: 15, y: 4, w: 27 },
+  { key: "delantero_centro", pos: "delantero_centro", label: "Del. centro", line: 5, lane: "c", x: 50, y: 4, w: 28 },
+  { key: "extremo_r", pos: "extremo", side: "r", label: "Ext. dcho.", line: 5, lane: "r", x: 85, y: 4, w: 27 },
+  { key: "mediapunta", pos: "mediapunta", label: "Mediapunta", line: 4, lane: "c", x: 50, y: 19, w: 28 },
+  { key: "interior_l", pos: "interior", side: "l", label: "Int. izq.", line: 3, lane: "l", x: 15, y: 34, w: 27 },
+  { key: "mediocentro", pos: "mediocentro", label: "Mediocentro", line: 3, lane: "c", x: 50, y: 34, w: 28 },
+  { key: "interior_r", pos: "interior", side: "r", label: "Int. dcho.", line: 3, lane: "r", x: 85, y: 34, w: 27 },
+  { key: "lateral_l", pos: "lateral", side: "l", label: "Lat. izq.", line: 2, lane: "l", x: 14, y: 49, w: 27 },
+  { key: "central", pos: "central", label: "Central", line: 2, lane: "c", x: 50, y: 49, w: 28 },
+  { key: "lateral_r", pos: "lateral", side: "r", label: "Lat. dcho.", line: 2, lane: "r", x: 86, y: 49, w: 27 },
+  { key: "libre", pos: "libre", label: "Libre", line: 1, lane: "c", x: 50, y: 66, w: 28 },
+  { key: "portero", pos: "portero", label: "Portero", line: 0, lane: "c", x: 50, y: 82, w: 28 },
 ];
 export const zoneByKey = (key) => ZONES.find((z) => z.key === key) || null;
-
-// Puestos que siempre se enseñan (vacíos también, para poder añadir un objetivo); los demás salen solo si hay alguien o si se piden todos.
-const CORE = {
-  f11: ["extremo_l", "delantero_centro", "extremo_r", "mediocentro", "lateral_l", "central", "lateral_r", "portero"],
-  f7: ["extremo_l", "extremo_r", "mediapunta", "lateral_l", "central", "lateral_r", "portero"],
-};
-export const isCoreZone = (format, key) => (CORE[format === "f7" ? "f7" : "f11"] || []).includes(key);
+/** «Lateral izquierdo», «Central», «Delantero centro»… */
+export const zoneTitle = (z) => (z ? `${POSITION_LABEL[z.pos]}${z.side ? (z.side === "l" ? " izquierdo" : " derecho") : ""}` : "");
+/** Puesto (clave) de una posición y un lado; null si no existe. */
+export function zoneKeyOf(position, side) {
+  if (!POSITION_LABEL[position]) return null;
+  if (hasSides(position)) return side === "l" || side === "r" ? `${position}_${side}` : null;
+  return ZONES.find((z) => z.pos === position)?.key || null;
+}
 
 /** Lado del equipo («l» | «r») según la lateralidad del jugador: zurdo a la izquierda, diestro a la derecha; sin dato o ambidiestro, null. */
 export function sideOfLaterality(laterality) {
@@ -73,20 +95,24 @@ export function birthYearOf(p) {
   return y && y > 1900 ? y : null;
 }
 
-// Orden de las personas de un puesto: jugadores actuales (continúan → dudas → se van) y luego los objetivos de scouting
-const rankOf = (it) => (it.kind === "scout" ? 10 : STATUS_RANK[it.status] ?? 0);
+// Orden de las personas de un puesto: jugadores actuales (continúan → dudas → se van), luego los objetivos y luego los seguidos
+const rankOf = (it) => (it.kind === "scout" ? SCOUT_RANK[it.status] ?? 10 : STATUS_RANK[it.status] ?? 0);
 
 /**
- * Plantilla prevista de un equipo: {zones, items, unplaced, summary, orphans}.
+ * Plantilla prevista de un equipo: {zones, items, unplaced, needs, summary, orphans}.
  *  - players: jugadores del equipo (los de baja no cuentan); scouted: jugadores de scouting; entries: `SquadPlanEntry` de ese equipo y temporada.
- *  - zones: cada puesto del campograma con sus personas (jugadores actuales primero, por estado, y luego los objetivos).
- *  - unplaced: personas sin posición (no caben en el campo); orphans: objetivos cuyo jugador de scouting ya no existe (se ignoran).
+ *  - zones: cada puesto del campograma con sus personas (jugadores actuales primero, por estado, y luego objetivos y seguidos) y, si se ha
+ *    marcado a reforzar, `need` = {entryId, note}.
+ *  - unplaced: personas sin posición (no caben en el campo); needs: puestos a reforzar; orphans: objetivos cuyo jugador de scouting ya no existe.
+ *  - cada persona lleva `zone` (clave de su puesto o null), `moved` (colocada a mano en otro puesto) y, si se va, `leave`.
  */
 export function buildPlan({ players = [], scouted = [], entries = [] } = {}) {
   const entryOfPlayer = new Map();
   const scoutEntries = [];
+  const needEntries = new Map();
   for (const e of entries) {
     if (e.kind === "scout") scoutEntries.push(e);
+    else if (e.kind === "need") { if (zoneByKey(e.ref_id)) needEntries.set(e.ref_id, e); }
     else if (e.ref_id) entryOfPlayer.set(e.ref_id, e);
   }
   const scoutedById = new Map(scouted.map((s) => [s.id, s]));
@@ -95,9 +121,13 @@ export function buildPlan({ players = [], scouted = [], entries = [] } = {}) {
   for (const p of players) {
     if (p.status === "baja") continue;
     const e = entryOfPlayer.get(p.id) || null;
+    const status = STATUS[e?.status] ? e.status : "continua";
+    const moved = !!(e && POSITION_LABEL[e.position]);
+    const position = moved ? e.position : p.position || null;
+    const side = moved && (e.side === "l" || e.side === "r") ? e.side : sideOfLaterality(p.laterality);
     items.push({
-      key: `p:${p.id}`, kind: "player", id: p.id, entryId: e?.id || null, name: tokenLabel(p), year: birthYearOf(p),
-      position: p.position || null, side: sideOfLaterality(p.laterality), status: STATUS[e?.status] ? e.status : "continua",
+      key: `p:${p.id}`, kind: "player", id: p.id, entryId: e?.id || null, name: playerFullName(p) || tokenLabel(p), short: tokenLabel(p), year: birthYearOf(p),
+      position, naturalPosition: p.position || null, side, moved, status, leave: status === "sale" && LEAVE[e?.leave] ? e.leave : null,
       note: e?.note || "", injured: p.status === "lesionado", source: p,
     });
   }
@@ -105,10 +135,12 @@ export function buildPlan({ players = [], scouted = [], entries = [] } = {}) {
   for (const e of scoutEntries) {
     const s = scoutedById.get(e.ref_id);
     if (!s) { orphans += 1; continue; }
+    const role = e.role === "seguido" ? "seguido" : "objetivo";
     items.push({
-      key: `s:${s.id}`, kind: "scout", id: s.id, entryId: e.id || null, name: tokenLabel(s), year: birthYearOf(s),
-      position: e.position || s.position || null, side: e.side === "l" || e.side === "r" ? e.side : sideOfLaterality(s.laterality),
-      status: "objetivo", decision: s.decision || "", rating: s.rating || 0, club: s.current_club || "", note: e.note || "", source: s,
+      key: `s:${s.id}`, kind: "scout", id: s.id, entryId: e.id || null, name: playerFullName(s) || tokenLabel(s), short: tokenLabel(s), year: birthYearOf(s),
+      position: e.position || s.position || null, naturalPosition: s.position || null, side: e.side === "l" || e.side === "r" ? e.side : sideOfLaterality(s.laterality),
+      moved: !!(e.position && e.position !== s.position), status: role, role, leave: null,
+      decision: s.decision || "", rating: s.rating || 0, club: s.current_club || "", note: e.note || "", source: s,
     });
   }
 
@@ -130,17 +162,24 @@ export function buildPlan({ players = [], scouted = [], entries = [] } = {}) {
     return zone;
   };
   const sorted = [...items].sort((a, b) => Number(!a.side) - Number(!b.side) || a.name.localeCompare(b.name, "es"));
-  const zoneKeyOf = new Map(sorted.map((it) => [it.key, place(it)]));
+  const zoneKeyOfItem = new Map(sorted.map((it) => [it.key, place(it)]));
+  for (const it of items) it.zone = zoneKeyOfItem.get(it.key) || null;
 
   const order = (a, b) => rankOf(a) - rankOf(b) || (a.year || 9999) - (b.year || 9999) || a.name.localeCompare(b.name, "es");
-  const zones = ZONES.map((z) => ({ ...z, items: items.filter((it) => zoneKeyOf.get(it.key) === z.key).sort(order) }));
-  const unplaced = items.filter((it) => !zoneKeyOf.get(it.key)).sort(order);
-  return { zones, items, unplaced, summary: summarize(items), orphans };
+  const zones = ZONES.map((z) => {
+    const n = needEntries.get(z.key);
+    return { ...z, items: items.filter((it) => it.zone === z.key).sort(order), need: n ? { entryId: n.id || null, note: n.note || "" } : null };
+  });
+  const unplaced = items.filter((it) => !it.zone).sort(order);
+  return { zones, items, unplaced, needs: zones.filter((z) => z.need), summary: summarize(items), orphans };
 }
 
-/** Cuenta de la plantilla prevista: continúan + objetivos; las dudas y los que se van, aparte. Por grupo de posición y total. */
+/**
+ * Cuenta de la plantilla prevista: continúan + objetivos. Las dudas, los que se van (con baja del club / baja propia) y los jugadores seguidos
+ * van aparte. Por grupo de posición y total.
+ */
 export function summarize(items) {
-  const blank = () => ({ continua: 0, duda: 0, sale: 0, objetivo: 0, prevista: 0 });
+  const blank = () => ({ continua: 0, duda: 0, sale: 0, club: 0, propia: 0, objetivo: 0, seguido: 0, prevista: 0 });
   const total = blank();
   const groups = Object.fromEntries(GROUPS.map((g) => [g, blank()]));
   const sinPosicion = blank();
@@ -148,40 +187,85 @@ export function summarize(items) {
     const g = groupOf(it.position);
     for (const bucket of [total, g ? groups[g] : sinPosicion]) {
       bucket[it.status] += 1;
+      if (it.status === "sale" && it.leave) bucket[it.leave] += 1;
       if (it.status === "continua" || it.status === "objetivo") bucket.prevista += 1;
     }
   }
   return { total, groups, sinPosicion };
 }
 
-/** Puestos que se dibujan: los básicos del formato y los demás solo si tienen gente (o todos si `showAll`). */
-export function visibleZones(plan, format, showAll = false) {
-  return plan.zones.filter((z) => showAll || isCoreZone(format, z.key) || z.items.length > 0);
+// ── Guardar cambios en el plan ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Colocar a una persona en otro puesto: lo que se guarda en su registro (`position` y `side`). Un jugador del club que vuelve a su puesto de
+ * la ficha no necesita ajuste (null); un objetivo siempre guarda su puesto.
+ */
+export function movePatch(item, zone) {
+  if (item.kind === "scout") return { position: zone.pos, side: zone.side || null };
+  const s = item.source || {};
+  const natural = zone.pos === s.position && (!zone.side || zone.side === sideOfLaterality(s.laterality));
+  return natural ? { position: null, side: null } : { position: zone.pos, side: zone.side || null };
 }
 
-/** Fichas que se dibujan en un puesto con hasta `max` filas: si hay más gente, se ven `max-1` y la última fila es «+N más». */
-export function zoneRows(items, max = 3) {
-  if (items.length <= max) return { shown: items, more: 0 };
-  return { shown: items.slice(0, max - 1), more: items.length - (max - 1) };
+/** Datos limpios del registro de un jugador del club: «se va» es el único estado con tipo de baja; sin puesto elegido no hay lado. */
+export function playerPatch({ status, leave, position, side, note } = {}) {
+  const st = STATUS[status] ? status : "continua";
+  const pos = POSITION_LABEL[position] ? position : null;
+  return {
+    status: st,
+    leave: st === "sale" && LEAVE[leave] ? leave : null,
+    position: pos,
+    side: pos && (side === "l" || side === "r") ? side : null,
+    note: String(note || "").trim(),
+  };
+}
+
+/** ¿El registro de un jugador no dice nada (continúa, sin puesto cambiado ni nota)? Entonces no hace falta guardarlo (o se borra). */
+export const isBlankPlayerPatch = (p) => p.status === "continua" && !p.position && !p.note;
+
+/**
+ * Todo lo que hay que guardar al colocar a alguien en un puesto: {kind:"scout", patch} (cambia su registro) o {kind:"player", patch, blank}
+ * (registro completo de un jugador; si `blank`, ya no dice nada y se borra o no se crea).
+ */
+export function moveChange(item, zone) {
+  const mv = movePatch(item, zone);
+  if (item.kind === "scout") return { kind: "scout", patch: mv };
+  const patch = playerPatch({ status: item.status, leave: item.leave, note: item.note, ...mv });
+  return { kind: "player", patch, blank: isBlankPlayerPatch(patch) };
+}
+
+/** Los registros del plan tal y como quedarán al colocar a `item` en `zone`: sirve para pintar el cambio al instante, antes de que conteste el servidor. */
+export function withMovedItem(entries, item, zone) {
+  const ch = moveChange(item, zone);
+  if (ch.kind === "scout") return entries.map((e) => (e.id === item.entryId ? { ...e, ...ch.patch } : e));
+  const rest = entries.filter((e) => !(e.kind !== "scout" && e.kind !== "need" && e.ref_id === item.id));
+  if (ch.blank) return rest;
+  return [...rest, { id: item.entryId || `tmp-${item.id}`, kind: "player", ref_id: item.id, ...ch.patch }];
 }
 
 // ── PDF del campograma (`src/lib/squadPlanPdf.js`) ──────────────────────────────────────────────────────────────────────────
-export const PDF_ZONE_ROWS = 4;
 const POS_INDEX = Object.fromEntries(POSITIONS.map((p, i) => [p, i]));
 const byPositionThenRank = (a, b) => (POS_INDEX[a.position] ?? 99) - (POS_INDEX[b.position] ?? 99) || rankOf(a) - rankOf(b)
   || (a.year || 9999) - (b.year || 9999) || a.name.localeCompare(b.name, "es");
 
-/** «Continúa», «Duda», «Se va» u «Objetivo». */
-export const statusLabel = (it) => (it.kind === "scout" ? "Objetivo" : STATUS[it.status]?.label || STATUS.continua.label);
+/** «Continúa», «Duda», «Baja del club», «Baja propia», «Se va» (sin concretar), «Objetivo» o «Seguido». */
+export function statusLabel(it) {
+  if (it.kind === "scout") return it.status === "seguido" ? "Seguido" : "Objetivo";
+  if (it.status === "sale") return LEAVE[it.leave]?.label || STATUS.sale.label;
+  return STATUS[it.status]?.label || STATUS.continua.label;
+}
 
-/** Listas aparte del PDF: objetivos de scouting, dudas, los que se van y los que no tienen posición (no salen en el campo). */
+/** Listas aparte del PDF: objetivos, jugadores seguidos, dudas, los que se van, los que no tienen posición y los puestos a reforzar. */
 export function pdfLists(plan) {
   const players = plan.items.filter((i) => i.kind === "player");
+  const scouts = plan.items.filter((i) => i.kind === "scout");
   return {
-    objetivos: plan.items.filter((i) => i.kind === "scout").sort(byPositionThenRank),
+    objetivos: scouts.filter((i) => i.status === "objetivo").sort(byPositionThenRank),
+    seguidos: scouts.filter((i) => i.status === "seguido").sort(byPositionThenRank),
     dudas: players.filter((i) => i.status === "duda").sort(byPositionThenRank),
-    salen: players.filter((i) => i.status === "sale").sort(byPositionThenRank),
+    salen: players.filter((i) => i.status === "sale").sort((a, b) => (a.leave === b.leave ? 0 : a.leave === "club" ? -1 : b.leave === "club" ? 1 : 0) || byPositionThenRank(a, b)),
     sinPosicion: plan.unplaced,
+    refuerzos: plan.needs || [],
   };
 }
 
@@ -191,5 +275,3 @@ export function squadByGroup(items) {
   return lines.filter((l) => l.items.length).map((l) => ({ ...l, items: [...l.items].sort(byPositionThenRank) }));
 }
 
-/** ¿Algún puesto de los dibujados tiene más gente de la que cabe en el PDF? (entonces se añade la plantilla completa) */
-export const hasHiddenPeople = (zones, max = PDF_ZONE_ROWS) => zones.some((z) => zoneRows(z.items, max).more > 0);
