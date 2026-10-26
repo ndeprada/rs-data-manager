@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   nextSeason, buildPlan, summarize, sideOfLaterality, birthYearOf, hasSides, groupOf, ZONES, zoneByKey,
-  zoneKeyOf, zoneTitle, movePatch, playerPatch, isBlankPlayerPatch, moveChange, withMovedItem, buildPassSummary, LEAVE, ROLE,
+  zoneKeyOf, zoneTitle, movePatch, playerPatch, isBlankPlayerPatch, moveChange, withMovedItem, buildPassSummary, bulkPassCandidates, bulkPassOps, statusLabel, LEAVE, ROLE,
 } from '../src/lib/squadPlan.js';
 
 // ── Temporada siguiente ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -357,7 +357,7 @@ assert.equal(buildPlan({ players: [P('x', 'A', 'B', 'central')], entries: [{ kin
   assert.equal(withMovedItem([e1], gA1, zoneByKey('lateral_r')).length, 1);
 
   // Qué se guarda en el registro
-  assert.deepEqual(playerPatch({ status: 'sale', leave: 'club', toTeam: 'tB', note: 'x' }), { status: 'continua', leave: null, position: null, side: null, note: 'x', to_team_id: 'tB' }, 'con pase no hay baja');
+  assert.deepEqual(playerPatch({ status: 'sale', leave: 'club', toTeam: 'tB', note: 'x' }), { status: 'sale', leave: 'club', position: null, side: null, note: 'x', to_team_id: 'tB' }, 'quien llega a otro equipo puede quedar como baja en el plan del destino');
   assert.equal(playerPatch({ status: 'duda', toTeam: 'tB' }).status, 'duda');
   assert.equal(playerPatch({ toTeam: null }).to_team_id, null, 'quitar el pase');
   assert.equal('to_team_id' in playerPatch({ status: 'duda' }), false, 'sin decir nada del pase, no se toca');
@@ -403,5 +403,63 @@ assert.equal(buildPlan({ players: [P('x', 'A', 'B', 'central')], entries: [{ kin
   // Coherente con el plan de cada equipo: lo que llega a Juvenil B sale allí como «viene de» y en su origen como «pasa a»
   const planB = buildPlan({ players: players.filter((p) => p.team_id === 'tB'), arrivals: players.filter((p) => ['a1', 'a2', 'a3', 'a5'].includes(p.id)), entries, teams, teamId: 'tB' });
   assert.equal(planB.items.filter((i) => i.pass === 'in').length, S.matrix.tA.tB, 'el resumen y el plan del destino cuentan los mismos pases');
+}
+
+// ── Pasar un equipo entero a otro y baja de quien llega ───────────────────────────────────────────────────────────────────────
+{
+  const teams = [{ id: 'tA', name: 'Cadet S16 A' }, { id: 'tB', name: 'Juvenil C' }, { id: 'tC', name: 'Juvenil A' }];
+  const P = (id, first, position, extra = {}) => ({ id, team_id: 'tA', first_name: first, last_name: 'Prat', position, birth_year: 2010, status: 'activo', ...extra });
+  const players = [P('p5', 'Eva', null), P('p4', 'Dan', 'extremo'), P('p3', 'Cris', 'lateral'), P('p2', 'Bru', 'central'), P('p1', 'Ada', 'portero'), P('p6', 'Fer', 'central', { status: 'baja' })];
+  const E = (id, ref, extra = {}) => ({ id, kind: 'player', ref_id: ref, team_id: 'tA', season: '2027-2028', status: 'continua', note: '', ...extra });
+  const entries = [E('e2', 'p2', { status: 'duda', note: 'valorar' }), E('e3', 'p3', { status: 'sale', leave: 'club' }), E('e4', 'p4', { to_team_id: 'tC', position: 'extremo', side: 'l' })];
+  const plan = buildPlan({ players, entries, teams, teamId: 'tA' });
+
+  const cands = bulkPassCandidates(plan, 'tB');
+  assert.deepEqual(cands.map((c) => c.id), ['p1', 'p2', 'p3', 'p4', 'p5'], 'por puestos (portero, central, lateral, extremo, sin posición); el de baja del club (jugador) no está');
+  assert.deepEqual(cands.map((c) => c.checked), [true, true, false, false, true], 'marcados los que continúan o dudan; no los que se van ni los que ya pasan a otro equipo');
+  assert.deepEqual([cands[3].passTeam.name, cands[3].already, cands[3].status], ['Juvenil A', false, 'continua'], 'ya pasa a otro equipo');
+  assert.equal(bulkPassCandidates(plan, 'tC')[3].already, true, 'ya pasa al equipo elegido');
+  assert.deepEqual([cands[2].status, cands[2].leave, cands[1].status, cands[1].note], ['sale', 'club', 'duda', 'valorar']);
+  assert.deepEqual(bulkPassCandidates(null), [], 'sin plan no hay nada');
+  assert.equal(bulkPassCandidates({ items: [{ kind: 'scout', status: 'objetivo' }, { kind: 'player', pass: 'in', status: 'continua' }] }).length, 0, 'ni objetivos ni quienes llegan de otro equipo');
+
+  const ops = bulkPassOps(cands, ['p1', 'p2', 'p3', 'p4', 'zz'], 'tB');
+  assert.deepEqual(ops.map((o) => o.ref_id), ['p1', 'p2', 'p3', 'p4'], 'solo los elegidos que existen');
+  assert.deepEqual(ops.map((o) => o.entryId), [null, 'e2', 'e3', 'e4'], 'se actualiza el registro que ya existe y se crea el que no');
+  assert.deepEqual(ops[0].patch, { to_team_id: 'tB', status: 'continua', leave: null, position: null, side: null });
+  assert.equal(ops[1].patch.status, 'duda', 'quien dudaba sigue dudando');
+  assert.deepEqual([ops[2].patch.status, ops[2].patch.leave], ['continua', null], 'pasar a alguien que se iba lo deja como continúa (un pase no es una baja)');
+  assert.deepEqual([ops[3].patch.to_team_id, ops[3].patch.position, ops[3].patch.side], ['tB', null, null], 'se vuelve a encaminar y se coloca por su ficha');
+  assert.deepEqual(bulkPassOps(bulkPassCandidates(plan, 'tC'), ['p4'], 'tC'), [], 'ya pasa a ese equipo: no se repite');
+  assert.deepEqual(bulkPassOps(cands, ['p1'], null), [], 'sin equipo destino no se hace nada');
+  assert.deepEqual(bulkPassOps(cands, [], 'tB'), []);
+
+  // Después del pase en bloque: el origen los ve como «pasa a» y el destino como «viene de», contando solo a los que vienen
+  const after = [...entries.filter((e) => !ops.some((o) => o.entryId === e.id)), ...ops.map((o, i) => ({ ...E(o.entryId || `n${i}`, o.ref_id), ...o.patch }))];
+  const planA = buildPlan({ players, entries: after, teams, teamId: 'tA' });
+  assert.deepEqual([planA.items.filter((i) => i.pass === 'out').length, planA.summary.total.prevista, planA.summary.total.pasa], [4, 1, 4], 'en el origen solo cuenta quien no pasa (Eva)');
+  const planB = buildPlan({ players: [], arrivals: players.filter((p) => p.status !== 'baja'), entries: after, teams, teamId: 'tB' });
+  assert.deepEqual([planB.items.length, planB.summary.total.llega, planB.summary.total.prevista, planB.summary.total.duda], [4, 4, 3, 1], 'en el destino llegan 4: 3 seguros y 1 duda');
+  assert.equal(planB.items.find((i) => i.id === 'p1').zone, 'portero', 'llega a su puesto natural');
+  assert.equal(buildPassSummary({ entries: after, players, teams }).total, 4, 'el resumen del club los cuenta');
+
+  // Marcar baja a quien llega: en el destino va en rojo sin contar y en el origen sigue «pasa a»
+  const bajaEntries = after.map((e) => (e.ref_id === 'p2' ? { ...e, status: 'sale', leave: 'club' } : e.ref_id === 'p3' ? { ...e, status: 'sale', leave: 'propia' } : e));
+  const planB2 = buildPlan({ players: [], arrivals: players.filter((p) => p.status !== 'baja'), entries: bajaEntries, teams, teamId: 'tB' });
+  const i2 = planB2.items.find((i) => i.id === 'p2');
+  assert.deepEqual([i2.status, i2.leave, i2.pass, i2.passTeam.name], ['sale', 'club', 'in', 'Cadet S16 A']);
+  const t2 = planB2.summary.total;
+  assert.deepEqual([t2.sale, t2.club, t2.propia, t2.llega, t2.prevista], [2, 1, 1, 2, 2], 'las bajas no llegan ni cuentan en la plantilla prevista');
+  assert.equal(statusLabel(i2), 'Baja del club · viene de Cadet S16 A');
+  const planA2 = buildPlan({ players, entries: bajaEntries, teams, teamId: 'tA' });
+  const o2 = planA2.items.find((i) => i.id === 'p2');
+  assert.deepEqual([o2.pass, o2.passStatus, o2.passLeave, o2.status], ['out', 'sale', 'club', 'pasa']);
+  assert.equal(statusLabel(o2), 'Pasa a Juvenil C · baja del club');
+  assert.equal(planA2.summary.total.sale, 0, 'la baja se cuenta en el plan donde se marca (el destino)');
+  assert.equal(buildPassSummary({ entries: bajaEntries, players, teams }).total, 2, 'quien queda como baja ya no es un pase del club');
+  // Mover a una baja que llega por el campo no le quita la baja
+  const mv = moveChange(i2, zoneByKey('extremo_r'));
+  assert.deepEqual([mv.patch.status, mv.patch.leave, mv.patch.position, mv.blank], ['sale', 'club', 'extremo', false]);
+  assert.equal(statusLabel(planB.items.find((i) => i.id === 'p1')), 'Continúa · viene de Cadet S16 A');
 }
 console.log('squadPlan ok');

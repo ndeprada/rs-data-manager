@@ -48,7 +48,7 @@ export function ClubPassesDialog({ summary, loading, season, onClose, onOpen, on
           </DialogDescription>
         </DialogHeader>
         {!loading && total === 0 && (
-          <p className="text-sm text-gray-500 py-4 text-center" data-testid="passes-empty">Se crean desde la ventana de un jugador (campo «Equipo») o con «Traer de otro equipo».</p>
+          <p className="text-sm text-gray-500 py-4 text-center" data-testid="passes-empty">Se crean desde la ventana de un jugador (campo «Equipo»), con «Traer de otro equipo» o con «Pasar el equipo entero».</p>
         )}
         {!loading && total > 0 && (
           <div className="space-y-4">

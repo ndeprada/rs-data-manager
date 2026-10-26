@@ -327,9 +327,16 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
     title(`BAJAS · ${lists.salen.length}  (${lists.salen.filter((i) => i.leave === "club").length} del club · ${lists.salen.filter((i) => i.leave === "propia").length} propias)`, TONE.sale);
     table(["Jugador", "Año", "Puesto", "Tipo de baja", "Nota"], lists.salen.map((it) => [person(it), it.year || "–", posOf(it), statusLabel(it), it.note || ""]), () => "sale");
   }
+  // «Viene de X (duda)», «Viene de X (baja propia)» o «Pasa a X (baja del club)»: lo que se ha marcado en el plan del destino
+  const moveText = (it) => {
+    const label = (k) => (LEAVE[k]?.label || "se va").toLowerCase();
+    const extra = it.pass === "in" ? (it.status === "duda" ? "duda" : it.status === "sale" ? label(it.leave) : "")
+      : it.pass === "out" && it.passStatus === "sale" ? label(it.passLeave) : "";
+    return passText(it) + (extra ? ` (${extra})` : "");
+  };
   if (lists.pases.length) {
     title(`PASES ENTRE EQUIPOS · ${lists.pases.length}  (${total.llega} llegan · ${total.pasa} pasan)`, PASS);
-    table(["Jugador", "Año", "Puesto", "Movimiento", "Nota"], lists.pases.map((it) => [person(it), it.year || "–", it.pass === "in" ? posOf(it) : posOf({ position: it.passPosition }), passText(it) + (it.pass === "in" && it.status === "duda" ? " (duda)" : ""), it.note || ""]), () => "pase");
+    table(["Jugador", "Año", "Puesto", "Movimiento", "Nota"], lists.pases.map((it) => [person(it), it.year || "–", it.pass === "in" ? posOf(it) : posOf({ position: it.passPosition }), moveText(it), it.note || ""]), () => "pase");
   }
   if (lists.dudas.length) {
     title(`DUDAS · ${lists.dudas.length}`, TONE.duda);

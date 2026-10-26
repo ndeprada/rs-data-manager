@@ -8,7 +8,9 @@
 // puede estar colocado a mano en otro puesto (`position` y `side` del registro mandan sobre la ficha).
 // Pases entre equipos del club (solo dentro del plan: el `team_id` real del jugador no se toca): el registro del jugador lleva `to_team_id` = equipo
 // al que pasa. En su equipo sale como «Pasa a X» (estado `pasa`, no cuenta en la plantilla prevista) y en el equipo destino como «Viene de X»
-// (cuenta como un jugador más: continúa o duda; `position`/`side` del registro son su puesto en el equipo destino).
+// (cuenta como un jugador más si continúa; `position`/`side` del registro son su puesto en el equipo destino). Quien llega también puede quedar
+// como «se va» (baja del club o propia: `status:"sale"` + `leave` en el mismo registro): en el destino sale en rojo, sin contar, y en su equipo
+// sigue como «Pasa a X». Se puede pasar un equipo entero de golpe (`bulkPassCandidates` / `bulkPassOps`).
 // El campograma tiene el ataque hacia la derecha (o hacia arriba en vertical), así que izquierda y derecha son las del equipo.
 import { tokenLabel } from "./tacticsBoard.js";
 import { playerFullName } from "./playerName.js";
@@ -25,7 +27,7 @@ export const STATUS = {
   sale: { label: "Se va", tone: "red" },
 };
 export const STATUS_KEYS = ["continua", "duda", "sale"];
-/** Estados que puede tener un jugador que pasa a otro equipo (o que llega de otro): ni «se va» ni baja, porque sigue en el club. */
+/** Estados que se ofrecen a un jugador que pasa a otro equipo desde su propio equipo: sigue en el club (quien llega al destino sí puede «irse»). */
 export const PASS_STATUS_KEYS = ["continua", "duda"];
 const STATUS_RANK = { continua: 0, duda: 1, pasa: 2, sale: 3 };
 
@@ -141,7 +143,7 @@ export function buildPlan({ players = [], scouted = [], entries = [], arrivals =
     if (e?.to_team_id && e.to_team_id !== teamId) { // pasa a otro equipo: en este campo se queda en su puesto de la ficha, sin contar
       items.push({
         ...common, position: p.position || null, side: sideOfLaterality(p.laterality), moved: false, status: "pasa", leave: null,
-        pass: "out", passTeam: teamRef(e.to_team_id), passStatus: e.status === "duda" ? "duda" : "continua",
+        pass: "out", passTeam: teamRef(e.to_team_id), passStatus: STATUS[e.status] ? e.status : "continua", passLeave: e.status === "sale" && LEAVE[e.leave] ? e.leave : null,
         passPosition: POSITION_LABEL[e.position] ? e.position : null, passSide: e.side === "l" || e.side === "r" ? e.side : null,
       });
       continue;
@@ -156,12 +158,13 @@ export function buildPlan({ players = [], scouted = [], entries = [], arrivals =
     const e = incomingEntries.get(p.id);
     if (!e || p.status === "baja" || ownIds.has(p.id)) continue;
     const moved = POSITION_LABEL[e.position] ? true : false;
+    const status = STATUS[e.status] ? e.status : "continua";
     items.push({
       key: `p:${p.id}`, kind: "player", id: p.id, entryId: e.id || null, name: playerFullName(p) || tokenLabel(p), short: tokenLabel(p), year: birthYearOf(p),
       naturalPosition: p.position || null, note: e.note || "", injured: p.status === "lesionado", source: p,
       position: moved ? e.position : p.position || null,
       side: moved && (e.side === "l" || e.side === "r") ? e.side : sideOfLaterality(p.laterality),
-      moved, status: e.status === "duda" ? "duda" : "continua", leave: null, pass: "in", passTeam: teamRef(e.team_id),
+      moved, status, leave: status === "sale" && LEAVE[e.leave] ? e.leave : null, pass: "in", passTeam: teamRef(e.team_id),
     });
   }
   let orphans = 0;
@@ -209,8 +212,8 @@ export function buildPlan({ players = [], scouted = [], entries = [], arrivals =
 
 /**
  * Cuenta de la plantilla prevista: continúan + objetivos. Las dudas, los que se van (con baja del club / baja propia), los que pasan a otro
- * equipo (`pasa`) y los jugadores seguidos van aparte. Los que llegan de otro equipo cuentan como un jugador más (continúa o duda) y además
- * se anotan en `llega`. Por grupo de posición y total.
+ * equipo (`pasa`) y los jugadores seguidos van aparte. Los que llegan de otro equipo cuentan como un jugador más (continúa o duda, o baja si
+ * se les ha marcado) y los que vienen de verdad (no baja) se anotan además en `llega`. Por grupo de posición y total.
  */
 export function summarize(items) {
   const blank = () => ({ continua: 0, duda: 0, sale: 0, club: 0, propia: 0, pasa: 0, llega: 0, objetivo: 0, seguido: 0, prevista: 0 });
@@ -222,7 +225,7 @@ export function summarize(items) {
     for (const bucket of [total, g ? groups[g] : sinPosicion]) {
       bucket[it.status] += 1;
       if (it.status === "sale" && it.leave) bucket[it.leave] += 1;
-      if (it.pass === "in") bucket.llega += 1;
+      if (it.pass === "in" && it.status !== "sale") bucket.llega += 1;
       if (it.status === "continua" || it.status === "objetivo") bucket.prevista += 1;
     }
   }
@@ -244,12 +247,11 @@ export function movePatch(item, zone) {
 
 /**
  * Datos limpios del registro de un jugador del club: «se va» es el único estado con tipo de baja; sin puesto elegido no hay lado. `toTeam` =
- * equipo al que pasa (id): con él solo valen «continúa» o «duda» (sigue en el club) y se guarda `to_team_id`; `toTeam: null` quita el pase y
- * sin `toTeam` (undefined) no se toca.
+ * equipo al que pasa (id), que se guarda en `to_team_id`; `toTeam: null` quita el pase y sin `toTeam` (undefined) no se toca. Quien llega a
+ * otro equipo también puede quedar «se va» (baja marcada en el plan del destino).
  */
 export function playerPatch({ status, leave, position, side, note, toTeam } = {}) {
-  const passing = !!toTeam;
-  const st = STATUS[status] && !(passing && status === "sale") ? status : "continua";
+  const st = STATUS[status] ? status : "continua";
   const pos = POSITION_LABEL[position] ? position : null;
   const patch = {
     status: st,
@@ -272,7 +274,7 @@ export const isBlankPlayerPatch = (p) => p.status === "continua" && !p.position 
 export function moveChange(item, zone) {
   const mv = movePatch(item, zone);
   if (item.kind === "scout") return { kind: "scout", patch: mv };
-  const patch = playerPatch({ status: item.pass ? item.passStatus || item.status : item.status, leave: item.leave, note: item.note, ...mv });
+  const patch = playerPatch({ status: item.pass === "out" ? item.passStatus || item.status : item.status, leave: item.leave ?? item.passLeave, note: item.note, ...mv });
   return { kind: "player", patch, blank: !item.pass && isBlankPlayerPatch(patch) }; // un jugador con pase nunca queda «en blanco»: el pase sigue en su registro
 }
 
@@ -297,8 +299,11 @@ export const passText = (it) => (it?.pass === "out" ? `Pasa a ${it.passTeam.name
 /** «Continúa», «Duda», «Baja del club», «Baja propia», «Se va» (sin concretar), «Pasa a X», «Continúa · viene de X», «Objetivo» o «Seguido». */
 export function statusLabel(it) {
   if (it.kind === "scout") return it.status === "seguido" ? "Seguido" : "Objetivo";
-  if (it.pass === "out") return passText(it);
-  if (it.status === "sale") return LEAVE[it.leave]?.label || STATUS.sale.label;
+  if (it.pass === "out") return it.passStatus === "sale" ? `${passText(it)} · ${(LEAVE[it.passLeave]?.label || STATUS.sale.label).toLowerCase()}` : passText(it);
+  if (it.status === "sale") {
+    const label = LEAVE[it.leave]?.label || STATUS.sale.label;
+    return it.pass === "in" ? `${label} · viene de ${it.passTeam.name}` : label;
+  }
   const base = STATUS[it.status]?.label || STATUS.continua.label;
   return it.pass === "in" ? `${base} · viene de ${it.passTeam.name}` : base;
 }
@@ -324,7 +329,7 @@ export function pdfLists(plan) {
  *  - rows: un pase por jugador {key, id, entryId, name, year, position, side, placeLabel, status:"continua"|"duda", note, from, to};
  *  - groups: un grupo por pareja origen → destino, ordenados por equipo y, dentro, por puesto: {from, to, rows};
  *  - teams: los equipos que intervienen (en el orden de `teams`), `matrix` = nº de pases por [origen][destino], `total`.
- * Se ignoran los jugadores que ya no existen o están de baja, y los registros cuyo destino es el mismo equipo.
+ * Se ignoran los jugadores que ya no existen o están de baja, los pases marcados como baja en el destino y los registros cuyo destino es el mismo equipo.
  */
 export function buildPassSummary({ entries = [], players = [], teams = [] } = {}) {
   const byId = new Map(players.map((p) => [p.id, p]));
@@ -333,6 +338,7 @@ export function buildPassSummary({ entries = [], players = [], teams = [] } = {}
   const rows = [];
   for (const e of entries) {
     if (e.kind !== "player" || !e.ref_id || !e.to_team_id || !e.team_id || e.to_team_id === e.team_id || seen.has(e.ref_id)) continue;
+    if (e.status === "sale") continue; // marcado como baja en el plan del destino: ya no es un pase
     const p = byId.get(e.ref_id);
     if (!p || p.status === "baja") continue;
     seen.add(e.ref_id);
@@ -362,6 +368,43 @@ export function buildPassSummary({ entries = [], players = [], teams = [] } = {}
     .sort((a, b) => order(a.from.id) - order(b.from.id) || order(a.to.id) - order(b.to.id) || a.from.name.localeCompare(b.from.name, "es") || a.to.name.localeCompare(b.to.name, "es"))
     .map((g) => ({ ...g, rows: [...g.rows].sort((a, b) => (POS_INDEX[a.position] ?? 99) - (POS_INDEX[b.position] ?? 99) || (a.year || 9999) - (b.year || 9999) || a.name.localeCompare(b.name, "es")) }));
   return { rows, groups, teams: involved, matrix, total: rows.length };
+}
+
+// ── Pasar un equipo entero a otro ───────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Jugadores del plan de un equipo que se pueden pasar de golpe a otro (los que llegan de otros equipos no cuentan: no son de este equipo).
+ * Una fila por jugador, por puestos: {id, entryId, name, year, position, status, leave, note, passTeam (equipo al que ya pasa o null), already
+ * (ya pasa a `toTeamId`), checked (propuesta inicial)}. Vienen marcados los que continúan o dudan; sin marcar los que se van y los que ya pasan
+ * a otro equipo, y `already` no se puede volver a pasar.
+ */
+export function bulkPassCandidates(plan, toTeamId = null) {
+  return [...(plan?.items || [])]
+    .filter((i) => i.kind === "player" && i.pass !== "in")
+    .sort(byPositionThenRank)
+    .map((i) => {
+      const out = i.pass === "out";
+      const already = out && !!toTeamId && i.passTeam.id === toTeamId;
+      return {
+        id: i.id, entryId: i.entryId || null, name: i.name, year: i.year, position: i.position, status: out ? i.passStatus : i.status,
+        leave: out ? i.passLeave || null : i.leave || null, note: i.note || "", passTeam: out ? i.passTeam : null, already,
+        checked: !out && (i.status === "continua" || i.status === "duda"),
+      };
+    });
+}
+
+/**
+ * Lo que hay que guardar para pasar a `selectedIds` a `toTeamId`: una operación por jugador, {entryId, ref_id, patch}. Con `entryId` se actualiza
+ * su registro y sin él se crea uno nuevo. Pasa como «continúa» (o «duda» si ya dudaba), sin baja y sin puesto propio en el destino (se coloca
+ * por su ficha); la nota se conserva. Se saltan los que ya pasan a ese mismo equipo y los ids que no están entre los candidatos.
+ */
+export function bulkPassOps(candidates, selectedIds, toTeamId) {
+  if (!toTeamId) return [];
+  const chosen = new Set(selectedIds);
+  return candidates.filter((c) => chosen.has(c.id) && !c.already).map((c) => ({
+    entryId: c.entryId, ref_id: c.id,
+    patch: { to_team_id: toTeamId, status: c.status === "duda" ? "duda" : "continua", leave: null, position: null, side: null },
+  }));
 }
 
 /** Toda la plantilla prevista por líneas (Porteros, Defensas, Medios, Delanteros y «Sin posición»), sin las líneas vacías. */

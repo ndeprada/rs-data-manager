@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowRightLeft, Binoculars, ChevronsUp, Eye, FileDown, Network, Target } from "lucide-react";
+import { ArrowRightLeft, Binoculars, ChevronsUp, Eye, FileDown, Network, Target, Users } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,7 +14,7 @@ import {
 } from "@/lib/squadPlan";
 import SquadPitch from "./SquadPitch";
 import { usePlanDrag, DragGhost } from "./usePlanDrag";
-import { ItemDialog, ZoneDialog, AddTargetDialog, AddClubDialog, ItemRow } from "./SquadPlanDialogs";
+import { ItemDialog, ZoneDialog, AddTargetDialog, AddClubDialog, BulkPassDialog, ItemRow } from "./SquadPlanDialogs";
 import { ClubPassesDialog } from "./SquadPasses";
 import { DOT, LEAVE_TAG, PASS_TAG } from "./squadPlanUi";
 
@@ -72,6 +72,7 @@ export default function SquadPlanning() {
   const [clubOpen, setClubOpen] = useState(false);
   const [clubZone, setClubZone] = useState(null);
   const [passesOpen, setPassesOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const { data: teams = [], isLoading: loadingTeams } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const team = teams.find((t) => t.id === teamId) || teams[0] || null;
@@ -175,6 +176,26 @@ export default function SquadPlanning() {
     },
     onError: fail,
   });
+  // Pasar el equipo entero (o los que se dejen marcados) a otro equipo: un registro de pase por jugador, de pocos en pocos para no saturar el servidor
+  const bulkPass = useMutation({
+    mutationFn: async ({ ops }) => {
+      for (let i = 0; i < ops.length; i += 4) {
+        await Promise.all(ops.slice(i, i + 4).map((o) => (o.entryId
+          ? E.update(o.entryId, o.patch)
+          : E.create({ season, team_id: tid, kind: "player", ref_id: o.ref_id, note: "", ...o.patch }))));
+      }
+      return ops.length;
+    },
+    onSuccess: (n, { dest }) => {
+      refresh(); setBulkOpen(false); setItemOpen(null); setZoneOpen(null); setTeamId(dest);
+      const destName = teams.find((t) => t.id === dest)?.name || "otro equipo";
+      toast({ title: `${n} jugador${n === 1 ? "" : "es"} de ${team?.name || "este equipo"} pasa${n === 1 ? "" : "n"} a ${destName}.`, description: `Estás viendo el plan de ${destName}: ahí puedes marcar bajas, añadir de scouting o cancelar pases.` });
+    },
+    onError: (err) => {
+      refresh(); // puede que algunos ya se hayan guardado
+      toast({ title: "No se han podido pasar todos", description: `${err?.message || "Inténtalo de nuevo."} Revisa el plan y repite: los que ya pasan no se duplican.`, variant: "destructive" });
+    },
+  });
   const setNeed = useMutation({
     mutationFn: async ({ zone, on, note }) => {
       const n = String(note || "").trim();
@@ -231,7 +252,7 @@ export default function SquadPlanning() {
   };
   // Tocar un pase del resumen: se va al plan del equipo al que llega y se abre ahí su ventana (el plan se carga solo)
   const openPassFromSummary = (row) => { setTeamId(row.to.id); setItemOpen(row.key); setZoneOpen(null); setPassesOpen(false); };
-  const busy = savePlayer.isPending || saveScout.isPending || removeScout.isPending || addScout.isPending || setNeed.isPending || cancelPass.isPending || addClub.isPending;
+  const busy = savePlayer.isPending || saveScout.isPending || removeScout.isPending || addScout.isPending || setNeed.isPending || cancelPass.isPending || addClub.isPending || bulkPass.isPending;
 
   const openAdd = (zone = null) => { setAddZone(zone); setAddOpen(true); };
   const openClub = (zone = null) => { setClubZone(zone); setClubOpen(true); };
@@ -260,6 +281,9 @@ export default function SquadPlanning() {
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => openClub(null)} disabled={!team} className="border-teal-300 text-teal-800 hover:bg-teal-50" data-testid="plan-add-club">
             <ArrowRightLeft className="w-4 h-4 mr-1.5" /> Traer de otro equipo
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => setBulkOpen(true)} disabled={!team || loading} className="border-teal-300 text-teal-800 hover:bg-teal-50" data-testid="plan-bulk-open">
+            <Users className="w-4 h-4 mr-1.5" /> Pasar el equipo entero
           </Button>
           <Button type="button" size="sm" onClick={() => openAdd(null)} style={{ background: "var(--granate)" }} className="text-white" data-testid="plan-add">
             <Binoculars className="w-4 h-4 mr-1.5" /> Añadir de scouting
@@ -381,6 +405,9 @@ export default function SquadPlanning() {
       {addOpen && (
         <AddTargetDialog scouted={scouted} taken={taken} zone={addZone} busy={busy} onClose={() => { setAddOpen(false); setAddZone(null); }}
           onPick={(p, role) => addScout.mutate({ p, zone: addZone, role })} />
+      )}
+      {bulkOpen && team && (
+        <BulkPassDialog key={team.id} plan={plan} team={team} teams={teams} busy={bulkPass.isPending} onClose={() => setBulkOpen(false)} onConfirm={(v) => bulkPass.mutate(v)} />
       )}
       {passesOpen && (
         <ClubPassesDialog summary={passSummary} loading={loadingClubPlayers || loadingSeasonEntries} season={season} onClose={() => setPassesOpen(false)}

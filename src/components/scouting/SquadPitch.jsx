@@ -12,41 +12,52 @@ const LANE = { l: 0, c: 1, r: 2 };
 // Anchos de las 6 líneas en horizontal (portero, libre, defensas, medios, mediapunta, delanteros): los medios quedan a caballo de la línea de medio campo
 const COLS_H = "minmax(0,12fr) minmax(0,12fr) minmax(0,21fr) minmax(0,21fr) minmax(0,14fr) minmax(0,20fr)";
 const MIN_H_WIDTH = 780; // el campo en horizontal nunca es más estrecho que esto (más estrecho, los nombres no caben)
-const TOP_SPACE = 270; // alto (px) que ocupan encima del campo el selector de equipo y el resumen; el resto de la pantalla es para el campo
+const MAX_H_WIDTH = 1500; // ni más ancho que esto (en monitores enormes)
+const TOP_SPACE = 310; // alto (px) que ocupan encima del campo el selector de equipo y el resumen (y el borde del campo); el resto de la pantalla es para el campo
+const FLAT = 0.66; // lo más «achatado» que se dibuja el campo para que quepa en la pantalla: alto/ancho = este factor × la proporción de un campo de verdad
 const COMPACT_BELOW = 520; // por debajo (móvil) las fichas se compactan: nombre arriba y año/etiquetas debajo
 
-function useWidth() {
+// Ancho y alto de un elemento (se actualizan solos al cambiar de tamaño)
+function useSize() {
   const ref = useRef(null);
-  const [width, setWidth] = useState(0);
+  const [size, setSize] = useState({ w: 0, h: 0 });
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
-    setWidth(el.getBoundingClientRect().width);
+    const read = (w, h) => setSize((o) => (Math.abs(o.w - w) < 0.5 && Math.abs(o.h - h) < 0.5 ? o : { w, h }));
+    const r = el.getBoundingClientRect();
+    read(r.width, r.height);
     if (typeof ResizeObserver === "undefined") return undefined;
-    const ro = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    const ro = new ResizeObserver(([entry]) => read(entry.contentRect.width, entry.contentRect.height));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  return [ref, width];
+  return [ref, size];
 }
 
 const LINE = "rgba(255,255,255,0.78)";
 
-/** Campo a escala dibujado en metros (siempre en horizontal) y girado si va en vertical. Las líneas no se deforman al estirarse (non-scaling-stroke). */
-function PitchSvg({ isF7, vertical }) {
+/**
+ * Campo a escala dibujado en metros (siempre en horizontal) y girado si va en vertical. Las líneas no se deforman al estirarse (non-scaling-stroke).
+ * `k` = cuánto está achatado el campo en pantalla respecto a uno de verdad (1 = proporción real; menos, más ancho que alto): los círculos se
+ * dibujan como elipses para que en pantalla sigan redondos.
+ */
+function PitchSvg({ isF7, vertical, k = 1 }) {
+  const kx = Math.min(1, k), ky = Math.min(1, 1 / k); // radio en horizontal (x) y en vertical (y) de un círculo que debe verse redondo
   const uid = useId().replace(/:/g, "");
   const L = isF7 ? 65 : 105, W = isF7 ? 45 : 68, cy = W / 2;
   const stripes = isF7 ? 10 : 14;
   const m = 0.5;
   const st = { fill: "none", stroke: LINE, strokeWidth: 2, vectorEffect: "non-scaling-stroke" };
-  const spot = (x) => <circle cx={x} cy={cy} r={0.45} fill={LINE} />;
+  const spot = (x) => <ellipse cx={x} cy={cy} rx={0.45 * kx} ry={0.45 * ky} fill={LINE} />;
   const F = F7_FIELD;
   const area = isF7 ? { w: F.areaWidth, d: F.areaDepth } : { w: 40.32, d: 16.5 };
   const goalArea = isF7 ? { w: F.goalAreaWidth, d: F.goalAreaDepth } : { w: 18.32, d: 5.5 };
   const spotAt = isF7 ? F.penaltySpot : 11;
   const circleR = isF7 ? F.centreRadius : 9.15;
   const goalW = isF7 ? F.goalWidth : 7.32;
-  const arcDy = isF7 ? 0 : Math.sqrt(9.15 ** 2 - (area.d - spotAt) ** 2); // el arco del área solo en F11
+  const arcRx = circleR * kx, arcRy = circleR * ky;
+  const arcDy = isF7 ? 0 : arcRy * Math.sqrt(Math.max(0, 1 - ((area.d - spotAt) / arcRx) ** 2)); // el arco del área solo en F11
   const vb = vertical ? `0 0 ${W} ${L}` : `0 0 ${L} ${W}`;
   return (
     <svg className="absolute inset-0 w-full h-full" viewBox={vb} preserveAspectRatio="none" aria-hidden="true" data-testid="plan-pitch-svg">
@@ -62,7 +73,7 @@ function PitchSvg({ isF7, vertical }) {
         ))}
         <rect x={m} y={m} width={L - 2 * m} height={W - 2 * m} {...st} />
         <line x1={L / 2} y1={m} x2={L / 2} y2={W - m} {...st} />
-        <circle cx={L / 2} cy={cy} r={circleR} {...st} />
+        <ellipse cx={L / 2} cy={cy} rx={arcRx} ry={arcRy} {...st} />
         {spot(L / 2)}
         {/* Áreas, puntos de penalti, arcos y porterías (la de la derecha es la de la izquierda reflejada) */}
         {[0, 1].map((side) => {
@@ -73,7 +84,7 @@ function PitchSvg({ isF7, vertical }) {
               <rect x={side ? rx(area.d) : x0} y={cy - area.w / 2} width={area.d} height={area.w} {...st} />
               <rect x={side ? rx(goalArea.d) : x0} y={cy - goalArea.w / 2} width={goalArea.d} height={goalArea.w} {...st} />
               {spot(side ? L - m - spotAt : m + spotAt)}
-              {arcDy > 0 && <path d={`M ${rx(area.d)} ${cy - arcDy} A ${circleR} ${circleR} 0 0 ${side ? 0 : 1} ${rx(area.d)} ${cy + arcDy}`} {...st} />}
+              {arcDy > 0 && <path d={`M ${rx(area.d)} ${cy - arcDy} A ${arcRx} ${arcRy} 0 0 ${side ? 0 : 1} ${rx(area.d)} ${cy + arcDy}`} {...st} />}
               <rect x={side ? L - m - 1.2 : m} y={cy - goalW / 2} width={1.2} height={goalW} fill="rgba(255,255,255,0.14)" stroke={LINE} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
             </g>
           );
@@ -84,8 +95,8 @@ function PitchSvg({ isF7, vertical }) {
             <line x1={L - m - F.offsideLine} y1={m} x2={L - m - F.offsideLine} y2={W - m} vectorEffect="non-scaling-stroke" />
           </g>
         )}
-        {[`M ${m} ${m + 1} A 1 1 0 0 0 ${m + 1} ${m}`, `M ${L - m - 1} ${m} A 1 1 0 0 0 ${L - m} ${m + 1}`,
-          `M ${L - m} ${W - m - 1} A 1 1 0 0 0 ${L - m - 1} ${W - m}`, `M ${m + 1} ${W - m} A 1 1 0 0 0 ${m} ${W - m - 1}`].map((d) => <path key={d} d={d} {...st} />)}
+        {[`M ${m} ${m + ky} A ${kx} ${ky} 0 0 0 ${m + kx} ${m}`, `M ${L - m - kx} ${m} A ${kx} ${ky} 0 0 0 ${L - m} ${m + ky}`,
+          `M ${L - m} ${W - m - ky} A ${kx} ${ky} 0 0 0 ${L - m - kx} ${W - m}`, `M ${m + kx} ${W - m} A ${kx} ${ky} 0 0 0 ${m} ${W - m - ky}`].map((d) => <path key={d} d={d} {...st} />)}
       </g>
       <rect x="0" y="0" width={vertical ? W : L} height={vertical ? L : W} fill={`url(#vig${uid})`} />
     </svg>
@@ -192,24 +203,32 @@ function ZoneCell({ zone, vertical, compact, hot, dragging, draggingKey, onZone,
 
 /** zones: todos los puestos de `buildPlan`; drag: {item, over} mientras se arrastra a alguien. */
 export default function SquadPitch({ zones, isF7, drag, onZone, onAdd, onItem, onGrab, wasDrag }) {
-  const [wrapRef, avail] = useWidth(); // ancho disponible: decide la orientación
+  const [wrapRef, { w: avail }] = useSize(); // ancho disponible: decide la orientación
+  const [boxRef, box] = useSize(); // tamaño real del campo en pantalla: para que los círculos se vean redondos
   const vertical = avail > 0 && avail < HORIZONTAL_FROM;
   const compact = vertical && avail < COMPACT_BELOW;
   const L = isF7 ? 65 : 105, W = isF7 ? 45 : 68;
-  const ratio = vertical ? L / W : W / L; // alto mínimo = ancho × ratio: el campo nunca es más bajo que un campo de verdad
-  // En horizontal el campo no pasa de lo que cabe en la altura de la pantalla (así se ve entero sin bajar): ancho = (alto − lo de arriba) / proporción
-  const fit = vertical ? undefined : `max(${MIN_H_WIDTH}px, calc((100vh - ${TOP_SPACE}px) / ${(ratio + 0.02).toFixed(3)}))`;
+  const ratio = vertical ? L / W : W / L; // alto / ancho de un campo de verdad
+  // En vertical el campo mide como mínimo lo de uno de verdad. En horizontal aprovecha todo el ancho y, para verse entero sin bajar, se achata
+  // lo justo (hasta FLAT × la proporción real) para llegar al borde de la pantalla; en pantallas bajas se estrecha antes que achatarse más.
+  const flat = ratio * FLAT;
+  const cap = vertical ? undefined : `max(${MIN_H_WIDTH}px, min(${MAX_H_WIDTH}px, calc((100vh - ${TOP_SPACE}px) / ${flat.toFixed(4)} + 16px)))`;
+  const minHeight = vertical
+    ? `calc(100cqw * ${ratio.toFixed(4)})`
+    : `clamp(calc(100cqw * ${flat.toFixed(4)}), calc(100vh - ${TOP_SPACE}px), calc(100cqw * ${ratio.toFixed(4)}))`;
+  const real = L / W; // largo / ancho de un campo de verdad
+  const k = box.w > 0 && box.h > 0 ? (vertical ? (box.w / box.h) * real : (box.h / box.w) * real) : 1;
   return (
     <div ref={wrapRef} data-testid="plan-pitch-wrap">
-      <div data-testid="plan-pitch" data-orient={vertical ? "v" : "h"} data-format={isF7 ? "f7" : "f11"} className={`mx-auto rounded-2xl shadow-sm ${compact ? "p-1" : "p-1.5 sm:p-2"}`} style={{ background: "#2c6a3f", maxWidth: fit }}>
-        <div className="relative overflow-hidden rounded-md" style={{ containerType: "inline-size" }}>
-          <PitchSvg isF7={isF7} vertical={vertical} />
+      <div data-testid="plan-pitch" data-orient={vertical ? "v" : "h"} data-format={isF7 ? "f7" : "f11"} className={`mx-auto rounded-2xl shadow-sm ${compact ? "p-1" : "p-1.5 sm:p-2"}`} style={{ background: "#2c6a3f", maxWidth: cap }}>
+        <div ref={boxRef} className="relative overflow-hidden rounded-md" style={{ containerType: "inline-size" }}>
+          <PitchSvg isF7={isF7} vertical={vertical} k={k} />
           <div
             className={`relative grid ${compact ? "gap-1 p-1" : "gap-1 p-1"}`}
             style={{
               gridTemplateColumns: vertical ? "repeat(3, minmax(0, 1fr))" : COLS_H,
               gridTemplateRows: vertical ? "repeat(6, auto)" : "repeat(3, 1fr)", // en vertical cada línea mide lo que ocupa su gente y el resto se reparte
-              minHeight: `calc(100cqw * ${ratio.toFixed(4)})`,
+              minHeight,
             }}
           >
             {zones.map((z) => (

@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from "react";
-import { ArrowRightLeft, Binoculars, ChevronsUp, Eye, Search, Star, Target, Trash2 } from "lucide-react";
+import { ArrowRightLeft, Binoculars, ChevronsUp, Eye, Search, Star, Target, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { playerFullName, matchesPlayerSearch } from "@/lib/playerName";
 import {
-  STATUS, STATUS_KEYS, PASS_STATUS_KEYS, LEAVE, LEAVE_KEYS, ROLE, ROLE_KEYS, POSITION_LABEL, ZONES, zoneByKey, zoneKeyOf, zoneTitle, movePatch, passText, birthYearOf,
+  STATUS, STATUS_KEYS, PASS_STATUS_KEYS, LEAVE, LEAVE_KEYS, ROLE, ROLE_KEYS, POSITION_LABEL, ZONES, zoneByKey, zoneKeyOf, zoneTitle, movePatch, passText, birthYearOf, bulkPassCandidates, bulkPassOps,
 } from "@/lib/squadPlan";
 import { DOT, STATUS_BTN, DECISION, LEAVE_TAG, PASS_TAG } from "./squadPlanUi";
 
@@ -59,9 +60,10 @@ export function ItemDialog({ item, team, teams = [], onClose, onSavePlayer, onSa
   const isScout = item.kind === "scout";
   const incoming = item.pass === "in";
   const [toTeam, setToTeam] = useState(item.pass === "out" ? item.passTeam.id : null);
-  const passing = !!toTeam || incoming;
   const [status, setStatus] = useState(item.pass === "out" ? item.passStatus : item.status);
-  const [leave, setLeave] = useState(item.leave || null);
+  // Quien pasa a otro equipo desde el suyo solo continúa o duda (sigue en el club); quien llega al destino también puede quedar como baja
+  const statusKeys = !incoming && toTeam && status !== "sale" ? PASS_STATUS_KEYS : STATUS_KEYS;
+  const [leave, setLeave] = useState(item.leave || item.passLeave || null);
   const [role, setRole] = useState(isScout ? item.status : "objetivo");
   const [note, setNote] = useState(item.note || "");
   const [zoneKey, setZoneKey] = useState(
@@ -103,8 +105,8 @@ export function ItemDialog({ item, team, teams = [], onClose, onSavePlayer, onSa
           {!isScout ? (
             <div>
               <Label>Próxima temporada</Label>
-              <div className={`grid gap-2 ${passing ? "grid-cols-2" : "grid-cols-3"}`}>
-                {(passing ? PASS_STATUS_KEYS : STATUS_KEYS).map((k) => (
+              <div className={`grid gap-2 ${statusKeys === PASS_STATUS_KEYS ? "grid-cols-2" : "grid-cols-3"}`}>
+                {statusKeys.map((k) => (
                   <button key={k} type="button" data-testid={`status-${k}`} onClick={() => setStatus(k)}
                     className={`rounded-lg border-2 px-2 py-2 text-sm font-bold ${status === k ? STATUS_BTN[k] : "border-gray-200 text-gray-500"}`}>{STATUS[k].label}</button>
                 ))}
@@ -118,7 +120,7 @@ export function ItemDialog({ item, team, teams = [], onClose, onSavePlayer, onSa
                         className={`rounded-lg border-2 px-2 py-1.5 text-sm font-bold ${leave === k ? STATUS_BTN.sale : "border-gray-200 text-gray-500"}`}>{LEAVE[k].label}</button>
                     ))}
                   </div>
-                  <p className="text-[11px] text-gray-500 mt-1.5">Baja del club: lo decide el club (no renueva). Baja propia: se va el jugador o su familia.</p>
+                  <p className="text-[11px] text-gray-500 mt-1.5">Baja del club: lo decide el club (no renueva). Baja propia: se va el jugador o su familia.{incoming ? ` No cuenta en la plantilla prevista de ${team?.name || "este equipo"}; en ${item.passTeam.name} sigue saliendo como «Pasa a ${team?.name || "este equipo"}».` : ""}</p>
                 </div>
               )}
             </div>
@@ -355,6 +357,77 @@ export function AddClubDialog({ players, teams, team, zone, passes, onClose, onP
               </button>
             );
           })}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
+/**
+ * Pasar el equipo entero a otro equipo del club (propuesta inicial): se elige el equipo destino, se desmarca a quien no sigue y se crean todos los pases
+ * de golpe. Solo cambia el plan; en su ficha de jugador no cambia nada. `plan` = plan del equipo actual; `onConfirm({ ops, dest })` guarda los pases.
+ */
+export function BulkPassDialog({ plan, team, teams, onClose, onConfirm, busy }) {
+  const [dest, setDest] = useState("");
+  const cands = useMemo(() => bulkPassCandidates(plan, dest || null), [plan, dest]);
+  const [picked, setPicked] = useState(() => new Set(bulkPassCandidates(plan).filter((c) => c.checked).map((c) => c.id)));
+  const others = teams.filter((t) => t.id !== team?.id);
+  const destName = dest ? teams.find((t) => t.id === dest)?.name || "otro equipo" : "";
+  const selectable = cands.filter((c) => !c.already);
+  const n = selectable.filter((c) => picked.has(c.id)).length;
+  const toggle = (id) => setPicked((s) => { const next = new Set(s); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const tag = (c) => {
+    if (c.already) return <span className="text-[10px] font-bold text-teal-700 shrink-0">Ya pasa aquí</span>;
+    if (c.passTeam) return <span className="text-[10px] font-bold text-gray-500 shrink-0">Ya pasa a {c.passTeam.name}</span>;
+    if (c.status === "sale") return <span className={`text-[9px] font-extrabold uppercase px-1 rounded shrink-0 ${LEAVE_TAG}`}>{LEAVE[c.leave]?.label || STATUS.sale.label}</span>;
+    if (c.status === "duda") return <span className="text-[10px] font-bold uppercase text-amber-600 shrink-0">Duda</span>;
+    return null;
+  };
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto" data-testid="plan-bulk-dialog">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Users className="w-5 h-5 text-teal-600" /> Pasar el equipo entero</DialogTitle>
+          <DialogDescription>
+            Los jugadores de {team?.name || "este equipo"} que dejes marcados entran como propuesta en el plan del equipo que elijas. Solo cambia el plan: en su ficha de jugador no cambia nada. Luego podrás marcar bajas o añadir de scouting en el plan del destino.
+          </DialogDescription>
+        </DialogHeader>
+        <div>
+          <Label>Pasan a…</Label>
+          <Select value={dest || undefined} onValueChange={(v) => v && setDest(v)}>
+            <SelectTrigger data-testid="bulk-dest"><SelectValue placeholder="Elige el equipo de la próxima temporada" /></SelectTrigger>
+            <SelectContent>{others.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <Label>Jugadores ({n} de {selectable.length})</Label>
+            <div className="flex gap-1 -mt-1.5">
+              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setPicked(new Set(selectable.map((c) => c.id)))} data-testid="bulk-all">Todos</Button>
+              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setPicked(new Set())} data-testid="bulk-none">Ninguno</Button>
+            </div>
+          </div>
+          <div className="max-h-72 overflow-y-auto divide-y divide-gray-100 rounded-xl border border-gray-200" data-testid="bulk-list">
+            {cands.length === 0 && <p className="text-sm text-gray-400 py-6 text-center">Este equipo no tiene jugadores en el plan.</p>}
+            {cands.map((c) => (
+              <label key={c.id} data-testid={`bulk-row-${c.id}`} className={`flex items-center gap-2 px-2.5 py-1.5 text-sm ${c.already ? "opacity-50" : "cursor-pointer hover:bg-gray-50"}`}>
+                <Checkbox checked={!c.already && picked.has(c.id)} disabled={c.already} onCheckedChange={() => toggle(c.id)} />
+                <span className="font-semibold text-gray-900 truncate">{c.name}</span>
+                {c.year && <span className="text-xs text-gray-400 tabular-nums">{c.year}</span>}
+                <span className="text-xs text-gray-500 truncate">{c.position ? POSITION_LABEL[c.position] : "Sin posición"}</span>
+                <span className="ml-auto">{tag(c)}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        {dest && n > 0 && <p className="text-[11px] text-teal-800" data-testid="bulk-hint">En {team?.name || "este equipo"} se verán en gris como «Pasa a {destName}» (dejan de contar) y en {destName} saldrán como «viene de {team?.name || "este equipo"}», en su puesto de la ficha. Lo podrás deshacer jugador a jugador con «Cancelar pase».</p>}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button type="button" disabled={!dest || n === 0 || busy} data-testid="bulk-confirm"
+            onClick={() => onConfirm({ ops: bulkPassOps(cands, [...picked], dest), dest })}>
+            {busy ? "Pasando…" : dest && n > 0 ? `Pasar ${n} jugador${n === 1 ? "" : "es"} a ${destName}` : "Pasar"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
