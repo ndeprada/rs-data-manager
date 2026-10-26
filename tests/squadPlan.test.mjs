@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   nextSeason, buildPlan, summarize, sideOfLaterality, birthYearOf, hasSides, groupOf, ZONES, zoneByKey,
-  zoneKeyOf, zoneTitle, movePatch, playerPatch, isBlankPlayerPatch, moveChange, withMovedItem, LEAVE, ROLE,
+  zoneKeyOf, zoneTitle, movePatch, playerPatch, isBlankPlayerPatch, moveChange, withMovedItem, buildPassSummary, LEAVE, ROLE,
 } from '../src/lib/squadPlan.js';
 
 // ── Temporada siguiente ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -363,5 +363,45 @@ assert.equal(buildPlan({ players: [P('x', 'A', 'B', 'central')], entries: [{ kin
   assert.equal('to_team_id' in playerPatch({ status: 'duda' }), false, 'sin decir nada del pase, no se toca');
   assert.equal(isBlankPlayerPatch(playerPatch({ toTeam: 'tB' })), false);
   assert.equal(isBlankPlayerPatch(playerPatch({ toTeam: null })), true, 'sin pase y sin nada más, el registro sobra');
+}
+
+// ── Resumen de pases de todo el club ────────────────────────────────────────────────────────────────────────────────────────
+{
+  const teams = [{ id: 'tA', name: 'Cadet S16 A' }, { id: 'tB', name: 'Juvenil B' }, { id: 'tC', name: 'Juvenil A' }, { id: 'tD', name: 'Infantil S14 A' }];
+  const P = (id, team, first, last, position, extra = {}) => ({ id, team_id: team, first_name: first, last_name: last, position, birth_year: 2010, status: 'activo', ...extra });
+  const players = [
+    P('a1', 'tA', 'Marc', 'Vila', 'central'), P('a2', 'tA', 'Dídac', 'Font', 'extremo', { laterality: 'zurdo' }), P('a3', 'tA', 'Pau', 'Montagut', 'interior', { birth_year: 2011 }),
+    P('a4', 'tA', 'Biel', 'Anglada', 'portero'), P('a5', 'tA', 'Sin', 'Posicion', null), P('b1', 'tB', 'Carles', 'Mir', 'central', { birth_year: 2008 }),
+    P('b2', 'tB', 'Baja', 'Fuera', 'central', { status: 'baja' }),
+  ];
+  const E = (id, ref, team, to, extra = {}) => ({ id, kind: 'player', ref_id: ref, team_id: team, to_team_id: to, status: 'continua', ...extra });
+  const entries = [
+    E('e1', 'a1', 'tA', 'tB'), E('e2', 'a2', 'tA', 'tB', { position: 'extremo', side: 'l', status: 'duda', note: 'Mirar en invierno' }),
+    E('e3', 'a3', 'tA', 'tB', { position: 'mediocentro' }), E('e4', 'b1', 'tB', 'tA'), E('e5', 'a4', 'tA', 'tC'),
+    E('e6', 'a5', 'tA', 'tB'),
+    // No son pases: sin destino, destino = origen, de scouting, de un jugador que ya no existe o dado de baja, duplicado
+    { id: 'x1', kind: 'player', ref_id: 'a1', team_id: 'tA', status: 'duda' }, E('x2', 'a4', 'tA', 'tA'), { id: 'x3', kind: 'scout', ref_id: 's1', to_team_id: 'tB', team_id: 'tA' },
+    E('x4', 'zz', 'tA', 'tB'), E('x5', 'b2', 'tB', 'tA'), E('x6', 'a1', 'tA', 'tC'), { id: 'x7', kind: 'need', ref_id: 'central', team_id: 'tA' },
+  ];
+  const S = buildPassSummary({ entries, players, teams });
+  assert.equal(S.total, 6, 'seis pases: los otros registros no cuentan');
+  assert.deepEqual(S.rows.map((r) => r.id).sort(), ['a1', 'a2', 'a3', 'a4', 'a5', 'b1']);
+  assert.deepEqual(S.teams.map((t) => t.name), ['Cadet S16 A', 'Juvenil B', 'Juvenil A'], 'solo los equipos que intervienen, en el orden de la lista de equipos');
+  assert.equal(S.matrix.tA.tB, 4); assert.equal(S.matrix.tB.tA, 1); assert.equal(S.matrix.tA.tC, 1);
+  assert.equal(S.matrix.tC, undefined, 'sin pases desde ese equipo');
+  assert.deepEqual(S.groups.map((g) => `${g.from.name} → ${g.to.name} · ${g.rows.length}`), ['Cadet S16 A → Juvenil B · 4', 'Cadet S16 A → Juvenil A · 1', 'Juvenil B → Cadet S16 A · 1'], 'un grupo por pareja origen → destino');
+  assert.deepEqual(S.groups[0].rows.map((r) => r.id), ['a1', 'a3', 'a2', 'a5'], 'dentro del grupo, por puesto (central, mediocentro, extremo, sin puesto)');
+  const r = (id) => S.rows.find((x) => x.id === id);
+  assert.deepEqual([r('a1').year, r('a1').placeLabel, r('a1').status], [2010, 'Central', 'continua'], 'sin ajuste: el puesto de su ficha y el año de nacimiento');
+  assert.deepEqual([r('a2').placeLabel, r('a2').status, r('a2').note], ['Extremo izquierdo', 'duda', 'Mirar en invierno'], 'colocado en el destino con su lado');
+  assert.equal(r('a3').placeLabel, 'Mediocentro', 'puesto cambiado en el destino');
+  assert.equal(r('a5').placeLabel, 'Sin posición');
+  assert.deepEqual([r('b1').from.name, r('b1').to.name, r('a1').key, r('a1').entryId], ['Juvenil B', 'Cadet S16 A', 'p:a1', 'e1']);
+  assert.equal(buildPassSummary({ entries: [E('e9', 'a1', 'tA', 'tZ')], players, teams }).rows[0].to.name, 'Otro equipo', 'destino que ya no existe');
+  const empty = buildPassSummary({});
+  assert.deepEqual([empty.total, empty.groups.length, empty.teams.length], [0, 0, 0]);
+  // Coherente con el plan de cada equipo: lo que llega a Juvenil B sale allí como «viene de» y en su origen como «pasa a»
+  const planB = buildPlan({ players: players.filter((p) => p.team_id === 'tB'), arrivals: players.filter((p) => ['a1', 'a2', 'a3', 'a5'].includes(p.id)), entries, teams, teamId: 'tB' });
+  assert.equal(planB.items.filter((i) => i.pass === 'in').length, S.matrix.tA.tB, 'el resumen y el plan del destino cuentan los mismos pases');
 }
 console.log('squadPlan ok');

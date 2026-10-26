@@ -318,6 +318,52 @@ export function pdfLists(plan) {
   };
 }
 
+/**
+ * Resumen de los pases de todo el club (solo lectura): de qué equipo sale cada jugador y a cuál va.
+ *  - entries: `SquadPlanEntry` de jugadores de la temporada; players: jugadores del club; teams: equipos (para los nombres y el orden).
+ *  - rows: un pase por jugador {key, id, entryId, name, year, position, side, placeLabel, status:"continua"|"duda", note, from, to};
+ *  - groups: un grupo por pareja origen → destino, ordenados por equipo y, dentro, por puesto: {from, to, rows};
+ *  - teams: los equipos que intervienen (en el orden de `teams`), `matrix` = nº de pases por [origen][destino], `total`.
+ * Se ignoran los jugadores que ya no existen o están de baja, y los registros cuyo destino es el mismo equipo.
+ */
+export function buildPassSummary({ entries = [], players = [], teams = [] } = {}) {
+  const byId = new Map(players.map((p) => [p.id, p]));
+  const teamRef = (id) => ({ id, name: teams.find((t) => t.id === id)?.name || "Otro equipo" });
+  const seen = new Set();
+  const rows = [];
+  for (const e of entries) {
+    if (e.kind !== "player" || !e.ref_id || !e.to_team_id || !e.team_id || e.to_team_id === e.team_id || seen.has(e.ref_id)) continue;
+    const p = byId.get(e.ref_id);
+    if (!p || p.status === "baja") continue;
+    seen.add(e.ref_id);
+    const placed = !!POSITION_LABEL[e.position];
+    const position = placed ? e.position : p.position || null;
+    const side = placed && (e.side === "l" || e.side === "r") ? e.side : null;
+    const zone = zoneByKey(zoneKeyOf(position, side));
+    rows.push({
+      key: `p:${p.id}`, id: p.id, entryId: e.id || null, name: playerFullName(p) || tokenLabel(p), year: birthYearOf(p), position, side,
+      placeLabel: zone && side ? zoneTitle(zone) : POSITION_LABEL[position] || "Sin posición",
+      status: e.status === "duda" ? "duda" : "continua", note: e.note || "", from: teamRef(e.team_id), to: teamRef(e.to_team_id),
+    });
+  }
+  const teamIds = new Set(rows.flatMap((r) => [r.from.id, r.to.id]));
+  const order = (id) => { const i = teams.findIndex((t) => t.id === id); return i < 0 ? 999 : i; };
+  const involved = [...teamIds].map(teamRef).sort((a, b) => order(a.id) - order(b.id) || a.name.localeCompare(b.name, "es"));
+  const matrix = {};
+  const pairs = new Map();
+  for (const r of rows) {
+    matrix[r.from.id] = matrix[r.from.id] || {};
+    matrix[r.from.id][r.to.id] = (matrix[r.from.id][r.to.id] || 0) + 1;
+    const k = `${r.from.id}>${r.to.id}`;
+    if (!pairs.has(k)) pairs.set(k, { from: r.from, to: r.to, rows: [] });
+    pairs.get(k).rows.push(r);
+  }
+  const groups = [...pairs.values()]
+    .sort((a, b) => order(a.from.id) - order(b.from.id) || order(a.to.id) - order(b.to.id) || a.from.name.localeCompare(b.from.name, "es") || a.to.name.localeCompare(b.to.name, "es"))
+    .map((g) => ({ ...g, rows: [...g.rows].sort((a, b) => (POS_INDEX[a.position] ?? 99) - (POS_INDEX[b.position] ?? 99) || (a.year || 9999) - (b.year || 9999) || a.name.localeCompare(b.name, "es")) }));
+  return { rows, groups, teams: involved, matrix, total: rows.length };
+}
+
 /** Toda la plantilla prevista por líneas (Porteros, Defensas, Medios, Delanteros y «Sin posición»), sin las líneas vacías. */
 export function squadByGroup(items) {
   const lines = [...GROUPS.map((g) => ({ group: g, items: items.filter((i) => groupOf(i.position) === g) })), { group: "Sin posición", items: items.filter((i) => !groupOf(i.position)) }];

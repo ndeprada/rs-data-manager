@@ -11,6 +11,8 @@ const HORIZONTAL_FROM = 880; // ancho (px) a partir del cual el campo se pone en
 const LANE = { l: 0, c: 1, r: 2 };
 // Anchos de las 6 líneas en horizontal (portero, libre, defensas, medios, mediapunta, delanteros): los medios quedan a caballo de la línea de medio campo
 const COLS_H = "minmax(0,12fr) minmax(0,12fr) minmax(0,21fr) minmax(0,21fr) minmax(0,14fr) minmax(0,20fr)";
+const MIN_H_WIDTH = 780; // el campo en horizontal nunca es más estrecho que esto (más estrecho, los nombres no caben)
+const TOP_SPACE = 270; // alto (px) que ocupan encima del campo el selector de equipo y el resumen; el resto de la pantalla es para el campo
 const COMPACT_BELOW = 520; // por debajo (móvil) las fichas se compactan: nombre arriba y año/etiquetas debajo
 
 function useWidth() {
@@ -109,7 +111,7 @@ function Chip({ item, compact, dragging, onOpen, onGrab, wasDrag }) {
       {item.moved && <ArrowLeftRight className="w-3 h-3 text-black/45" aria-label="puesto cambiado" />}
     </>
   );
-  const nameCls = `block ${compact ? "text-[11px]" : "text-[12px]"} leading-tight font-semibold break-words ${sale ? "line-through decoration-red-700/70" : ""}`;
+  const nameCls = `block text-[11px] leading-[1.15] font-semibold break-words ${sale ? "line-through decoration-red-700/70" : ""}`;
   return (
     <div
       role="button"
@@ -120,9 +122,9 @@ function Chip({ item, compact, dragging, onOpen, onGrab, wasDrag }) {
       data-testid={`chip-${item.key}`}
       data-status={item.status}
       title={tip}
-      className={`flex items-stretch gap-0.5 rounded-md border min-h-[30px] text-left shadow-sm cursor-pointer select-none ${compact ? "pr-1" : "pr-1.5"} ${CHIP[item.status] || CHIP.continua} ${dragging ? "opacity-35" : ""}`}
+      className={`flex items-stretch gap-0.5 rounded-md border ${compact ? "min-h-[30px] pr-1" : "min-h-[22px] pr-1"} text-left shadow-sm cursor-pointer select-none ${CHIP[item.status] || CHIP.continua} ${dragging ? "opacity-35" : ""}`}
     >
-      <span data-grip="" aria-hidden="true" className={`shrink-0 flex items-center justify-center text-black/30 ${out ? "invisible" : "touch-none cursor-grab"} ${compact ? "w-3.5" : "w-4"}`}><GripVertical className="w-3.5 h-3.5" /></span>
+      <span data-grip="" aria-hidden="true" className={`shrink-0 flex items-center justify-center text-black/30 ${out ? "invisible" : "touch-none cursor-grab"} ${compact ? "w-3.5" : "w-3 [@media(hover:hover)_and_(pointer:fine)]:hidden"}`}><GripVertical className="w-3.5 h-3.5" /></span>
       {compact ? (
         <span className="flex-1 min-w-0 py-1">
           <span className={nameCls}>{item.name}</span>
@@ -132,14 +134,14 @@ function Chip({ item, compact, dragging, onOpen, onGrab, wasDrag }) {
         </span>
       ) : (
         <>
-          <span className="flex-1 min-w-0 flex items-start gap-1 py-1 pl-0.5">
+          <span className="flex-1 min-w-0 flex items-start gap-1 py-[3px] pl-1 [@media(hover:none)]:pl-0.5">
             <span className="mt-[3px] shrink-0">{mark}</span>
             <span className="min-w-0">
               <span className={nameCls}>{item.name}</span>
-              {tags && <span className="mt-0.5 flex flex-wrap items-center gap-1">{tags}</span>}
+              {tags && <span className="mt-px flex flex-wrap items-center gap-1">{tags}</span>}
             </span>
           </span>
-          {item.year && <span className="shrink-0 self-center text-[10px] tabular-nums opacity-60">{item.year}</span>}
+          {item.year && <span className="shrink-0 self-center text-[10px] tabular-nums opacity-70">{item.year}</span>}
         </>
       )}
     </div>
@@ -161,7 +163,7 @@ function ZoneCell({ zone, vertical, compact, hot, dragging, draggingKey, onZone,
       <div
         data-testid={`zone-${zone.key}`}
         data-need={zone.need ? "1" : undefined}
-        className={`rounded-lg border flex flex-col gap-1 min-w-0 ${compact ? "p-0.5" : "p-1"} ${empty ? "border-dashed border-white/45 bg-black/30" : "border-white/30 bg-black/35"} ${ring}`}
+        className={`rounded-lg border flex flex-col ${compact ? "gap-1 p-0.5" : "gap-0.5 p-[3px]"} min-w-0 ${empty ? "border-dashed border-white/45 bg-black/30" : "border-white/30 bg-black/35"} ${ring}`}
       >
         <div className="flex items-center gap-1 min-w-0">
           <button type="button" onClick={() => onZone(zone)} data-testid={`zone-head-${zone.key}`} className="flex-1 min-w-0 flex items-center gap-1 text-left">
@@ -169,7 +171,7 @@ function ZoneCell({ zone, vertical, compact, hot, dragging, draggingKey, onZone,
             {!empty && <span className="shrink-0 rounded bg-black/45 px-1 text-[10px] font-bold leading-4 tabular-nums text-white" data-testid={`zone-count-${zone.key}`}>{zone.items.length}</span>}
           </button>
           {!compact && (
-            <button type="button" onClick={() => onAdd(zone)} aria-label={`Añadir de scouting en ${zoneTitle(zone)}`} data-testid={`zone-add-${zone.key}`} className="shrink-0 w-5 h-5 rounded bg-white/20 text-white flex items-center justify-center hover:bg-white/35">
+            <button type="button" onClick={() => onAdd(zone)} aria-label={`Añadir de scouting en ${zoneTitle(zone)}`} data-testid={`zone-add-${zone.key}`} className="shrink-0 w-[18px] h-[18px] rounded bg-white/20 text-white flex items-center justify-center hover:bg-white/35">
               <Plus className="w-3 h-3" />
             </button>
           )}
@@ -190,29 +192,33 @@ function ZoneCell({ zone, vertical, compact, hot, dragging, draggingKey, onZone,
 
 /** zones: todos los puestos de `buildPlan`; drag: {item, over} mientras se arrastra a alguien. */
 export default function SquadPitch({ zones, isF7, drag, onZone, onAdd, onItem, onGrab, wasDrag }) {
-  const [wrapRef, width] = useWidth();
-  const vertical = width > 0 && width < HORIZONTAL_FROM;
-  const compact = vertical && width < COMPACT_BELOW;
+  const [wrapRef, avail] = useWidth(); // ancho disponible: decide la orientación
+  const vertical = avail > 0 && avail < HORIZONTAL_FROM;
+  const compact = vertical && avail < COMPACT_BELOW;
   const L = isF7 ? 65 : 105, W = isF7 ? 45 : 68;
   const ratio = vertical ? L / W : W / L; // alto mínimo = ancho × ratio: el campo nunca es más bajo que un campo de verdad
+  // En horizontal el campo no pasa de lo que cabe en la altura de la pantalla (así se ve entero sin bajar): ancho = (alto − lo de arriba) / proporción
+  const fit = vertical ? undefined : `max(${MIN_H_WIDTH}px, calc((100vh - ${TOP_SPACE}px) / ${(ratio + 0.02).toFixed(3)}))`;
   return (
-    <div ref={wrapRef} data-testid="plan-pitch" data-orient={vertical ? "v" : "h"} data-format={isF7 ? "f7" : "f11"} className={`rounded-2xl shadow-sm ${compact ? "p-1" : "p-2 sm:p-3"}`} style={{ background: "#2c6a3f" }}>
-      <div className="relative overflow-hidden rounded-md" style={{ containerType: "inline-size" }}>
-        <PitchSvg isF7={isF7} vertical={vertical} />
-        <div
-          className={`relative grid ${compact ? "gap-1 p-1" : "gap-1.5 p-1.5"}`}
-          style={{
-            gridTemplateColumns: vertical ? "repeat(3, minmax(0, 1fr))" : COLS_H,
-            gridTemplateRows: vertical ? "repeat(6, auto)" : "repeat(3, 1fr)", // en vertical cada línea mide lo que ocupa su gente y el resto se reparte
-            minHeight: `calc(100cqw * ${ratio.toFixed(4)})`,
-          }}
-        >
-          {zones.map((z) => (
-            <ZoneCell
-              key={z.key} zone={z} vertical={vertical} compact={compact} hot={drag?.over === z.key} dragging={!!drag} draggingKey={drag?.item?.key}
-              onZone={onZone} onAdd={onAdd} onItem={onItem} onGrab={onGrab} wasDrag={wasDrag}
-            />
-          ))}
+    <div ref={wrapRef} data-testid="plan-pitch-wrap">
+      <div data-testid="plan-pitch" data-orient={vertical ? "v" : "h"} data-format={isF7 ? "f7" : "f11"} className={`mx-auto rounded-2xl shadow-sm ${compact ? "p-1" : "p-1.5 sm:p-2"}`} style={{ background: "#2c6a3f", maxWidth: fit }}>
+        <div className="relative overflow-hidden rounded-md" style={{ containerType: "inline-size" }}>
+          <PitchSvg isF7={isF7} vertical={vertical} />
+          <div
+            className={`relative grid ${compact ? "gap-1 p-1" : "gap-1 p-1"}`}
+            style={{
+              gridTemplateColumns: vertical ? "repeat(3, minmax(0, 1fr))" : COLS_H,
+              gridTemplateRows: vertical ? "repeat(6, auto)" : "repeat(3, 1fr)", // en vertical cada línea mide lo que ocupa su gente y el resto se reparte
+              minHeight: `calc(100cqw * ${ratio.toFixed(4)})`,
+            }}
+          >
+            {zones.map((z) => (
+              <ZoneCell
+                key={z.key} zone={z} vertical={vertical} compact={compact} hot={drag?.over === z.key} dragging={!!drag} draggingKey={drag?.item?.key}
+                onZone={onZone} onAdd={onAdd} onItem={onItem} onGrab={onGrab} wasDrag={wasDrag}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>

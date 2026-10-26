@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowRightLeft, Binoculars, ChevronsUp, Eye, FileDown, Target } from "lucide-react";
+import { ArrowRightLeft, Binoculars, ChevronsUp, Eye, FileDown, Network, Target } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,11 +10,12 @@ import { playerFullName } from "@/lib/playerName";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import {
-  nextSeason, buildPlan, zoneByKey, zoneTitle, moveChange, withMovedItem, playerPatch, isBlankPlayerPatch, GROUPS,
+  nextSeason, buildPlan, buildPassSummary, zoneByKey, zoneTitle, moveChange, withMovedItem, playerPatch, isBlankPlayerPatch, GROUPS,
 } from "@/lib/squadPlan";
 import SquadPitch from "./SquadPitch";
 import { usePlanDrag, DragGhost } from "./usePlanDrag";
 import { ItemDialog, ZoneDialog, AddTargetDialog, AddClubDialog, ItemRow } from "./SquadPlanDialogs";
+import { ClubPassesDialog } from "./SquadPasses";
 import { DOT, LEAVE_TAG, PASS_TAG } from "./squadPlanUi";
 
 // Scouting → Planificación: plantilla prevista de cada equipo para la temporada siguiente, en un campo a escala con todos los puestos a la vista
@@ -30,7 +31,7 @@ function Stat({ label, value, tone, sub }) {
     sky: "text-sky-700 bg-sky-50 border-sky-200", indigo: "text-indigo-700 bg-indigo-50 border-indigo-200", teal: "text-teal-700 bg-teal-50 border-teal-200",
   }[tone];
   return (
-    <div className={`rounded-xl border px-2 py-2 text-center ${cls}`}>
+    <div className={`rounded-xl border px-2 py-1.5 text-center ${cls}`}>
       <div className="text-xl font-black leading-none tabular-nums" data-testid={`stat-${tone}`}>{value}</div>
       <div className="text-[10px] font-bold uppercase tracking-wide mt-1">{label}</div>
       {sub !== undefined && <div className="text-[10px] leading-tight mt-0.5 opacity-80" data-testid={`stat-${tone}-sub`}>{sub}</div>}
@@ -70,6 +71,7 @@ export default function SquadPlanning() {
   const [addZone, setAddZone] = useState(null);
   const [clubOpen, setClubOpen] = useState(false);
   const [clubZone, setClubZone] = useState(null);
+  const [passesOpen, setPassesOpen] = useState(false);
 
   const { data: teams = [], isLoading: loadingTeams } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const team = teams.find((t) => t.id === teamId) || teams[0] || null;
@@ -100,12 +102,14 @@ export default function SquadPlanning() {
     queryKey: ["squad-plan-arrivals", arrivalIds.join(",")], enabled: arrivalIds.length > 0, placeholderData: (prev) => prev,
     queryFn: async () => (await Promise.all(arrivalIds.map((id) => base44.entities.Player.filter({ id })))).flat(),
   });
-  // Para «Traer de otro equipo»: todos los jugadores del club y los pases ya hechos esta temporada
-  const { data: clubPlayers = [] } = useQuery({ queryKey: ["players"], enabled: clubOpen, queryFn: () => base44.entities.Player.list() });
-  const { data: seasonEntries = [] } = useQuery({
-    queryKey: ["squad-plan-passes", season], enabled: clubOpen, queryFn: () => E.filter({ season, kind: "player" }),
+  // Para «Traer de otro equipo» y «Pases del club»: todos los jugadores del club y los pases ya hechos esta temporada (solo se piden al abrir esas ventanas)
+  const clubData = clubOpen || passesOpen;
+  const { data: clubPlayers = [], isLoading: loadingClubPlayers } = useQuery({ queryKey: ["players"], enabled: clubData, queryFn: () => base44.entities.Player.list() });
+  const { data: seasonEntries = [], isLoading: loadingSeasonEntries } = useQuery({
+    queryKey: ["squad-plan-passes", season], enabled: clubData, queryFn: () => E.filter({ season, kind: "player" }),
   });
   const passes = useMemo(() => new Map(seasonEntries.filter((e) => e.to_team_id).map((e) => [e.ref_id, e.to_team_id])), [seasonEntries]);
+  const passSummary = useMemo(() => buildPassSummary({ entries: seasonEntries, players: clubPlayers, teams }), [seasonEntries, clubPlayers, teams]);
 
   const plan = useMemo(
     () => buildPlan({ players, scouted, entries, arrivals: arrivalIds.length ? arrivals : [], teams, teamId: tid }),
@@ -117,7 +121,10 @@ export default function SquadPlanning() {
   const pases = [...plan.items.filter((i) => i.pass === "in"), ...plan.items.filter((i) => i.pass === "out")];
   const { total, groups, sinPosicion } = plan.summary;
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ["squad-plan"] }); // este equipo y los demás (un pase afecta a dos planes)
+  const refresh = () => { // este equipo y los demás (un pase afecta a dos planes) y el resumen de pases del club
+    qc.invalidateQueries({ queryKey: ["squad-plan"] });
+    qc.invalidateQueries({ queryKey: ["squad-plan-passes"] });
+  };
   const fail = (err) => toast({ title: "No se ha podido guardar", description: err?.message || "Inténtalo de nuevo.", variant: "destructive" });
 
   const savePlayer = useMutation({
@@ -163,7 +170,7 @@ export default function SquadPlanning() {
       return E.create({ season, team_id: p.team_id, kind: "player", ref_id: p.id, status: "continua", leave: null, note: "", to_team_id: tid, ...place });
     },
     onSuccess: (_d, { p }) => {
-      refresh(); qc.invalidateQueries({ queryKey: ["squad-plan-passes"] }); setClubOpen(false); setClubZone(null); setZoneOpen(null);
+      refresh(); setClubOpen(false); setClubZone(null); setZoneOpen(null);
       toast({ title: `${playerFullName(p)} viene de ${teams.find((t) => t.id === p.team_id)?.name || "otro equipo"}.` });
     },
     onError: fail,
@@ -212,6 +219,18 @@ export default function SquadPlanning() {
       toast({ title: "No se ha podido crear el PDF", description: err?.message || "Inténtalo de nuevo.", variant: "destructive" });
     } finally { setPdfBusy(false); }
   };
+  const [passesPdfBusy, setPassesPdfBusy] = useState(false);
+  const makePassesPdf = async () => {
+    setPassesPdfBusy(true);
+    try {
+      const { downloadClubPassesPDF } = await import("@/lib/squadPassesPdf");
+      await downloadClubPassesPDF({ season, summary: passSummary, logoUrl: CLUB_LOGO_URL });
+    } catch (err) {
+      toast({ title: "No se ha podido crear el PDF", description: err?.message || "Inténtalo de nuevo.", variant: "destructive" });
+    } finally { setPassesPdfBusy(false); }
+  };
+  // Tocar un pase del resumen: se va al plan del equipo al que llega y se abre ahí su ventana (el plan se carga solo)
+  const openPassFromSummary = (row) => { setTeamId(row.to.id); setItemOpen(row.key); setZoneOpen(null); setPassesOpen(false); };
   const busy = savePlayer.isPending || saveScout.isPending || removeScout.isPending || addScout.isPending || setNeed.isPending || cancelPass.isPending || addClub.isPending;
 
   const openAdd = (zone = null) => { setAddZone(zone); setAddOpen(true); };
@@ -235,6 +254,9 @@ export default function SquadPlanning() {
         <div className="ml-auto flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" size="sm" onClick={makePdf} disabled={!team || loading || pdfBusy} data-testid="plan-pdf">
             <FileDown className="w-4 h-4 mr-1.5" /> {pdfBusy ? "Creando…" : "PDF"}
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => setPassesOpen(true)} data-testid="plan-passes-open">
+            <Network className="w-4 h-4 mr-1.5" /> Pases del club
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => openClub(null)} disabled={!team} className="border-teal-300 text-teal-800 hover:bg-teal-50" data-testid="plan-add-club">
             <ArrowRightLeft className="w-4 h-4 mr-1.5" /> Traer de otro equipo
@@ -359,6 +381,10 @@ export default function SquadPlanning() {
       {addOpen && (
         <AddTargetDialog scouted={scouted} taken={taken} zone={addZone} busy={busy} onClose={() => { setAddOpen(false); setAddZone(null); }}
           onPick={(p, role) => addScout.mutate({ p, zone: addZone, role })} />
+      )}
+      {passesOpen && (
+        <ClubPassesDialog summary={passSummary} loading={loadingClubPlayers || loadingSeasonEntries} season={season} onClose={() => setPassesOpen(false)}
+          onOpen={openPassFromSummary} onPdf={makePassesPdf} pdfBusy={passesPdfBusy} />
       )}
       {clubOpen && (
         <AddClubDialog players={clubPlayers} teams={teams} team={team} zone={clubZone} passes={passes} busy={busy}
