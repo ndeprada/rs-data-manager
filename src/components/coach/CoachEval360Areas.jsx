@@ -15,6 +15,7 @@ import { avgColor } from "@/lib/coachMethod";
 import { obsAreaOf, aggregateArea } from "@/lib/coachAreaCriteria";
 import { quarterRange, inRange } from "@/lib/coachQuarters";
 import { isStageF7 } from "@/lib/coachStage";
+import { ALL_TEAMS, NO_TEAM, matchesTeamView, teamViewOptions, isMultiTeam, resolveTeamView, defaultTeamFor, teamAverages } from "@/lib/coachTeamView";
 import { ObsView, SummaryView, AreaObsDialog } from "@/components/coach/CoachObsParts";
 import SessionData from "@/components/coach/CoachSessionData";
 import CoachEval360Section from "@/components/coach/CoachEval360Section";
@@ -42,6 +43,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
   const { locale, num } = useFormat();
   const qc = useQueryClient();
   const [periodPick, setPeriodPick] = useState(null);
+  const [teamPick, setTeamPick] = useState(null); // equipo (etapa) que se está viendo; sin elegir = todos
   const [areaPick, setAreaPick] = useState(null);
   const [obsPick, setObsPick] = useState(SUMMARY);
   const [dlg, setDlg] = useState(null);
@@ -67,6 +69,16 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
   const teamName = (id) => teams.find((x) => x.id === id)?.name || "";
   // Formato de juego del equipo (fútbol 7 hasta el S12, fútbol 11 desde el S13), para proponerlo al evaluar el modelo de juego
   const teamFormat = (id) => { const tm = teams.find((x) => x.id === id); return tm ? (isStageF7(tm) ? "f7" : "f11") : null; };
+  // Si lleva más de un equipo (p. ej. uno de fútbol 7 y otro de fútbol 11) la 360 se ve y se hace equipo por equipo
+  const multi = isMultiTeam(teamIds);
+  const seasonItems = useMemo(() => [
+    ...allObs.filter((o) => (canEvaluate || o.status === "publicada") && inRange(o.date, quarterRange(CURRENT_SEASON, "all"))),
+    ...allFb.filter((f) => (canEvaluate || isShared(f)) && inRange(f.date, quarterRange(CURRENT_SEASON, "all"))),
+  ], [allObs, allFb, canEvaluate]);
+  const knownTeams = teams.length ? teams.map((x) => x.id) : null;
+  const { teamList, untagged } = teamViewOptions({ teamIds, items: seasonItems, known: knownTeams });
+  const teamView = resolveTeamView(teamPick, { multi, teamList, untagged });
+  const viewTeam = defaultTeamFor(teamView, teamIds); // equipo concreto de la vista (si la hay)
   const avgText = (n) => (n == null ? "—" : num(n, { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
   const shortDate = (d) => (d ? format(new Date(`${String(d).slice(0, 10)}T12:00:00`), "d MMM", { locale }) : "");
 
@@ -83,13 +95,14 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
   const closeOfPeriod = periods.find((p) => p.id === period) || null;
   const range = period === OPEN ? openRange : closeOfPeriod ? closeOfPeriod.range : period === ALL ? seasonRange : openRange;
   const state = period === OPEN ? "abierto" : isPublished(closeOfPeriod) ? "publicado" : closeOfPeriod ? "cerrado" : "abierto";
-  const statsFor = (r, carriedFrom) => Object.fromEntries(COACH_AREAS.map((a) => {
-    const obs = allObs.filter((o) => (canEvaluate || o.status === "publicada") && obsAreaOf(o) === a.key && inRange(o.date, r)).sort(byDateDesc);
-    const fb = allFb.filter((f) => (canEvaluate || isShared(f)) && feedbackArea(f) === a.key && inRange(f.date, r)).sort(byDateDesc);
-    const carried = carriedFrom ? carriedFeedback(allFb, CURRENT_SEASON, carriedFrom).filter((f) => (canEvaluate || isShared(f)) && feedbackArea(f) === a.key).sort(byDateDesc) : [];
+  // `view`: equipo (etapa) del que se cuentan las observaciones y el feedback; por defecto, el que se está viendo
+  const statsFor = (r, carriedFrom, view = teamView) => Object.fromEntries(COACH_AREAS.map((a) => {
+    const obs = allObs.filter((o) => (canEvaluate || o.status === "publicada") && obsAreaOf(o) === a.key && inRange(o.date, r) && matchesTeamView(o, view)).sort(byDateDesc);
+    const fb = allFb.filter((f) => (canEvaluate || isShared(f)) && feedbackArea(f) === a.key && inRange(f.date, r) && matchesTeamView(f, view)).sort(byDateDesc);
+    const carried = carriedFrom ? carriedFeedback(allFb, CURRENT_SEASON, carriedFrom).filter((f) => (canEvaluate || isShared(f)) && feedbackArea(f) === a.key && matchesTeamView(f, view)).sort(byDateDesc) : [];
     return [a.key, { obs, fb, carried, agg: aggregateArea(obs, a.key) }];
   }));
-  const perArea = useMemo(() => statsFor(range, period === ALL ? null : range), [allObs, allFb, canEvaluate, period, range.from, range.to]); // eslint-disable-line react-hooks/exhaustive-deps
+  const perArea = useMemo(() => statsFor(range, period === ALL ? null : range), [allObs, allFb, canEvaluate, period, range.from, range.to, teamView]); // eslint-disable-line react-hooks/exhaustive-deps
   const periodLabel = (p) => p.label || `${shortDate(p.range.from)} – ${shortDate(p.range.to)}`;
 
   const areaKey = areaPick || COACH_AREAS.find((a) => perArea[a.key].obs.length || perArea[a.key].fb.length)?.key || COACH_AREAS[0].key;
@@ -99,6 +112,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
 
   const pickArea = (key) => { setAreaPick(key); setObsPick(SUMMARY); };
   const pickPeriod = (id) => { setPeriodPick(id); setObsPick(SUMMARY); };
+  const pickTeamView = (id) => { setTeamPick(id); setObsPick(SUMMARY); };
 
   const refreshClose = () => { qc.invalidateQueries({ queryKey: ["coachSessionObs", staffId] }); qc.invalidateQueries({ queryKey: ["coachQuarterClose", staffId] }); };
   const progressMutation = useMutation({
@@ -153,7 +167,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
   });
   const openClosing = () => { setCloseForm({ label: "", from: openRange.from, to: today < openRange.from ? openRange.from : today }); setClosing(true); };
   const closeError = closing ? validatePeriod({ from: closeForm.from, to: closeForm.to, closes, season: CURRENT_SEASON, today }) : null;
-  const closeStats = useMemo(() => (closing && !closeError ? statsFor({ from: closeForm.from, to: closeForm.to }, null) : null), [closing, closeError, closeForm.from, closeForm.to, allObs, allFb]); // eslint-disable-line react-hooks/exhaustive-deps
+  const closeStats = useMemo(() => (closing && !closeError ? statsFor({ from: closeForm.from, to: closeForm.to }, null, ALL_TEAMS) : null), [closing, closeError, closeForm.from, closeForm.to, allObs, allFb]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Estado de una anotación: quien evalúa lo cambia; el entrenador lo ve cuando se ha publicado el trimestre de esa anotación
   const progressControl = (f) => {
@@ -186,6 +200,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
           {canEvaluate && (
             <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${isShared(f) ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{isShared(f) ? t("Compartida") : t("Interna")}</span>
           )}
+          {multi && teamView === ALL_TEAMS && f.team_id && teamName(f.team_id) && <span className="text-xs font-semibold text-gray-500">{teamName(f.team_id)}</span>}
           {f.author_name && <span className="text-xs text-gray-400">{t("Por {author_name}", { author_name: f.author_name })}</span>}
         </div>
         {hasLegacySections(f) ? (
@@ -226,6 +241,26 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
         </div>
       </div>
 
+      {multi && (
+        <div className="flex items-center gap-2 flex-wrap" data-testid="team-view">
+          <span className="text-xs font-semibold text-gray-500">{t("Equipo")}</span>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Equipo")}>
+            {[
+              { id: ALL_TEAMS, text: t("Todos") },
+              ...teamList.map((id) => ({ id, text: teamName(id) || t("Otro equipo"), fmt: teamFormat(id) })),
+              ...(untagged > 0 ? [{ id: NO_TEAM, text: `${t("Sin equipo")} (${untagged})` }] : []),
+            ].map((q) => (
+              <button key={q.id} type="button" onClick={() => pickTeamView(q.id)} aria-pressed={teamView === q.id} data-testid={`team-view-${q.id}`}
+                className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${teamView === q.id ? "bg-gray-800 text-white border-transparent" : "text-gray-600 border-gray-200 bg-white hover:bg-gray-50"}`}>
+                {q.text}
+                {q.fmt && <span className={`ml-1.5 text-[10px] font-black ${teamView === q.id ? "text-white/70" : "text-gray-400"}`}>{q.fmt === "f7" ? "F7" : "F11"}</span>}
+              </button>
+            ))}
+          </div>
+          {teamView === ALL_TEAMS && <span className="text-xs text-gray-400">{t("Vista de conjunto: elige un equipo para ver su etapa por separado.")}</span>}
+        </div>
+      )}
+
       {canEvaluate && period !== ALL && (
         <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg border border-gray-200 bg-white px-3 py-2">
           <p className="text-xs text-gray-600 flex items-center gap-1.5 flex-wrap">
@@ -236,6 +271,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
               ? <span className="text-gray-400">{t("Desde el {date}", { date: shortDate(openRange.from) })}</span>
               : <span className="text-gray-400">{closeOfPeriod?.label ? `${closeOfPeriod.label} · ` : ""}{shortDate(range.from)} – {shortDate(range.to)}{state === "publicado" && closeOfPeriod?.published_at ? ` · ${t("publicado el {date}", { date: shortDate(closeOfPeriod.published_at) })}` : ""}</span>}
             {state === "publicado" && pendingObs.length > 0 && <span className="text-amber-700 font-semibold">{t("Observaciones sin publicar: {n}", { n: pendingObs.length })}</span>}
+            {multi && <span className="text-gray-400">{t("Periodo y publicación comunes a todos sus equipos")}</span>}
           </p>
           <div className="flex gap-1.5 flex-wrap">
             {state === "abierto" && (
@@ -269,6 +305,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
         {COACH_AREAS.map((a) => {
           const d = perArea[a.key];
           const active = a.key === areaKey;
+          const byTeam = multi && teamView === ALL_TEAMS ? teamAverages(d.obs, a.key, teamList) : [];
           return (
             <div key={a.key} className="bg-white rounded-lg overflow-hidden border last:col-span-2 sm:last:col-span-1"
               style={{ borderColor: active ? a.color : "#e5e7eb", boxShadow: active ? `0 0 0 1px ${a.color}` : undefined }}>
@@ -278,6 +315,11 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
                   <p className="text-[11px] font-black uppercase leading-tight" style={{ ...FONT, color: a.color }}>{t(a.label)}</p>
                   <p className="text-3xl font-black leading-tight tabular-nums" style={{ ...FONT, color: avgColor(d.agg.overall) }}>{avgText(d.agg.overall)}</p>
                   <p className="text-[10px] text-gray-400 leading-snug">{t("Observaciones: {n}", { n: d.obs.length })}<br />{t("Feedback: {n}", { n: d.fb.length })}</p>
+                  {byTeam.length > 0 && (
+                    <p className="text-[10px] text-gray-500 leading-snug mt-1" data-testid={`card-teams-${a.key}`}>
+                      {byTeam.map((x) => <span key={x.id} className="inline-block mr-2"><b className="tabular-nums" style={{ color: avgColor(x.avg) }}>{avgText(x.avg)}</b> {teamName(x.id)}</span>)}
+                    </p>
+                  )}
                 </div>
               </button>
               {canEvaluate && (
@@ -319,7 +361,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
                     className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${active ? "text-white border-transparent" : "text-gray-600 border-gray-200 bg-white hover:bg-gray-50"}`}
                     style={active ? { background: area.color } : undefined}>
                     {o.id === SUMMARY ? t("Resumen") : shortDate(o.date) || t("Observación")}
-                    {o.id !== SUMMARY && o.team_id && teamIds.length > 1 ? ` · ${teamName(o.team_id)}` : ""}
+                    {o.id !== SUMMARY && o.team_id && multi && teamView === ALL_TEAMS ? ` · ${teamName(o.team_id)}` : ""}
                     {avg != null && <b className="ml-1.5">{avgText(avg)}</b>}
                     {o.id !== SUMMARY && canEvaluate && o.status !== "publicada" && " " + t("· borrador")}
                   </button>
@@ -341,7 +383,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
           </>
         )}
 
-        {areaKey === "metodologia" && canSeeData && <SessionData ownerUserId={ownerUserId} teamIds={teamIds} />}
+        {areaKey === "metodologia" && canSeeData && <SessionData ownerUserId={ownerUserId} teamIds={viewTeam ? [viewTeam] : teamIds} />}
 
         <div className="space-y-2">
           <h4 className="text-sm font-black uppercase flex items-center gap-2 flex-wrap" style={{ ...FONT, color: area.color }}>
@@ -417,7 +459,7 @@ export default function CoachEval360Areas({ staffId, ownerUserId, teamIds = [], 
       )}
 
       {dlg && (
-        <AreaObsDialog key={`${dlg.area}-${dlg.editing?.id || "new"}`} area={dlg.area} editing={dlg.editing} staffId={staffId} teamIds={teamIds} teamName={teamName} teamFormat={teamFormat}
+        <AreaObsDialog key={`${dlg.area}-${dlg.editing?.id || "new"}`} area={dlg.area} editing={dlg.editing} staffId={staffId} teamIds={teamIds} teamName={teamName} teamFormat={teamFormat} defaultTeam={viewTeam}
           author={author} autoPublishFrom={shareLive ? openRange.from : null} onClose={() => setDlg(null)} onSaved={(id) => setObsPick(id || SUMMARY)} />
       )}
     </div>

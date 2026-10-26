@@ -39,4 +39,11 @@ export default [
   ["ahora mismo", "just now", "à l’instant", "ara mateix"],
   ["automática", "automatic", "automatique", "automàtica"],
   ["manual", "manual", "manuelle", "manual"],
+  // Evaluación 360 por equipo / etapa (26/10/2026)
+  ["Equipo que evalúas", "Team you are evaluating", "Équipe évaluée", "Equip que avalues"],
+  ["Elige el equipo (la etapa) al que corresponde esta evaluación.", "Choose the team (stage) this evaluation is for.", "Choisissez l'équipe (l'étape) concernée par cette évaluation.", "Tria l'equip (l'etapa) al qual correspon aquesta avaluació."],
+  ["Esta observación se guardó sin equipo: puedes asignarle uno.", "This observation was saved without a team: you can assign one.", "Cette observation a été enregistrée sans équipe : vous pouvez en attribuer une.", "Aquesta observació es va desar sense equip: pots assignar-ne un."],
+  ["Vista de conjunto: elige un equipo para ver su etapa por separado.", "Overall view: choose a team to see its stage separately.", "Vue d'ensemble : choisissez une équipe pour voir son étape séparément.", "Vista de conjunt: tria un equip per veure la seva etapa per separat."],
+  ["Periodo y publicación comunes a todos sus equipos", "Period and publication are shared by all their teams", "Période et publication communes à toutes ses équipes", "Període i publicació comuns a tots els seus equips"],
+  ["General (sin equipo concreto)", "General (no specific team)", "Général (sans équipe précise)", "General (sense equip concret)"],
 ];

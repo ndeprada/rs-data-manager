@@ -362,6 +362,7 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
                   <Select value={form.team_id || "none"} onValueChange={(v) => setForm({ ...form, team_id: v === "none" ? "" : v })}>
                     <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">{t("General (sin equipo concreto)")}</SelectItem>
                       {teamIds.map((id) => <SelectItem key={id} value={id}>{teamName(id)}</SelectItem>)}
                     </SelectContent>
                   </Select>

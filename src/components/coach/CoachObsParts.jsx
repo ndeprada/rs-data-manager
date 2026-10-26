@@ -16,6 +16,7 @@ import { OBS_SCALE, NOT_OBSERVABLE, NOT_OBSERVABLE_LABEL, scaleInfo, scaleOf, av
 import { areaBlocks, emptyAreaScores, emptyAreaNotes, areaSummary, pruneForFormats } from "@/lib/coachAreaCriteria";
 import { GAME_FORMATS, GAME_FORMAT_LABELS, obsFormat, obsFormats } from "@/lib/coachModelGame";
 import { areaInfo } from "@/lib/coachAreas";
+import { defaultTeamFor } from "@/lib/coachTeamView";
 import { modelImagesOf } from "@/lib/modelImages";
 import { ImagesToggle, ImagesStrip, ImageZoom } from "./ModelImages";
 
@@ -188,7 +189,8 @@ export function SummaryView({ observations, area, agg }) {
 // Formulario de una observación (nueva o editada) de un área. Se monta solo mientras está abierto.
 // autoPublishFrom: si el periodo abierto se comparte con el entrenador, las observaciones nuevas desde esa fecha se publican al guardarlas
 // teamFormat(id): formato de juego del equipo («f7» / «f11»), para proponer el del equipo elegido en «Partido y modelo de juego»
-export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, teamFormat, author, autoPublishFrom = null, onClose, onSaved }) {
+// defaultTeam: equipo de la vista desde la que se evalúa (con varios equipos, si no hay uno concreto hay que elegirlo)
+export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, teamFormat, defaultTeam = "", author, autoPublishFrom = null, onClose, onSaved }) {
   const t = useT();
   const avg = useAvg();
   const qc = useQueryClient();
@@ -198,15 +200,18 @@ export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, teamF
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [openImgs, setOpenImgs] = useState({}); // indicadores con las figuras del TFM desplegadas
   const [zoom, setZoom] = useState(null); // { image, label }
+  // Con más de un equipo la evaluación es de UN equipo (etapa): se elige con botones y no se propone el primero por defecto
+  const multi = teamIds.length > 1;
+  const startTeam = multi ? defaultTeamFor(defaultTeam, teamIds) : teamIds[0] || "";
   const [form, setForm] = useState(() => {
     // Partido y modelo de juego: el formato (F7 / F11) sale del equipo; en una observación anterior sin formato se deja sin elegir
-    const fmt = !isMatch ? null : editing ? obsFormat(editing) : teamFormat?.(teamIds[0]) || null;
+    const fmt = !isMatch ? null : editing ? obsFormat(editing) : teamFormat?.(startTeam) || null;
     const f = fmt ? [fmt] : [];
     return editing ? {
       date: editing.date || todayStr(), team_id: editing.team_id || "", session_type: editing.session_type || "", game_format: fmt,
       scores: { ...emptyAreaScores(area, f), ...(editing.scores || {}) }, notes: { ...emptyAreaNotes(area, f), ...(editing.notes || {}) }, agreements: editing.agreements || "",
     } : {
-      date: todayStr(), team_id: teamIds[0] || "", session_type: "", game_format: fmt, scores: emptyAreaScores(area, f), notes: emptyAreaNotes(area, f), agreements: "",
+      date: todayStr(), team_id: startTeam, session_type: "", game_format: fmt, scores: emptyAreaScores(area, f), notes: emptyAreaNotes(area, f), agreements: "",
     };
   });
   const fmts = isMatch && form.game_format ? [form.game_format] : [];
@@ -251,6 +256,8 @@ export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, teamF
   const setScore = (key, value) => setForm((f) => ({ ...f, scores: { ...f.scores, [key]: f.scores[key] === value ? null : value } }));
   const setNote = (key, text) => setForm((f) => ({ ...f, notes: { ...f.notes, [key]: text } }));
   const formSum = areaSummary(form.scores, area, fmts);
+  // Una observación nueva de un entrenador con varios equipos necesita equipo; editar una antigua sin equipo se deja como estaba
+  const needTeam = multi && !form.team_id && !(editing && !editing.team_id);
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -262,12 +269,32 @@ export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, teamF
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {multi && (
+            <div data-testid="obs-team-pick">
+              <p className="text-xs text-gray-500 mb-1">{t("Equipo que evalúas")}</p>
+              <div className="flex gap-1.5 flex-wrap" role="group" aria-label={t("Equipo que evalúas")}>
+                {teamIds.map((id) => {
+                  const on = form.team_id === id;
+                  const fmt = teamFormat?.(id);
+                  return (
+                    <button key={id} type="button" aria-pressed={on} data-testid={`obs-team-${id}`} onClick={() => pickTeam(id)}
+                      className={`h-9 px-3 rounded-md text-sm font-semibold border transition-colors ${on ? "text-white border-transparent" : "text-gray-600 border-gray-200 bg-white hover:bg-gray-50"}`}
+                      style={on ? { background: info.color } : undefined}>
+                      {teamName(id)}{fmt ? <span className={`ml-1.5 text-[10px] font-black ${on ? "text-white/80" : "text-gray-400"}`}>{fmt === "f7" ? "F7" : "F11"}</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+              {needTeam && <p className="text-xs text-amber-700 mt-1">{t("Elige el equipo (la etapa) al que corresponde esta evaluación.")}</p>}
+              {editing && !editing.team_id && !form.team_id && <p className="text-xs text-gray-400 mt-1">{t("Esta observación se guardó sin equipo: puedes asignarle uno.")}</p>}
+            </div>
+          )}
           <div className="flex gap-3 flex-wrap">
             <div className="w-40">
               <p className="text-xs text-gray-500 mb-1">{t("Fecha")}</p>
               <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="border-gray-200" />
             </div>
-            {teamIds.length > 0 && (
+            {teamIds.length === 1 && (
               <div className="w-48">
                 <p className="text-xs text-gray-500 mb-1">{t("Equipo")}</p>
                 <Select value={form.team_id || NONE} onValueChange={(v) => pickTeam(v === NONE ? "" : v)}>
@@ -370,7 +397,7 @@ export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, teamF
               : <Button variant="outline" size="icon" onClick={() => setConfirmDelete(true)}><Trash2 className="w-4 h-4 text-gray-400" /></Button>)}
             <div className="flex-1" />
             <Button variant="outline" onClick={onClose}>{t("Cancelar")}</Button>
-            <Button variant="club" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+            <Button variant="club" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || needTeam}>
               {saveMutation.isPending ? t("Guardando…") : t("Guardar")}
             </Button>
           </div>
