@@ -24,7 +24,8 @@ const DECISION = { fichar: "Fichar", seguir_viendo: "Seguir viendo", descartar: 
 const W = 297, H = 210, MARGIN = 10, BOTTOM = 197;
 const ROW = 4.4;      // alto de una fila de tabla
 const HEAD_H = 3.6;   // alto de la cabecera de un puesto
-const COLS = [13, 12, 21, 21, 13, 20]; // % del ancho del campo de las 6 líneas (portero, libre, defensas, medios, mediapunta, delanteros)
+const COLS = [13, 12, 21, 21, 13, 20]; // % del ancho del campo de las 6 líneas de fútbol 11 (portero, libre, defensas, medios, mediapunta, delanteros)
+const COLS_F7 = [14, 17, 19, 22, 28]; // y de las 5 de fútbol 7 (portero, central, laterales, mediapunta, extremos); la de medio campo cae entre laterales y mediapunta
 const LANE_Y = { l: 1 / 6, c: 3 / 6, r: 5 / 6 }; // altura (fracción del campo) del centro de cada carril: la izquierda del equipo, arriba
 
 const safe = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "");
@@ -159,7 +160,7 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
   let hidden = false; // ¿algún puesto tiene más gente de la que cabe? (entonces se añade la plantilla completa)
   let colX = lx;
   const colOf = {};
-  COLS.forEach((c, i) => { colOf[i] = { x: colX, w: (pw * c) / 100 }; colX += (pw * c) / 100; });
+  (isF7 ? COLS_F7 : COLS).forEach((c, i) => { colOf[i] = { x: colX, w: (pw * c) / 100 }; colX += (pw * c) / 100; });
   for (const z of plan.zones) {
     const c = colOf[z.line];
     const x = c.x + 0.8, w = c.w - 1.6;

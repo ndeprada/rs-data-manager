@@ -12,8 +12,12 @@
 // como «se va» (baja del club o propia: `status:"sale"` + `leave` en el mismo registro): en el destino sale en rojo, sin contar, y en su equipo
 // sigue como «Pasa a X». Se puede pasar un equipo entero de golpe (`bulkPassCandidates` / `bulkPassOps`).
 // El campograma tiene el ataque hacia la derecha (o hacia arriba en vertical), así que izquierda y derecha son las del equipo.
+// Fútbol 7 (S12 hacia abajo, `teamPlaysF7`): el campo es de 7 y tiene solo los 7 puestos del sistema base 3-1-2 (`ZONES_F7`: portero, central, lateral
+// izq./dcho., mediapunta y extremo izq./dcho.). Quien tiene una posición que solo existe en fútbol 11 (libre, mediocentro, interior, delantero centro)
+// sale en el puesto de siete que más se le parece (`fitPosition`); su ficha de jugador no cambia nunca.
 import { tokenLabel } from "./tacticsBoard.js";
 import { playerFullName } from "./playerName.js";
+import { teamPlaysF7 } from "./matchFormat.js";
 
 /** Temporada siguiente a «2026-2027» → «2027-2028». */
 export function nextSeason(season) {
@@ -75,14 +79,39 @@ export const ZONES = [
   { key: "libre", pos: "libre", label: "Libre", line: 1, lane: "c", x: 50, y: 66, w: 28 },
   { key: "portero", pos: "portero", label: "Portero", line: 0, lane: "c", x: 50, y: 82, w: 28 },
 ];
-export const zoneByKey = (key) => ZONES.find((z) => z.key === key) || null;
+/**
+ * Puestos del campo de fútbol 7: el sistema BASE 3-1-2 (portero · central · dos laterales MÁS ADELANTADOS que el central · mediapunta · dos extremos
+ * abiertos por encima del mediapunta; mismas posiciones que `FORMATION_POSITIONS["3-1-2"]` de `matchFormations.js`). Las claves son las de fútbol 11
+ * para los mismos puestos (así un registro guardado con `position`/`side` vale en los dos formatos). `line` 0–4 de la portería al ataque.
+ */
+export const ZONES_F7 = [
+  { key: "extremo_l", pos: "extremo", side: "l", label: "Ext. izq.", line: 4, lane: "l", x: 17, y: 26, w: 27, f7: true },
+  { key: "extremo_r", pos: "extremo", side: "r", label: "Ext. dcho.", line: 4, lane: "r", x: 83, y: 26, w: 27, f7: true },
+  { key: "mediapunta", pos: "mediapunta", label: "Mediapunta", line: 3, lane: "c", x: 50, y: 40, w: 28, f7: true },
+  { key: "lateral_l", pos: "lateral", side: "l", label: "Lat. izq.", line: 2, lane: "l", x: 22, y: 61, w: 27, f7: true },
+  { key: "lateral_r", pos: "lateral", side: "r", label: "Lat. dcho.", line: 2, lane: "r", x: 78, y: 61, w: 27, f7: true },
+  { key: "central", pos: "central", label: "Central", line: 1, lane: "c", x: 50, y: 70, w: 28, f7: true },
+  { key: "portero", pos: "portero", label: "Portero", line: 0, lane: "c", x: 50, y: 88, w: 28, f7: true },
+];
+/** Puestos del campo según el formato del equipo (`isF7` = fútbol 7). */
+export const zonesFor = (isF7) => (isF7 ? ZONES_F7 : ZONES);
+/** Líneas del campo de cada formato (en fútbol 11, 6; en fútbol 7, 5). */
+export const lineCount = (isF7) => (isF7 ? 5 : 6);
+export const zoneByKey = (key, isF7 = false) => zonesFor(isF7).find((z) => z.key === key) || null;
 /** «Lateral izquierdo», «Central», «Delantero centro»… */
 export const zoneTitle = (z) => (z ? `${POSITION_LABEL[z.pos]}${z.side ? (z.side === "l" ? " izquierdo" : " derecho") : ""}` : "");
-/** Puesto (clave) de una posición y un lado; null si no existe. */
-export function zoneKeyOf(position, side) {
-  if (!POSITION_LABEL[position]) return null;
-  if (hasSides(position)) return side === "l" || side === "r" ? `${position}_${side}` : null;
-  return ZONES.find((z) => z.pos === position)?.key || null;
+
+// Posiciones que solo existen en fútbol 11 → puesto de fútbol 7 donde salen en el campograma (decisión mía, por confirmar con Nacho): el libre es el
+// último hombre (central); el mediocentro, el interior y el delantero centro juegan por el medio, que en el sistema base es el mediapunta.
+export const F7_FIT = { libre: "central", mediocentro: "mediapunta", interior: "mediapunta", delantero_centro: "mediapunta" };
+/** Posición con la que sale alguien en el campo de su formato: en fútbol 7, las que no existen se cambian por la más parecida; en fútbol 11, la misma. */
+export const fitPosition = (position, isF7) => (isF7 && F7_FIT[position]) || position;
+/** Puesto (clave) de una posición y un lado en el campo del formato dado; null si no existe. */
+export function zoneKeyOf(position, side, isF7 = false) {
+  const pos = fitPosition(position, isF7);
+  if (!POSITION_LABEL[pos]) return null;
+  if (hasSides(pos)) return side === "l" || side === "r" ? `${pos}_${side}` : null;
+  return zonesFor(isF7).find((z) => z.pos === pos)?.key || null;
 }
 
 /** Lado del equipo («l» | «r») según la lateralidad del jugador: zurdo a la izquierda, diestro a la derecha; sin dato o ambidiestro, null. */
@@ -112,19 +141,23 @@ const rankOf = (it) => (it.kind === "scout" ? SCOUT_RANK[it.status] ?? 10 : STAT
  *    marcado a reforzar, `need` = {entryId, note}.
  *  - unplaced: personas sin posición (no caben en el campo); needs: puestos a reforzar; orphans: objetivos cuyo jugador de scouting ya no existe.
  *  - cada persona lleva `zone` (clave de su puesto o null), `moved` (colocada a mano en otro puesto) y, si se va, `leave`.
+ *  - `isF7`: el equipo juega a fútbol 7 → `zones` son los 7 puestos de `ZONES_F7` (no los 12 de fútbol 11) y quien tiene una posición que solo existe en
+ *    fútbol 11 sale en el puesto de siete que más se le parece (`fitPosition`): su `position` es ya la de siete, `rawPosition` la del registro y `fitted` es true.
  *  - pases entre equipos: `teamId` = equipo de este plan y `teams` = [{id, name}] para poner nombre al otro equipo; `entries` trae los registros de este
  *    equipo y también los de otros equipos que pasan a este (`to_team_id === teamId`), y `arrivals` los jugadores que llegan. Un jugador del equipo
  *    con `to_team_id` de otro equipo es una persona `pass:"out"` (estado `pasa`, `passTeam`); uno que llega es `pass:"in"` (`passTeam` = su equipo
  *    de origen, estado continúa o duda, puesto del registro o el de su ficha).
  */
-export function buildPlan({ players = [], scouted = [], entries = [], arrivals = [], teams = [], teamId = null } = {}) {
+export function buildPlan({ players = [], scouted = [], entries = [], arrivals = [], teams = [], teamId = null, isF7 = false } = {}) {
+  const zoneList = zonesFor(isF7);
+  const fit = (position) => fitPosition(position, isF7);
   const entryOfPlayer = new Map();
   const incomingEntries = new Map();
   const scoutEntries = [];
   const needEntries = new Map();
   for (const e of entries) {
     if (e.kind === "scout") scoutEntries.push(e);
-    else if (e.kind === "need") { if (zoneByKey(e.ref_id)) needEntries.set(e.ref_id, e); }
+    else if (e.kind === "need") { if (zoneList.some((z) => z.key === e.ref_id)) needEntries.set(e.ref_id, e); }
     else if (!e.ref_id) continue;
     else if (teamId && e.to_team_id === teamId && e.team_id && e.team_id !== teamId) incomingEntries.set(e.ref_id, e);
     else if (!teamId || !e.team_id || e.team_id === teamId) entryOfPlayer.set(e.ref_id, e);
@@ -142,7 +175,7 @@ export function buildPlan({ players = [], scouted = [], entries = [], arrivals =
       naturalPosition: p.position || null, note: e?.note || "", injured: p.status === "lesionado", source: p };
     if (e?.to_team_id && e.to_team_id !== teamId) { // pasa a otro equipo: en este campo se queda en su puesto de la ficha, sin contar
       items.push({
-        ...common, position: p.position || null, side: sideOfLaterality(p.laterality), moved: false, status: "pasa", leave: null,
+        ...common, position: fit(p.position) || null, side: sideOfLaterality(p.laterality), moved: false, status: "pasa", leave: null,
         pass: "out", passTeam: teamRef(e.to_team_id), passStatus: STATUS[e.status] ? e.status : "continua", passLeave: e.status === "sale" && LEAVE[e.leave] ? e.leave : null,
         passPosition: POSITION_LABEL[e.position] ? e.position : null, passSide: e.side === "l" || e.side === "r" ? e.side : null,
       });
@@ -150,19 +183,21 @@ export function buildPlan({ players = [], scouted = [], entries = [], arrivals =
     }
     const status = STATUS[e?.status] ? e.status : "continua";
     const moved = !!(e && POSITION_LABEL[e.position]);
-    const position = moved ? e.position : p.position || null;
+    const rawPosition = moved ? e.position : p.position || null;
+    const position = fit(rawPosition) || null;
     const side = moved && (e.side === "l" || e.side === "r") ? e.side : sideOfLaterality(p.laterality);
-    items.push({ ...common, position, side, moved, status, leave: status === "sale" && LEAVE[e?.leave] ? e.leave : null });
+    items.push({ ...common, position, rawPosition, fitted: position !== rawPosition, side, moved, status, leave: status === "sale" && LEAVE[e?.leave] ? e.leave : null });
   }
   for (const p of arrivals) { // jugadores de otros equipos que pasan a este (si ya están en el equipo de verdad, no se duplican)
     const e = incomingEntries.get(p.id);
     if (!e || p.status === "baja" || ownIds.has(p.id)) continue;
     const moved = POSITION_LABEL[e.position] ? true : false;
     const status = STATUS[e.status] ? e.status : "continua";
+    const rawPosition = moved ? e.position : p.position || null;
     items.push({
       key: `p:${p.id}`, kind: "player", id: p.id, entryId: e.id || null, name: playerFullName(p) || tokenLabel(p), short: tokenLabel(p), year: birthYearOf(p),
       naturalPosition: p.position || null, note: e.note || "", injured: p.status === "lesionado", source: p,
-      position: moved ? e.position : p.position || null,
+      position: fit(rawPosition) || null, rawPosition, fitted: fit(rawPosition) !== rawPosition,
       side: moved && (e.side === "l" || e.side === "r") ? e.side : sideOfLaterality(p.laterality),
       moved, status, leave: status === "sale" && LEAVE[e.leave] ? e.leave : null, pass: "in", passTeam: teamRef(e.team_id),
     });
@@ -172,9 +207,10 @@ export function buildPlan({ players = [], scouted = [], entries = [], arrivals =
     const s = scoutedById.get(e.ref_id);
     if (!s) { orphans += 1; continue; }
     const role = e.role === "seguido" ? "seguido" : "objetivo";
+    const rawPosition = e.position || s.position || null;
     items.push({
       key: `s:${s.id}`, kind: "scout", id: s.id, entryId: e.id || null, name: playerFullName(s) || tokenLabel(s), short: tokenLabel(s), year: birthYearOf(s),
-      position: e.position || s.position || null, naturalPosition: s.position || null, side: e.side === "l" || e.side === "r" ? e.side : sideOfLaterality(s.laterality),
+      position: fit(rawPosition) || null, rawPosition, fitted: fit(rawPosition) !== rawPosition, naturalPosition: s.position || null, side: e.side === "l" || e.side === "r" ? e.side : sideOfLaterality(s.laterality),
       moved: !!(e.position && e.position !== s.position), status: role, role, leave: null,
       decision: s.decision || "", rating: s.rating || 0, club: s.current_club || "", note: e.note || "", source: s,
     });
@@ -184,7 +220,7 @@ export function buildPlan({ players = [], scouted = [], entries = [], arrivals =
   const load = new Map();
   const zoneOf = (it, side) => {
     if (!it.position || !POSITION_LABEL[it.position]) return null;
-    if (!hasSides(it.position)) return ZONES.find((z) => z.pos === it.position)?.key || null;
+    if (!hasSides(it.position)) return zoneList.find((z) => z.pos === it.position)?.key || null;
     return `${it.position}_${side}`;
   };
   const place = (it) => {
@@ -202,7 +238,7 @@ export function buildPlan({ players = [], scouted = [], entries = [], arrivals =
   for (const it of items) it.zone = zoneKeyOfItem.get(it.key) || null;
 
   const order = (a, b) => rankOf(a) - rankOf(b) || (a.year || 9999) - (b.year || 9999) || a.name.localeCompare(b.name, "es");
-  const zones = ZONES.map((z) => {
+  const zones = zoneList.map((z) => {
     const n = needEntries.get(z.key);
     return { ...z, items: items.filter((it) => it.zone === z.key).sort(order), need: n ? { entryId: n.id || null, note: n.note || "" } : null };
   });
@@ -238,10 +274,10 @@ export function summarize(items) {
  * Colocar a una persona en otro puesto: lo que se guarda en su registro (`position` y `side`). Un jugador del club que vuelve a su puesto de
  * la ficha no necesita ajuste (null); un objetivo siempre guarda su puesto.
  */
-export function movePatch(item, zone) {
+export function movePatch(item, zone, isF7 = false) {
   if (item.kind === "scout") return { position: zone.pos, side: zone.side || null };
   const s = item.source || {};
-  const natural = zone.pos === s.position && (!zone.side || zone.side === sideOfLaterality(s.laterality));
+  const natural = zone.pos === fitPosition(s.position, isF7) && (!zone.side || zone.side === sideOfLaterality(s.laterality));
   return natural ? { position: null, side: null } : { position: zone.pos, side: zone.side || null };
 }
 
@@ -269,18 +305,18 @@ export const isBlankPlayerPatch = (p) => p.status === "continua" && !p.position 
 
 /**
  * Todo lo que hay que guardar al colocar a alguien en un puesto: {kind:"scout", patch} (cambia su registro) o {kind:"player", patch, blank}
- * (registro completo de un jugador; si `blank`, ya no dice nada y se borra o no se crea).
+ * (registro completo de un jugador; si `blank`, ya no dice nada y se borra o no se crea). `isF7` = formato del campo donde está ese puesto.
  */
-export function moveChange(item, zone) {
-  const mv = movePatch(item, zone);
+export function moveChange(item, zone, isF7 = false) {
+  const mv = movePatch(item, zone, isF7);
   if (item.kind === "scout") return { kind: "scout", patch: mv };
   const patch = playerPatch({ status: item.pass === "out" ? item.passStatus || item.status : item.status, leave: item.leave ?? item.passLeave, note: item.note, ...mv });
   return { kind: "player", patch, blank: !item.pass && isBlankPlayerPatch(patch) }; // un jugador con pase nunca queda «en blanco»: el pase sigue en su registro
 }
 
 /** Los registros del plan tal y como quedarán al colocar a `item` en `zone`: sirve para pintar el cambio al instante, antes de que conteste el servidor. */
-export function withMovedItem(entries, item, zone) {
-  const ch = moveChange(item, zone);
+export function withMovedItem(entries, item, zone, isF7 = false) {
+  const ch = moveChange(item, zone, isF7);
   if (ch.kind === "scout") return entries.map((e) => (e.id === item.entryId ? { ...e, ...ch.patch } : e));
   const mine = (e) => e.kind !== "scout" && e.kind !== "need" && e.ref_id === item.id;
   if (ch.blank) return entries.filter((e) => !mine(e));
@@ -343,9 +379,10 @@ export function buildPassSummary({ entries = [], players = [], teams = [] } = {}
     if (!p || p.status === "baja") continue;
     seen.add(e.ref_id);
     const placed = !!POSITION_LABEL[e.position];
-    const position = placed ? e.position : p.position || null;
+    const f7 = teamPlaysF7(teams.find((t) => t.id === e.to_team_id)); // el puesto se ve como en el campo del equipo al que llega
+    const position = fitPosition(placed ? e.position : p.position || null, f7) || null;
     const side = placed && (e.side === "l" || e.side === "r") ? e.side : null;
-    const zone = zoneByKey(zoneKeyOf(position, side));
+    const zone = zoneByKey(zoneKeyOf(position, side, f7), f7);
     rows.push({
       key: `p:${p.id}`, id: p.id, entryId: e.id || null, name: playerFullName(p) || tokenLabel(p), year: birthYearOf(p), position, side,
       placeLabel: zone && side ? zoneTitle(zone) : POSITION_LABEL[position] || "Sin posición",

@@ -1,16 +1,19 @@
 import React, { useId, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeftRight, ChevronsUp, Eye, GripVertical, Plus, Target } from "lucide-react";
 import { F7_FIELD } from "@/lib/pitchGeometry";
-import { LEAVE, POSITION_LABEL, passText, statusLabel, zoneTitle } from "@/lib/squadPlan";
+import { LEAVE, POSITION_LABEL, lineCount, passText, statusLabel, zoneTitle } from "@/lib/squadPlan";
 import { CHIP, DOT, LEAVE_TAG, PASS_TAG } from "./squadPlanUi";
 
 // Campo de la planificación: un campo a escala (F11 105 × 68 m, F7 65 × 45 m) con todos los puestos siempre a la vista. En pantallas anchas va
 // en horizontal (portería a la izquierda, ataque a la derecha, izquierda del equipo arriba); en estrechas, en vertical (ataque arriba, izquierda
 // del equipo a la izquierda). Cada puesto crece con su gente (nombres completos, sin cortar ni «+N más») y se puede arrastrar a cualquiera a otro.
+// Fútbol 11: 12 puestos en 6 líneas. Fútbol 7: los 7 puestos del sistema base 3-1-2 en 5 líneas (portero · central · laterales · mediapunta · extremos).
 const HORIZONTAL_FROM = 880; // ancho (px) a partir del cual el campo se pone en horizontal
 const LANE = { l: 0, c: 1, r: 2 };
 // Anchos de las 6 líneas en horizontal (portero, libre, defensas, medios, mediapunta, delanteros): los medios quedan a caballo de la línea de medio campo
 const COLS_H = "minmax(0,12fr) minmax(0,12fr) minmax(0,21fr) minmax(0,21fr) minmax(0,14fr) minmax(0,20fr)";
+// Fútbol 7, cinco líneas (portero, central, laterales, mediapunta, extremos): la línea de medio campo cae entre los laterales y el mediapunta
+const COLS_H_F7 = "minmax(0,14fr) minmax(0,17fr) minmax(0,19fr) minmax(0,22fr) minmax(0,28fr)";
 const MIN_H_WIDTH = 780; // el campo en horizontal nunca es más estrecho que esto (más estrecho, los nombres no caben)
 const MAX_H_WIDTH = 1500; // ni más ancho que esto (en monitores enormes)
 const TOP_SPACE = 310; // alto (px) que ocupan encima del campo el selector de equipo y el resumen (y el borde del campo); el resto de la pantalla es para el campo
@@ -109,7 +112,8 @@ function Chip({ item, compact, dragging, onOpen, onGrab, wasDrag }) {
   const leave = sale && item.leave ? LEAVE[item.leave] : null;
   const out = item.pass === "out"; // pasa a otro equipo: se ve en su puesto pero no se coloca desde aquí
   const tip = [item.name, item.year, statusLabel(item), item.injured ? "lesionado" : null,
-    item.moved ? `puesto cambiado${item.naturalPosition ? ` (en su ficha: ${POSITION_LABEL[item.naturalPosition]})` : ""}` : null].filter(Boolean).join(" · ");
+    item.moved ? `puesto cambiado${item.naturalPosition ? ` (en su ficha: ${POSITION_LABEL[item.naturalPosition]})` : ""}` : null,
+    item.fitted ? `en fútbol 7 sale como ${POSITION_LABEL[item.position]} (en su ficha: ${POSITION_LABEL[item.rawPosition]})` : null].filter(Boolean).join(" · ");
   const open = () => { if (!wasDrag()) onOpen(item); };
   const mark = item.kind === "scout" ? (
     item.status === "seguido" ? <Eye className="w-3 h-3 shrink-0 text-indigo-600" aria-label="Jugador seguido" /> : <Target className="w-3 h-3 shrink-0 text-sky-600" aria-label="Objetivo de scouting" />
@@ -159,10 +163,10 @@ function Chip({ item, compact, dragging, onOpen, onGrab, wasDrag }) {
   );
 }
 
-function ZoneCell({ zone, vertical, compact, hot, dragging, draggingKey, onZone, onAdd, onItem, onGrab, wasDrag }) {
+function ZoneCell({ zone, lines, vertical, compact, hot, dragging, draggingKey, onZone, onAdd, onItem, onGrab, wasDrag }) {
   const empty = zone.items.length === 0;
   const lane = LANE[zone.lane];
-  const place = vertical ? { gridRow: 6 - zone.line, gridColumn: lane + 1 } : { gridColumn: zone.line + 1, gridRow: lane + 1 };
+  const place = vertical ? { gridRow: lines - zone.line, gridColumn: lane + 1 } : { gridColumn: zone.line + 1, gridRow: lane + 1 };
   const ring = hot ? "ring-2 ring-white" : zone.need ? "ring-2 ring-fuchsia-400" : "";
   return (
     <div
@@ -216,6 +220,7 @@ export default function SquadPitch({ zones, isF7, drag, onZone, onAdd, onItem, o
   const minHeight = vertical
     ? `calc(100cqw * ${ratio.toFixed(4)})`
     : `clamp(calc(100cqw * ${flat.toFixed(4)}), calc(100vh - ${TOP_SPACE}px), calc(100cqw * ${ratio.toFixed(4)}))`;
+  const lines = lineCount(isF7); // líneas del campo: portero → delanteros
   const real = L / W; // largo / ancho de un campo de verdad
   const k = box.w > 0 && box.h > 0 ? (vertical ? (box.w / box.h) * real : (box.h / box.w) * real) : 1;
   return (
@@ -226,14 +231,14 @@ export default function SquadPitch({ zones, isF7, drag, onZone, onAdd, onItem, o
           <div
             className={`relative grid ${compact ? "gap-1 p-1" : "gap-1 p-1"}`}
             style={{
-              gridTemplateColumns: vertical ? "repeat(3, minmax(0, 1fr))" : COLS_H,
-              gridTemplateRows: vertical ? "repeat(6, auto)" : "repeat(3, 1fr)", // en vertical cada línea mide lo que ocupa su gente y el resto se reparte
+              gridTemplateColumns: vertical ? "repeat(3, minmax(0, 1fr))" : isF7 ? COLS_H_F7 : COLS_H,
+              gridTemplateRows: vertical ? `repeat(${lines}, auto)` : "repeat(3, 1fr)", // en vertical cada línea mide lo que ocupa su gente y el resto se reparte
               minHeight,
             }}
           >
             {zones.map((z) => (
               <ZoneCell
-                key={z.key} zone={z} vertical={vertical} compact={compact} hot={drag?.over === z.key} dragging={!!drag} draggingKey={drag?.item?.key}
+                key={z.key} zone={z} lines={lines} vertical={vertical} compact={compact} hot={drag?.over === z.key} dragging={!!drag} draggingKey={drag?.item?.key}
                 onZone={onZone} onAdd={onAdd} onItem={onItem} onGrab={onGrab} wasDrag={wasDrag}
               />
             ))}

@@ -7,8 +7,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { playerFullName, matchesPlayerSearch } from "@/lib/playerName";
+import { teamPlaysF7 } from "@/lib/matchFormat";
 import {
-  STATUS, STATUS_KEYS, PASS_STATUS_KEYS, LEAVE, LEAVE_KEYS, ROLE, ROLE_KEYS, POSITION_LABEL, ZONES, zoneByKey, zoneKeyOf, zoneTitle, movePatch, passText, birthYearOf, bulkPassCandidates, bulkPassOps,
+  STATUS, STATUS_KEYS, PASS_STATUS_KEYS, LEAVE, LEAVE_KEYS, ROLE, ROLE_KEYS, POSITION_LABEL, zonesFor, zoneByKey, zoneKeyOf, zoneTitle, fitPosition, movePatch, passText, birthYearOf, bulkPassCandidates, bulkPassOps,
 } from "@/lib/squadPlan";
 import { DOT, STATUS_BTN, DECISION, LEAVE_TAG, PASS_TAG } from "./squadPlanUi";
 
@@ -16,15 +17,17 @@ import { DOT, STATUS_BTN, DECISION, LEAVE_TAG, PASS_TAG } from "./squadPlanUi";
 
 const AUTO = "auto";
 const LANE_ORDER = { l: 0, c: 1, r: 2 };
-const ZONES_BY_LINE = [...ZONES].sort((a, b) => a.line - b.line || LANE_ORDER[a.lane] - LANE_ORDER[b.lane]); // de la portería al ataque
+// Los puestos del campo de cada formato (11 o 7), de la portería al ataque
+const ZONES_BY_LINE = { f11: [...zonesFor(false)], f7: [...zonesFor(true)] };
+for (const k of Object.keys(ZONES_BY_LINE)) ZONES_BY_LINE[k].sort((a, b) => a.line - b.line || LANE_ORDER[a.lane] - LANE_ORDER[b.lane]);
 
-function ZoneSelect({ value, onChange, autoLabel, testid }) {
+function ZoneSelect({ value, onChange, autoLabel, testid, isF7 = false }) {
   return (
     <Select value={value} onValueChange={(v) => v && onChange(v)}>
       <SelectTrigger data-testid={testid}><SelectValue /></SelectTrigger>
       <SelectContent>
         <SelectItem value={AUTO}>{autoLabel}</SelectItem>
-        {ZONES_BY_LINE.map((z) => <SelectItem key={z.key} value={z.key}>{zoneTitle(z)}</SelectItem>)}
+        {ZONES_BY_LINE[isF7 ? "f7" : "f11"].map((z) => <SelectItem key={z.key} value={z.key}>{zoneTitle(z)}</SelectItem>)}
       </SelectContent>
     </Select>
   );
@@ -66,22 +69,29 @@ export function ItemDialog({ item, team, teams = [], onClose, onSavePlayer, onSa
   const [leave, setLeave] = useState(item.leave || item.passLeave || null);
   const [role, setRole] = useState(isScout ? item.status : "objetivo");
   const [note, setNote] = useState(item.note || "");
+  const f7Of = (id) => teamPlaysF7(id ? teams.find((t) => t.id === id) : team); // formato del campo de un equipo (sin id, el de este plan)
   const [zoneKey, setZoneKey] = useState(
     isScout ? item.zone || AUTO
-      : item.pass === "out" ? zoneKeyOf(item.passPosition, item.passSide) || AUTO
+      : item.pass === "out" ? zoneKeyOf(item.passPosition, item.passSide, f7Of(item.passTeam.id)) || AUTO
         : item.moved ? item.zone || AUTO : AUTO,
   );
   const s = item.source || {};
   const otherTeams = teams.filter((t) => t.id !== team?.id);
   const destName = toTeam ? teams.find((t) => t.id === toTeam)?.name || "otro equipo" : null;
+  // El puesto se elige en el campo del equipo donde jugará (con pase, el del destino: puede ser de siete y el de aquí de once, o al revés)
+  const destF7 = f7Of(toTeam);
+  const zonePick = zoneKey !== AUTO && !zonesFor(destF7).some((z) => z.key === zoneKey) ? AUTO : zoneKey; // un puesto que no existe en ese campo vuelve a «según su ficha»
   const pickTeam = (v) => { setToTeam(v === STAY ? null : v); if (v !== STAY && status === "sale") setStatus("continua"); };
   const natural = item.naturalPosition ? POSITION_LABEL[item.naturalPosition] : null;
+  const fittedNatural = item.naturalPosition ? fitPosition(item.naturalPosition, destF7) : null; // en fútbol 7, interior/mediocentro… salen como otro puesto
+  const naturalText = natural && fittedNatural !== item.naturalPosition ? `${natural} → ${POSITION_LABEL[fittedNatural]} en fútbol 7` : natural;
   const autoLabel = isScout
-    ? (natural ? `Según su ficha de scouting (${natural})` : "Sin puesto (no sale en el campo)")
-    : (natural ? `Según su ficha (${natural})` : "Sin puesto (no sale en el campo)");
+    ? (natural ? `Según su ficha de scouting (${naturalText})` : "Sin puesto (no sale en el campo)")
+    : (natural ? `Según su ficha (${naturalText})` : "Sin puesto (no sale en el campo)");
 
   const save = () => {
-    const mv = zoneKey === AUTO ? { position: null, side: null } : (isScout ? { position: zoneByKey(zoneKey).pos, side: zoneByKey(zoneKey).side || null } : movePatch(item, zoneByKey(zoneKey)));
+    const zn = zoneByKey(zonePick, destF7);
+    const mv = zonePick === AUTO ? { position: null, side: null } : (isScout ? { position: zn.pos, side: zn.side || null } : movePatch(item, zn, destF7));
     if (isScout) onSaveScout(item, { role, ...mv, note });
     else onSavePlayer(item, { status, leave, ...mv, note, ...(incoming ? {} : { toTeam: toTeam || null }) });
   };
@@ -157,9 +167,9 @@ export function ItemDialog({ item, team, teams = [], onClose, onSavePlayer, onSa
           )}
           <div>
             <Label>{destName ? `Puesto en ${destName}` : "Puesto en el plan"}</Label>
-            <ZoneSelect value={zoneKey} onChange={setZoneKey} autoLabel={autoLabel} testid="plan-zone" />
-            {!isScout && !item.position && zoneKey === AUTO && <p className="text-xs text-amber-700 mt-1.5">Sin posición en su ficha: no sale en el campo. Elige un puesto para colocarlo (solo en este plan).</p>}
-            {!isScout && item.moved && zoneKey !== AUTO && <p className="text-[11px] text-gray-500 mt-1.5">Colocado a mano: en su ficha de jugador no cambia nada.</p>}
+            <ZoneSelect value={zonePick} onChange={setZoneKey} autoLabel={autoLabel} testid="plan-zone" isF7={destF7} />
+            {!isScout && !item.position && zonePick === AUTO && <p className="text-xs text-amber-700 mt-1.5">Sin posición en su ficha: no sale en el campo. Elige un puesto para colocarlo (solo en este plan).</p>}
+            {!isScout && item.moved && zonePick !== AUTO && <p className="text-[11px] text-gray-500 mt-1.5">Colocado a mano: en su ficha de jugador no cambia nada.</p>}
           </div>
           <div>
             <Label>Nota</Label>
@@ -253,7 +263,7 @@ export function AddTargetDialog({ scouted, taken, zone, onClose, onPick, busy })
       if (search && !matchesPlayerSearch(p, search) && !String(p.current_club || "").toLowerCase().includes(search.toLowerCase())) return false;
       return years.size === 0 || years.has(birthYearOf(p) || 0);
     });
-    const samePos = (p) => (zone && p.position === zone.pos ? 0 : 1);
+    const samePos = (p) => (zone && fitPosition(p.position, !!zone.f7) === zone.pos ? 0 : 1);
     return list.sort((a, b) => samePos(a) - samePos(b) || (b.rating || 0) - (a.rating || 0) || playerFullName(a).localeCompare(playerFullName(b), "es"));
   }, [byDecision, search, years, zone]);
   return (
@@ -343,7 +353,7 @@ export function AddClubDialog({ players, teams, team, zone, passes, onClose, onP
   const rows = useMemo(() => {
     const list = players.filter((p) => p.team_id && p.team_id !== team?.id && p.status !== "baja"
       && (teamFilter === "all" || p.team_id === teamFilter) && (!search || matchesPlayerSearch(p, search)));
-    const samePos = (p) => (zone && p.position === zone.pos ? 0 : 1);
+    const samePos = (p) => (zone && fitPosition(p.position, !!zone.f7) === zone.pos ? 0 : 1);
     return list.sort((a, b) => samePos(a) - samePos(b) || nameOf(a.team_id).localeCompare(nameOf(b.team_id), "es") || playerFullName(a).localeCompare(playerFullName(b), "es")).slice(0, 300);
   }, [players, search, teamFilter, zone, team, teams]); // eslint-disable-line react-hooks/exhaustive-deps
   return (

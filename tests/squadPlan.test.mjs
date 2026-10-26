@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   nextSeason, buildPlan, summarize, sideOfLaterality, birthYearOf, hasSides, groupOf, ZONES, zoneByKey,
-  zoneKeyOf, zoneTitle, movePatch, playerPatch, isBlankPlayerPatch, moveChange, withMovedItem, buildPassSummary, bulkPassCandidates, bulkPassOps, statusLabel, LEAVE, ROLE,
+  zoneKeyOf, zoneTitle, ZONES_F7, zonesFor, lineCount, fitPosition, F7_FIT, movePatch, playerPatch, isBlankPlayerPatch, moveChange, withMovedItem, buildPassSummary, bulkPassCandidates, bulkPassOps, statusLabel, LEAVE, ROLE,
 } from '../src/lib/squadPlan.js';
 
 // ── Temporada siguiente ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -461,5 +461,132 @@ assert.equal(buildPlan({ players: [P('x', 'A', 'B', 'central')], entries: [{ kin
   const mv = moveChange(i2, zoneByKey('extremo_r'));
   assert.deepEqual([mv.patch.status, mv.patch.leave, mv.patch.position, mv.blank], ['sale', 'club', 'extremo', false]);
   assert.equal(statusLabel(planB.items.find((i) => i.id === 'p1')), 'Continúa · viene de Cadet S16 A');
+}
+
+// ── Fútbol 7: campo de 7 con los 7 puestos del sistema base 3-1-2 ──────────────────────────────────────────────────
+{
+  assert.equal(ZONES_F7.length, 7, 'un equipo de fútbol 7 tiene exactamente 7 puestos');
+  assert.equal(zonesFor(true), ZONES_F7);
+  assert.equal(zonesFor(false), ZONES);
+  assert.deepEqual(ZONES_F7.map((z) => z.key).sort(), ['central', 'extremo_l', 'extremo_r', 'lateral_l', 'lateral_r', 'mediapunta', 'portero'], 'portero, central, 2 laterales, mediapunta y 2 extremos');
+  for (const z of ZONES_F7) assert.ok(zoneByKey(z.key), `${z.key}: misma clave que en fútbol 11`);
+  for (const z of ZONES_F7) assert.deepEqual([z.pos, z.side], [zoneByKey(z.key).pos, zoneByKey(z.key).side], `${z.key}: misma posición y lado que en fútbol 11`);
+  assert.equal(new Set(ZONES_F7.map((z) => `${z.line}${z.lane}`)).size, 7, 'cada puesto, una casilla distinta');
+  assert.equal(lineCount(true), 5);
+  assert.equal(lineCount(false), 6);
+  for (const z of ZONES_F7) assert.ok(z.line >= 0 && z.line < lineCount(true) && ['l', 'c', 'r'].includes(z.lane) && z.x - z.w / 2 >= 0 && z.x + z.w / 2 <= 100, `${z.key} cabe en el campo`);
+  const f7 = (k) => zoneByKey(k, true);
+  // Sistema base: laterales MÁS ADELANTADOS que el central; mediapunta por delante; extremos por encima del mediapunta
+  assert.ok(f7('portero').line < f7('central').line && f7('central').line < f7('lateral_l').line, 'los laterales están más adelantados que el central');
+  assert.equal(f7('lateral_l').line, f7('lateral_r').line);
+  assert.ok(f7('lateral_l').line < f7('mediapunta').line && f7('mediapunta').line < f7('extremo_l').line, 'extremos por encima del mediapunta');
+  assert.equal(f7('extremo_l').line, f7('extremo_r').line);
+  assert.deepEqual([f7('lateral_l').lane, f7('extremo_l').lane, f7('central').lane, f7('mediapunta').lane, f7('lateral_r').lane, f7('extremo_r').lane], ['l', 'l', 'c', 'c', 'r', 'r']);
+  assert.equal(zoneByKey('interior_l', true), null, 'en fútbol 7 no hay interiores');
+  assert.equal(zoneByKey('libre', true), null);
+  assert.equal(zoneByKey('delantero_centro', true), null);
+  assert.equal(zoneByKey('mediocentro', true), null);
+  // Las mismas posiciones que el sistema «3-1-2» de la pestaña Táctica (matchFormations.js): mismo orden de fondo a ataque
+  const yOf = { portero: 88, central: 70, lateral_l: 61, lateral_r: 61, mediapunta: 40, extremo_l: 26, extremo_r: 26 };
+  for (const z of ZONES_F7) assert.equal(z.y, yOf[z.key], `${z.key}: a la altura que tiene en el sistema base`);
+
+  // Posiciones que solo existen en fútbol 11
+  assert.equal(fitPosition('libre', true), 'central');
+  assert.equal(fitPosition('mediocentro', true), 'mediapunta');
+  assert.equal(fitPosition('interior', true), 'mediapunta');
+  assert.equal(fitPosition('delantero_centro', true), 'mediapunta');
+  for (const k of ['portero', 'lateral', 'central', 'mediapunta', 'extremo']) assert.equal(fitPosition(k, true), k, `${k} ya existe en fútbol 7`);
+  for (const k of Object.keys(F7_FIT)) assert.equal(fitPosition(k, false), k, 'en fútbol 11 no se cambia nada');
+  assert.equal(fitPosition(null, true), null);
+  for (const k of Object.keys(F7_FIT)) assert.ok(ZONES_F7.some((z) => z.pos === F7_FIT[k]), `${k} se coloca en un puesto que existe`);
+  assert.equal(zoneKeyOf('interior', 'l', true), 'mediapunta');
+  assert.equal(zoneKeyOf('libre', null, true), 'central');
+  assert.equal(zoneKeyOf('lateral', 'r', true), 'lateral_r');
+  assert.equal(zoneKeyOf('interior', 'l'), 'interior_l', 'en fútbol 11, igual que siempre');
+
+  const P7 = (id, first, last, position, extra = {}) => ({ id, first_name: first, last_name: last, position, status: 'activo', birth_year: 2014, ...extra });
+  const squad7 = [
+    P7('a1', 'Pau', 'Portal', 'portero'), P7('a2', 'Leo', 'Lateral', 'lateral', { laterality: 'zurdo' }), P7('a3', 'Marc', 'Lateral', 'lateral', { laterality: 'diestro' }),
+    P7('a4', 'Nil', 'Central', 'central'), P7('a5', 'Pol', 'Punta', 'mediapunta'), P7('a6', 'Eric', 'Ala', 'extremo', { laterality: 'zurdo' }), P7('a7', 'Aleix', 'Ala', 'extremo', { laterality: 'diestro' }),
+    P7('f1', 'Dani', 'Libre', 'libre'), P7('f2', 'Teo', 'Medio', 'mediocentro'), P7('f3', 'Ian', 'Interior', 'interior', { laterality: 'zurdo' }), P7('f4', 'Biel', 'Nueve', 'delantero_centro'),
+    P7('n1', 'Iván', 'Sin', null),
+  ];
+  const p7 = buildPlan({ players: squad7, isF7: true });
+  assert.deepEqual(p7.zones.map((z) => z.key), ZONES_F7.map((z) => z.key), 'solo los 7 puestos, en el orden del campo');
+  assert.equal(p7.zones.length, 7);
+  const at = (k) => p7.zones.find((z) => z.key === k).items.map((i) => i.id).sort();
+  assert.deepEqual(at('portero'), ['a1']);
+  assert.deepEqual(at('lateral_l'), ['a2']);
+  assert.deepEqual(at('lateral_r'), ['a3']);
+  assert.deepEqual(at('central'), ['a4', 'f1'], 'el libre sale de central');
+  assert.deepEqual(at('mediapunta'), ['a5', 'f2', 'f3', 'f4'], 'mediocentro, interior y delantero centro salen de mediapunta');
+  assert.deepEqual(at('extremo_l'), ['a6']);
+  assert.deepEqual(at('extremo_r'), ['a7']);
+  assert.deepEqual(p7.unplaced.map((i) => i.id), ['n1'], 'sin posición sigue fuera del campo');
+  assert.equal(p7.items.filter((i) => i.zone).length, 11, 'todos con posición salen en el campo');
+  const fl = p7.items.find((i) => i.id === 'f3');
+  assert.deepEqual([fl.position, fl.rawPosition, fl.fitted, fl.naturalPosition], ['mediapunta', 'interior', true, 'interior'], 'se sabe qué tenía en su ficha');
+  assert.equal(p7.items.find((i) => i.id === 'a5').fitted, false);
+  assert.equal(p7.summary.groups.Medios.continua, 4, 'el resumen por líneas cuenta como el campo');
+  assert.equal(p7.summary.groups.Delanteros.continua, 2);
+  assert.equal(p7.summary.groups.Defensas.continua, 4);
+  assert.equal(p7.summary.total.prevista, 12, 'los 12 jugadores cuentan en la plantilla prevista (también el que no tiene posición)');
+  // En fútbol 11 el mismo equipo no cambia
+  const p11 = buildPlan({ players: squad7 });
+  assert.equal(p11.zones.length, 12);
+  assert.equal(p11.items.find((i) => i.id === 'f3').zone, 'interior_l');
+  assert.equal(p11.items.find((i) => i.id === 'f3').fitted, false);
+
+  // Puestos a reforzar: solo los que existen en el campo de siete
+  const needs = buildPlan({ players: squad7, isF7: true, entries: [
+    { id: 'r1', kind: 'need', ref_id: 'central', note: 'Un zurdo' }, { id: 'r2', kind: 'need', ref_id: 'interior_l' }, { id: 'r3', kind: 'need', ref_id: 'lateral_l' },
+  ] });
+  assert.deepEqual(needs.needs.map((z) => z.key), ['lateral_l', 'central'], 'un puesto que no existe en fútbol 7 no se cuenta, y por orden de campo');
+
+  // Objetivos de scouting con posición de fútbol 11, y objetivos puestos a mano
+  const sc = [
+    { id: 'x1', first_name: 'Biel', last_name: 'Mid', position: 'interior', laterality: 'diestro', birth_year: 2014 },
+    { id: 'x2', first_name: 'Joan', last_name: 'Ala', position: 'extremo', laterality: 'zurdo', birth_year: 2014 },
+  ];
+  const ps = buildPlan({ players: [], scouted: sc, isF7: true, entries: [{ id: 'q1', kind: 'scout', ref_id: 'x1' }, { id: 'q2', kind: 'scout', ref_id: 'x2', position: 'lateral', side: 'r' }] });
+  assert.equal(ps.items.find((i) => i.id === 'x1').zone, 'mediapunta');
+  assert.equal(ps.items.find((i) => i.id === 'x2').zone, 'lateral_r');
+  assert.equal(ps.items.find((i) => i.id === 'x2').moved, true);
+
+  // Un jugador colocado a mano en un puesto de once (el campograma de once, antes de este cambio) sale en el puesto de siete que le corresponde
+  const old = buildPlan({ players: [P7('o1', 'Rai', 'Viejo', 'central')], isF7: true, entries: [{ id: 'o', kind: 'player', ref_id: 'o1', status: 'continua', position: 'interior', side: 'r' }] });
+  assert.equal(old.items[0].zone, 'mediapunta');
+  assert.equal(old.items[0].moved, true);
+
+  // Mover por el campo de siete: volver al puesto de su ficha (ya con el cambio de once a siete) no deja ajuste
+  const lib = p7.items.find((i) => i.id === 'f1');
+  assert.deepEqual(movePatch(lib, zoneByKey('central', true), true), { position: null, side: null }, 'el libre ya sale de central: no hace falta ajuste');
+  assert.deepEqual(movePatch(lib, zoneByKey('lateral_l', true), true), { position: 'lateral', side: 'l' });
+  const cen = p7.items.find((i) => i.id === 'a4');
+  assert.deepEqual(movePatch(cen, zoneByKey('mediapunta', true), true), { position: 'mediapunta', side: null });
+  assert.deepEqual(movePatch(cen, zoneByKey('central', true), true), { position: null, side: null });
+  assert.deepEqual(movePatch(lib, zoneByKey('central'), false), { position: 'central', side: null }, 'en un campo de once, el libre ya no está en su puesto');
+  const e1 = withMovedItem([], cen, zoneByKey('extremo_r', true), true);
+  assert.deepEqual([e1[0].position, e1[0].side], ['extremo', 'r']);
+  assert.equal(buildPlan({ players: [P7('a4', 'Nil', 'Central', 'central')], entries: e1, isF7: true }).items[0].zone, 'extremo_r');
+  const e2 = withMovedItem(e1, buildPlan({ players: [P7('a4', 'Nil', 'Central', 'central')], entries: e1, isF7: true }).items[0], zoneByKey('central', true), true);
+  assert.equal(e2.length, 0, 'volver a su puesto borra el ajuste');
+
+  // Pase de un equipo de siete a uno de once (y al revés): el puesto del destino se lee con las reglas del destino
+  const teams7 = [{ id: 'f7', name: 'Aleví S12 A', category: 'alevin_s12' }, { id: 'f11', name: 'Infantil S13 A', category: 'infantil_s13' }];
+  const sM = [P7('m1', 'Hugo', 'Medio', 'mediocentro', { team_id: 'f7' })];
+  const passEntry = { id: 'pe', kind: 'player', ref_id: 'm1', team_id: 'f7', to_team_id: 'f11', status: 'continua' };
+  const asDest11 = buildPlan({ players: [], arrivals: sM, entries: [passEntry], teams: teams7, teamId: 'f11' });
+  assert.equal(asDest11.items[0].zone, 'mediocentro', 'en el equipo de once sale de mediocentro');
+  const back = { ...passEntry, team_id: 'f11', to_team_id: 'f7' };
+  const asDest7 = buildPlan({ players: [], arrivals: sM, entries: [back], teams: teams7, teamId: 'f7', isF7: true });
+  assert.equal(asDest7.items[0].zone, 'mediapunta', 'en el equipo de siete, de mediapunta');
+  assert.equal(asDest7.items[0].pass, 'in');
+  const sum = buildPassSummary({ entries: [back], players: sM, teams: teams7 });
+  assert.equal(sum.rows[0].placeLabel, 'Mediapunta', 'el resumen de pases enseña el puesto del campo del destino');
+  const sum11 = buildPassSummary({ entries: [passEntry], players: sM, teams: teams7 });
+  assert.equal(sum11.rows[0].placeLabel, 'Mediocentro');
+  const sumPlaced = buildPassSummary({ entries: [{ ...back, position: 'interior', side: 'l' }], players: sM, teams: teams7 });
+  assert.equal(sumPlaced.rows[0].placeLabel, 'Mediapunta');
 }
 console.log('squadPlan ok');

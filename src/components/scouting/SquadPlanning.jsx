@@ -10,7 +10,7 @@ import { playerFullName } from "@/lib/playerName";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import {
-  nextSeason, buildPlan, buildPassSummary, zoneByKey, zoneTitle, moveChange, withMovedItem, playerPatch, isBlankPlayerPatch, GROUPS,
+  nextSeason, buildPlan, buildPassSummary, zoneTitle, moveChange, withMovedItem, playerPatch, isBlankPlayerPatch, GROUPS,
 } from "@/lib/squadPlan";
 import SquadPitch from "./SquadPitch";
 import { usePlanDrag, DragGhost } from "./usePlanDrag";
@@ -113,8 +113,8 @@ export default function SquadPlanning() {
   const passSummary = useMemo(() => buildPassSummary({ entries: seasonEntries, players: clubPlayers, teams }), [seasonEntries, clubPlayers, teams]);
 
   const plan = useMemo(
-    () => buildPlan({ players, scouted, entries, arrivals: arrivalIds.length ? arrivals : [], teams, teamId: tid }),
-    [players, scouted, entries, arrivals, arrivalIds.length, teams, tid],
+    () => buildPlan({ players, scouted, entries, arrivals: arrivalIds.length ? arrivals : [], teams, teamId: tid, isF7 }),
+    [players, scouted, entries, arrivals, arrivalIds.length, teams, tid, isF7],
   );
   const taken = useMemo(() => new Set(entries.filter((e) => e.kind === "scout").map((e) => e.ref_id)), [entries]);
   const objetivos = plan.items.filter((i) => i.status === "objetivo");
@@ -209,7 +209,7 @@ export default function SquadPlanning() {
   // Colocar a alguien en otro puesto (arrastrando): el campo lo enseña al instante y luego se confirma con el servidor
   const moveItem = useMutation({
     mutationFn: async ({ item, zone }) => {
-      const ch = moveChange(item, zone);
+      const ch = moveChange(item, zone, isF7);
       if (ch.kind === "scout") return E.update(item.entryId, ch.patch);
       if (ch.blank) return item.entryId ? E.delete(item.entryId) : null;
       if (item.entryId) return E.update(item.entryId, ch.patch);
@@ -218,7 +218,7 @@ export default function SquadPlanning() {
     onMutate: async ({ item, zone }) => {
       await qc.cancelQueries({ queryKey: entriesKey });
       const prev = qc.getQueryData(entriesKey);
-      qc.setQueryData(entriesKey, (old = []) => withMovedItem(old, item, zone));
+      qc.setQueryData(entriesKey, (old = []) => withMovedItem(old, item, zone, isF7));
       return { prev };
     },
     onError: (err, _vars, ctx) => { if (ctx?.prev) qc.setQueryData(entriesKey, ctx.prev); fail(err); },
@@ -226,7 +226,7 @@ export default function SquadPlanning() {
   });
   const { drag, grab, wasDrag } = usePlanDrag({
     disabled: moveItem.isPending,
-    onDrop: (item, zoneKey) => { const zone = zoneByKey(zoneKey); if (zone) moveItem.mutate({ item, zone }); },
+    onDrop: (item, zoneKey) => { const zone = plan.zones.find((z) => z.key === zoneKey); if (zone) moveItem.mutate({ item, zone }); },
   });
 
   // PDF del campograma (el módulo con jsPDF se carga solo al pedirlo, para no engordar Scouting)
