@@ -231,21 +231,31 @@ export function ZoneDialog({ zone, onClose, onItem, onAdd, onAddClub, onNeed, bu
   );
 }
 
-/** Elegir un jugador de las listas de Scouting para el plan de este equipo, como objetivo o como jugador seguido. */
+/**
+ * Elegir un jugador de las listas de Scouting para el plan de este equipo, como objetivo o como jugador seguido. Se puede filtrar por nombre o club,
+ * por decisión de scouting y por **años de nacimiento** (varios a la vez; solo salen los años que hay en la lista).
+ */
 export function AddTargetDialog({ scouted, taken, zone, onClose, onPick, busy }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("activos");
   const [role, setRole] = useState("objetivo");
+  const [years, setYears] = useState(() => new Set()); // años de nacimiento elegidos (vacío = todos)
+  const byDecision = useMemo(() => scouted.filter((p) => (filter === "activos" ? p.decision !== "descartar" : filter === "todos" ? true : p.decision === filter)), [scouted, filter]);
+  const yearChips = useMemo(() => { // los años que hay entre los jugadores de ese filtro (más los elegidos), con cuántos son
+    const count = new Map();
+    byDecision.forEach((p) => { const y = birthYearOf(p) || 0; count.set(y, (count.get(y) || 0) + 1); });
+    years.forEach((y) => { if (!count.has(y)) count.set(y, 0); });
+    return [...count.entries()].sort((a, b) => (a[0] === 0) - (b[0] === 0) || a[0] - b[0]);
+  }, [byDecision, years]);
+  const toggleYear = (y) => setYears((cur) => { const next = new Set(cur); if (next.has(y)) next.delete(y); else next.add(y); return next; });
   const rows = useMemo(() => {
-    const list = scouted.filter((p) => {
+    const list = byDecision.filter((p) => {
       if (search && !matchesPlayerSearch(p, search) && !String(p.current_club || "").toLowerCase().includes(search.toLowerCase())) return false;
-      if (filter === "activos") return p.decision !== "descartar";
-      if (filter === "todos") return true;
-      return p.decision === filter;
+      return years.size === 0 || years.has(birthYearOf(p) || 0);
     });
     const samePos = (p) => (zone && p.position === zone.pos ? 0 : 1);
     return list.sort((a, b) => samePos(a) - samePos(b) || (b.rating || 0) - (a.rating || 0) || playerFullName(a).localeCompare(playerFullName(b), "es"));
-  }, [scouted, search, filter, zone]);
+  }, [byDecision, search, years, zone]);
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-lg" data-testid="plan-add-dialog">
@@ -277,11 +287,31 @@ export function AddTargetDialog({ scouted, taken, zone, onClose, onPick, busy })
             </SelectContent>
           </Select>
         </div>
+        {yearChips.length > 1 && (
+          <div data-testid="add-years">
+            <div className="flex items-center justify-between mb-1">
+              <Label>Año de nacimiento</Label>
+              {years.size > 0 && <button type="button" onClick={() => setYears(new Set())} className="-mt-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800" data-testid="add-years-clear">Quitar filtro</button>}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {yearChips.map(([y, n]) => {
+                const on = years.has(y);
+                return (
+                  <button key={y} type="button" aria-pressed={on} onClick={() => toggleYear(y)} data-testid={`add-year-${y || "sin"}`}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-bold tabular-nums transition-colors ${on ? "border-[var(--granate)] bg-[var(--granate)] text-white" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"}`}>
+                    {y || "Sin año"} <span className={on ? "text-white/70" : "text-gray-400"}>{n}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {scouted.length > 0 && <p className="text-[11px] text-gray-400 -mb-1" data-testid="add-count">{rows.length} jugador{rows.length === 1 ? "" : "es"}{years.size > 0 ? ` de ${[...years].sort((a, b) => a - b).map((y) => y || "sin año").join(", ")}` : ""}</p>}
         <div className="max-h-72 overflow-y-auto divide-y divide-gray-100" data-testid="add-list">
           {rows.length === 0 && <p className="text-sm text-gray-400 py-6 text-center">{scouted.length === 0 ? "Todavía no hay jugadores en la pestaña Jugadores de Scouting." : "Ningún jugador con ese filtro."}</p>}
           {rows.map((p) => {
             const inPlan = taken.has(p.id);
-            const yr = Number(p.birth_year) || Number(String(p.birth_date || "").slice(0, 4)) || null;
+            const yr = birthYearOf(p);
             return (
               <button key={p.id} type="button" disabled={inPlan || busy} onClick={() => onPick(p, role)} data-testid={`add-${p.id}`}
                 className="w-full flex items-center gap-2 py-2 px-1 text-left text-sm hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-transparent">
