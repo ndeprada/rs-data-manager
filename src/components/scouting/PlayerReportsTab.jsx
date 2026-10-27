@@ -68,7 +68,7 @@ const EMPTY_FORM = {
   skill_mental: 0, skill_attack: 0, skill_defense: 0,
 };
 
-const REC_LABELS = { fichar: "Fichar", seguir_viendo: "Seguir viendo", descartar: "Descartar" };
+const REC_LABELS = { fichar: "A · Fichar", seguir_viendo: "B · Seguir viendo", descartar: "C · Descartar" };
 const REC_COLORS = { fichar: "text-green-600", seguir_viendo: "text-blue-600", descartar: "text-gray-500" };
 
 async function generatePDF(report, player) {
@@ -357,9 +357,9 @@ export default function PlayerReportsTab({ playerId, player }) {
               <Select value={form.recommendation} onValueChange={v => set("recommendation", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="fichar">Fichar</SelectItem>
-                  <SelectItem value="seguir_viendo">Seguir viendo</SelectItem>
-                  <SelectItem value="descartar">Descartar</SelectItem>
+                  <SelectItem value="fichar">A · Fichar</SelectItem>
+                  <SelectItem value="seguir_viendo">B · Seguir viendo</SelectItem>
+                  <SelectItem value="descartar">C · Descartar</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -49,7 +49,7 @@ const EMPTY_FORM = {
   skill_technical: "", skill_physical: "", skill_tactical: "", skill_mental: "", skill_attack: "", skill_defense: "", overall_rating: "",
 };
 
-const REC_LABELS = { fichar: "Fichar", seguir_viendo: "Seguir viendo", descartar: "Descartar" };
+const REC_LABELS = { fichar: "A · Fichar", seguir_viendo: "B · Seguir viendo", descartar: "C · Descartar" };
 const REC_COLORS = { fichar: "bg-green-100 text-green-700", seguir_viendo: "bg-blue-100 text-blue-700", descartar: "bg-gray-100 text-gray-500" };
 
 function generatePDF(report, player) {
@@ -261,9 +261,9 @@ export default function PlayerReportTab({ playerId, player }) {
                 <Select value={form.recommendation} onValueChange={v => set("recommendation", v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fichar">Fichar</SelectItem>
-                    <SelectItem value="seguir_viendo">Seguir viendo</SelectItem>
-                    <SelectItem value="descartar">Descartar</SelectItem>
+                    <SelectItem value="fichar">A · Fichar</SelectItem>
+                    <SelectItem value="seguir_viendo">B · Seguir viendo</SelectItem>
+                    <SelectItem value="descartar">C · Descartar</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -8,6 +8,8 @@ import { rivalReport } from './_lib/fcfRival.js';
 import { cleanDuplicates } from './_lib/dedupe.js';
 import { feedFor, readConfig, tokenFor, rotateToken, isUuid } from './_lib/ics.js';
 import { requireUser } from './_lib/auth.js';
+import { permissionsOf } from '../src/lib/permissions.js';
+import { ensureSchema, importActas, searchPlayers, playerDetail, meta as fcfMeta } from './_lib/fcfDb.js';
 import { isAdmin, coachTeamIdsOf } from './_lib/access.js';
 import { COORD, STAFF, isApprovedUser, teamIdsOfUser, reachableUserIds, searchPeople, MAX_INDIVIDUALS } from './_lib/recipients.js';
 
@@ -154,6 +156,23 @@ export default async function handler(req, res) {
   const body = req.body || {};
 
   try {
+    // ── Base de datos FCF (Planificación → Scouting): solo dirección, coordinación y administración ──
+    // Las actas llegan desde el navegador de quien las lee en la intranet de la FCF a través de la página /FcfBridge de la
+    // app (mensajes entre ventanas), así que se guardan con su sesión: no hace falta ninguna clave.
+    if (a === 'fcf_meta' || a === 'fcf_search' || a === 'fcf_player' || a === 'fcf_import') {
+      if (!permissionsOf(user).administration) return res.status(403).json({ error: 'forbidden' });
+      await ensureSchema(db);
+      if (a === 'fcf_import') {
+        if (req.method !== 'POST') return res.status(405).json({ error: 'method' });
+        const actas = Array.isArray(body.actas) ? body.actas.slice(0, 60) : [];
+        return res.status(200).json(await importActas(db, actas));
+      }
+      if (a === 'fcf_meta') return res.status(200).json(await fcfMeta(db));
+      if (a === 'fcf_search') return res.status(200).json(await searchPlayers(db, req.query));
+      const p = await playerDetail(db, req.query.id);
+      return p ? res.status(200).json(p) : res.status(404).json({ error: 'not_found' });
+    }
+
     // ── Avisos push ─────────────────────────────────────────────
     if (a === 'vapid') {
       return res.status(200).json({ key: await setupVapid() });

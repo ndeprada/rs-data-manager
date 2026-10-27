@@ -16,6 +16,7 @@ import PlayerReportsTab from "./PlayerReportsTab";
 import PlayerFollowUpsTab from "./PlayerFollowUpsTab";
 import { useToast } from "@/components/ui/use-toast";
 import { playerFullName, playerSearchName } from "@/lib/playerName";
+import { birthYearOf } from "@/lib/birthYear";
 
 const POSITIONS = {
   portero: "Portero", central: "Central", lateral: "Lateral", extremo: "Extremo",
@@ -23,9 +24,9 @@ const POSITIONS = {
   interior: "Interior", delantero_centro: "Delantero centro",
 };
 const DECISIONS = {
-  seguir_viendo: { label: "Seguir viendo", cls: "bg-blue-50 text-blue-700 border-blue-200" },
-  fichar:        { label: "Fichar",         cls: "bg-green-50 text-green-700 border-green-200" },
-  descartar:     { label: "Descartar",      cls: "bg-gray-100 text-gray-500 border-gray-200" },
+  seguir_viendo: { label: "B · Seguir viendo", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+  fichar:        { label: "A · Fichar",         cls: "bg-green-50 text-green-700 border-green-200" },
+  descartar:     { label: "C · Descartar",      cls: "bg-gray-100 text-gray-500 border-gray-200" },
 };
 const CONTACT_LABELS = { no_contactado: "Sin contacto", interesado: "Interesado", no_interesado: "No interesado", valorando: "Valorando" };
 const CONTACT_COLORS = { no_contactado: "text-gray-400", interesado: "text-green-600", no_interesado: "text-red-500", valorando: "text-yellow-600" };
@@ -138,7 +139,7 @@ export default function ScoutedPlayersList() {
         {[
           { label: "Total observados", value: counts.total, cls: "border-gray-200 bg-white" },
           { label: "Para fichar",      value: counts.fichar, cls: "border-green-200 bg-green-50" },
-          { label: "Seguir viendo",    value: counts.seguir_viendo, cls: "border-blue-200 bg-blue-50" },
+          { label: "B · Seguir viendo",    value: counts.seguir_viendo, cls: "border-blue-200 bg-blue-50" },
           { label: "Descartados",      value: counts.descartar, cls: "border-gray-200 bg-gray-50" },
         ].map(({ label, value, cls }) => (
           <div key={label} className={`border rounded-xl p-4 text-center shadow-sm ${cls}`}>
@@ -165,9 +166,9 @@ export default function ScoutedPlayersList() {
             <SelectTrigger className="w-40 h-8 text-xs"><SelectValue placeholder="Decisión" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas las decisiones</SelectItem>
-              <SelectItem value="fichar">Fichar</SelectItem>
-              <SelectItem value="seguir_viendo">Seguir viendo</SelectItem>
-              <SelectItem value="descartar">Descartar</SelectItem>
+              <SelectItem value="fichar">A · Fichar</SelectItem>
+              <SelectItem value="seguir_viendo">B · Seguir viendo</SelectItem>
+              <SelectItem value="descartar">C · Descartar</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterPosition} onValueChange={setFilterPosition}>
@@ -221,7 +222,7 @@ export default function ScoutedPlayersList() {
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-bold text-gray-900 text-base">{playerFullName(p)}</p>
-                      {p.birth_date && <span className="text-xs text-gray-400">{new Date(p.birth_date).getFullYear()}</span>}
+                      {birthYearOf(p) && <span className="text-xs text-gray-400">{birthYearOf(p)}</span>}
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${dec.cls}`}>{dec.label}</span>
                       {p.contact_status && p.contact_status !== "no_contactado" && (
                         <span className={`text-xs font-medium ${CONTACT_COLORS[p.contact_status]}`}>● {CONTACT_LABELS[p.contact_status]}</span>

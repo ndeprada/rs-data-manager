@@ -23,7 +23,7 @@ export const PASS_TAG = "bg-teal-600 text-white";
 export const NEED_BG = "bg-fuchsia-600 text-white";
 
 export const DECISION = {
-  fichar: { label: "Fichar", cls: "bg-green-50 text-green-700 border-green-200" },
-  seguir_viendo: { label: "Seguir viendo", cls: "bg-blue-50 text-blue-700 border-blue-200" },
-  descartar: { label: "Descartar", cls: "bg-gray-100 text-gray-500 border-gray-200" },
+  fichar: { label: "A · Fichar", cls: "bg-green-50 text-green-700 border-green-200" },
+  seguir_viendo: { label: "B · Seguir viendo", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+  descartar: { label: "C · Descartar", cls: "bg-gray-100 text-gray-500 border-gray-200" },
 };

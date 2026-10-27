@@ -237,9 +237,9 @@ export default function ScoutedPlayerForm({ open, onOpenChange, player, onSave, 
                 <Select value={form.decision} onValueChange={v => set("decision", v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="seguir_viendo">Seguir viendo</SelectItem>
-                    <SelectItem value="fichar">Fichar</SelectItem>
-                    <SelectItem value="descartar">Descartar</SelectItem>
+                    <SelectItem value="seguir_viendo">B · Seguir viendo</SelectItem>
+                    <SelectItem value="fichar">A · Fichar</SelectItem>
+                    <SelectItem value="descartar">C · Descartar</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

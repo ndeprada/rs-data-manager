@@ -216,7 +216,7 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
     { key: "stats", label: msg("Estadísticas"), path: "/Stats", icon: BarChart2 },
     { key: "methodology", label: msg("Metodología"), path: "/Methodology", icon: BookOpen },
     { key: "tactics", label: msg("Táctica"), path: "/Tactics", icon: Target },
-    { key: "scouting", label: msg("Scouting"), path: "/Scouting", icon: Binoculars },
+    { key: "scouting", label: msg("Planificación"), path: "/Scouting", icon: Binoculars },
     { key: "reports", label: msg("Informes"), path: "/Reports", icon: FileText },
     { key: "material", label: msg("Material"), path: "/Material", icon: Package },
   ].filter((item) => perms.tools.includes(item.key));

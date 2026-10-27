@@ -28,6 +28,7 @@ export default [
   ["Estadísticas", "Statistics", "Statistiques", "Estadístiques"],
   ["Táctica", "Tactical", "Tactique", "Tàctica"],
   ["Scouting", "Scouting", "Scouting", "Scouting"],
+  ["Planificación", "Planning", "Planification", "Planificació"],
   ["Informes", "Reports", "Rapports", "Informes"],
   ["Material", "Equipment", "Matériel", "Material"],
   ["Panel del club", "Club dashboard", "Tableau de bord du club", "Tauler del club"],

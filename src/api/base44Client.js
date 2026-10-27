@@ -135,6 +135,11 @@ export const base44 = {
     people: (q) => clubGet('people', { q }),
     send: (payload) => clubPost('send', payload),
     searchPlayers: (q) => clubGet('players_search', { q }),
+    // Base de datos FCF (Planificación → Scouting)
+    fcfMeta: () => clubGet('fcf_meta'),
+    fcfSearch: (filters) => clubGet('fcf_search', filters),
+    fcfPlayer: (id) => clubGet('fcf_player', { id }),
+    fcfImport: (actas) => clubPost('fcf_import', { actas }),
     requestLink: (player_id, relationship) => clubPost('link_request', { player_id, relationship }),
     myLinks: () => clubGet('my_links'),
     playerLinks: (player_id) => clubGet('player_links', { player_id }),

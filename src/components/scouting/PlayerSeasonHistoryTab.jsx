@@ -126,7 +126,7 @@ export default function PlayerSeasonHistoryTab({ playerId }) {
     seguir_viendo: "bg-blue-50 text-blue-700 border-blue-200",
     descartar: "bg-gray-100 text-gray-500 border-gray-200",
   };
-  const decisionLabels = { fichar: "Fichar", seguir_viendo: "Seguir viendo", descartar: "Descartar" };
+  const decisionLabels = { fichar: "A · Fichar", seguir_viendo: "B · Seguir viendo", descartar: "C · Descartar" };
 
   return (
     <div className="space-y-4">
@@ -244,9 +244,9 @@ export default function PlayerSeasonHistoryTab({ playerId }) {
                 <Select value={form.decision} onValueChange={v => set("decision", v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="seguir_viendo">Seguir viendo</SelectItem>
-                    <SelectItem value="fichar">Fichar</SelectItem>
-                    <SelectItem value="descartar">Descartar</SelectItem>
+                    <SelectItem value="seguir_viendo">B · Seguir viendo</SelectItem>
+                    <SelectItem value="fichar">A · Fichar</SelectItem>
+                    <SelectItem value="descartar">C · Descartar</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -291,8 +291,8 @@ export function AddTargetDialog({ scouted, taken, zone, onClose, onPick, busy })
             <SelectTrigger className="w-36" data-testid="add-filter"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="activos">Sin descartados</SelectItem>
-              <SelectItem value="fichar">Fichar</SelectItem>
-              <SelectItem value="seguir_viendo">Seguir viendo</SelectItem>
+              <SelectItem value="fichar">A · Fichar</SelectItem>
+              <SelectItem value="seguir_viendo">B · Seguir viendo</SelectItem>
               <SelectItem value="todos">Todos</SelectItem>
             </SelectContent>
           </Select>
