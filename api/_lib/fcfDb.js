@@ -92,42 +92,51 @@ export function actaRows(a) {
   };
 }
 
-// Guarda un lote de actas. Repetir el mismo acta la sustituye (se puede volver a leer sin duplicar).
+// Guarda un lote de actas en una sola transacción y con pocas consultas (todas las actas del lote a la vez).
+// Repetir un acta la sustituye (se puede volver a leer sin duplicar).
 export async function importActas(db, actas) {
-  let saved = 0;
+  const rows = [];
+  const seen = new Set();
   let skipped = 0;
   for (const a of actas) {
     const r = actaRows(a);
-    if (!r) { skipped += 1; continue; }
-    await db.tx(async (c) => {
-      const x = r.acta;
-      await c.query(
-        `insert into fcf_actas (acta, season, competition, grp, jornada, match_date, home, away, imported_at)
-         values ($1,$2,$3,$4,$5,$6,$7,$8, now())
-         on conflict (acta) do update set season=excluded.season, competition=excluded.competition, grp=excluded.grp,
-           jornada=excluded.jornada, match_date=excluded.match_date, home=excluded.home, away=excluded.away, imported_at=now()`,
-        [x.acta, x.season, x.competition, x.grp, x.jornada, x.match_date, x.home, x.away]
-      );
-      await c.query(`delete from fcf_apps where acta = $1`, [x.acta]);
-      if (r.apps.length) {
-        const ids = r.apps.map((p) => p.player_id);
-        await c.query(
-          `insert into fcf_players (id, name, name_norm, updated_at)
-           select * from unnest($1::text[], $2::text[], $3::text[]) as t(id, name, name_norm), lateral (select now()) n
-           on conflict (id) do update set name = excluded.name, name_norm = excluded.name_norm, updated_at = now()`,
-          [ids, r.apps.map((p) => p.name), r.apps.map((p) => normName(p.name))]
-        );
-        await c.query(
-          `insert into fcf_apps (acta, player_id, team, starter, dorsal, goals, pens, yellow, second_yellow, red)
-           select $1::text, * from unnest($2::text[], $3::text[], $4::boolean[], $5::text[], $6::int[], $7::int[], $8::int[], $9::int[], $10::int[])`,
-          [x.acta, ids, r.apps.map((p) => p.team), r.apps.map((p) => p.starter), r.apps.map((p) => p.dorsal),
-            r.apps.map((p) => p.goals), r.apps.map((p) => p.pens), r.apps.map((p) => p.yellow), r.apps.map((p) => p.second_yellow), r.apps.map((p) => p.red)]
-        );
-      }
-    });
-    saved += 1;
+    if (!r || seen.has(r.acta.acta)) { skipped += 1; continue; }
+    seen.add(r.acta.acta);
+    rows.push(r);
   }
-  return { saved, skipped };
+  if (!rows.length) return { saved: 0, skipped };
+  const A = rows.map((r) => r.acta);
+  const apps = rows.flatMap((r) => r.apps.map((p) => ({ ...p, acta: r.acta.acta })));
+  // Un mismo jugador puede salir en varias actas del lote: un solo registro (el último nombre visto)
+  const players = new Map();
+  for (const p of apps) players.set(p.player_id, p.name);
+  const col = (list, k) => list.map((x) => x[k]);
+  await db.tx(async (c) => {
+    await c.query(
+      `insert into fcf_actas (acta, season, competition, grp, jornada, match_date, home, away, imported_at)
+       select t.*, now() from unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::int[], $6::text[], $7::text[], $8::text[])
+         as t(acta, season, competition, grp, jornada, match_date, home, away)
+       on conflict (acta) do update set season=excluded.season, competition=excluded.competition, grp=excluded.grp,
+         jornada=excluded.jornada, match_date=excluded.match_date, home=excluded.home, away=excluded.away, imported_at=now()`,
+      [col(A, 'acta'), col(A, 'season'), col(A, 'competition'), col(A, 'grp'), col(A, 'jornada'), col(A, 'match_date'), col(A, 'home'), col(A, 'away')]
+    );
+    await c.query(`delete from fcf_apps where acta = any($1::text[])`, [col(A, 'acta')]);
+    if (!apps.length) return;
+    const ids = [...players.keys()];
+    await c.query(
+      `insert into fcf_players (id, name, name_norm, updated_at)
+       select t.*, now() from unnest($1::text[], $2::text[], $3::text[]) as t(id, name, name_norm)
+       on conflict (id) do update set name = excluded.name, name_norm = excluded.name_norm, updated_at = now()`,
+      [ids, ids.map((i) => players.get(i)), ids.map((i) => normName(players.get(i)))]
+    );
+    await c.query(
+      `insert into fcf_apps (acta, player_id, team, starter, dorsal, goals, pens, yellow, second_yellow, red)
+       select * from unnest($1::text[], $2::text[], $3::text[], $4::boolean[], $5::text[], $6::int[], $7::int[], $8::int[], $9::int[], $10::int[])`,
+      [col(apps, 'acta'), col(apps, 'player_id'), col(apps, 'team'), col(apps, 'starter'), col(apps, 'dorsal'),
+        col(apps, 'goals'), col(apps, 'pens'), col(apps, 'yellow'), col(apps, 'second_yellow'), col(apps, 'red')]
+    );
+  });
+  return { saved: rows.length, skipped };
 }
 
 // Año de nacimiento a partir de la competición: «… S15» en 2026-2027 = 2027 − 15 = 2012.
