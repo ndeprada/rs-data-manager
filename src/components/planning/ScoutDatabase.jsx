@@ -6,7 +6,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import ScoutedPlayerForm from "@/components/scouting/ScoutedPlayerForm";
 import { base44 } from "@/api/base44Client";
-import { RS, YearBadge, Dorsals, DecisionChip, Tag, Pills, ORIGIN, ORIGIN_KEYS, DECISION_KEYS, DECISION, originOf, seasonShort } from "@/components/rs2/kit";
+import { juvenilYear, JUV_STYLE } from "@/lib/juvenilYear";
+import { RS, YearBadge, Dorsals, DecisionChip, Tag, Pills, ORIGIN, ORIGIN_KEYS, DECISION_KEYS, DECISION, originOf, seasonShort, JuvLegend } from "@/components/rs2/kit";
 import { titleCase, fcfDisplayName } from "@/lib/fcfNames";
 import { SEASON, useScouted, useScoutedByFcf, useFcfMeta, useAlerts, usePlanningNav, useIsPlanningAdmin } from "./useScouting";
 import { spName, spYear } from "./labels";
@@ -138,10 +139,16 @@ export default function ScoutDatabase() {
           <div className="grid" style={{ gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 6 }}>
             {yearButtons.map((y) => {
               const on = String(y.year) === String(year);
+              const jy = juvenilYear(y.year, SEASON);
               return (
                 <button key={y.year} type="button" onClick={() => set({ year: on ? null : y.year })} title={`${y.n} jugadores`} data-testid={`db-year-${y.year}`}
-                  style={{ minHeight: 40, borderRadius: 8, fontSize: 14, fontWeight: on ? 700 : 500, border: `1px solid ${on ? RS.granate : RS.input}`, background: on ? RS.granate : "#fff", color: on ? "#fff" : RS.ink2 }}>
-                  {y.year}
+                  style={{ minHeight: 40, borderRadius: 8, fontSize: 14, fontWeight: on ? 700 : 500, border: `1px solid ${on ? RS.granate : RS.input}`, background: on ? RS.granate : "#fff", color: on ? "#fff" : RS.ink2,
+                    display: "inline-flex", flexDirection: "column", alignItems: "center", justifyContent: "center", lineHeight: 1.1, padding: "3px 2px" }}>
+                  <span className="inline-flex items-center" style={{ gap: 4 }}>
+                    {jy && <span aria-hidden style={{ width: 8, height: 8, borderRadius: 2, background: JUV_STYLE[jy].bg, border: jy === 3 ? `1px solid ${RS.input}` : on ? "1px solid #fff" : "none" }} />}
+                    {y.year}
+                  </span>
+                  {jy && <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.85 }}>Juv. {JUV_STYLE[jy].short}</span>}
                 </button>
               );
             })}
@@ -268,7 +275,7 @@ export default function ScoutDatabase() {
           </table>
         </div>
         <div className="flex justify-between items-center" style={{ gap: 10, padding: "12px 18px", fontSize: 14, color: RS.ink2, borderTop: `1px solid ${RS.lineSoft}` }}>
-          <span>Mostrando {rows.length.toLocaleString("es-ES")} de {total.toLocaleString("es-ES")}</span>
+          <span className="flex flex-wrap items-center" style={{ gap: "4px 18px" }}><span>Mostrando {rows.length.toLocaleString("es-ES")} de {total.toLocaleString("es-ES")}</span><JuvLegend /></span>
           {mode === "fcf" && rows.length < total && (
             <button type="button" onClick={() => setPages((p) => p + 1)} disabled={loading} style={{ fontWeight: 600, color: RS.granate, background: "none" }}>Cargar más</button>
           )}

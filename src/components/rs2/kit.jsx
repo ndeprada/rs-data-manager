@@ -3,6 +3,8 @@
 import React from "react";
 import { Search } from "lucide-react";
 import "@/styles/rs2.css";
+import { juvenilYear, JUV_STYLE } from "@/lib/juvenilYear";
+import { CURRENT_SEASON } from "@/lib/staffRoles";
 
 export const RS = {
   granate: "#73000A", granateDark: "#36000D", naranja: "#FF6E00",
@@ -130,12 +132,32 @@ export function Tag({ children, kind = "dark", title }) {
 }
 
 /** Año de nacimiento: granate pálido; naranja si juega por arriba; «—» si no se sabe */
-export function YearBadge({ year, up = false, estimated = false }) {
+export function YearBadge({ year, up = false, estimated = false, season = CURRENT_SEASON }) {
   if (!year) return <span style={{ color: RS.faint }} title="Año pendiente de deducir">—</span>;
+  // Juveniles: el color dice el año (rojo 1.º, naranja 2.º, claro 3.º) para verlos de un vistazo
+  const jy = juvenilYear(year, season);
+  const js = jy ? JUV_STYLE[jy] : null;
+  const title = [js ? `Juvenil de ${js.label}` : null, up ? "Juega por arriba" : null, estimated ? "Año estimado por las competiciones en las que juega" : null].filter(Boolean).join(" · ") || undefined;
+  const look = js ? { background: js.bg, color: js.fg } : up ? { background: RS.naranja, color: RS.ink } : { background: RS.soft, color: RS.granateDark };
   return (
-    <span title={estimated ? "Estimado por las competiciones en las que juega" : undefined}
-      style={{ display: "inline-block", fontWeight: 700, fontSize: 14, padding: "3px 9px", borderRadius: 6, background: up ? RS.naranja : RS.soft, color: up ? RS.ink : RS.granateDark }}>
-      {year}
+    <span title={title} data-testid="year-badge" data-juv={jy || undefined}
+      style={{ display: "inline-flex", alignItems: "baseline", gap: 4, whiteSpace: "nowrap", fontWeight: 700, fontSize: 14, padding: "3px 8px", borderRadius: 6, ...look }}>
+      {up && !js ? "↑ " : ""}{year}
+      {js && <span style={{ fontSize: 11, fontWeight: 700, opacity: 0.92 }}>{js.short}</span>}
+    </span>
+  );
+}
+
+/** Leyenda de los colores del año de juvenil */
+export function JuvLegend() {
+  return (
+    <span className="inline-flex flex-wrap items-center" style={{ gap: "4px 12px", fontSize: 12, color: RS.ink2 }} data-testid="juv-legend">
+      <span style={{ fontWeight: 600 }}>Juveniles:</span>
+      {[1, 2, 3].map((n) => (
+        <span key={n} className="inline-flex items-center" style={{ gap: 5 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 3, background: JUV_STYLE[n].bg, border: n === 3 ? `1px solid ${RS.input}` : "none" }} />{JUV_STYLE[n].label}
+        </span>
+      ))}
     </span>
   );
 }

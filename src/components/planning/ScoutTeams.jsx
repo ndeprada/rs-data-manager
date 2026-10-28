@@ -6,7 +6,8 @@ import { ChevronRight, Loader2, Star } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import ObservedTeamsList from "@/components/scouting/ObservedTeamsList";
-import { RS, Card, Btn, BackLink, YearBadge, Dorsals, DecisionChip, Empty, SearchBox, fmtDateTime, seasonShort } from "@/components/rs2/kit";
+import { juvenilYear, JUV_STYLE } from "@/lib/juvenilYear";
+import { RS, Card, Btn, BackLink, YearBadge, Dorsals, DecisionChip, Empty, SearchBox, fmtDateTime, seasonShort, JuvLegend } from "@/components/rs2/kit";
 import { titleCase, fcfDisplayName } from "@/lib/fcfNames";
 import { SEASON, useFcfMeta, useFollows, useScoutedByFcf, useAlerts, useUpIds, usePlanningNav, useIsPlanningAdmin } from "./useScouting";
 import { SCOUT_POSITION, LATERALITY, teamInitials } from "./labels";
@@ -216,12 +217,16 @@ function TeamView({ season, comp, grp, team }) {
 
       <section aria-label="Composición por año" className="flex flex-wrap items-center" style={{ gap: 10 }}>
         <span style={{ fontSize: 14, fontWeight: 600, color: RS.ink2, marginRight: 4 }}>Año de nacimiento</span>
-        {comp2.map((c) => (
-          <span key={c.year} className="inline-flex items-center" style={{ gap: 8, borderRadius: 999, padding: "6px 14px", fontSize: 14,
-            background: c.up ? RS.orangeSoft : "#fff", border: `1px solid ${c.up ? "#F6C9A6" : RS.line}`, color: c.up ? RS.orangeInk : RS.ink }}>
-            <strong style={{ fontSize: 16 }}>{c.n}</strong> × {c.year === "—" ? "sin año" : c.year}{c.up ? ` · ${c.up} juega${c.up === 1 ? "" : "n"} por arriba` : ""}
-          </span>
-        ))}
+        {comp2.map((c) => {
+          const jy = c.year === "—" ? null : juvenilYear(c.year, season);
+          return (
+            <span key={c.year} className="inline-flex items-center" style={{ gap: 8, borderRadius: 999, padding: "6px 14px", fontSize: 14,
+              background: c.up ? RS.orangeSoft : "#fff", border: `1px solid ${c.up ? "#F6C9A6" : RS.line}`, color: c.up ? RS.orangeInk : RS.ink }}>
+              {jy && <span aria-hidden style={{ width: 10, height: 10, borderRadius: 3, background: JUV_STYLE[jy].bg, border: jy === 3 ? `1px solid ${RS.input}` : "none" }} />}
+              <strong style={{ fontSize: 16 }}>{c.n}</strong> × {c.year === "—" ? "sin año" : c.year}{jy ? ` · ${JUV_STYLE[jy].label}` : ""}{c.up ? ` · ${c.up} juega${c.up === 1 ? "" : "n"} por arriba` : ""}
+            </span>
+          );
+        })}
         <span style={{ flex: "1 1 auto" }} />
         <label className="inline-flex items-center" style={{ gap: 8, fontSize: 14, color: RS.ink2, minHeight: 44 }}>
           <input type="checkbox" checked={onlyFollowed} onChange={(e) => setOnlyFollowed(e.target.checked)} style={{ width: 18, height: 18, accentColor: RS.granate }} />
@@ -233,7 +238,7 @@ function TeamView({ season, comp, grp, team }) {
       <section aria-labelledby="squad-title" className="rs2-card" style={{ overflow: "hidden" }}>
         <div className="flex flex-wrap justify-between items-baseline" style={{ gap: 8, padding: "16px 18px" }}>
           <h2 id="squad-title" className="rs2-title">Plantilla · {players.length} jugadores</h2>
-          <span style={{ fontSize: 13, color: RS.muted }}>Según las actas de la temporada {seasonShort(season)} en esta competición</span>
+          <span className="flex flex-wrap items-center" style={{ gap: "4px 14px", fontSize: 13, color: RS.muted }}><JuvLegend />Según las actas de la temporada {seasonShort(season)} en esta competición</span>
         </div>
         <div className="rs2-scroll-x">
           <table className="rs2-tbl" style={{ minWidth: 900 }} data-testid="squad-table">
@@ -251,7 +256,7 @@ function TeamView({ season, comp, grp, team }) {
                   <tr key={p.player_id} className="rs2-click" onClick={() => go(sp ? { s: "jugador", sp: sp.id } : { s: "jugador", fcf: p.player_id })}>
                     <td><Dorsals list={p.dorsals} /></td>
                     <td className="l"><span style={{ fontWeight: 600 }}>{fcfDisplayName(p.name)}</span></td>
-                    <td><YearBadge year={p.birth_year} up={upIds.has(String(p.player_id))} estimated /></td>
+                    <td><YearBadge year={p.birth_year} up={upIds.has(String(p.player_id))} estimated season={season} /></td>
                     <td style={{ fontWeight: 600 }}>{p.pj}</td><td>{p.tit}</td><td>{p.sup}</td>
                     <td style={{ fontWeight: 700, color: RS.granate }}>{p.goals}</td><td>{p.yellow || ""}</td><td>{p.reds || ""}</td>
                     <td className="l" style={{ fontSize: 14, color: RS.ink2 }}>{pos || "—"}</td>

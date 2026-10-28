@@ -1,7 +1,7 @@
 // Planificación → Scouting → Resumen (maqueta «Scouting · Resumen» aprobada por Nacho)
 import React, { useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { Card, Kpi, Tag, Empty, Btn, SearchBox, RS, DECISION, ORIGIN, ORIGIN_KEYS, originOf, fmtDateTime, fmtDate } from "@/components/rs2/kit";
+import { Card, Kpi, Tag, Empty, Btn, SearchBox, RS, DECISION, ORIGIN, ORIGIN_KEYS, originOf, fmtDateTime, fmtDate, YearBadge } from "@/components/rs2/kit";
 import { titleCase, fcfDisplayName } from "@/lib/fcfNames";
 import { useScouted, useAllReports, useFollows, useFcfMeta, useAlerts, usePlanningNav, useIsPlanningAdmin } from "./useScouting";
 import { spName, spYear, spMeta, contacted, teamInitials } from "./labels";
@@ -147,7 +147,7 @@ export default function ScoutingHome() {
                 <button key={a.key} type="button" onClick={() => go({ s: "jugador", fcf: a.player_id })} className="rs2-row w-full text-left flex" style={{ gap: 12, padding: "10px 0", background: "none" }}>
                   <span style={{ flex: "none", alignSelf: "flex-start" }}><Tag kind={a.kind === "arriba" ? "orange" : "dark"}>{a.kind === "arriba" ? "POR ARRIBA" : "1.º AÑO"}</Tag></span>
                   <span className="flex flex-col" style={{ gap: 2, minWidth: 0 }}>
-                    <span style={{ fontWeight: 600, fontSize: 15 }}>{fcfDisplayName(a.name)}{a.birth_year ? ` · ${a.birth_year}` : ""}</span>
+                    <span className="flex flex-wrap items-center" style={{ gap: 8, fontWeight: 600, fontSize: 15 }}>{fcfDisplayName(a.name)}{a.birth_year ? <YearBadge year={a.birth_year} estimated /> : null}</span>
                     <span style={{ fontSize: 13, color: RS.ink2 }}>{titleCase(a.team)} · {titleCase(a.competition)} · {a.pj} PJ, {a.tit} titular</span>
                   </span>
                 </button>

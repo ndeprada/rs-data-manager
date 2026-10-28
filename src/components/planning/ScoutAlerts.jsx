@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
-import { RS, Card, Tag, Pills, Empty, seasonShort, Dorsals } from "@/components/rs2/kit";
+import { RS, Card, Tag, Pills, Empty, seasonShort, Dorsals, YearBadge } from "@/components/rs2/kit";
 import { titleCase, fcfDisplayName, fcfNameParts } from "@/lib/fcfNames";
 import { SEASON, useAlerts, usePlanningNav } from "./useScouting";
 
@@ -67,8 +67,8 @@ export default function ScoutAlerts() {
       </div>
 
       <section aria-label="Tipos de alerta" className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14 }}>
-        {typeCard("primer_ano", nFirst, "Juvenil de 1.º año en categoría alta",
-          `Nacido en ${Number(SEASON.slice(0, 4)) - 16} que juega en Liga Nacional, Preferent o Primera Divisió. El año se deduce de la temporada ${seasonShort(prevSeason(SEASON))} (Cadet S16).`, true)}
+        {typeCard("primer_ano", nFirst, "Juvenil de 1.º año titular",
+          `Nacido en ${Number(SEASON.slice(0, 4)) - 16}, titular habitual (más de 5 titularidades) en Juvenil Primera Divisió o Preferent. El resto de juveniles se distinguen por el color de su año.`, true)}
         {typeCard("arriba", nUp, "Jugando por arriba",
           "Aparece en actas de una categoría superior a la suya (la más joven en la que juega esta temporada).", false)}
       </section>
@@ -86,7 +86,7 @@ export default function ScoutAlerts() {
                 <span className="flex flex-col" style={{ gap: 4, minWidth: 0 }}>
                   <span className="flex items-center flex-wrap" style={{ gap: 8 }}>
                     <Tag kind={a.kind === "arriba" ? "orange" : "dark"}>{a.kind === "arriba" ? "POR ARRIBA" : "1.º AÑO"}</Tag>
-                    {a.birth_year && <span style={{ fontWeight: 700, fontSize: 14, padding: "2px 8px", borderRadius: 6, background: RS.soft, color: RS.granateDark }}>{a.birth_year}</span>}
+                    {a.birth_year && <YearBadge year={a.birth_year} estimated />}
                     {a.dorsals?.length > 0 && <Dorsals list={a.dorsals} />}
                   </span>
                   <button type="button" onClick={() => go(a.followed ? { s: "jugador", sp: a.followed.id } : { s: "jugador", fcf: a.player_id })} style={{ fontWeight: 600, fontSize: 16, color: RS.ink, background: "none", textAlign: "left" }}>
@@ -100,7 +100,7 @@ export default function ScoutAlerts() {
                 <span style={{ fontSize: 14, color: RS.ink2 }}>
                   {a.kind === "arriba"
                     ? `Su categoría: ${titleCase(a.own_comp)} (${titleCase(a.own_team)}) · ${a.pj} ${a.pj === 1 ? "acta" : "actas"} con el equipo superior`
-                    : `${seasonShort(prevSeason(SEASON))} en ${titleCase(a.prev_comp)} (${titleCase(a.prev_team)})`}
+                    : `${a.tit} titularidades en ${a.pj} partidos${a.prev_comp ? ` · ${seasonShort(prevSeason(SEASON))} en ${titleCase(a.prev_comp)} (${titleCase(a.prev_team)})` : ""}`}
                 </span>
                 <span className="tabular-nums" style={{ fontSize: 15 }}><strong>{a.pj}</strong> · {a.tit} · <strong style={{ color: RS.granate }}>{a.goals}</strong></span>
                 <span className="flex justify-end" style={{ gap: 8 }}>

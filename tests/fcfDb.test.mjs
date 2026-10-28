@@ -86,7 +86,8 @@ assert.deepEqual(m.seasons, ['2026-2027', '2025-2026']);
 
 // ── Alertas, equipos de un grupo, plantilla y años ──
 // Jan (11): juvenil de Primera en 2026-27 que venía de Cadet S16 → 1.º año (2010)
-let al = await alerts(db, '2026-2027');
+assert.equal((await alerts(db, '2026-2027')).filter((x) => x.kind === 'primer_ano').length, 0, 'por defecto hacen falta más de 5 titularidades');
+let al = await alerts(db, '2026-2027', { minTit: 1 });
 const first = al.filter((x) => x.kind === 'primer_ano');
 assert.equal(first.length, 1);
 assert.deepEqual([first[0].player_id, first[0].birth_year, first[0].prev_comp], ['11', 2010, 'DIVISIÓ HONOR CADET S16']);
@@ -118,6 +119,23 @@ const sq = await teamSquad(db, { season: '2026-2027', competition: 'CADET SEGONA
 assert.equal(sq.pj, 2);
 assert.deepEqual(sq.players.map((p) => [p.player_id, p.pj]), [['31', 2], ['32', 1]]);
 assert.equal(await teamSquad(db, { season: 'x', team: 'A' }), null);
+
+// ── 1.º año: solo Juvenil Primera y Preferent, con más de 5 titularidades ──
+{
+  const juv = (id, comp, team, pid, tit = true) => acta(id, 1, team, 'RIVAL J', [P(pid, `JUGADOR ${pid}, X`, team, tit)], [], [], { competition: comp, group: 'GRUP 1' });
+  const cadPrev = (id, pid) => acta(id, 1, 'CAD', 'RIVAL C', [P(pid, `JUGADOR ${pid}, X`, 'CAD', true)], [], [], { season: '2025-2026', competition: 'PREFERENT CADET S16', group: 'GRUP 1' });
+  const list = [];
+  for (let i = 0; i < 6; i += 1) {
+    list.push(juv(`61${i}`, 'PREFERENT JUVENIL', 'PREF A', '601'));
+    list.push(juv(`62${i}`, 'LLIGA NACIONAL JUVENIL', 'NAC A', '602'));
+    list.push(juv(`63${i}`, 'JUVENIL SEGONA DIVISIÓ', 'SEG A', '603'));
+    list.push(juv(`64${i}`, 'JUVENIL PRIMERA DIVISIÓ', 'PRI A', '604', i < 5));
+  }
+  list.push(cadPrev('6901', '601'), cadPrev('6902', '602'), cadPrev('6903', '603'), cadPrev('6904', '604'));
+  await importActas(db, list);
+  const fy = (await alerts(db, '2026-2027')).filter((x) => x.kind === 'primer_ano').map((x) => x.player_id);
+  assert.deepEqual(fy, ['601'], 'Preferent con 6 titularidades sí; Nacional y Segona no; Primera con 5 aún no');
+}
 
 // ── Dorsales habituales de la temporada: el más usado primero ──
 const dA = (id, j, dorsal, team = 'DORSAL FC') => acta(id, j, team, 'RIVAL', [P('77', 'DORSAL PI, NIL', team, true, dorsal)]);

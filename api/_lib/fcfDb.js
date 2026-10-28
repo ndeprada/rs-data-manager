@@ -319,30 +319,38 @@ export async function teamSquad(db, { season, competition, grp, team } = {}) {
 }
 
 const prevSeason = (s) => { const a = Number(String(s).slice(0, 4)); return `${a - 1}-${a}`; };
-const TOP_JUVENIL = `(c.competition ilike '%NACIONAL%' or c.competition ilike '%PREFERENT%' or c.competition ilike '%PRIMERA%')`;
+// Juvenil de 1.º año que merece alerta (decidido con Nacho el 28/10/2026): solo en Juvenil Primera y Preferent (Liga Nacional y
+// Segona no) y con MÁS de 5 titularidades en esa competición. El resto de juveniles se distinguen por el color de su año.
+const FIRST_YEAR_COMPS = `(c.competition ilike '%PREFERENT%' or c.competition ilike '%PRIMERA%') and c.competition not ilike '%NACIONAL%'`;
+export const FIRST_YEAR_MIN_TIT = 6;
 
 // Alertas de una temporada:
-//  · primer_ano: juvenil de 1.º año (venía de Cadet S16 la temporada anterior) jugando en Liga Nacional, Preferent o Primera.
+//  · primer_ano: juvenil de 1.º año (nacido en «fin de temporada − 17») titular habitual en Juvenil Primera o Preferent.
 //  · arriba: jugador que aparece en actas de una categoría superior a la suya (la más joven en la que juega esa temporada).
-export async function alerts(db, season) {
+export async function alerts(db, season, { minTit = FIRST_YEAR_MIN_TIT } = {}) {
   const s = SEASON_RE.test(season || '') ? season : '2026-2027';
   const prev = prevSeason(s);
-  const prevEnd = Number(prev.slice(5, 9));
   const end = Number(s.slice(5, 9));
   const { rows: first } = await db.query(
     `with cur as (
        select p.player_id, c.competition, c.grp, mode() within group (order by p.team) as team,
          count(*)::int as pj, sum(case when p.starter then 1 else 0 end)::int as tit, sum(p.goals)::int as goals
        from fcf_apps p join fcf_actas c on c.acta = p.acta
-       where c.season = $1 and c.lvl = 17 and ${TOP_JUVENIL}
+       where c.season = $1 and c.lvl = 17 and ${FIRST_YEAR_COMPS}
        group by p.player_id, c.competition, c.grp
+       having sum(case when p.starter then 1 else 0 end) >= $3
+     ), by as (
+       select p.player_id, ${BY_EXPR} as by from fcf_apps p join fcf_actas c on c.acta = p.acta
+       where c.lvl <= 16 and p.player_id in (select player_id from cur) group by p.player_id
      ), prev as (
        select p.player_id, mode() within group (order by c.competition) as prev_comp, mode() within group (order by p.team) as prev_team
        from fcf_apps p join fcf_actas c on c.acta = p.acta
-       where c.season = $2 and c.lvl = 16 group by p.player_id
+       where c.season = $2 and c.lvl <= 16 and p.player_id in (select player_id from cur) group by p.player_id
      )
-     select cur.*, prev.prev_comp, prev.prev_team, f.name from cur join prev on prev.player_id = cur.player_id join fcf_players f on f.id = cur.player_id
-     order by cur.tit desc, cur.pj desc limit 2000`, [s, prev]
+     select cur.*, by.by, prev.prev_comp, prev.prev_team, f.name
+     from cur join by on by.player_id = cur.player_id and by.by = $4
+     left join prev on prev.player_id = cur.player_id join fcf_players f on f.id = cur.player_id
+     order by cur.tit desc, cur.pj desc limit 2000`, [s, prev, Math.max(0, Number(minTit) || 0), end - 17]
   );
   const { rows: up } = await db.query(
     `with s as (
@@ -367,7 +375,7 @@ export async function alerts(db, season) {
   const dors = await seasonDorsals(db, s, allIds);
   return [
     ...first.map((r) => ({
-      kind: 'primer_ano', player_id: r.player_id, name: r.name, birth_year: by.get(r.player_id) ?? prevEnd - 16,
+      kind: 'primer_ano', player_id: r.player_id, name: r.name, birth_year: r.by,
       team: r.team, competition: r.competition, grp: r.grp, pj: r.pj, tit: r.tit, goals: r.goals, dorsals: dors.get(r.player_id) || [],
       prev_comp: r.prev_comp, prev_team: r.prev_team,
     })),

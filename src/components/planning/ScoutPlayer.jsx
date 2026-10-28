@@ -16,6 +16,7 @@ import PlayerSeasonHistoryTab from "@/components/scouting/PlayerSeasonHistoryTab
 import PlayerFollowUpsTab from "@/components/scouting/PlayerFollowUpsTab";
 import { RS, Card, Btn, BackLink, Chip, Empty, Pills, Dorsals, DECISION, DECISION_KEYS, ORIGIN, originOf, fmtDate, seasonShort } from "@/components/rs2/kit";
 import { titleCase, fcfDisplayName } from "@/lib/fcfNames";
+import { juvenilYear, JUV_STYLE } from "@/lib/juvenilYear";
 import { nextSeason } from "@/lib/squadPlan";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
 import { useScouted, usePlanningNav, useIsPlanningAdmin } from "./useScouting";
@@ -119,6 +120,9 @@ export default function ScoutPlayer() {
                 <span className="rs2-display" style={{ fontSize: 30, lineHeight: 1 }}>{year || "—"}</span>
                 {year && <span style={{ fontSize: 13, fontWeight: 600, color: confirmedYear ? "#2F6B3A" : RS.orangeInk }}>{confirmedYear ? "confirmado" : "estimado"}</span>}
               </span>
+              {juvenilYear(year, CURRENT_SEASON) && (() => { const js = JUV_STYLE[juvenilYear(year, CURRENT_SEASON)]; return (
+                <span data-testid="player-juv" style={{ alignSelf: "flex-start", marginTop: 4, fontSize: 13, fontWeight: 700, padding: "2px 9px", borderRadius: 6, background: js.bg, color: js.fg }}>Juvenil de {js.label}</span>
+              ); })()}
             </div>
             <div className="flex flex-col" style={{ gap: 4 }} data-testid="player-dorsal">
               <span style={label}>Dorsal {cur ? seasonShort(cur.season) : ""}</span>
