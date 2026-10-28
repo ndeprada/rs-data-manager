@@ -1,6 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
 import assert from 'node:assert/strict';
-import { cleanDorsals, seasonDorsals, ensureSchema, importActas, searchPlayers, playerDetail, meta, actaRows, birthYearFromCompetition, normName, compLevel, alerts, groupTeams, teamSquad, yearCounts } from '../api/_lib/fcfDb.js';
+import { actaIds, cleanDorsals, seasonDorsals, ensureSchema, importActas, searchPlayers, playerDetail, meta, actaRows, birthYearFromCompetition, normName, compLevel, alerts, groupTeams, teamSquad, yearCounts } from '../api/_lib/fcfDb.js';
 
 // ── Año de nacimiento por la competición ──
 assert.equal(birthYearFromCompetition('CADET SEGONA DIVISIÓ S15', '2026-2027'), 2012);
@@ -167,5 +167,10 @@ const d77 = await playerDetail(db, '77');
 assert.deepEqual(d77.seasons.map((x) => [x.team, x.dorsals.map((y) => y.d)]), [['DORSAL FC', ['7', '14']], ['DORSAL FC "B"', ['9']]]);
 assert.deepEqual(cleanDorsals(null), []);
 assert.deepEqual(cleanDorsals('[{"d":"5","n":"3"}]'), [{ d: '5', n: 3 }]);
+
+// ── Actas ya guardadas (para reanudar una carga) ──
+assert.ok((await actaIds(db, { season: '2026-2027' })).includes('1001'));
+assert.deepEqual(await actaIds(db, { season: '2024-2025', competition: 'DIVISIÓ HONOR CADET' }), ['7001', '7002']);
+assert.deepEqual(await actaIds(db, { season: 'x' }), []);
 
 console.log('fcfDb ok');

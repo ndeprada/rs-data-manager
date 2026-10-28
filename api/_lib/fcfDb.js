@@ -174,6 +174,16 @@ export function birthYearFromCompetition(competition, season) {
   return end - Number(m[1]);
 }
 
+// Actas ya guardadas de una temporada (y competición): para reanudar una carga sin volver a pedir a la intranet lo que ya está
+export async function actaIds(db, { season, competition } = {}) {
+  if (!SEASON_RE.test(season || '')) return [];
+  const params = [season];
+  let extra = '';
+  if (competition) { params.push(String(competition)); extra = ` and competition = $2`; }
+  const { rows } = await db.query(`select acta from fcf_actas where season = $1${extra}`, params);
+  return rows.map((r) => r.acta);
+}
+
 export async function meta(db) {
   const { rows: comps } = await db.query(
     `select season, competition, grp, count(*)::int as actas, max(imported_at) as last
