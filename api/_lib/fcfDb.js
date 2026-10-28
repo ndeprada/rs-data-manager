@@ -342,7 +342,7 @@ export async function alerts(db, season) {
        where c.season = $2 and c.lvl = 16 group by p.player_id
      )
      select cur.*, prev.prev_comp, prev.prev_team, f.name from cur join prev on prev.player_id = cur.player_id join fcf_players f on f.id = cur.player_id
-     order by cur.tit desc, cur.pj desc limit 400`, [s, prev]
+     order by cur.tit desc, cur.pj desc limit 2000`, [s, prev]
   );
   const { rows: up } = await db.query(
     `with s as (
@@ -360,7 +360,7 @@ export async function alerts(db, season) {
      )
      select upc.*, o.own, oc.own_comp, oc.own_team, f.name
      from upc join own o on o.player_id = upc.player_id join own_comp oc on oc.player_id = upc.player_id join fcf_players f on f.id = upc.player_id
-     order by upc.pj desc, upc.tit desc limit 600`, [s]
+     order by upc.pj desc, upc.tit desc limit 2000`, [s]
   );
   const allIds = [...first.map((r) => r.player_id), ...up.map((r) => r.player_id)];
   const by = await birthYears(db, allIds);
