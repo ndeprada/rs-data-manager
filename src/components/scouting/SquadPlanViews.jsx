@@ -13,7 +13,7 @@ export function TeamPills({ teams, value, onChange }) {
         const on = t.id === value;
         return (
           <button key={t.id} type="button" onClick={() => onChange(t.id)} data-testid={`plan-team-${t.id}`}
-            style={{ minHeight: 40, padding: "0 14px", borderRadius: 8, fontSize: 14, fontWeight: on ? 600 : 400, background: on ? RS.granate : "#fff", color: on ? "#fff" : RS.ink2, border: `1px solid ${on ? RS.granate : RS.line}` }}>
+            style={{ minHeight: 28, padding: "0 11px", borderRadius: 7, fontSize: 12.5, fontWeight: on ? 600 : 400, background: on ? RS.granate : "#fff", color: on ? "#fff" : RS.ink2, border: `1px solid ${on ? RS.granate : RS.line}` }}>
             {t.name}
           </button>
         );
@@ -35,16 +35,17 @@ export function PlanBand({ team, season, isF7, plan, players }) {
     ["Prevista", total.prevista, true], ["Continúan", total.continua], ["Dudas", total.duda], ["Bajas", total.sale], ["Objetivos", total.objetivo], ["Pases", total.llega + total.pasa],
   ];
   return (
-    <section aria-label="Equipo planificado" className="rs2-band flex flex-wrap items-center" style={{ padding: "18px 22px", gap: "18px 32px" }} data-testid="plan-band">
-      <div className="flex flex-col" style={{ flex: "999 1 340px", gap: 4, minWidth: 0 }}>
-        <span style={{ fontSize: 13, opacity: 0.85 }}>Planificación temporada {season} · {isF7 ? "F7" : "F11"}{year ? ` · nacidos en ${year}` : ""}</span>
-        <h1 className="rs2-display" style={{ margin: 0, fontSize: 42, color: "#fff" }}>{team.name}</h1>
-        <span style={{ fontSize: 14, opacity: 0.9 }}>Base: plantilla actual · {players.filter((p) => p.status !== "baja").length} jugadores</span>
+    <section aria-label="Equipo planificado" className="rs2-band flex flex-wrap items-center" style={{ padding: "7px 14px", gap: "6px 24px", borderRadius: 10 }} data-testid="plan-band">
+      <div className="flex flex-wrap items-baseline" style={{ flex: "999 1 340px", gap: "2px 12px", minWidth: 0 }}>
+        <h1 className="rs2-display" style={{ margin: 0, fontSize: 22, color: "#fff" }}>{team.name}</h1>
+        <span style={{ fontSize: 11.5, opacity: 0.85 }}>Temporada {season} · {isF7 ? "F7" : "F11"}{year ? ` · nacidos en ${year}` : ""} · base: {players.filter((p) => p.status !== "baja").length} jugadores</span>
       </div>
-      <div className="grid" style={{ gridTemplateColumns: "repeat(6, minmax(56px, auto))", gap: "2px 20px" }} data-testid="plan-stats">
-        {stats.map(([l]) => <span key={l} style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".06em", opacity: 0.8 }}>{l}</span>)}
+      <div className="flex flex-wrap items-baseline" style={{ gap: "2px 16px" }} data-testid="plan-stats">
         {stats.map(([l, v, accent]) => (
-          <span key={l} className="rs2-display tabular-nums" style={{ fontSize: 34, lineHeight: 1, color: accent ? RS.naranja : "#fff" }} data-testid={l === "Prevista" ? "plan-total" : undefined}>{v}</span>
+          <span key={l} className="inline-flex items-baseline" style={{ gap: 5 }}>
+            <span className="rs2-display tabular-nums" style={{ fontSize: 19, lineHeight: 1, color: accent ? RS.naranja : "#fff" }} data-testid={l === "Prevista" ? "plan-total" : undefined}>{v}</span>
+            <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", opacity: 0.8 }}>{l}</span>
+          </span>
         ))}
       </div>
     </section>
@@ -55,39 +56,39 @@ export function Coverage({ plan, onZone }) {
   const { groups } = plan.summary;
   const max = Math.max(1, ...GROUPS.map((g) => groups[g].continua + groups[g].objetivo + groups[g].duda));
   return (
-    <section aria-labelledby="cobertura" className="rs2-card flex flex-wrap items-center" style={{ padding: "14px 18px", gap: "12px 28px" }} data-testid="plan-coverage">
-      <h2 id="cobertura" style={{ margin: 0, fontSize: 17, flex: "none" }}>Cobertura por línea</h2>
+    <section aria-labelledby="cobertura" className="rs2-card flex flex-wrap items-center" style={{ padding: "6px 14px", gap: "6px 24px" }} data-testid="plan-coverage">
+      <h2 id="cobertura" style={{ margin: 0, fontSize: 13, flex: "none" }}>Cobertura por línea</h2>
       <div className="grid" style={{ flex: "1 1 600px", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12 }}>
         {GROUPS.map((g) => {
           const r = groups[g];
           const needs = plan.needs.filter((z) => groupOf(z.pos) === g);
           return (
-            <div key={g} className="flex flex-col" style={{ gap: 6 }}>
-              <span className="flex justify-between" style={{ fontSize: 14 }}>
+            <div key={g} className="flex flex-col" style={{ gap: 3 }}>
+              <span className="flex justify-between" style={{ fontSize: 12 }}>
                 <strong>{g}</strong>
                 <span className="tabular-nums" title="Continúan + objetivos">{r.prevista} previstos{r.duda ? ` · ${r.duda} en duda` : ""}</span>
               </span>
-              <span className="flex" style={{ height: 8, borderRadius: 999, background: "#F1EBEA", overflow: "hidden" }}>
+              <span className="flex" style={{ height: 6, borderRadius: 999, background: "#F1EBEA", overflow: "hidden" }}>
                 <span style={{ width: `${(r.continua / max) * 100}%`, background: RS.granate }} />
                 <span style={{ width: `${(r.objetivo / max) * 100}%`, background: RS.naranja }} />
                 <span style={{ width: `${(r.duda / max) * 100}%`, background: "#F2C38B" }} />
               </span>
               {needs.length ? (
-                <span style={{ fontSize: 13, color: RS.orangeInk }}>
+                <span style={{ fontSize: 11, color: RS.orangeInk }}>
                   A reforzar: {needs.map((z, i) => (
                     <button key={z.key} type="button" onClick={() => onZone(z.key)} style={{ color: RS.orangeInk, fontWeight: 600, background: "none", textDecoration: "underline" }}>
                       {zoneTitle(z).toLowerCase()}{i < needs.length - 1 ? ", " : ""}
                     </button>
                   ))}
                 </span>
-              ) : <span style={{ fontSize: 13, color: RS.ink2 }}>Sin puestos a reforzar</span>}
+              ) : <span style={{ fontSize: 11, color: RS.muted }}>Sin puestos a reforzar</span>}
             </div>
           );
         })}
       </div>
-      <div className="flex flex-wrap" style={{ gap: 14, fontSize: 12, color: RS.ink2, flexBasis: "100%" }}>
+      <div className="flex flex-col" style={{ gap: 2, fontSize: 10.5, color: RS.ink2, flex: "none" }}>
         {[["Continúan", RS.granate], ["Objetivos de scouting", RS.naranja], ["En duda", "#F2C38B"]].map(([l, c]) => (
-          <span key={l} className="flex items-center" style={{ gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 3, background: c }} />{l}</span>
+          <span key={l} className="flex items-center" style={{ gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: c }} />{l}</span>
         ))}
       </div>
     </section>
@@ -114,10 +115,10 @@ function PlanCard({ it, onOpen }) {
   return (
     <button type="button" onClick={() => onOpen(it)} data-testid={`col-${it.key}`}
       style={{ display: "grid", gridTemplateColumns: "44px minmax(0,1fr) auto", gap: 10, alignItems: "center", background: "#fff", border: `1px solid ${RS.line}`, borderRadius: 10, padding: "8px 10px", textAlign: "left", width: "100%" }}>
-      <span style={{ height: 32, borderRadius: 6, background: RS.soft, color: RS.granateDark, fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>{POS_SHORT[it.position] || "—"}</span>
+      <span style={{ height: 32, borderRadius: 6, background: RS.soft, color: RS.granateDark, fontWeight: 700, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>{POS_SHORT[it.position] || "—"}</span>
       <span className="flex flex-col" style={{ minWidth: 0 }}>
-        <span className="truncate" style={{ fontWeight: 600, fontSize: 15, color: it.status === "sale" ? RS.faint : RS.ink, textDecoration: it.status === "sale" ? "line-through" : "none" }}>{it.name}</span>
-        <span className="truncate" style={{ fontSize: 12, color: RS.muted }}>{sub}</span>
+        <span className="truncate" style={{ fontWeight: 600, fontSize: 13, color: it.status === "sale" ? RS.faint : RS.ink, textDecoration: it.status === "sale" ? "line-through" : "none" }}>{it.name}</span>
+        <span className="truncate" style={{ fontSize: 11, color: RS.muted }}>{sub}</span>
       </span>
       {tag ? <span style={tag.style}>{tag.text}</span> : <span />}
     </button>
@@ -138,25 +139,25 @@ export function ColumnsView({ plan, onItem, onAddScout, onAddClub }) {
   const col = (title, color, list, groups, footer, testId) => (
     <section style={{ background: "#EFE9E8", borderRadius: 12, padding: 12, display: "flex", flexDirection: "column", gap: 8 }} data-testid={testId}>
       <div className="flex justify-between items-center" style={{ padding: "2px 4px 4px" }}>
-        <h3 className="flex items-center" style={{ margin: 0, fontSize: 16, gap: 8 }}>{dot(color)}{title}</h3>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>{list.length}</span>
+        <h3 className="flex items-center" style={{ margin: 0, fontSize: 14, gap: 8 }}>{dot(color)}{title}</h3>
+        <span style={{ fontSize: 13, fontWeight: 700 }}>{list.length}</span>
       </div>
       {(groups || [{ label: "", list }]).map((g) => (
         <React.Fragment key={g.label || "all"}>
-          {g.label && <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: RS.muted, padding: "6px 4px 0" }}>{g.label}</span>}
+          {g.label && <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: RS.muted, padding: "6px 4px 0" }}>{g.label}</span>}
           {g.list.map((it) => <PlanCard key={it.key} it={it} onOpen={onItem} />)}
-          {g.label && g.list.length === 0 && <span style={{ fontSize: 13, color: RS.faint, padding: "0 4px" }}>Ninguno</span>}
+          {g.label && g.list.length === 0 && <span style={{ fontSize: 12, color: RS.faint, padding: "0 4px" }}>Ninguno</span>}
         </React.Fragment>
       ))}
-      {!groups && list.length === 0 && <span style={{ fontSize: 13, color: RS.faint, padding: "0 4px" }}>Nadie</span>}
+      {!groups && list.length === 0 && <span style={{ fontSize: 12, color: RS.faint, padding: "0 4px" }}>Nadie</span>}
       {footer}
     </section>
   );
   const addBtn = (label, onClick, testId) => (
-    <button type="button" onClick={onClick} data-testid={testId} style={{ minHeight: 40, border: "1px dashed #BFB2B1", borderRadius: 10, background: "transparent", color: RS.ink2, fontSize: 14 }}>{label}</button>
+    <button type="button" onClick={onClick} data-testid={testId} style={{ minHeight: 32, border: "1px dashed #BFB2B1", borderRadius: 10, background: "transparent", color: RS.ink2, fontSize: 13 }}>{label}</button>
   );
   return (
-    <div className="grid items-start" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }} data-testid="plan-columns">
+    <div className="grid items-start" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }} data-testid="plan-columns">
       {col("Continúan", RS.granate, cont, null, null, "colgroup-continua")}
       {col("En duda", RS.naranja, duda, null, null, "colgroup-duda")}
       {col("No continúan", RS.faint, out, null, null, "colgroup-sale")}

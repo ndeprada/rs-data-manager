@@ -22,10 +22,10 @@ export default function ScoutReports() {
   const count = (k) => reports.filter((r) => r.recommendation === k).length;
 
   return (
-    <div className="flex flex-col" style={{ gap: 20 }} data-testid="scout-reports">
+    <div className="flex flex-col" style={{ gap: 14 }} data-testid="scout-reports">
       <div>
-        <h1 className="rs2-display" style={{ margin: 0, fontSize: 44, color: RS.granateDark }}>Informes</h1>
-        <span style={{ fontSize: 14, color: RS.ink2 }}>{reports.length} informes de observación · los nuevos se crean desde la ficha de cada jugador</span>
+        <h1 className="rs2-display" style={{ margin: 0, fontSize: 34, color: RS.granateDark }}>Informes</h1>
+        <span style={{ fontSize: 13, color: RS.ink2 }}>{reports.length} informes de observación · los nuevos se crean desde la ficha de cada jugador</span>
       </div>
       <Card pad={false} testId="reports-list" title="Informes de observación"
         action={
@@ -41,21 +41,21 @@ export default function ScoutReports() {
           const p = byId.get(r.player_id);
           return (
             <button key={r.id} type="button" onClick={() => p && go({ s: "jugador", sp: p.id })} className="rs2-row w-full text-left"
-              style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: "4px 14px", padding: "12px 18px", background: "none" }}>
+              style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: "4px 14px", padding: "8px 14px", background: "none" }}>
               <span className="flex flex-wrap items-center" style={{ gap: 10 }}>
-                <span style={{ fontWeight: 700, fontSize: 16 }}>{p ? spName(p) : "Jugador eliminado"}</span>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>{p ? spName(p) : "Jugador eliminado"}</span>
                 <DecisionChip decision={r.recommendation} short empty="" />
               </span>
-              <span style={{ fontSize: 13, color: RS.muted, textAlign: "right" }}>{fmtDate(r.report_date)}{r.scout_name ? ` · ${r.scout_name}` : ""}</span>
-              {p && <span style={{ fontSize: 13, color: RS.ink2, gridColumn: "1 / -1" }}>{spMeta(p)}{r.match_observed ? ` · ${r.match_observed}` : ""}</span>}
-              {(r.summary || r.strengths) && <span className="line-clamp-2" style={{ fontSize: 15, gridColumn: "1 / -1", lineHeight: 1.45 }}>{r.summary || r.strengths}</span>}
+              <span style={{ fontSize: 12, color: RS.muted, textAlign: "right" }}>{fmtDate(r.report_date)}{r.scout_name ? ` · ${r.scout_name}` : ""}</span>
+              {p && <span style={{ fontSize: 12, color: RS.ink2, gridColumn: "1 / -1" }}>{spMeta(p)}{r.match_observed ? ` · ${r.match_observed}` : ""}</span>}
+              {(r.summary || r.strengths) && <span className="line-clamp-2" style={{ fontSize: 13, gridColumn: "1 / -1", lineHeight: 1.45 }}>{r.summary || r.strengths}</span>}
             </button>
           );
         })}
         {!isLoading && rows.length === 0 && <div style={{ padding: "0 18px 14px" }}><Empty>No hay informes con este filtro.</Empty></div>}
       </Card>
 
-      <Card title="Seguimientos programados" action={<span style={{ fontSize: 13, color: RS.muted }}>Próximas observaciones de jugadores en seguimiento</span>}>
+      <Card title="Seguimientos programados" action={<span style={{ fontSize: 12, color: RS.muted }}>Próximas observaciones de jugadores en seguimiento</span>}>
         <FollowUpsList />
       </Card>
     </div>

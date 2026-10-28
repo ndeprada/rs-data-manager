@@ -26,27 +26,27 @@
 .rs2 .font-black { font-weight: 800 !important; }
 .rs2 .tabular-nums { font-variant-numeric: tabular-nums; }
 
-.rs2-wrap { max-width: 1360px; margin: 0 auto; padding: 24px 24px 48px; }
+.rs2-wrap { max-width: 1360px; margin: 0 auto; padding: 16px 20px 40px; }
 @media (max-width: 640px) { .rs2-wrap { padding: 16px 16px 40px; } }
 
 .rs2-card { background: var(--rs-card); border: 1px solid var(--rs-line); border-radius: 12px; }
 .rs2-band { background: #36000D; color: #fff; border-radius: 14px; }
-.rs2-title { font-size: 19px; font-weight: 700; margin: 0; }
-.rs2-label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--rs-muted); }
+.rs2-title { font-size: 16px; font-weight: 700; margin: 0; }
+.rs2-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--rs-muted); }
 
 /* Tablas */
-.rs2-tbl { width: 100%; border-collapse: collapse; font-size: 15px; }
-.rs2-tbl th { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--rs-muted); text-align: center;
-  padding: 10px 8px; background: var(--rs-head); border-bottom: 1px solid var(--rs-line); white-space: nowrap; }
-.rs2-tbl td { padding: 9px 8px; border-bottom: 1px solid var(--rs-line-soft); text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rs2-tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.rs2-tbl th { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--rs-muted); text-align: center;
+  padding: 7px 8px; background: var(--rs-head); border-bottom: 1px solid var(--rs-line); white-space: nowrap; }
+.rs2-tbl td { padding: 6px 8px; border-bottom: 1px solid var(--rs-line-soft); text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rs2-tbl th.l, .rs2-tbl td.l { text-align: left; }
-.rs2-tbl th:first-child, .rs2-tbl td:first-child { padding-left: 18px; }
-.rs2-tbl th:last-child, .rs2-tbl td:last-child { padding-right: 18px; }
+.rs2-tbl th:first-child, .rs2-tbl td:first-child { padding-left: 14px; }
+.rs2-tbl th:last-child, .rs2-tbl td:last-child { padding-right: 14px; }
 .rs2-tbl tbody tr:hover td { background: var(--rs-head); }
 .rs2-tbl tbody tr.rs2-click { cursor: pointer; }
 
 /* Campos de formulario */
-.rs2-input { height: 44px; border: 1px solid var(--rs-input); border-radius: 8px; padding: 0 12px; font: inherit; font-size: 15px;
+.rs2-input { height: 36px; border: 1px solid var(--rs-input); border-radius: 8px; padding: 0 12px; font: inherit; font-size: 13.5px;
   background: #fff; color: var(--rs-ink); width: 100%; outline: none; }
 .rs2-input:focus { border-color: #73000A; box-shadow: 0 0 0 3px rgba(115, 0, 10, .12); }
 
@@ -57,3 +57,9 @@
 .rs2 a.rs2-link:hover { color: #36000D; }
 
 .rs2-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Vista «Lista» (compacta): una línea por fila, para ver muchos de un vistazo (pedido por Nacho el 28/10/2026) */
+.rs2-tbl.rs2-compact { font-size: 12.5px; }
+.rs2-tbl.rs2-compact td { padding: 3px 8px; line-height: 1.25; }
+.rs2-tbl.rs2-compact th { padding: 5px 8px; }
+.rs2-tbl.rs2-compact td.l .rs2-sub { display: inline; margin-left: 6px; }

@@ -23,7 +23,7 @@ import { useScouted, usePlanningNav, useIsPlanningAdmin } from "./useScouting";
 import { SCOUT_POSITION, LATERALITY, CONTACT, spName, isRacingTeam } from "./labels";
 import { newScoutFromFcf } from "./ScoutAlerts";
 
-const label = { fontSize: 12, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", color: RS.muted };
+const label = { fontSize: 11, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", color: RS.muted };
 
 export default function ScoutPlayer() {
   const admin = useIsPlanningAdmin();
@@ -67,7 +67,7 @@ export default function ScoutPlayer() {
   if (loadingScouted || (fcfId && admin && loadingFcf && !sp)) return <div style={{ padding: 40 }}><Loader2 className="animate-spin" color={RS.faint} /></div>;
   if (!sp && !fcf) {
     return (
-      <div className="flex flex-col" style={{ gap: 16 }}>
+      <div className="flex flex-col" style={{ gap: 12 }}>
         <BackLink onClick={() => go({ s: "bd" })}>Base de datos</BackLink>
         <Card><Empty>No se ha encontrado este jugador.</Empty></Card>
       </div>
@@ -96,52 +96,52 @@ export default function ScoutPlayer() {
   const dec = sp ? DECISION[sp.decision] || DECISION.seguir_viendo : null;
 
   return (
-    <div className="flex flex-col" style={{ gap: 20 }} data-testid="scout-player">
+    <div className="flex flex-col" style={{ gap: 14 }} data-testid="scout-player">
       <BackLink onClick={() => (window.history.length > 1 ? window.history.back() : go({ s: "bd" }))}>Volver</BackLink>
 
       <section aria-label="Jugador" className="rs2-card flex flex-wrap" style={{ overflow: "hidden", borderRadius: 14 }}>
-        <div className="flex flex-col" style={{ flex: "999 1 520px", minWidth: 0, padding: "22px 24px", gap: 14, borderLeft: `8px solid ${RS.granate}` }}>
+        <div className="flex flex-col" style={{ flex: "999 1 520px", minWidth: 0, padding: "14px 18px", gap: 10, borderLeft: `8px solid ${RS.granate}` }}>
           <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
             {sp ? (
               <>
                 <Chip style={{ ...dec.chip, fontWeight: 700 }}>{dec.letter} · {dec.label}</Chip>
                 <Chip style={{ background: RS.soft, color: RS.granateDark }}>Origen: {ORIGIN[originOf(sp)].toLowerCase()}</Chip>
-                <span style={{ fontSize: 13, color: RS.muted }}>En seguimiento desde {fmtDate(sp.created_date)}</span>
+                <span style={{ fontSize: 12, color: RS.muted }}>En seguimiento desde {fmtDate(sp.created_date)}</span>
               </>
             ) : (
               <Chip style={{ background: RS.bg, color: RS.ink2 }}>No está en seguimiento</Chip>
             )}
           </div>
-          <h1 className="rs2-display" style={{ margin: 0, fontSize: 54, color: RS.granateDark }} data-testid="player-name">{name}</h1>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "14px 24px" }}>
+          <h1 className="rs2-display" style={{ margin: 0, fontSize: 40, color: RS.granateDark }} data-testid="player-name">{name}</h1>
+          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "8px 18px" }}>
             <div className="flex flex-col" style={{ gap: 2 }}>
               <span style={label}>Año de nacimiento</span>
               <span className="flex items-baseline" style={{ gap: 8 }}>
-                <span className="rs2-display" style={{ fontSize: 30, lineHeight: 1 }}>{year || "—"}</span>
-                {year && <span style={{ fontSize: 13, fontWeight: 600, color: confirmedYear ? "#2F6B3A" : RS.orangeInk }}>{confirmedYear ? "confirmado" : "estimado"}</span>}
+                <span className="rs2-display" style={{ fontSize: 22, lineHeight: 1 }}>{year || "—"}</span>
+                {year && <span style={{ fontSize: 12, fontWeight: 600, color: confirmedYear ? "#2F6B3A" : RS.orangeInk }}>{confirmedYear ? "confirmado" : "estimado"}</span>}
               </span>
               {juvenilYear(year, CURRENT_SEASON) && (() => { const js = JUV_STYLE[juvenilYear(year, CURRENT_SEASON)]; return (
-                <span data-testid="player-juv" style={{ alignSelf: "flex-start", marginTop: 4, fontSize: 13, fontWeight: 700, padding: "2px 9px", borderRadius: 6, background: js.bg, color: js.fg }}>Juvenil de {js.label}</span>
+                <span data-testid="player-juv" style={{ alignSelf: "flex-start", marginTop: 4, fontSize: 12, fontWeight: 700, padding: "2px 9px", borderRadius: 6, background: js.bg, color: js.fg }}>Juvenil de {js.label}</span>
               ); })()}
             </div>
             <div className="flex flex-col" style={{ gap: 4 }} data-testid="player-dorsal">
               <span style={label}>Dorsal {cur ? seasonShort(cur.season) : ""}</span>
-              {cur?.dorsals?.length ? <Dorsals list={cur.dorsals} size="lg" /> : <span style={{ fontSize: 16, fontWeight: 600 }}>—</span>}
-              {curOthers.map((o) => <span key={o.team + o.competition} style={{ fontSize: 13, color: RS.ink2 }}>{o.dorsals.map((x) => x.d).join(" · ")} en {titleCase(o.team)}</span>)}
+              {cur?.dorsals?.length ? <Dorsals list={cur.dorsals} size="lg" /> : <span style={{ fontSize: 14, fontWeight: 600 }}>—</span>}
+              {curOthers.map((o) => <span key={o.team + o.competition} style={{ fontSize: 12, color: RS.ink2 }}>{o.dorsals.map((x) => x.d).join(" · ")} en {titleCase(o.team)}</span>)}
             </div>
             <div className="flex flex-col" style={{ gap: 2 }}>
               <span style={label}>Club actual</span>
-              <span style={{ fontSize: 16, fontWeight: 600 }}>{cur ? titleCase(cur.team) : sp?.current_club || "—"}</span>
-              {(cur || sp?.category) && <span style={{ fontSize: 13, color: RS.ink2 }}>{cur ? `${titleCase(cur.competition)} · ${titleCase(cur.grp)}` : sp.category}</span>}
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{cur ? titleCase(cur.team) : sp?.current_club || "—"}</span>
+              {(cur || sp?.category) && <span style={{ fontSize: 12, color: RS.ink2 }}>{cur ? `${titleCase(cur.competition)} · ${titleCase(cur.grp)}` : sp.category}</span>}
             </div>
             <div className="flex flex-col" style={{ gap: 2 }}>
               <span style={label}>Posición</span>
-              <span style={{ fontSize: 16, fontWeight: 600 }}>{SCOUT_POSITION[sp?.position] || "—"}</span>
-              {sp?.secondary_position && <span style={{ fontSize: 13, color: RS.ink2 }}>También: {(SCOUT_POSITION[sp.secondary_position] || sp.secondary_position).toLowerCase()}</span>}
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{SCOUT_POSITION[sp?.position] || "—"}</span>
+              {sp?.secondary_position && <span style={{ fontSize: 12, color: RS.ink2 }}>También: {(SCOUT_POSITION[sp.secondary_position] || sp.secondary_position).toLowerCase()}</span>}
             </div>
             <div className="flex flex-col" style={{ gap: 2 }}>
               <span style={label}>Lateralidad</span>
-              <span style={{ fontSize: 16, fontWeight: 600 }}>{LATERALITY[sp?.laterality] || "—"}</span>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{LATERALITY[sp?.laterality] || "—"}</span>
             </div>
           </div>
           <div className="flex flex-wrap" style={{ gap: 10, paddingTop: 4 }}>
@@ -158,52 +158,52 @@ export default function ScoutPlayer() {
           </div>
         </div>
 
-        <div className="flex flex-col justify-center" style={{ flex: "1 1 300px", background: RS.granateDark, color: "#fff", padding: "22px 24px", gap: 14 }}>
+        <div className="flex flex-col justify-center" style={{ flex: "1 1 300px", background: RS.granateDark, color: "#fff", padding: "14px 18px", gap: 10 }}>
           {fcf ? (
             <>
-              <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase", opacity: 0.85 }}>{lastSeasons.length === 1 ? "Última temporada" : `Últimas ${lastSeasons.length} temporadas`}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase", opacity: 0.85 }}>{lastSeasons.length === 1 ? "Última temporada" : `Últimas ${lastSeasons.length} temporadas`}</span>
               <div className="grid" style={{ gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: "14px 10px" }}>
                 {[["Partidos", tot.pj], ["Titular", tot.tit], ["Suplente", tot.sup], ["Goles", tot.goals, true], ["Amarillas", tot.yellow], ["Rojas", tot.red]].map(([l, v, orange]) => (
                   <div key={l} className="flex flex-col">
-                    <span className="rs2-display tabular-nums" style={{ fontSize: 38, lineHeight: 1, color: orange ? RS.naranja : "#fff" }}>{v}</span>
-                    <span style={{ fontSize: 13, opacity: 0.9 }}>{l}</span>
+                    <span className="rs2-display tabular-nums" style={{ fontSize: 28, lineHeight: 1, color: orange ? RS.naranja : "#fff" }}>{v}</span>
+                    <span style={{ fontSize: 12, opacity: 0.9 }}>{l}</span>
                   </div>
                 ))}
               </div>
-              <span style={{ fontSize: 12, opacity: 0.8 }}>Historial vinculado por su ID de la FCF ({fcf.id}) · {lastSeasons.length} {lastSeasons.length === 1 ? "temporada leída" : "temporadas leídas"}</span>
+              <span style={{ fontSize: 11, opacity: 0.8 }}>Historial vinculado por su ID de la FCF ({fcf.id}) · {lastSeasons.length} {lastSeasons.length === 1 ? "temporada leída" : "temporadas leídas"}</span>
             </>
           ) : (
             <>
-              <span style={{ fontSize: 17, fontWeight: 700 }}>Sin datos de la FCF</span>
-              <span style={{ fontSize: 14, opacity: 0.9 }}>Este jugador no está vinculado a la base de datos de la FCF.</span>
+              <span style={{ fontSize: 14, fontWeight: 700 }}>Sin datos de la FCF</span>
+              <span style={{ fontSize: 13, opacity: 0.9 }}>Este jugador no está vinculado a la base de datos de la FCF.</span>
               {admin && <Btn kind="onDark" onClick={() => go({ s: "bd", q: sp ? `${sp.first_name || ""} ${sp.last_name || ""}`.trim() : "" })}>Buscarlo en la base de datos</Btn>}
             </>
           )}
         </div>
       </section>
 
-      <div className="flex flex-wrap items-start" style={{ gap: 20 }}>
+      <div className="flex flex-wrap items-start" style={{ gap: 14 }}>
         <section aria-labelledby="trayectoria" className="rs2-card" style={{ flex: "999 1 640px", minWidth: 0, overflow: "hidden" }}>
-          <div className="flex flex-wrap justify-between items-baseline" style={{ gap: 8, padding: "16px 18px" }}>
+          <div className="flex flex-wrap justify-between items-baseline" style={{ gap: 8, padding: "10px 14px" }}>
             <h2 id="trayectoria" className="rs2-title">Trayectoria competitiva</h2>
-            <span style={{ fontSize: 13, color: RS.muted }}>Fuente: actas FCF · liga regular</span>
+            <span style={{ fontSize: 12, color: RS.muted }}>Fuente: actas FCF · liga regular</span>
           </div>
           {!fcf ? (
-            <div style={{ padding: "0 18px 16px" }}><Empty>Sin datos de la FCF todavía.</Empty></div>
+            <div style={{ padding: "0 14px 10px" }}><Empty>Sin datos de la FCF todavía.</Empty></div>
           ) : (
             <>
-              <div className="flex flex-col" style={{ padding: "0 18px 16px", gap: 8 }}>
+              <div className="flex flex-col" style={{ padding: "0 14px 10px", gap: 8 }}>
                 {bySeason.map((s) => (
                   <div key={s.season} style={{ display: "grid", gridTemplateColumns: "64px minmax(0,1fr) 40px", gap: 10, alignItems: "center" }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: RS.ink2 }}>{seasonShort(s.season)}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: RS.ink2 }}>{seasonShort(s.season)}</span>
                     <span className="flex" style={{ height: 14, borderRadius: 4, overflow: "hidden", background: "#F1EBEA" }}>
                       <span style={{ width: `${(s.tit / maxPj) * 100}%`, background: RS.granate }} />
                       <span style={{ width: `${(s.sup / maxPj) * 100}%`, background: RS.naranja }} />
                     </span>
-                    <span className="tabular-nums" style={{ fontSize: 14, fontWeight: 700, textAlign: "right" }}>{s.pj}</span>
+                    <span className="tabular-nums" style={{ fontSize: 13, fontWeight: 700, textAlign: "right" }}>{s.pj}</span>
                   </div>
                 ))}
-                <div className="flex" style={{ gap: 16, fontSize: 12, color: RS.ink2, paddingLeft: 74 }}>
+                <div className="flex" style={{ gap: 12, fontSize: 11, color: RS.ink2, paddingLeft: 74 }}>
                   <span className="flex items-center" style={{ gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 3, background: RS.granate }} />Titular</span>
                   <span className="flex items-center" style={{ gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 3, background: RS.naranja }} />Suplente</span>
                 </div>
@@ -219,9 +219,9 @@ export default function ScoutPlayer() {
                         <td className="l" style={{ fontWeight: 600 }}>{seasonShort(s.season)}</td>
                         <td className="l" style={{ whiteSpace: "normal", minWidth: 260 }}>
                           <span style={{ display: "block", fontWeight: 600 }}>{titleCase(s.team)}</span>
-                          <span style={{ display: "block", fontSize: 13, color: RS.muted }}>{titleCase(s.competition)} · {titleCase(s.grp)}</span>
+                          <span style={{ display: "block", fontSize: 12, color: RS.muted }}>{titleCase(s.competition)} · {titleCase(s.grp)}</span>
                         </td>
-                        <td style={{ fontSize: 13, color: RS.ink2 }}>{/ALEV|BENJAM/i.test(s.competition) ? "F7" : "F11"}</td>
+                        <td style={{ fontSize: 12, color: RS.ink2 }}>{/ALEV|BENJAM/i.test(s.competition) ? "F7" : "F11"}</td>
                         <td><Dorsals list={s.dorsals} /></td>
                         <td style={{ fontWeight: 700 }}>{s.pj}</td><td>{s.tit}</td><td>{s.sup}</td>
                         <td style={{ fontWeight: 700, color: RS.granate }}>{s.goals}</td>
@@ -231,10 +231,10 @@ export default function ScoutPlayer() {
                   </tbody>
                 </table>
               </div>
-              <div className="flex flex-col" style={{ padding: "14px 18px", gap: 8, borderTop: `1px solid ${RS.lineSoft}` }}>
-                <h3 style={{ margin: 0, fontSize: 16 }}>Partidos contra Racing Sarrià</h3>
+              <div className="flex flex-col" style={{ padding: "9px 14px", gap: 8, borderTop: `1px solid ${RS.lineSoft}` }}>
+                <h3 style={{ margin: 0, fontSize: 14 }}>Partidos contra Racing Sarrià</h3>
                 {vsRacing.length === 0 ? <Empty>Ninguno en las actas leídas.</Empty> : vsRacing.map((m) => (
-                  <div key={m.acta} className="flex flex-wrap items-baseline" style={{ gap: "6px 14px", fontSize: 14 }}>
+                  <div key={m.acta} className="flex flex-wrap items-baseline" style={{ gap: "6px 14px", fontSize: 13 }}>
                     <span style={{ fontWeight: 600, minWidth: 84 }}>{m.match_date || "—"}</span>
                     <span style={{ flex: "1 1 280px" }}>{titleCase(m.home)} – {titleCase(m.away)} · {titleCase(m.competition)} · J{m.jornada ?? "?"}</span>
                     <span style={{ color: RS.ink2 }}>{m.dorsal ? `#${m.dorsal} · ` : ""}{m.starter ? "Titular" : "Suplente"}{m.goals ? ` · ${m.goals} ${m.goals === 1 ? "gol" : "goles"}` : ""}</span>
@@ -246,32 +246,32 @@ export default function ScoutPlayer() {
           )}
         </section>
 
-        <section id="informes-club" aria-labelledby="informes" className="rs2-card flex flex-col" style={{ flex: "1 1 380px", minWidth: 0, padding: "16px 18px", gap: 12 }}>
+        <section id="informes-club" aria-labelledby="informes" className="rs2-card flex flex-col" style={{ flex: "1 1 380px", minWidth: 0, padding: "10px 14px", gap: 12 }}>
           <div className="flex justify-between items-baseline" style={{ gap: 8 }}>
             <h2 id="informes" className="rs2-title">Informes del club</h2>
           </div>
           {!sp ? <Empty>Añádelo a seguimiento para escribir informes, valorarlo y proponerlo para una plantilla.</Empty> : (
             <>
               <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 10 }}>
-                <div className="flex flex-col" style={{ background: RS.head, borderRadius: 10, padding: "10px 12px", gap: 6 }}>
-                  <span style={{ fontSize: 12, color: RS.muted }}>Valoración global</span>
+                <div className="flex flex-col" style={{ background: RS.head, borderRadius: 10, padding: "7px 10px", gap: 6 }}>
+                  <span style={{ fontSize: 11, color: RS.muted }}>Valoración global</span>
                   <span className="flex items-center" style={{ gap: 6 }}>
                     {DECISION_KEYS.map((k) => {
                       const on = (sp.decision || "seguir_viendo") === k;
                       return (
                         <button key={k} type="button" onClick={() => !on && update.mutate({ decision: k })} title={`${DECISION[k].letter} · ${DECISION[k].label}`} data-testid={`dec-${k}`}
-                          style={{ width: 34, height: 34, borderRadius: 6, fontWeight: 800, fontSize: 15, ...(on ? DECISION[k].chip : { border: `1px solid ${RS.input}`, color: RS.faint, background: "#fff" }) }}>
+                          style={{ width: 34, height: 28, borderRadius: 6, fontWeight: 800, fontSize: 13, ...(on ? DECISION[k].chip : { border: `1px solid ${RS.input}`, color: RS.faint, background: "#fff" }) }}>
                           {DECISION[k].letter}
                         </button>
                       );
                     })}
                   </span>
-                  <span style={{ fontSize: 12, color: RS.muted }}>A fichar · B a seguir · C descartado</span>
+                  <span style={{ fontSize: 11, color: RS.muted }}>A fichar · B a seguir · C descartado</span>
                 </div>
-                <div className="flex flex-col" style={{ background: RS.head, borderRadius: 10, padding: "10px 12px", gap: 6 }}>
-                  <span style={{ fontSize: 12, color: RS.muted }}>Contacto</span>
+                <div className="flex flex-col" style={{ background: RS.head, borderRadius: 10, padding: "7px 10px", gap: 6 }}>
+                  <span style={{ fontSize: 11, color: RS.muted }}>Contacto</span>
                   <select value={sp.contact_status || "no_contactado"} onChange={(e) => update.mutate({ contact_status: e.target.value })}
-                    style={{ height: 36, border: `1px solid ${RS.input}`, borderRadius: 6, padding: "0 8px", font: "inherit", fontSize: 15, fontWeight: 600, background: "#fff" }}>
+                    style={{ height: 30, border: `1px solid ${RS.input}`, borderRadius: 6, padding: "0 8px", font: "inherit", fontSize: 13, fontWeight: 600, background: "#fff" }}>
                     {Object.entries(CONTACT).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
@@ -322,12 +322,12 @@ export default function ScoutPlayer() {
 
 function Row({ k, v }) {
   if (!v) return null;
-  return <div className="flex" style={{ gap: 8, fontSize: 14 }}><span style={{ color: RS.muted, width: 130, flex: "none" }}>{k}</span><span style={{ fontWeight: 600 }}>{v}</span></div>;
+  return <div className="flex" style={{ gap: 8, fontSize: 13 }}><span style={{ color: RS.muted, width: 130, flex: "none" }}>{k}</span><span style={{ fontWeight: 600 }}>{v}</span></div>;
 }
 
 function Profile({ p }) {
   return (
-    <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+    <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
       <div className="flex flex-col" style={{ gap: 6 }}>
         <span style={label}>Datos personales</span>
         <Row k="Nacionalidad" v={p.nationality} /><Row k="Nacimiento" v={p.birth_date ? fmtDate(p.birth_date) : p.birth_year} />
@@ -338,14 +338,14 @@ function Profile({ p }) {
         <span style={label}>Contacto</span>
         <Row k="Teléfono jugador" v={p.phone} /><Row k="Padre / madre" v={p.parent_name} /><Row k="Teléfono familiar" v={p.parent_phone} />
         <Row k="Estado" v={CONTACT[p.contact_status]} /><Row k="Notas" v={p.contact_notes} />
-        {!p.phone && !p.parent_name && !p.parent_phone && <span style={{ fontSize: 14, color: RS.faint }}>Sin datos de contacto.</span>}
+        {!p.phone && !p.parent_name && !p.parent_phone && <span style={{ fontSize: 13, color: RS.faint }}>Sin datos de contacto.</span>}
       </div>
       <div className="flex flex-col" style={{ gap: 6 }}>
         <span style={label}>Observaciones</span>
-        {p.key_points && <p style={{ margin: 0, fontSize: 14 }}><strong>Puntos clave: </strong>{p.key_points}</p>}
-        {p.observations && <p style={{ margin: 0, fontSize: 14 }}>{p.observations}</p>}
+        {p.key_points && <p style={{ margin: 0, fontSize: 13 }}><strong>Puntos clave: </strong>{p.key_points}</p>}
+        {p.observations && <p style={{ margin: 0, fontSize: 13 }}>{p.observations}</p>}
         <Row k="Partido observado" v={p.match_observed} /><Row k="Fecha" v={p.observation_date && fmtDate(p.observation_date)} />
-        {!p.key_points && !p.observations && <span style={{ fontSize: 14, color: RS.faint }}>Sin observaciones en la ficha.</span>}
+        {!p.key_points && !p.observations && <span style={{ fontSize: 13, color: RS.faint }}>Sin observaciones en la ficha.</span>}
       </div>
     </div>
   );
@@ -356,26 +356,26 @@ function MatchList({ matches = [] }) {
   if (!matches.length) return null;
   const shown = all ? matches : matches.slice(0, 8);
   return (
-    <div className="flex flex-col" style={{ padding: "14px 18px", gap: 2, borderTop: `1px solid ${RS.lineSoft}` }}>
-      <h3 style={{ margin: "0 0 6px", fontSize: 16 }}>Partido a partido</h3>
+    <div className="flex flex-col" style={{ padding: "9px 14px", gap: 2, borderTop: `1px solid ${RS.lineSoft}` }}>
+      <h3 style={{ margin: "0 0 6px", fontSize: 14 }}>Partido a partido</h3>
       {shown.map((m) => {
         const rival = m.team === m.home ? m.away : m.home;
         return (
-          <div key={m.acta} className="flex flex-wrap items-center" style={{ gap: "4px 12px", fontSize: 14, padding: "6px 0", borderTop: `1px solid ${RS.lineSoft}` }}>
+          <div key={m.acta} className="flex flex-wrap items-center" style={{ gap: "4px 12px", fontSize: 13, padding: "6px 0", borderTop: `1px solid ${RS.lineSoft}` }}>
             <span className="tabular-nums" style={{ width: 84, color: RS.muted }}>{m.match_date || "—"}</span>
-            <span style={{ width: 34, fontSize: 12, color: RS.faint }}>J{m.jornada ?? "?"}</span>
-            <span className="tabular-nums" title="Dorsal en el acta" style={{ width: 30, textAlign: "center", fontSize: 13, fontWeight: 700, color: RS.granate }}>{m.dorsal ? `#${m.dorsal}` : ""}</span>
+            <span style={{ width: 34, fontSize: 11, color: RS.faint }}>J{m.jornada ?? "?"}</span>
+            <span className="tabular-nums" title="Dorsal en el acta" style={{ width: 30, textAlign: "center", fontSize: 12, fontWeight: 700, color: RS.granate }}>{m.dorsal ? `#${m.dorsal}` : ""}</span>
             <span style={{ flex: "1 1 180px" }}>vs {titleCase(rival)}</span>
-            <Chip style={m.starter ? { background: RS.granate, color: "#fff", fontSize: 12 } : { background: RS.orangeSoft, color: RS.orangeInk, fontSize: 12 }}>{m.starter ? "Titular" : "Suplente"}</Chip>
-            {m.goals > 0 && <span style={{ fontSize: 13, fontWeight: 700, color: RS.granate }}>{m.goals} {m.goals === 1 ? "gol" : "goles"}</span>}
+            <Chip style={m.starter ? { background: RS.granate, color: "#fff", fontSize: 11 } : { background: RS.orangeSoft, color: RS.orangeInk, fontSize: 11 }}>{m.starter ? "Titular" : "Suplente"}</Chip>
+            {m.goals > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: RS.granate }}>{m.goals} {m.goals === 1 ? "gol" : "goles"}</span>}
             {m.yellow > 0 && <span title="Amarilla" style={{ display: "inline-block", width: 10, height: 14, borderRadius: 2, background: "#FACC15" }} />}
-            {m.second_yellow > 0 && <span title="Doble amarilla" style={{ fontSize: 12, color: "#B91C1C" }}>2A</span>}
+            {m.second_yellow > 0 && <span title="Doble amarilla" style={{ fontSize: 11, color: "#B91C1C" }}>2A</span>}
             {m.red > 0 && <span title="Roja" style={{ display: "inline-block", width: 10, height: 14, borderRadius: 2, background: "#DC2626" }} />}
           </div>
         );
       })}
       {matches.length > 8 && (
-        <button type="button" onClick={() => setAll(!all)} style={{ alignSelf: "flex-start", marginTop: 6, fontSize: 14, fontWeight: 600, color: RS.granate, background: "none" }}>
+        <button type="button" onClick={() => setAll(!all)} style={{ alignSelf: "flex-start", marginTop: 6, fontSize: 13, fontWeight: 600, color: RS.granate, background: "none" }}>
           {all ? "Ver menos" : `Ver los ${matches.length} partidos`}
         </button>
       )}

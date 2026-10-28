@@ -44,14 +44,14 @@ export function TopBar({ title, tabs = [], active, onTab, children }) {
     <div style={{ background: "#fff", borderBottom: `1px solid ${RS.line}` }}>
       <div style={{ maxWidth: 1360, margin: "0 auto", padding: "0 24px" }} className="flex flex-col">
         <div className="flex flex-wrap items-center" style={{ gap: "4px 28px", borderBottom: children ? `1px solid ${RS.lineSoft}` : "none" }}>
-          <span className="rs2-display" style={{ fontSize: 24, color: RS.granateDark, padding: "12px 0" }}>{title}</span>
+          <span className="rs2-display" style={{ fontSize: 19, color: RS.granateDark, padding: "9px 0" }}>{title}</span>
           {tabs.length > 0 && (
-            <nav aria-label={title} className="flex" style={{ gap: 20 }}>
+            <nav aria-label={title} className="flex" style={{ gap: 14 }}>
               {tabs.map((t) => {
                 const on = t.key === active;
                 return (
                   <button key={t.key} type="button" onClick={() => onTab(t.key)} data-testid={t.testId}
-                    style={{ color: on ? RS.granate : RS.ink2, fontSize: 16, fontWeight: on ? 700 : 400, padding: "14px 2px 11px", borderBottom: `3px solid ${on ? RS.granate : "transparent"}`, background: "none" }}>
+                    style={{ color: on ? RS.granate : RS.ink2, fontSize: 14, fontWeight: on ? 700 : 400, padding: "10px 2px 8px", borderBottom: `3px solid ${on ? RS.granate : "transparent"}`, background: "none" }}>
                     {t.label}
                   </button>
                 );
@@ -68,16 +68,16 @@ export function TopBar({ title, tabs = [], active, onTab, children }) {
 /** Pestañas tipo pastilla (Resumen · Base de datos · …), con número opcional */
 export function SubNav({ items, active, onChange, label = "Secciones" }) {
   return (
-    <nav aria-label={label} className="flex flex-wrap" style={{ gap: 6, padding: "10px 0" }}>
+    <nav aria-label={label} className="flex flex-wrap" style={{ gap: 6, padding: "7px 0" }}>
       {items.map((it) => {
         const on = it.key === active;
         return (
           <button key={it.key} type="button" onClick={() => onChange(it.key)} data-testid={`sub-${it.key}`}
             className="inline-flex items-center"
-            style={{ gap: 8, minHeight: 40, padding: "0 14px", borderRadius: 8, fontSize: 14, fontWeight: on ? 600 : 400,
+            style={{ gap: 8, minHeight: 32, padding: "0 14px", borderRadius: 8, fontSize: 13, fontWeight: on ? 600 : 400,
               background: on ? RS.granate : RS.bg, color: on ? "#fff" : RS.ink2 }}>
             {it.label}
-            {it.badge > 0 && <span style={{ background: RS.naranja, color: RS.ink, fontWeight: 700, fontSize: 12, padding: "1px 7px", borderRadius: 999 }}>{it.badge}</span>}
+            {it.badge > 0 && <span style={{ background: RS.naranja, color: RS.ink, fontWeight: 700, fontSize: 11, padding: "1px 7px", borderRadius: 999 }}>{it.badge}</span>}
           </button>
         );
       })}
@@ -87,9 +87,9 @@ export function SubNav({ items, active, onChange, label = "Secciones" }) {
 
 export function Card({ title, action, children, className = "", bodyClass = "", pad = true, id, testId }) {
   return (
-    <section className={`rs2-card ${className}`} id={id} data-testid={testId} style={pad ? { padding: "14px 18px" } : { overflow: "hidden" }}>
+    <section className={`rs2-card ${className}`} id={id} data-testid={testId} style={pad ? { padding: "9px 14px" } : { overflow: "hidden" }}>
       {(title || action) && (
-        <div className="flex flex-wrap items-center justify-between" style={{ gap: 8, ...(pad ? { marginBottom: 6 } : { padding: "14px 18px" }) }}>
+        <div className="flex flex-wrap items-center justify-between" style={{ gap: 8, ...(pad ? { marginBottom: 6 } : { padding: "9px 14px" }) }}>
           {title && <h2 className="rs2-title">{title}</h2>}
           {action}
         </div>
@@ -101,17 +101,17 @@ export function Card({ title, action, children, className = "", bodyClass = "", 
 
 export function Kpi({ label, value, sub, testId }) {
   return (
-    <div className="rs2-card flex flex-col" style={{ padding: "14px 18px", gap: 2 }} data-testid={testId}>
-      <span style={{ fontSize: 13, color: RS.muted }}>{label}</span>
-      <span className="rs2-display tabular-nums" style={{ fontSize: 38, lineHeight: 1.05, color: RS.granateDark }}>{value}</span>
-      {sub && <span style={{ fontSize: 13, color: RS.ink2 }}>{sub}</span>}
+    <div className="rs2-card flex flex-col" style={{ padding: "9px 14px", gap: 2 }} data-testid={testId}>
+      <span style={{ fontSize: 12, color: RS.muted }}>{label}</span>
+      <span className="rs2-display tabular-nums" style={{ fontSize: 28, lineHeight: 1.05, color: RS.granateDark }}>{value}</span>
+      {sub && <span style={{ fontSize: 12, color: RS.ink2 }}>{sub}</span>}
     </div>
   );
 }
 
 export function Chip({ children, style, title, testId }) {
   return (
-    <span title={title} data-testid={testId} style={{ display: "inline-block", fontSize: 13, fontWeight: 600, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", ...style }}>
+    <span title={title} data-testid={testId} style={{ display: "inline-block", fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", ...style }}>
       {children}
     </span>
   );
@@ -119,7 +119,7 @@ export function Chip({ children, style, title, testId }) {
 
 export function DecisionChip({ decision, short = false, empty = "Sin valorar" }) {
   const d = DECISION[decision];
-  if (!d) return <span style={{ fontSize: 13, color: RS.faint }}>{empty}</span>;
+  if (!d) return <span style={{ fontSize: 12, color: RS.faint }}>{empty}</span>;
   return <Chip style={d.chip}>{d.letter} · {short ? d.label.split(" ")[0] : d.label}</Chip>;
 }
 
@@ -132,7 +132,7 @@ export function Tag({ children, kind = "dark", title }) {
 }
 
 /** Año de nacimiento: granate pálido; naranja si juega por arriba; «—» si no se sabe */
-export function YearBadge({ year, up = false, estimated = false, season = CURRENT_SEASON }) {
+export function YearBadge({ year, up = false, estimated = false, season = CURRENT_SEASON, sm = false }) {
   if (!year) return <span style={{ color: RS.faint }} title="Año pendiente de deducir">—</span>;
   // Juveniles: el color dice el año (rojo 1.º, naranja 2.º, claro 3.º) para verlos de un vistazo
   const jy = juvenilYear(year, season);
@@ -141,7 +141,7 @@ export function YearBadge({ year, up = false, estimated = false, season = CURREN
   const look = js ? { background: js.bg, color: js.fg } : up ? { background: RS.naranja, color: RS.ink } : { background: RS.soft, color: RS.granateDark };
   return (
     <span title={title} data-testid="year-badge" data-juv={jy || undefined}
-      style={{ display: "inline-flex", alignItems: "baseline", gap: 4, whiteSpace: "nowrap", fontWeight: 700, fontSize: 14, padding: "3px 8px", borderRadius: 6, ...look }}>
+      style={{ display: "inline-flex", alignItems: "baseline", gap: 4, whiteSpace: "nowrap", fontWeight: 700, fontSize: sm ? 12 : 13, padding: sm ? "1px 6px" : "3px 8px", borderRadius: sm ? 5 : 6, ...look }}>
       {up && !js ? "↑ " : ""}{year}
       {js && <span style={{ fontSize: 11, fontWeight: 700, opacity: 0.92 }}>{js.short}</span>}
     </span>
@@ -151,7 +151,7 @@ export function YearBadge({ year, up = false, estimated = false, season = CURREN
 /** Leyenda de los colores del año de juvenil */
 export function JuvLegend() {
   return (
-    <span className="inline-flex flex-wrap items-center" style={{ gap: "4px 12px", fontSize: 12, color: RS.ink2 }} data-testid="juv-legend">
+    <span className="inline-flex flex-wrap items-center" style={{ gap: "4px 12px", fontSize: 11, color: RS.ink2 }} data-testid="juv-legend">
       <span style={{ fontWeight: 600 }}>Juveniles:</span>
       {[1, 2, 3].map((n) => (
         <span key={n} className="inline-flex items-center" style={{ gap: 5 }}>
@@ -168,26 +168,59 @@ export function Dorsals({ list, size = "md" }) {
   const l = (list || []).filter((x) => x && x.d);
   if (!l.length) return <span style={{ color: RS.faint }} title="Sin dorsal en las actas">—</span>;
   const [main, ...rest] = l;
-  const big = size === "lg" ? { minWidth: 40, height: 40, fontSize: 22 } : { minWidth: 30, height: 28, fontSize: 16 };
+  const big = size === "lg" ? { minWidth: 40, height: 32, fontSize: 18 } : size === "sm" ? { minWidth: 24, height: 20, fontSize: 12 } : { minWidth: 30, height: 28, fontSize: 14 };
   const title = "Dorsal en las actas de la temporada: " + l.map((x) => `${x.d} (${x.n} ${x.n === 1 ? "partido" : "partidos"})`).join(" · ");
   return (
     <span className="inline-flex items-center" style={{ gap: 5 }} title={title} aria-label={title} data-testid="dorsals">
       <span className="rs2-display tabular-nums" style={{ ...big, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 5px",
-        borderRadius: 6, border: `2px solid ${RS.granate}`, color: RS.granate, background: "#fff", lineHeight: 1 }}>{main.d}</span>
+        borderRadius: size === "sm" ? 4 : 6, border: `${size === "sm" ? 1.5 : 2}px solid ${RS.granate}`, color: RS.granate, background: "#fff", lineHeight: 1 }}>{main.d}</span>
       {rest.length > 0 && <span className="tabular-nums" style={{ fontSize: size === "lg" ? 14 : 12, color: RS.muted, fontWeight: 600 }}>{rest.map((x) => x.d).join(" · ")}</span>}
     </span>
   );
 }
 
+/** Vista de las listas: «Detallada» (dos líneas por fila) o «Lista» (una línea, más filas por pantalla). Se recuerda en el navegador. */
+const DENSITY_KEY = "rs_list_density";
+export function useDensity() {
+  const [d, setD] = React.useState(() => { try { return localStorage.getItem(DENSITY_KEY) === "lista" ? "lista" : "detallada"; } catch { return "detallada"; } });
+  React.useEffect(() => {
+    const on = (e) => { if (e.detail) setD(e.detail); };
+    window.addEventListener("rs-density", on);
+    return () => window.removeEventListener("rs-density", on);
+  }, []);
+  const set = React.useCallback((v) => {
+    setD(v);
+    try { localStorage.setItem(DENSITY_KEY, v); } catch { /* sin almacenamiento */ }
+    window.dispatchEvent(new CustomEvent("rs-density", { detail: v }));
+  }, []);
+  return [d, set];
+}
+export function DensityToggle({ value, onChange }) {
+  const opts = [{ v: "detallada", label: "Detallada", icon: "▤" }, { v: "lista", label: "Lista", icon: "☰" }];
+  return (
+    <span className="inline-flex" role="group" aria-label="Vista de la lista" style={{ border: `1px solid ${RS.input}`, borderRadius: 8, overflow: "hidden" }} data-testid="density">
+      {opts.map((o) => {
+        const on = value === o.v;
+        return (
+          <button key={o.v} type="button" onClick={() => onChange(o.v)} aria-pressed={on} data-testid={`density-${o.v}`}
+            style={{ height: 28, padding: "0 10px", fontSize: 12, fontWeight: on ? 600 : 400, background: on ? RS.granate : "#fff", color: on ? "#fff" : RS.ink2, display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <span aria-hidden style={{ fontSize: 12 }}>{o.icon}</span>{o.label}
+          </button>
+        );
+      })}
+    </span>
+  );
+}
+
 /** Botones de opción (Todos · F11 · F7 …) */
-export function Pills({ options, value, onChange, size = 36 }) {
+export function Pills({ options, value, onChange, size = 30 }) {
   return (
     <div className="flex flex-wrap" style={{ gap: 6 }}>
       {options.map((o) => {
         const on = o.value === value;
         return (
           <button key={o.value} type="button" onClick={() => onChange(o.value)} data-testid={o.testId}
-            style={{ height: size, padding: "0 12px", borderRadius: 999, fontSize: 13, fontWeight: on ? 600 : 400,
+            style={{ height: size, padding: "0 12px", borderRadius: 999, fontSize: 12, fontWeight: on ? 600 : 400,
               border: `1px solid ${on ? RS.granate : RS.input}`, background: on ? RS.granate : "#fff", color: on ? "#fff" : RS.ink2 }}>
             {o.label}
           </button>
@@ -199,7 +232,7 @@ export function Pills({ options, value, onChange, size = 36 }) {
 
 export function SearchBox({ value, onChange, placeholder, testId, big = false, autoFocus }) {
   return (
-    <label className="flex items-center" style={{ gap: 10, background: "#fff", borderRadius: 10, padding: "0 14px", height: big ? 48 : 44, border: big ? "none" : `1px solid ${RS.input}`, flex: "999 1 260px" }}>
+    <label className="flex items-center" style={{ gap: 10, background: "#fff", borderRadius: 10, padding: "0 14px", height: big ? 42 : 36, border: big ? "none" : `1px solid ${RS.input}`, flex: "999 1 260px" }}>
       <Search width={18} height={18} color={RS.muted} aria-hidden="true" />
       <span className="sr-only">{placeholder}</span>
       <input type="search" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} data-testid={testId} autoFocus={autoFocus}
@@ -219,19 +252,19 @@ export function Btn({ children, onClick, kind = "primary", disabled, testId, typ
   return (
     <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} title={title}
       className="inline-flex items-center justify-center disabled:opacity-50"
-      style={{ height: 44, gap: 8, padding: "0 16px", borderRadius: 8, fontSize: 15, fontWeight: 600, whiteSpace: "nowrap", ...s, ...style }}>
+      style={{ height: 36, gap: 8, padding: "0 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", ...s, ...style }}>
       {children}
     </button>
   );
 }
 
 export function Empty({ children }) {
-  return <p style={{ margin: 0, padding: "10px 0", fontSize: 14, color: RS.faint }}>{children}</p>;
+  return <p style={{ margin: 0, padding: "10px 0", fontSize: 13, color: RS.faint }}>{children}</p>;
 }
 
 export function BackLink({ onClick, children }) {
   return (
-    <button type="button" onClick={onClick} className="inline-flex items-center self-start" style={{ gap: 6, fontSize: 14, color: RS.granate, background: "none", fontWeight: 600 }}>
+    <button type="button" onClick={onClick} className="inline-flex items-center self-start" style={{ gap: 6, fontSize: 13, color: RS.granate, background: "none", fontWeight: 600 }}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={RS.granate} strokeWidth="2" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
       {children}
     </button>

@@ -7,7 +7,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import ObservedTeamsList from "@/components/scouting/ObservedTeamsList";
 import { juvenilYear, JUV_STYLE } from "@/lib/juvenilYear";
-import { RS, Card, Btn, BackLink, YearBadge, Dorsals, DecisionChip, Empty, SearchBox, fmtDateTime, seasonShort, JuvLegend } from "@/components/rs2/kit";
+import { RS, Card, Btn, BackLink, YearBadge, Dorsals, DecisionChip, Empty, SearchBox, fmtDateTime, seasonShort, JuvLegend, useDensity, DensityToggle } from "@/components/rs2/kit";
 import { titleCase, fcfDisplayName } from "@/lib/fcfNames";
 import { SEASON, useFcfMeta, useFollows, useScoutedByFcf, useAlerts, useUpIds, usePlanningNav, useIsPlanningAdmin } from "./useScouting";
 import { SCOUT_POSITION, LATERALITY, teamInitials } from "./labels";
@@ -37,7 +37,7 @@ function useFollowToggle() {
 function StarButton({ on, onClick, busy, label }) {
   return (
     <button type="button" onClick={onClick} disabled={busy} data-testid="follow-toggle"
-      className="inline-flex items-center" style={{ height: 44, gap: 8, padding: "0 16px", borderRadius: 8, fontSize: 14, fontWeight: 700, border: on ? "none" : "1px solid #fff",
+      className="inline-flex items-center" style={{ height: 36, gap: 8, padding: "0 16px", borderRadius: 8, fontSize: 13, fontWeight: 700, border: on ? "none" : "1px solid #fff",
         background: on ? RS.naranja : "transparent", color: on ? RS.ink : "#fff" }}>
       <Star width={16} height={16} fill={on ? RS.ink : "none"} color={on ? RS.ink : "#fff"} aria-hidden="true" />
       {on ? `${label} seguido` : `Seguir ${label.toLowerCase()}`}
@@ -75,15 +75,15 @@ function Browser() {
   const shown = stage === "todas" ? tree : tree.filter((c) => stageOf(c.name) === stage);
 
   return (
-    <div className="flex flex-col" style={{ gap: 20 }} data-testid="scout-teams">
+    <div className="flex flex-col" style={{ gap: 14 }} data-testid="scout-teams">
       <div className="flex flex-wrap items-end justify-between" style={{ gap: 12 }}>
         <div>
-          <h1 className="rs2-display" style={{ margin: 0, fontSize: 40, color: RS.granateDark }}>Equipos y grupos</h1>
-          <span style={{ fontSize: 14, color: RS.ink2 }}>Competiciones leídas de la FCF · temporada {seasonShort(SEASON)} · pulsa un grupo para ver sus equipos</span>
+          <h1 className="rs2-display" style={{ margin: 0, fontSize: 30, color: RS.granateDark }}>Equipos y grupos</h1>
+          <span style={{ fontSize: 13, color: RS.ink2 }}>Competiciones leídas de la FCF · temporada {seasonShort(SEASON)} · pulsa un grupo para ver sus equipos</span>
         </div>
         <div className="flex flex-wrap" style={{ gap: 6 }}>
           {["todas", ...stages].map((s) => (
-            <button key={s} type="button" onClick={() => setStage(s)} style={{ height: 36, padding: "0 12px", borderRadius: 999, fontSize: 13, fontWeight: stage === s ? 600 : 400,
+            <button key={s} type="button" onClick={() => setStage(s)} style={{ height: 30, padding: "0 12px", borderRadius: 999, fontSize: 12, fontWeight: stage === s ? 600 : 400,
               border: `1px solid ${stage === s ? RS.granate : RS.input}`, background: stage === s ? RS.granate : "#fff", color: stage === s ? "#fff" : RS.ink2 }}>{s === "todas" ? "Todas" : s}</button>
           ))}
         </div>
@@ -94,7 +94,7 @@ function Browser() {
           <div className="flex flex-wrap" style={{ gap: 8, paddingTop: 4 }}>
             {follows.map((f) => (
               <button key={f.id} type="button" onClick={() => go({ s: "equipos", comp: f.competition, grp: f.grp, team: f.kind === "team" ? f.team : null, season: f.season })}
-                className="inline-flex items-center" style={{ gap: 8, minHeight: 40, padding: "0 12px", borderRadius: 8, background: RS.orangeSoft, color: RS.orangeInk, fontSize: 14, fontWeight: 600 }}>
+                className="inline-flex items-center" style={{ gap: 8, minHeight: 32, padding: "0 12px", borderRadius: 8, background: RS.orangeSoft, color: RS.orangeInk, fontSize: 13, fontWeight: 600 }}>
                 <Star width={14} height={14} fill={RS.orangeInk} color={RS.orangeInk} aria-hidden="true" />
                 {f.kind === "team" ? titleCase(f.team) : `${titleCase(f.competition)} · ${titleCase(f.grp)}`}
               </button>
@@ -106,18 +106,18 @@ function Browser() {
       {isLoading ? <Loader2 className="animate-spin" color={RS.faint} /> : shown.length === 0 ? (
         <Card><Empty>Todavía no hay competiciones leídas de la FCF.</Empty></Card>
       ) : (
-        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }}>
+        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 10 }}>
           {shown.map((c) => (
-            <section key={c.name} className="rs2-card" style={{ padding: "14px 18px" }}>
+            <section key={c.name} className="rs2-card" style={{ padding: "9px 14px" }}>
               <div className="flex justify-between items-baseline" style={{ gap: 8 }}>
-                <h2 style={{ margin: 0, fontSize: 17 }}>{titleCase(c.name)}</h2>
-                <span style={{ fontSize: 12, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: RS.soft, color: RS.granateDark }}>{isF7Comp(c.name) ? "F7" : "F11"}</span>
+                <h2 style={{ margin: 0, fontSize: 14 }}>{titleCase(c.name)}</h2>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: RS.soft, color: RS.granateDark }}>{isF7Comp(c.name) ? "F7" : "F11"}</span>
               </div>
-              <span style={{ fontSize: 13, color: RS.muted }}>{c.groups.length} {c.groups.length === 1 ? "grupo" : "grupos"} · {c.actas} actas</span>
+              <span style={{ fontSize: 12, color: RS.muted }}>{c.groups.length} {c.groups.length === 1 ? "grupo" : "grupos"} · {c.actas} actas</span>
               <div className="flex flex-wrap" style={{ gap: 6, marginTop: 10 }}>
                 {c.groups.map((g) => (
                   <button key={g.grp} type="button" onClick={() => go({ s: "equipos", comp: c.name, grp: g.grp })} data-testid={`grp-${g.grp}`}
-                    style={{ minHeight: 36, padding: "0 12px", borderRadius: 8, background: RS.bg, color: RS.ink2, fontSize: 14 }}>
+                    style={{ minHeight: 30, padding: "0 12px", borderRadius: 8, background: RS.bg, color: RS.ink2, fontSize: 13 }}>
                     {titleCase(g.grp).replace("Grup ", "G")}
                   </button>
                 ))}
@@ -127,7 +127,7 @@ function Browser() {
         </div>
       )}
 
-      <Card title="Equipos observados" action={<span style={{ fontSize: 13, color: RS.muted }}>Fichas propias con notas y jugadores apuntados a mano</span>}>
+      <Card title="Equipos observados" action={<span style={{ fontSize: 12, color: RS.muted }}>Fichas propias con notas y jugadores apuntados a mano</span>}>
         <ObservedTeamsList />
       </Card>
     </div>
@@ -139,28 +139,30 @@ function GroupView({ season, comp, grp }) {
   const { find, toggle, busy } = useFollowToggle();
   const { data: teams = [], isLoading } = useQuery({ queryKey: ["fcf-group-teams", season, comp, grp], queryFn: () => base44.club.fcfGroupTeams({ season, competition: comp, grp }) });
   const followed = !!find("group", comp, grp);
+  const [density, setDensity] = useDensity();
+  const dense = density === "lista";
   return (
-    <div className="flex flex-col" style={{ gap: 20 }} data-testid="scout-group">
+    <div className="flex flex-col" style={{ gap: 14 }} data-testid="scout-group">
       <BackLink onClick={() => go({ s: "equipos" })}>Equipos y grupos</BackLink>
-      <section className="rs2-band flex flex-wrap items-center" style={{ padding: "18px 22px", gap: "18px 32px" }}>
+      <section className="rs2-band flex flex-wrap items-center" style={{ padding: "12px 16px", gap: "18px 32px" }}>
         <div className="flex flex-col" style={{ flex: "999 1 360px", gap: 4 }}>
-          <span style={{ fontSize: 13, opacity: 0.85 }}>{isF7Comp(comp) ? "Fútbol 7" : "Fútbol 11"} · temporada {seasonShort(season)}</span>
-          <h1 className="rs2-display" style={{ margin: 0, fontSize: 40 }}>{titleCase(comp)}</h1>
-          <span style={{ fontSize: 15, opacity: 0.9 }}>{titleCase(grp)} · {teams.length} equipos</span>
+          <span style={{ fontSize: 12, opacity: 0.85 }}>{isF7Comp(comp) ? "Fútbol 7" : "Fútbol 11"} · temporada {seasonShort(season)}</span>
+          <h1 className="rs2-display" style={{ margin: 0, fontSize: 30 }}>{titleCase(comp)}</h1>
+          <span style={{ fontSize: 13, opacity: 0.9 }}>{titleCase(grp)} · {teams.length} equipos</span>
         </div>
         <StarButton on={followed} busy={busy} label="Grupo" onClick={() => toggle({ kind: "group", season, competition: comp, grp })} />
       </section>
-      <Card pad={false} title="Equipos" action={isLoading && <Loader2 className="animate-spin" width={16} height={16} color={RS.faint} />}>
+      <Card pad={false} title="Equipos" action={<span className="inline-flex items-center" style={{ gap: 8 }}>{isLoading && <Loader2 className="animate-spin" width={16} height={16} color={RS.faint} />}<DensityToggle value={density} onChange={setDensity} /></span>}>
         {teams.map((t) => (
           <button key={t.team} type="button" onClick={() => go({ s: "equipos", comp, grp, team: t.team, season })} className="rs2-row w-full text-left" data-testid={`team-${t.team}`}
-            style={{ display: "grid", gridTemplateColumns: "40px minmax(0,1fr) 110px 80px 20px", gap: 14, alignItems: "center", padding: "12px 18px", background: "none" }}>
-            <span style={{ width: 40, height: 40, borderRadius: 8, background: RS.soft, color: RS.granate, fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>{teamInitials(t.team)}</span>
-            <span className="flex flex-col" style={{ minWidth: 0 }}>
-              <span className="truncate" style={{ fontWeight: 600, fontSize: 16 }}>{titleCase(t.team)}</span>
-              {find("team", comp, grp, t.team) && <span style={{ fontSize: 12, color: RS.orangeInk, fontWeight: 600 }}>★ Seguido</span>}
+            style={{ display: "grid", gridTemplateColumns: dense ? "minmax(0,1fr) 110px 80px 20px" : "40px minmax(0,1fr) 110px 80px 20px", gap: 10, alignItems: "center", padding: dense ? "3px 14px" : "8px 14px", background: "none" }}>
+            {!dense && <span style={{ width: 32, height: 28, borderRadius: 8, background: RS.soft, color: RS.granate, fontWeight: 700, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>{teamInitials(t.team)}</span>}
+            <span className={dense ? "flex items-center" : "flex flex-col"} style={{ minWidth: 0, gap: dense ? 8 : 0 }}>
+              <span className="truncate" style={{ fontWeight: 600, fontSize: dense ? 13 : 14 }}>{titleCase(t.team)}</span>
+              {find("team", comp, grp, t.team) && <span style={{ fontSize: 11, color: RS.orangeInk, fontWeight: 600, whiteSpace: "nowrap" }}>★ Seguido</span>}
             </span>
-            <span style={{ fontSize: 14, color: RS.ink2 }}>{t.players} jugadores</span>
-            <span style={{ fontSize: 14, color: RS.ink2 }}>{t.pj} PJ</span>
+            <span style={{ fontSize: 13, color: RS.ink2 }}>{t.players} jugadores</span>
+            <span style={{ fontSize: 13, color: RS.ink2 }}>{t.pj} PJ</span>
             <ChevronRight width={18} height={18} color={RS.faint} aria-hidden="true" />
           </button>
         ))}
@@ -177,6 +179,8 @@ function TeamView({ season, comp, grp, team }) {
   const alerts = useAlerts();
   const upIds = useUpIds(alerts.list);
   const [q, setQ] = useState("");
+  const [density, setDensity] = useDensity();
+  const dense = density === "lista";
   const [onlyFollowed, setOnlyFollowed] = useState(false);
   const { data: sq, isLoading } = useQuery({ queryKey: ["fcf-team", season, comp, grp, team], queryFn: () => base44.club.fcfTeam({ season, competition: comp || undefined, grp: grp || undefined, team }) });
   const players = sq?.players || [];
@@ -192,43 +196,43 @@ function TeamView({ season, comp, grp, team }) {
   const followed = !!find("team", sq?.competition || comp, sq?.grp || grp, team);
 
   return (
-    <div className="flex flex-col" style={{ gap: 20 }} data-testid="scout-team">
+    <div className="flex flex-col" style={{ gap: 14 }} data-testid="scout-team">
       <BackLink onClick={() => go(comp && grp ? { s: "equipos", comp, grp, season } : { s: "equipos" })}>{comp && grp ? `${titleCase(comp)} · ${titleCase(grp)}` : "Equipos y grupos"}</BackLink>
 
-      <section aria-label="Equipo" className="rs2-band flex flex-wrap items-center" style={{ padding: "22px 24px", gap: "20px 32px" }}>
-        <div className="flex items-center" style={{ gap: 16, flex: "999 1 420px", minWidth: 0 }}>
-          <span style={{ width: 64, height: 64, borderRadius: 12, background: RS.granate, fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>{teamInitials(team)}</span>
+      <section aria-label="Equipo" className="rs2-band flex flex-wrap items-center" style={{ padding: "14px 18px", gap: "12px 24px" }}>
+        <div className="flex items-center" style={{ gap: 12, flex: "999 1 420px", minWidth: 0 }}>
+          <span style={{ width: 46, height: 46, borderRadius: 12, background: RS.granate, fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>{teamInitials(team)}</span>
           <div className="flex flex-col" style={{ gap: 4, minWidth: 0 }}>
-            <h1 className="rs2-display" style={{ margin: 0, fontSize: 40 }}>{titleCase(team)}</h1>
-            <span style={{ fontSize: 15, opacity: 0.9 }}>{[titleCase(sq?.competition || comp), titleCase(sq?.grp || grp), seasonShort(season)].filter(Boolean).join(" · ")}</span>
+            <h1 className="rs2-display" style={{ margin: 0, fontSize: 30 }}>{titleCase(team)}</h1>
+            <span style={{ fontSize: 13, opacity: 0.9 }}>{[titleCase(sq?.competition || comp), titleCase(sq?.grp || grp), seasonShort(season)].filter(Boolean).join(" · ")}</span>
           </div>
         </div>
         <div className="grid" style={{ gridTemplateColumns: "repeat(4, minmax(64px, auto))", gap: "4px 22px", flex: "1 1 auto" }}>
-          {["Partidos", "Jugadores", "Goles", "Seguidos"].map((l) => <span key={l} style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".06em", opacity: 0.8 }}>{l}</span>)}
+          {["Partidos", "Jugadores", "Goles", "Seguidos"].map((l) => <span key={l} style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", opacity: 0.8 }}>{l}</span>)}
           {[sq?.pj ?? "–", players.length, sq?.goals ?? "–", followedCount].map((v, i) => (
-            <span key={i} className="rs2-display tabular-nums" style={{ fontSize: 34, lineHeight: 1, color: i === 3 && v ? RS.naranja : "#fff" }}>{v}</span>
+            <span key={i} className="rs2-display tabular-nums" style={{ fontSize: 26, lineHeight: 1, color: i === 3 && v ? RS.naranja : "#fff" }}>{v}</span>
           ))}
         </div>
         <div className="flex flex-col items-start" style={{ gap: 8, flex: "1 1 200px" }}>
           <StarButton on={followed} busy={busy} label="Equipo" onClick={() => toggle({ kind: "team", season, competition: sq?.competition || comp, grp: sq?.grp || grp, team })} />
-          <span style={{ fontSize: 12, opacity: 0.8 }}>Última lectura FCF · {fmtDateTime(sq?.last_import)}</span>
+          <span style={{ fontSize: 11, opacity: 0.8 }}>Última lectura FCF · {fmtDateTime(sq?.last_import)}</span>
         </div>
       </section>
 
       <section aria-label="Composición por año" className="flex flex-wrap items-center" style={{ gap: 10 }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: RS.ink2, marginRight: 4 }}>Año de nacimiento</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: RS.ink2, marginRight: 4 }}>Año de nacimiento</span>
         {comp2.map((c) => {
           const jy = c.year === "—" ? null : juvenilYear(c.year, season);
           return (
-            <span key={c.year} className="inline-flex items-center" style={{ gap: 8, borderRadius: 999, padding: "6px 14px", fontSize: 14,
+            <span key={c.year} className="inline-flex items-center" style={{ gap: 8, borderRadius: 999, padding: "4px 10px", fontSize: 13,
               background: c.up ? RS.orangeSoft : "#fff", border: `1px solid ${c.up ? "#F6C9A6" : RS.line}`, color: c.up ? RS.orangeInk : RS.ink }}>
               {jy && <span aria-hidden style={{ width: 10, height: 10, borderRadius: 3, background: JUV_STYLE[jy].bg, border: jy === 3 ? `1px solid ${RS.input}` : "none" }} />}
-              <strong style={{ fontSize: 16 }}>{c.n}</strong> × {c.year === "—" ? "sin año" : c.year}{jy ? ` · ${JUV_STYLE[jy].label}` : ""}{c.up ? ` · ${c.up} juega${c.up === 1 ? "" : "n"} por arriba` : ""}
+              <strong style={{ fontSize: 14 }}>{c.n}</strong> × {c.year === "—" ? "sin año" : c.year}{jy ? ` · ${JUV_STYLE[jy].label}` : ""}{c.up ? ` · ${c.up} juega${c.up === 1 ? "" : "n"} por arriba` : ""}
             </span>
           );
         })}
         <span style={{ flex: "1 1 auto" }} />
-        <label className="inline-flex items-center" style={{ gap: 8, fontSize: 14, color: RS.ink2, minHeight: 44 }}>
+        <label className="inline-flex items-center" style={{ gap: 8, fontSize: 13, color: RS.ink2, minHeight: 36 }}>
           <input type="checkbox" checked={onlyFollowed} onChange={(e) => setOnlyFollowed(e.target.checked)} style={{ width: 18, height: 18, accentColor: RS.granate }} />
           Solo seguidos
         </label>
@@ -236,12 +240,12 @@ function TeamView({ season, comp, grp, team }) {
       </section>
 
       <section aria-labelledby="squad-title" className="rs2-card" style={{ overflow: "hidden" }}>
-        <div className="flex flex-wrap justify-between items-baseline" style={{ gap: 8, padding: "16px 18px" }}>
+        <div className="flex flex-wrap justify-between items-center" style={{ gap: 8, padding: "10px 14px" }}>
           <h2 id="squad-title" className="rs2-title">Plantilla · {players.length} jugadores</h2>
-          <span className="flex flex-wrap items-center" style={{ gap: "4px 14px", fontSize: 13, color: RS.muted }}><JuvLegend />Según las actas de la temporada {seasonShort(season)} en esta competición</span>
+          <span className="flex flex-wrap items-center" style={{ gap: "4px 14px", fontSize: 12, color: RS.muted }}><JuvLegend />Según las actas de la temporada {seasonShort(season)} en esta competición<DensityToggle value={density} onChange={setDensity} /></span>
         </div>
         <div className="rs2-scroll-x">
-          <table className="rs2-tbl" style={{ minWidth: 900 }} data-testid="squad-table">
+          <table className={`rs2-tbl${dense ? " rs2-compact" : ""}`} style={{ minWidth: 900 }} data-testid="squad-table" data-density={density}>
             <thead>
               <tr>
                 <th scope="col" title="Dorsal habitual en este equipo (y otros que ha llevado)">Dorsal</th><th className="l" scope="col">Jugador</th><th scope="col">Año</th><th scope="col">PJ</th><th scope="col">Titular</th><th scope="col">Suplente</th>
@@ -254,22 +258,22 @@ function TeamView({ season, comp, grp, team }) {
                 const pos = sp ? [SCOUT_POSITION[sp.position], LATERALITY[sp.laterality]].filter(Boolean).join(" · ") : "";
                 return (
                   <tr key={p.player_id} className="rs2-click" onClick={() => go(sp ? { s: "jugador", sp: sp.id } : { s: "jugador", fcf: p.player_id })}>
-                    <td><Dorsals list={p.dorsals} /></td>
+                    <td><Dorsals list={p.dorsals} size={dense ? "sm" : "md"} /></td>
                     <td className="l"><span style={{ fontWeight: 600 }}>{fcfDisplayName(p.name)}</span></td>
-                    <td><YearBadge year={p.birth_year} up={upIds.has(String(p.player_id))} estimated season={season} /></td>
+                    <td><YearBadge year={p.birth_year} up={upIds.has(String(p.player_id))} estimated season={season} sm={dense} /></td>
                     <td style={{ fontWeight: 600 }}>{p.pj}</td><td>{p.tit}</td><td>{p.sup}</td>
                     <td style={{ fontWeight: 700, color: RS.granate }}>{p.goals}</td><td>{p.yellow || ""}</td><td>{p.reds || ""}</td>
-                    <td className="l" style={{ fontSize: 14, color: RS.ink2 }}>{pos || "—"}</td>
+                    <td className="l" style={{ fontSize: 13, color: RS.ink2 }}>{pos || "—"}</td>
                     <td className="l"><DecisionChip decision={sp?.decision} empty="—" short /></td>
                   </tr>
                 );
               })}
               {isLoading && <tr><td colSpan={11} style={{ padding: 30 }}><Loader2 className="animate-spin mx-auto" color={RS.faint} /></td></tr>}
-              {!isLoading && rows.length === 0 && <tr><td colSpan={11} style={{ padding: "30px 18px", color: RS.faint }}>Ningún jugador.</td></tr>}
+              {!isLoading && rows.length === 0 && <tr><td colSpan={11} style={{ padding: "20px 14px", color: RS.faint }}>Ningún jugador.</td></tr>}
             </tbody>
           </table>
         </div>
-        <p style={{ margin: 0, padding: "12px 18px", fontSize: 13, color: RS.muted, borderTop: `1px solid ${RS.lineSoft}` }}>
+        <p style={{ margin: 0, padding: "8px 14px", fontSize: 12, color: RS.muted, borderTop: `1px solid ${RS.lineSoft}` }}>
           PJ = partidos en acta (titular + suplente). En fútbol base las actas no registran cambios, por eso no se calculan minutos. Posición, lateralidad y estado los introduce el club en la ficha del jugador. Los goles no incluyen los de propia puerta. Dorsal = el que más ha llevado en este equipo (al lado, otros que ha usado).
         </p>
       </section>

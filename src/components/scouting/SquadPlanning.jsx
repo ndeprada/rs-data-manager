@@ -255,10 +255,11 @@ export default function SquadPlanning() {
   const itemForDialog = itemOpen ? plan.items.find((i) => i.key === itemOpen) : null;
 
   return (
-    <div className="space-y-4" data-testid="squad-planning">
+    <div className="space-y-2.5" data-testid="squad-planning">
       <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
-        <span className="text-xs font-bold uppercase tracking-wide rounded-full px-2.5 py-1" style={{ background: "#F3ECEB", color: "#36000D" }} data-testid="plan-season">Temporada {season}</span>
-        <div className="ml-auto flex flex-wrap justify-end gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5" style={{ background: "#F3ECEB", color: "#36000D" }} data-testid="plan-season">Temporada {season}</span>
+        <TeamPills teams={teams} value={tid} onChange={setTeamId} />
+        <div className="ml-auto flex flex-wrap justify-end gap-1.5 [&_button]:h-8 [&_button]:px-2.5 [&_button]:text-xs">
           <Button type="button" variant="outline" size="sm" onClick={makePdf} disabled={!team || loading || pdfBusy} data-testid="plan-pdf">
             <FileDown className="w-4 h-4 mr-1.5" /> {pdfBusy ? "Creando…" : "PDF"}
           </Button>
@@ -276,7 +277,6 @@ export default function SquadPlanning() {
           </Button>
         </div>
       </div>
-      <TeamPills teams={teams} value={tid} onChange={setTeamId} />
 
       {!team ? (
         <p className="text-sm text-gray-400 py-10 text-center">{loadingTeams ? "Cargando equipos…" : "No hay equipos."}</p>
