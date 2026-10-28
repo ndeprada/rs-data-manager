@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  positionRoleOf, roleShort, roleFull,
   nextSeason, buildPlan, summarize, sideOfLaterality, birthYearOf, hasSides, groupOf, ZONES, zoneByKey,
   zoneKeyOf, zoneTitle, ZONES_F7, zonesFor, lineCount, fitPosition, F7_FIT, movePatch, playerPatch, isBlankPlayerPatch, moveChange, withMovedItem, buildPassSummary, bulkPassCandidates, bulkPassOps, statusLabel, LEAVE, ROLE,
 } from '../src/lib/squadPlan.js';
@@ -588,5 +589,27 @@ assert.equal(buildPlan({ players: [P('x', 'A', 'B', 'central')], entries: [{ kin
   assert.equal(sum11.rows[0].placeLabel, 'Mediocentro');
   const sumPlaced = buildPassSummary({ entries: [{ ...back, position: 'interior', side: 'l' }], players: sM, teams: teams7 });
   assert.equal(sumPlaced.rows[0].placeLabel, 'Mediapunta');
+}
+// ── Rol en el puesto que ocupa (de su ficha) ──
+{
+  const pr = { id: 'r1', first_name: 'Pol', last_name: 'Ros', team_id: 'tR', position: 'central', reference_role: 'central_libre',
+    extra_positions: [{ position: 'lateral', role: 'lateral_completo', level: 'competente' }, { position: 'lateral', role: 'lateral_defensivo', level: 'secundaria' }] };
+  assert.equal(positionRoleOf(pr, 'central'), 'central_libre');
+  assert.equal(positionRoleOf(pr, 'libre'), 'central_libre', 'libre = roles del central');
+  assert.equal(positionRoleOf(pr, 'lateral'), 'lateral_defensivo', 'la secundaria antes que la competente');
+  assert.equal(positionRoleOf(pr, 'extremo'), null);
+  assert.equal(positionRoleOf({ position: 'extremo', reference_role: 'xx' }, 'extremo'), null, 'rol desconocido');
+  const sc = { id: 's9', first_name: 'Nil', last_name: 'Mas', position: 'extremo', reference_role: 'extremo_profundo', secondary_position: 'delantero_centro', secondary_role: 'falso_9' };
+  assert.equal(positionRoleOf(sc, 'delantero_centro'), 'falso_9');
+  assert.equal(roleShort('central_libre'), 'Libre');
+  assert.equal(roleFull('delantero_profundo'), 'Delantero profundo o de referencia');
+  const planR = buildPlan({ players: [pr], scouted: [sc], entries: [
+    { id: 'eR', season: '2027-2028', team_id: 'tR', kind: 'player', ref_id: 'r1', status: 'continua', position: 'lateral', side: 'l' },
+    { id: 'eS', season: '2027-2028', team_id: 'tR', kind: 'scout', ref_id: 's9', role: 'objetivo' },
+  ], teamId: 'tR' });
+  assert.equal(planR.items.find((x) => x.id === 'r1').posRole, 'lateral_defensivo', 'movido a lateral: su rol de lateral');
+  assert.equal(planR.items.find((x) => x.id === 's9').posRole, 'extremo_profundo');
+  const planR7 = buildPlan({ players: [pr], entries: [], teamId: 'tR', isF7: true });
+  assert.equal(planR7.items[0].posRole, null, 'en fútbol 7 no hay roles');
 }
 console.log('squadPlan ok');

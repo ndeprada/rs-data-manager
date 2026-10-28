@@ -17,7 +17,7 @@ import PlayerFollowUpsTab from "@/components/scouting/PlayerFollowUpsTab";
 import { RS, Card, Btn, BackLink, Chip, Empty, Pills, Dorsals, DECISION, DECISION_KEYS, ORIGIN, originOf, fmtDate, seasonShort } from "@/components/rs2/kit";
 import { titleCase, fcfDisplayName } from "@/lib/fcfNames";
 import { juvenilYear, JUV_STYLE } from "@/lib/juvenilYear";
-import { nextSeason } from "@/lib/squadPlan";
+import { nextSeason, roleFull } from "@/lib/squadPlan";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
 import { useScouted, usePlanningNav, useIsPlanningAdmin } from "./useScouting";
 import { SCOUT_POSITION, LATERALITY, CONTACT, spName, isRacingTeam } from "./labels";
@@ -137,7 +137,8 @@ export default function ScoutPlayer() {
             <div className="flex flex-col" style={{ gap: 2 }}>
               <span style={label}>Posición</span>
               <span style={{ fontSize: 14, fontWeight: 600 }}>{SCOUT_POSITION[sp?.position] || "—"}</span>
-              {sp?.secondary_position && <span style={{ fontSize: 12, color: RS.ink2 }}>También: {(SCOUT_POSITION[sp.secondary_position] || sp.secondary_position).toLowerCase()}</span>}
+              {sp?.reference_role && roleFull(sp.reference_role) && <span style={{ fontSize: 12, color: RS.ink2 }} data-testid="sp-role-view">Rol: {roleFull(sp.reference_role).toLowerCase()}</span>}
+              {sp?.secondary_position && <span style={{ fontSize: 12, color: RS.ink2 }}>También: {(SCOUT_POSITION[sp.secondary_position] || sp.secondary_position).toLowerCase()}{sp.secondary_role && roleFull(sp.secondary_role) ? ` (${roleFull(sp.secondary_role).toLowerCase()})` : ""}</span>}
             </div>
             <div className="flex flex-col" style={{ gap: 2 }}>
               <span style={label}>Lateralidad</span>

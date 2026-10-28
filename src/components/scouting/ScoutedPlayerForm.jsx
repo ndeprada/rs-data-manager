@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Star } from "lucide-react";
+import { getRoleOptions } from "@/lib/competencyCatalog";
 
 const POSITIONS = [
   { value: "portero", label: "Portero" },
@@ -52,7 +53,7 @@ function SkillSlider({ label, value, onChange }) {
 
 const EMPTY_FORM = {
   first_name: "", last_name: "", birth_date: "", nationality: "", modality: "",
-  position: "", secondary_position: "", laterality: "", current_club: "",
+  position: "", secondary_position: "", reference_role: "", secondary_role: "", laterality: "", current_club: "",
   height_cm: "", weight_kg: "", phone: "", parent_name: "", parent_phone: "",
   contact_status: "no_contactado", contact_notes: "", rating: 0,
   skill_technical: 0, skill_physical: 0, skill_tactical: 0,
@@ -76,6 +77,8 @@ export default function ScoutedPlayerForm({ open, onOpenChange, player, onSave, 
           modality: player.modality || "",
           position: player.position || "",
           secondary_position: player.secondary_position || "",
+          reference_role: player.reference_role || "",
+          secondary_role: player.secondary_role || "",
           laterality: player.laterality || "",
           current_club: player.current_club || "",
           height_cm: player.height_cm || "",
@@ -161,17 +164,35 @@ export default function ScoutedPlayerForm({ open, onOpenChange, player, onSave, 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Posición principal</Label>
-                <Select value={form.position} onValueChange={v => set("position", v)}>
+                <Select value={form.position} onValueChange={v => setForm(f => ({ ...f, position: v, reference_role: v === f.position ? f.reference_role : "" }))}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                   <SelectContent>{POSITIONS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
                 </Select>
+                {getRoleOptions(form.position).length > 0 && (
+                  <Select value={form.reference_role || "none"} onValueChange={v => set("reference_role", v === "none" ? "" : v)}>
+                    <SelectTrigger className="mt-1.5" data-testid="sp-role"><SelectValue placeholder="Rol" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin rol</SelectItem>
+                      {getRoleOptions(form.position).map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div>
                 <Label className="text-xs">Posición secundaria</Label>
-                <Select value={form.secondary_position} onValueChange={v => set("secondary_position", v)}>
+                <Select value={form.secondary_position} onValueChange={v => setForm(f => ({ ...f, secondary_position: v, secondary_role: v === f.secondary_position ? f.secondary_role : "" }))}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                   <SelectContent>{POSITIONS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
                 </Select>
+                {getRoleOptions(form.secondary_position).length > 0 && (
+                  <Select value={form.secondary_role || "none"} onValueChange={v => set("secondary_role", v === "none" ? "" : v)}>
+                    <SelectTrigger className="mt-1.5" data-testid="sp-role2"><SelectValue placeholder="Rol" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin rol</SelectItem>
+                      {getRoleOptions(form.secondary_position).map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div>
                 <Label className="text-xs">Lateralidad</Label>

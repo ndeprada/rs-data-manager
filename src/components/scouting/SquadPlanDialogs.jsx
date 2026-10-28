@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { playerFullName, matchesPlayerSearch } from "@/lib/playerName";
 import { teamPlaysF7 } from "@/lib/matchFormat";
 import {
-  STATUS, STATUS_KEYS, PASS_STATUS_KEYS, LEAVE, LEAVE_KEYS, ROLE, ROLE_KEYS, POSITION_LABEL, zonesFor, zoneByKey, zoneKeyOf, zoneTitle, fitPosition, movePatch, passText, birthYearOf, bulkPassCandidates, bulkPassOps,
+  STATUS, STATUS_KEYS, PASS_STATUS_KEYS, LEAVE, LEAVE_KEYS, ROLE, ROLE_KEYS, POSITION_LABEL, zonesFor, zoneByKey, zoneKeyOf, zoneTitle, fitPosition, movePatch, passText, birthYearOf, bulkPassCandidates, bulkPassOps, roleFull,
 } from "@/lib/squadPlan";
 import { DOT, STATUS_BTN, DECISION, LEAVE_TAG, PASS_TAG } from "./squadPlanUi";
 
@@ -170,6 +170,8 @@ export function ItemDialog({ item, team, teams = [], onClose, onSavePlayer, onSa
             <ZoneSelect value={zonePick} onChange={setZoneKey} autoLabel={autoLabel} testid="plan-zone" isF7={destF7} />
             {!isScout && !item.position && zonePick === AUTO && <p className="text-xs text-amber-700 mt-1.5">Sin posición en su ficha: no sale en el campo. Elige un puesto para colocarlo (solo en este plan).</p>}
             {!isScout && item.moved && zonePick !== AUTO && <p className="text-[11px] text-gray-500 mt-1.5">Colocado a mano: en su ficha de jugador no cambia nada.</p>}
+            {item.posRole ? <p className="text-[11px] text-gray-600 mt-1.5" data-testid="plan-role-info">Rol en este puesto (de su ficha): <strong>{roleFull(item.posRole)}</strong></p>
+              : !destF7 && item.position && <p className="text-[11px] text-gray-400 mt-1.5" data-testid="plan-role-info">Sin rol para este puesto en su ficha{isScout ? " de scouting" : ""}.</p>}
           </div>
           <div>
             <Label>Nota</Label>

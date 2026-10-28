@@ -1,7 +1,7 @@
 import React, { useId, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeftRight, ChevronsUp, Eye, GripVertical, Plus, Target } from "lucide-react";
 import { F7_FIELD } from "@/lib/pitchGeometry";
-import { LEAVE, POSITION_LABEL, lineCount, passText, statusLabel, zoneTitle } from "@/lib/squadPlan";
+import { LEAVE, POSITION_LABEL, lineCount, passText, statusLabel, zoneTitle, roleShort, roleFull } from "@/lib/squadPlan";
 import { CHIP, DOT, LEAVE_TAG, PASS_TAG } from "./squadPlanUi";
 
 // Campo de la planificación: un campo a escala (F11 105 × 68 m, F7 65 × 45 m) con todos los puestos siempre a la vista. En pantallas anchas va
@@ -111,7 +111,7 @@ function Chip({ item, compact, dragging, onOpen, onGrab, wasDrag }) {
   const sale = item.status === "sale";
   const leave = sale && item.leave ? LEAVE[item.leave] : null;
   const out = item.pass === "out"; // pasa a otro equipo: se ve en su puesto pero no se coloca desde aquí
-  const tip = [item.name, item.year, statusLabel(item), item.injured ? "lesionado" : null,
+  const tip = [item.name, item.year, item.posRole ? `rol: ${roleFull(item.posRole)}` : null, statusLabel(item), item.injured ? "lesionado" : null,
     item.moved ? `puesto cambiado${item.naturalPosition ? ` (en su ficha: ${POSITION_LABEL[item.naturalPosition]})` : ""}` : null,
     item.fitted ? `en fútbol 7 sale como ${POSITION_LABEL[item.position]} (en su ficha: ${POSITION_LABEL[item.rawPosition]})` : null].filter(Boolean).join(" · ");
   const open = () => { if (!wasDrag()) onOpen(item); };
@@ -127,6 +127,10 @@ function Chip({ item, compact, dragging, onOpen, onGrab, wasDrag }) {
     </>
   );
   const nameCls = `block text-[11px] leading-[1.15] font-semibold break-words ${sale ? "line-through decoration-red-700/70" : ""}`;
+  // Rol de su ficha en este puesto, al lado del nombre
+  const role = item.posRole ? (
+    <span data-testid={`role-${item.key}`} title={roleFull(item.posRole)} className="ml-1 inline-block rounded bg-black/[0.08] px-1 align-[1px] text-[9px] font-bold uppercase leading-[13px] tracking-wide text-black/60 no-underline">{roleShort(item.posRole)}</span>
+  ) : null;
   return (
     <div
       role="button"
@@ -142,7 +146,7 @@ function Chip({ item, compact, dragging, onOpen, onGrab, wasDrag }) {
       <span data-grip="" aria-hidden="true" className={`shrink-0 flex items-center justify-center text-black/30 ${out ? "invisible" : "touch-none cursor-grab"} ${compact ? "w-3.5" : "w-3 [@media(hover:hover)_and_(pointer:fine)]:hidden"}`}><GripVertical className="w-3.5 h-3.5" /></span>
       {compact ? (
         <span className="flex-1 min-w-0 py-1">
-          <span className={nameCls}>{item.name}</span>
+          <span className={nameCls}>{item.name}{role}</span>
           <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] leading-none tabular-nums opacity-90">
             {mark}{item.year && <span className="opacity-70">{item.year}</span>}{tags}
           </span>
@@ -152,7 +156,7 @@ function Chip({ item, compact, dragging, onOpen, onGrab, wasDrag }) {
           <span className="flex-1 min-w-0 flex items-start gap-1 py-[3px] pl-1 [@media(hover:none)]:pl-0.5">
             <span className="mt-[3px] shrink-0">{mark}</span>
             <span className="min-w-0">
-              <span className={nameCls}>{item.name}</span>
+              <span className={nameCls}>{item.name}{role}</span>
               {tags && <span className="mt-px flex flex-wrap items-center gap-1">{tags}</span>}
             </span>
           </span>

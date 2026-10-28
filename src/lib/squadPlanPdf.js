@@ -10,7 +10,7 @@ import { loadImage } from "@/lib/matchSheetPdf";
 import { fitText } from "@/lib/matchSheetLayout";
 import { playerFullName } from "@/lib/playerName";
 import { F7_FIELD } from "@/lib/pitchGeometry";
-import { GROUPS, POSITION_LABEL, LEAVE, passText, pdfLists, squadByGroup, statusLabel, zoneTitle } from "@/lib/squadPlan";
+import { GROUPS, POSITION_LABEL, LEAVE, passText, pdfLists, squadByGroup, statusLabel, zoneTitle, roleShort } from "@/lib/squadPlan";
 
 const GRANATE = [115, 0, 10];
 const INK = [30, 30, 30];
@@ -133,7 +133,9 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
     const lines = wrap(it.name, Math.max(textW, 6), NAME_PT, false, 3);
     // Etiqueta bajo el nombre: tipo de baja (rojo) o pase a / desde otro equipo (verde azulado)
     const leave = it.pass ? passText(it).toUpperCase() : it.status === "sale" && it.leave ? LEAVE[it.leave].label.toUpperCase() : "";
-    return { lines, yr, leave, tagColor: it.pass ? PASS : TONE.sale, h: Math.max(3.9, lines.length * PITCH + 1.5) + (leave ? 2.8 : 0) };
+    // Rol de su ficha en este puesto (pequeño, bajo el nombre)
+    const role = it.posRole ? roleShort(it.posRole).toUpperCase() : "";
+    return { lines, yr, leave, role, tagColor: it.pass ? PASS : TONE.sale, h: Math.max(3.9, lines.length * PITCH + 1.5) + (role ? 2.0 : 0) + (leave ? 2.8 : 0) };
   };
   const drawChip = (it, box, x, y, w) => {
     const k = tone(it);
@@ -147,6 +149,7 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
       put(ln, x + 3, by, { pt: NAME_PT, color: k === "sale" ? [150, 60, 60] : k === "pasa" ? [100, 100, 100] : INK });
       if (k === "sale") { const tw = widthOf(ln, NAME_PT, false); doc.setDrawColor(...TONE.sale); doc.setLineWidth(0.2); doc.line(x + 3, by - 0.55, x + 3 + tw, by - 0.55); }
     });
+    if (box.role) put(box.role, x + 3, y + 2.4 + box.lines.length * PITCH + 0.3, { pt: 4.4, bold: true, color: GREY, maxW: w - 4 });
     let rx = x + w - 0.8;
     if (box.yr) { put(box.yr, rx, y + 2.4, { pt: 5, color: GREY, align: "right" }); rx -= widthOf(box.yr, 5, false) + 0.9; }
     if (it.injured) put("+", rx, y + 2.5, { pt: 6.5, bold: true, color: TONE.sale, align: "right" });

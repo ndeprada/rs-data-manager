@@ -2,7 +2,7 @@
 // equipo planificado, cobertura por línea y vista en columnas (Continúan · En duda · No continúan · Incorporaciones). El campograma no cambia.
 import React from "react";
 import { RS, DECISION as DEC2 } from "@/components/rs2/kit";
-import { GROUPS, groupOf, POSITION_LABEL, zoneTitle, LEAVE } from "@/lib/squadPlan";
+import { GROUPS, groupOf, POSITION_LABEL, zoneTitle, LEAVE, roleFull } from "@/lib/squadPlan";
 
 const POS_SHORT = { portero: "POR", libre: "LIB", central: "DFC", lateral: "LAT", mediocentro: "MC", interior: "INT", mediapunta: "MP", extremo: "EXT", delantero_centro: "DC" };
 
@@ -111,7 +111,7 @@ function tagOf(it) {
 
 function PlanCard({ it, onOpen }) {
   const tag = tagOf(it);
-  const sub = [it.year, it.position ? POSITION_LABEL[it.position] : "Sin posición", it.kind === "scout" && it.club ? it.club : null, it.note || null].filter(Boolean).join(" · ");
+  const sub = [it.year, it.position ? (it.posRole ? roleFull(it.posRole) : POSITION_LABEL[it.position]) : "Sin posición", it.kind === "scout" && it.club ? it.club : null, it.note || null].filter(Boolean).join(" · ");
   return (
     <button type="button" onClick={() => onOpen(it)} data-testid={`col-${it.key}`}
       style={{ display: "grid", gridTemplateColumns: "44px minmax(0,1fr) auto", gap: 10, alignItems: "center", background: "#fff", border: `1px solid ${RS.line}`, borderRadius: 10, padding: "8px 10px", textAlign: "left", width: "100%" }}>

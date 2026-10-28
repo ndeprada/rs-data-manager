@@ -50,6 +50,37 @@ export const ROLE = {
 export const ROLE_KEYS = ["objetivo", "seguido"];
 const SCOUT_RANK = { objetivo: 10, seguido: 11 };
 
+// Rol de cada jugador en el puesto que ocupa en el plan (pedido por Nacho el 28/10/2026: «al lado de cada jugador, el rol en su
+// posición que le hemos dado»). Los roles son los de su ficha (`competencyCatalog.js`: `reference_role` = rol en su posición natural y
+// `extra_positions[].role` en las demás; en scouting, `reference_role` y `secondary_role`). Solo existen en fútbol 11.
+export const ROLE_LABEL = {
+  portero_defensivo: ["Defensivo", "Portero defensivo"], portero_completo: ["Completo", "Portero completo"],
+  central_libre: ["Libre", "Central libre"], central_marcador: ["Marcador", "Central marcador"], central_con_salida: ["Con salida", "Central con salida"], central_completo: ["Completo", "Central completo"],
+  lateral_defensivo: ["Defensivo", "Lateral defensivo"], lateral_interior: ["Interior", "Lateral interior"], lateral_completo: ["Completo", "Lateral completo"],
+  mediocentro_organizador: ["Organizador", "Mediocentro organizador"], mediocentro_posicional: ["Posicional", "Mediocentro posicional"],
+  interior_mixto: ["Mixto", "Interior mixto"], interior_avanzado: ["Avanzado", "Interior avanzado"],
+  extremo_apoyo: ["De apoyo", "Extremo de apoyo"], extremo_profundo: ["Profundo", "Extremo profundo"], extremo_interior: ["Interior", "Extremo interior"],
+  falso_9: ["Falso 9", "Falso 9"], delantero_profundo: ["Profundo", "Delantero profundo o de referencia"], mediapunta: ["Mediapunta", "Mediapunta"],
+};
+const ROLE_ALIAS = { libre: "central" }; // la posición «libre» usa los roles del central
+const samePos = (a, b) => !!a && !!b && (a === b || ROLE_ALIAS[a] === b || ROLE_ALIAS[b] === a);
+/** Rol (id) que tiene en su ficha para ese puesto, o null. `source` = jugador del club o de scouting. */
+export function positionRoleOf(source, position) {
+  if (!source || !position) return null;
+  const ok = (r) => (r && ROLE_LABEL[r] ? r : null);
+  if (samePos(source.position, position) && ok(source.reference_role)) return source.reference_role;
+  if (Array.isArray(source.extra_positions)) {
+    const order = { secundaria: 0, competente: 1 };
+    const hit = source.extra_positions.filter((x) => x && samePos(x.position, position) && ok(x.role))
+      .sort((a, b) => (order[a.level] ?? 2) - (order[b.level] ?? 2))[0];
+    if (hit) return hit.role;
+  }
+  if (samePos(source.secondary_position, position) && ok(source.secondary_role)) return source.secondary_role;
+  return null;
+}
+export const roleShort = (id) => ROLE_LABEL[id]?.[0] || "";
+export const roleFull = (id) => ROLE_LABEL[id]?.[1] || "";
+
 export const POSITION_LABEL = {
   portero: "Portero", libre: "Libre", central: "Central", lateral: "Lateral", mediocentro: "Mediocentro", interior: "Interior",
   mediapunta: "Mediapunta", extremo: "Extremo", delantero_centro: "Delantero centro",
@@ -214,6 +245,12 @@ export function buildPlan({ players = [], scouted = [], entries = [], arrivals =
       moved: !!(e.position && e.position !== s.position), status: role, role, leave: null,
       decision: s.decision || "", rating: s.rating || 0, club: s.current_club || "", note: e.note || "", source: s,
     });
+  }
+
+  // Rol del puesto que ocupa (de su ficha); en fútbol 7 no hay roles
+  for (const it of items) {
+    const pos = it.pass === "out" ? it.source?.position : it.rawPosition || it.position;
+    it.posRole = isF7 ? null : positionRoleOf(it.source, pos);
   }
 
   // Reparto por puestos. Quien tiene lado conocido va a su lado; quien no, al lado con menos gente (así laterales sin dato se reparten).
