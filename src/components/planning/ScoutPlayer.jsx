@@ -150,7 +150,7 @@ export default function ScoutPlayer() {
         <div className="flex flex-col justify-center" style={{ flex: "1 1 300px", background: RS.granateDark, color: "#fff", padding: "22px 24px", gap: 14 }}>
           {fcf ? (
             <>
-              <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase", opacity: 0.85 }}>Últimas {lastSeasons.length === 1 ? "temporada" : `${lastSeasons.length} temporadas`}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase", opacity: 0.85 }}>{lastSeasons.length === 1 ? "Última temporada" : `Últimas ${lastSeasons.length} temporadas`}</span>
               <div className="grid" style={{ gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: "14px 10px" }}>
                 {[["Partidos", tot.pj], ["Titular", tot.tit], ["Suplente", tot.sup], ["Goles", tot.goals, true], ["Amarillas", tot.yellow], ["Rojas", tot.red]].map(([l, v, orange]) => (
                   <div key={l} className="flex flex-col">

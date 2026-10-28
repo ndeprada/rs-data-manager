@@ -5,6 +5,7 @@ assert.equal(titleCase('CADET SEGONA DIVISIÓ S15'), 'Cadet Segona Divisió S15'
 assert.equal(titleCase('ESCOLA PIA SARRIÀ S.E. "A"'), 'Escola Pia Sarrià S.E. "A"');
 assert.equal(titleCase('SARRIA, C.P. "A"'), 'Sarria, C.P. "A"');
 assert.equal(titleCase('GRUP 3'), 'Grup 3');
+assert.equal(titleCase('MOLLET U.E.,CF. B'), 'Mollet U.E.,CF. B');
 assert.equal(titleCase('SANT JOAN I SANT PERE'), 'Sant Joan i Sant Pere');
 assert.equal(titleCase('ESCOLA DE FUTBOL STOITCHKOV-RACING SARRIA "B"'), 'Escola de Futbol Stoitchkov-Racing Sarria "B"');
 assert.deepEqual(fcfNameParts('PUIG MAS, JAN'), { first_name: 'Jan', last_name: 'Puig Mas' });

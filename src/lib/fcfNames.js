@@ -9,6 +9,8 @@ export function titleCase(s) {
     const low = w.toLocaleLowerCase('es');
     if (i > 0 && SMALL.has(low)) return low;
     if (KEEP.test(w) && (w.length <= 3 || w.includes('.') || w.startsWith('"'))) return w;
+    // Siglas con puntos y comas («U.E.,CF.», «C.F.»): se quedan en mayúsculas
+    if (/^[A-Z.,]+$/.test(w) && w.includes('.') && w.replace(/[.,]/g, '').length <= 5) return w;
     return low.replace(/(^|[-'’(])(\p{L})/gu, (m, a, b) => a + b.toLocaleUpperCase('es'));
   }).join(' ');
 }
