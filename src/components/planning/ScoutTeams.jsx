@@ -6,7 +6,7 @@ import { ChevronRight, Loader2, Star } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import ObservedTeamsList from "@/components/scouting/ObservedTeamsList";
-import { RS, Card, Btn, BackLink, YearBadge, DecisionChip, Empty, SearchBox, fmtDateTime, seasonShort } from "@/components/rs2/kit";
+import { RS, Card, Btn, BackLink, YearBadge, Dorsals, DecisionChip, Empty, SearchBox, fmtDateTime, seasonShort } from "@/components/rs2/kit";
 import { titleCase, fcfDisplayName } from "@/lib/fcfNames";
 import { SEASON, useFcfMeta, useFollows, useScoutedByFcf, useAlerts, useUpIds, usePlanningNav, useIsPlanningAdmin } from "./useScouting";
 import { SCOUT_POSITION, LATERALITY, teamInitials } from "./labels";
@@ -239,7 +239,7 @@ function TeamView({ season, comp, grp, team }) {
           <table className="rs2-tbl" style={{ minWidth: 900 }} data-testid="squad-table">
             <thead>
               <tr>
-                <th className="l" scope="col">Jugador</th><th scope="col">Año</th><th scope="col">PJ</th><th scope="col">Titular</th><th scope="col">Suplente</th>
+                <th scope="col" title="Dorsal habitual en este equipo (y otros que ha llevado)">Dorsal</th><th className="l" scope="col">Jugador</th><th scope="col">Año</th><th scope="col">PJ</th><th scope="col">Titular</th><th scope="col">Suplente</th>
                 <th scope="col">Goles</th><th scope="col" title="Amarillas">TA</th><th scope="col" title="Rojas">TR</th><th className="l" scope="col">Posición · Lateralidad</th><th className="l" scope="col">Estado</th>
               </tr>
             </thead>
@@ -249,6 +249,7 @@ function TeamView({ season, comp, grp, team }) {
                 const pos = sp ? [SCOUT_POSITION[sp.position], LATERALITY[sp.laterality]].filter(Boolean).join(" · ") : "";
                 return (
                   <tr key={p.player_id} className="rs2-click" onClick={() => go(sp ? { s: "jugador", sp: sp.id } : { s: "jugador", fcf: p.player_id })}>
+                    <td><Dorsals list={p.dorsals} /></td>
                     <td className="l"><span style={{ fontWeight: 600 }}>{fcfDisplayName(p.name)}</span></td>
                     <td><YearBadge year={p.birth_year} up={upIds.has(String(p.player_id))} estimated /></td>
                     <td style={{ fontWeight: 600 }}>{p.pj}</td><td>{p.tit}</td><td>{p.sup}</td>
@@ -258,13 +259,13 @@ function TeamView({ season, comp, grp, team }) {
                   </tr>
                 );
               })}
-              {isLoading && <tr><td colSpan={10} style={{ padding: 30 }}><Loader2 className="animate-spin mx-auto" color={RS.faint} /></td></tr>}
-              {!isLoading && rows.length === 0 && <tr><td colSpan={10} style={{ padding: "30px 18px", color: RS.faint }}>Ningún jugador.</td></tr>}
+              {isLoading && <tr><td colSpan={11} style={{ padding: 30 }}><Loader2 className="animate-spin mx-auto" color={RS.faint} /></td></tr>}
+              {!isLoading && rows.length === 0 && <tr><td colSpan={11} style={{ padding: "30px 18px", color: RS.faint }}>Ningún jugador.</td></tr>}
             </tbody>
           </table>
         </div>
         <p style={{ margin: 0, padding: "12px 18px", fontSize: 13, color: RS.muted, borderTop: `1px solid ${RS.lineSoft}` }}>
-          PJ = partidos en acta (titular + suplente). En fútbol base las actas no registran cambios, por eso no se calculan minutos. Posición, lateralidad y estado los introduce el club en la ficha del jugador. Los goles no incluyen los de propia puerta.
+          PJ = partidos en acta (titular + suplente). En fútbol base las actas no registran cambios, por eso no se calculan minutos. Posición, lateralidad y estado los introduce el club en la ficha del jugador. Los goles no incluyen los de propia puerta. Dorsal = el que más ha llevado en este equipo (al lado, otros que ha usado).
         </p>
       </section>
       {!isLoading && !sq && <Btn kind="ghost" onClick={() => go({ s: "equipos" })}>Volver</Btn>}

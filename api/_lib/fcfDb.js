@@ -197,6 +197,29 @@ export async function birthYears(db, ids) {
   return new Map(rows.map((r) => [r.player_id, r.by]));
 }
 
+// Dorsales habituales: los números con los que ha salido en las actas, el más usado primero (hasta 3), con cuántas veces.
+// `src` es una tabla/CTE con player_id y dorsal (ya filtrada por temporada, equipo…).
+const DORSALS_SQL = (src, keys = 'player_id') => `
+      select ${keys}, json_agg(json_build_object('d', dorsal, 'n', n) order by n desc, length(dorsal), dorsal) as dorsals from (
+        select ${keys}, dorsal, count(*)::int as n from ${src}
+        where dorsal is not null and dorsal <> '' group by ${keys}, dorsal
+      ) dd group by ${keys}`;
+export function cleanDorsals(v) {
+  const list = typeof v === 'string' ? JSON.parse(v) : v;
+  return Array.isArray(list) ? list.slice(0, 3).map((x) => ({ d: String(x.d), n: Number(x.n) || 0 })) : [];
+}
+// Dorsales de la temporada de varios jugadores (todas sus actas de esa temporada)
+export async function seasonDorsals(db, season, ids) {
+  const list = [...new Set((ids || []).map(String))];
+  if (!list.length) return new Map();
+  const { rows } = await db.query(
+    `with a as (select p.player_id, p.dorsal from fcf_apps p join fcf_actas c on c.acta = p.acta
+       where c.season = $1 and p.player_id = any($2::text[])) ${DORSALS_SQL('a')}`,
+    [season, list]
+  );
+  return new Map(rows.map((r) => [r.player_id, cleanDorsals(r.dorsals)]));
+}
+
 // Buscador: una fila por jugador con sus números de la temporada (filtrable por competición, grupo, equipo, nombre, año e ids)
 export async function searchPlayers(db, f = {}) {
   const params = [];
@@ -220,9 +243,10 @@ export async function searchPlayers(db, f = {}) {
   const sort = SORTS[f.sort] || SORTS.tit;
   const sql = `
     with a as (
-      select p.player_id, p.team, p.starter, p.goals, p.yellow, p.second_yellow, p.red, c.competition, c.grp, c.season
+      select p.player_id, p.team, p.starter, p.dorsal, p.goals, p.yellow, p.second_yellow, p.red, c.competition, c.grp, c.season
       from fcf_apps p join fcf_actas c on c.acta = p.acta
       where ${where.join(' and ')}
+    ), ds as (${DORSALS_SQL('a')}
     ), agg as (
       select player_id,
         count(*)::int as pj,
@@ -236,8 +260,8 @@ export async function searchPlayers(db, f = {}) {
         max(season) as season
       from a group by player_id
     )
-    select agg.*, f.name, count(*) over()::int as total
-    from agg join fcf_players f on f.id = agg.player_id
+    select agg.*, ds.dorsals, f.name, count(*) over()::int as total
+    from agg join fcf_players f on f.id = agg.player_id left join ds on ds.player_id = agg.player_id
     ${nameFilter}
     order by ${sort}, f.name
     limit ${limit} offset ${offset}`;
@@ -245,7 +269,7 @@ export async function searchPlayers(db, f = {}) {
   const by = await birthYears(db, rows.map((r) => r.player_id));
   return {
     total: rows[0]?.total || 0,
-    rows: rows.map(({ total: _t, ...r }) => ({ ...r, sup: r.pj - r.tit, birth_year: by.get(r.player_id) ?? null })),
+    rows: rows.map(({ total: _t, ...r }) => ({ ...r, dorsals: cleanDorsals(r.dorsals), sup: r.pj - r.tit, birth_year: by.get(r.player_id) ?? null })),
   };
 }
 
@@ -338,16 +362,18 @@ export async function alerts(db, season) {
      from upc join own o on o.player_id = upc.player_id join own_comp oc on oc.player_id = upc.player_id join fcf_players f on f.id = upc.player_id
      order by upc.pj desc, upc.tit desc limit 600`, [s]
   );
-  const by = await birthYears(db, [...first.map((r) => r.player_id), ...up.map((r) => r.player_id)]);
+  const allIds = [...first.map((r) => r.player_id), ...up.map((r) => r.player_id)];
+  const by = await birthYears(db, allIds);
+  const dors = await seasonDorsals(db, s, allIds);
   return [
     ...first.map((r) => ({
       kind: 'primer_ano', player_id: r.player_id, name: r.name, birth_year: by.get(r.player_id) ?? prevEnd - 16,
-      team: r.team, competition: r.competition, grp: r.grp, pj: r.pj, tit: r.tit, goals: r.goals,
+      team: r.team, competition: r.competition, grp: r.grp, pj: r.pj, tit: r.tit, goals: r.goals, dorsals: dors.get(r.player_id) || [],
       prev_comp: r.prev_comp, prev_team: r.prev_team,
     })),
     ...up.map((r) => ({
       kind: 'arriba', player_id: r.player_id, name: r.name, birth_year: by.get(r.player_id) ?? (r.own <= 16 ? end - r.own : null),
-      team: r.team, competition: r.competition, grp: r.grp, pj: r.pj, tit: r.tit, goals: r.goals,
+      team: r.team, competition: r.competition, grp: r.grp, pj: r.pj, tit: r.tit, goals: r.goals, dorsals: dors.get(r.player_id) || [],
       own_comp: r.own_comp, own_team: r.own_team,
     })),
   ];
@@ -359,11 +385,14 @@ export async function playerDetail(db, id) {
   const { rows: pl } = await db.query(`select id, name from fcf_players where id = $1`, [String(id)]);
   if (!pl[0]) return null;
   const { rows: seasons } = await db.query(
-    `select c.season, p.team, c.competition, c.grp,
+    `with a as (select c.season, p.team, c.competition, c.grp, p.dorsal from fcf_apps p join fcf_actas c on c.acta = p.acta where p.player_id = $1),
+     ds as (${DORSALS_SQL('a', 'season, team, competition, grp')})
+     select c.season, p.team, c.competition, c.grp, min(ds.dorsals::text) as dorsals,
        count(*)::int as pj, sum(case when p.starter then 1 else 0 end)::int as tit,
        sum(p.goals)::int as goals, sum(p.pens)::int as pens, sum(p.yellow)::int as yellow,
        sum(p.second_yellow)::int as second_yellow, sum(p.red)::int as red
      from fcf_apps p join fcf_actas c on c.acta = p.acta
+     left join ds on ds.season = c.season and ds.team = p.team and ds.competition = c.competition and ds.grp = c.grp
      where p.player_id = $1
      group by c.season, p.team, c.competition, c.grp
      order by c.season desc, pj desc`, [String(id)]
@@ -381,7 +410,7 @@ export async function playerDetail(db, id) {
     id: pl[0].id,
     name: pl[0].name,
     birth_year: by.get(String(id)) ?? null,
-    seasons: seasons.map((s) => ({ ...s, sup: s.pj - s.tit })),
+    seasons: seasons.map((s) => ({ ...s, dorsals: cleanDorsals(s.dorsals), sup: s.pj - s.tit })),
     matches,
   };
 }

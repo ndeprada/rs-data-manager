@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import ScoutedPlayerForm from "@/components/scouting/ScoutedPlayerForm";
 import { base44 } from "@/api/base44Client";
-import { RS, YearBadge, DecisionChip, Tag, Pills, ORIGIN, ORIGIN_KEYS, DECISION_KEYS, DECISION, originOf, seasonShort } from "@/components/rs2/kit";
+import { RS, YearBadge, Dorsals, DecisionChip, Tag, Pills, ORIGIN, ORIGIN_KEYS, DECISION_KEYS, DECISION, originOf, seasonShort } from "@/components/rs2/kit";
 import { titleCase, fcfDisplayName } from "@/lib/fcfNames";
 import { SEASON, useScouted, useScoutedByFcf, useFcfMeta, useAlerts, usePlanningNav, useIsPlanningAdmin } from "./useScouting";
 import { spName, spYear } from "./labels";
@@ -99,7 +99,7 @@ export default function ScoutDatabase() {
       const list = (fcf.data?.rows || []).map((r) => {
         const sp = byFcf.get(String(r.player_id)) || null;
         return { key: `f:${r.player_id}`, fcf: r.player_id, sp, name: fcfDisplayName(r.name), year: r.birth_year, team: titleCase(r.team), comp: `${titleCase(r.competition)} · ${titleCase(r.grp)}`,
-          pj: r.pj, tit: r.tit, goals: r.goals, origin: sp ? ORIGIN[originOf(sp)] : "—", decision: sp?.decision, alert: alertOf.get(String(r.player_id)) || null };
+          dorsals: r.dorsals, pj: r.pj, tit: r.tit, goals: r.goals, origin: sp ? ORIGIN[originOf(sp)] : "—", decision: sp?.decision, alert: alertOf.get(String(r.player_id)) || null };
       });
       return alertsFirst ? [...list.filter((r) => r.alert), ...list.filter((r) => !r.alert)] : list;
     }
@@ -107,7 +107,7 @@ export default function ScoutDatabase() {
       const st = p.fcf_id ? statOf.get(String(p.fcf_id)) : null;
       return { key: `s:${p.id}`, sp: p, fcf: p.fcf_id || null, name: spName(p), year: spYear(p) || st?.birth_year || null,
         team: st ? titleCase(st.team) : p.current_club || "—", comp: st ? `${titleCase(st.competition)} · ${titleCase(st.grp)}` : p.category || "",
-        pj: st?.pj ?? "", tit: st?.tit ?? "", goals: st?.goals ?? "", origin: ORIGIN[originOf(p)], decision: p.decision,
+        dorsals: st?.dorsals, pj: st?.pj ?? "", tit: st?.tit ?? "", goals: st?.goals ?? "", origin: ORIGIN[originOf(p)], decision: p.decision,
         alert: p.fcf_id ? alertOf.get(String(p.fcf_id)) || null : null };
     });
   }, [mode, fcf.data, segBase, statOf, byFcf, alertOf, alertsFirst]);
@@ -230,10 +230,10 @@ export default function ScoutDatabase() {
           </div>
         </div>
         <div className="rs2-scroll-x">
-          <table className="rs2-tbl" style={{ minWidth: 900 }} data-testid="db-table">
+          <table className="rs2-tbl" style={{ minWidth: 960 }} data-testid="db-table">
             <thead>
               <tr>
-                <th className="l" scope="col">Jugador</th><th scope="col">Año</th><th className="l" scope="col">Equipo · competición</th>
+                <th className="l" scope="col">Jugador</th><th scope="col">Año</th><th scope="col" title="Dorsal habitual esta temporada (y otros que ha llevado)">Dorsal</th><th className="l" scope="col">Equipo · competición</th>
                 <th scope="col">PJ</th><th scope="col">Titular</th><th scope="col">Goles</th><th className="l" scope="col">Origen</th><th className="l" scope="col">Estado</th>
               </tr>
             </thead>
@@ -247,6 +247,7 @@ export default function ScoutDatabase() {
                     </button>
                   </td>
                   <td><YearBadge year={r.year} up={r.alert?.kind === "arriba"} estimated={!!r.fcf} /></td>
+                  <td>{r.fcf ? <Dorsals list={r.dorsals} /> : <span style={{ color: RS.faint }}>—</span>}</td>
                   <td className="l" style={{ whiteSpace: "normal", minWidth: 240 }}>
                     <span style={{ display: "block", fontWeight: 600, fontSize: 14 }}>{r.team}</span>
                     {r.comp && <span style={{ display: "block", fontSize: 13, color: RS.muted }}>{r.comp}</span>}
@@ -259,7 +260,7 @@ export default function ScoutDatabase() {
                 </tr>
               ))}
               {!rows.length && !loading && (
-                <tr><td colSpan={8} style={{ padding: "40px 18px", color: RS.faint, textAlign: "center" }}>
+                <tr><td colSpan={9} style={{ padding: "40px 18px", color: RS.faint, textAlign: "center" }}>
                   {mode === "fcf" ? (meta?.actas ? "Ningún jugador con estos filtros." : "Todavía no hay datos de la FCF.") : "Ningún jugador en seguimiento con estos filtros."}
                 </td></tr>
               )}

@@ -1,6 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
 import assert from 'node:assert/strict';
-import { ensureSchema, importActas, searchPlayers, playerDetail, meta, actaRows, birthYearFromCompetition, normName, compLevel, alerts, groupTeams, teamSquad, yearCounts } from '../api/_lib/fcfDb.js';
+import { cleanDorsals, seasonDorsals, ensureSchema, importActas, searchPlayers, playerDetail, meta, actaRows, birthYearFromCompetition, normName, compLevel, alerts, groupTeams, teamSquad, yearCounts } from '../api/_lib/fcfDb.js';
 
 // ── Año de nacimiento por la competición ──
 assert.equal(birthYearFromCompetition('CADET SEGONA DIVISIÓ S15', '2026-2027'), 2012);
@@ -118,5 +118,20 @@ const sq = await teamSquad(db, { season: '2026-2027', competition: 'CADET SEGONA
 assert.equal(sq.pj, 2);
 assert.deepEqual(sq.players.map((p) => [p.player_id, p.pj]), [['31', 2], ['32', 1]]);
 assert.equal(await teamSquad(db, { season: 'x', team: 'A' }), null);
+
+// ── Dorsales habituales de la temporada: el más usado primero ──
+const dA = (id, j, dorsal, team = 'DORSAL FC') => acta(id, j, team, 'RIVAL', [P('77', 'DORSAL PI, NIL', team, true, dorsal)]);
+await importActas(db, [dA('5001', 1, '7'), dA('5002', 2, '14'), dA('5003', 3, '7'), dA('5004', 4, ''), dA('5005', 5, '9', 'DORSAL FC "B"')]);
+const s77 = (await searchPlayers(db, { season: '2026-2027', q: 'dorsal pi' })).rows[0];
+assert.deepEqual(s77.dorsals, [{ d: '7', n: 2 }, { d: '9', n: 1 }, { d: '14', n: 1 }], 'más usado primero; empate: el número más corto');
+const s77b = (await searchPlayers(db, { season: '2026-2027', team: 'DORSAL FC "B"' })).rows[0];
+assert.deepEqual(s77b.dorsals, [{ d: '9', n: 1 }], 'con un equipo filtrado, solo sus dorsales en ese equipo');
+const dm = await seasonDorsals(db, '2026-2027', ['77', '11']);
+assert.equal(dm.get('77')[0].d, '7');
+assert.equal(dm.get('11')[0].d, '1');
+const d77 = await playerDetail(db, '77');
+assert.deepEqual(d77.seasons.map((x) => [x.team, x.dorsals.map((y) => y.d)]), [['DORSAL FC', ['7', '14']], ['DORSAL FC "B"', ['9']]]);
+assert.deepEqual(cleanDorsals(null), []);
+assert.deepEqual(cleanDorsals('[{"d":"5","n":"3"}]'), [{ d: '5', n: 3 }]);
 
 console.log('fcfDb ok');

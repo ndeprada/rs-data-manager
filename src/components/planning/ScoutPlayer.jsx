@@ -14,7 +14,7 @@ import PlayerVideosTab from "@/components/scouting/PlayerVideosTab";
 import PlayerImagesTab from "@/components/scouting/PlayerImagesTab";
 import PlayerSeasonHistoryTab from "@/components/scouting/PlayerSeasonHistoryTab";
 import PlayerFollowUpsTab from "@/components/scouting/PlayerFollowUpsTab";
-import { RS, Card, Btn, BackLink, Chip, Empty, Pills, DECISION, DECISION_KEYS, ORIGIN, originOf, fmtDate, seasonShort } from "@/components/rs2/kit";
+import { RS, Card, Btn, BackLink, Chip, Empty, Pills, Dorsals, DECISION, DECISION_KEYS, ORIGIN, originOf, fmtDate, seasonShort } from "@/components/rs2/kit";
 import { titleCase, fcfDisplayName } from "@/lib/fcfNames";
 import { nextSeason } from "@/lib/squadPlan";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
@@ -81,6 +81,8 @@ export default function ScoutPlayer() {
   const tot = inLast.reduce((t, s) => ({ pj: t.pj + s.pj, tit: t.tit + s.tit, sup: t.sup + s.sup, goals: t.goals + s.goals, yellow: t.yellow + s.yellow + s.second_yellow, red: t.red + s.red + s.second_yellow }),
     { pj: 0, tit: 0, sup: 0, goals: 0, yellow: 0, red: 0 });
   const cur = seasons[0];
+  // Dorsal de esta temporada: el del equipo en el que más juega; si juega en otro equipo (A/B o por arriba), también el de allí
+  const curOthers = cur ? seasons.filter((x, i) => i > 0 && x.season === cur.season && x.dorsals?.length) : [];
   const confirmedYear = sp?.birth_date ? Number(String(sp.birth_date).slice(0, 4)) : sp?.birth_year && originOf(sp) !== "fcf" ? Number(sp.birth_year) : null;
   const year = confirmedYear || fcf?.birth_year || (sp?.birth_year ? Number(sp.birth_year) : null);
   const vsRacing = (fcf?.matches || []).filter((m) => isRacingTeam(m.home) || isRacingTeam(m.away));
@@ -117,6 +119,11 @@ export default function ScoutPlayer() {
                 <span className="rs2-display" style={{ fontSize: 30, lineHeight: 1 }}>{year || "—"}</span>
                 {year && <span style={{ fontSize: 13, fontWeight: 600, color: confirmedYear ? "#2F6B3A" : RS.orangeInk }}>{confirmedYear ? "confirmado" : "estimado"}</span>}
               </span>
+            </div>
+            <div className="flex flex-col" style={{ gap: 4 }} data-testid="player-dorsal">
+              <span style={label}>Dorsal {cur ? seasonShort(cur.season) : ""}</span>
+              {cur?.dorsals?.length ? <Dorsals list={cur.dorsals} size="lg" /> : <span style={{ fontSize: 16, fontWeight: 600 }}>—</span>}
+              {curOthers.map((o) => <span key={o.team + o.competition} style={{ fontSize: 13, color: RS.ink2 }}>{o.dorsals.map((x) => x.d).join(" · ")} en {titleCase(o.team)}</span>)}
             </div>
             <div className="flex flex-col" style={{ gap: 2 }}>
               <span style={label}>Club actual</span>
@@ -200,7 +207,7 @@ export default function ScoutPlayer() {
               <div className="rs2-scroll-x" style={{ borderTop: `1px solid ${RS.lineSoft}` }}>
                 <table className="rs2-tbl" style={{ minWidth: 760 }}>
                   <thead>
-                    <tr><th className="l" scope="col">Temporada</th><th className="l" scope="col">Equipo · competición</th><th scope="col">Juego</th><th scope="col">PJ</th><th scope="col">Titular</th><th scope="col">Suplente</th><th scope="col">Goles</th><th scope="col">TA</th><th scope="col">TR</th></tr>
+                    <tr><th className="l" scope="col">Temporada</th><th className="l" scope="col">Equipo · competición</th><th scope="col">Juego</th><th scope="col">Dorsal</th><th scope="col">PJ</th><th scope="col">Titular</th><th scope="col">Suplente</th><th scope="col">Goles</th><th scope="col">TA</th><th scope="col">TR</th></tr>
                   </thead>
                   <tbody>
                     {seasons.map((s, i) => (
@@ -211,6 +218,7 @@ export default function ScoutPlayer() {
                           <span style={{ display: "block", fontSize: 13, color: RS.muted }}>{titleCase(s.competition)} · {titleCase(s.grp)}</span>
                         </td>
                         <td style={{ fontSize: 13, color: RS.ink2 }}>{/ALEV|BENJAM/i.test(s.competition) ? "F7" : "F11"}</td>
+                        <td><Dorsals list={s.dorsals} /></td>
                         <td style={{ fontWeight: 700 }}>{s.pj}</td><td>{s.tit}</td><td>{s.sup}</td>
                         <td style={{ fontWeight: 700, color: RS.granate }}>{s.goals}</td>
                         <td>{s.yellow + s.second_yellow || ""}</td><td>{s.red + s.second_yellow || ""}</td>
@@ -225,7 +233,7 @@ export default function ScoutPlayer() {
                   <div key={m.acta} className="flex flex-wrap items-baseline" style={{ gap: "6px 14px", fontSize: 14 }}>
                     <span style={{ fontWeight: 600, minWidth: 84 }}>{m.match_date || "—"}</span>
                     <span style={{ flex: "1 1 280px" }}>{titleCase(m.home)} – {titleCase(m.away)} · {titleCase(m.competition)} · J{m.jornada ?? "?"}</span>
-                    <span style={{ color: RS.ink2 }}>{m.starter ? "Titular" : "Suplente"}{m.goals ? ` · ${m.goals} ${m.goals === 1 ? "gol" : "goles"}` : ""}</span>
+                    <span style={{ color: RS.ink2 }}>{m.dorsal ? `#${m.dorsal} · ` : ""}{m.starter ? "Titular" : "Suplente"}{m.goals ? ` · ${m.goals} ${m.goals === 1 ? "gol" : "goles"}` : ""}</span>
                   </div>
                 ))}
               </div>
@@ -352,6 +360,7 @@ function MatchList({ matches = [] }) {
           <div key={m.acta} className="flex flex-wrap items-center" style={{ gap: "4px 12px", fontSize: 14, padding: "6px 0", borderTop: `1px solid ${RS.lineSoft}` }}>
             <span className="tabular-nums" style={{ width: 84, color: RS.muted }}>{m.match_date || "—"}</span>
             <span style={{ width: 34, fontSize: 12, color: RS.faint }}>J{m.jornada ?? "?"}</span>
+            <span className="tabular-nums" title="Dorsal en el acta" style={{ width: 30, textAlign: "center", fontSize: 13, fontWeight: 700, color: RS.granate }}>{m.dorsal ? `#${m.dorsal}` : ""}</span>
             <span style={{ flex: "1 1 180px" }}>vs {titleCase(rival)}</span>
             <Chip style={m.starter ? { background: RS.granate, color: "#fff", fontSize: 12 } : { background: RS.orangeSoft, color: RS.orangeInk, fontSize: 12 }}>{m.starter ? "Titular" : "Suplente"}</Chip>
             {m.goals > 0 && <span style={{ fontSize: 13, fontWeight: 700, color: RS.granate }}>{m.goals} {m.goals === 1 ? "gol" : "goles"}</span>}

@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
-import { RS, Card, Tag, Pills, Empty, seasonShort } from "@/components/rs2/kit";
+import { RS, Card, Tag, Pills, Empty, seasonShort, Dorsals } from "@/components/rs2/kit";
 import { titleCase, fcfDisplayName, fcfNameParts } from "@/lib/fcfNames";
 import { SEASON, useAlerts, usePlanningNav } from "./useScouting";
 
@@ -87,6 +87,7 @@ export default function ScoutAlerts() {
                   <span className="flex items-center flex-wrap" style={{ gap: 8 }}>
                     <Tag kind={a.kind === "arriba" ? "orange" : "dark"}>{a.kind === "arriba" ? "POR ARRIBA" : "1.º AÑO"}</Tag>
                     {a.birth_year && <span style={{ fontWeight: 700, fontSize: 14, padding: "2px 8px", borderRadius: 6, background: RS.soft, color: RS.granateDark }}>{a.birth_year}</span>}
+                    {a.dorsals?.length > 0 && <Dorsals list={a.dorsals} />}
                   </span>
                   <button type="button" onClick={() => go(a.followed ? { s: "jugador", sp: a.followed.id } : { s: "jugador", fcf: a.player_id })} style={{ fontWeight: 600, fontSize: 16, color: RS.ink, background: "none", textAlign: "left" }}>
                     {fcfDisplayName(a.name)}

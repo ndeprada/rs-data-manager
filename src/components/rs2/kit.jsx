@@ -140,6 +140,23 @@ export function YearBadge({ year, up = false, estimated = false }) {
   );
 }
 
+/** Dorsales habituales de la temporada (de las actas): el más usado grande, los demás pequeños al lado.
+ *  `list` = [{d:'7', n:12}, {d:'14', n:2}] ordenada de más a menos usado. */
+export function Dorsals({ list, size = "md" }) {
+  const l = (list || []).filter((x) => x && x.d);
+  if (!l.length) return <span style={{ color: RS.faint }} title="Sin dorsal en las actas">—</span>;
+  const [main, ...rest] = l;
+  const big = size === "lg" ? { minWidth: 40, height: 40, fontSize: 22 } : { minWidth: 30, height: 28, fontSize: 16 };
+  const title = "Dorsal en las actas de la temporada: " + l.map((x) => `${x.d} (${x.n} ${x.n === 1 ? "partido" : "partidos"})`).join(" · ");
+  return (
+    <span className="inline-flex items-center" style={{ gap: 5 }} title={title} aria-label={title} data-testid="dorsals">
+      <span className="rs2-display tabular-nums" style={{ ...big, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 5px",
+        borderRadius: 6, border: `2px solid ${RS.granate}`, color: RS.granate, background: "#fff", lineHeight: 1 }}>{main.d}</span>
+      {rest.length > 0 && <span className="tabular-nums" style={{ fontSize: size === "lg" ? 14 : 12, color: RS.muted, fontWeight: 600 }}>{rest.map((x) => x.d).join(" · ")}</span>}
+    </span>
+  );
+}
+
 /** Botones de opción (Todos · F11 · F7 …) */
 export function Pills({ options, value, onChange, size = 36 }) {
   return (
