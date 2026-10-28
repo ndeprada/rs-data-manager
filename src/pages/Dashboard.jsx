@@ -7,6 +7,7 @@ import { format, startOfDay, addDays, isSameDay, differenceInMinutes, startOfWee
 import { Link } from "react-router-dom";
 import FCFClassificationsPanel from "../components/dashboard/FCFClassificationsPanel";
 import WeekendAgenda from "../components/dashboard/WeekendAgenda";
+import EditEventDialog from "@/components/myteam/EditEventDialog";
 import EventWeather from "@/components/EventWeather";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { playerFullName } from "@/lib/playerName";
@@ -219,6 +220,7 @@ export default function Dashboard() {
 
   // Coordinación: al pulsar una alerta se abre el listado por equipos de todo el club (los avisos no cambian)
   const [pendingList, setPendingList] = useState(null); // null (cerrado) | "all" | "trainings" | "matches"
+  const [editEvent, setEditEvent] = useState(null); // evento de la planificación semanal que se está editando
   const openList = (kind) => (isCoordinator ? () => setPendingList(kind) : undefined);
   const pendingRows = pendingList
     ? groupPendingByTeam({ trainings: [...pendingTrainings.values()], matches: pendingMatchLists(() => true), teams, compare: compareTeams })
@@ -278,6 +280,7 @@ export default function Dashboard() {
       {/* Cabecera */}
       <PageTitle kicker={t("Temporada {replace}", { replace: CURRENT_SEASON.replace("-", "–") })} title={t("Panel de control")} />
       <PendingStrip items={pendingItems} />
+      <EditEventDialog open={!!editEvent} onOpenChange={(o) => { if (!o) setEditEvent(null); }} event={editEvent} />
       {isCoordinator && <PendingByTeamDialog open={!!pendingList} onOpenChange={(o) => { if (!o) setPendingList(null); }} rows={pendingRows} kind={pendingList || "all"} />}
 
       {/* Próximo partido + temporada/asistencia */}
@@ -377,7 +380,9 @@ export default function Dashboard() {
                       {off && <p className="text-[8px] sm:text-[10px] font-bold text-gray-500 leading-tight break-words" title={cancelText(e, t)}>{cancelText(e, t)}</p>}
                     </div>
                   );
-                  return m ? <Link key={e.id} to={`/MatchDetail?id=${e.id}&teamId=${e.team_id}`} className="block">{content}</Link> : <div key={e.id}>{content}</div>;
+                  // Partidos → su ficha; el resto (entrenamientos, reuniones…) se edita aquí mismo (pedido por Nacho el 28/10/2026)
+                  return m ? <Link key={e.id} to={`/MatchDetail?id=${e.id}&teamId=${e.team_id}`} className="block">{content}</Link>
+                    : <button key={e.id} type="button" onClick={() => setEditEvent(e)} title={t("Editar")} data-testid={`week-event-${e.id}`} className="block w-full text-left">{content}</button>;
                 })}
                 {sorted.length > 4 && <Link to="/Calendar" className="block text-[11px] font-bold pl-1" style={{ color: "var(--granate)" }}>{t("+{v} más", { v: sorted.length - 4 })}</Link>}
               </div>
