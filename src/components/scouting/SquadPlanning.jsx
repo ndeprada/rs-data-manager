@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowRightLeft, Binoculars, ChevronsUp, Eye, FileDown, Network, Target, Users } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { teamPlaysF7 } from "@/lib/matchFormat";
 import { playerFullName } from "@/lib/playerName";
@@ -17,6 +16,9 @@ import { usePlanDrag, DragGhost } from "./usePlanDrag";
 import { ItemDialog, ZoneDialog, AddTargetDialog, AddClubDialog, BulkPassDialog, ItemRow } from "./SquadPlanDialogs";
 import { ClubPassesDialog } from "./SquadPasses";
 import { DOT, LEAVE_TAG, PASS_TAG } from "./squadPlanUi";
+import { TeamPills, PlanBand, Coverage, ColumnsView } from "./SquadPlanViews";
+import { Pills } from "@/components/rs2/kit";
+import { usePlanningNav } from "@/components/planning/useScouting";
 
 // Scouting → Planificación: plantilla prevista de cada equipo para la temporada siguiente, en un campo a escala con todos los puestos a la vista
 // (ataque a la derecha, o arriba en el móvil). Los jugadores actuales continúan salvo que se marque «duda» o «se va» (baja del club o baja propia);
@@ -24,20 +26,6 @@ import { DOT, LEAVE_TAG, PASS_TAG } from "./squadPlanUi";
 // arrastra de un puesto a otro (solo en el plan: la ficha del jugador no cambia). Un jugador puede pasar a otro equipo del club («Pasa a X» en su
 // equipo y «Viene de X» en el equipo destino, también solo en el plan). Lógica pura en `src/lib/squadPlan.js`.
 // Los textos de Scouting siguen en español (traducción pendiente, bloque 5).
-
-function Stat({ label, value, tone, sub }) {
-  const cls = {
-    green: "text-emerald-700 bg-emerald-50 border-emerald-200", amber: "text-amber-700 bg-amber-50 border-amber-200", red: "text-red-700 bg-red-50 border-red-200",
-    sky: "text-sky-700 bg-sky-50 border-sky-200", indigo: "text-indigo-700 bg-indigo-50 border-indigo-200", teal: "text-teal-700 bg-teal-50 border-teal-200",
-  }[tone];
-  return (
-    <div className={`rounded-xl border px-2 py-1.5 text-center ${cls}`}>
-      <div className="text-xl font-black leading-none tabular-nums" data-testid={`stat-${tone}`}>{value}</div>
-      <div className="text-[10px] font-bold uppercase tracking-wide mt-1">{label}</div>
-      {sub !== undefined && <div className="text-[10px] leading-tight mt-0.5 opacity-80" data-testid={`stat-${tone}-sub`}>{sub}</div>}
-    </div>
-  );
-}
 
 function Legend() {
   return (
@@ -58,13 +46,17 @@ function Legend() {
   );
 }
 
-const Card = ({ children, className = "" }) => <div className={`bg-white border border-gray-200 rounded-2xl p-3 shadow-sm ${className}`}>{children}</div>;
+const Card = ({ children, className = "" }) => <div className={`rs2-card ${className}`} style={{ padding: "14px 18px" }}>{children}</div>;
 
 export default function SquadPlanning() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const season = nextSeason(CURRENT_SEASON);
-  const [teamId, setTeamId] = useState(null);
+  const { get: getParam } = usePlanningNav();
+  const [teamId, setTeamId] = useState(() => getParam("team") || null);
+  // Campo (campograma) o columnas; se recuerda en este navegador
+  const [view, setViewState] = useState(() => { try { return localStorage.getItem("rs_plan_view") === "columnas" ? "columnas" : "campo"; } catch { return "campo"; } });
+  const setView = (v) => { setViewState(v); try { localStorage.setItem("rs_plan_view", v); } catch { /* sin almacenamiento */ } };
   const [zoneOpen, setZoneOpen] = useState(null);
   const [itemOpen, setItemOpen] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -264,14 +256,8 @@ export default function SquadPlanning() {
 
   return (
     <div className="space-y-4" data-testid="squad-planning">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="w-56">
-          <Select value={tid || undefined} onValueChange={(v) => v && setTeamId(v)}>
-            <SelectTrigger data-testid="plan-team"><SelectValue placeholder="Equipo" /></SelectTrigger>
-            <SelectContent>{teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
-        <span className="text-xs font-bold uppercase tracking-wide text-gray-500 bg-gray-100 rounded-full px-2.5 py-1" data-testid="plan-season">Temporada {season}</span>
+      <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
+        <span className="text-xs font-bold uppercase tracking-wide rounded-full px-2.5 py-1" style={{ background: "#F3ECEB", color: "#36000D" }} data-testid="plan-season">Temporada {season}</span>
         <div className="ml-auto flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" size="sm" onClick={makePdf} disabled={!team || loading || pdfBusy} data-testid="plan-pdf">
             <FileDown className="w-4 h-4 mr-1.5" /> {pdfBusy ? "Creando…" : "PDF"}
@@ -290,31 +276,39 @@ export default function SquadPlanning() {
           </Button>
         </div>
       </div>
+      <TeamPills teams={teams} value={tid} onChange={setTeamId} />
 
       {!team ? (
         <p className="text-sm text-gray-400 py-10 text-center">{loadingTeams ? "Cargando equipos…" : "No hay equipos."}</p>
       ) : (
         <>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid="plan-stats">
-            <Stat label="Continúan" value={total.continua} tone="green" />
-            <Stat label="Dudas" value={total.duda} tone="amber" />
-            <Stat label="Bajas" value={total.sale} tone="red" sub={bajasSub} />
-            <Stat label="Objetivos" value={total.objetivo} tone="sky" />
-            <Stat label="Seguidos" value={total.seguido} tone="indigo" />
-            <Stat label="Pases" value={total.llega + total.pasa} tone="teal" sub={total.llega + total.pasa === 0 ? "ninguno" : [total.llega ? `${total.llega} llegan` : null, total.pasa ? `${total.pasa} pasan` : null].filter(Boolean).join(" · ")} />
+          <PlanBand team={team} season={season} isF7={isF7} plan={plan} players={players} />
+          <Coverage plan={plan} onZone={(k) => setZoneOpen(k)} />
+
+          <div className="flex flex-wrap items-center justify-between" style={{ gap: 10 }}>
+            <Pills value={view} onChange={setView} options={[{ value: "campo", label: "Campo", testId: "plan-view-campo" }, { value: "columnas", label: "Columnas", testId: "plan-view-columnas" }]} />
+            <span className="text-xs" style={{ color: "#6B5E60" }}>
+              {total.sale > 0 ? `Bajas: ${bajasSub}` : "Sin bajas"} · {total.llega + total.pasa === 0 ? "sin pases" : [total.llega ? `${total.llega} llegan` : null, total.pasa ? `${total.pasa} pasan` : null].filter(Boolean).join(" · ")} · {total.seguido} seguidos
+            </span>
           </div>
 
-          <SquadPitch zones={plan.zones} isF7={isF7} drag={drag} onZone={(z) => setZoneOpen(z.key)} onAdd={openAdd} onItem={(it) => setItemOpen(it.key)} onGrab={grab} wasDrag={wasDrag} />
-          <Legend />
-          <p className="text-center text-[11px] text-gray-400 -mt-1" data-testid="plan-hint">
-            Toca a un jugador para ver su ficha del plan. Para colocarlo en otro puesto, arrástralo (con el ratón, o desde el asa ⠿ en el móvil); para pasarlo a otro equipo, ábrelo y elige el equipo. Todo esto solo cambia en el plan, no en su ficha.
-          </p>
+          {view === "columnas" ? (
+            <ColumnsView plan={plan} onItem={(it) => setItemOpen(it.key)} onAddScout={() => openAdd(null)} onAddClub={() => openClub(null)} />
+          ) : (
+            <>
+              <SquadPitch zones={plan.zones} isF7={isF7} drag={drag} onZone={(z) => setZoneOpen(z.key)} onAdd={openAdd} onItem={(it) => setItemOpen(it.key)} onGrab={grab} wasDrag={wasDrag} />
+              <Legend />
+              <p className="text-center text-[11px] text-gray-400 -mt-1" data-testid="plan-hint">
+                Toca a un jugador para ver su ficha del plan. Para colocarlo en otro puesto, arrástralo (con el ratón, o desde el asa ⠿ en el móvil); para pasarlo a otro equipo, ábrelo y elige el equipo. Todo esto solo cambia en el plan, no en su ficha.
+              </p>
+            </>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-3 items-start">
             <Card>
               <div className="flex items-baseline justify-between mb-1">
                 <h3 className="font-bold text-sm text-gray-900">Plantilla prevista {season}</h3>
-                <span className="text-2xl font-black tabular-nums" style={{ color: "var(--granate)" }} data-testid="plan-total">{total.prevista}</span>
+                <span className="text-2xl font-black tabular-nums" style={{ color: "var(--granate)" }} data-testid="plan-total-table">{total.prevista}</span>
               </div>
               <p className="text-[11px] text-gray-400 mb-2">Continúan (y los que llegan de otro equipo) + objetivos. Las dudas, las bajas, los que pasan a otro equipo y los jugadores seguidos no cuentan.</p>
               <table className="w-full text-xs">

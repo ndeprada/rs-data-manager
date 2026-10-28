@@ -9,7 +9,7 @@ import { cleanDuplicates } from './_lib/dedupe.js';
 import { feedFor, readConfig, tokenFor, rotateToken, isUuid } from './_lib/ics.js';
 import { requireUser } from './_lib/auth.js';
 import { permissionsOf } from '../src/lib/permissions.js';
-import { ensureSchema, importActas, searchPlayers, playerDetail, meta as fcfMeta } from './_lib/fcfDb.js';
+import { ensureSchema, importActas, searchPlayers, playerDetail, meta as fcfMeta, yearCounts, groupTeams, teamSquad, alerts as fcfAlerts } from './_lib/fcfDb.js';
 import { isAdmin, coachTeamIdsOf } from './_lib/access.js';
 import { COORD, STAFF, isApprovedUser, teamIdsOfUser, reachableUserIds, searchPeople, MAX_INDIVIDUALS } from './_lib/recipients.js';
 
@@ -159,7 +159,7 @@ export default async function handler(req, res) {
     // ── Base de datos FCF (Planificación → Scouting): solo dirección, coordinación y administración ──
     // Las actas llegan desde el navegador de quien las lee en la intranet de la FCF a través de la página /FcfBridge de la
     // app (mensajes entre ventanas), así que se guardan con su sesión: no hace falta ninguna clave.
-    if (a === 'fcf_meta' || a === 'fcf_search' || a === 'fcf_player' || a === 'fcf_import') {
+    if (['fcf_meta', 'fcf_search', 'fcf_player', 'fcf_import', 'fcf_years', 'fcf_group_teams', 'fcf_team', 'fcf_alerts'].includes(a)) {
       if (!permissionsOf(user).administration) return res.status(403).json({ error: 'forbidden' });
       await ensureSchema(db);
       if (a === 'fcf_import') {
@@ -169,6 +169,13 @@ export default async function handler(req, res) {
       }
       if (a === 'fcf_meta') return res.status(200).json(await fcfMeta(db));
       if (a === 'fcf_search') return res.status(200).json(await searchPlayers(db, req.query));
+      if (a === 'fcf_years') return res.status(200).json(await yearCounts(db, req.query.season));
+      if (a === 'fcf_group_teams') return res.status(200).json(await groupTeams(db, req.query));
+      if (a === 'fcf_alerts') return res.status(200).json(await fcfAlerts(db, req.query.season));
+      if (a === 'fcf_team') {
+        const t = await teamSquad(db, req.query);
+        return t ? res.status(200).json(t) : res.status(404).json({ error: 'not_found' });
+      }
       const p = await playerDetail(db, req.query.id);
       return p ? res.status(200).json(p) : res.status(404).json({ error: 'not_found' });
     }

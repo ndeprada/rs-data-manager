@@ -1,0 +1,59 @@
+/* Estilo «rs2» (28/10/2026): el de las maquetas que aprobó Nacho para Planificación (fondo cálido, tarjetas blancas con borde suave,
+   bandas granate, pestañas tipo pastilla, tablas aireadas). De momento solo se aplica dentro de `.rs2` (Planificación); la idea es
+   extenderlo al resto de la app por bloques. Colores y medidas: `src/components/rs2/kit.jsx` (tokens `RS`). */
+
+.rs2 {
+  --rs-bg: #F5F2F1; --rs-card: #FFFFFF; --rs-line: #E6DEDD; --rs-line-soft: #EEE7E6; --rs-head: #FBF8F8; --rs-soft: #F3ECEB;
+  --rs-ink: #1E1416; --rs-ink-2: #4A3D3F; --rs-muted: #6B5E60; --rs-faint: #9A8C8E; --rs-input: #D9CFCE;
+  --rs-orange-soft: #FFE7D6; --rs-orange-ink: #8A3A00;
+  background: var(--rs-bg);
+  color: var(--rs-ink);
+  font-family: 'IBM Plex Sans Condensed', system-ui, sans-serif;
+}
+
+/* Los títulos de la app (h1–h6) tienen colores y mayúsculas globales: aquí manda el diseño de la maqueta */
+.rs2 :is(h1, h2, h3, h4, h5, h6) {
+  font-family: 'IBM Plex Sans Condensed', system-ui, sans-serif !important;
+  color: inherit !important; text-transform: none !important; letter-spacing: normal !important; font-weight: 700 !important;
+}
+.rs2 .rs2-display, .rs2 :is(h1, h2, h3).rs2-display {
+  font-family: 'Racing Sarria', 'IBM Plex Sans Condensed', sans-serif !important;
+  font-weight: 400 !important; letter-spacing: 0.03em !important; text-transform: uppercase !important; line-height: 0.95;
+}
+/* La app rebaja las negritas en general; en este diseño se usan las de verdad */
+.rs2 .font-bold { font-weight: 700 !important; }
+.rs2 .font-semibold { font-weight: 600 !important; }
+.rs2 .font-black { font-weight: 800 !important; }
+.rs2 .tabular-nums { font-variant-numeric: tabular-nums; }
+
+.rs2-wrap { max-width: 1360px; margin: 0 auto; padding: 24px 24px 48px; }
+@media (max-width: 640px) { .rs2-wrap { padding: 16px 16px 40px; } }
+
+.rs2-card { background: var(--rs-card); border: 1px solid var(--rs-line); border-radius: 12px; }
+.rs2-band { background: #36000D; color: #fff; border-radius: 14px; }
+.rs2-title { font-size: 19px; font-weight: 700; margin: 0; }
+.rs2-label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--rs-muted); }
+
+/* Tablas */
+.rs2-tbl { width: 100%; border-collapse: collapse; font-size: 15px; }
+.rs2-tbl th { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--rs-muted); text-align: center;
+  padding: 10px 8px; background: var(--rs-head); border-bottom: 1px solid var(--rs-line); white-space: nowrap; }
+.rs2-tbl td { padding: 9px 8px; border-bottom: 1px solid var(--rs-line-soft); text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rs2-tbl th.l, .rs2-tbl td.l { text-align: left; }
+.rs2-tbl th:first-child, .rs2-tbl td:first-child { padding-left: 18px; }
+.rs2-tbl th:last-child, .rs2-tbl td:last-child { padding-right: 18px; }
+.rs2-tbl tbody tr:hover td { background: var(--rs-head); }
+.rs2-tbl tbody tr.rs2-click { cursor: pointer; }
+
+/* Campos de formulario */
+.rs2-input { height: 44px; border: 1px solid var(--rs-input); border-radius: 8px; padding: 0 12px; font: inherit; font-size: 15px;
+  background: #fff; color: var(--rs-ink); width: 100%; outline: none; }
+.rs2-input:focus { border-color: #73000A; box-shadow: 0 0 0 3px rgba(115, 0, 10, .12); }
+
+/* Filas de lista que se pueden pulsar */
+.rs2-row { display: block; text-decoration: none; color: var(--rs-ink); border-top: 1px solid var(--rs-line-soft); }
+.rs2-row:hover { background: var(--rs-head); color: var(--rs-ink); }
+.rs2 a.rs2-link { color: #73000A; text-decoration: none; font-weight: 600; }
+.rs2 a.rs2-link:hover { color: #36000D; }
+
+.rs2-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }

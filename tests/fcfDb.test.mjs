@@ -1,6 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
 import assert from 'node:assert/strict';
-import { ensureSchema, importActas, searchPlayers, playerDetail, meta, actaRows, birthYearFromCompetition, normName } from '../api/_lib/fcfDb.js';
+import { ensureSchema, importActas, searchPlayers, playerDetail, meta, actaRows, birthYearFromCompetition, normName, compLevel, alerts, groupTeams, teamSquad, yearCounts } from '../api/_lib/fcfDb.js';
 
 // ── Año de nacimiento por la competición ──
 assert.equal(birthYearFromCompetition('CADET SEGONA DIVISIÓ S15', '2026-2027'), 2012);
@@ -8,6 +8,10 @@ assert.equal(birthYearFromCompetition('PRIMERA DIVISIÓ ALEVÍ S12', '2026-2027'
 assert.equal(birthYearFromCompetition('INFANTIL PRIMERA DIVISIÓ S14', '2025-2026'), 2012);
 assert.equal(birthYearFromCompetition('JUVENIL PRIMERA DIVISIÓ', '2026-2027'), null, 'en juveniles no se puede');
 assert.equal(normName('MARTÍ  ÀLVAREZ, JOSÉ'), 'marti alvarez, jose');
+assert.equal(compLevel('CADET SEGONA DIVISIÓ S15'), 15);
+assert.equal(compLevel('PREFERENT JUVENILS'), 17);
+assert.equal(compLevel('LLIGA NACIONAL JUVENIL'), 17);
+assert.equal(compLevel('TERCERA CATALANA'), null);
 
 // ── Un acta: goles, penaltis, propia puerta y tarjetas ──
 const acta = (id, jornada, home, away, players, goals = [], cards = [], extra = {}) => ({
@@ -79,5 +83,40 @@ const m = await meta(db);
 assert.equal(m.players, 3);
 assert.equal(m.actas, 3);
 assert.deepEqual(m.seasons, ['2026-2027', '2025-2026']);
+
+// ── Alertas, equipos de un grupo, plantilla y años ──
+// Jan (11): juvenil de Primera en 2026-27 que venía de Cadet S16 → 1.º año (2010)
+let al = await alerts(db, '2026-2027');
+const first = al.filter((x) => x.kind === 'primer_ano');
+assert.equal(first.length, 1);
+assert.deepEqual([first[0].player_id, first[0].birth_year, first[0].prev_comp], ['11', 2010, 'DIVISIÓ HONOR CADET S16']);
+// Un cadete S15 (31) que juega también con el S16 → «por arriba»; 32 solo juega en su categoría
+const cad = (id, comp, grp, players) => acta(id, 1, 'CLUB X', 'CLUB Y', players, [], [], { competition: comp, group: grp });
+await importActas(db, [
+  cad('2001', 'CADET SEGONA DIVISIÓ S15', 'GRUP 6', [P('31', 'ROS PI, NIL', 'CLUB X "B"', true), P('32', 'MAS GIL, POL', 'CLUB X "B"', true)]),
+  cad('2002', 'CADET SEGONA DIVISIÓ S15', 'GRUP 6', [P('31', 'ROS PI, NIL', 'CLUB X "B"', true)]),
+  cad('2003', 'DIVISIÓ HONOR CADET S16', 'GRUP 1', [P('31', 'ROS PI, NIL', 'CLUB X "A"', false)]),
+]);
+al = await alerts(db, '2026-2027');
+const upA = al.filter((x) => x.kind === 'arriba');
+assert.equal(upA.length, 1);
+assert.deepEqual([upA[0].player_id, upA[0].competition, upA[0].team, upA[0].own_comp, upA[0].pj, upA[0].birth_year],
+  ['31', 'DIVISIÓ HONOR CADET S16', 'CLUB X "A"', 'CADET SEGONA DIVISIÓ S15', 1, 2012]);
+// El año del buscador sale de su categoría propia (S15 → 2012), aunque juegue por arriba
+const s31 = (await searchPlayers(db, { season: '2026-2027', q: 'ros pi' })).rows[0];
+assert.equal(s31.birth_year, 2012);
+assert.equal((await searchPlayers(db, { season: '2026-2027', year: 2012 })).total, 2);
+assert.equal((await searchPlayers(db, { season: '2026-2027', year: 2010 })).total, 1, 'Jan: 2010 por la temporada anterior');
+assert.equal((await searchPlayers(db, { season: '2026-2027', ids: '31,12' })).total, 2);
+assert.equal((await searchPlayers(db, { season: '2026-2027', ids: '' })).total, 0, 'lista vacía = nadie');
+const yc = await yearCounts(db, '2026-2027');
+assert.deepEqual(yc.years, [{ year: 2010, n: 1 }, { year: 2012, n: 2 }]);
+assert.equal(yc.unknown, 2, 'los juveniles sin temporada anterior no tienen año');
+const gt = await groupTeams(db, { season: '2026-2027', competition: 'CADET SEGONA DIVISIÓ S15', grp: 'GRUP 6' });
+assert.deepEqual(gt.map((t) => [t.team, t.players, t.pj]), [['CLUB X "B"', 2, 2]]);
+const sq = await teamSquad(db, { season: '2026-2027', competition: 'CADET SEGONA DIVISIÓ S15', grp: 'GRUP 6', team: 'CLUB X "B"' });
+assert.equal(sq.pj, 2);
+assert.deepEqual(sq.players.map((p) => [p.player_id, p.pj]), [['31', 2], ['32', 1]]);
+assert.equal(await teamSquad(db, { season: 'x', team: 'A' }), null);
 
 console.log('fcfDb ok');

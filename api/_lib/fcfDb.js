@@ -40,7 +40,20 @@ export const SCHEMA = [
     primary key (acta, player_id)
   )`,
   `create index if not exists fcf_apps_player on fcf_apps (player_id)`,
+  // Nivel de edad de la competición (S15 = 15; juvenil = 17; otras = null): sirve para el año de nacimiento y las alertas
+  `alter table fcf_actas add column if not exists lvl int`,
+  `update fcf_actas set lvl = coalesce(substring(competition from 'S([0-9]{1,2})$')::int, case when competition ilike '%JUVENIL%' then 17 end)
+   where lvl is null and (competition ~ 'S[0-9]{1,2}$' or competition ilike '%JUVENIL%')`,
+  `create index if not exists fcf_actas_lvl on fcf_actas (season, lvl)`,
 ];
+
+// Nivel de edad de una competición: «… S15» = 15, juvenil = 17 (abarca tres años), otras (amateur…) = null
+export function compLevel(competition) {
+  const c = String(competition || '');
+  const m = c.match(/S(\d{1,2})$/);
+  if (m) return Number(m[1]);
+  return /JUVENIL/i.test(c) ? 17 : null;
+}
 
 let schemaReady = null;
 export function ensureSchema(db) {
@@ -113,12 +126,13 @@ export async function importActas(db, actas) {
   const col = (list, k) => list.map((x) => x[k]);
   await db.tx(async (c) => {
     await c.query(
-      `insert into fcf_actas (acta, season, competition, grp, jornada, match_date, home, away, imported_at)
-       select t.*, now() from unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::int[], $6::text[], $7::text[], $8::text[])
-         as t(acta, season, competition, grp, jornada, match_date, home, away)
+      `insert into fcf_actas (acta, season, competition, grp, jornada, match_date, home, away, lvl, imported_at)
+       select t.*, now() from unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::int[], $6::text[], $7::text[], $8::text[], $9::int[])
+         as t(acta, season, competition, grp, jornada, match_date, home, away, lvl)
        on conflict (acta) do update set season=excluded.season, competition=excluded.competition, grp=excluded.grp,
-         jornada=excluded.jornada, match_date=excluded.match_date, home=excluded.home, away=excluded.away, imported_at=now()`,
-      [col(A, 'acta'), col(A, 'season'), col(A, 'competition'), col(A, 'grp'), col(A, 'jornada'), col(A, 'match_date'), col(A, 'home'), col(A, 'away')]
+         jornada=excluded.jornada, match_date=excluded.match_date, home=excluded.home, away=excluded.away, lvl=excluded.lvl, imported_at=now()`,
+      [col(A, 'acta'), col(A, 'season'), col(A, 'competition'), col(A, 'grp'), col(A, 'jornada'), col(A, 'match_date'), col(A, 'home'), col(A, 'away'),
+        A.map((x) => compLevel(x.competition))]
     );
     await c.query(`delete from fcf_apps where acta = any($1::text[])`, [col(A, 'acta')]);
     if (!apps.length) return;
@@ -170,7 +184,20 @@ const SORTS = {
   name: 'name asc',
 };
 
-// Buscador: una fila por jugador con sus números de la temporada (filtrable por competición, grupo, equipo y nombre)
+// Año de nacimiento estimado de cada jugador con todo lo leído: la categoría S más joven en la que ha jugado (S16 en 2025-26 = 2010).
+// Juvenil no cuenta (abarca tres años). Un jugador que juega por arriba sigue teniendo su categoría propia en otras actas.
+const BY_EXPR = `max(substring(c.season from 6 for 4)::int - c.lvl)`;
+export async function birthYears(db, ids) {
+  const list = [...new Set((ids || []).map(String))];
+  if (!list.length) return new Map();
+  const { rows } = await db.query(
+    `select p.player_id, ${BY_EXPR} as by from fcf_apps p join fcf_actas c on c.acta = p.acta
+     where p.player_id = any($1::text[]) and c.lvl <= 16 group by p.player_id`, [list]
+  );
+  return new Map(rows.map((r) => [r.player_id, r.by]));
+}
+
+// Buscador: una fila por jugador con sus números de la temporada (filtrable por competición, grupo, equipo, nombre, año e ids)
 export async function searchPlayers(db, f = {}) {
   const params = [];
   const where = [];
@@ -179,9 +206,16 @@ export async function searchPlayers(db, f = {}) {
   if (f.competition) where.push(`c.competition = ${add(String(f.competition))}`);
   if (f.grp) where.push(`c.grp = ${add(String(f.grp))}`);
   if (f.team) where.push(`p.team = ${add(String(f.team))}`);
+  const ids = String(f.ids || '').split(',').map((x) => x.trim()).filter((x) => /^\d+$/.test(x)).slice(0, 500);
+  if (f.ids !== undefined) where.push(`p.player_id = any(${add(ids)}::text[])`);
+  const year = parseInt(f.year, 10);
+  if (year > 1990 && year < 2030) {
+    where.push(`p.player_id in (select p2.player_id from fcf_apps p2 join fcf_actas c2 on c2.acta = p2.acta
+      where c2.lvl <= 16 group by p2.player_id having max(substring(c2.season from 6 for 4)::int - c2.lvl) = ${add(year)})`);
+  }
   const q = normName(f.q);
   const nameFilter = q.length >= 2 ? `where f.name_norm like ${add(`%${q}%`)}` : '';
-  const limit = Math.min(Math.max(parseInt(f.limit, 10) || 50, 1), 200);
+  const limit = Math.min(Math.max(parseInt(f.limit, 10) || 50, 1), 500);
   const offset = Math.max(parseInt(f.offset, 10) || 0, 0);
   const sort = SORTS[f.sort] || SORTS.tit;
   const sql = `
@@ -205,13 +239,118 @@ export async function searchPlayers(db, f = {}) {
     select agg.*, f.name, count(*) over()::int as total
     from agg join fcf_players f on f.id = agg.player_id
     ${nameFilter}
-    order by ${sort}
+    order by ${sort}, f.name
     limit ${limit} offset ${offset}`;
   const { rows } = await db.query(sql, params);
+  const by = await birthYears(db, rows.map((r) => r.player_id));
   return {
     total: rows[0]?.total || 0,
-    rows: rows.map(({ total: _t, ...r }) => ({ ...r, sup: r.pj - r.tit, birth_year: birthYearFromCompetition(r.competition, r.season) })),
+    rows: rows.map(({ total: _t, ...r }) => ({ ...r, sup: r.pj - r.tit, birth_year: by.get(r.player_id) ?? null })),
   };
+}
+
+// Cuántos jugadores hay de cada año de nacimiento en una temporada (para los botones de año)
+export async function yearCounts(db, season) {
+  const s = SEASON_RE.test(season || '') ? season : '2026-2027';
+  const { rows } = await db.query(
+    `with cur as (select distinct p.player_id from fcf_apps p join fcf_actas c on c.acta = p.acta where c.season = $1)
+     select by::int as year, count(*)::int as n from (
+       select p.player_id, ${BY_EXPR} as by from fcf_apps p join fcf_actas c on c.acta = p.acta
+       where c.lvl <= 16 and p.player_id in (select player_id from cur) group by p.player_id
+     ) t group by by order by by`, [s]
+  );
+  const { rows: tot } = await db.query(`select count(distinct p.player_id)::int as n from fcf_apps p join fcf_actas c on c.acta = p.acta where c.season = $1`, [s]);
+  const known = rows.reduce((a, r) => a + r.n, 0);
+  return { years: rows, unknown: Math.max(0, (tot[0]?.n || 0) - known) };
+}
+
+// Equipos de un grupo con sus jugadores y partidos leídos
+export async function groupTeams(db, { season, competition, grp } = {}) {
+  if (!SEASON_RE.test(season || '') || !competition || !grp) return [];
+  const { rows } = await db.query(
+    `select p.team, count(distinct p.player_id)::int as players, count(distinct p.acta)::int as pj, sum(p.goals)::int as goals
+     from fcf_apps p join fcf_actas c on c.acta = p.acta
+     where c.season = $1 and c.competition = $2 and c.grp = $3
+     group by p.team order by p.team`, [season, String(competition), String(grp)]
+  );
+  return rows;
+}
+
+// Plantilla de un equipo (según las actas): sus jugadores con estadísticas y un resumen del equipo
+export async function teamSquad(db, { season, competition, grp, team } = {}) {
+  if (!SEASON_RE.test(season || '') || !team) return null;
+  const f = { season, team, limit: 500, sort: 'tit' };
+  if (competition) f.competition = competition;
+  if (grp) f.grp = grp;
+  const squad = await searchPlayers(db, f);
+  const params = [season, String(team)];
+  let extra = '';
+  if (competition) { params.push(String(competition)); extra += ` and c.competition = $${params.length}`; }
+  if (grp) { params.push(String(grp)); extra += ` and c.grp = $${params.length}`; }
+  const { rows } = await db.query(
+    `select count(distinct p.acta)::int as pj, sum(p.goals)::int as goals, max(c.match_date) as last_date, max(c.imported_at) as last_import
+     from fcf_apps p join fcf_actas c on c.acta = p.acta where c.season = $1 and p.team = $2${extra}`, params
+  );
+  return { team, season, competition: competition || squad.rows[0]?.competition || null, grp: grp || squad.rows[0]?.grp || null, ...rows[0], players: squad.rows };
+}
+
+const prevSeason = (s) => { const a = Number(String(s).slice(0, 4)); return `${a - 1}-${a}`; };
+const TOP_JUVENIL = `(c.competition ilike '%NACIONAL%' or c.competition ilike '%PREFERENT%' or c.competition ilike '%PRIMERA%')`;
+
+// Alertas de una temporada:
+//  · primer_ano: juvenil de 1.º año (venía de Cadet S16 la temporada anterior) jugando en Liga Nacional, Preferent o Primera.
+//  · arriba: jugador que aparece en actas de una categoría superior a la suya (la más joven en la que juega esa temporada).
+export async function alerts(db, season) {
+  const s = SEASON_RE.test(season || '') ? season : '2026-2027';
+  const prev = prevSeason(s);
+  const prevEnd = Number(prev.slice(5, 9));
+  const end = Number(s.slice(5, 9));
+  const { rows: first } = await db.query(
+    `with cur as (
+       select p.player_id, c.competition, c.grp, mode() within group (order by p.team) as team,
+         count(*)::int as pj, sum(case when p.starter then 1 else 0 end)::int as tit, sum(p.goals)::int as goals
+       from fcf_apps p join fcf_actas c on c.acta = p.acta
+       where c.season = $1 and c.lvl = 17 and ${TOP_JUVENIL}
+       group by p.player_id, c.competition, c.grp
+     ), prev as (
+       select p.player_id, mode() within group (order by c.competition) as prev_comp, mode() within group (order by p.team) as prev_team
+       from fcf_apps p join fcf_actas c on c.acta = p.acta
+       where c.season = $2 and c.lvl = 16 group by p.player_id
+     )
+     select cur.*, prev.prev_comp, prev.prev_team, f.name from cur join prev on prev.player_id = cur.player_id join fcf_players f on f.id = cur.player_id
+     order by cur.tit desc, cur.pj desc limit 400`, [s, prev]
+  );
+  const { rows: up } = await db.query(
+    `with s as (
+       select p.player_id, p.team, p.starter, p.goals, c.competition, c.grp, c.lvl
+       from fcf_apps p join fcf_actas c on c.acta = p.acta where c.season = $1 and c.lvl is not null
+     ), own as (
+       select player_id, min(lvl) as own from s group by player_id having min(lvl) < max(lvl)
+     ), own_comp as (
+       select s.player_id, mode() within group (order by s.competition) as own_comp, mode() within group (order by s.team) as own_team
+       from s join own o on o.player_id = s.player_id where s.lvl = o.own group by s.player_id
+     ), upc as (
+       select s.player_id, s.competition, s.grp, max(s.lvl) as lvl, mode() within group (order by s.team) as team,
+         count(*)::int as pj, sum(case when s.starter then 1 else 0 end)::int as tit, sum(s.goals)::int as goals
+       from s join own o on o.player_id = s.player_id where s.lvl > o.own group by s.player_id, s.competition, s.grp
+     )
+     select upc.*, o.own, oc.own_comp, oc.own_team, f.name
+     from upc join own o on o.player_id = upc.player_id join own_comp oc on oc.player_id = upc.player_id join fcf_players f on f.id = upc.player_id
+     order by upc.pj desc, upc.tit desc limit 600`, [s]
+  );
+  const by = await birthYears(db, [...first.map((r) => r.player_id), ...up.map((r) => r.player_id)]);
+  return [
+    ...first.map((r) => ({
+      kind: 'primer_ano', player_id: r.player_id, name: r.name, birth_year: by.get(r.player_id) ?? prevEnd - 16,
+      team: r.team, competition: r.competition, grp: r.grp, pj: r.pj, tit: r.tit, goals: r.goals,
+      prev_comp: r.prev_comp, prev_team: r.prev_team,
+    })),
+    ...up.map((r) => ({
+      kind: 'arriba', player_id: r.player_id, name: r.name, birth_year: by.get(r.player_id) ?? (r.own <= 16 ? end - r.own : null),
+      team: r.team, competition: r.competition, grp: r.grp, pj: r.pj, tit: r.tit, goals: r.goals,
+      own_comp: r.own_comp, own_team: r.own_team,
+    })),
+  ];
 }
 
 // Ficha: temporada a temporada (equipo y competición) y la lista de partidos
@@ -237,11 +376,11 @@ export async function playerDetail(db, id) {
      order by c.season desc, c.jornada desc nulls last
      limit 200`, [String(id)]
   );
-  const years = seasons.map((s) => birthYearFromCompetition(s.competition, s.season)).filter(Boolean);
+  const by = await birthYears(db, [String(id)]);
   return {
     id: pl[0].id,
     name: pl[0].name,
-    birth_year: years.length ? Math.max(...years) : null,
+    birth_year: by.get(String(id)) ?? null,
     seasons: seasons.map((s) => ({ ...s, sup: s.pj - s.tit })),
     matches,
   };

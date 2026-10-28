@@ -1,57 +1,53 @@
 import React from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import ScoutedPlayersList from "@/components/scouting/ScoutedPlayersList.jsx";
-import ObservedTeamsList from "@/components/scouting/ObservedTeamsList";
-import FollowUpsList from "@/components/scouting/FollowUpsList";
 import SquadPlanning from "@/components/scouting/SquadPlanning";
-import FcfDatabase from "@/components/scouting/FcfDatabase";
-import { useTeamAccess } from "@/lib/TeamAccessContext";
+import { Page, TopBar, SubNav } from "@/components/rs2/kit";
+import ScoutingHome from "@/components/planning/ScoutingHome";
+import ScoutDatabase from "@/components/planning/ScoutDatabase";
+import ScoutTeams from "@/components/planning/ScoutTeams";
+import ScoutReports from "@/components/planning/ScoutReports";
+import ScoutAlerts from "@/components/planning/ScoutAlerts";
+import ScoutPlayer from "@/components/planning/ScoutPlayer";
+import { useAlerts, usePlanningNav, useIsPlanningAdmin } from "@/components/planning/useScouting";
 
-import { PageTitle } from "@/components/common/PageHeader";
-
-// Planificación (27/10/2026, pedido por Nacho): dos apartados.
-//  · Plantillas: el campograma de la temporada siguiente (antes la pestaña «Planificación» de Scouting).
-//  · Scouting: la fuente de jugadores (observados, equipos, seguimientos y la base de datos de la FCF).
-// Plantillas y Base de datos FCF: solo dirección y coordinación (el servidor también lo exige).
-const TOP_CLS = "data-[state=active]:bg-[var(--granate)] data-[state=active]:text-white px-4";
-const FONT = { fontFamily: "var(--font-display)" };
-
+// Planificación (27-28/10/2026, pedido por Nacho; diseño y contenido de las maquetas que aprobó):
+//  · Plantillas: el campograma de la temporada siguiente (solo dirección y coordinación).
+//  · Scouting: Resumen · Base de datos · Equipos y grupos · Informes · Alertas, y la ficha de cada jugador.
+// La pantalla se elige con la dirección (?t=…&s=…) para que «atrás» funcione y se pueda enlazar.
 export default function Scouting() {
-  const { perms } = useTeamAccess();
-  const admin = !!perms.administration;
+  const admin = useIsPlanningAdmin();
+  const { get, go } = usePlanningNav();
+  const top = admin && get("t") !== "scouting" && (get("t") === "plantillas" || !get("s")) ? "plantillas" : "scouting";
+  const sub = get("s") || "resumen";
+  const alerts = useAlerts(admin && top === "scouting");
+
+  const subs = [
+    { key: "resumen", label: "Resumen" },
+    { key: "bd", label: "Base de datos" },
+    { key: "equipos", label: "Equipos y grupos" },
+    { key: "informes", label: "Informes" },
+    ...(admin ? [{ key: "alertas", label: "Alertas", badge: alerts.fresh.length }] : []),
+  ];
+  const activeSub = sub === "jugador" ? null : sub;
+
   return (
-    <div className="space-y-4">
-      <PageTitle kicker="Herramientas" title="Planificación" subtitle="Plantillas de la próxima temporada y scouting" />
-
-      <Tabs defaultValue={admin ? "plantillas" : "scouting"}>
-        {admin && (
-          <TabsList className="mb-1">
-            <TabsTrigger value="plantillas" className={TOP_CLS} style={FONT} data-testid="tab-planning">Plantillas</TabsTrigger>
-            <TabsTrigger value="scouting" className={TOP_CLS} style={FONT} data-testid="tab-scouting">Scouting</TabsTrigger>
-          </TabsList>
+    <Page testId="planning-page">
+      <TopBar title="Planificación" active={top}
+        tabs={admin ? [{ key: "plantillas", label: "Plantillas", testId: "tab-planning" }, { key: "scouting", label: "Scouting", testId: "tab-scouting" }] : [{ key: "scouting", label: "Scouting", testId: "tab-scouting" }]}
+        onTab={(k) => go(k === "plantillas" ? { t: "plantillas", s: null } : { t: "scouting", s: "resumen" })}>
+        {top === "scouting" && <SubNav label="Scouting" items={subs} active={activeSub} onChange={(k) => go({ t: "scouting", s: k })} />}
+      </TopBar>
+      <div className="rs2-wrap">
+        {top === "plantillas" ? <SquadPlanning /> : (
+          <>
+            {sub === "resumen" && <ScoutingHome />}
+            {sub === "bd" && <ScoutDatabase />}
+            {sub === "equipos" && <ScoutTeams />}
+            {sub === "informes" && <ScoutReports />}
+            {sub === "alertas" && admin && <ScoutAlerts />}
+            {sub === "jugador" && <ScoutPlayer />}
+          </>
         )}
-
-        {admin && (
-          <TabsContent value="plantillas" className="mt-4">
-            <SquadPlanning />
-          </TabsContent>
-        )}
-
-        <TabsContent value="scouting" className="mt-3">
-          <Tabs defaultValue="players">
-            <TabsList>
-              <TabsTrigger value="players" style={FONT}>Jugadores</TabsTrigger>
-              {admin && <TabsTrigger value="fcf" style={FONT} data-testid="tab-fcf">Base de datos FCF</TabsTrigger>}
-              <TabsTrigger value="teams" style={FONT}>Equipos Observados</TabsTrigger>
-              <TabsTrigger value="followups" style={FONT}>Seguimientos</TabsTrigger>
-            </TabsList>
-            <TabsContent value="players" className="mt-4"><ScoutedPlayersList /></TabsContent>
-            {admin && <TabsContent value="fcf" className="mt-4"><FcfDatabase /></TabsContent>}
-            <TabsContent value="teams" className="mt-4"><ObservedTeamsList /></TabsContent>
-            <TabsContent value="followups" className="mt-4"><FollowUpsList /></TabsContent>
-          </Tabs>
-        </TabsContent>
-      </Tabs>
-    </div>
+      </div>
+    </Page>
   );
 }

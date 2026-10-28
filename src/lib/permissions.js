@@ -133,7 +133,7 @@ export const MEDICAL_ENTITIES = new Set(['Injury', 'PlayerDocument']);
 export const PLAYER_EVAL_ENTITIES = new Set(['Evaluation360', 'PDI', 'PDIGoal']);
 export const COACH_EVAL_ENTITIES = new Set(['CoachFeedback', 'CoachPDI', 'CoachEval360', 'CoachMatchNote', 'CoachSessionObs', 'CoachQuarterClose']);
 // Planificación de plantillas (Scouting → Planificación): quién continúa, quién se va y a quién se quiere fichar. Solo dirección y coordinación.
-export const PLANNING_ENTITIES = new Set(['SquadPlanEntry']);
+export const PLANNING_ENTITIES = new Set(['SquadPlanEntry', 'ScoutFollow', 'ScoutAlertDismiss']); // + equipos/grupos seguidos y alertas descartadas de la base de datos FCF (27/10/2026)
 // Sesiones de entrenamiento: son personales de cada entrenador (owner_id). Las ve toda la coordinación, pero solo las cambia su autor.
 export const SESSION_ENTITIES = new Set(['CoachSession']);
 // Campos de la ficha del jugador que solo escribe quien puede editar fichas (entrenadores y coordinación)

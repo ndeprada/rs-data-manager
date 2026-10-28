@@ -58,7 +58,7 @@ const EMPTY_FORM = {
   skill_technical: 0, skill_physical: 0, skill_tactical: 0,
   skill_mental: 0, skill_attack: 0, skill_defense: 0,
   key_points: "", observations: "", match_observed: "", observation_date: "",
-  photo_url: "", futbolbase_url: "", tags: [], decision: "seguir_viendo",
+  photo_url: "", futbolbase_url: "", tags: [], decision: "seguir_viendo", origin: "visto",
   category: "", league_group: "",
 };
 
@@ -100,6 +100,7 @@ export default function ScoutedPlayerForm({ open, onOpenChange, player, onSave, 
           futbolbase_url: player.futbolbase_url || "",
           tags: player.tags || [],
           decision: player.decision || "seguir_viendo",
+          origin: player.origin || (player.source === "fcf" || player.fcf_id ? "fcf" : "visto"),
           category: player.category || "",
           league_group: player.league_group || "",
         });
@@ -240,6 +241,18 @@ export default function ScoutedPlayerForm({ open, onOpenChange, player, onSave, 
                     <SelectItem value="seguir_viendo">B · Seguir viendo</SelectItem>
                     <SelectItem value="fichar">A · Fichar</SelectItem>
                     <SelectItem value="descartar">C · Descartar</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Origen</Label>
+                <Select value={form.origin} onValueChange={v => set("origin", v)}>
+                  <SelectTrigger data-testid="sp-origin"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="visto">Visto por nosotros</SelectItem>
+                    <SelectItem value="ofrecido">Ofrecido</SelectItem>
+                    <SelectItem value="promocionado">Promocionado del club</SelectItem>
+                    <SelectItem value="fcf">Detectado FCF</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
