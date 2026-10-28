@@ -12,6 +12,8 @@ assert.equal(compLevel('CADET SEGONA DIVISIÓ S15'), 15);
 assert.equal(compLevel('PREFERENT JUVENILS'), 17);
 assert.equal(compLevel('LLIGA NACIONAL JUVENIL'), 17);
 assert.equal(compLevel('TERCERA CATALANA'), null);
+assert.equal(compLevel('DIVISIÓ HONOR CADET'), 16, 'cadete antiguo sin S: el año mayor de la categoría');
+assert.equal(compLevel('INFANTIL PRIMERA DIVISIÓ'), 14);
 
 // ── Un acta: goles, penaltis, propia puerta y tarjetas ──
 const acta = (id, jornada, home, away, players, goals = [], cards = [], extra = {}) => ({
@@ -86,8 +88,8 @@ assert.deepEqual(m.seasons, ['2026-2027', '2025-2026']);
 
 // ── Alertas, equipos de un grupo, plantilla y años ──
 // Jan (11): juvenil de Primera en 2026-27 que venía de Cadet S16 → 1.º año (2010)
-assert.equal((await alerts(db, '2026-2027')).filter((x) => x.kind === 'primer_ano').length, 0, 'por defecto hacen falta más de 5 titularidades');
-let al = await alerts(db, '2026-2027', { minTit: 1 });
+assert.equal((await alerts(db, '2026-2027')).filter((x) => x.kind === 'primer_ano').length, 0, 'por defecto hacen falta 4 titularidades');
+let al = await alerts(db, '2026-2027', { minTit: 1, share: 0 });
 const first = al.filter((x) => x.kind === 'primer_ano');
 assert.equal(first.length, 1);
 assert.deepEqual([first[0].player_id, first[0].birth_year, first[0].prev_comp], ['11', 2010, 'DIVISIÓ HONOR CADET S16']);
@@ -120,21 +122,35 @@ assert.equal(sq.pj, 2);
 assert.deepEqual(sq.players.map((p) => [p.player_id, p.pj]), [['31', 2], ['32', 1]]);
 assert.equal(await teamSquad(db, { season: 'x', team: 'A' }), null);
 
-// ── 1.º año: solo Juvenil Primera y Preferent, con más de 5 titularidades ──
+// ── 1.º año: Juvenil Preferent, Primera y Segona (no Nacional), titular en el 80 % y al menos 4 veces ──
 {
   const juv = (id, comp, team, pid, tit = true) => acta(id, 1, team, 'RIVAL J', [P(pid, `JUGADOR ${pid}, X`, team, tit)], [], [], { competition: comp, group: 'GRUP 1' });
   const cadPrev = (id, pid) => acta(id, 1, 'CAD', 'RIVAL C', [P(pid, `JUGADOR ${pid}, X`, 'CAD', true)], [], [], { season: '2025-2026', competition: 'PREFERENT CADET S16', group: 'GRUP 1' });
   const list = [];
-  for (let i = 0; i < 6; i += 1) {
-    list.push(juv(`61${i}`, 'PREFERENT JUVENIL', 'PREF A', '601'));
-    list.push(juv(`62${i}`, 'LLIGA NACIONAL JUVENIL', 'NAC A', '602'));
-    list.push(juv(`63${i}`, 'JUVENIL SEGONA DIVISIÓ', 'SEG A', '603'));
-    list.push(juv(`64${i}`, 'JUVENIL PRIMERA DIVISIÓ', 'PRI A', '604', i < 5));
+  for (let i = 0; i < 5; i += 1) {
+    list.push(juv(`61${i}`, 'PREFERENT JUVENILS', 'PREF A', '601', i < 4));       // 4 de 5 = 80 % → sí
+    list.push(juv(`62${i}`, 'LLIGA NACIONAL JUVENIL', 'NAC A', '602'));            // Nacional → no
+    list.push(juv(`63${i}`, 'JUVENIL SEGONA DIVISIÓ', 'SEG A', '603'));            // Segona → sí
+    list.push(juv(`64${i}`, 'JUVENIL PRIMERA DIVISIÓ', 'PRI A', '604', i < 3));    // 3 de 5 → no
+    if (i < 3) list.push(juv(`65${i}`, 'JUVENIL PRIMERA DIVISIÓ', 'PRI B', '605')); // 3 de 3 pero menos de 4 → no
   }
-  list.push(cadPrev('6901', '601'), cadPrev('6902', '602'), cadPrev('6903', '603'), cadPrev('6904', '604'));
+  list.push(cadPrev('6901', '601'), cadPrev('6902', '602'), cadPrev('6903', '603'), cadPrev('6904', '604'), cadPrev('6905', '605'));
   await importActas(db, list);
-  const fy = (await alerts(db, '2026-2027')).filter((x) => x.kind === 'primer_ano').map((x) => x.player_id);
-  assert.deepEqual(fy, ['601'], 'Preferent con 6 titularidades sí; Nacional y Segona no; Primera con 5 aún no');
+  const fy = (await alerts(db, '2026-2027')).filter((x) => x.kind === 'primer_ano').map((x) => x.player_id).sort();
+  assert.deepEqual(fy, ['601', '603']);
+}
+
+// ── Cadete antiguo sin «S»: solo da «nacido en tal año o después»; el año exacto sale con otras temporadas ──
+{
+  const old = (id, season, comp, pid) => acta(id, 1, 'OLD', 'RIVAL O', [P(pid, `VELL ${pid}, X`, 'OLD', true)], [], [], { season, competition: comp, group: 'GRUP 1' });
+  await importActas(db, [
+    old('7001', '2024-2025', 'DIVISIÓ HONOR CADET', '701'),                 // 2025 − 16 = 2009 o después
+    old('7002', '2024-2025', 'DIVISIÓ HONOR CADET', '702'), old('7003', '2025-2026', 'PREFERENT CADET S16', '702'), // + S16 25-26 = 2010
+  ]);
+  const { birthYears } = await import('../api/_lib/fcfDb.js');
+  const bys = await birthYears(db, ['701', '702']);
+  assert.equal(bys.get('701'), 2009, '2.º año de juvenil en 2026-27');
+  assert.equal(bys.get('702'), 2010);
 }
 
 // ── Dorsales habituales de la temporada: el más usado primero ──

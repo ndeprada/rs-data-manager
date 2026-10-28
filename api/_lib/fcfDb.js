@@ -45,14 +45,26 @@ export const SCHEMA = [
   `update fcf_actas set lvl = coalesce(substring(competition from 'S([0-9]{1,2})$')::int, case when competition ilike '%JUVENIL%' then 17 end)
    where lvl is null and (competition ~ 'S[0-9]{1,2}$' or competition ilike '%JUVENIL%')`,
   `create index if not exists fcf_actas_lvl on fcf_actas (season, lvl)`,
+  // Temporadas antiguas sin «S15/S16» (hasta 2024-25 «Cadet» = dos años): nivel = el año MAYOR de la categoría (ver compLevel)
+  `update fcf_actas set lvl = case when competition ilike '%CADET%' then 16 when competition ilike '%INFANTIL%' then 14
+     when competition ilike '%ALEV%' then 12 when competition ilike '%BENJAM%' then 10 end
+   where lvl is null and competition !~ 'S[0-9]{1,2}$' and (competition ilike '%CADET%' or competition ilike '%INFANTIL%' or competition ilike '%ALEV%' or competition ilike '%BENJAM%')`,
 ];
 
-// Nivel de edad de una competición: «… S15» = 15, juvenil = 17 (abarca tres años), otras (amateur…) = null
+// Nivel de edad de una competición (= fin de temporada − año de nacimiento): «… S15» = 15; juvenil = 17 (abarca tres años).
+// Las competiciones antiguas sin «Sxx» («DIVISIÓ HONOR CADET» hasta 2024-25 = dos años) llevan el año MAYOR de la categoría
+// (cadete 16, infantil 14, alevín 12, benjamín 10): como el año de nacimiento se calcula con el máximo de (fin − nivel), una de
+// estas actas solo dice «nacido en tal año o después», y el año exacto sale de la combinación con otras temporadas.
 export function compLevel(competition) {
   const c = String(competition || '');
   const m = c.match(/S(\d{1,2})$/);
   if (m) return Number(m[1]);
-  return /JUVENIL/i.test(c) ? 17 : null;
+  if (/JUVENIL/i.test(c)) return 17;
+  if (/CADET/i.test(c)) return 16;
+  if (/INFANTIL/i.test(c)) return 14;
+  if (/ALEV/i.test(c)) return 12;
+  if (/BENJAM/i.test(c)) return 10;
+  return null;
 }
 
 let schemaReady = null;
@@ -319,15 +331,17 @@ export async function teamSquad(db, { season, competition, grp, team } = {}) {
 }
 
 const prevSeason = (s) => { const a = Number(String(s).slice(0, 4)); return `${a - 1}-${a}`; };
-// Juvenil de 1.º año que merece alerta (decidido con Nacho el 28/10/2026): solo en Juvenil Primera y Preferent (Liga Nacional y
-// Segona no) y con MÁS de 5 titularidades en esa competición. El resto de juveniles se distinguen por el color de su año.
-const FIRST_YEAR_COMPS = `(c.competition ilike '%PREFERENT%' or c.competition ilike '%PRIMERA%') and c.competition not ilike '%NACIONAL%'`;
-export const FIRST_YEAR_MIN_TIT = 6;
+// Juvenil de 1.º año que merece alerta (decidido con Nacho el 28/10/2026, «opción B»): en Juvenil Preferent, Primera y Segona
+// (Liga Nacional no) y titular en casi todos sus partidos de esa competición: al menos el 80 % y como mínimo 4 titularidades.
+// Así vale igual a principio que a final de temporada. El resto de juveniles se distinguen por el color de su año.
+const FIRST_YEAR_COMPS = `(c.competition ilike '%PREFERENT%' or c.competition ilike '%PRIMERA%' or c.competition ilike '%SEGONA%') and c.competition not ilike '%NACIONAL%'`;
+export const FIRST_YEAR_MIN_TIT = 4;
+export const FIRST_YEAR_SHARE = 0.8;
 
 // Alertas de una temporada:
-//  · primer_ano: juvenil de 1.º año (nacido en «fin de temporada − 17») titular habitual en Juvenil Primera o Preferent.
+//  · primer_ano: juvenil de 1.º año (nacido en «fin de temporada − 17») titular habitual en Juvenil Preferent, Primera o Segona.
 //  · arriba: jugador que aparece en actas de una categoría superior a la suya (la más joven en la que juega esa temporada).
-export async function alerts(db, season, { minTit = FIRST_YEAR_MIN_TIT } = {}) {
+export async function alerts(db, season, { minTit = FIRST_YEAR_MIN_TIT, share = FIRST_YEAR_SHARE } = {}) {
   const s = SEASON_RE.test(season || '') ? season : '2026-2027';
   const prev = prevSeason(s);
   const end = Number(s.slice(5, 9));
@@ -338,7 +352,7 @@ export async function alerts(db, season, { minTit = FIRST_YEAR_MIN_TIT } = {}) {
        from fcf_apps p join fcf_actas c on c.acta = p.acta
        where c.season = $1 and c.lvl = 17 and ${FIRST_YEAR_COMPS}
        group by p.player_id, c.competition, c.grp
-       having sum(case when p.starter then 1 else 0 end) >= $3
+       having sum(case when p.starter then 1 else 0 end) >= $3 and sum(case when p.starter then 1 else 0 end) >= $5::float * count(*)
      ), by as (
        select p.player_id, ${BY_EXPR} as by from fcf_apps p join fcf_actas c on c.acta = p.acta
        where c.lvl <= 16 and p.player_id in (select player_id from cur) group by p.player_id
@@ -350,7 +364,7 @@ export async function alerts(db, season, { minTit = FIRST_YEAR_MIN_TIT } = {}) {
      select cur.*, by.by, prev.prev_comp, prev.prev_team, f.name
      from cur join by on by.player_id = cur.player_id and by.by = $4
      left join prev on prev.player_id = cur.player_id join fcf_players f on f.id = cur.player_id
-     order by cur.tit desc, cur.pj desc limit 2000`, [s, prev, Math.max(0, Number(minTit) || 0), end - 17]
+     order by cur.tit desc, cur.pj desc limit 2000`, [s, prev, Math.max(0, Number(minTit) || 0), end - 17, Math.min(1, Math.max(0, Number(share) || 0))]
   );
   const { rows: up } = await db.query(
     `with s as (

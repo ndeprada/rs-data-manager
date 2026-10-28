@@ -68,7 +68,7 @@ export default function ScoutAlerts() {
 
       <section aria-label="Tipos de alerta" className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14 }}>
         {typeCard("primer_ano", nFirst, "Juvenil de 1.º año titular",
-          `Nacido en ${Number(SEASON.slice(0, 4)) - 16}, titular habitual (más de 5 titularidades) en Juvenil Primera Divisió o Preferent. El resto de juveniles se distinguen por el color de su año.`, true)}
+          `Nacido en ${Number(SEASON.slice(0, 4)) - 16}, titular en el 80 % de sus partidos (y al menos 4 veces) en Juvenil Preferent, Primera o Segona. El resto de juveniles se distinguen por el color de su año.`, true)}
         {typeCard("arriba", nUp, "Jugando por arriba",
           "Aparece en actas de una categoría superior a la suya (la más joven en la que juega esta temporada).", false)}
       </section>
