@@ -18,3 +18,9 @@ assert.ok(r.insights.some(x => /Depende de Mamadou/.test(x)));
 assert.ok(r.insights.some(x => /Ya os enfrentasteis: perdisteis 0-2 jugando fuera/.test(x)));
 assert.equal(r.next.length, 1);
 
+// Formato nuevo de la FCF (octubre 2026): { partidos: { "1": [...] }, jornada: n }
+const r2 = m.buildReport({ table, matches: { partidos: matches, jornada: 5 }, scorers, ourCode: '2', rivalCode: '1', competition: 'TERCERA', group: 'GRUP 1' });
+assert.deepEqual([r2.form.length, r2.home.pj, r2.away.pj, r2.next.length, r2.h2h.length], [4, 2, 2, 1, 2]);
+assert.equal(m.matchList([{ a: 1 }]).length, 1);
+assert.equal(m.matchList(null).length, 0);
+

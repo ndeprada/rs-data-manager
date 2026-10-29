@@ -32,6 +32,15 @@ function nameScore(a, b) {
   return inter / Math.max(A.size, B.size);
 }
 
+// Partidos del grupo en una lista. La FCF los da por jornada ({ "1": [...], "2": [...] }) y, desde octubre de 2026,
+// dentro de { partidos: { "1": [...] }, jornada: n }: se aceptan las dos formas (y una lista directa).
+export function matchList(matches) {
+  if (!matches) return [];
+  if (Array.isArray(matches)) return matches.filter((m) => m && typeof m === 'object');
+  const byRound = matches.partidos && typeof matches.partidos === 'object' ? matches.partidos : matches;
+  return Object.values(byRound).flatMap((v) => (Array.isArray(v) ? v : [])).filter((m) => m && typeof m === 'object');
+}
+
 const resultOf = (gf, gc) => (gf > gc ? 'G' : gf < gc ? 'P' : 'E');
 
 function record(list) {
@@ -49,7 +58,7 @@ export function buildReport({ table, matches, scorers, ourCode, rivalCode, compe
   const ourRow = rows.find((r) => String(r.team?.teamId) === ourCode);
   if (!rivalRow) return { available: false, reason: 'rival' };
 
-  const flat = Object.values(matches || {}).flat();
+  const flat = matchList(matches);
   const played = flat
     .filter((m) => num(m.GOLES_CASA) !== null && num(m.GOLES_FUERA) !== null)
     .map((m) => ({ m, date: m.COMIENZO1 || '', jornada: Number(m.JORNADA) || 0 }));
@@ -150,7 +159,7 @@ export async function rivalReport(eventId) {
 
   // El rival se identifica por el acta de la FCF del partido; si no la tiene, por el nombre
   let rivalCode = null;
-  const flat = Object.values(matches || {}).flat();
+  const flat = matchList(matches);
   const byActa = ev.fcf_acta && flat.find((m) => String(m.CODACTA) === String(ev.fcf_acta));
   if (byActa) rivalCode = String(byActa.CODEQUIPO_CASA) === ourCode ? String(byActa.CODEQUIPO_FUERA) : String(byActa.CODEQUIPO_CASA);
   if (!rivalCode && ev.opponent) {
