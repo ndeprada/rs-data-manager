@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import test from 'node:test';
 import {
   tacticsBoardFormat, f7PageFormation, F7_PAGE_FORMATIONS, FORMATION_KEYS_F7, tokenLabel, freePositionsToBoard, boardOfTactic, fieldsFor,
 } from '../src/lib/tacticsBoard.js';
@@ -99,3 +100,26 @@ assert.deepEqual(fieldsFor(true, 'full'), ['f7', 'free', 'full'], 'si la pizarra
 assert.deepEqual(fieldsFor(false), ['full', 'tq', 'half', 'free']);
 
 console.log('tacticsBoard ok');
+
+test("Formación con la pizarra nueva: un hueco = una ficha, con jugador o vacía", async () => {
+  const { formationBoard, formationStyleOf, SLOT_PREFIX, EMPTY_SLOT_COLOR } = await import("../src/lib/tacticsBoard.js");
+  const formation = { positions: [{ key: "gk", label: "POR", x: 50, y: 6 }, { key: "lb", label: "LTD", x: 18, y: 25 }, { key: "st", label: "DC", x: 50, y: 80 }] };
+  const players = [{ id: "p1", first_name: "Marc", last_name: "Serra", jersey_number: 9 }, { id: "p2", first_name: "Pau", last_name: "Vidal" }];
+  const b = formationBoard({ formation, assignments: { st: { player_id: "p1" }, lb: { player_id: "p2" } }, players });
+  const els = b.frames[0].els;
+  assert.equal(b.field, "full");
+  assert.equal(els.length, 3);
+  const gk = els.find((e) => e.id === `${SLOT_PREFIX}gk`), st = els.find((e) => e.id === `${SLOT_PREFIX}st`), lb = els.find((e) => e.id === `${SLOT_PREFIX}lb`);
+  assert.equal(gk.team, "gk");
+  assert.equal(gk.color, EMPTY_SLOT_COLOR);
+  assert.equal(gk.inner, "POR");
+  assert.ok(gk.y > st.y, "el portero queda abajo: el ataque va hacia arriba");
+  assert.equal(st.inner, "9");
+  assert.equal(st.label, "Marc S.");
+  assert.equal(lb.inner, "PV", "sin dorsal, sus iniciales");
+  const f7 = formationBoard({ formation, f7: true, style: { view: "persp", look: "color", orient: "h" } });
+  assert.equal(f7.field, "f7");
+  assert.equal(f7.view, "persp");
+  assert.equal(f7.orient, "h");
+  assert.deepEqual(formationStyleOf(null), { look: "blanco", view: "flat", orient: "v" });
+});

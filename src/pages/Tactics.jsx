@@ -10,8 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import FootballField from "@/components/tactics/FootballField";
-import PlayerToken from "@/components/tactics/PlayerToken";
+import FormationBoard from "@/components/tactics/FormationBoard";
 import BoardEditor from "@/components/board/BoardEditor";
 import { sortRoster } from "@/components/sessions/sessionHelpers";
 import { FORMATIONS, FORMATION_KEYS, FORMATION_KEYS_F7 } from "@/components/tactics/formations";
@@ -306,19 +305,16 @@ export default function Tactics() {
                     {t("Esta pizarra tiene un sistema de once. Si eliges uno de fútbol 7 pasa a siete y se vacían los jugadores asignados.")}
                   </p>
                 )}
-                <div className="max-w-sm mx-auto lg:max-w-md">
-                  <FootballField f7={isF7}>
-                    {formation?.positions.map((pos) => (
-                      <PlayerToken
-                        key={pos.key}
-                        position={pos}
-                        assignment={activeBoard.assignments?.[pos.key]}
-                        players={boardPlayers}
-                        onAssign={handleAssign}
-                      />
-                    ))}
-                  </FootballField>
-                </div>
+                <FormationBoard
+                  formation={formation}
+                  assignments={activeBoard.assignments || {}}
+                  players={boardPlayers}
+                  f7={isF7}
+                  style={activeBoard.formation_style}
+                  onStyle={(patch) => updateMutation.mutate({ id: activeBoard.id, data: { formation_style: { ...(activeBoard.formation_style || {}), ...patch } } })}
+                  onAssign={handleAssign}
+                  readOnly={!canManageTeam(activeBoard.team_id)}
+                />
                 <div className="bg-white border border-gray-200 shadow-sm" style={{ borderRadius: "4px" }}>
                   <div className="px-5 py-3 border-b border-gray-100">
                     <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{t("Plantilla ({n})", { n: boardPlayers.filter((p) => p.status !== "baja").length })}</p>

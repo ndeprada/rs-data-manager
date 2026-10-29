@@ -74,3 +74,39 @@ export function fieldsFor(f7, current) {
   const ids = f7 ? ["f7", "free"] : ["full", "tq", "half", "free"];
   return current && !ids.includes(current) ? [...ids, current] : ids;
 }
+
+// ── Pestaña «Formación» con la pizarra nueva ─────────────────────────────────────────────────────────────────────────────────
+// El sistema (huecos en %, portería propia ARRIBA en esta página) se dibuja con las fichas y el campo de la pizarra común
+// (`src/lib/board.js`, el ataque hacia arriba): cada hueco es una ficha con id «slot:<clave>»; con jugador asignado lleva su dorsal
+// dentro y «Nombre I.» debajo; sin jugador, gris claro con las siglas del puesto. El aspecto (modo visual, vista plana o en
+// perspectiva y orientación) se guarda en `TacticsBoard.formation_style`; las asignaciones siguen en `assignments`.
+export const SLOT_PREFIX = "slot:";
+export const EMPTY_SLOT_COLOR = "#d1d5db";
+export function formationStyleOf(style) {
+  const s = style || {};
+  return {
+    look: typeof s.look === "string" ? s.look : "blanco",
+    view: s.view === "persp" ? "persp" : "flat",
+    orient: ["v", "vi", "h", "hi"].includes(s.orient) ? s.orient : "v",
+  };
+}
+export function formationBoard({ formation, assignments = {}, players = [], f7 = false, style = null }) {
+  const field = f7 ? "f7" : "full";
+  const F = fieldOf(field);
+  const st = formationStyleOf(style);
+  const els = (formation?.positions || []).map((pos) => {
+    const player = players.find((p) => p.id === assignments?.[pos.key]?.player_id);
+    const base = {
+      id: `${SLOT_PREFIX}${pos.key}`, k: "token", team: pos.key === "gk" ? "gk" : "a",
+      x: round((Math.min(100, Math.max(0, Number(pos.x) || 0)) / 100) * F.w),
+      // en esta página la portería propia está arriba (y = 0); en la pizarra el ataque va hacia arriba
+      y: round((1 - Math.min(100, Math.max(0, Number(pos.y) || 0)) / 100) * F.h),
+    };
+    if (!player) return { ...base, color: EMPTY_SLOT_COLOR, inner: String(pos.label || "").slice(0, 3) };
+    const num = player.jersey_number != null && String(player.jersey_number).trim() ? String(player.jersey_number).trim().slice(0, 3) : "";
+    const initials = `${(player.first_name || "").trim()[0] || ""}${(player.last_name || "").trim()[0] || ""}`.toUpperCase();
+    return { ...base, inner: num || initials, label: tokenLabel(player), labelBg: "#ffffff" };
+  });
+  // fichas grandes para que se lean bien sobre el campo entero (en la pizarra libre el tamaño lo elige cada uno)
+  return normalizeBoard({ v: 2, field, look: st.look, orient: st.orient, chipSize: f7 ? 2.4 : 2.9, ...(st.view === "persp" ? { view: "persp" } : {}), frames: [{ id: "formation", els }] });
+}
