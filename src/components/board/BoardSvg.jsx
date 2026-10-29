@@ -1,7 +1,7 @@
 import React from "react";
 import {
-  arrowFlight, arrowProps, arrowPoints, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, drawOrder, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  lookOf, materialOf, orientAngle, orientOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
+  arrowFlight, arrowProps, arrowPoints, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
+  isGroundEl, isPersp, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -150,17 +150,94 @@ function Field({ field, orient, look, vb }) {
   );
 }
 
+// Campo en perspectiva: las mismas líneas que el plano, pero cada punto se proyecta (los círculos y arcos, muestreados)
+const arcPts = (cx, cy, r, a0, a1, n = 40) => Array.from({ length: n + 1 }, (_, i) => { const a = a0 + ((a1 - a0) * i) / n; return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r }; });
+const rectPts = (x, y, w, h) => [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }];
+export function fieldShapes(field) {
+  // en coordenadas del campo (vertical, portería a atacar arriba): { pts, closed } para líneas, { dot } para puntos
+  const { w, h } = field;
+  if (field.id === "free") return [];
+  const sp = field.id === "f7" ? SPEC.f7 : SPEC.f11;
+  const out = [];
+  const line = (pts, closed = false, dash = false) => out.push({ pts, closed, dash });
+  const H = field.id === "tq" ? 105 : h;
+  const end = (flip) => {
+    const f = flip ? (p) => ({ x: w - p.x, y: H - p.y }) : (p) => p;
+    line(rectPts(w / 2 - sp.aw / 2, 0, sp.aw, sp.ah).map(f), true);
+    line(rectPts(w / 2 - sp.gw / 2, 0, sp.gw, sp.gh).map(f), true);
+    if (sp.arc) { const dy = sp.ah - sp.spot, a = Math.acos(Math.min(1, dy / sp.arc)); line(arcPts(w / 2, sp.spot, sp.arc, Math.PI / 2 + a, Math.PI / 2 - a, 24).map(f)); }
+    line(rectPts(w / 2 - sp.goalW / 2, -1.8, sp.goalW, 1.8).map(f), true);
+    line(arcPts(0, 0, 1, Math.PI / 2, 0, 8).map(f));
+    line(arcPts(w, 0, 1, Math.PI, Math.PI / 2, 8).map(f));
+    out.push({ dot: f({ x: w / 2, y: sp.spot }) });
+  };
+  if (field.id === "half") {
+    line(rectPts(0, 0, w, h), true);
+    end(false);
+    line(arcPts(w / 2, h, 9.15, Math.PI, 2 * Math.PI, 30));
+    return out;
+  }
+  line(rectPts(0, 0, w, H), true);
+  end(false);
+  end(true);
+  line([{ x: 0, y: H / 2 }, { x: w, y: H / 2 }]);
+  line(arcPts(w / 2, H / 2, sp.circle, 0, 2 * Math.PI, 56), true);
+  out.push({ dot: { x: w / 2, y: H / 2 } });
+  if (sp.offside) { line([{ x: 0, y: sp.offside }, { x: w, y: sp.offside }], false, true); line([{ x: 0, y: H - sp.offside }, { x: w, y: H - sp.offside }], false, true); }
+  if (field.id === "tq") line([{ x: 0, y: h }, { x: w, y: h }]);
+  return out;
+}
+function FieldPersp({ field, orient, look, vb, persp }) {
+  const s = styleOf(look);
+  const free = field.id === "free";
+  const T = (p) => persp.P(toView(field, orient, p));
+  const poly = (pts, closed) => pts.map(T).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + (closed ? " Z" : "");
+  const [x0, y0, W, H] = viewBox(field, orient);
+  const ground = [{ x: x0, y: y0 }, { x: x0 + W, y: y0 }, { x: x0 + W, y: y0 + H }, { x: x0, y: y0 + H }].map(persp.P);
+  const tqH = field.id === "tq";
+  const clipId = `pclip-${field.id}-${orient}`;
+  const fieldPoly = poly(rectPts(0, 0, field.w, field.h), true);
+  const bands = [];
+  if (!free && s.stripe) for (let y = 0; y < field.h; y += 14) bands.push(<path key={y} d={poly(rectPts(0, y, field.w, Math.min(7, field.h - y)), true)} fill={s.stripe} />);
+  const checks = [];
+  if (!free && s.check) {
+    const cols = Math.max(4, Math.round(field.w / 6.2)), cell = field.w / cols;
+    for (let j = 0; j * cell < field.h; j++) for (let i = 0; i < cols; i++) if ((i + j) % 2 === 0) checks.push(rectPts(i * cell, j * cell, cell, Math.min(cell, field.h - j * cell)));
+  }
+  const lp = { fill: "none", stroke: s.line, strokeWidth: s.lineW, strokeLinejoin: "round", strokeLinecap: "round" };
+  return (
+    <>
+      <rect x={vb[0]} y={vb[1]} width={vb[2]} height={vb[3]} fill={free ? s.bg : s.margin || s.bg} />
+      <polygon points={ground.map((q) => `${q.x},${q.y}`).join(" ")} fill={free ? s.bg : s.margin || s.bg} />
+      {!free && (
+        <>
+          <defs><clipPath id={clipId}><path d={fieldPoly} /></clipPath></defs>
+          <path d={fieldPoly} fill={s.bg} />
+          {bands}
+          {checks.length > 0 && <path d={checks.map((c) => poly(c, true)).join(" ")} fill={s.check} />}
+          <g clipPath={tqH ? `url(#${clipId}-tq)` : undefined}>
+            {tqH && <defs><clipPath id={`${clipId}-tq`}><path d={poly(rectPts(-3, -3, field.w + 6, field.h + 3), true)} /></clipPath></defs>}
+            {fieldShapes(field).map((g, i) => (g.dot
+              ? (() => { const q = T(g.dot), k = persp.scaleAt(toView(field, orient, g.dot)); return <ellipse key={i} cx={q.x} cy={q.y} rx={0.35 * k} ry={0.35 * persp.depthAt(toView(field, orient, g.dot))} fill={s.line} />; })()
+              : <path key={i} d={poly(g.pts, g.closed)} {...lp} strokeDasharray={g.dash ? "1.4 1.1" : undefined} />))}
+          </g>
+        </>
+      )}
+    </>
+  );
+}
+
 // ── Elementos ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const pathOf = (pts) => pts.map((p, i) => `${i ? "L" : "M"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" ");
 
 function Arrow({ el, ctx, selected, handles }) {
-  const { field, orient, look } = ctx;
+  const { orient, look } = ctx;
   const s = styleOf(look);
   const ap = arrowProps(el);
   const col = look === "bn" ? s.arrows.move : el.color || s.arrows[el.style] || s.arrows.move;
   const w = ap.width;
-  const toV = (p) => toView(field, orient, p);
+  const toV = ctx.V;
   const flight = arrowFlight(el, orient).map(toV);
   const n = flight.length - 1;
   const dx = flight[n].x - flight[n - 1].x, dy = flight[n].y - flight[n - 1].y;
@@ -316,6 +393,18 @@ function Feet({ foot, flat, shadow = 0, ang = 0 }) {
   );
 }
 
+// Peto sobre la ficha (en espacio unitario, el frente hacia −y): el torso con el escote en pico delante y las sisas a los lados,
+// recortado al círculo; por las sisas y el escote se sigue viendo el color del equipo. En blanco y negro, punteado con borde negro.
+const BIB_PATH = "M-0.42,-1.1 L-0.2,-1.1 L0,-0.42 L0.2,-1.1 L0.42,-1.1 C0.42,-0.5 0.55,-0.12 0.68,0.05 L0.68,1.1 L-0.68,1.1 L-0.68,0.05 C-0.55,-0.12 -0.42,-0.5 -0.42,-1.1 Z";
+function Bib({ color, bn }) {
+  return (
+    <g clipPath="url(#chip-clip)">
+      <path d={BIB_PATH} fill={bn ? "url(#bn-dots)" : color} stroke={bn ? "#111111" : "#000000"} strokeOpacity={bn ? 1 : 0.28} strokeWidth={0.07} />
+      {!bn && <path d={BIB_PATH} fill="none" stroke="#ffffff" strokeOpacity={0.35} strokeWidth={0.04} transform="translate(0 0.05)" />}
+    </g>
+  );
+}
+
 // Ficha dibujada: sombra, pies (si los tiene), cuerpo con su dibujo y relieve, borde y texto de dentro
 function Chip({ el, ctx, c, r, ghost = false }) {
   const { board, look, orient } = ctx;
@@ -327,6 +416,8 @@ function Chip({ el, ctx, c, r, ghost = false }) {
   const inner = (el.inner || "").toString().slice(0, 3);
   const fs = r * (inner.length > 2 ? 0.95 : inner.length > 1 ? 1.2 : 1.5);
   const shadow = ghost ? 0 : s.shadow || 0;
+  // con peto, el dorsal se lee sobre el color del peto
+  const bib = el.bib ? (bn ? { text: "#111111", halo: "#ffffff" } : { text: contrastColor(el.bib), halo: contrastColor(el.bib) === "#ffffff" ? "#111827" : "#ffffff" }) : null;
   return (
     <>
       {shadow > 0 && <circle cx={c.x + SHADOW.x * r} cy={c.y + SHADOW.y * r} r={r * 1.14} fill="url(#chip-shadow)" fillOpacity={shadow} />}
@@ -336,10 +427,11 @@ function Chip({ el, ctx, c, r, ghost = false }) {
       ) : (
         <g transform={`translate(${c.x} ${c.y}) scale(${r})`}><ChipFill pattern={paint.pattern} color={paint.color} color2={paint.color2} /></g>
       )}
+      {el.bib && <g transform={`translate(${c.x} ${c.y}) rotate(${ang}) scale(${r})`}><Bib color={el.bib} bn={bn} /></g>}
       {!bn && <circle cx={c.x} cy={c.y} r={r} fill="url(#chip-shade)" />}
       {!bn && <circle cx={c.x} cy={c.y} r={r} fill="none" stroke={paint.stroke} strokeWidth={sw} />}
       {inner && !ghost && (
-        <text x={c.x} y={c.y + fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight={800} fill={paint.text} stroke={paint.halo} strokeWidth={Math.max(0.12, fs * (paint.pattern === "solid" || bn ? 0.09 : 0.16))} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{inner}</text>
+        <text x={c.x} y={c.y + fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight={800} fill={bib ? bib.text : paint.text} stroke={bib ? bib.halo : paint.halo} strokeWidth={Math.max(0.12, fs * (paint.pattern === "solid" || bn ? 0.09 : 0.16))} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{inner}</text>
       )}
     </>
   );
@@ -363,6 +455,7 @@ export function ChipGlyph({ board, el, look = "blanco", size = 18 }) {
       ) : (
         <ChipFill pattern={paint.pattern} color={paint.color} color2={paint.color2} />
       )}
+      {el.bib && <Bib color={el.bib} bn={bn} />}
       {!bn && <circle r={1} fill="url(#chip-shade)" />}
       {!bn && <circle r={1} fill="none" stroke={paint.stroke} strokeWidth={0.18} />}
     </svg>
@@ -604,9 +697,9 @@ function Piece({ el, ctx, selected, ghost = false }) {
 }
 
 function Zone({ el, ctx, selected }) {
-  const { field, orient, look } = ctx;
+  const { look } = ctx;
   const s = styleOf(look);
-  const toV = (p) => toView(field, orient, p);
+  const toV = ctx.V;
   const quad = isQuad(el);
   const bn = look === "bn";
   const alpha = el.fillOpacity ?? s.zoneAlpha;
@@ -635,6 +728,19 @@ function Zone({ el, ctx, selected }) {
     );
   }
   const { x0, y0, x1, y1 } = zoneBox(el);
+  if (ctx.persp) {
+    // en perspectiva la zona es el contorno proyectado (un rectángulo se ve como un trapecio y la elipse, aplastada)
+    const ring = el.shape === "ellipse"
+      ? Array.from({ length: 48 }, (_, i) => { const t = (i / 48) * Math.PI * 2; return { x: (x0 + x1) / 2 + Math.cos(t) * (x1 - x0) / 2, y: (y0 + y1) / 2 + Math.sin(t) * (y1 - y0) / 2 }; })
+      : [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+    const pts = ring.map(toV).map((q) => `${q.x.toFixed(2)},${q.y.toFixed(2)}`).join(" ");
+    return (
+      <g>
+        {selected && <polygon points={pts} fill="none" stroke="#f59e0b" strokeWidth={sw + 1.6} strokeLinejoin="round" opacity={0.5} />}
+        <polygon points={pts} strokeLinejoin="round" {...common} />
+      </g>
+    );
+  }
   const a = toV({ x: x0, y: y0 }), b = toV({ x: x1, y: y1 });
   const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(a.x - b.x), h = Math.abs(a.y - b.y);
   const pad = 0.9 + (border ? sw / 2 : 0);
@@ -650,12 +756,12 @@ function Zone({ el, ctx, selected }) {
 
 // Conector entre fichas: línea, zona o red según el tipo; su forma sale de dónde estén las fichas en ese momento.
 function Link({ el, ctx, els, selected }) {
-  const { field, orient, look } = ctx;
+  const { look } = ctx;
   const s = styleOf(look);
   const g = linkShape(el, els);
   if (!g) return null;
   const lp = linkProps(el);
-  const toV = (p) => toView(field, orient, p);
+  const toV = ctx.V;
   const bn = look === "bn";
   const col = bn ? s.link : el.color || s.link;
   const sw = lp.width;
@@ -693,7 +799,7 @@ function Link({ el, ctx, els, selected }) {
 
 // Esquinas de una zona libre para arrastrarlas (van en la capa de encima, para que ninguna ficha las tape)
 function QuadHandles({ el, ctx }) {
-  const toV = (p) => toView(ctx.field, ctx.orient, p);
+  const toV = ctx.V;
   return (
     <g>
       {el.pts.map((q, i) => { const c = toV(q); return <circle key={`v${i}`} cx={c.x} cy={c.y} r={1.3} fill="#fff" stroke="#f59e0b" strokeWidth={0.5} pointerEvents="none" />; })}
@@ -753,8 +859,8 @@ function MarkNumbers({ ids, els, ctx }) {
       {ids.map((id, i) => {
         const el = els.find((e) => e.id === id);
         if (!el) return null;
-        const c = toView(ctx.field, ctx.orient, el);
-        const r = el.k === "token" ? tokenR(ctx.chip, el) : 1.2;
+        const c = ctx.V(el);
+        const r = (el.k === "token" ? tokenR(ctx.chip, el) : 1.2) * (ctx.persp ? ctx.persp.scaleAt(toView(ctx.field, ctx.orient, el)) : 1);
         const bx = c.x + r * 0.85 + 0.2, by = c.y - r * 0.85 - 0.2;
         const fs = i >= 9 ? 1.25 : 1.5;
         return (
@@ -773,16 +879,40 @@ function MarkNumbers({ ids, els, ctx }) {
 function GroupBox({ ids, els, ctx }) {
   const b = unionBounds(els.filter((e) => ids.includes(e.id)).map((e) => elementBounds(e, ctx.chip)));
   if (!b) return null;
+  if (ctx.persp) {
+    const pts = [{ x: b.x0, y: b.y0 }, { x: b.x1, y: b.y0 }, { x: b.x1, y: b.y1 }, { x: b.x0, y: b.y1 }].map(ctx.V);
+    const xs = pts.map((q) => q.x), ys = pts.map((q) => q.y);
+    const lo = { x: Math.min(...xs) - 1.2, y: Math.min(...ys) - 3 }, hi = { x: Math.max(...xs) + 1.2, y: Math.max(...ys) + 1.2 };
+    return <rect x={lo.x} y={lo.y} width={hi.x - lo.x} height={hi.y - lo.y} fill="none" stroke="#f59e0b" strokeWidth={0.35} strokeDasharray="2 1.2" opacity={0.9} pointerEvents="none" />;
+  }
   const a = toView(ctx.field, ctx.orient, { x: b.x0, y: b.y0 }), c = toView(ctx.field, ctx.orient, { x: b.x1, y: b.y1 });
   const pad = 1.2;
   return <rect x={Math.min(a.x, c.x) - pad} y={Math.min(a.y, c.y) - pad} width={Math.abs(a.x - c.x) + 2 * pad} height={Math.abs(a.y - c.y) + 2 * pad} fill="none" stroke="#f59e0b" strokeWidth={0.35} strokeDasharray="2 1.2" opacity={0.9} pointerEvents="none" />;
 }
 function BoxMark({ box, ctx }) {
+  if (ctx.persp) {
+    const pts = [{ x: box.x, y: box.y }, { x: box.x + box.w, y: box.y }, { x: box.x + box.w, y: box.y + box.h }, { x: box.x, y: box.y + box.h }].map(ctx.V);
+    return <polygon points={pts.map((q) => `${q.x},${q.y}`).join(" ")} fill="#f59e0b" fillOpacity={0.12} stroke="#f59e0b" strokeWidth={0.4} strokeDasharray="1.6 1.2" pointerEvents="none" />;
+  }
   const a = toView(ctx.field, ctx.orient, { x: box.x, y: box.y }), b = toView(ctx.field, ctx.orient, { x: box.x + box.w, y: box.y + box.h });
   return <rect x={Math.min(a.x, b.x)} y={Math.min(a.y, b.y)} width={Math.abs(a.x - b.x)} height={Math.abs(a.y - b.y)} fill="#f59e0b" fillOpacity={0.12} stroke="#f59e0b" strokeWidth={0.4} strokeDasharray="1.6 1.2" pointerEvents="none" />;
 }
 
+// Lo que está tumbado en el suelo se aplasta con la perspectiva (`lyingFlat`); lo demás (fichas, balón, picas, maniquíes, textos) se ve de pie.
+// En perspectiva, un elemento de un punto se dibuja como siempre y se lleva a su sitio con su escala
+export function perspWrap(el, ctx) {
+  const c = toView(ctx.field, ctx.orient, el);
+  const q = ctx.persp.P(c), k = ctx.persp.scaleAt(c);
+  const ky = lyingFlat(el) ? ctx.persp.depthAt(c) : k;
+  return `translate(${q.x.toFixed(3)} ${q.y.toFixed(3)}) scale(${k.toFixed(4)} ${ky.toFixed(4)}) translate(${(-c.x).toFixed(3)} ${(-c.y).toFixed(3)})`;
+}
+const isGround = isGroundEl;
+
 export function Item({ el, ctx, els = [], selected = false, handles = false }) {
+  if (ctx.persp && !isGround(el)) return <g transform={perspWrap(el, ctx)}><ItemFlat el={el} ctx={ctx} els={els} selected={selected} handles={handles} /></g>;
+  return <ItemFlat el={el} ctx={ctx} els={els} selected={selected} handles={handles} />;
+}
+function ItemFlat({ el, ctx, els, selected, handles }) {
   if (el.k === "link") return <Link el={el} ctx={ctx} els={els} selected={selected} />;
   if (el.k === "arrow") return <Arrow el={el} ctx={ctx} selected={selected} handles={handles} />;
   if (el.k === "zone") return <Zone el={el} ctx={ctx} selected={selected} />;
@@ -800,8 +930,12 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
   const field = fieldOf(board.field);
   const orient = orientOf(board.orient);
   const look = lookOf(board.look);
-  const vb = viewBox(field, orient);
-  const ctx = { board, field, orient, look, chip: chipOf(board) };
+  const persp = isPersp(board) ? perspectiveOf(field, orient) : null;
+  const vb = persp ? persp.vb : viewBox(field, orient);
+  const V = persp ? (p) => persp.P(toView(field, orient, p)) : (p) => toView(field, orient, p);
+  const ctx = { board, field, orient, look, chip: chipOf(board), persp, V };
+  // En perspectiva, sin capas elegidas a mano, lo de atrás se pinta antes que lo de delante (dentro de cada tipo)
+  const order = paintOrder(els, field, orient, persp);
   // Una sola cosa elegida (selId) o varias (selIds): con varias no hay tiradores, solo la marca de cada una y la caja del grupo
   const sel = selIds || (selId ? [selId] : []);
   const selEl = sel.length === 1 ? els.find((e) => e.id === sel[0]) : null;
@@ -815,21 +949,22 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
         <ChipDefs />
         <clipPath id="tq-clip"><rect x="-3" y="-3" width={field.w + 6} height={field.h + 3} /></clipPath>
       </defs>
-      <Field field={field} orient={orient} look={look} vb={vb} />
+      {persp ? <FieldPersp field={field} orient={orient} look={look} vb={vb} persp={persp} /> : <Field field={field} orient={orient} look={look} vb={vb} />}
       {ghosts.map((g) => {
-        const a = toView(field, orient, g.from), b = toView(field, orient, g.to);
+        const a = V(g.from), b = V(g.to);
+        const ghost = { ...g, x: g.from.x, y: g.from.y };
         return (
           <g key={`g${g.id}`}>
             <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={styleOf(look).ink} strokeWidth={0.3} strokeDasharray="0.9 0.9" opacity={0.45} />
-            <Piece el={{ ...g, x: g.from.x, y: g.from.y }} ctx={ctx} ghost />
+            {persp ? <g transform={perspWrap(ghost, ctx)}><Piece el={ghost} ctx={ctx} ghost /></g> : <Piece el={ghost} ctx={ctx} ghost />}
           </g>
         );
       })}
-      {drawOrder(els).map((el) => <Item key={el.id} el={el} els={els} ctx={ctx} selected={sel.includes(el.id) || (el.k !== "link" && marks.includes(el.id))} handles={handles} />)}
+      {order.map((el) => <Item key={el.id} el={el} els={els} ctx={ctx} selected={sel.includes(el.id) || (el.k !== "link" && marks.includes(el.id))} handles={handles} />)}
       {handles && sel.length > 1 && <GroupBox ids={sel} els={els} ctx={ctx} />}
       {markNumbers && marks.length > 0 && <MarkNumbers ids={marks} els={els} ctx={ctx} />}
       {handles && selEl && isQuad(selEl) && <QuadHandles el={selEl} ctx={ctx} />}
-      {handles && selEl && ((selEl.k === "token" && selEl.feet) || materialOf(selEl.k)) && <TurnHandle el={selEl} ctx={ctx} />}
+      {handles && selEl && ((selEl.k === "token" && selEl.feet) || materialOf(selEl.k)) && (persp ? <g transform={perspWrap(selEl, ctx)}><TurnHandle el={selEl} ctx={ctx} /></g> : <TurnHandle el={selEl} ctx={ctx} />)}
       {draft && draft.k === "box" && <BoxMark box={draft} ctx={ctx} />}
       {draft && draft.k !== "box" && <Item el={{ id: "draft", ...draft }} ctx={ctx} selected />}
     </svg>

@@ -1,15 +1,16 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Activity, BoxSelect, ChevronLeft, ChevronRight, Circle, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, SquareCheckBig, TrendingUp, Triangle, Type, Trash2, Undo2, Waypoints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView,
-  boardMode, boardSpeed, ghostsOf, hitTest, isCarried, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
-  removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setFeetOf, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
+  AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
+  boardMode, boardSpeed, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
+  removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph } from "./BoardSvg";
 import { DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon } from "./BoardControls";
 import BoardProps, { ARROW_PRESETS, KIND_LABEL, typeOfArrow } from "./BoardProps";
 import BoardDownloads from "./BoardDownloads";
+import ChipQuickEdit from "./BoardChipEdit";
 import MultiPanel, { LayerButtons, LayerList } from "./BoardMulti";
 
 // Editor de la pizarra: fichas de hasta cinco equipos (cada uno de su color), balón, conos, porterías, flechas (rectas,
@@ -81,6 +82,10 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const [loop, setLoop] = useState(false);
   const [trails, setTrails] = useState(true);
   const [error, setError] = useState("");
+  const [quick, setQuick] = useState(null); // ficha abierta con doble clic (su id)
+  const [quickPos, setQuickPos] = useState(null);
+  const lastTap = useRef({ id: null, at: 0 });
+  const wrapRef = useRef(null);
   const svgRef = useRef(null);
   const drag = useRef(null);
   const live = useRef(board);
@@ -105,6 +110,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (alive.length !== sel.length) setSel(alive);
   }, [sel, cur, playing]);
   useEffect(() => { if (fi > last) setFi(last); }, [fi, last]);
+  const quickEl = quick && !playing && selId === quick ? cur.els.find((e) => e.id === quick && e.k === "token") || null : null;
+  useEffect(() => { if (quick && !quickEl) setQuick(null); }, [quick, quickEl]);
 
   // Los cambios seguidos de un mismo control (deslizador, selector de color) cuentan como uno solo al deshacer.
   const commit = (next, { record = true, key = null } = {}) => {
@@ -156,12 +163,17 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const ghosts = !playing && trails && prev ? ghostsOf(prev, cur) : [];
 
   // ── Puntero ──────────────────────────────────────────────────────────────────────────────────────────────────────
-  const toField = (e) => {
+  // En perspectiva, el punto de la pantalla se lleva al suelo deshaciendo la proyección
+  const persp = isPersp(board) ? perspectiveOf(field, orient) : null;
+  const svgPoint = (e) => {
     const svg = svgRef.current;
     const pt = svg.createSVGPoint();
     pt.x = e.clientX; pt.y = e.clientY;
-    return fromView(field, orient, pt.matrixTransform(svg.getScreenCTM().inverse()));
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
   };
+  const toField = (e) => { const q = svgPoint(e); return fromView(field, orient, persp ? persp.inv(q) : q); };
+  // Qué hay bajo el dedo: en perspectiva, lo que está de pie se agarra por donde se ve
+  const hitAt = (list, e, p) => (persp ? hitTestPersp(paintOrder(list, field, orient, persp), svgPoint(e), { field, orient, chip, persp }) : hitTest(list, p, { orient, chip }));
   const point = (e) => {
     const p = toField(e);
     return { x: round(clamp(p.x, -2, field.w + 2)), y: round(clamp(p.y, -2, field.h + 2)) };
@@ -176,6 +188,29 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     }
     return Math.max(1, m);
   };
+
+  // Dónde se abre la edición rápida: junto a la ficha (debajo si cabe, si no encima), sin salirse del recuadro de la pizarra
+  useLayoutEffect(() => {
+    if (!quickEl || !svgRef.current || !wrapRef.current) { setQuickPos(null); return; }
+    const svg = svgRef.current;
+    const v = toView(field, orient, quickEl);
+    const c = persp ? persp.P(v) : v;
+    const r = tokenR(chip, quickEl) * (persp ? persp.scaleAt(v) : 1);
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    const pt = svg.createSVGPoint();
+    pt.x = c.x; pt.y = c.y;
+    const mid = pt.matrixTransform(ctm);
+    pt.y = c.y + r * 2.2;
+    const below = pt.matrixTransform(ctm);
+    const box = wrapRef.current.getBoundingClientRect();
+    const W = Math.min(300, box.width - 8);
+    const left = Math.max(4, Math.min(mid.x - box.left - W / 2, box.width - W - 4));
+    const top = below.y - box.top + 4;
+    // en la mitad de abajo de la pizarra se abre por encima de la ficha
+    const rs = Math.abs(below.y - mid.y) / 2.2;
+    setQuickPos({ left, top, up: mid.y - box.top > box.height / 2, mid: mid.y - box.top - rs - 6 });
+  }, [quickEl, board, orient, field]);
 
   const setEls = (els, opts) => commit({ ...live.current, frames: live.current.frames.map((f, i) => (i === idx ? { ...f, els } : f)) }, opts);
   const add = (el) => { commit(addElement(live.current, idx, el)); setSelId(el.id); };
@@ -192,7 +227,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     }
     // Unir fichas: se toca cada ficha (o se arrastra un recuadro) para elegirlas; luego se crea el conector
     if (tool === "link") {
-      const hit = hitTest(drawOrder(cur.els.filter(isLinkable)), p, { orient, chip });
+      const hit = hitAt(drawOrder(cur.els.filter(isLinkable)), e, p);
       if (hit) setPick((pk) => (pk.includes(hit.id) ? pk.filter((i) => i !== hit.id) : [...pk, hit.id]));
       else { drag.current = { mode: "box", from: p }; setDraft({ k: "box", x: p.x, y: p.y, w: 0, h: 0 }); }
       return;
@@ -200,7 +235,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     // Con las herramientas de colocar (fichas, balón…) una zona o un conector no se «agarra» por dentro: ahí se coloca
     const sorted = drawOrder(cur.els);
     const additive = tool === "select" && (multiMode || e.shiftKey || e.ctrlKey || e.metaKey);
-    const target = hitTest(tool === "select" ? sorted : sorted.filter((el) => el.k !== "zone" && el.k !== "link"), p, { orient, chip });
+    const target = hitAt(tool === "select" ? sorted : sorted.filter((el) => el.k !== "zone" && el.k !== "link"), e, p);
     const drawing = tool === "zone" || tool === "quad" || ARROW_TOOLS.includes(tool);
     if (tool === "select" || (target && !drawing)) {
       if (target) {
@@ -212,6 +247,12 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           drag.current = null;
           return;
         }
+        // doble clic o doble toque sobre una ficha: se abre su edición rápida
+        const now = Date.now();
+        const twice = target.k === "token" && lastTap.current.id === target.id && now - lastTap.current.at < 420;
+        lastTap.current = { id: target.id, at: twice ? 0 : now };
+        if (twice) { setSel([target.id]); setQuick(target.id); drag.current = null; return; }
+        if (quick && quick !== target.id) setQuick(null);
         // arrastrar una de varias elegidas las mueve todas; tocarla sin arrastrar deja solo esa
         const inGroup = sel.length > 1 && sel.includes(target.id);
         if (!inGroup) setSel([target.id]);
@@ -219,7 +260,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         drag.current = target.k === "link" && !inGroup ? null : { mode: "move", ids: inGroup ? sel : [target.id], only: inGroup ? target.id : null, from: p, moved: false, snapshot: live.current };
       } else {
         // espacio vacío: recuadro para elegir varias cosas a la vez
-        if (!additive) setSel([]);
+        lastTap.current = { id: null, at: 0 };
+        if (!additive) { setSel([]); setQuick(null); }
         drag.current = { mode: "marquee", from: p, add: additive };
         setDraft({ k: "box", x: p.x, y: p.y, w: 0, h: 0 });
       }
@@ -270,6 +312,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       const dx = p.x - d.from.x, dy = p.y - d.from.y;
       if (!d.moved && Math.hypot(dx, dy) < 0.6) return;
       d.moved = true;
+      lastTap.current = { id: null, at: 0 };
       const els = d.snapshot.frames[idx].els.map((el) => (d.ids.includes(el.id) ? shiftElement(el, dx, dy) : el));
       onChange({ ...d.snapshot, frames: d.snapshot.frames.map((f, i) => (i === idx ? { ...f, els } : f)) });
     }
@@ -377,6 +420,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const colorMany = (c) => commit(recolorElements(live.current, idx, sel, c));
   const teamMany = (t) => commit(setTeamOf(live.current, idx, sel, t));
   const feetMany = (on) => commit(setFeetOf(live.current, idx, sel, on));
+  const bibMany = (color) => commit(setBibOf(live.current, idx, sel, color));
   // Capas: lo elegido (una o varias cosas) sube o baja en el orden de dibujo de este fotograma
   const commitIfChanged = (next) => { if (next !== live.current) commit(next); };
   const layer = (where) => commitIfChanged(moveLayer(live.current, idx, sel, where, chip));
@@ -512,6 +556,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         <select value={orient} onChange={(e) => commit({ ...board, orient: orientOf(e.target.value) })} className={selectCls} aria-label="Orientación del campo" title="Orientación del campo">
           {ORIENTS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
+        <select value={board.view === "persp" ? "persp" : "flat"} onChange={(e) => { const { view: _v, ...rest } = board; commit(e.target.value === "persp" ? { ...rest, view: "persp" } : rest); }} className={selectCls} aria-label="Vista del campo" title="Vista plana o en perspectiva (el dibujo es el mismo)">
+          {VIEWS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+        </select>
         <select value={look} onChange={(e) => commit({ ...board, look: e.target.value })} className={selectCls} aria-label="Modo visual">
           {LOOKS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
         </select>
@@ -572,6 +619,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         {LINE_TOOLS.map(iconTool)}
       </div>
 
+      <div className="relative" ref={wrapRef}>
       <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex justify-center">
         <Board
           ref={svgRef}
@@ -591,6 +639,20 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           onPointerUp={onUp}
           onPointerCancel={onUp}
         />
+      </div>
+      {quickEl && quickPos && (
+        <ChipQuickEdit
+          el={quickEl}
+          board={board}
+          look={look}
+          patch={patchSel}
+          onClose={() => setQuick(null)}
+          onDup={() => { setQuick(null); dupSel(); }}
+          onDel={(onlyHere) => { setQuick(null); delSel(onlyHere); }}
+          canDelHere={isCarried(quickEl) && board.frames.length > 1}
+          style={{ position: "absolute", left: quickPos.left, ...(quickPos.up ? { bottom: `calc(100% - ${quickPos.mid}px)` } : { top: quickPos.top }) }}
+        />
+      )}
       </div>
 
       {tool === "link" && !playing && (
@@ -620,6 +682,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           onTeam={teamMany}
           onColor={colorMany}
           onFeet={feetMany}
+          onBib={bibMany}
           onResize={resizeMany}
           onSpread={spreadMany}
           onAlign={alignMany}
@@ -652,6 +715,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
             setFeet={setFeet}
             canRemoveTeam={Boolean(panelEl.k === "token" && !["a", "b", "c", "gk"].includes(panelEl.team) && !teamInUse(board, panelEl.team))}
             onRemoveTeam={dropTeam}
+            onQuick={() => selected && setQuick(selected.id)}
           />
           {selected && (
             <div className="flex flex-wrap items-center gap-1.5 pt-0.5">

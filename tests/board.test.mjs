@@ -935,3 +935,47 @@ test("fondo del texto: recuadro centrado que crece con el texto", async () => {
   assert.ok(textWidth("abc", 3, true) > textWidth("abc", 3, false), "la negrita ocupa más");
   assert.ok(textBgBox(0, 0, "", 3).w > 0, "nunca ancho cero");
 });
+
+test("perspectiva: proyección e inversa, lejos más estrecho y rectas rectas", async () => {
+  const { perspectiveOf, fieldOf, viewBox, normalizeBoard, PERSP } = await import("../src/lib/board.js");
+  for (const [fid, orient] of [["half", "v"], ["full", "h"], ["f7", "vi"], ["free", "hi"]]) {
+    const field = fieldOf(fid);
+    const pr = perspectiveOf(field, orient);
+    const [x0, y0, W, H] = viewBox(field, orient);
+    for (const p of [{ x: x0, y: y0 }, { x: x0 + W, y: y0 + H }, { x: x0 + W / 3, y: y0 + H / 2 }, { x: 10, y: 20 }]) {
+      const q = pr.inv(pr.P(p));
+      assert.ok(Math.abs(q.x - p.x) < 1e-6 && Math.abs(q.y - p.y) < 1e-6, `ida y vuelta ${fid}`);
+    }
+    // lejos (arriba) se ve más pequeño que cerca
+    assert.ok(Math.abs(pr.scaleAt({ x: 0, y: y0 }) - PERSP.far) < 1e-9);
+    assert.ok(Math.abs(pr.scaleAt({ x: 0, y: y0 + H }) - 1) < 1e-9);
+    // todo cabe en su caja
+    const [vx, vy, vw, vh] = pr.vb;
+    for (const p of [{ x: x0, y: y0 }, { x: x0 + W, y: y0 + H }]) { const q = pr.P(p); assert.ok(q.x >= vx - 1e-9 && q.x <= vx + vw + 1e-9 && q.y >= vy && q.y <= vy + vh); }
+    // tres puntos alineados en el suelo siguen alineados
+    const a = pr.P({ x: x0, y: y0 }), b = pr.P({ x: x0 + W / 2, y: y0 + H / 2 }), c = pr.P({ x: x0 + W, y: y0 + H });
+    assert.ok(Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) < 1e-6);
+  }
+  assert.equal(normalizeBoard({ v: 2, frames: [], view: "persp" }).view, "persp");
+  assert.equal(normalizeBoard({ v: 2, frames: [], view: "loquesea" }).view, undefined);
+});
+
+test("petos y agarrar en perspectiva", async () => {
+  const B = await import("../src/lib/board.js");
+  const tok = (id, x, y) => ({ id, k: "token", team: "a", x, y });
+  let b = B.normalizeBoard({ v: 2, field: "half", frames: [{ id: "f1", els: [tok("a", 10, 10), tok("b", 30, 30), { id: "z", k: "zone", x: 0, y: 0, w: 5, h: 5 }] }] });
+  b = B.addFrame(b, 0).board;
+  b = B.setBibOf(b, 0, ["a", "z"], "#fde047");
+  assert.deepEqual(b.frames.map((f) => f.els.find((e) => e.id === "a").bib), ["#fde047", "#fde047"], "el peto vale en todos los fotogramas");
+  assert.equal(b.frames[0].els.find((e) => e.id === "z").bib, undefined, "solo las fichas llevan peto");
+  b = B.setBibOf(b, 0, ["a"], null);
+  assert.ok(!("bib" in b.frames[1].els.find((e) => e.id === "a")));
+  // en perspectiva una ficha se agarra por la parte de arriba de su dibujo (lo que se ve de pie)
+  const field = B.fieldOf("half"), persp = B.perspectiveOf(field, "v");
+  const els = b.frames[0].els;
+  const c = persp.P(B.toView(field, "v", els[1])), k = persp.scaleAt(B.toView(field, "v", els[1]));
+  const r = B.tokenR(B.DEFAULT_CHIP, els[1]) * k;
+  const hit = B.hitTestPersp(B.paintOrder(els, field, "v", persp), { x: c.x, y: c.y - r * 0.9 }, { field, orient: "v", chip: B.DEFAULT_CHIP, persp });
+  assert.equal(hit?.id, "b");
+  assert.equal(B.hitTestPersp(els, { x: c.x + 30, y: c.y }, { field, orient: "v", chip: B.DEFAULT_CHIP, persp }), null);
+});

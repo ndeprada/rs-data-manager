@@ -2,7 +2,7 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { AIR_MAX, BALL_PATTERNS, CHIP_PATTERNS, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, LADDER_RUNGS, arrowProps, ballStyle, chipOf, chipStyle, contrastColor, defaultControl, ladderRungs, linkProps, materialOf, teamsOf, zoneShapePatch } from "@/lib/board";
 import { ChipGlyph, styleOf } from "./BoardSvg";
-import { ColorPick, Row, Seg, Slider, Toggle } from "./BoardControls";
+import { ColorPick, NO_FILL, Row, Seg, Slider, Toggle } from "./BoardControls";
 
 // Panel de propiedades de la pizarra: según lo que esté seleccionado (o la herramienta activa, para lo siguiente que se
 // dibuje) se puede cambiar tamaño, color, trazo, borde, transparencia, tipografía…
@@ -25,80 +25,58 @@ export const typeOfArrow = (a) => (a.air ? "air" : a.style || "move");
 export const KIND_LABEL = { token: "Ficha", ball: "Balón", cone: "Cono", goal: "Portería", pole: "Pica", hurdle: "Valla", ladder: "Escalera de coordinación", dummy: "Maniquí", arrow: "Flecha", zone: "Zona", link: "Conector entre fichas", text: "Texto" };
 
 const LINE_OPTS = DASHES.map((d) => ({ id: d.id, label: d.label }));
-// Muestra de «sin fondo»: cuadritos, como en los programas de dibujo
-const NO_BG = "repeating-conic-gradient(#d1d5db 0 25%, #ffffff 0 50%) 50% / 8px 8px";
 const selectCls = "h-7 rounded-md border border-gray-200 bg-white px-1.5 text-xs";
 const pct = (v) => `${Math.round(v * 100)}%`;
 
-const OWN_KEYS = ["color", "pattern", "color2", "stroke"];
 const plainBtn = "h-7 px-2 rounded-md border text-[11px] font-semibold bg-white text-gray-600 border-gray-200 hover:bg-gray-50";
 
-// Ficha: texto de dentro, nombre, equipo, diseño (color, dibujo, borde) del equipo o de esta ficha, tamaño y pies
-function TeamBlock({ el, brush, board, look, patch, patchTeam, setChip, setFeet, canRemoveTeam, onRemoveTeam }) {
+// Ficha: con una ficha elegida, el diseño de SU EQUIPO y lo que vale para todas (lo de cada ficha —textos, peto, color propio,
+// tamaño— se edita con doble clic sobre ella, en `ChipQuickEdit`); sin elegir, cómo saldrán las fichas nuevas de esa herramienta.
+function TeamBlock({ el, brush, board, look, patch, patchTeam, setChip, setFeet, canRemoveTeam, onRemoveTeam, onQuick }) {
   const teams = teamsOf(board);
   const team = teams.find((t) => t.id === el.team) || teams[0];
-  const hasOwn = !brush && OWN_KEYS.some((k) => el[k] != null);
-  // Por defecto se edita el equipo; «Solo esta ficha» deja el diseño propio de la ficha seleccionada
-  const [scope, setScope] = React.useState(hasOwn ? "chip" : "team");
   const bn = look === "bn";
-  const editChip = !brush && scope === "chip";
-  const target = editChip ? el : { team: team.id };
-  const shown = chipStyle(board, target);
-  const write = (p) => (editChip ? patch(p) : patchTeam(team.id, p));
-  // Los dos deslizadores hablan en el mismo porcentaje (100 % = tamaño por defecto): el de «todas» las iguala
+  const shown = chipStyle(board, { team: team.id });
+  const write = (p) => patchTeam(team.id, p);
+  // Los deslizadores hablan en porcentaje (100 % = tamaño por defecto)
   const base = chipOf(board);
   const pctAll = Math.round((base / DEFAULT_CHIP) * 100);
-  const pctOne = Math.round((base / DEFAULT_CHIP) * (Number(el.size) || 1) * 100);
   return (
     <>
       {!brush && (
         <Row>
-          <Input value={el.labelTop || ""} onChange={(e) => patch({ labelTop: e.target.value || undefined }, "labelTop")} placeholder="Arriba" className="h-7 w-24 text-xs" aria-label="Texto por arriba de la ficha" title="Texto o número por arriba de la ficha" />
-          <Input value={el.inner || ""} maxLength={3} onChange={(e) => patch({ inner: e.target.value || undefined }, "inner")} placeholder="Nº" className="h-7 w-14 text-xs text-center" aria-label="Texto dentro de la ficha" title="Texto dentro de la ficha (dorsal o letra, hasta 3)" />
-          <Input value={el.label || ""} onChange={(e) => patch({ label: e.target.value }, "label")} placeholder="Abajo (nombre)" className="h-7 w-28 text-xs" aria-label="Nombre de la ficha" title="Texto o nombre por debajo de la ficha" />
-          {(el.label || el.labelTop) && <ColorPick value={el.labelBg || ""} onChange={(c) => patch({ labelBg: c || undefined })} label="Fondo de los textos" auto="Sin fondo" autoSwatch={NO_BG} wide />}
-          <div className="flex gap-1" role="group" aria-label="Equipo">
-            {teams.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                title={t.name}
-                aria-label={t.name}
-                aria-pressed={el.team === t.id}
-                onClick={() => patch({ team: t.id })}
-                className={`w-7 h-7 rounded-full flex items-center justify-center border-2 ${el.team === t.id ? "border-gray-900" : "border-transparent"}`}
-              >
-                <ChipGlyph board={board} el={{ team: t.id }} look={look} size={20} />
-              </button>
-            ))}
-          </div>
+          <button type="button" className="h-7 px-2 rounded-md border text-[11px] font-semibold bg-gray-900 text-white border-gray-900 hover:bg-gray-800" onClick={onQuick} data-testid="chip-quick-open">Editar esta ficha</button>
+          <span className="text-[11px] text-gray-500">o doble clic sobre ella: nombre, dorsal, texto de arriba, peto, color…</span>
+        </Row>
+      )}
+      {brush && (
+        <Row>
+          <ColorPick value={el.bib || ""} onChange={(c) => patch({ bib: c || undefined })} label="Peto en las nuevas" auto="Sin peto" autoSwatch={NO_FILL} wide />
         </Row>
       )}
       <Row>
-        {!brush && <Seg label="Qué diseño editas" value={scope} options={[{ id: "team", label: "El equipo" }, { id: "chip", label: "Solo esta ficha" }]} onChange={setScope} />}
-        {!editChip && <Input value={team.name} onChange={(e) => patchTeam(team.id, { name: e.target.value })} className="h-7 w-32 text-xs" aria-label="Nombre del equipo" title="Nombre del equipo" />}
+        <span className="text-[11px] font-semibold text-gray-600">Equipo</span>
+        <ChipGlyph board={board} el={{ team: team.id }} look={look} size={22} />
+        <Input value={team.name} onChange={(e) => patchTeam(team.id, { name: e.target.value })} className="h-7 w-32 text-xs" aria-label="Nombre del equipo" title="Nombre del equipo" />
         {canRemoveTeam && <button type="button" className={`${plainBtn} text-red-600`} onClick={() => onRemoveTeam(team.id)}>Quitar este equipo</button>}
       </Row>
       {bn ? (
         <p className="text-[11px] text-gray-500">En blanco y negro cada equipo se distingue por su relleno (negro, blanco, gris, rayas…); los colores se ven al cambiar de modo.</p>
       ) : (
         <Row>
-          <ChipGlyph board={board} el={target} look={look} size={24} />
-          <ColorPick value={shown.color} onChange={(c) => write({ color: c })} label="Relleno" wide />
-          <select value={shown.pattern} onChange={(e) => write({ pattern: e.target.value })} className={selectCls} aria-label="Dibujo de la ficha">
+          <ColorPick value={shown.color} onChange={(c) => write({ color: c })} label="Relleno del equipo" wide />
+          <select value={shown.pattern} onChange={(e) => write({ pattern: e.target.value })} className={selectCls} aria-label="Dibujo de las fichas del equipo">
             {CHIP_PATTERNS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
           {shown.pattern !== "solid" && <ColorPick value={shown.color2} onChange={(c) => write({ color2: c })} label="Segundo color" wide />}
-          <ColorPick value={editChip ? el.stroke || "" : team.stroke || ""} onChange={(c) => write({ stroke: c || undefined })} label="Borde" auto="Por defecto" autoSwatch={styleOf(look).chipStroke} wide />
-          {editChip && hasOwn && <button type="button" className={plainBtn} onClick={() => patch({ color: undefined, pattern: undefined, color2: undefined, stroke: undefined })} title="Vuelve al diseño del equipo">Quitar cambios de la ficha</button>}
+          <ColorPick value={team.stroke || ""} onChange={(c) => write({ stroke: c || undefined })} label="Borde" auto="Por defecto" autoSwatch={styleOf(look).chipStroke} wide />
         </Row>
       )}
       <Row>
-        <Slider label="Todas las fichas" value={pctAll} min={55} max={210} step={5} onChange={(v) => setChip((v / 100) * DEFAULT_CHIP)} fmt={(v) => `${v}%`} />
-        {!brush && <Slider label="Solo esta" value={pctOne} min={40} max={250} step={5} onChange={(v) => patch({ size: Math.round(((v / 100) * DEFAULT_CHIP / base) * 100) / 100 }, "size")} fmt={(v) => `${v}%`} />}
+        <Slider label="Tamaño de todas las fichas" value={pctAll} min={55} max={210} step={5} onChange={(v) => setChip((v / 100) * DEFAULT_CHIP)} fmt={(v) => `${v}%`} />
       </Row>
       <Row>
-        <Toggle on={!!el.feet} onChange={(v) => patch({ feet: v || undefined })} title="Dos pies que asoman por delante: marcan hacia dónde mira o cómo está perfilado el jugador">{brush ? "Fichas nuevas con pies" : "Pies"}</Toggle>
+        {brush && <Toggle on={!!el.feet} onChange={(v) => patch({ feet: v || undefined })} title="Dos pies que asoman por delante: marcan hacia dónde mira o cómo está perfilado el jugador">Fichas nuevas con pies</Toggle>}
         <button type="button" className={plainBtn} onClick={() => setFeet(true)}>Pies a todas</button>
         <button type="button" className={plainBtn} onClick={() => setFeet(false)}>Quitar pies a todas</button>
       </Row>
@@ -250,11 +228,11 @@ function LinkBlock({ el, patch, look }) {
  * el      elemento seleccionado, o { k, …propiedades de la herramienta } si es para lo siguiente que se dibuje (brush)
  * patch   (cambio, clave?) => void   · onType (tipo de flecha) · patchTeam (id, cambio) · setChip (tamaño de ficha)
  */
-export default function BoardProps({ el, brush = false, board, look, patch, onType, patchTeam, setChip, setFeet, canRemoveTeam = false, onRemoveTeam }) {
+export default function BoardProps({ el, brush = false, board, look, patch, onType, patchTeam, setChip, setFeet, canRemoveTeam = false, onRemoveTeam, onQuick }) {
   const s = styleOf(look);
   switch (el.k) {
     case "token":
-      return <TeamBlock el={el} brush={brush} board={board} look={look} patch={patch} patchTeam={patchTeam} setChip={setChip} setFeet={setFeet} canRemoveTeam={canRemoveTeam} onRemoveTeam={onRemoveTeam} />;
+      return <TeamBlock el={el} brush={brush} board={board} look={look} patch={patch} patchTeam={patchTeam} setChip={setChip} setFeet={setFeet} canRemoveTeam={canRemoveTeam} onRemoveTeam={onRemoveTeam} onQuick={onQuick} />;
     case "ball":
       return <BallBlock el={el} patch={patch} look={look} />;
     case "pole":
@@ -313,7 +291,7 @@ export default function BoardProps({ el, brush = false, board, look, patch, onTy
             <Toggle on={el.bold !== false} onChange={(v) => patch({ bold: v })}>Negrita</Toggle>
           </Row>
           <Row>
-            <ColorPick value={el.bg || ""} onChange={(c) => patch({ bg: c || undefined })} label="Fondo" auto="Sin fondo" autoSwatch={NO_BG} wide />
+            <ColorPick value={el.bg || ""} onChange={(c) => patch({ bg: c || undefined })} label="Fondo" auto="Sin fondo" autoSwatch={NO_FILL} wide />
             {el.bg && <Slider label="Opacidad del fondo" value={Math.round((el.bgOpacity ?? 1) * 100)} min={20} max={100} step={5} onChange={(v) => patch({ bgOpacity: v >= 100 ? undefined : v / 100 }, "bgOpacity")} fmt={(v) => `${v}%`} />}
           </Row>
           {el.bg && !el.color && <p className="text-[11px] text-gray-500">Con fondo, la letra sale en negro o en blanco según lo que mejor se lea; puedes elegir otro color arriba.</p>}

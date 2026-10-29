@@ -6,7 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { drawOrder, elementBounds, isCarried, teamOf, teamsOf } from "@/lib/board";
 import { ChipGlyph } from "./BoardSvg";
-import { ColorPick, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon, Row, Toggle } from "./BoardControls";
+import { ColorPick, NO_FILL, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon, Row, Toggle } from "./BoardControls";
 import { typeOfArrow } from "./BoardProps";
 
 // Panel de varios elementos a la vez (selección múltiple), botones de capas (orden de dibujo, también con uno solo) y la lista de
@@ -95,11 +95,12 @@ export function AlignBar({ onAlign, onDistribute, canDistribute }) {
  * frames    número de fotogramas (para «Solo aquí»)
  * onTeam / onColor / onFeet / onResize(factor) / onSpread(factor) / onAlign(dónde) / onDistribute(eje) / onLayer(dónde) / onDup / onDel(soloAquí) / onClear
  */
-export default function MultiPanel({ els, board, look, frames, onTeam, onColor, onFeet, onResize, onSpread, onAlign, onDistribute, onLayer, onDup, onDel, onClear }) {
+export default function MultiPanel({ els, board, look, frames, onTeam, onColor, onFeet, onBib, onResize, onSpread, onAlign, onDistribute, onLayer, onDup, onDel, onClear }) {
   const tokens = els.filter((e) => e.k === "token");
   const teams = teamsOf(board);
   const teamOfAll = tokens.length && tokens.every((t) => t.team === tokens[0].team) ? tokens[0].team : null;
   const allFeet = tokens.length > 0 && tokens.every((t) => t.feet);
+  const bibOfAll = tokens.length && tokens.every((t) => (t.bib || "") === (tokens[0].bib || "")) ? tokens[0].bib || "" : "";
   const sizable = els.some((e) => e.k !== "zone" && e.k !== "link");
   const spreadable = els.filter((e) => e.k !== "link").length > 1;
   const colorable = look !== "bn";
@@ -133,6 +134,7 @@ export default function MultiPanel({ els, board, look, frames, onTeam, onColor, 
           )}
           {colorable && <ColorPick value="" onChange={onColor} label="Color de todo" wide />}
           {tokens.length > 0 && <Toggle on={allFeet} onChange={onFeet} title="Pies en todas las fichas elegidas">Pies</Toggle>}
+          {tokens.length > 0 && <ColorPick value={bibOfAll} onChange={onBib} label="Peto" auto="Sin peto" autoSwatch={NO_FILL} wide />}
         </Row>
       )}
       <Row>

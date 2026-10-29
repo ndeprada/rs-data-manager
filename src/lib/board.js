@@ -218,6 +218,7 @@ export function normalizeBoard(value) {
       ...(SPEED_IDS.includes(value.speed) ? { speed: value.speed } : {}),
       ...(Array.isArray(value.teams) ? { teams: value.teams } : {}),
       ...(value.chipSize ? { chipSize: value.chipSize } : {}),
+      ...(value.view === "persp" ? { view: "persp" } : {}),
       frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [] })),
     };
   }
@@ -443,6 +444,31 @@ export function fromView(field, orient, p) {
   }
 }
 export const viewBox = (field, orient) => (isSideways(orient) ? [-3, -3, field.h + 6, field.w + 6] : [-3, -3, field.w + 6, field.h + 6]);
+// ── Vista en perspectiva (estilo FM Studio) ─────────────────────────────────────────────────────────────────────────
+// El campo se ve inclinado: el lado de arriba de la pantalla queda lejos (más estrecho) y el de abajo cerca. Es una homografía
+// del plano del suelo (las rectas siguen siendo rectas): con s = escala en ese punto (de PERSP.far lejos a 1 cerca),
+//   X = cx + (x − cx)·s     Y = Ybot − β·(1 − s)     y s = 1 / z, con z lineal en la profundidad.
+// Las fichas, el balón y el material de pie se dibujan sin deformar, a escala s; el suelo (líneas, zonas, flechas) se proyecta.
+// Inclinación fija por ahora (decidido con Nacho el 29/10/2026); para cambiarla, solo PERSP.
+export const VIEWS = [{ id: "flat", label: "Vista plana" }, { id: "persp", label: "Perspectiva" }];
+export const isPersp = (b) => b?.view === "persp";
+export const PERSP = { far: 0.6, height: 0.58, top: 4.5, bottom: 2.5 };
+export function perspectiveOf(field, orient) {
+  const [x0, y0, W, H] = viewBox(field, orient);
+  const cx = x0 + W / 2, zf = 1 / PERSP.far, Hp = H * PERSP.height;
+  const top = y0, Ybot = top + PERSP.top + Hp, beta = Hp / (1 - PERSP.far);
+  const scaleAt = (p) => 1 / (zf + (1 - zf) * ((p.y - y0) / H));
+  const P = (p) => { const k = scaleAt(p); return { x: cx + (p.x - cx) * k, y: Ybot - beta * (1 - k) }; };
+  const inv = (q) => {
+    const k = Math.max(0.05, 1 - (Ybot - q.y) / beta);
+    const z = 1 / k;
+    return { x: cx + (q.x - cx) / k, y: y0 + ((z - zf) / (1 - zf)) * H };
+  };
+  // alto en pantalla de 1 m de suelo en profundidad (para aplastar lo que está tumbado en el suelo)
+  const depthAt = (p) => Math.abs(P({ x: p.x, y: p.y + 0.5 }).y - P({ x: p.x, y: p.y - 0.5 }).y);
+  return { P, inv, scaleAt, depthAt, vb: [x0, top, W, PERSP.top + Hp + PERSP.bottom] };
+}
+
 // Transformación SVG que lleva el campo (dibujado en vertical) a la orientación elegida
 export function fieldTurn(field, orient) {
   switch (orient) {
@@ -666,6 +692,34 @@ export function orderForLine(items, field, orient = "v") {
 }
 
 // Elemento bajo el punto p (coordenadas de campo); de arriba abajo. opts: { orient, chip }
+// ── Perspectiva: orden de pintado y «agarrar» con el puntero ─────────────────────────────────────────────────────────
+export const isGroundEl = (el) => el.k === "link" || el.k === "arrow" || el.k === "zone";
+const FLAT_ON_GROUND = new Set(["goal", "ladder", "hurdle"]);
+export const lyingFlat = (el) => FLAT_ON_GROUND.has(el.k) || (el.k === "cone" && el.shape === "flat");
+/** Orden en que se pinta (y se agarra, al revés): el de las capas y, en perspectiva sin capas a mano, lo de atrás antes. */
+export function paintOrder(els, field, orient, persp) {
+  const order = drawOrder(els);
+  if (!persp || els.some((e) => Number.isFinite(e.z))) return order;
+  const depth = (e) => (isGroundEl(e) ? 0 : toView(field, orient, e).y);
+  return order.sort((a, b) => (RANK[a.k] ?? 2) - (RANK[b.k] ?? 2) || depth(a) - depth(b));
+}
+/** Qué hay bajo el puntero en perspectiva. `q` = punto en la pantalla (unidades del dibujo). Lo que se ve de pie se prueba en su
+ *  propio dibujo (deshaciendo su escala) y lo del suelo, en el punto del suelo que hay debajo. `els` en orden de pintado. */
+export function hitTestPersp(els, q, { field, orient, chip, persp }) {
+  const ground = fromView(field, orient, persp.inv(q));
+  for (let i = els.length - 1; i >= 0; i--) {
+    const el = els[i];
+    let p = ground;
+    if (!isGroundEl(el)) {
+      const c = toView(field, orient, el), P = persp.P(c), k = persp.scaleAt(c);
+      const ky = lyingFlat(el) ? persp.depthAt(c) : k;
+      p = fromView(field, orient, { x: c.x + (q.x - P.x) / k, y: c.y + (q.y - P.y) / ky });
+    }
+    if (hitTest([el], p, { orient, chip })) return el;
+  }
+  return null;
+}
+
 export function hitTest(els, p, opts = {}) {
   const orient = opts.orient || "v";
   const chip = opts.chip || DEFAULT_CHIP;
@@ -1033,6 +1087,15 @@ export function setFeetOf(board, index, ids, on) {
     if (e.k !== "token") return e;
     if (on) return { ...e, feet: true };
     const { feet: _f, face: _a, ...rest } = e;
+    return rest;
+  });
+}
+// Peto (color) en las fichas elegidas; sin color, se lo quita. Como todo lo de las fichas, vale para todos los fotogramas.
+export function setBibOf(board, index, ids, color) {
+  return mapElements(board, index, ids, (e) => {
+    if (e.k !== "token") return e;
+    if (color) return { ...e, bib: color };
+    const { bib: _b, ...rest } = e;
     return rest;
   });
 }

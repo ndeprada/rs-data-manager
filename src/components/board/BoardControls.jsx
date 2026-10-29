@@ -16,6 +16,9 @@ const norm = (c) => String(c || "").toLowerCase();
  * Selector de color: botón con el color actual; al tocarlo se despliega la paleta y un selector libre (cualquier color).
  * `auto` (opcional) añade «Automático» para volver al color por defecto (value vacío).
  */
+// Muestra de «sin color» (sin fondo, sin peto…): cuadritos, como en los programas de dibujo
+export const NO_FILL = "repeating-conic-gradient(#d1d5db 0 25%, #ffffff 0 50%) 50% / 8px 8px";
+
 export function ColorPick({ value, onChange, label = "Color", auto = null, autoSwatch = "#9ca3af", wide = false }) {
   const [open, setOpen] = useState(false);
   const shown = value || autoSwatch;
