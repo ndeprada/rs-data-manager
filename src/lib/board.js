@@ -219,6 +219,7 @@ export function normalizeBoard(value) {
       ...(Array.isArray(value.teams) ? { teams: value.teams } : {}),
       ...(value.chipSize ? { chipSize: value.chipSize } : {}),
       ...(value.view === "persp" ? { view: "persp" } : {}),
+      ...(camOf(value).z > 1 ? { cam: camOf(value) } : {}),
       frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [] })),
     };
   }
@@ -444,6 +445,52 @@ export function fromView(field, orient, p) {
   }
 }
 export const viewBox = (field, orient) => (isSideways(orient) ? [-3, -3, field.h + 6, field.w + 6] : [-3, -3, field.w + 6, field.h + 6]);
+// ── Zoom (cámara) ────────────────────────────────────────────────────────────────────────────────────────────────────
+// `board.cam = { z, x, y }`: z = aumento (1 = todo el campo, hasta ZOOM_MAX) y x, y = centro de lo que se ve, en fracción (0–1)
+// del recuadro completo. Se guarda en el dibujo: la imagen, el vídeo y las vistas de solo lectura salen con ese encuadre.
+export const ZOOM_MAX = 4;
+export const ZOOM_STEPS = [1, 1.25, 1.5, 2, 2.5, 3, 4];
+export function camOf(b) {
+  const c = b?.cam;
+  const z = Number(c?.z);
+  if (!Number.isFinite(z) || z <= 1.001) return { z: 1, x: 0.5, y: 0.5 };
+  const f = (v) => (Number.isFinite(Number(v)) ? Math.min(1, Math.max(0, Number(v))) : 0.5);
+  return { z: Math.min(ZOOM_MAX, Math.round(z * 100) / 100), x: f(c.x), y: f(c.y) };
+}
+/** Recuadro visible [x, y, w, h] dentro del recuadro completo `vb`, sin salirse de él. */
+export function camBox(vb, cam) {
+  const { z, x, y } = camOf({ cam });
+  if (z <= 1) return vb;
+  const w = vb[2] / z, h = vb[3] / z;
+  const cx = Math.min(vb[0] + vb[2] - w / 2, Math.max(vb[0] + w / 2, vb[0] + x * vb[2]));
+  const cy = Math.min(vb[1] + vb[3] - h / 2, Math.max(vb[1] + h / 2, vb[1] + y * vb[3]));
+  return [cx - w / 2, cy - h / 2, w, h];
+}
+/** Nuevo zoom manteniendo quieto el punto `at` (en unidades del dibujo; sin él, el centro de lo que se ve). */
+export function zoomCam(vb, cam, z, at = null) {
+  const cur = camOf({ cam });
+  const nz = Math.min(ZOOM_MAX, Math.max(1, Math.round(z * 100) / 100));
+  if (nz <= 1) return null;
+  const box = camBox(vb, cur);
+  const p = at || { x: box[0] + box[2] / 2, y: box[1] + box[3] / 2 };
+  // el punto `p` queda en el mismo sitio de la pantalla: su posición relativa dentro del recuadro no cambia
+  const rx = (p.x - box[0]) / box[2], ry = (p.y - box[1]) / box[3];
+  const w = vb[2] / nz, h = vb[3] / nz;
+  const nx = p.x - rx * w + w / 2, ny = p.y - ry * h + h / 2;
+  return clampCam(vb, { z: nz, x: (nx - vb[0]) / vb[2], y: (ny - vb[1]) / vb[3] });
+}
+/** Mueve lo que se ve `dx, dy` unidades del dibujo. */
+export function panCam(vb, cam, dx, dy) {
+  const cur = camOf({ cam });
+  if (cur.z <= 1) return null;
+  return clampCam(vb, { ...cur, x: cur.x + dx / vb[2], y: cur.y + dy / vb[3] });
+}
+function clampCam(vb, cam) {
+  const box = camBox(vb, cam);
+  const r = (v) => Math.round(v * 10000) / 10000;
+  return { z: cam.z, x: r((box[0] + box[2] / 2 - vb[0]) / vb[2]), y: r((box[1] + box[3] / 2 - vb[1]) / vb[3]) };
+}
+
 // ── Vista en perspectiva (estilo FM Studio) ─────────────────────────────────────────────────────────────────────────
 // El campo se ve inclinado: el lado de arriba de la pantalla queda lejos (más estrecho) y el de abajo cerca. Es una homografía
 // del plano del suelo (las rectas siguen siendo rectas): con s = escala en ese punto (de PERSP.far lejos a 1 cerca),
@@ -452,7 +499,9 @@ export const viewBox = (field, orient) => (isSideways(orient) ? [-3, -3, field.h
 // Inclinación fija por ahora (decidido con Nacho el 29/10/2026); para cambiarla, solo PERSP.
 export const VIEWS = [{ id: "flat", label: "Vista plana" }, { id: "persp", label: "Perspectiva" }];
 export const isPersp = (b) => b?.view === "persp";
-export const PERSP = { far: 0.6, height: 0.58, top: 4.5, bottom: 2.5 };
+export const PERSP = { far: 0.6, height: 0.58, top: 4.5, bottom: 2.5, chip: 1.35 };
+// En perspectiva las fichas se ven algo más grandes (como en FM Studio): se agarran también por ese tamaño
+export const perspBoost = (el) => (el?.k === "token" ? PERSP.chip : 1);
 export function perspectiveOf(field, orient) {
   const [x0, y0, W, H] = viewBox(field, orient);
   const cx = x0 + W / 2, zf = 1 / PERSP.far, Hp = H * PERSP.height;
@@ -711,7 +760,7 @@ export function hitTestPersp(els, q, { field, orient, chip, persp }) {
     const el = els[i];
     let p = ground;
     if (!isGroundEl(el)) {
-      const c = toView(field, orient, el), P = persp.P(c), k = persp.scaleAt(c);
+      const c = toView(field, orient, el), P = persp.P(c), k = persp.scaleAt(c) * perspBoost(el);
       const ky = lyingFlat(el) ? persp.depthAt(c) : k;
       p = fromView(field, orient, { x: c.x + (q.x - P.x) / k, y: c.y + (q.y - P.y) / ky });
     }
@@ -1101,3 +1150,24 @@ export function setBibOf(board, index, ids, color) {
 }
 export const removeElements = (board, index, ids, opts) => ids.reduce((b, id) => removeElement(b, index, id, opts), board);
 
+
+// Orientación de varias fichas a la vez (solo el fotograma actual, como girar una con su punto naranja): `turn` = girar todas
+// esos grados; `toward` = que todas miren hacia ese ángulo de la PANTALLA (0 = arriba, 90 = derecha…), sea cual sea la orientación del campo.
+// El material con giro (porterías, picas, vallas, escaleras, maniquíes) gira con ellas. Las fichas sin pies no muestran hacia dónde miran.
+export function turnElements(board, index, ids, { turn = null, toward = null } = {}) {
+  const sel = new Set(ids);
+  const base = orientAngle(board.orient);
+  const norm = (a) => ((Math.round(a) % 360) + 360) % 360;
+  let changed = false;
+  const els = board.frames[index].els.map((e) => {
+    if (!sel.has(e.id)) return e;
+    const key = e.k === "token" ? "face" : materialOf(e.k) || e.k === "goal" ? "rot" : null;
+    if (!key) return e;
+    const cur = key === "face" ? faceOf(e) : Number(e.rot) || 0;
+    const next = norm(toward != null ? toward - base : cur + (turn || 0));
+    if (next === norm(cur) && e[key] != null) return e;
+    changed = true;
+    return { ...e, [key]: next };
+  });
+  return changed ? setFrameEls(board, index, els) : board;
+}

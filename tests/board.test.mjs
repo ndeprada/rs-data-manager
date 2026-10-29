@@ -979,3 +979,41 @@ test("petos y agarrar en perspectiva", async () => {
   assert.equal(hit?.id, "b");
   assert.equal(B.hitTestPersp(els, { x: c.x + 30, y: c.y }, { field, orient: "v", chip: B.DEFAULT_CHIP, persp }), null);
 });
+
+test("zoom: encuadre dentro del campo, zoom sobre un punto y mover la vista", async () => {
+  const B = await import("../src/lib/board.js");
+  const vb = [-3, -3, 74, 58.5];
+  assert.deepEqual(B.camBox(vb, null), vb);
+  const box = B.camBox(vb, { z: 2, x: 0.5, y: 0.5 });
+  assert.ok(Math.abs(box[2] - 37) < 1e-9 && Math.abs(box[3] - 29.25) < 1e-9);
+  // nunca se sale del recuadro completo
+  const edge = B.camBox(vb, { z: 2, x: 0, y: 1 });
+  assert.ok(edge[0] >= vb[0] - 1e-9 && edge[1] + edge[3] <= vb[1] + vb[3] + 1e-9);
+  // al ampliar sobre un punto, ese punto no se mueve en pantalla
+  const at = { x: 10, y: 12 };
+  const c1 = B.zoomCam(vb, null, 2, at);
+  const b1 = B.camBox(vb, c1);
+  const rel0 = [(at.x - vb[0]) / vb[2], (at.y - vb[1]) / vb[3]], rel1 = [(at.x - b1[0]) / b1[2], (at.y - b1[1]) / b1[3]];
+  assert.ok(Math.abs(rel0[0] - rel1[0]) < 1e-3 && Math.abs(rel0[1] - rel1[1]) < 1e-3);
+  assert.equal(B.zoomCam(vb, c1, 1), null, "volver a 1 quita el zoom");
+  const moved = B.panCam(vb, { z: 2, x: 0.5, y: 0.5 }, 5, 0);
+  assert.ok(moved.x > 0.5 && moved.y === 0.5);
+  assert.equal(B.panCam(vb, null, 5, 0), null);
+  assert.equal(B.camOf({ cam: { z: 9, x: 2, y: -1 } }).z, B.ZOOM_MAX);
+  assert.deepEqual(B.normalizeBoard({ v: 2, frames: [], cam: { z: 2, x: 0.3, y: 0.6 } }).cam, { z: 2, x: 0.3, y: 0.6 });
+  assert.equal(B.normalizeBoard({ v: 2, frames: [], cam: { z: 1 } }).cam, undefined);
+});
+
+test("girar varias fichas a la vez", async () => {
+  const B = await import("../src/lib/board.js");
+  const tok = (id, face) => ({ id, k: "token", team: "a", x: 10, y: 10, feet: true, ...(face != null ? { face } : {}) });
+  let b = B.normalizeBoard({ v: 2, field: "half", orient: "h", frames: [{ id: "f", els: [tok("a", 10), tok("b"), { id: "g", k: "goal", x: 5, y: 5, rot: 0 }, { id: "z", k: "zone", x: 0, y: 0, w: 3, h: 3 }] }] });
+  b = B.addFrame(b, 0).board;
+  const t = B.turnElements(b, 0, ["a", "b", "g", "z"], { turn: 45 });
+  assert.deepEqual(t.frames[0].els.map((e) => e.face ?? e.rot ?? null), [55, 45, 45, null]);
+  assert.equal(t.frames[1].els[0].face, 10, "solo el fotograma actual");
+  // «mirar a la derecha de la pantalla» con el campo girado (h = ataca a la izquierda, -90): face = 90 - (-90) = 180
+  const w = B.turnElements(b, 0, ["a", "b"], { toward: 90 });
+  assert.equal(B.faceOf(w.frames[0].els[0]) + B.orientAngle("h"), 90);
+  assert.equal(B.turnElements(w, 0, ["a", "b"], { toward: 90 }), w, "sin cambios devuelve el mismo");
+});

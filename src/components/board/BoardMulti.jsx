@@ -1,7 +1,7 @@
 import React from "react";
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween,
-  BringToFront, ChevronDown, ChevronUp, Circle, Copy, GripVertical, Minus, MoveUpRight, Plus, SendToBack, Square, Trash2, Triangle, Type, Waypoints, X,
+  ArrowUp, BringToFront, ChevronDown, ChevronUp, Circle, Copy, GripVertical, Minus, MoveUpRight, Plus, RotateCcw, RotateCw, SendToBack, Square, Trash2, Triangle, Type, Waypoints, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { drawOrder, elementBounds, isCarried, teamOf, teamsOf } from "@/lib/board";
@@ -95,7 +95,30 @@ export function AlignBar({ onAlign, onDistribute, canDistribute }) {
  * frames    número de fotogramas (para «Solo aquí»)
  * onTeam / onColor / onFeet / onResize(factor) / onSpread(factor) / onAlign(dónde) / onDistribute(eje) / onLayer(dónde) / onDup / onDel(soloAquí) / onClear
  */
-export default function MultiPanel({ els, board, look, frames, onTeam, onColor, onFeet, onBib, onResize, onSpread, onAlign, onDistribute, onLayer, onDup, onDel, onClear }) {
+// Orientación de todo lo elegido: girar 45° a un lado u otro, o que todas miren hacia una dirección de la pantalla
+const DIRS = [0, 45, 90, 135, 180, 225, 270, 315];
+const DIR_NAME = { 0: "arriba", 45: "arriba a la derecha", 90: "la derecha", 135: "abajo a la derecha", 180: "abajo", 225: "abajo a la izquierda", 270: "la izquierda", 315: "arriba a la izquierda" };
+function TurnBar({ onTurn, noFeet }) {
+  const b = "h-7 w-7 rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center";
+  return (
+    <div className="space-y-1" data-testid="board-turn">
+      <Row>
+        <span className="text-[11px] font-semibold text-gray-600">Orientación</span>
+        <button type="button" className={b} onClick={() => onTurn({ turn: -45 })} title="Girar todas 45° a la izquierda" aria-label="Girar a la izquierda"><RotateCcw className="w-3.5 h-3.5" /></button>
+        <button type="button" className={b} onClick={() => onTurn({ turn: 45 })} title="Girar todas 45° a la derecha" aria-label="Girar a la derecha"><RotateCw className="w-3.5 h-3.5" /></button>
+        <span className="text-[11px] text-gray-500 ml-1">Mirar a</span>
+        {DIRS.map((d) => (
+          <button key={d} type="button" className={b} onClick={() => onTurn({ toward: d })} title={`Que todas miren hacia ${DIR_NAME[d]}`} aria-label={`Mirar hacia ${DIR_NAME[d]}`}>
+            <ArrowUp className="w-3.5 h-3.5" style={{ transform: `rotate(${d}deg)` }} />
+          </button>
+        ))}
+      </Row>
+      {noFeet && <p className="text-[11px] text-gray-500">Sin pies no se ve hacia dónde miran: actívalos con «Pies».</p>}
+    </div>
+  );
+}
+
+export default function MultiPanel({ els, board, look, frames, onTeam, onColor, onFeet, onBib, onTurn, onResize, onSpread, onAlign, onDistribute, onLayer, onDup, onDel, onClear }) {
   const tokens = els.filter((e) => e.k === "token");
   const teams = teamsOf(board);
   const teamOfAll = tokens.length && tokens.every((t) => t.team === tokens[0].team) ? tokens[0].team : null;
@@ -105,6 +128,7 @@ export default function MultiPanel({ els, board, look, frames, onTeam, onColor, 
   const spreadable = els.filter((e) => e.k !== "link").length > 1;
   const colorable = look !== "bn";
   const carried = els.some(isCarried);
+  const turnable = Boolean(onTurn) && els.some((e) => e.k === "token" || e.k === "goal" || ["pole", "hurdle", "ladder", "dummy"].includes(e.k));
   return (
     <div className="rounded-lg border px-2 py-1.5 space-y-1.5 bg-amber-50 border-amber-200" data-testid="board-multi">
       <div className="flex flex-wrap items-center gap-2">
@@ -137,6 +161,7 @@ export default function MultiPanel({ els, board, look, frames, onTeam, onColor, 
           {tokens.length > 0 && <ColorPick value={bibOfAll} onChange={onBib} label="Peto" auto="Sin peto" autoSwatch={NO_FILL} wide />}
         </Row>
       )}
+      {turnable && <TurnBar onTurn={onTurn} noFeet={tokens.length > 0 && !tokens.some((t) => t.feet)} />}
       <Row>
         {sizable && <Step label="Tamaño" onLess={() => onResize(1 / 1.15)} onMore={() => onResize(1.15)} lessTitle="Más pequeño" moreTitle="Más grande" />}
         {spreadable && <Step label="Separación" onLess={() => onSpread(1 / 1.15)} onMore={() => onSpread(1.15)} lessTitle="Juntar" moreTitle="Separar" />}

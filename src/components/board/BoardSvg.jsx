@@ -1,7 +1,7 @@
 import React from "react";
 import {
-  arrowFlight, arrowProps, arrowPoints, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  isGroundEl, isPersp, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
+  arrowFlight, arrowProps, arrowPoints, ballStyle, camBox, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
+  isGroundEl, isPersp, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -341,6 +341,11 @@ export function ChipDefs() {
         <stop offset="0.5" stopColor="#ffffff" stopOpacity="0" />
         <stop offset="1" stopColor="#000000" stopOpacity="0.3" />
       </linearGradient>
+      <linearGradient id="puck-side" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stopColor="#ffffff" stopOpacity="0.22" />
+        <stop offset="0.45" stopColor="#ffffff" stopOpacity="0" />
+        <stop offset="1" stopColor="#000000" stopOpacity="0.3" />
+      </linearGradient>
       <linearGradient id="cone-shade" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0" stopColor="#ffffff" stopOpacity="0.4" />
         <stop offset="0.5" stopColor="#ffffff" stopOpacity="0" />
@@ -393,12 +398,13 @@ function Feet({ foot, flat, shadow = 0, ang = 0 }) {
   );
 }
 
-// Peto sobre la ficha (en espacio unitario, el frente hacia −y): el torso con el escote en pico delante y las sisas a los lados,
+// Peto sobre la ficha (en espacio unitario; el trazado tiene los hombros hacia −y y se da la vuelta para que queden al lado contrario de los pies): el torso con el escote en pico y las sisas a los lados,
 // recortado al círculo; por las sisas y el escote se sigue viendo el color del equipo. En blanco y negro, punteado con borde negro.
 const BIB_PATH = "M-0.42,-1.1 L-0.2,-1.1 L0,-0.42 L0.2,-1.1 L0.42,-1.1 C0.42,-0.5 0.55,-0.12 0.68,0.05 L0.68,1.1 L-0.68,1.1 L-0.68,0.05 C-0.55,-0.12 -0.42,-0.5 -0.42,-1.1 Z";
 function Bib({ color, bn }) {
+  // los hombros y el escote van al lado contrario de los pies (pedido por Nacho el 29/10/2026)
   return (
-    <g clipPath="url(#chip-clip)">
+    <g clipPath="url(#chip-clip)" transform="scale(1 -1)">
       <path d={BIB_PATH} fill={bn ? "url(#bn-dots)" : color} stroke={bn ? "#111111" : "#000000"} strokeOpacity={bn ? 1 : 0.28} strokeWidth={0.07} />
       {!bn && <path d={BIB_PATH} fill="none" stroke="#ffffff" strokeOpacity={0.35} strokeWidth={0.04} transform="translate(0 0.05)" />}
     </g>
@@ -406,7 +412,17 @@ function Bib({ color, bn }) {
 }
 
 // Ficha dibujada: sombra, pies (si los tiene), cuerpo con su dibujo y relieve, borde y texto de dentro
-function Chip({ el, ctx, c, r, ghost = false }) {
+// Color más oscuro (para el canto de las fichas en perspectiva)
+function darken(hex, f = 0.38) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
+  if (!m) return "#374151";
+  const n = parseInt(m[1], 16);
+  const ch = (v) => Math.round(v * (1 - f)).toString(16).padStart(2, "0");
+  return `#${ch((n >> 16) & 255)}${ch((n >> 8) & 255)}${ch(n & 255)}`;
+}
+
+// `puck` > 0 (solo en perspectiva): la ficha es un disco con grosor; la cara de arriba queda en c y el suelo (sombra, pies) `puck` más abajo
+function Chip({ el, ctx, c, r, ghost = false, puck = 0 }) {
   const { board, look, orient } = ctx;
   const s = styleOf(look);
   const paint = chipPaint(board, el, look);
@@ -418,10 +434,17 @@ function Chip({ el, ctx, c, r, ghost = false }) {
   const shadow = ghost ? 0 : s.shadow || 0;
   // con peto, el dorsal se lee sobre el color del peto
   const bib = el.bib ? (bn ? { text: "#111111", halo: "#ffffff" } : { text: contrastColor(el.bib), halo: contrastColor(el.bib) === "#ffffff" ? "#111827" : "#ffffff" }) : null;
+  const gy = c.y + puck; // suelo
   return (
     <>
-      {shadow > 0 && <circle cx={c.x + SHADOW.x * r} cy={c.y + SHADOW.y * r} r={r * 1.14} fill="url(#chip-shadow)" fillOpacity={shadow} />}
-      {el.feet && <g transform={`translate(${c.x} ${c.y}) rotate(${ang}) scale(${r})`}><Feet foot={s.foot} flat={bn} shadow={shadow} ang={ang} /></g>}
+      {shadow > 0 && <circle cx={c.x + SHADOW.x * r} cy={gy + SHADOW.y * r} r={r * 1.14} fill="url(#chip-shadow)" fillOpacity={shadow} />}
+      {el.feet && <g transform={`translate(${c.x} ${gy}) rotate(${ang}) scale(${r})`}><Feet foot={s.foot} flat={bn} shadow={shadow} ang={ang} /></g>}
+      {puck > 0 && (
+        <g>
+          <path d={`M ${c.x - r} ${c.y} L ${c.x - r} ${gy} A ${r} ${r} 0 0 0 ${c.x + r} ${gy} L ${c.x + r} ${c.y} Z`} fill={bn ? "#ffffff" : darken(paint.color)} stroke={bn ? "#111111" : paint.stroke} strokeWidth={sw} strokeLinejoin="round" />
+          {!bn && <path d={`M ${c.x - r} ${c.y} L ${c.x - r} ${gy} A ${r} ${r} 0 0 0 ${c.x + r} ${gy} L ${c.x + r} ${c.y} Z`} fill="url(#puck-side)" />}
+        </g>
+      )}
       {paint.pattern === "solid" || bn ? (
         <circle cx={c.x} cy={c.y} r={r} fill={paint.color} stroke={bn ? paint.stroke : "none"} strokeWidth={sw} />
       ) : (
@@ -574,7 +597,9 @@ function MaterialBody({ el, look, rot = 0, shadow = 0 }) {
   }
 }
 
-function Piece({ el, ctx, selected, ghost = false }) {
+// `part` (solo en perspectiva): "body" = la ficha tumbada (se dibuja aplastada) y "labels" = sus textos de arriba y abajo (de pie);
+// `pq` = cuánto se aplasta en ese punto (alto/ancho) para colocar los textos justo encima y debajo del disco
+function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
   const { board, field, orient, look } = ctx;
   const s = styleOf(look);
   const c = toView(field, orient, el);
@@ -600,12 +625,30 @@ function Piece({ el, ctx, selected, ghost = false }) {
       const down = el.feet ? Math.max(0, -Math.cos(a)) * r * 0.45 : 0;
       // y con los pies hacia arriba, el texto de arriba sube
       const up = el.feet ? Math.max(0, Math.cos(a)) * r * 0.45 : 0;
+      if (part === "body") {
+        const puck = r * 0.42 / pq; // grosor del disco: ~0,42 radios en pantalla
+        return (
+          <g opacity={op}>
+            {ring(r * (el.feet ? 1.5 : 1) + 1.3)}
+            <Chip el={el} ctx={ctx} c={c} r={r} ghost={ghost} puck={puck} />
+          </g>
+        );
+      }
       const tag = (text, y, key) => (
         <React.Fragment key={key}>
           <TextBg x={c.x} y={y} text={text} fs={fs} bold bg={el.labelBg} alpha={el.labelBgOpacity} look={look} />
           <text x={c.x} y={y} textAnchor="middle" fontSize={fs} fontWeight={700} fill={el.labelBg ? inkOnBg(el.labelBg, null, look) : s.label.fill} stroke={el.labelBg ? "none" : s.label.stroke} strokeWidth={el.labelBg ? 0 : 0.55} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{text}</text>
         </React.Fragment>
       );
+      if (part === "labels") {
+        // de pie, en la escala de la ficha: el disco mide r·pq de alto y su canto 0,42·r
+        return (
+          <g opacity={op}>
+            {el.labelTop && !ghost ? tag(el.labelTop, c.y - (r + up) * pq - fs * 0.5, "top") : null}
+            {el.label && !ghost ? tag(el.label, c.y + (r + down) * pq + r * 0.42 + fs * 1.05, "bottom") : null}
+          </g>
+        );
+      }
       return (
         <g opacity={op}>
           {ring(r * (el.feet ? 1.5 : 1) + 1.3)}
@@ -860,7 +903,7 @@ function MarkNumbers({ ids, els, ctx }) {
         const el = els.find((e) => e.id === id);
         if (!el) return null;
         const c = ctx.V(el);
-        const r = (el.k === "token" ? tokenR(ctx.chip, el) : 1.2) * (ctx.persp ? ctx.persp.scaleAt(toView(ctx.field, ctx.orient, el)) : 1);
+        const r = (el.k === "token" ? tokenR(ctx.chip, el) : 1.2) * (ctx.persp ? ctx.persp.scaleAt(toView(ctx.field, ctx.orient, el)) * perspBoost(el) : 1);
         const bx = c.x + r * 0.85 + 0.2, by = c.y - r * 0.85 - 0.2;
         const fs = i >= 9 ? 1.25 : 1.5;
         return (
@@ -900,15 +943,29 @@ function BoxMark({ box, ctx }) {
 
 // Lo que está tumbado en el suelo se aplasta con la perspectiva (`lyingFlat`); lo demás (fichas, balón, picas, maniquíes, textos) se ve de pie.
 // En perspectiva, un elemento de un punto se dibuja como siempre y se lleva a su sitio con su escala
-export function perspWrap(el, ctx) {
+export function perspWrap(el, ctx, flat = lyingFlat(el)) {
   const c = toView(ctx.field, ctx.orient, el);
-  const q = ctx.persp.P(c), k = ctx.persp.scaleAt(c);
-  const ky = lyingFlat(el) ? ctx.persp.depthAt(c) : k;
+  const b = perspBoost(el);
+  const q = ctx.persp.P(c), k = ctx.persp.scaleAt(c) * b;
+  const ky = flat ? ctx.persp.depthAt(c) * b : k;
   return `translate(${q.x.toFixed(3)} ${q.y.toFixed(3)}) scale(${k.toFixed(4)} ${ky.toFixed(4)}) translate(${(-c.x).toFixed(3)} ${(-c.y).toFixed(3)})`;
 }
 const isGround = isGroundEl;
 
+// En perspectiva, una ficha es un disco tumbado en el suelo (con su canto y su sombra) y sus textos se leen de pie
+export const squashAt = (el, ctx) => { const c = toView(ctx.field, ctx.orient, el); return ctx.persp.depthAt(c) / ctx.persp.scaleAt(c); };
+function PerspToken({ el, ctx, selected, ghost = false }) {
+  const pq = squashAt(el, ctx);
+  return (
+    <>
+      <g transform={perspWrap(el, ctx, true)}><Piece el={el} ctx={ctx} selected={selected} ghost={ghost} part="body" pq={pq} /></g>
+      <g transform={perspWrap(el, ctx, false)}><Piece el={el} ctx={ctx} selected={selected} ghost={ghost} part="labels" pq={pq} /></g>
+    </>
+  );
+}
+
 export function Item({ el, ctx, els = [], selected = false, handles = false }) {
+  if (ctx.persp && el.k === "token") return <PerspToken el={el} ctx={ctx} selected={selected} />;
   if (ctx.persp && !isGround(el)) return <g transform={perspWrap(el, ctx)}><ItemFlat el={el} ctx={ctx} els={els} selected={selected} handles={handles} /></g>;
   return <ItemFlat el={el} ctx={ctx} els={els} selected={selected} handles={handles} />;
 }
@@ -931,7 +988,9 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
   const orient = orientOf(board.orient);
   const look = lookOf(board.look);
   const persp = isPersp(board) ? perspectiveOf(field, orient) : null;
-  const vb = persp ? persp.vb : viewBox(field, orient);
+  // todo el recuadro (campo + margen) y lo que se ve con el zoom guardado en el dibujo
+  const fullVb = persp ? persp.vb : viewBox(field, orient);
+  const vb = camBox(fullVb, board.cam);
   const V = persp ? (p) => persp.P(toView(field, orient, p)) : (p) => toView(field, orient, p);
   const ctx = { board, field, orient, look, chip: chipOf(board), persp, V };
   // En perspectiva, sin capas elegidas a mano, lo de atrás se pinta antes que lo de delante (dentro de cada tipo)
@@ -949,14 +1008,14 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
         <ChipDefs />
         <clipPath id="tq-clip"><rect x="-3" y="-3" width={field.w + 6} height={field.h + 3} /></clipPath>
       </defs>
-      {persp ? <FieldPersp field={field} orient={orient} look={look} vb={vb} persp={persp} /> : <Field field={field} orient={orient} look={look} vb={vb} />}
+      {persp ? <FieldPersp field={field} orient={orient} look={look} vb={fullVb} persp={persp} /> : <Field field={field} orient={orient} look={look} vb={fullVb} />}
       {ghosts.map((g) => {
         const a = V(g.from), b = V(g.to);
         const ghost = { ...g, x: g.from.x, y: g.from.y };
         return (
           <g key={`g${g.id}`}>
             <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={styleOf(look).ink} strokeWidth={0.3} strokeDasharray="0.9 0.9" opacity={0.45} />
-            {persp ? <g transform={perspWrap(ghost, ctx)}><Piece el={ghost} ctx={ctx} ghost /></g> : <Piece el={ghost} ctx={ctx} ghost />}
+            {persp ? (ghost.k === "token" ? <PerspToken el={ghost} ctx={ctx} ghost /> : <g transform={perspWrap(ghost, ctx)}><Piece el={ghost} ctx={ctx} ghost /></g>) : <Piece el={ghost} ctx={ctx} ghost />}
           </g>
         );
       })}
@@ -964,7 +1023,7 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
       {handles && sel.length > 1 && <GroupBox ids={sel} els={els} ctx={ctx} />}
       {markNumbers && marks.length > 0 && <MarkNumbers ids={marks} els={els} ctx={ctx} />}
       {handles && selEl && isQuad(selEl) && <QuadHandles el={selEl} ctx={ctx} />}
-      {handles && selEl && ((selEl.k === "token" && selEl.feet) || materialOf(selEl.k)) && (persp ? <g transform={perspWrap(selEl, ctx)}><TurnHandle el={selEl} ctx={ctx} /></g> : <TurnHandle el={selEl} ctx={ctx} />)}
+      {handles && selEl && ((selEl.k === "token" && selEl.feet) || materialOf(selEl.k)) && (persp ? <g transform={perspWrap(selEl, ctx, selEl.k === "token" || lyingFlat(selEl))}><TurnHandle el={selEl} ctx={ctx} /></g> : <TurnHandle el={selEl} ctx={ctx} />)}
       {draft && draft.k === "box" && <BoxMark box={draft} ctx={ctx} />}
       {draft && draft.k !== "box" && <Item el={{ id: "draft", ...draft }} ctx={ctx} selected />}
     </svg>

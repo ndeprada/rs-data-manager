@@ -46,7 +46,7 @@ function TeamBlock({ el, brush, board, look, patch, patchTeam, setChip, setFeet,
       {!brush && (
         <Row>
           <button type="button" className="h-7 px-2 rounded-md border text-[11px] font-semibold bg-gray-900 text-white border-gray-900 hover:bg-gray-800" onClick={onQuick} data-testid="chip-quick-open">Editar esta ficha</button>
-          <span className="text-[11px] text-gray-500">o doble clic sobre ella: nombre, dorsal, texto de arriba, peto, color…</span>
+          <span className="text-[11px] text-gray-500">o doble clic (o clic derecho) sobre ella: nombre, dorsal, texto de arriba, peto, color…</span>
         </Row>
       )}
       {brush && (

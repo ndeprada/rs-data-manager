@@ -1,10 +1,10 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Activity, BoxSelect, ChevronLeft, ChevronRight, Circle, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, SquareCheckBig, TrendingUp, Triangle, Type, Trash2, Undo2, Waypoints } from "lucide-react";
+import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Circle, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, SquareCheckBig, TrendingUp, Triangle, Type, Trash2, Undo2, Waypoints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
-  boardMode, boardSpeed, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
-  removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
+  boardMode, boardSpeed, camOf, panCam, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
+  removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph } from "./BoardSvg";
 import { DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon } from "./BoardControls";
@@ -171,6 +171,31 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     pt.x = e.clientX; pt.y = e.clientY;
     return pt.matrixTransform(svg.getScreenCTM().inverse());
   };
+  // Zoom: lo que se ve sale del zoom guardado en el dibujo (`board.cam`)
+  const fullVb = persp ? persp.vb : viewBox(field, orient);
+  const cam = camOf(board);
+  const setCam = (c) => { const { cam: _c, ...rest } = live.current; commit(c ? { ...rest, cam: c } : rest, { key: "cam" }); };
+  const zoomTo = (z, at) => setCam(zoomCam(fullVb, camOf(live.current), z, at));
+  const zoomStep = (dir) => {
+    const z = camOf(live.current).z;
+    const next = dir > 0 ? ZOOM_STEPS.find((v) => v > z + 0.01) : [...ZOOM_STEPS].reverse().find((v) => v < z - 0.01);
+    zoomTo(next ?? (dir > 0 ? ZOOM_STEPS[ZOOM_STEPS.length - 1] : 1));
+  };
+  const pointers = useRef(new Map());
+  // Con Ctrl (o el gesto de pellizcar del ratón táctil) la rueda acerca y aleja sobre el punto donde está el puntero
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return undefined;
+    const onWheel = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+      const at = pt.matrixTransform(svg.getScreenCTM().inverse());
+      zoomTo(camOf(live.current).z * Math.exp(-Math.max(-60, Math.min(60, e.deltaY)) * 0.004), at);
+    };
+    svg.addEventListener("wheel", onWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", onWheel);
+  });
   const toField = (e) => { const q = svgPoint(e); return fromView(field, orient, persp ? persp.inv(q) : q); };
   // Qué hay bajo el dedo: en perspectiva, lo que está de pie se agarra por donde se ve
   const hitAt = (list, e, p) => (persp ? hitTestPersp(paintOrder(list, field, orient, persp), svgPoint(e), { field, orient, chip, persp }) : hitTest(list, p, { orient, chip }));
@@ -195,7 +220,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const svg = svgRef.current;
     const v = toView(field, orient, quickEl);
     const c = persp ? persp.P(v) : v;
-    const r = tokenR(chip, quickEl) * (persp ? persp.scaleAt(v) : 1);
+    const r = tokenR(chip, quickEl) * (persp ? persp.scaleAt(v) * perspBoost(quickEl) : 1);
     const ctm = svg.getScreenCTM();
     if (!ctm) return;
     const pt = svg.createSVGPoint();
@@ -216,10 +241,24 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const add = (el) => { commit(addElement(live.current, idx, el)); setSelId(el.id); };
 
   const onDown = (e) => {
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    // dos dedos: acercar o alejar (se deshace lo que hubiera empezado el primer dedo)
+    if (pointers.current.size === 2) {
+      const d = drag.current;
+      if (d?.snapshot && d.moved) onChange(d.snapshot);
+      setDraft(null);
+      const [a, b] = [...pointers.current.values()];
+      const svg = svgRef.current, pt = svg.createSVGPoint();
+      pt.x = (a.x + b.x) / 2; pt.y = (a.y + b.y) / 2;
+      drag.current = { mode: "pinch", d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, z0: camOf(live.current).z, at: pt.matrixTransform(svg.getScreenCTM().inverse()) };
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      return;
+    }
     if (playing) return;
     if (e.button !== undefined && e.button > 0) return;
     const p = point(e);
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    if (tool === "pan") { const cam0 = camOf(live.current); drag.current = cam0.z > 1 ? { mode: "pan", cx: e.clientX, cy: e.clientY, cam0 } : null; return; }
     const handle = e.target?.dataset?.h;
     if (handle && (selected?.k === "arrow" || (isQuad(selected) && /^q[0-3]$/.test(handle)) || (selected?.k === "token" && handle === "f") || (materialOf(selected?.k) && handle === "r"))) {
       drag.current = { mode: "handle", h: handle, id: selected.id, el: selected, snapshot: live.current };
@@ -277,9 +316,37 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (tool === "zone" || tool === "quad") { setDraft({ k: "zone", ...brush[tool], x: p.x, y: p.y, w: 0, h: 0 }); drag.current = { mode: "draw" }; }
   };
 
+  // Doble clic (también el del navegador) o clic derecho / mantener pulsado sobre una ficha: su edición rápida.
+  // Se anula el menú y la selección de texto que el navegador haría ahí.
+  const openQuickAt = (e) => {
+    if (playing || !svgRef.current) return false;
+    const p = point(e);
+    const hit = hitAt(drawOrder(cur.els.filter((el) => el.k === "token")), e, p);
+    if (!hit) return false;
+    if (tool !== "select") pickTool("select");
+    drag.current = null;
+    setSel([hit.id]);
+    setQuick(hit.id);
+    return true;
+  };
+  const onDoubleClick = (e) => { if (openQuickAt(e)) e.preventDefault(); };
+  const onContextMenu = (e) => { if (openQuickAt(e)) e.preventDefault(); };
+
   const onMove = (e) => {
+    if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const d = drag.current;
     if (!d) return;
+    if (d.mode === "pinch") {
+      if (pointers.current.size < 2) return;
+      const [a, b] = [...pointers.current.values()];
+      zoomTo(d.z0 * (Math.hypot(a.x - b.x, a.y - b.y) / d.d0), d.at);
+      return;
+    }
+    if (d.mode === "pan") {
+      const ctm = svgRef.current.getScreenCTM();
+      setCam(panCam(fullVb, d.cam0, -(e.clientX - d.cx) / ctm.a, -(e.clientY - d.cy) / ctm.d) || null);
+      return;
+    }
     if (d.mode === "draw" || d.mode === "box" || d.mode === "marquee") {
       const p = point(e);
       setDraft((c) => (c ? (c.k === "arrow" ? { ...c, x2: p.x, y2: p.y } : { ...c, w: round(p.x - c.x), h: round(p.y - c.y) }) : c));
@@ -318,8 +385,10 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     }
   };
 
-  const onUp = () => {
+  const onUp = (e) => {
+    if (e?.pointerId !== undefined) pointers.current.delete(e.pointerId);
     const d = drag.current;
+    if (d?.mode === "pinch") { if (pointers.current.size === 0) drag.current = null; return; }
     drag.current = null;
     if (!d) return;
     if ((d.mode === "move" || d.mode === "handle") && d.moved) {
@@ -421,6 +490,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const teamMany = (t) => commit(setTeamOf(live.current, idx, sel, t));
   const feetMany = (on) => commit(setFeetOf(live.current, idx, sel, on));
   const bibMany = (color) => commit(setBibOf(live.current, idx, sel, color));
+  const turnMany = (how) => commitIfChanged(turnElements(live.current, idx, sel, how));
   // Capas: lo elegido (una o varias cosas) sube o baja en el orden de dibujo de este fotograma
   const commitIfChanged = (next) => { if (next !== live.current) commit(next); };
   const layer = (where) => commitIfChanged(moveLayer(live.current, idx, sel, where, chip));
@@ -481,7 +551,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const allowed = fields ? FIELDS.filter((f) => fields.includes(f.id)) : FIELDS;
   const used = new Set(cur.els.filter((e) => e.k === "token").map((e) => e.label));
   const tall = (isSideways(orient) ? field.w : field.h) > 80;
-  const cursor = tool === "select" || playing ? "default" : "crosshair";
+  const cursor = tool === "pan" ? "grab" : tool === "select" || playing ? "default" : "crosshair";
   const hasEls = board.frames.some((f) => f.els.length);
 
   // Qué muestra el panel de propiedades: el elemento seleccionado o la herramienta elegida
@@ -491,6 +561,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     : null;
   const panelEl = !playing ? selected || brushEl : null;
 
+  const zoomBtn = "h-7 w-7 rounded-md flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-30";
   const toolBtn = (t, content) => {
     const on = tool === t.id;
     return (
@@ -632,14 +703,26 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           draft={draft}
           handles={!playing}
           className="w-full max-w-[560px] select-none"
-          style={{ touchAction: "none", cursor, maxHeight: tall ? 560 : 380 }}
+          style={{ touchAction: "none", cursor, maxHeight: tall ? 560 : 380, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
           label="Pizarra"
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
           onPointerCancel={onUp}
+          onDoubleClick={onDoubleClick}
+          onContextMenu={onContextMenu}
+          onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
         />
       </div>
+      {!playing && (
+        <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 rounded-lg border border-gray-200 bg-white/95 shadow-sm p-0.5" data-testid="board-zoom">
+          <button type="button" className={zoomBtn} onClick={() => zoomStep(-1)} disabled={cam.z <= 1} title="Alejar" aria-label="Alejar"><ZoomOut className="w-3.5 h-3.5" /></button>
+          <span className="text-[11px] font-semibold text-gray-600 w-10 text-center tabular-nums" data-testid="zoom-level">{Math.round(cam.z * 100)}%</span>
+          <button type="button" className={zoomBtn} onClick={() => zoomStep(1)} disabled={cam.z >= 4} title="Acercar (también Ctrl + rueda o pellizcando)" aria-label="Acercar"><ZoomIn className="w-3.5 h-3.5" /></button>
+          <button type="button" className={zoomBtn} onClick={() => { setCam(null); if (tool === "pan") pickTool("select"); }} disabled={cam.z <= 1} title="Ver todo el campo" aria-label="Ver todo el campo"><Maximize className="w-3.5 h-3.5" /></button>
+          <button type="button" aria-pressed={tool === "pan"} className={`${zoomBtn} ${tool === "pan" ? "bg-[var(--granate)] text-white hover:bg-[var(--granate)]" : ""}`} onClick={() => pickTool(tool === "pan" ? "select" : "pan")} disabled={cam.z <= 1 && tool !== "pan"} title="Mover la vista (arrastra el campo)" aria-label="Mover la vista"><Hand className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
       {quickEl && quickPos && (
         <ChipQuickEdit
           el={quickEl}
@@ -683,6 +766,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           onColor={colorMany}
           onFeet={feetMany}
           onBib={bibMany}
+          onTurn={turnMany}
           onResize={resizeMany}
           onSpread={spreadMany}
           onAlign={alignMany}
