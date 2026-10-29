@@ -1,7 +1,7 @@
 import React from "react";
 import {
   arrowFlight, arrowProps, arrowPoints, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, drawOrder, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  lookOf, materialOf, orientAngle, orientOf, teamsOf, toView, tokenR, viewBox, wavyPoints, zoneBox,
+  lookOf, materialOf, orientAngle, orientOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -505,13 +505,20 @@ function Piece({ el, ctx, selected, ghost = false }) {
       // con los pies hacia abajo, el nombre baja un poco para no taparlos
       const a = ((faceOf(el) + orientAngle(orient)) * Math.PI) / 180;
       const down = el.feet ? Math.max(0, -Math.cos(a)) * r * 0.45 : 0;
+      // y con los pies hacia arriba, el texto de arriba sube
+      const up = el.feet ? Math.max(0, Math.cos(a)) * r * 0.45 : 0;
+      const tag = (text, y, key) => (
+        <React.Fragment key={key}>
+          <TextBg x={c.x} y={y} text={text} fs={fs} bold bg={el.labelBg} alpha={el.labelBgOpacity} look={look} />
+          <text x={c.x} y={y} textAnchor="middle" fontSize={fs} fontWeight={700} fill={el.labelBg ? inkOnBg(el.labelBg, null, look) : s.label.fill} stroke={el.labelBg ? "none" : s.label.stroke} strokeWidth={el.labelBg ? 0 : 0.55} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{text}</text>
+        </React.Fragment>
+      );
       return (
         <g opacity={op}>
           {ring(r * (el.feet ? 1.5 : 1) + 1.3)}
           <Chip el={el} ctx={ctx} c={c} r={r} ghost={ghost} />
-          {el.label && !ghost ? (
-            <text x={c.x} y={c.y + r + down + fs * 1.05} textAnchor="middle" fontSize={fs} fontWeight={700} fill={s.label.fill} stroke={s.label.stroke} strokeWidth={0.55} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{el.label}</text>
-          ) : null}
+          {el.labelTop && !ghost ? tag(el.labelTop, c.y - r - up - fs * 0.5, "top") : null}
+          {el.label && !ghost ? tag(el.label, c.y + r + down + fs * 1.05, "bottom") : null}
         </g>
       );
     }
@@ -695,14 +702,28 @@ function QuadHandles({ el, ctx }) {
   );
 }
 
+// Fondo opcional de un texto (recuadro redondeado). En blanco y negro, blanco con borde negro fino.
+function TextBg({ x, y, text, fs, bold, bg, alpha, look }) {
+  if (!bg || !String(text || "").trim()) return null;
+  const b = textBgBox(x, y, text, fs, bold);
+  const bn = look === "bn";
+  return <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={b.rx} fill={bn ? "#ffffff" : bg} fillOpacity={bn ? 1 : alpha ?? 1} stroke={bn ? "#111111" : "#000000"} strokeOpacity={bn ? 1 : 0.14} strokeWidth={Math.max(0.12, fs * (bn ? 0.05 : 0.04))} pointerEvents="none" />;
+}
+// Letra sobre un fondo: el color elegido o el que mejor se lee sobre ese fondo; sin halo
+const inkOnBg = (bg, color, look) => (look === "bn" ? "#111111" : color || contrastColor(bg));
+
 function Text({ el, ctx, selected }) {
   const { field, orient, look } = ctx;
   const s = styleOf(look);
   const c = toView(field, orient, el);
   const fs = Number(el.size) || 3;
+  const bold = el.bold !== false;
+  const bg = el.bg && String(el.text || "").trim() ? el.bg : null;
+  const fill = bg ? inkOnBg(bg, el.color, look) : look === "bn" ? s.textFill : el.color || s.textFill;
   return (
     <g opacity={el.opacity ?? 1}>
-      <text x={c.x} y={c.y} fontSize={fs} fontWeight={el.bold === false ? 400 : 700} fill={look === "bn" ? s.textFill : el.color || s.textFill} stroke={s.textStroke} strokeWidth={Math.max(0.4, fs * 0.16)} paintOrder="stroke" textAnchor="middle" style={{ fontFamily: fontOf(el.font) }}>{el.text}</text>
+      <TextBg x={c.x} y={c.y} text={el.text} fs={fs} bold={bold} bg={bg} alpha={el.bgOpacity} look={look} />
+      <text x={c.x} y={c.y} fontSize={fs} fontWeight={bold ? 700 : 400} fill={fill} stroke={bg ? "none" : s.textStroke} strokeWidth={bg ? 0 : Math.max(0.4, fs * 0.16)} paintOrder="stroke" textAnchor="middle" style={{ fontFamily: fontOf(el.font) }}>{el.text}</text>
       {selected && <rect x={c.x - Math.max(4, (el.text || "").length * fs * 0.3)} y={c.y - fs} width={Math.max(8, (el.text || "").length * fs * 0.6)} height={fs * 1.4} fill="none" stroke="#f59e0b" strokeWidth={0.4} strokeDasharray="1 0.8" />}
     </g>
   );

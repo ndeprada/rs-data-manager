@@ -1,6 +1,6 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { AIR_MAX, BALL_PATTERNS, CHIP_PATTERNS, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, LADDER_RUNGS, arrowProps, ballStyle, chipOf, chipStyle, defaultControl, ladderRungs, linkProps, materialOf, teamsOf, zoneShapePatch } from "@/lib/board";
+import { AIR_MAX, BALL_PATTERNS, CHIP_PATTERNS, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, LADDER_RUNGS, arrowProps, ballStyle, chipOf, chipStyle, contrastColor, defaultControl, ladderRungs, linkProps, materialOf, teamsOf, zoneShapePatch } from "@/lib/board";
 import { ChipGlyph, styleOf } from "./BoardSvg";
 import { ColorPick, Row, Seg, Slider, Toggle } from "./BoardControls";
 
@@ -25,6 +25,8 @@ export const typeOfArrow = (a) => (a.air ? "air" : a.style || "move");
 export const KIND_LABEL = { token: "Ficha", ball: "Balón", cone: "Cono", goal: "Portería", pole: "Pica", hurdle: "Valla", ladder: "Escalera de coordinación", dummy: "Maniquí", arrow: "Flecha", zone: "Zona", link: "Conector entre fichas", text: "Texto" };
 
 const LINE_OPTS = DASHES.map((d) => ({ id: d.id, label: d.label }));
+// Muestra de «sin fondo»: cuadritos, como en los programas de dibujo
+const NO_BG = "repeating-conic-gradient(#d1d5db 0 25%, #ffffff 0 50%) 50% / 8px 8px";
 const selectCls = "h-7 rounded-md border border-gray-200 bg-white px-1.5 text-xs";
 const pct = (v) => `${Math.round(v * 100)}%`;
 
@@ -51,8 +53,10 @@ function TeamBlock({ el, brush, board, look, patch, patchTeam, setChip, setFeet,
     <>
       {!brush && (
         <Row>
-          <Input value={el.inner || ""} maxLength={3} onChange={(e) => patch({ inner: e.target.value || undefined }, "inner")} placeholder="Nº" className="h-7 w-14 text-xs text-center" aria-label="Texto dentro de la ficha" title="Texto dentro de la ficha (dorsal o letra)" />
-          <Input value={el.label || ""} onChange={(e) => patch({ label: e.target.value }, "label")} placeholder="Nombre" className="h-7 w-28 text-xs" aria-label="Nombre de la ficha" />
+          <Input value={el.labelTop || ""} onChange={(e) => patch({ labelTop: e.target.value || undefined }, "labelTop")} placeholder="Arriba" className="h-7 w-24 text-xs" aria-label="Texto por arriba de la ficha" title="Texto o número por arriba de la ficha" />
+          <Input value={el.inner || ""} maxLength={3} onChange={(e) => patch({ inner: e.target.value || undefined }, "inner")} placeholder="Nº" className="h-7 w-14 text-xs text-center" aria-label="Texto dentro de la ficha" title="Texto dentro de la ficha (dorsal o letra, hasta 3)" />
+          <Input value={el.label || ""} onChange={(e) => patch({ label: e.target.value }, "label")} placeholder="Abajo (nombre)" className="h-7 w-28 text-xs" aria-label="Nombre de la ficha" title="Texto o nombre por debajo de la ficha" />
+          {(el.label || el.labelTop) && <ColorPick value={el.labelBg || ""} onChange={(c) => patch({ labelBg: c || undefined })} label="Fondo de los textos" auto="Sin fondo" autoSwatch={NO_BG} wide />}
           <div className="flex gap-1" role="group" aria-label="Equipo">
             {teams.map((t) => (
               <button
@@ -305,9 +309,14 @@ export default function BoardProps({ el, brush = false, board, look, patch, onTy
             <select value={el.font || "sans"} onChange={(e) => patch({ font: e.target.value })} className={selectCls} aria-label="Tipografía">
               {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
             </select>
-            <ColorPick value={el.color || ""} onChange={(c) => patch({ color: c || undefined })} label="Color" auto="Según el modo" autoSwatch={s.textFill} wide />
+            <ColorPick value={el.color || ""} onChange={(c) => patch({ color: c || undefined })} label="Color" auto={el.bg ? "Automático" : "Según el modo"} autoSwatch={el.bg && look !== "bn" ? contrastColor(el.bg) : s.textFill} wide />
             <Toggle on={el.bold !== false} onChange={(v) => patch({ bold: v })}>Negrita</Toggle>
           </Row>
+          <Row>
+            <ColorPick value={el.bg || ""} onChange={(c) => patch({ bg: c || undefined })} label="Fondo" auto="Sin fondo" autoSwatch={NO_BG} wide />
+            {el.bg && <Slider label="Opacidad del fondo" value={Math.round((el.bgOpacity ?? 1) * 100)} min={20} max={100} step={5} onChange={(v) => patch({ bgOpacity: v >= 100 ? undefined : v / 100 }, "bgOpacity")} fmt={(v) => `${v}%`} />}
+          </Row>
+          {el.bg && !el.color && <p className="text-[11px] text-gray-500">Con fondo, la letra sale en negro o en blanco según lo que mejor se lea; puedes elegir otro color arriba.</p>}
         </>
       );
     default:

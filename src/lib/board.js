@@ -134,6 +134,20 @@ export const FONTS = [
 ];
 export const fontOf = (id) => FONTS.find((f) => f.id === id)?.css || FONTS[0].css;
 
+// Fondo opcional detrás de un texto o del nombre de una ficha (sin fondo = invisible, como siempre).
+// Ancho estimado del texto (en las mismas unidades que el tamaño de letra): no hay DOM al exportar PNG/vídeo.
+export function textWidth(text, fs, bold = true) {
+  let w = 0;
+  for (const ch of String(text || "")) w += /[MW@ÑÁÉÍÓÚÜ%]/.test(ch) ? 0.82 : /[A-Z0-9]/.test(ch) ? 0.66 : /[il.,'!|:;·\s]/.test(ch) ? 0.3 : /[mw]/.test(ch) ? 0.82 : 0.55;
+  return w * fs * (bold ? 1.06 : 1);
+}
+/** Recuadro del fondo de un texto centrado en x con la línea base en y. */
+export function textBgBox(x, y, text, fs, bold = true) {
+  const w = Math.max(fs * 0.8, textWidth(text, fs, bold)) + fs * 0.6;
+  const top = y - fs * 0.86, h = fs * 1.18;
+  return { x: x - w / 2, y: top, w, h, rx: Math.min(h / 2, fs * 0.28) };
+}
+
 // Medidas de portería (anchura entre postes, metros)
 export const GOAL_SIZES = [
   { id: "mini", label: "Mini", w: 2 },
@@ -333,7 +347,7 @@ export const patchElement = (board, index, id, patch, { allFrames = false } = {}
 });
 
 // Mismo cambio en todos los fotogramas para lo que es de identidad (nombre, equipo) y no de posición.
-export const IDENTITY_PATCH = ["label", "team"];
+export const IDENTITY_PATCH = ["label", "labelTop", "team"];
 
 // ── Animación ──────────────────────────────────────────────────────────────────────────────────────────────────────
 

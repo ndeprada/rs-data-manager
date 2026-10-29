@@ -161,7 +161,7 @@ const SINGULAR = Object.fromEntries(Object.entries(PLURAL).map(([k, [one]]) => [
 /** Nombre corto de un elemento para la lista de capas */
 export function layerName(el, board) {
   if (el.k === "token") {
-    const n = String(el.inner || el.label || "").trim();
+    const n = String(el.inner || el.label || el.labelTop || "").trim();
     return n ? `Ficha ${n}` : `Ficha · ${teamOf(board, el.team).name}`;
   }
   if (el.k === "arrow") return ARROW_NAME[typeOfArrow(el)] || "Flecha";

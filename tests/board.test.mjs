@@ -924,3 +924,14 @@ test("poner una cosa en un puesto concreto de la lista de capas", () => {
   assert.equal(moveLayerTo(b, 0, "nada", 1), b);
   assert.ok(moveLayerTo(b, 0, "a", 3).frames[0].els.every((e) => Number.isFinite(e.z)), "el fotograma pasa a guardar el orden");
 });
+
+test("fondo del texto: recuadro centrado que crece con el texto", async () => {
+  const { textBgBox, textWidth } = await import("../src/lib/board.js");
+  const a = textBgBox(50, 40, "Pedro", 3), b = textBgBox(50, 40, "Pedro Martínez", 3);
+  assert.ok(Math.abs(a.x + a.w / 2 - 50) < 1e-9, "centrado en x");
+  assert.ok(b.w > a.w, "más texto, más ancho");
+  assert.ok(a.y < 40 && a.y + a.h > 40, "cubre la línea base");
+  assert.ok(textWidth("MMM", 3) > textWidth("iii", 3));
+  assert.ok(textWidth("abc", 3, true) > textWidth("abc", 3, false), "la negrita ocupa más");
+  assert.ok(textBgBox(0, 0, "", 3).w > 0, "nunca ancho cero");
+});
