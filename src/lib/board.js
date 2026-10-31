@@ -29,9 +29,15 @@ export const LOOKS = [
   { id: "color", label: "Verde (franjas)" },
   { id: "color-cuadros", label: "Verde (cuadrícula)" },
   { id: "bn", label: "Blanco y negro (impresión)" },
+  { id: "estadio", label: "Estadio (césped verde)" },
+  { id: "estadio-noche", label: "Estadio (noche)" },
 ];
 export const DEFAULT_LOOK = "blanco";
 export const lookOf = (id) => LOOKS.find((l) => l.id === id)?.id || DEFAULT_LOOK;
+// Modos «estadio» (como FmStadio): césped a cuadros y gradas alrededor, por eso llevan más margen alrededor del campo (m)
+export const isStadium = (look) => look === "estadio" || look === "estadio-noche";
+export const STADIUM_MARGIN = 10;
+export const marginOf = (look) => (isStadium(lookOf(look)) ? STADIUM_MARGIN : 3);
 
 // Equipos: cuatro de partida (granate, azul, amarillo y verde de portero), todos con nombre y color libres, y se pueden crear
 // más (hasta MAX_TEAMS). `n` (Neutro) es de los dibujos antiguos: solo aparece si hay fichas que lo usan.
@@ -83,6 +89,15 @@ export const CHIP_PATTERNS = [
   { id: "v", label: "Líneas verticales" },
   { id: "h", label: "Líneas horizontales" },
   { id: "halves", label: "Mitades" },
+  { id: "stripes", label: "Rayas" },
+  { id: "hoops", label: "Aros" },
+  { id: "quarters", label: "Cuartos" },
+];
+// Forma de la ficha: «botón» (disco con brillo) o «camiseta» (la camiseta vista de frente dentro del disco, con cuello y
+// mangas del color de los ribetes `trim`), como las fichas de equipos de FmStadio pero sin escudos ni nombres de clubes.
+export const CHIP_KINDS = [
+  { id: "boton", label: "Botón" },
+  { id: "camiseta", label: "Camiseta" },
 ];
 // Diseño del balón: color, segundo color (los dibujos) y estilo. Sin estilo guardado es el de antes (punto central).
 export const BALL_PATTERNS = [
@@ -104,7 +119,12 @@ export function contrastColor(hex) {
 export function chipStyle(board, el) {
   const t = teamOf(board, el.team);
   const color = el.color || t.color;
-  return { pattern: el.pattern || t.pattern || "solid", color, color2: el.color2 || t.color2 || contrastColor(color), stroke: el.stroke || t.stroke || null };
+  const color2 = el.color2 || t.color2 || contrastColor(color);
+  return {
+    pattern: el.pattern || t.pattern || "solid", color, color2, stroke: el.stroke || t.stroke || null,
+    kit: (el.kit || t.kit) === "camiseta" ? "camiseta" : "boton",
+    trim: el.trim || t.trim || color2,
+  };
 }
 
 // Radio base de las fichas (metros) y tamaño de cada una (múltiplo del base)
@@ -494,7 +514,7 @@ export function fromView(field, orient, p) {
     default: return { x: round(p.x), y: round(p.y) };
   }
 }
-export const viewBox = (field, orient) => (isSideways(orient) ? [-3, -3, field.h + 6, field.w + 6] : [-3, -3, field.w + 6, field.h + 6]);
+export const viewBox = (field, orient, m = 3) => (isSideways(orient) ? [-m, -m, field.h + 2 * m, field.w + 2 * m] : [-m, -m, field.w + 2 * m, field.h + 2 * m]);
 // ── Zoom (cámara) ────────────────────────────────────────────────────────────────────────────────────────────────────
 // `board.cam = { z, x, y }`: z = aumento (1 = todo el campo, hasta ZOOM_MAX) y x, y = centro de lo que se ve, en fracción (0–1)
 // del recuadro completo. Se guarda en el dibujo: la imagen, el vídeo y las vistas de solo lectura salen con ese encuadre.
@@ -552,8 +572,8 @@ export const isPersp = (b) => b?.view === "persp";
 export const PERSP = { far: 0.6, height: 0.58, top: 4.5, bottom: 2.5, chip: 1.35 };
 // En perspectiva las fichas se ven algo más grandes (como en FM Studio): se agarran también por ese tamaño
 export const perspBoost = (el) => (el?.k === "token" ? PERSP.chip : 1);
-export function perspectiveOf(field, orient) {
-  const [x0, y0, W, H] = viewBox(field, orient);
+export function perspectiveOf(field, orient, m = 3) {
+  const [x0, y0, W, H] = viewBox(field, orient, m);
   const cx = x0 + W / 2, zf = 1 / PERSP.far, Hp = H * PERSP.height;
   const top = y0, Ybot = top + PERSP.top + Hp, beta = Hp / (1 - PERSP.far);
   const scaleAt = (p) => 1 / (zf + (1 - zf) * ((p.y - y0) / H));

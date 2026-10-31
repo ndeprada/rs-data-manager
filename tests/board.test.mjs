@@ -220,9 +220,12 @@ test("equipos nuevos: se crean con color distinto, se limitan y solo se quitan l
 
 test("diseño de ficha: lo del equipo, y lo propio de la ficha manda; el texto contrasta con el relleno", () => {
   const b = { teams: [{ id: "a", name: "A", color: "#73000A", pattern: "sash", color2: "#ffffff", stroke: "#facc15" }] };
-  assert.deepEqual(chipStyle(b, { team: "a" }), { pattern: "sash", color: "#73000A", color2: "#ffffff", stroke: "#facc15" });
+  assert.deepEqual(chipStyle(b, { team: "a" }), { pattern: "sash", color: "#73000A", color2: "#ffffff", stroke: "#facc15", kit: "boton", trim: "#ffffff" });
   const own = chipStyle(b, { team: "a", pattern: "v", color: "#2563eb", color2: "#000000", stroke: "#ffffff" });
-  assert.deepEqual(own, { pattern: "v", color: "#2563eb", color2: "#000000", stroke: "#ffffff" });
+  assert.deepEqual(own, { pattern: "v", color: "#2563eb", color2: "#000000", stroke: "#ffffff", kit: "boton", trim: "#000000" });
+  const shirt = chipStyle({ teams: [{ id: "a", color: "#ffffff", kit: "camiseta", trim: "#73000A" }] }, { team: "a" });
+  assert.equal(shirt.kit, "camiseta");
+  assert.equal(shirt.trim, "#73000A");
   const plain = chipStyle({}, { team: "b" });
   assert.equal(plain.pattern, "solid");
   assert.equal(plain.stroke, null, "sin borde propio se usa el del modo visual");
@@ -232,8 +235,8 @@ test("diseño de ficha: lo del equipo, y lo propio de la ficha manda; el texto c
   assert.ok(CHIP_PATTERNS.length >= 5 && CHIP_PATTERNS[0].id === "solid");
 });
 
-test("seis modos visuales y uno desconocido cae en blanco", () => {
-  assert.deepEqual(LOOKS.map((l) => l.id), ["blanco", "blanco-liso", "blanco-cuadros", "color", "color-cuadros", "bn"]);
+test("ocho modos visuales (dos de estadio) y uno desconocido cae en blanco", () => {
+  assert.deepEqual(LOOKS.map((l) => l.id), ["blanco", "blanco-liso", "blanco-cuadros", "color", "color-cuadros", "bn", "estadio", "estadio-noche"]);
   assert.equal(lookOf("color-cuadros"), "color-cuadros");
   assert.equal(lookOf("inventado"), "blanco");
   assert.equal(normalizeBoard({ v: 2, field: "tq", look: "blanco-liso", frames: [{ els: [] }] }).look, "blanco-liso");
@@ -1061,4 +1064,20 @@ test("animación: flechas, zonas y textos con el mismo id se deslizan; una flech
   assert.ok(hasVia(half));
   const peak = Math.max(...arrowPoints(half, 24).map((p) => p.y));
   assert.ok(peak > 2 && peak < 4, `a medio camino (${peak})`);
+});
+
+import * as BS from "../src/lib/board.js";
+
+test("estadio: más margen alrededor del campo para las gradas, en plano y en perspectiva", () => {
+  const f = fieldOf("full");
+  assert.equal(BS.marginOf("estadio"), BS.STADIUM_MARGIN);
+  assert.equal(BS.marginOf("estadio-noche"), BS.STADIUM_MARGIN);
+  assert.equal(BS.marginOf("blanco"), 3);
+  assert.equal(BS.marginOf("inventado"), 3);
+  assert.deepEqual(viewBox(f, "v"), [-3, -3, 74, 111], "sin margen se queda como siempre");
+  assert.deepEqual(viewBox(f, "h", 10), [-10, -10, 125, 88]);
+  const p = BS.perspectiveOf(f, "v", 10);
+  assert.ok(p.vb[2] === 88, "la perspectiva usa el ancho con el margen del estadio");
+  const back = p.inv(p.P({ x: 30, y: 50 }));
+  assert.ok(Math.abs(back.x - 30) < 1e-6 && Math.abs(back.y - 50) < 1e-6);
 });

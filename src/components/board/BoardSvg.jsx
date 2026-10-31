@@ -1,7 +1,7 @@
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, camBox, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  isGroundEl, isPersp, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
+  isGroundEl, isPersp, marginOf, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -26,7 +26,20 @@ const COLOR = {
   goal: { fill: "rgba(255,255,255,0.35)", stroke: "#ffffff" }, cone: "#f97316", coneStroke: "#ffffff", ball: { fill: "#ffffff", stroke: "#111827" }, chipStroke: "#ffffff",
   foot: { fill: "#111827", stroke: "#ffffff" }, shadow: 0.36,
 };
+// Estadio (como FmStadio): césped a cuadros, líneas blancas y gradas alrededor; las fichas llevan de borde su propio color más oscuro
+const ESTADIO = {
+  ...COLOR, bg: "#3d8b5f", margin: "#3d8b5f", stripe: null, check: "rgba(255,255,255,0.065)", line: "rgba(255,255,255,0.95)", lineW: 0.3, chipStroke: null, shadow: 0.4,
+  surround: "#0d2a1f",
+  stadium: { outer: "#0d2a1f", rows: ["#13452f", "#1a5a3c", "#13452f", "#1d6342"], seat: "#2f8a5c", track: "#24352f", boards: "#cfd6d8", boardsLine: "#9aa5a8" },
+};
+const NOCHE = {
+  ...ESTADIO, bg: "#2c3374", margin: "#2c3374", check: "rgba(255,255,255,0.055)",
+  surround: "#0a1124",
+  stadium: { outer: "#0a1124", rows: ["#161d3d", "#1d2550", "#161d3d", "#202a58"], seat: "#3a4682", track: "#1a2140", boards: "#3b4577", boardsLine: "#5b6697" },
+};
 const STYLE = {
+  estadio: ESTADIO,
+  "estadio-noche": NOCHE,
   blanco: BLANCO,
   "blanco-liso": { ...BLANCO, stripe: null, margin: "#ffffff" },
   "blanco-cuadros": { ...BLANCO, stripe: null, check: "#eef0f3" },
@@ -57,7 +70,7 @@ export function chipPaint(board, el, look) {
   }
   const st = chipStyle(board, el);
   const text = contrastColor(st.color);
-  return { ...st, stroke: st.stroke || styleOf(look).chipStroke, text, halo: text === "#ffffff" ? "#111827" : "#ffffff" };
+  return { ...st, stroke: st.stroke || styleOf(look).chipStroke || darken(st.color, 0.42), text, halo: text === "#ffffff" ? "#111827" : "#ffffff" };
 }
 
 // ── Campo ──────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -119,6 +132,36 @@ function Lines({ field, s }) {
   );
 }
 
+
+// ── Estadio (modos «estadio»): gradas alrededor del campo, en coordenadas del campo (vertical) ─────────────────────────
+// Rectángulo de esquinas redondeadas a `d` m por fuera de las líneas (las esquinas se abren más cuanto más lejos)
+function roundRect(field, d) {
+  const r = 2.5 + d * 0.85, x0 = -d, y0 = -d, x1 = field.w + d, y1 = field.h + d;
+  const arc = (cx, cy, a0) => Array.from({ length: 7 }, (_, i) => { const a = ((a0 + i * 15) * Math.PI) / 180; return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r }; });
+  return [...arc(x1 - r, y0 + r, -90), ...arc(x1 - r, y1 - r, 0), ...arc(x0 + r, y1 - r, 90), ...arc(x0 + r, y0 + r, 180)];
+}
+// Partes del estadio, de fuera adentro: filas de asientos, pasillo, vallas publicitarias y césped de alrededor
+export function stadiumParts(field, margin) {
+  const rows = [];
+  const step = 0.9;
+  for (let d = margin - 0.2, i = 0; d > 3.9; d -= step, i++) rows.push({ d, i, pts: roundRect(field, d), seats: roundRect(field, d - step / 2) });
+  return { rows, track: roundRect(field, 3.9), boards: roundRect(field, 3.2), apron: roundRect(field, 2.6) };
+}
+const ptsPath = (pts, T = (p) => p) => pts.map(T).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + " Z";
+function Stadium({ field, s, margin, T }) {
+  const st = s.stadium;
+  const parts = stadiumParts(field, margin);
+  return (
+    <g>
+      {parts.rows.map((r) => <path key={`r${r.i}`} d={ptsPath(r.pts, T)} fill={st.rows[r.i % st.rows.length]} />)}
+      {parts.rows.map((r) => <path key={`s${r.i}`} d={ptsPath(r.seats, T)} fill="none" stroke={st.seat} strokeWidth={0.5} strokeDasharray="0.5 0.22" />)}
+      <path d={ptsPath(parts.track, T)} fill={st.track} />
+      <path d={ptsPath(parts.boards, T)} fill={st.boards} stroke={st.boardsLine} strokeWidth={0.12} />
+      <path d={ptsPath(parts.apron, T)} fill={s.bg} />
+    </g>
+  );
+}
+
 function Field({ field, orient, look, vb }) {
   const s = styleOf(look);
   const bands = [];
@@ -129,8 +172,9 @@ function Field({ field, orient, look, vb }) {
   const checkId = `chk-${lookOf(look)}-${field.w}`;
   return (
     <>
-      <rect x={vb[0]} y={vb[1]} width={vb[2]} height={vb[3]} fill={free ? s.bg : s.margin || s.bg} />
+      <rect x={vb[0]} y={vb[1]} width={vb[2]} height={vb[3]} fill={free ? s.bg : s.stadium ? s.stadium.outer : s.margin || s.bg} />
       <g transform={fieldTurn(field, orient)}>
+        {!free && s.stadium && <Stadium field={field} s={s} margin={marginOf(look)} />}
         {free ? null : <rect x={0} y={0} width={field.w} height={field.h} fill={s.bg} />}
         {free ? null : bands}
         {!free && s.check && (
@@ -192,7 +236,7 @@ function FieldPersp({ field, orient, look, vb, persp }) {
   const free = field.id === "free";
   const T = (p) => persp.P(toView(field, orient, p));
   const poly = (pts, closed) => pts.map(T).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + (closed ? " Z" : "");
-  const [x0, y0, W, H] = viewBox(field, orient);
+  const [x0, y0, W, H] = viewBox(field, orient, marginOf(look));
   const ground = [{ x: x0, y: y0 }, { x: x0 + W, y: y0 }, { x: x0 + W, y: y0 + H }, { x: x0, y: y0 + H }].map(persp.P);
   const tqH = field.id === "tq";
   const clipId = `pclip-${field.id}-${orient}`;
@@ -207,10 +251,11 @@ function FieldPersp({ field, orient, look, vb, persp }) {
   const lp = { fill: "none", stroke: s.line, strokeWidth: s.lineW, strokeLinejoin: "round", strokeLinecap: "round" };
   return (
     <>
-      <rect x={vb[0]} y={vb[1]} width={vb[2]} height={vb[3]} fill={free ? s.bg : s.margin || s.bg} />
-      <polygon points={ground.map((q) => `${q.x},${q.y}`).join(" ")} fill={free ? s.bg : s.margin || s.bg} />
+      <rect x={vb[0]} y={vb[1]} width={vb[2]} height={vb[3]} fill={free ? s.bg : s.stadium ? s.stadium.outer : s.margin || s.bg} />
+      <polygon points={ground.map((q) => `${q.x},${q.y}`).join(" ")} fill={free ? s.bg : s.stadium ? s.stadium.outer : s.margin || s.bg} />
       {!free && (
         <>
+          {s.stadium && <Stadium field={field} s={s} margin={marginOf(look)} T={T} />}
           <defs><clipPath id={clipId}><path d={fieldPoly} /></clipPath></defs>
           <path d={fieldPoly} fill={s.bg} />
           {bands}
@@ -348,8 +393,49 @@ function ChipFill({ pattern, color, color2 }) {
         </>
       )}
       {pattern === "halves" && <rect x={0} y={-1} width={1} height={2} fill={color2} />}
+      {pattern === "stripes" && [-0.86, -0.43, 0, 0.43, 0.86].map((x) => <rect key={x} x={x - 0.11} y={-1} width={0.22} height={2} fill={color2} />)}
+      {pattern === "hoops" && [-0.72, -0.24, 0.24, 0.72].map((y) => <rect key={y} x={-1} y={y - 0.12} width={2} height={0.24} fill={color2} />)}
+      {pattern === "quarters" && (
+        <>
+          <rect x={0} y={-1} width={1} height={1} fill={color2} />
+          <rect x={-1} y={0} width={1} height={1} fill={color2} />
+        </>
+      )}
     </g>
   );
+}
+
+// Ficha «camiseta»: la camiseta vista de frente dentro del disco (cuello arriba): el cuerpo con el dibujo del equipo, las
+// mangas a los lados (algo más oscuras, con su costura) y el cuello y los puños del color de los ribetes. Sin escudos.
+const SLEEVE_L = "M -1.05 -0.62 L -0.34 -0.98 Q -0.5 -0.2 -0.62 0.62 L -1.05 0.62 Z";
+const SLEEVE_R = "M 1.05 -0.62 L 0.34 -0.98 Q 0.5 -0.2 0.62 0.62 L 1.05 0.62 Z";
+function ShirtFace({ pattern, color, color2, trim }) {
+  return (
+    <g>
+      <ChipFill pattern={pattern} color={color} color2={color2} />
+      <g clipPath="url(#chip-clip)">
+        <path d={SLEEVE_L} fill="#000" fillOpacity={0.14} />
+        <path d={SLEEVE_R} fill="#000" fillOpacity={0.14} />
+        <path d="M -0.34 -0.98 Q -0.5 -0.2 -0.62 0.62 M 0.34 -0.98 Q 0.5 -0.2 0.62 0.62" fill="none" stroke="#000" strokeOpacity={0.28} strokeWidth={0.05} />
+        {/* puños */}
+        <path d="M -0.98 -0.18 A 1 1 0 0 0 -0.82 0.58" fill="none" stroke={trim} strokeWidth={0.2} />
+        <path d="M 0.98 -0.18 A 1 1 0 0 1 0.82 0.58" fill="none" stroke={trim} strokeWidth={0.2} />
+        {/* cuello: el hueco (más oscuro) y el ribete en pico redondeado */}
+        <path d="M -0.34 -1.02 Q 0 -0.42 0.34 -1.02 Z" fill="#000" fillOpacity={0.35} />
+        <path d="M -0.36 -1.02 Q 0 -0.42 0.36 -1.02" fill="none" stroke={trim} strokeWidth={0.13} strokeLinecap="round" />
+        {/* bajo de la camiseta */}
+        <path d="M -0.62 0.62 L 0.62 0.62" stroke="#000" strokeOpacity={0.18} strokeWidth={0.05} />
+      </g>
+    </g>
+  );
+}
+
+// Cuerpo de una ficha en espacio unitario (radio 1): disco liso, con dibujo o camiseta
+function ChipBody({ paint, bn, sw = 0.18 }) {
+  if (bn) return <circle r={1} fill={paint.color} stroke={paint.stroke} strokeWidth={sw} />;
+  if (paint.kit === "camiseta") return <ShirtFace pattern={paint.pattern} color={paint.color} color2={paint.color2} trim={paint.trim} />;
+  if (paint.pattern === "solid") return <circle r={1} fill={paint.color} />;
+  return <ChipFill pattern={paint.pattern} color={paint.color} color2={paint.color2} />;
 }
 
 // Relieve y sombra de las fichas. Todo son degradados y formas (sin filtros SVG) para que se vea igual en pantalla, en el PNG
@@ -365,6 +451,11 @@ export function ChipDefs() {
         <stop offset="0.42" stopColor="#ffffff" stopOpacity="0.05" />
         <stop offset="0.74" stopColor="#000000" stopOpacity="0.06" />
         <stop offset="1" stopColor="#000000" stopOpacity="0.34" />
+      </radialGradient>
+      <radialGradient id="chip-gloss" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stopColor="#ffffff" stopOpacity="0.75" />
+        <stop offset="0.55" stopColor="#ffffff" stopOpacity="0.22" />
+        <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
       </radialGradient>
       <radialGradient id="chip-shadow" cx="0.5" cy="0.5" r="0.5">
         <stop offset="0" stopColor="#000000" stopOpacity="1" />
@@ -481,13 +572,10 @@ function Chip({ el, ctx, c, r, ghost = false, puck = 0 }) {
           {!bn && <path d={`M ${c.x - r} ${c.y} L ${c.x - r} ${gy} A ${r} ${r} 0 0 0 ${c.x + r} ${gy} L ${c.x + r} ${c.y} Z`} fill="url(#puck-side)" />}
         </g>
       )}
-      {paint.pattern === "solid" || bn ? (
-        <circle cx={c.x} cy={c.y} r={r} fill={paint.color} stroke={bn ? paint.stroke : "none"} strokeWidth={sw} />
-      ) : (
-        <g transform={`translate(${c.x} ${c.y}) scale(${r})`}><ChipFill pattern={paint.pattern} color={paint.color} color2={paint.color2} /></g>
-      )}
+      <g transform={`translate(${c.x} ${c.y}) scale(${r})`}><ChipBody paint={paint} bn={bn} sw={sw / r} /></g>
       {el.bib && <g transform={`translate(${c.x} ${c.y}) rotate(${ang}) scale(${r})`}><Bib color={el.bib} bn={bn} /></g>}
       {!bn && <circle cx={c.x} cy={c.y} r={r} fill="url(#chip-shade)" />}
+      {!bn && <ellipse cx={c.x - r * 0.3} cy={c.y - r * 0.42} rx={r * 0.5} ry={r * 0.32} fill="url(#chip-gloss)" />}
       {!bn && <circle cx={c.x} cy={c.y} r={r} fill="none" stroke={paint.stroke} strokeWidth={sw} />}
       {inner && !ghost && (
         <text x={c.x} y={c.y + fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight={800} fill={bib ? bib.text : paint.text} stroke={bib ? bib.halo : paint.halo} strokeWidth={Math.max(0.12, fs * (paint.pattern === "solid" || bn ? 0.09 : 0.16))} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{inner}</text>
@@ -509,13 +597,10 @@ export function ChipGlyph({ board, el, look = "blanco", size = 18 }) {
         <pattern id="bn-dots" width="1.4" height="1.4" patternUnits="userSpaceOnUse"><rect width="1.4" height="1.4" fill="#fff" /><circle cx="0.7" cy="0.7" r="0.3" fill="#111" /></pattern>
         <ChipDefs />
       </defs>
-      {paint.pattern === "solid" || bn ? (
-        <circle r={1} fill={paint.color} stroke={bn ? paint.stroke : "none"} strokeWidth={0.18} />
-      ) : (
-        <ChipFill pattern={paint.pattern} color={paint.color} color2={paint.color2} />
-      )}
+      <ChipBody paint={paint} bn={bn} />
       {el.bib && <Bib color={el.bib} bn={bn} />}
       {!bn && <circle r={1} fill="url(#chip-shade)" />}
+      {!bn && <ellipse cx={-0.3} cy={-0.42} rx={0.5} ry={0.32} fill="url(#chip-gloss)" />}
       {!bn && <circle r={1} fill="none" stroke={paint.stroke} strokeWidth={0.18} />}
     </svg>
   );
@@ -1023,9 +1108,10 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
   const field = fieldOf(board.field);
   const orient = orientOf(board.orient);
   const look = lookOf(board.look);
-  const persp = isPersp(board) ? perspectiveOf(field, orient) : null;
+  const margin = marginOf(look);
+  const persp = isPersp(board) ? perspectiveOf(field, orient, margin) : null;
   // todo el recuadro (campo + margen) y lo que se ve con el zoom guardado en el dibujo
-  const fullVb = persp ? persp.vb : viewBox(field, orient);
+  const fullVb = persp ? persp.vb : viewBox(field, orient, margin);
   const vb = camBox(fullVb, board.cam);
   const V = persp ? (p) => persp.P(toView(field, orient, p)) : (p) => toView(field, orient, p);
   const ctx = { board, field, orient, look, chip: chipOf(board), persp, V };

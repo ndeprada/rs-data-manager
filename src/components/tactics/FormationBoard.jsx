@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import Board from "@/components/board/BoardSvg";
-import { LOOKS, ORIENTS, VIEWS, fieldOf, isPersp, perspectiveOf, toView, viewBox } from "@/lib/board";
+import { LOOKS, ORIENTS, VIEWS, fieldOf, isPersp, marginOf, perspectiveOf, toView, viewBox } from "@/lib/board";
 import { SLOT_PREFIX, formationBoard, formationStyleOf } from "@/lib/tacticsBoard";
 import { playerFullName } from "@/lib/playerName";
 import { useT } from "@/i18n";
@@ -17,8 +17,8 @@ export default function FormationBoard({ formation, assignments, players, f7, st
   const st = formationStyleOf(style);
   const board = useMemo(() => formationBoard({ formation, assignments, players, f7, style }), [formation, assignments, players, f7, style]);
   const field = fieldOf(board.field);
-  const persp = isPersp(board) ? perspectiveOf(field, board.orient) : null;
-  const vb = persp ? persp.vb : viewBox(field, board.orient);
+  const persp = isPersp(board) ? perspectiveOf(field, board.orient, marginOf(board.look)) : null;
+  const vb = persp ? persp.vb : viewBox(field, board.orient, marginOf(board.look));
   const at = (el) => { const v = toView(field, board.orient, el); return persp ? persp.P(v) : v; };
   const pct = (p) => ({ left: `${((p.x - vb[0]) / vb[2]) * 100}%`, top: `${((p.y - vb[1]) / vb[3]) * 100}%` });
   const els = board.frames[0].els;

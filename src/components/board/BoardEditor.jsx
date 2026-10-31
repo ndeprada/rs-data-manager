@@ -3,7 +3,7 @@ import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, Chev
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
-  boardMode, boardSpeed, camOf, panCam, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
+  boardMode, boardSpeed, camOf, panCam, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
   insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph } from "./BoardSvg";
@@ -178,7 +178,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
 
   // ── Puntero ──────────────────────────────────────────────────────────────────────────────────────────────────────
   // En perspectiva, el punto de la pantalla se lleva al suelo deshaciendo la proyección
-  const persp = isPersp(board) ? perspectiveOf(field, orient) : null;
+  const persp = isPersp(board) ? perspectiveOf(field, orient, marginOf(look)) : null;
   const svgPoint = (e) => {
     const svg = svgRef.current;
     const pt = svg.createSVGPoint();
@@ -186,7 +186,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     return pt.matrixTransform(svg.getScreenCTM().inverse());
   };
   // Zoom: lo que se ve sale del zoom guardado en el dibujo (`board.cam`)
-  const fullVb = persp ? persp.vb : viewBox(field, orient);
+  const fullVb = persp ? persp.vb : viewBox(field, orient, marginOf(look));
   const cam = camOf(board);
   const setCam = (c) => { const { cam: _c, ...rest } = live.current; commit(c ? { ...rest, cam: c } : rest, { key: "cam" }); };
   const zoomTo = (z, at) => setCam(zoomCam(fullVb, camOf(live.current), z, at));

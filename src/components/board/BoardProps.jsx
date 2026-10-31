@@ -1,8 +1,9 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { AIR_MAX, BALL_PATTERNS, CHIP_PATTERNS, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, LADDER_RUNGS, arrowPath, arrowProps, ballStyle, chipOf, chipStyle, contrastColor, defaultControl, firstBend, hasVia, ladderRungs, linkProps, materialOf, teamsOf, zoneShapePatch } from "@/lib/board";
+import { AIR_MAX, BALL_PATTERNS, CHIP_KINDS, CHIP_PATTERNS, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, LADDER_RUNGS, arrowPath, arrowProps, ballStyle, chipOf, chipStyle, contrastColor, defaultControl, firstBend, hasVia, ladderRungs, linkProps, materialOf, teamsOf, zoneShapePatch } from "@/lib/board";
 import { ChipGlyph, styleOf } from "./BoardSvg";
 import { ColorPick, NO_FILL, Row, Seg, Slider, Toggle } from "./BoardControls";
+import BoardKitPicker from "./BoardKitPicker";
 
 // Panel de propiedades de la pizarra: según lo que esté seleccionado (o la herramienta activa, para lo siguiente que se
 // dibuje) se puede cambiar tamaño, color, trazo, borde, transparencia, tipografía…
@@ -41,6 +42,7 @@ function TeamBlock({ el, brush, board, look, patch, patchTeam, setChip, setFeet,
   // Los deslizadores hablan en porcentaje (100 % = tamaño por defecto)
   const base = chipOf(board);
   const pctAll = Math.round((base / DEFAULT_CHIP) * 100);
+  const [kits, setKits] = React.useState(false);
   return (
     <>
       {!brush && (
@@ -59,7 +61,17 @@ function TeamBlock({ el, brush, board, look, patch, patchTeam, setChip, setFeet,
         <ChipGlyph board={board} el={{ team: team.id }} look={look} size={22} />
         <Input value={team.name} onChange={(e) => patchTeam(team.id, { name: e.target.value })} className="h-7 w-32 text-xs" aria-label="Nombre del equipo" title="Nombre del equipo" />
         {canRemoveTeam && <button type="button" className={`${plainBtn} text-red-600`} onClick={() => onRemoveTeam(team.id)}>Quitar este equipo</button>}
+        {!bn && (
+          <button type="button" className={`${plainBtn} ${kits ? "!bg-[#0f1a2e] !text-[#f2c55c] !border-[#0f1a2e]" : ""}`} onClick={() => setKits((v) => !v)} aria-expanded={kits} data-testid="kit-open">
+            Equipaciones
+          </button>
+        )}
       </Row>
+      {!bn && kits && (
+        <Row>
+          <BoardKitPicker team={{ ...team, ...shown }} look={look} onPick={(p) => write(p)} />
+        </Row>
+      )}
       {bn ? (
         <p className="text-[11px] text-gray-500">En blanco y negro cada equipo se distingue por su relleno (negro, blanco, gris, rayas…); los colores se ven al cambiar de modo.</p>
       ) : (
@@ -69,6 +81,8 @@ function TeamBlock({ el, brush, board, look, patch, patchTeam, setChip, setFeet,
             {CHIP_PATTERNS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
           {shown.pattern !== "solid" && <ColorPick value={shown.color2} onChange={(c) => write({ color2: c })} label="Segundo color" wide />}
+          <Seg label="Forma" value={shown.kit} options={CHIP_KINDS} onChange={(v) => write({ kit: v, ...(v === "camiseta" && !team.trim ? { trim: shown.color2 } : {}) })} />
+          {shown.kit === "camiseta" && <ColorPick value={shown.trim} onChange={(c) => write({ trim: c })} label="Cuello y puños" wide />}
           <ColorPick value={team.stroke || ""} onChange={(c) => write({ stroke: c || undefined })} label="Borde" auto="Por defecto" autoSwatch={styleOf(look).chipStroke} wide />
         </Row>
       )}

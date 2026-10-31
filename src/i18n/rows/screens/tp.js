@@ -25,4 +25,6 @@ export default [
   ["Verde (franjas)", "Green (stripes)", "Vert (bandes)", "Verd (franges)"],
   ["Verde (cuadrícula)", "Green (checks)", "Vert (damier)", "Verd (quadrícula)"],
   ["Blanco y negro (impresión)", "Black and white (print)", "Noir et blanc (impression)", "Blanc i negre (impressió)"],
+  ["Estadio (césped verde)", "Stadium (green grass)", "Stade (gazon vert)", "Estadi (gespa verda)"],
+  ["Estadio (noche)", "Stadium (night)", "Stade (nuit)", "Estadi (nit)"],
 ];
