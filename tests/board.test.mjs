@@ -1081,3 +1081,15 @@ test("estadio: más margen alrededor del campo para las gradas, en plano y en pe
   const back = p.inv(p.P({ x: 30, y: 50 }));
   assert.ok(Math.abs(back.x - 30) < 1e-6 && Math.abs(back.y - 50) < 1e-6);
 });
+
+test("estadio: se pueden quitar las gradas y las vallas, y el margen se ajusta; el dibujo guarda la elección", () => {
+  assert.equal(BS.marginOf("estadio", {}), BS.STADIUM_MARGIN);
+  assert.equal(BS.marginOf("estadio", { stands: false }), 5.5, "sin gradas, solo las vallas");
+  assert.equal(BS.marginOf("estadio", { stands: false, ads: false }), 3);
+  assert.equal(BS.marginOf("blanco", { stands: true }), 3, "fuera del estadio no cambia nada");
+  const n = BS.normalizeBoard({ v: 2, field: "full", look: "estadio", stands: false, ads: false, frames: [{ id: "f", els: [] }] });
+  assert.equal(n.stands, false);
+  assert.equal(n.ads, false);
+  assert.equal("stands" in BS.normalizeBoard({ v: 2, field: "full", look: "estadio", frames: [{ id: "f", els: [] }] }), false, "por defecto, con gradas");
+  assert.ok(BS.AD_PANELS.some((p) => p.text === "RS MANAGER"));
+});

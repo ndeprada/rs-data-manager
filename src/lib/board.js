@@ -36,8 +36,22 @@ export const DEFAULT_LOOK = "blanco";
 export const lookOf = (id) => LOOKS.find((l) => l.id === id)?.id || DEFAULT_LOOK;
 // Modos «estadio» (como FmStadio): césped a cuadros y gradas alrededor, por eso llevan más margen alrededor del campo (m)
 export const isStadium = (look) => look === "estadio" || look === "estadio-noche";
-export const STADIUM_MARGIN = 10;
-export const marginOf = (look) => (isStadium(lookOf(look)) ? STADIUM_MARGIN : 3);
+// En los modos estadio se pueden quitar las gradas (`board.stands === false`) y las vallas publicitarias (`board.ads === false`)
+export const STADIUM_MARGIN = 13;
+export const hasStands = (b) => b?.stands !== false;
+export const hasAds = (b) => b?.ads !== false;
+export function marginOf(look, b = null) {
+  if (!isStadium(lookOf(look))) return 3;
+  if (hasStands(b)) return STADIUM_MARGIN;
+  return hasAds(b) ? 5.5 : 3;
+}
+// Vallas publicitarias alrededor del campo (modos estadio): la app y los patrocinadores del club, en este orden y repetidos
+export const AD_PANELS = [
+  { text: "RS MANAGER", bg: "#73000A", ink: "#ffffff" },
+  { text: "CHALITO", bg: "#ffffff", ink: "#73000A" },
+  { text: "RACING SARRIÀ", bg: "#36000D", ink: "#FF6E00" },
+  { text: "BPV", bg: "#FF6E00", ink: "#ffffff" },
+];
 
 // Equipos: cuatro de partida (granate, azul, amarillo y verde de portero), todos con nombre y color libres, y se pueden crear
 // más (hasta MAX_TEAMS). `n` (Neutro) es de los dibujos antiguos: solo aparece si hay fichas que lo usan.
@@ -241,6 +255,8 @@ export function normalizeBoard(value) {
       ...(Array.isArray(value.teams) ? { teams: value.teams } : {}),
       ...(value.chipSize ? { chipSize: value.chipSize } : {}),
       ...(value.view === "persp" ? { view: "persp" } : {}),
+      ...(value.stands === false ? { stands: false } : {}),
+      ...(value.ads === false ? { ads: false } : {}),
       ...(camOf(value).z > 1 ? { cam: camOf(value) } : {}),
       frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [] })),
     };

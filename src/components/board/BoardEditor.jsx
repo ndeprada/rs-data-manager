@@ -4,7 +4,7 @@ import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, Chev
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
-  boardMode, boardSpeed, camOf, panCam, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
+  boardMode, boardSpeed, camOf, panCam, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
   insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
@@ -192,7 +192,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
 
   // ── Puntero ──────────────────────────────────────────────────────────────────────────────────────────────────────
   // En perspectiva, el punto de la pantalla se lleva al suelo deshaciendo la proyección
-  const persp = isPersp(board) ? perspectiveOf(field, orient, marginOf(look)) : null;
+  const persp = isPersp(board) ? perspectiveOf(field, orient, marginOf(look, board)) : null;
   const svgPoint = (e) => {
     const svg = svgRef.current;
     const pt = svg.createSVGPoint();
@@ -200,7 +200,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     return pt.matrixTransform(svg.getScreenCTM().inverse());
   };
   // Zoom: lo que se ve sale del zoom guardado en el dibujo (`board.cam`)
-  const fullVb = persp ? persp.vb : viewBox(field, orient, marginOf(look));
+  const fullVb = persp ? persp.vb : viewBox(field, orient, marginOf(look, board));
   const cam = camOf(board);
   const setCam = (c) => { const { cam: _c, ...rest } = live.current; commit(c ? { ...rest, cam: c } : rest, { key: "cam" }); };
   const zoomTo = (z, at) => setCam(zoomCam(fullVb, camOf(live.current), z, at));
@@ -799,6 +799,23 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           </select>
         </label>
       </div>
+      {isStadium(look) && (
+        <div className="space-y-1" data-testid="board-stadium">
+          <span className="text-[11px] font-semibold text-gray-600">Estadio</span>
+          <div className="flex flex-wrap gap-1">
+            {[
+              { id: "stands", label: "Gradas", on: hasStands(board) },
+              { id: "ads", label: "Vallas publicitarias", on: hasAds(board) },
+            ].map((o) => (
+              <button key={o.id} type="button" aria-pressed={o.on} data-testid={`toggle-${o.id}`}
+                onClick={() => { const { [o.id]: _x, ...rest } = live.current; commit(o.on ? { ...rest, [o.id]: false } : rest); }}
+                className={`h-8 px-2.5 rounded-md border text-xs font-semibold ${o.on ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>
+                {o.on ? "✓ " : ""}{o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {modes && (
         <div className="space-y-1" data-testid="board-mode">
           <span className="text-[11px] font-semibold text-gray-600">Tipo de dibujo</span>

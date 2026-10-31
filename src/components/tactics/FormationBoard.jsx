@@ -17,8 +17,8 @@ export default function FormationBoard({ formation, assignments, players, f7, st
   const st = formationStyleOf(style);
   const board = useMemo(() => formationBoard({ formation, assignments, players, f7, style }), [formation, assignments, players, f7, style]);
   const field = fieldOf(board.field);
-  const persp = isPersp(board) ? perspectiveOf(field, board.orient, marginOf(board.look)) : null;
-  const vb = persp ? persp.vb : viewBox(field, board.orient, marginOf(board.look));
+  const persp = isPersp(board) ? perspectiveOf(field, board.orient, marginOf(board.look, board)) : null;
+  const vb = persp ? persp.vb : viewBox(field, board.orient, marginOf(board.look, board));
   const at = (el) => { const v = toView(field, board.orient, el); return persp ? persp.P(v) : v; };
   const pct = (p) => ({ left: `${((p.x - vb[0]) / vb[2]) * 100}%`, top: `${((p.y - vb[1]) / vb[3]) * 100}%` });
   const els = board.frames[0].els;

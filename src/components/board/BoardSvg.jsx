@@ -1,7 +1,7 @@
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, camBox, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  isGroundEl, isPersp, marginOf, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
+  isGroundEl, isPersp, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -30,12 +30,12 @@ const COLOR = {
 const ESTADIO = {
   ...COLOR, bg: "#3d8b5f", margin: "#3d8b5f", stripe: null, check: "rgba(255,255,255,0.065)", line: "rgba(255,255,255,0.95)", lineW: 0.3, chipStroke: null, shadow: 0.4,
   surround: "#0d2a1f",
-  stadium: { outer: "#0d2a1f", rows: ["#13452f", "#1a5a3c", "#13452f", "#1d6342"], seat: "#2f8a5c", track: "#24352f", boards: "#cfd6d8", boardsLine: "#9aa5a8" },
+  stadium: { outer: "#0b2219", roof: "#1b2420", roofLine: "#56635d", riser: "#0f3324", riserLine: "rgba(0,0,0,0.35)", seats: ["#1f7a4f", "#238556", "#1c6f48", "#26905c"], aisle: "#6b7671", concourse: "#2b3330", track: "#26332d", boards: "#dfe4e6" },
 };
 const NOCHE = {
   ...ESTADIO, bg: "#2c3374", margin: "#2c3374", check: "rgba(255,255,255,0.055)",
   surround: "#0a1124",
-  stadium: { outer: "#0a1124", rows: ["#161d3d", "#1d2550", "#161d3d", "#202a58"], seat: "#3a4682", track: "#1a2140", boards: "#3b4577", boardsLine: "#5b6697" },
+  stadium: { outer: "#080d1d", roof: "#121729", roofLine: "#3d4566", riser: "#141a38", riserLine: "rgba(0,0,0,0.4)", seats: ["#2c3878", "#33418a", "#28336e", "#3a4996"], aisle: "#545d80", concourse: "#1c2136", track: "#1a2038", boards: "#c9cfdc" },
 };
 const STYLE = {
   estadio: ESTADIO,
@@ -133,36 +133,130 @@ function Lines({ field, s }) {
 }
 
 
-// ── Estadio (modos «estadio»): gradas alrededor del campo, en coordenadas del campo (vertical) ─────────────────────────
+// ── Estadio (modos «estadio»): gradas y vallas alrededor del campo, en coordenadas del campo (vertical) ────────────────
 // Rectángulo de esquinas redondeadas a `d` m por fuera de las líneas (las esquinas se abren más cuanto más lejos)
+const cornerR = (d) => 2.5 + d * 0.85;
 function roundRect(field, d) {
-  const r = 2.5 + d * 0.85, x0 = -d, y0 = -d, x1 = field.w + d, y1 = field.h + d;
-  const arc = (cx, cy, a0) => Array.from({ length: 7 }, (_, i) => { const a = ((a0 + i * 15) * Math.PI) / 180; return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r }; });
+  const r = cornerR(d), x0 = -d, y0 = -d, x1 = field.w + d, y1 = field.h + d;
+  const arc = (cx, cy, a0) => Array.from({ length: 10 }, (_, i) => { const a = ((a0 + i * 10) * Math.PI) / 180; return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r }; });
   return [...arc(x1 - r, y0 + r, -90), ...arc(x1 - r, y1 - r, 0), ...arc(x0 + r, y1 - r, 90), ...arc(x0 + r, y0 + r, 180)];
 }
-// Partes del estadio, de fuera adentro: filas de asientos, pasillo, vallas publicitarias y césped de alrededor
-export function stadiumParts(field, margin) {
-  const rows = [];
-  const step = 0.9;
-  for (let d = margin - 0.2, i = 0; d > 3.9; d -= step, i++) rows.push({ d, i, pts: roundRect(field, d), seats: roundRect(field, d - step / 2) });
-  return { rows, track: roundRect(field, 3.9), boards: roundRect(field, 3.2), apron: roundRect(field, 2.6) };
+// Los cuatro lados rectos a una distancia d: inicio, dirección (unitaria), largo y ángulo base del texto (para leerlo de frente)
+function straightSides(field, d) {
+  const r = cornerR(d), W = field.w, H = field.h;
+  return [
+    { id: "top", p: { x: -d + r, y: -d }, u: { x: 1, y: 0 }, n: { x: 0, y: -1 }, len: W + 2 * d - 2 * r, angle: 0 },
+    { id: "right", p: { x: W + d, y: -d + r }, u: { x: 0, y: 1 }, n: { x: 1, y: 0 }, len: H + 2 * d - 2 * r, angle: 90 },
+    { id: "bottom", p: { x: W + d - r, y: H + d }, u: { x: -1, y: 0 }, n: { x: 0, y: 1 }, len: W + 2 * d - 2 * r, angle: 0 },
+    { id: "left", p: { x: -d, y: H + d - r }, u: { x: 0, y: -1 }, n: { x: -1, y: 0 }, len: H + 2 * d - 2 * r, angle: 90 },
+  ];
+}
+// Cuadrilátero de un tramo de lado: de `a` a `b` m a lo largo del lado (medidos en la distancia `d`), entre las distancias d0 y d1
+function sideQuad(sd, a, b, d0, d1, dRef) {
+  const at = (t, d) => ({ x: sd.p.x + sd.u.x * t + sd.n.x * (d - dRef), y: sd.p.y + sd.u.y * t + sd.n.y * (d - dRef) });
+  return [at(a, d0), at(b, d0), at(b, d1), at(a, d1)];
+}
+// Geometría del estadio: anillo de arriba (cubierta y grada alta), pasillo, grada baja, foso, vallas y césped
+export const STAND = { apron: 2.6, ads: 4.0, track: 4.8, lowTop: 9.0, ring: 9.6, upTop: 12.3, roof: 12.8, row: 0.7 };
+export function stadiumParts(field, { stands = true, ads = true } = {}) {
+  const S = STAND;
+  const rowsOf = (d0, d1) => { const out = []; for (let d = d0 + S.row / 2, i = 0; d < d1; d += S.row, i++) out.push({ d, i, pts: roundRect(field, d) }); return out; };
+  const aislesOf = (d0, d1) => {
+    const out = [];
+    for (const sd of straightSides(field, d1)) {
+      const n = Math.max(2, Math.round(sd.len / 13));
+      for (let k = 1; k < n; k++) { const t = (sd.len * k) / n; out.push(sideQuad(sd, t - 0.55, t + 0.55, d0, d1, d1)); }
+    }
+    return out;
+  };
+  const panels = [];
+  if (ads) {
+    let j = 0;
+    for (const sd of straightSides(field, S.ads)) {
+      const n = Math.max(1, Math.round(sd.len / 10));
+      const len = sd.len / n;
+      for (let k = 0; k < n; k++, j++) {
+        const pts = sideQuad(sd, k * len + 0.08, (k + 1) * len - 0.08, S.apron + 0.05, S.ads - 0.05, S.ads);
+        const mid = { x: (pts[0].x + pts[1].x + pts[2].x + pts[3].x) / 4, y: (pts[0].y + pts[1].y + pts[2].y + pts[3].y) / 4 };
+        panels.push({ pts, mid, angle: sd.angle, horizontal: sd.angle === 0, len, ...AD_PANELS[j % AD_PANELS.length] });
+      }
+    }
+  }
+  return stands
+    ? { stands: true, roof: roundRect(field, S.roof), upper: roundRect(field, S.upTop), upRows: rowsOf(S.ring, S.upTop), upAisles: aislesOf(S.ring, S.upTop), ring: roundRect(field, S.ring), lower: roundRect(field, S.lowTop), lowRows: rowsOf(S.track, S.lowTop), lowAisles: aislesOf(S.track, S.lowTop), track: roundRect(field, S.track), boards: ads ? roundRect(field, S.ads) : null, apron: roundRect(field, S.apron), panels }
+    : { stands: false, boards: ads ? roundRect(field, S.ads) : null, apron: roundRect(field, S.apron), panels };
 }
 const ptsPath = (pts, T = (p) => p) => pts.map(T).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + " Z";
-function Stadium({ field, s, margin, T }) {
+// En perspectiva las vallas están de pie: el borde del lado del campo, levantado su altura (a la escala de su profundidad)
+const BOARD_H = 1.25;
+function standingBoard(pn, T, textAt) {
+  const a = T(pn.pts[0]), b = T(pn.pts[1]);
+  const ka = textAt(pn.pts[0]).k, kb = textAt(pn.pts[1]).k;
+  return `M ${a.x.toFixed(2)} ${a.y.toFixed(2)} L ${b.x.toFixed(2)} ${b.y.toFixed(2)} L ${b.x.toFixed(2)} ${(b.y - BOARD_H * kb).toFixed(2)} L ${a.x.toFixed(2)} ${(a.y - BOARD_H * ka).toFixed(2)} Z`;
+}
+// Ángulo del texto de una valla para que se lea derecho en pantalla, sea cual sea la orientación del campo
+const uprightAngle = (base, oa) => { const sc = (((base + oa + 180) % 360) + 360) % 360 - 180; return sc > 90 || sc <= -90 ? base + 180 : base; };
+function Stadium({ field, s, board, orient, T, textAt }) {
   const st = s.stadium;
-  const parts = stadiumParts(field, margin);
+  const parts = stadiumParts(field, { stands: hasStands(board), ads: hasAds(board) });
+  const P = (pts) => ptsPath(pts, T);
+  const seats = (rows, key) => rows.map((r) => (
+    <g key={`${key}${r.i}`}>
+      <path d={P(r.pts)} fill="none" stroke={st.seats[r.i % st.seats.length]} strokeWidth={0.46} strokeDasharray="0.4 0.13" />
+      <path d={P(roundRect(field, r.d + STAND.row / 2))} fill="none" stroke={st.riserLine} strokeWidth={0.07} />
+    </g>
+  ));
+  const aisles = (list, key) => list.map((q, i) => <path key={`${key}${i}`} d={P(q)} fill={st.aisle} />);
+  const oa = orientAngle(orient);
+  // En perspectiva, las vallas del fondo (las que se ven de frente) se dibujan de pie, por encima del césped; las demás, en el suelo
+  const centerY = textAt ? textAt({ x: field.w / 2, y: field.h / 2 }).y : 0;
+  const standing = (pn) => {
+    if (!textAt) return false;
+    const a = T(pn.pts[0]), b = T(pn.pts[1]);
+    return Math.abs(b.x - a.x) > Math.abs(b.y - a.y) * 1.5 && textAt(pn.mid).y < centerY;
+  };
+  const flatPanels = parts.panels.filter((pn) => !standing(pn));
+  const standPanels = parts.panels.filter(standing);
+  const drawPanel = (pn) => {
+    const up = standing(pn);
+    const at = up ? textAt({ x: (pn.pts[0].x + pn.pts[1].x) / 2, y: (pn.pts[0].y + pn.pts[1].y) / 2 }) : textAt ? textAt(pn.mid) : { x: pn.mid.x, y: pn.mid.y, k: 1 };
+    const fs = (up ? 0.78 : 0.62) * at.k;
+    // en el suelo y en perspectiva solo se escribe en las vallas de delante (las de los lados quedan de canto)
+    const flatText = !textAt || (() => { const a = T(pn.pts[0]), b = T(pn.pts[1]); return Math.abs(b.x - a.x) > Math.abs(b.y - a.y) * 1.5; })();
+    return (
+      <g key={`ad${pn.text}${pn.mid.x.toFixed(1)}${pn.mid.y.toFixed(1)}`}>
+        {up ? <path d={standingBoard(pn, T, textAt)} fill={pn.bg} stroke="rgba(0,0,0,0.3)" strokeWidth={0.06} /> : <path d={P(pn.pts)} fill={pn.bg} stroke="rgba(0,0,0,0.25)" strokeWidth={0.05} />}
+        {(up || flatText) && (
+          <text x={at.x} y={up ? at.y - BOARD_H * at.k * 0.5 + fs * 0.36 : at.y + fs * 0.36} fontSize={fs} fontWeight={800} fill={pn.ink} textAnchor="middle" letterSpacing={fs * 0.08}
+            transform={textAt ? undefined : `rotate(${uprightAngle(pn.angle, oa)} ${at.x} ${at.y})`} style={{ fontFamily: "Arial, sans-serif" }}>{pn.text}</text>
+        )}
+      </g>
+    );
+  };
   return (
     <g>
-      {parts.rows.map((r) => <path key={`r${r.i}`} d={ptsPath(r.pts, T)} fill={st.rows[r.i % st.rows.length]} />)}
-      {parts.rows.map((r) => <path key={`s${r.i}`} d={ptsPath(r.seats, T)} fill="none" stroke={st.seat} strokeWidth={0.5} strokeDasharray="0.5 0.22" />)}
-      <path d={ptsPath(parts.track, T)} fill={st.track} />
-      <path d={ptsPath(parts.boards, T)} fill={st.boards} stroke={st.boardsLine} strokeWidth={0.12} />
-      <path d={ptsPath(parts.apron, T)} fill={s.bg} />
+      {parts.stands && (
+        <>
+          <path d={P(parts.roof)} fill={st.roof} />
+          <path d={P(parts.upper)} fill={st.riser} stroke={st.roofLine} strokeWidth={0.12} />
+          {seats(parts.upRows, "u")}
+          {aisles(parts.upAisles, "ua")}
+          <path d={P(parts.ring)} fill={st.concourse} />
+          <path d={P(parts.lower)} fill={st.riser} stroke={st.riserLine} strokeWidth={0.1} />
+          {seats(parts.lowRows, "l")}
+          {aisles(parts.lowAisles, "la")}
+          <path d={P(parts.track)} fill={st.track} />
+        </>
+      )}
+      {parts.boards && <path d={P(parts.boards)} fill={st.boards} />}
+      {flatPanels.map(drawPanel)}
+      <path d={P(parts.apron)} fill={s.bg} />
+      {standPanels.map(drawPanel)}
     </g>
   );
 }
 
-function Field({ field, orient, look, vb }) {
+function Field({ field, orient, look, vb, board }) {
   const s = styleOf(look);
   const bands = [];
   if (s.stripe) for (let y = 0; y < field.h; y += 14) bands.push(<rect key={y} x={0} y={y} width={field.w} height={Math.min(7, field.h - y)} fill={s.stripe} />);
@@ -172,9 +266,9 @@ function Field({ field, orient, look, vb }) {
   const checkId = `chk-${lookOf(look)}-${field.w}`;
   return (
     <>
-      <rect x={vb[0]} y={vb[1]} width={vb[2]} height={vb[3]} fill={free ? s.bg : s.stadium ? s.stadium.outer : s.margin || s.bg} />
+      <rect x={vb[0]} y={vb[1]} width={vb[2]} height={vb[3]} fill={free ? s.bg : s.stadium && hasStands(board) ? s.stadium.outer : s.margin || s.bg} />
       <g transform={fieldTurn(field, orient)}>
-        {!free && s.stadium && <Stadium field={field} s={s} margin={marginOf(look)} />}
+        {!free && s.stadium && <Stadium field={field} s={s} board={board} orient={orient} />}
         {free ? null : <rect x={0} y={0} width={field.w} height={field.h} fill={s.bg} />}
         {free ? null : bands}
         {!free && s.check && (
@@ -231,12 +325,14 @@ export function fieldShapes(field) {
   if (field.id === "tq") line([{ x: 0, y: h }, { x: w, y: h }]);
   return out;
 }
-function FieldPersp({ field, orient, look, vb, persp }) {
+function FieldPersp({ field, orient, look, vb, persp, board }) {
   const s = styleOf(look);
   const free = field.id === "free";
   const T = (p) => persp.P(toView(field, orient, p));
+  // texto de las vallas en perspectiva: en su sitio y a la escala de su profundidad (solo en las vallas que se ven de frente)
+  const textAt = (p) => { const v = toView(field, orient, p); const q = persp.P(v); return { x: q.x, y: q.y, k: persp.scaleAt(v) }; };
   const poly = (pts, closed) => pts.map(T).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + (closed ? " Z" : "");
-  const [x0, y0, W, H] = viewBox(field, orient, marginOf(look));
+  const [x0, y0, W, H] = viewBox(field, orient, marginOf(look, board));
   const ground = [{ x: x0, y: y0 }, { x: x0 + W, y: y0 }, { x: x0 + W, y: y0 + H }, { x: x0, y: y0 + H }].map(persp.P);
   const tqH = field.id === "tq";
   const clipId = `pclip-${field.id}-${orient}`;
@@ -252,10 +348,10 @@ function FieldPersp({ field, orient, look, vb, persp }) {
   return (
     <>
       <rect x={vb[0]} y={vb[1]} width={vb[2]} height={vb[3]} fill={free ? s.bg : s.stadium ? s.stadium.outer : s.margin || s.bg} />
-      <polygon points={ground.map((q) => `${q.x},${q.y}`).join(" ")} fill={free ? s.bg : s.stadium ? s.stadium.outer : s.margin || s.bg} />
+      <polygon points={ground.map((q) => `${q.x},${q.y}`).join(" ")} fill={free ? s.bg : s.stadium && hasStands(board) ? s.stadium.outer : s.margin || s.bg} />
       {!free && (
         <>
-          {s.stadium && <Stadium field={field} s={s} margin={marginOf(look)} T={T} />}
+          {s.stadium && <Stadium field={field} s={s} board={board} orient={orient} T={T} textAt={textAt} />}
           <defs><clipPath id={clipId}><path d={fieldPoly} /></clipPath></defs>
           <path d={fieldPoly} fill={s.bg} />
           {bands}
@@ -1108,7 +1204,7 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
   const field = fieldOf(board.field);
   const orient = orientOf(board.orient);
   const look = lookOf(board.look);
-  const margin = marginOf(look);
+  const margin = marginOf(look, board);
   const persp = isPersp(board) ? perspectiveOf(field, orient, margin) : null;
   // todo el recuadro (campo + margen) y lo que se ve con el zoom guardado en el dibujo
   const fullVb = persp ? persp.vb : viewBox(field, orient, margin);
@@ -1130,7 +1226,7 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
         <ChipDefs />
         <clipPath id="tq-clip"><rect x="-3" y="-3" width={field.w + 6} height={field.h + 3} /></clipPath>
       </defs>
-      {persp ? <FieldPersp field={field} orient={orient} look={look} vb={fullVb} persp={persp} /> : <Field field={field} orient={orient} look={look} vb={fullVb} />}
+      {persp ? <FieldPersp field={field} orient={orient} look={look} vb={fullVb} persp={persp} board={board} /> : <Field field={field} orient={orient} look={look} vb={fullVb} board={board} />}
       {ghosts.map((g) => {
         const a = V(g.from), b = V(g.to);
         const ghost = { ...g, x: g.from.x, y: g.from.y };
