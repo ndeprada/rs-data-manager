@@ -98,7 +98,8 @@ test("borrar, duplicar y reordenar fotogramas", () => {
   assert.equal(moveFrame(b, 0, -1).index, 0);
   const d = duplicateFrame(addElement(b, 0, arrow("a1")), 0);
   assert.equal(d.board.frames.length, 4);
-  assert.notEqual(d.board.frames[1].els.find((e) => e.k === "arrow").id, "a1");
+  // la copia conserva el id de flechas, zonas y textos: así, si se mueven en la copia, se deslizan al reproducir
+  assert.equal(d.board.frames[1].els.find((e) => e.k === "arrow").id, "a1");
   const r = removeFrame(b, 1);
   assert.equal(r.board.frames.length, 2);
 });
@@ -1016,4 +1017,48 @@ test("girar varias fichas a la vez", async () => {
   const w = B.turnElements(b, 0, ["a", "b"], { toward: 90 });
   assert.equal(B.faceOf(w.frames[0].els[0]) + B.orientAngle("h"), 90);
   assert.equal(B.turnElements(w, 0, ["a", "b"], { toward: 90 }), w, "sin cambios devuelve el mismo");
+});
+
+// ── Flechas con quiebros y formas que se mueven (31/10/2026) ──────────────────────────────────────────────────────
+import { arrowCorners, arrowPath, firstBend, insertVia, removeVia, hasVia } from "../src/lib/board.js";
+
+test("flecha con quiebros: puntos, esquinas exactas y edición", () => {
+  const a = { id: "q", k: "arrow", x1: 0, y1: 0, x2: 20, y2: 0, via: [{ x: 10, y: 10 }] };
+  assert.equal(arrowPath(a), "poly");
+  const pts = arrowPoints(a, 24);
+  assert.deepEqual(pts[0], { x: 0, y: 0 });
+  assert.deepEqual(pts[pts.length - 1], { x: 20, y: 0 });
+  assert.ok(pts.some((p) => Math.abs(p.x - 10) < 1e-9 && Math.abs(p.y - 10) < 1e-9), "la esquina sale exacta");
+  const two = { ...a, ...insertVia(a, 1) };
+  assert.equal(two.via.length, 2);
+  assert.deepEqual(two.via[1], { x: 15, y: 5 });
+  assert.equal(arrowCorners(two).length, 4);
+  assert.equal(hasVia({ ...a, ...removeVia(a, 0) }), false);
+  const moved = shiftElement(a, 2, 3);
+  assert.deepEqual(moved.via, [{ x: 12, y: 13 }]);
+  const scaled = changeField({ v: 2, field: "full", frames: [{ id: "f", els: [a] }] }, "half").frames[0].els[0];
+  assert.equal(scaled.via[0].y, 5);
+  const fb = firstBend({ x1: 0, y1: 0, x2: 10, y2: 0 });
+  assert.deepEqual(fb, { x: 5, y: 2.2 });
+});
+
+test("animación: flechas, zonas y textos con el mismo id se deslizan; una flecha nueva se dibuja", () => {
+  const z1 = { id: "z", k: "zone", shape: "rect", x: 0, y: 0, w: 10, h: 10 };
+  const z2 = { ...z1, x: 20 };
+  const t1 = { id: "t", k: "text", x: 0, y: 0, text: "A" };
+  const ar = { id: "n", k: "arrow", x1: 0, y1: 0, x2: 10, y2: 0 };
+  const mid = lerpFrames({ els: [z1, t1] }, { els: [z2, { ...t1, x: 10 }, ar] }, 0.5);
+  const z = mid.find((e) => e.id === "z");
+  assert.equal(z.x, 10);
+  assert.equal(z.opacity, 1);
+  assert.equal(mid.find((e) => e.id === "t").x, 5);
+  const n = mid.find((e) => e.id === "n");
+  assert.equal(n.reveal, 0.5);
+  assert.equal(mid.filter((e) => e.id === "z").length, 1, "sin duplicados");
+  // una flecha recta que pasa a tener quiebros se va doblando
+  const p0 = { ...ar }, p1 = { ...ar, via: [{ x: 5, y: 6 }] };
+  const half = lerpFrames({ els: [p0] }, { els: [p1] }, 0.5).find((e) => e.id === "n");
+  assert.ok(hasVia(half));
+  const peak = Math.max(...arrowPoints(half, 24).map((p) => p.y));
+  assert.ok(peak > 2 && peak < 4, `a medio camino (${peak})`);
 });

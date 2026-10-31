@@ -6,7 +6,7 @@
 // Unidades de campo: metros. Eje x a lo ancho, eje y a lo largo (portería a atacar arriba, y=0).
 
 export const BOARD_VERSION = 2;
-export const MAX_FRAMES = 12;
+export const MAX_FRAMES = 60;
 
 // Medidas en metros. Fútbol 11: 105 × 68. Fútbol 7: 65 × 45 (máximo de las Normas Reguladoras de Fútbol 7 de la RFEF).
 // «3/4 de campo» es el campo completo sin el último cuarto (se ve la línea de medio campo y el círculo, sin línea de fondo
@@ -260,11 +260,12 @@ export function addFrame(board, after = board.frames.length - 1) {
   return { board: { ...board, frames }, index: after + 1 };
 }
 
-// Copia exacta del fotograma (también las anotaciones, con ids nuevos).
+// Copia exacta del fotograma, también las flechas, zonas y textos con el MISMO id: así, si en la copia se mueven o se cambian,
+// al reproducir se deslizan de una posición a otra (como las fichas).
 export function duplicateFrame(board, index) {
   if (board.frames.length >= MAX_FRAMES) return { board, index };
   const src = board.frames[index];
-  const els = clone(src.els).map((e) => (isCarried(e) ? e : { ...e, id: newId() }));
+  const els = clone(src.els);
   const frames = [...board.frames];
   frames.splice(index + 1, 0, { id: newId(), els });
   return { board: { ...board, frames }, index: index + 1 };
@@ -293,6 +294,7 @@ export function changeField(board, id) {
     if (e.k === "arrow") {
       const o = { ...e, x1: round(e.x1 * kx), y1: round(e.y1 * ky), x2: round(e.x2 * kx), y2: round(e.y2 * ky) };
       if (e.cx != null) { o.cx = round(e.cx * kx); o.cy = round(e.cy * ky); }
+      if (hasVia(e)) o.via = e.via.map((q) => ({ x: round(q.x * kx), y: round(q.y * ky) }));
       return o;
     }
     if (e.k === "link") return e;
@@ -358,16 +360,60 @@ const lerpAngle = (a, b, k) => a + (((b - a + 540) % 360) - 180) * k;
 
 export const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2);
 
+// Forma intermedia de una flecha, zona o texto que está en los dos fotogramas (mismo id): se desliza de una a otra.
+const mix = (a, b, k) => a + (b - a) * k;
+const mixPt = (p, q, k) => ({ x: mix(p.x, q.x, k), y: mix(p.y, q.y, k) });
+function lerpShape(e, n, k) {
+  if (e.k !== n.k) return k < 0.5 ? e : n;
+  const base = k < 0.5 ? e : n; // estilo (color, trazo…) del más cercano
+  if (e.k === "arrow") {
+    const o = { ...base, x1: mix(e.x1, n.x1, k), y1: mix(e.y1, n.y1, k), x2: mix(e.x2, n.x2, k), y2: mix(e.y2, n.y2, k) };
+    const ce = arrowPath(e), cn = arrowPath(n);
+    if (ce === "poly" || cn === "poly") {
+      // mismos quiebros: se mueven; si no, se reparte el recorrido de cada uno y se mezclan punto a punto
+      if (ce === cn && e.via.length === n.via.length) o.via = e.via.map((q, i) => mixPt(q, n.via[i], k));
+      else {
+        const pe = arrowPoints(e, 12), pn = arrowPoints(n, 12);
+        const at = (pts, i) => pts[Math.round((i / 12) * (pts.length - 1))];
+        o.via = Array.from({ length: 11 }, (_, i) => mixPt(at(pe, i + 1), at(pn, i + 1), k));
+      }
+      delete o.cx; delete o.cy;
+    } else if (ce === "curve" || cn === "curve") {
+      const c1 = ce === "curve" ? { x: e.cx, y: e.cy } : { x: (e.x1 + e.x2) / 2, y: (e.y1 + e.y2) / 2 };
+      const c2 = cn === "curve" ? { x: n.cx, y: n.cy } : { x: (n.x1 + n.x2) / 2, y: (n.y1 + n.y2) / 2 };
+      const c = mixPt(c1, c2, k);
+      o.cx = c.x; o.cy = c.y;
+      delete o.via;
+    }
+    if (e.lift != null || n.lift != null) o.lift = mix(Number(e.lift) || 0, Number(n.lift) || 0, k);
+    return o;
+  }
+  if (e.k === "zone") {
+    if (isQuad(e) || isQuad(n)) {
+      const pe = zoneCorners(e), pn = zoneCorners(n);
+      const o = { ...base, shape: "quad", pts: pe.map((q, i) => mixPt(q, pn[i], k)) };
+      delete o.x; delete o.y; delete o.w; delete o.h;
+      return o;
+    }
+    return { ...base, x: mix(e.x, n.x, k), y: mix(e.y, n.y, k), w: mix(e.w, n.w, k), h: mix(e.h, n.h, k) };
+  }
+  if (e.k === "text") return { ...base, x: mix(e.x, n.x, k), y: mix(e.y, n.y, k), size: mix(Number(e.size) || 3, Number(n.size) || 3, k) };
+  return base;
+}
+
 // Estado intermedio entre dos fotogramas (t de 0 a 1). Devuelve elementos con `opacity`.
+// - Lo que se mueve (fichas, balón, material) va de su sitio en un fotograma a su sitio en el siguiente.
+// - Flechas, zonas y textos que están en los dos fotogramas (mismo id: fotograma duplicado) se deslizan de una forma a otra.
+// - Una flecha nueva se dibuja de su inicio a su punta (`reveal` de 0 a 1); lo demás que aparece o desaparece se funde.
 // Los conectores que están en los dos fotogramas se quedan fijos (su forma sale de las fichas, que sí se mueven).
 export function lerpFrames(a, b, t) {
   const k = ease(Math.min(1, Math.max(0, t)));
   const out = [];
-  const bById = new Map(b.els.filter(isCarried).map((e) => [e.id, e]));
+  const bById = new Map(b.els.map((e) => [e.id, e]));
   for (const e of a.els) {
+    const n = bById.get(e.id);
     if (isCarried(e)) {
-      const n = bById.get(e.id);
-      if (n) {
+      if (n && isCarried(n)) {
         if (isMovable(e)) {
           const o = { ...e, x: e.x + (n.x - e.x) * k, y: e.y + (n.y - e.y) * k, opacity: 1 };
           if (e.k === "token" && e.feet && (e.face != null || n.face != null)) o.face = lerpAngle(faceOf(e), faceOf(n), k);
@@ -375,11 +421,15 @@ export function lerpFrames(a, b, t) {
         } else out.push({ ...e, opacity: 1 });
         bById.delete(e.id);
       } else out.push({ ...e, opacity: 1 - k });
+    } else if (n && !isCarried(n)) {
+      out.push({ ...lerpShape(e, n, k), opacity: 1 });
+      bById.delete(e.id);
     } else out.push({ ...e, opacity: 1 - k });
   }
   for (const e of b.els) {
-    if (!isCarried(e)) out.push({ ...e, opacity: k });
-    else if (bById.has(e.id)) out.push({ ...e, opacity: k });
+    if (!bById.has(e.id)) continue;
+    if (e.k === "arrow") out.push({ ...e, reveal: k, opacity: Math.min(1, k * 4) });
+    else out.push({ ...e, opacity: k });
   }
   return out;
 }
@@ -536,8 +586,44 @@ export const defaultControl = (a) => {
   return { cx: round(mx - (a.y2 - a.y1) * 0.25), cy: round(my + (a.x2 - a.x1) * 0.25) };
 };
 
-// Puntos de la línea de una flecha (recta o curva) para pintarla ondulada, discontinua, etc.
+// Flecha con quiebros («poly»): puntos intermedios `via` entre el inicio y el final, unidos con tramos rectos.
+export const hasVia = (a) => Array.isArray(a?.via) && a.via.length > 0;
+export const arrowCorners = (a) => [{ x: a.x1, y: a.y1 }, ...(hasVia(a) ? a.via : []), { x: a.x2, y: a.y2 }];
+// Un quiebro nuevo en mitad del tramo i (0 = del inicio al primer quiebro)
+export function insertVia(a, i, at = null) {
+  const c = arrowCorners(a);
+  const k = Math.max(0, Math.min(i, c.length - 2));
+  const p = at || { x: round((c[k].x + c[k + 1].x) / 2), y: round((c[k].y + c[k + 1].y) / 2) };
+  const via = [...(a.via || [])];
+  via.splice(k, 0, { x: round(p.x), y: round(p.y) });
+  return { via, cx: undefined, cy: undefined };
+}
+// Quiebro con el que nace una flecha de la herramienta «con quiebros»: en mitad del recorrido, desplazado a un lado
+export function firstBend(a) {
+  const dx = a.x2 - a.x1, dy = a.y2 - a.y1;
+  return { x: round((a.x1 + a.x2) / 2 - dy * 0.22), y: round((a.y1 + a.y2) / 2 + dx * 0.22) };
+}
+export function removeVia(a, i) {
+  const via = (a.via || []).filter((_, j) => j !== i);
+  return { via: via.length ? via : undefined };
+}
+// Tipo de trazado: recta, curva (un punto de control) o con quiebros
+export const arrowPath = (a) => (hasVia(a) ? "poly" : a.cx != null && a.cy != null ? "curve" : "straight");
+
+// Puntos de la línea de una flecha (recta, curva o con quiebros) para pintarla ondulada, discontinua, etc.
 export function arrowPoints(a, steps = 24) {
+  if (hasVia(a)) {
+    // cada tramo recto con pasos según su longitud; las esquinas quedan exactas
+    const c = arrowCorners(a);
+    const lens = c.slice(1).map((q, i) => Math.hypot(q.x - c[i].x, q.y - c[i].y));
+    const total = lens.reduce((s, l) => s + l, 0) || 1;
+    const out = [{ x: c[0].x, y: c[0].y }];
+    lens.forEach((l, j) => {
+      const n = Math.max(1, Math.round((steps * l) / total));
+      for (let i = 1; i <= n; i++) out.push({ x: c[j].x + ((c[j + 1].x - c[j].x) * i) / n, y: c[j].y + ((c[j + 1].y - c[j].y) * i) / n });
+    });
+    return out;
+  }
   const curved = a.cx != null && a.cy != null;
   const pts = [];
   for (let i = 0; i <= steps; i++) {
@@ -588,7 +674,7 @@ export function arrowFlight(a, orient = "v", steps = 24) {
   if (!a.air || !a.lift) return g;
   const u = liftNormal(a, orient);
   return g.map((p, i) => {
-    const t = i / steps;
+    const t = i / (g.length - 1);
     const h = a.lift * 4 * t * (1 - t);
     return { x: p.x + u.x * h, y: p.y + u.y * h };
   });
@@ -844,6 +930,7 @@ export function shiftElement(el, dx, dy) {
   if (el.k === "arrow") {
     const o = { ...el, x1: round(el.x1 + dx), y1: round(el.y1 + dy), x2: round(el.x2 + dx), y2: round(el.y2 + dy) };
     if (el.cx != null) { o.cx = round(el.cx + dx); o.cy = round(el.cy + dy); }
+    if (hasVia(el)) o.via = el.via.map((q) => ({ x: round(q.x + dx), y: round(q.y + dy) }));
     return o;
   }
   return { ...el, x: round(el.x + dx), y: round(el.y + dy) };
@@ -896,6 +983,7 @@ export function elementBounds(el, chip = DEFAULT_CHIP) {
   if (el.k === "arrow") {
     const xs = [el.x1, el.x2], ys = [el.y1, el.y2];
     if (el.cx != null) { xs.push(el.cx); ys.push(el.cy); }
+    if (hasVia(el)) for (const q of el.via) { xs.push(q.x); ys.push(q.y); }
     return { x0: Math.min(...xs) - 0.8, y0: Math.min(...ys) - 0.8, x1: Math.max(...xs) + 0.8, y1: Math.max(...ys) + 0.8 };
   }
   if (el.k === "zone") return zoneBox(el);
@@ -991,6 +1079,7 @@ export function spreadElements(board, index, ids, factor) {
     if (e.k === "arrow") {
       const o = { ...e, x1: sx(e.x1), y1: sy(e.y1), x2: sx(e.x2), y2: sy(e.y2) };
       if (e.cx != null) { o.cx = sx(e.cx); o.cy = sy(e.cy); }
+      if (hasVia(e)) o.via = e.via.map((q) => ({ x: sx(q.x), y: sy(q.y) }));
       return o;
     }
     if (e.k === "zone" && isQuad(e)) return { ...e, pts: e.pts.map((q) => ({ x: sx(q.x), y: sy(q.y) })) };

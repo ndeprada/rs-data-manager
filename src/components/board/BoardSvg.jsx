@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  arrowFlight, arrowProps, arrowPoints, ballStyle, camBox, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
+  arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, camBox, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
   isGroundEl, isPersp, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
@@ -229,6 +229,21 @@ function FieldPersp({ field, orient, look, vb, persp }) {
 
 // ── Elementos ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
+// Parte de una línea desde su inicio (`reveal` de 0 a 1): la flecha que aparece en un fotograma se va dibujando
+function revealPts(pts, reveal) {
+  if (reveal == null || reveal >= 1) return pts;
+  const lens = pts.slice(1).map((q, i) => Math.hypot(q.x - pts[i].x, q.y - pts[i].y));
+  let left = lens.reduce((s, l) => s + l, 0) * Math.max(0, reveal);
+  const out = [pts[0]];
+  for (let i = 0; i < lens.length; i++) {
+    if (left >= lens[i]) { out.push(pts[i + 1]); left -= lens[i]; continue; }
+    const t = lens[i] ? left / lens[i] : 0;
+    if (t > 0.001) out.push({ x: pts[i].x + (pts[i + 1].x - pts[i].x) * t, y: pts[i].y + (pts[i + 1].y - pts[i].y) * t });
+    break;
+  }
+  return out;
+}
+
 const pathOf = (pts) => pts.map((p, i) => `${i ? "L" : "M"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" ");
 
 function Arrow({ el, ctx, selected, handles }) {
@@ -238,13 +253,14 @@ function Arrow({ el, ctx, selected, handles }) {
   const col = look === "bn" ? s.arrows.move : el.color || s.arrows[el.style] || s.arrows.move;
   const w = ap.width;
   const toV = ctx.V;
-  const flight = arrowFlight(el, orient).map(toV);
+  const flight = revealPts(arrowFlight(el, orient).map(toV), el.reveal);
+  if (flight.length < 2) return null;
   const n = flight.length - 1;
   const dx = flight[n].x - flight[n - 1].x, dy = flight[n].y - flight[n - 1].y;
   const dl = Math.hypot(dx, dy) || 1;
   const ux = dx / dl, uy = dy / dl;
   const headLen = 1.4 + 1.9 * w;
-  const trim = ap.pointer === "none" ? 0 : ap.pointer === "bar" ? 0.4 : headLen * 0.7;
+  const trim = ap.pointer === "none" || ap.pointer === "dot" ? 0 : ap.pointer === "bar" ? 0.4 : headLen * 0.7;
   const line = flight.map((p, i) => (i === n ? { x: p.x - ux * trim, y: p.y - uy * trim } : p));
   const d = pathOf(ap.wavy ? wavyPoints(line, 0.3 + w * 0.45, 2.4 + w * 0.6) : line);
   const end = flight[n];
@@ -255,9 +271,10 @@ function Arrow({ el, ctx, selected, handles }) {
   const dash = dashArray(ap.dash, w);
   const cap = "round";
   const borderCol = look === "bn" ? "#111111" : el.borderColor || "#111827";
-  const ctrl = el.cx != null ? toV({ x: el.cx, y: el.cy }) : null;
+  const ctrl = el.cx != null && !hasVia(el) ? toV({ x: el.cx, y: el.cy }) : null;
+  const corners = arrowCorners(el).map(toV);
   const start = flight[0];
-  const ground = el.air ? arrowPoints(el, 24).map(toV) : null;
+  const ground = el.air ? revealPts(arrowPoints(el, 24).map(toV), el.reveal) : null;
   const apex = el.air ? flight[12] : null;
   return (
     <g opacity={(el.opacity ?? 1) * ap.alpha}>
@@ -266,7 +283,9 @@ function Arrow({ el, ctx, selected, handles }) {
       {selected && <path d={d} fill="none" stroke="#f59e0b" strokeWidth={w + 1.6} opacity={0.5} strokeLinecap="round" strokeLinejoin="round" />}
       {ap.border && <path d={d} fill="none" stroke={borderCol} strokeWidth={w + 0.7} strokeDasharray={dash} strokeLinecap={cap} strokeLinejoin="round" />}
       <path d={d} fill="none" stroke={col} strokeWidth={w} strokeDasharray={dash} strokeLinecap={cap} strokeLinejoin="round" />
-      {ap.pointer === "none" ? null : ap.pointer === "bar" ? (
+      {ap.pointer === "none" ? null : ap.pointer === "dot" ? (
+        <circle cx={hx} cy={hy} r={0.6 + w * 0.9} fill={col} stroke={ap.border ? borderCol : "none"} strokeWidth={0.35} />
+      ) : ap.pointer === "bar" ? (
         <>
           {ap.border && <polyline points={barPts} stroke={borderCol} strokeWidth={w + 0.7} fill="none" strokeLinecap="round" />}
           <polyline points={barPts} stroke={col} strokeWidth={w + 0.15} fill="none" strokeLinecap="round" />
@@ -286,6 +305,23 @@ function Arrow({ el, ctx, selected, handles }) {
           <circle data-h="p1" cx={start.x} cy={start.y} r={3.2} fill="transparent" />
           <circle data-h="p2" cx={end.x} cy={end.y} r={3.2} fill="transparent" />
           {ctrl && <circle data-h="c" cx={ctrl.x} cy={ctrl.y} r={3.2} fill="transparent" />}
+          {/* flecha con quiebros: cada quiebro se arrastra (doble clic lo quita) y el «+» de cada tramo añade otro */}
+          {!el.air && !ctrl && corners.slice(0, -1).map((c, i) => {
+            const m = { x: (c.x + corners[i + 1].x) / 2, y: (c.y + corners[i + 1].y) / 2 };
+            return (
+              <g key={`m${i}`}>
+                <circle cx={m.x} cy={m.y} r={0.95} fill="#fff" stroke="#f59e0b" strokeWidth={0.3} strokeDasharray="0.5 0.35" pointerEvents="none" />
+                <path d={`M ${m.x - 0.5} ${m.y} H ${m.x + 0.5} M ${m.x} ${m.y - 0.5} V ${m.y + 0.5}`} stroke="#f59e0b" strokeWidth={0.28} pointerEvents="none" />
+                <circle data-h={`m${i}`} cx={m.x} cy={m.y} r={2.2} fill="transparent" />
+              </g>
+            );
+          })}
+          {corners.slice(1, -1).map((c, i) => (
+            <g key={`v${i}`}>
+              <circle cx={c.x} cy={c.y} r={1.15} fill="#f59e0b" stroke="#fff" strokeWidth={0.4} pointerEvents="none" />
+              <circle data-h={`v${i}`} cx={c.x} cy={c.y} r={2.8} fill="transparent" />
+            </g>
+          ))}
           {apex && <circle data-h="l" cx={apex.x} cy={apex.y} r={3.2} fill="transparent" />}
         </g>
       )}

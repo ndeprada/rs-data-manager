@@ -1,6 +1,6 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { AIR_MAX, BALL_PATTERNS, CHIP_PATTERNS, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, LADDER_RUNGS, arrowProps, ballStyle, chipOf, chipStyle, contrastColor, defaultControl, ladderRungs, linkProps, materialOf, teamsOf, zoneShapePatch } from "@/lib/board";
+import { AIR_MAX, BALL_PATTERNS, CHIP_PATTERNS, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, LADDER_RUNGS, arrowPath, arrowProps, ballStyle, chipOf, chipStyle, contrastColor, defaultControl, firstBend, hasVia, ladderRungs, linkProps, materialOf, teamsOf, zoneShapePatch } from "@/lib/board";
 import { ChipGlyph, styleOf } from "./BoardSvg";
 import { ColorPick, NO_FILL, Row, Seg, Slider, Toggle } from "./BoardControls";
 
@@ -128,15 +128,20 @@ function MaterialBlock({ el, brush, patch, look }) {
 function ArrowBlock({ el, brush, patch, onType, look }) {
   const ap = arrowProps(el);
   const type = typeOfArrow(el);
-  const curved = brush ? !!el.curved : el.cx != null;
-  const toggleCurve = () => (brush ? patch({ curved: !curved }) : patch(curved ? { cx: undefined, cy: undefined } : defaultControl(el)));
+  const path = brush ? (el.bends ? "poly" : el.curved ? "curve" : "straight") : arrowPath(el);
+  const setPath = (v) => {
+    if (brush) return patch({ curved: v === "curve", bends: v === "poly" });
+    if (v === "straight") return patch({ cx: undefined, cy: undefined, via: undefined });
+    if (v === "curve") return patch({ ...defaultControl(el), via: undefined });
+    return patch({ cx: undefined, cy: undefined, via: hasVia(el) ? el.via : [firstBend(el)] });
+  };
   const auto = styleOf(look).arrows[el.style] || "#111827";
   return (
     <>
       <Row>
         <Seg label="Tipo de flecha" value={type} options={ARROW_TYPES} onChange={onType} />
-        <Toggle on={curved} onChange={toggleCurve} title="Pase en curva: arrastra el punto naranja para curvarlo">Curva</Toggle>
-        <Seg label="Punta" value={ap.pointer} options={[{ id: "arrow", label: "Flecha" }, { id: "bar", label: "Barra" }, { id: "none", label: "Sin punta" }]} onChange={(v) => patch({ pointer: v })} />
+        {type !== "air" && <Seg label="Trazado" value={path} options={[{ id: "straight", label: "Recta" }, { id: "curve", label: "Curva" }, { id: "poly", label: "Quiebros" }]} onChange={setPath} />}
+        <Seg label="Punta" value={ap.pointer} options={[{ id: "arrow", label: "Flecha" }, { id: "bar", label: "Barra" }, { id: "dot", label: "Punto" }, { id: "none", label: "Sin punta" }]} onChange={(v) => patch({ pointer: v })} />
       </Row>
       <Row>
         <Seg label="Trazo" value={ap.dash} options={LINE_OPTS} onChange={(v) => patch({ dash: v })} />
@@ -153,6 +158,8 @@ function ArrowBlock({ el, brush, patch, onType, look }) {
           </>
         )}
       </Row>
+      {path === "poly" && type !== "air" && !brush && <p className="text-[11px] text-gray-500">Arrastra los puntos naranjas para mover cada quiebro; el «+» de cada tramo añade otro y doble clic sobre un quiebro lo quita.</p>}
+      {path === "curve" && type !== "air" && !brush && <p className="text-[11px] text-gray-500">Arrastra el punto naranja para curvar la flecha.</p>}
       {type === "air" && !brush && <p className="text-[11px] text-gray-500">Arrastra el punto azul para subir o bajar el arco (y pasarlo al otro lado); la sombra gris marca por dónde va el balón en el suelo.</p>}
     </>
   );

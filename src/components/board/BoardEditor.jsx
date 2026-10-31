@@ -1,12 +1,14 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Circle, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, SquareCheckBig, TrendingUp, Triangle, Type, Trash2, Undo2, Waypoints } from "lucide-react";
+import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Circle, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, SquareCheckBig, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
   boardMode, boardSpeed, camOf, panCam, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
-  removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
+  insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph } from "./BoardSvg";
+import { boardKeyAction } from "@/lib/boardKeys";
+import BoardHelp from "./BoardHelp";
 import { DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon } from "./BoardControls";
 import BoardProps, { ARROW_PRESETS, KIND_LABEL, typeOfArrow } from "./BoardProps";
 import BoardDownloads from "./BoardDownloads";
@@ -47,7 +49,7 @@ const MAX_HISTORY = 30;
 
 // Lo último que se eligió para cada herramienta se recuerda para lo siguiente que se dibuje
 const BRUSH0 = { ...ARROW_PRESETS, token: {}, ball: { pattern: "classic" }, cone: { shape: "tri" }, goal: { w: 7.32 }, pole: {}, hurdle: {}, ladder: {}, dummy: {}, zone: {}, quad: { shape: "quad" }, text: { size: 3 } };
-const BRUSH_KEYS = ["shape", "color", "color2", "pattern", "size", "w", "rungs", "width", "dash", "border", "borderColor", "pointer", "fill", "fillOpacity", "stroke", "strokeWidth", "font", "bold", "lift"];
+const BRUSH_KEYS = ["bends", "shape", "color", "color2", "pattern", "size", "w", "rungs", "width", "dash", "border", "borderColor", "pointer", "fill", "fillOpacity", "stroke", "strokeWidth", "font", "bold", "lift"];
 const toolOfEl = (el) => (el.k === "arrow" ? typeOfArrow(el) : el.k === "zone" ? (isQuad(el) ? "quad" : "zone") : ["ball", "cone", "goal", "text", ...MATERIAL_IDS].includes(el.k) ? el.k : null);
 
 const selectCls = "h-8 rounded-md border border-gray-200 bg-white px-2 text-xs";
@@ -77,6 +79,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const [pick, setPick] = useState([]);
   const [brush, setBrush] = useState(BRUSH0);
   const [history, setHistory] = useState([]);
+  const [future, setFuture] = useState([]); // lo deshecho, para rehacer
+  const [helpOpen, setHelpOpen] = useState(false);
+  const lastPick = useRef({ arrow: "move", zone: "zone", material: "goal" });
   const [playing, setPlaying] = useState(false);
   const [anim, setAnim] = useState(null);
   const [loop, setLoop] = useState(false);
@@ -114,19 +119,28 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   useEffect(() => { if (quick && !quickEl) setQuick(null); }, [quick, quickEl]);
 
   // Los cambios seguidos de un mismo control (deslizador, selector de color) cuentan como uno solo al deshacer.
+  const pushHistory = (snap) => { setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), snap]); setFuture([]); };
   const commit = (next, { record = true, key = null } = {}) => {
     if (record) {
       const now = Date.now();
       const same = key && coalesce.current.key === key && now - coalesce.current.at < 900;
-      if (!same) setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), live.current]);
+      if (!same) pushHistory(live.current);
       coalesce.current = { key, at: now };
     }
     onChange(next);
   };
   const undo = () => {
     if (!history.length) return;
+    setFuture((f) => [...f.slice(-(MAX_HISTORY - 1)), live.current]);
     onChange(history[history.length - 1]);
     setHistory(history.slice(0, -1)); // lo elegido sigue elegido (si ya no existe, se suelta solo)
+    coalesce.current = { key: null, at: 0 };
+  };
+  const redo = () => {
+    if (!future.length) return;
+    setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), live.current]);
+    onChange(future[future.length - 1]);
+    setFuture(future.slice(0, -1));
     coalesce.current = { key: null, at: 0 };
   };
 
@@ -261,6 +275,25 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (tool === "pan") { const cam0 = camOf(live.current); drag.current = cam0.z > 1 ? { mode: "pan", cx: e.clientX, cy: e.clientY, cam0 } : null; return; }
     const handle = e.target?.dataset?.h;
     if (handle && (selected?.k === "arrow" || (isQuad(selected) && /^q[0-3]$/.test(handle)) || (selected?.k === "token" && handle === "f") || (materialOf(selected?.k) && handle === "r"))) {
+      // «+» en mitad de un tramo de flecha: nace ahí un quiebro nuevo y se arrastra
+      // doble clic o doble toque sobre un quiebro: se quita
+      if (/^v\d+$/.test(handle) && selected.k === "arrow") {
+        const key = `${selected.id}:${handle}`, now = Date.now();
+        if (lastTap.current.id === key && now - lastTap.current.at < 420) {
+          lastTap.current = { id: null, at: 0 };
+          drag.current = null;
+          commit(patchElement(live.current, idx, selected.id, removeVia(selected, Number(handle.slice(1)))));
+          return;
+        }
+        lastTap.current = { id: key, at: now };
+      }
+      const mid = /^m(\d+)$/.exec(handle);
+      if (mid && selected.k === "arrow") {
+        const i = Number(mid[1]);
+        const el = { ...selected, ...insertVia(selected, i) };
+        drag.current = { mode: "handle", h: `v${i}`, id: selected.id, el, snapshot: patchElement(live.current, idx, selected.id, insertVia(selected, i)), base: live.current };
+        return;
+      }
       drag.current = { mode: "handle", h: handle, id: selected.id, el: selected, snapshot: live.current };
       return;
     }
@@ -329,7 +362,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     setQuick(hit.id);
     return true;
   };
-  const onDoubleClick = (e) => { if (openQuickAt(e)) e.preventDefault(); };
+  const onDoubleClick = (e) => {
+    if (openQuickAt(e)) e.preventDefault();
+  };
   const onContextMenu = (e) => { if (openQuickAt(e)) e.preventDefault(); };
 
   const onMove = (e) => {
@@ -363,6 +398,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         // orientación de una ficha con pies o giro de un material: hacia donde apunta el dedo, desde el centro del elemento
         const a = faceToward(d.el, toField(e));
         patch = d.h === "f" ? { face: a } : { rot: a };
+      } else if (/^v\d+$/.test(d.h)) {
+        const p = point(e), i = Number(d.h.slice(1));
+        patch = { via: d.el.via.map((q, j) => (j === i ? { x: p.x, y: p.y } : q)) };
       } else if (/^q[0-3]$/.test(d.h)) {
         const p = point(e), i = Number(d.h[1]);
         patch = { pts: d.el.pts.map((q, j) => (j === i ? { x: p.x, y: p.y } : q)) };
@@ -392,7 +430,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     drag.current = null;
     if (!d) return;
     if ((d.mode === "move" || d.mode === "handle") && d.moved) {
-      setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), d.snapshot]);
+      pushHistory(d.base || d.snapshot);
       coalesce.current = { key: null, at: 0 };
     }
     if (d.mode === "move" && !d.moved && d.only) setSel([d.only]);
@@ -416,9 +454,10 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (d.mode === "draw" && draft) {
       const big = draft.k === "arrow" ? Math.hypot(draft.x2 - draft.x1, draft.y2 - draft.y1) > 2.5 : Math.abs(draft.w) > 2.5 && Math.abs(draft.h) > 2.5;
       if (big) {
-        const { curved, ...rest } = draft;
+        const { curved, bends, ...rest } = draft;
         const el = { id: newId(), ...rest };
-        if (curved && el.k === "arrow") Object.assign(el, defaultControl(el));
+        if (bends && el.k === "arrow" && !el.air) el.via = [firstBend(el)];
+        else if (curved && el.k === "arrow") Object.assign(el, defaultControl(el));
         if (el.k === "zone" && el.shape === "quad") {
           // zona libre: nace como un rectángulo cuyas cuatro esquinas se pueden mover por separado
           el.pts = zoneCorners(el).map((q) => ({ x: round(q.x), y: round(q.y) }));
@@ -443,12 +482,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const keep = Object.fromEntries(Object.entries(patch).filter(([k]) => BRUSH_KEYS.includes(k)));
     if (keep.shape && (t === "quad" || keep.shape === "quad")) delete keep.shape; // la forma libre tiene su propia herramienta
     if (selected.k === "arrow" && "cx" in patch) keep.curved = patch.cx != null;
+    if (selected.k === "arrow" && "via" in patch) { keep.bends = !!patch.via?.length; if (keep.bends) keep.curved = false; }
     if (t && Object.keys(keep).length) setBrush((b) => ({ ...b, [t]: { ...b[t], ...keep } }));
   };
   const brushKey = isTeamTool(tool) ? "token" : tool;
   const patchBrush = (patch) => setBrush((b) => ({ ...b, [brushKey]: { ...b[brushKey], ...patch } }));
   const setArrowType = (t) => {
-    if (selected?.k === "arrow") patchSel({ ...ARROW_PRESETS[t], lift: t === "air" ? Number(selected.lift) || 6 : selected.lift }, "type");
+    if (selected?.k === "arrow") patchSel({ ...ARROW_PRESETS[t], lift: t === "air" ? Number(selected.lift) || 6 : selected.lift, ...(t === "air" ? { via: undefined } : {}) }, "type");
     else pickTool(t);
   };
   const patchTeam = (id, patch) => commit({ ...live.current, teams: teamsOf(live.current).map((t) => (t.id === id ? { ...t, ...patch } : t)) }, { key: `team-${id}-${Object.keys(patch)[0]}` });
@@ -506,22 +546,67 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const selectAll = () => { setTool("select"); setDraft(null); setPick([]); setSel(cur.els.filter((e) => e.k !== "link").map((e) => e.id)); };
   const clearFrame = () => { if (cur.els.length) { setEls([]); setSel([]); } };
 
-  // Teclado (con el foco dentro del editor y sin estar escribiendo en un campo): Supr o Retroceso quitan lo elegido y las flechas lo
-  // mueven 0,5 m (con Mayús, 2 m) según la pantalla; varias pulsaciones seguidas cuentan como un solo paso al deshacer.
+  // Teclado (con el foco dentro del editor y sin estar escribiendo en un campo), al estilo de FmStadio: ver `src/lib/boardKeys.js`
+  // y la ayuda (Mayús + H). Supr quita lo elegido, las flechas lo mueven 0,5 m (Mayús, 2 m) o, sin nada elegido, pasan de
+  // fotograma; las pulsaciones seguidas de las flechas cuentan como un solo paso al deshacer.
+  const cycle = (list, now) => list[(list.indexOf(now) + 1) % list.length];
   const onKey = (e) => {
-    if (playing || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || !sel.length) return;
-    if (e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable=true], [role=slider]")) return;
-    if (e.key === "Delete" || e.key === "Backspace") {
-      e.preventDefault();
-      if (sel.length > 1) delMany(false); else if (selId) delSel(false);
+    if (e.defaultPrevented) return;
+    if (e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable=true], [role=slider], [role=dialog] [role=dialog]")) return;
+    const action = boardKeyAction(e, { hasSel: sel.length > 0 });
+    if (!action) return;
+    if (playing && action !== "play") return;
+    e.preventDefault();
+    const nudge = { nudgeLeft: [-1, 0], nudgeRight: [1, 0], nudgeUp: [0, -1], nudgeDown: [0, 1] }[action];
+    if (nudge) {
+      const step = e.shiftKey ? 2 : 0.5;
+      const next = nudgeElements(live.current, idx, sel, nudge[0] * step, nudge[1] * step);
+      if (next !== live.current) commit(next, { key: "nudge" });
       return;
     }
-    const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
-    if (!dir) return;
-    e.preventDefault();
-    const step = e.shiftKey ? 2 : 0.5;
-    const next = nudgeElements(live.current, idx, sel, dir[0] * step, dir[1] * step);
-    if (next !== live.current) commit(next, { key: "nudge" });
+    if (/^team\d$/.test(action)) { const t = teams[Number(action.slice(4)) - 1]; if (t) pickTool(t.id); return; }
+    const ARROWS = ARROW_TOOLS, ZONES = ["zone", "quad"], MATS = ["goal", ...MATERIAL_IDS];
+    switch (action) {
+      case "undo": return undo();
+      case "redo": return redo();
+      case "selectAll": return selectAll();
+      case "duplicate": return sel.length > 1 ? dupMany() : dupSel();
+      case "delete": return sel.length > 1 ? delMany(false) : delSel(false);
+      case "deleteHere": return sel.length > 1 ? delMany(true) : delSel(true);
+      case "select": return pickTool("select");
+      case "ball": return pickTool("ball");
+      case "cone": return pickTool("cone");
+      case "link": return pickTool("link");
+      case "text": return pickTool("text");
+      case "arrow": return pickTool(lastPick.current.arrow);
+      case "zone": return pickTool(lastPick.current.zone);
+      case "material": return pickTool(lastPick.current.material);
+      case "cycleArrow": return pickTool(ARROWS.includes(tool) ? cycle(ARROWS, tool) : lastPick.current.arrow);
+      case "cycleZone": return pickTool(ZONES.includes(tool) ? cycle(ZONES, tool) : lastPick.current.zone);
+      case "cycleMaterial": return pickTool(MATS.includes(tool) ? cycle(MATS, tool) : lastPick.current.material);
+      case "addFrame": if (!imageMode && board.frames.length < MAX_FRAMES) frameOp((b, i) => addFrame(b, i)); return;
+      case "removeFrame": if (!imageMode && board.frames.length > 1) frameOp((b, i) => removeFrame(b, i)); return;
+      case "nextFrame": if (!imageMode && idx < last) goFrame(idx + 1); return;
+      case "prevFrame": if (!imageMode && idx > 0) goFrame(idx - 1); return;
+      case "lastFrame": if (!imageMode) goFrame(last); return;
+      case "firstFrame": if (!imageMode) goFrame(0); return;
+      case "play": if (!imageMode && board.frames.length > 1) { if (playing) stop(); else setPlaying(true); } return;
+      case "trail": return setTrails((t) => !t);
+      case "alignH": if (sel.length > 1) alignMany("vcenter"); return;
+      case "alignV": if (sel.length > 1) alignMany("hcenter"); return;
+      case "spread": {
+        if (sel.length < 3) return;
+        const b = unionBounds(selEls.map((x) => elementBounds(x, chip)).filter(Boolean));
+        if (!b) return;
+        // a lo largo del lado más largo tal como se ve en pantalla
+        const wide = isSideways(orient) ? b.y1 - b.y0 >= b.x1 - b.x0 : b.x1 - b.x0 >= b.y1 - b.y0;
+        return distributeMany(wide ? "h" : "v");
+      }
+      case "zoomIn": return zoomStep(1);
+      case "zoomOut": return zoomStep(-1);
+      case "help": return setHelpOpen((o) => !o);
+      default: return undefined;
+    }
   };
 
   const addPlayer = (p) => {
@@ -530,7 +615,12 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     add({ id: newId(), k: "token", x: round(Math.min(8 + (n % 6) * 10, field.w - 4)), y: round(6 + Math.floor(n / 6) * 7), team, label: p.label });
   };
 
-  const pickTool = (id) => { setTool(id); if (id !== "select") { setSel([]); setMultiMode(false); } setPick([]); setDraft(null); stop(); };
+  const pickTool = (id) => {
+    if (ARROW_TOOLS.includes(id)) lastPick.current.arrow = id;
+    if (id === "zone" || id === "quad") lastPick.current.zone = id;
+    if (id === "goal" || MATERIAL_IDS.includes(id)) lastPick.current.material = id;
+    setTool(id); if (id !== "select") { setSel([]); setMultiMode(false); } setPick([]); setDraft(null); stop();
+  };
 
   // Conector entre las fichas elegidas: línea (de un extremo al otro), zona (contorno que las envuelve) o red (todas con todas)
   const makeLink = (mode) => {
@@ -635,7 +725,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         </select>
         <div className="flex flex-wrap gap-1 ml-auto">
           <BoardDownloads board={board} frame={idx} filename={filename} />
-          <Button type="button" size="sm" variant="outline" className="h-8 px-2" onClick={undo} disabled={!history.length} title="Deshacer"><Undo2 className="w-3.5 h-3.5" /></Button>
+          <Button type="button" size="sm" variant="outline" className="h-8 px-2" onClick={undo} disabled={!history.length} title="Deshacer (Ctrl + Z)" aria-label="Deshacer"><Undo2 className="w-3.5 h-3.5" /></Button>
+          <Button type="button" size="sm" variant="outline" className="h-8 px-2" onClick={redo} disabled={!future.length} title="Rehacer (Ctrl + Mayús + Z)" aria-label="Rehacer"><Redo2 className="w-3.5 h-3.5" /></Button>
+          <BoardHelp open={helpOpen} onOpenChange={setHelpOpen} />
           <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-red-600" onClick={clearFrame} disabled={!cur.els.length} title="Vaciar este fotograma"><Trash2 className="w-3.5 h-3.5" /></Button>
         </div>
       </div>
@@ -820,7 +912,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         <Button type="button" size="sm" className="h-8 px-2.5 gap-1 text-xs" onClick={() => (playing ? stop() : setPlaying(true))} disabled={board.frames.length < 2} title={board.frames.length < 2 ? "Añade otro fotograma para animar" : playing ? "Parar" : "Reproducir la animación"}>
           {playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />} {playing ? "Parar" : "Reproducir"}
         </Button>
-        <div className="flex gap-1 items-center" role="tablist" aria-label="Fotogramas">
+        <div className="flex flex-wrap gap-1 items-center" role="tablist" aria-label="Fotogramas">
           {board.frames.map((f, i) => (
             <button key={f.id} type="button" role="tab" aria-selected={i === idx} onClick={() => goFrame(i)}
               className={`h-8 min-w-8 px-2 rounded-md border text-xs font-bold ${i === idx ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>
