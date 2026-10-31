@@ -75,7 +75,7 @@ function TaskBody({ task }) {
 // Dibujo de la tarea en la ficha: el de la pizarra o, si no hay, la imagen que venía de la biblioteca
 const hasDrawing = (t) => hasBoard(t.board) || Boolean(t.diagram_url);
 function Drawing({ task, full, half }) {
-  if (hasBoard(task.board)) return <PitchView board={task.board} style={{ width: "100%", maxHeight: task.board.field === "full" ? full : half }} />;
+  if (hasBoard(task.board)) return <PitchView board={task.board} print style={{ width: "100%", maxHeight: task.board.field === "full" ? full : half }} />;
   return <img src={task.diagram_url} alt="" style={{ width: "100%", maxHeight: full, objectFit: "contain" }} />;
 }
 

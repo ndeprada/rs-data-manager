@@ -220,8 +220,10 @@ export const newId = () => `e${Date.now().toString(36)}${(counter++).toString(36
 const round = (n) => Math.round(n * 10) / 10;
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
+// Las pizarras nuevas empiezan con el estadio (como FmStadio; decidido con Nacho el 31/10/2026). Las ya guardadas conservan su modo.
+export const NEW_BOARD_LOOK = "estadio";
 export function emptyBoard(field = "half") {
-  return { v: BOARD_VERSION, field, look: DEFAULT_LOOK, orient: "v", frames: [{ id: newId(), els: [] }] };
+  return { v: BOARD_VERSION, field, look: NEW_BOARD_LOOK, orient: "v", frames: [{ id: newId(), els: [] }] };
 }
 
 // Acepta el formato antiguo ({ field, elements }) y el nuevo; siempre devuelve el nuevo, sin tocar el original.

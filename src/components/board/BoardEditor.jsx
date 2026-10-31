@@ -1,12 +1,13 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Circle, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, SquareCheckBig, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Circle, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
   boardMode, boardSpeed, camOf, panCam, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
   insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
-import Board, { ChipGlyph } from "./BoardSvg";
+import Board, { ChipGlyph, styleOf } from "./BoardSvg";
 import { boardKeyAction } from "@/lib/boardKeys";
 import BoardHelp from "./BoardHelp";
 import { DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon } from "./BoardControls";
@@ -89,6 +90,17 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const [error, setError] = useState("");
   const [quick, setQuick] = useState(null); // ficha abierta con doble clic (su id)
   const [quickPos, setQuickPos] = useState(null);
+  const [full, setFull] = useState(false); // editor a pantalla completa (fuera de él, solo la vista previa)
+  const [side, setSide] = useState(null); // panel de «Campo y ajustes» o «Plantilla»
+  const [panelHidden, setPanelHidden] = useState(false);
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia?.("(max-width: 767px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.("(max-width: 767px)");
+    if (!mq) return undefined;
+    const on = () => setNarrow(mq.matches);
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, []);
   const lastTap = useRef({ id: null, at: 0 });
   const wrapRef = useRef(null);
   const svgRef = useRef(null);
@@ -109,6 +121,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const selected = selId ? cur.els.find((e) => e.id === selId) || null : null;
   const selEls = sel.map((id) => cur.els.find((e) => e.id === id)).filter(Boolean);
   const multi = sel.length > 1 && selEls.length > 1;
+  // el panel flotante vuelve a salir al elegir otra cosa u otra herramienta
+  useEffect(() => { setPanelHidden(false); }, [selId, tool, multi]);
   useEffect(() => {
     if (playing || !sel.length) return;
     const alive = sel.filter((id) => cur.els.some((e) => e.id === id));
@@ -651,170 +665,332 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     : null;
   const panelEl = !playing ? selected || brushEl : null;
 
-  const zoomBtn = "h-7 w-7 rounded-md flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-30";
-  const toolBtn = (t, content) => {
-    const on = tool === t.id;
-    return (
-      <button
-        key={t.id}
-        type="button"
-        title={t.label}
-        aria-label={t.label}
-        aria-pressed={on}
-        onClick={() => pickTool(t.id)}
-        className={`h-8 min-w-8 px-1.5 rounded-md border text-[11px] font-semibold flex items-center gap-1 ${on ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-      >
-        {content(on)}
-      </button>
-    );
-  };
-  const iconTool = (t) => toolBtn(t, (on) => {
-    const Icon = t.icon;
-    return (
-      <>
-        <Icon className="w-3.5 h-3.5" style={on || !t.color ? undefined : { color: t.color }} />
-        <span className="hidden sm:inline">{t.label.replace(/ \(.*\)/, "")}</span>
-      </>
-    );
-  });
-
   const setMode = (m) => { stop(); setFi(0); setSelId(null); setPick([]); setDraft(null); commit({ ...live.current, mode: m }); };
 
-  return (
-    <div className="space-y-2 outline-none" tabIndex={-1} onKeyDown={onKey}>
+  // ── Pantalla: vista previa en la página y editor a pantalla completa (como FmStadio) ──────────────────────────────
+  const title = filename || "Pizarra";
+  const openStudio = () => { setFull(true); setSide(null); };
+  const closeStudio = () => { stop(); setQuick(null); setFull(false); };
+  const groupOf = (id) => TOOL_GROUPS.find((g) => g.tools.includes(id)) || null;
+  const curGroup = groupOf(tool);
+  const toggleSide = (id) => { setSide((s) => (s === id ? null : id)); setPanelHidden(false); };
+
+  if (!full) {
+    const first = board.frames[0];
+    return (
+      <div className="space-y-1.5" data-testid="board-preview">
+        <button
+          type="button"
+          onClick={openStudio}
+          className="group relative block w-full rounded-lg overflow-hidden border border-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--granate)]"
+          style={{ background: styleOf(look).surround || "#f3f4f6" }}
+          aria-label={hasEls ? "Abrir la pizarra para editar" : "Abrir la pizarra para dibujar"}
+          data-testid="board-open"
+        >
+          <Board board={board} els={first.els} className="w-full pointer-events-none" style={{ maxHeight: tall ? 420 : 300 }} label="Vista previa de la pizarra" />
+          <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/15 transition-colors">
+            <span className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold shadow-lg" style={{ background: RAIL.on, color: RAIL.onInk }}>
+              <Maximize2 className="w-4 h-4" /> {hasEls ? "Abrir pizarra" : "Dibujar en la pizarra"}
+            </span>
+          </span>
+        </button>
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+          {hasEls && <span>{imageMode || board.frames.length < 2 ? "Imagen fija" : `Animación de ${board.frames.length} fotogramas`}</span>}
+          {hasEls && <BoardDownloads board={board} frame={0} filename={filename} compact className="ml-auto" />}
+        </div>
+      </div>
+    );
+  }
+
+  // Botones de las barras (mismo aspecto en ordenador y móvil)
+  const railTool = (t) => {
+    const Icon = t.icon;
+    return (
+      <RailBtn key={t.id} label={t.label} title={t.title || t.label} on={tool === t.id} onClick={() => pickTool(t.id)} narrow={narrow}>
+        <Icon className="w-5 h-5" />
+        {narrow && <RailLabel>{t.short || t.label}</RailLabel>}
+      </RailBtn>
+    );
+  };
+  const groupBtn = (g) => {
+    const curId = g.tools.includes(tool) ? tool : lastPick.current[g.id];
+    const info = TOOL_INFO[curId] || {};
+    const Icon = info.icon || g.icon;
+    return (
+      <RailBtn key={g.id} label={g.label} title={`${g.label} (${g.key}) · ahora: ${info.label || ""}`} on={g.tools.includes(tool)} onClick={() => pickTool(curId)} narrow={narrow} testid={`rail-${g.id}`}>
+        <Icon className="w-5 h-5" />
+        {narrow && <RailLabel>{g.short}</RailLabel>}
+      </RailBtn>
+    );
+  };
+  const teamBtn = (t, i) => (
+    <RailBtn key={t.id} label={`Fichas: ${t.name}`} title={`${t.name} (${i + 1})`} on={tool === t.id} onClick={() => pickTool(t.id)} narrow={narrow} testid={`rail-team-${t.id}`}>
+      <ChipGlyph board={board} el={{ team: t.id }} look={look === "bn" ? "estadio" : look} size={26} />
+      {narrow && <RailLabel>{t.name}</RailLabel>}
+    </RailBtn>
+  );
+  const toolButtons = (
+    <>
+      {railTool({ id: "select", label: "Mover", title: "Mover y elegir (V)", icon: MousePointer2 })}
+      <RailBtn label="Elegir varios" title="Varios: cada toque suma o quita (también con Mayús)" on={multiMode} onClick={() => { if (tool !== "select") pickTool("select"); setMultiMode((m) => !m); }} narrow={narrow}>
+        <BoxSelect className="w-5 h-5" />{narrow && <RailLabel>Varios</RailLabel>}
+      </RailBtn>
+      <RailBtn label="Lista de capas" title="Capas del fotograma" on={layersOpen} onClick={() => { setLayersOpen((o) => !o); setPanelHidden(false); }} narrow={narrow}>
+        <Layers className="w-5 h-5" />{narrow && <RailLabel>Capas</RailLabel>}
+      </RailBtn>
+      <RailSep narrow={narrow} />
+      {teams.map(teamBtn)}
+      {teams.length < MAX_TEAMS && (
+        <RailBtn label="Nuevo equipo" title="Nuevo equipo (otro color de fichas)" onClick={newTeam} dashed narrow={narrow}>
+          <Plus className="w-5 h-5" />{narrow && <RailLabel>Equipo</RailLabel>}
+        </RailBtn>
+      )}
+      {roster.length > 0 && (
+        <RailBtn label="Plantilla" title="Añadir jugadores de la plantilla" on={side === "roster"} onClick={() => toggleSide("roster")} narrow={narrow} testid="rail-roster">
+          <Users className="w-5 h-5" />{narrow && <RailLabel>Plantilla</RailLabel>}
+        </RailBtn>
+      )}
+      <RailSep narrow={narrow} />
+      {railTool({ id: "ball", label: "Balón", title: "Balón (0)", icon: Circle })}
+      {TOOL_GROUPS.map(groupBtn)}
+      {railTool({ id: "link", label: "Unir fichas", title: "Unir fichas (L)", icon: Waypoints, short: "Unir" })}
+      {railTool({ id: "text", label: "Texto", title: "Texto (E)", icon: Type })}
+    </>
+  );
+
+  // Panel flotante: lo que corresponda en cada momento (ajustes, plantilla, unir fichas, grupo, propiedades, capas)
+  const variants = !selected && curGroup && curGroup.id !== "arrow" ? (
+    <div className="flex flex-wrap gap-1" role="group" aria-label={curGroup.label} data-testid="tool-variants">
+      {curGroup.tools.map((id) => {
+        const info = TOOL_INFO[id];
+        const Icon = info.icon;
+        const on = tool === id;
+        return (
+          <button key={id} type="button" aria-pressed={on} onClick={() => pickTool(id)}
+            className={`h-8 px-2 rounded-md border text-[11px] font-semibold flex items-center gap-1 ${on ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>
+            <Icon className="w-3.5 h-3.5" style={on || !info.color ? undefined : { color: info.color }} /> {info.label.replace(/ \(.*\)/, "")}
+          </button>
+        );
+      })}
+    </div>
+  ) : null;
+
+  const settingsBody = (
+    <div className="space-y-2.5" data-testid="board-settings">
+      <div className="grid grid-cols-2 gap-1.5">
+        <label className="text-[11px] font-semibold text-gray-600 space-y-0.5">Campo
+          <select value={board.field} onChange={(e) => commit(changeField(board, e.target.value))} className={`${selectCls} w-full`} aria-label="Tipo de campo">
+            {allowed.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+          </select>
+        </label>
+        <label className="text-[11px] font-semibold text-gray-600 space-y-0.5">Modo visual
+          <select value={look} onChange={(e) => commit({ ...board, look: e.target.value })} className={`${selectCls} w-full`} aria-label="Modo visual">
+            {LOOKS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+          </select>
+        </label>
+        <label className="text-[11px] font-semibold text-gray-600 space-y-0.5">Orientación
+          <select value={orient} onChange={(e) => commit({ ...board, orient: orientOf(e.target.value) })} className={`${selectCls} w-full`} aria-label="Orientación del campo">
+            {ORIENTS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </select>
+        </label>
+        <label className="text-[11px] font-semibold text-gray-600 space-y-0.5">Vista
+          <select value={board.view === "persp" ? "persp" : "flat"} onChange={(e) => { const { view: _v, ...rest } = board; commit(e.target.value === "persp" ? { ...rest, view: "persp" } : rest); }} className={`${selectCls} w-full`} aria-label="Vista del campo">
+            {VIEWS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+          </select>
+        </label>
+      </div>
       {modes && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 space-y-1" data-testid="board-mode">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500">Tipo de dibujo</span>
-            <div className="flex gap-1" role="group" aria-label="Tipo de dibujo">
-              {[{ id: "image", label: "Imagen", icon: ImageIcon }, { id: "anim", label: "Animación", icon: Film }].map((m) => {
-                const on = (imageMode ? "image" : "anim") === m.id;
-                const Icon = m.icon;
-                return (
-                  <button key={m.id} type="button" aria-pressed={on} onClick={() => !on && setMode(m.id)}
-                    className={`h-8 px-2.5 rounded-md border text-xs font-semibold flex items-center gap-1.5 ${on ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>
-                    <Icon className="w-3.5 h-3.5" /> {m.label}
-                  </button>
-                );
-              })}
-            </div>
+        <div className="space-y-1" data-testid="board-mode">
+          <span className="text-[11px] font-semibold text-gray-600">Tipo de dibujo</span>
+          <div className="flex gap-1" role="group" aria-label="Tipo de dibujo">
+            {[{ id: "image", label: "Imagen", icon: ImageIcon }, { id: "anim", label: "Animación", icon: Film }].map((m) => {
+              const on = (imageMode ? "image" : "anim") === m.id;
+              const Icon = m.icon;
+              return (
+                <button key={m.id} type="button" aria-pressed={on} onClick={() => !on && setMode(m.id)}
+                  className={`h-8 px-2.5 rounded-md border text-xs font-semibold flex items-center gap-1.5 ${on ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>
+                  <Icon className="w-3.5 h-3.5" /> {m.label}
+                </button>
+              );
+            })}
           </div>
           <p className="text-[11px] text-gray-500">
             {imageMode
-              ? board.frames.length > 1
-                ? "Se guarda como imagen (el fotograma 1). Las demás posiciones de la animación se conservan por si vuelves a Animación."
-                : "Se guarda como imagen fija; se puede descargar en PNG."
-              : board.frames.length > 1
-                ? "Se guarda la animación en la tarea y se puede descargar como vídeo."
-                : "Añade un segundo fotograma con + para moverlas y crear la animación."}
+              ? board.frames.length > 1 ? "Se guarda como imagen (el fotograma 1); las demás posiciones se conservan por si vuelves a Animación." : "Se guarda como imagen fija."
+              : "Se guarda la animación y se puede descargar como vídeo."}
           </p>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <select value={board.field} onChange={(e) => commit(changeField(board, e.target.value))} className={selectCls} aria-label="Tipo de campo">
-          {allowed.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-        </select>
-        <select value={orient} onChange={(e) => commit({ ...board, orient: orientOf(e.target.value) })} className={selectCls} aria-label="Orientación del campo" title="Orientación del campo">
-          {ORIENTS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-        </select>
-        <select value={board.view === "persp" ? "persp" : "flat"} onChange={(e) => { const { view: _v, ...rest } = board; commit(e.target.value === "persp" ? { ...rest, view: "persp" } : rest); }} className={selectCls} aria-label="Vista del campo" title="Vista plana o en perspectiva (el dibujo es el mismo)">
-          {VIEWS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
-        </select>
-        <select value={look} onChange={(e) => commit({ ...board, look: e.target.value })} className={selectCls} aria-label="Modo visual">
-          {LOOKS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
-        </select>
-        <div className="flex flex-wrap gap-1 ml-auto">
-          <BoardDownloads board={board} frame={idx} filename={filename} />
-          <Button type="button" size="sm" variant="outline" className="h-8 px-2" onClick={undo} disabled={!history.length} title="Deshacer (Ctrl + Z)" aria-label="Deshacer"><Undo2 className="w-3.5 h-3.5" /></Button>
-          <Button type="button" size="sm" variant="outline" className="h-8 px-2" onClick={redo} disabled={!future.length} title="Rehacer (Ctrl + Mayús + Z)" aria-label="Rehacer"><Redo2 className="w-3.5 h-3.5" /></Button>
-          <BoardHelp open={helpOpen} onOpenChange={setHelpOpen} />
-          <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-red-600" onClick={clearFrame} disabled={!cur.els.length} title="Vaciar este fotograma"><Trash2 className="w-3.5 h-3.5" /></Button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1">
-        {toolBtn({ id: "select", label: "Mover" }, () => (<><MousePointer2 className="w-3.5 h-3.5" /><span className="hidden sm:inline">Mover</span></>))}
-        <button
-          type="button"
-          title="Varios: toca cada cosa para sumarla o quitarla de lo elegido (en el ordenador también con Mayús)"
-          aria-label="Elegir varios"
-          aria-pressed={multiMode}
-          onClick={() => { if (tool !== "select") pickTool("select"); setMultiMode((m) => !m); }}
-          className={`h-8 min-w-8 px-1.5 rounded-md border text-[11px] font-semibold flex items-center gap-1 ${multiMode ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-        >
-          <BoxSelect className="w-3.5 h-3.5" /><span className="hidden sm:inline">Varios</span>
-        </button>
-        <button
-          type="button"
-          title="Elegir todo lo del fotograma"
-          aria-label="Elegir todo"
-          onClick={selectAll}
-          disabled={!cur.els.length || playing}
-          className="h-8 min-w-8 px-1.5 rounded-md border text-[11px] font-semibold flex items-center gap-1 bg-white text-gray-600 border-gray-200 hover:bg-gray-50 disabled:opacity-40"
-        >
-          <SquareCheckBig className="w-3.5 h-3.5" /><span className="hidden sm:inline">Todo</span>
-        </button>
-        <button
-          type="button"
-          title="Lista de capas: elegir cualquier cosa del fotograma y subirla o bajarla"
-          aria-label="Lista de capas"
-          aria-pressed={layersOpen}
-          onClick={() => setLayersOpen((o) => !o)}
-          className={`h-8 min-w-8 px-1.5 rounded-md border text-[11px] font-semibold flex items-center gap-1 ${layersOpen ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-        >
-          <Layers className="w-3.5 h-3.5" /><span className="hidden sm:inline">Capas</span>
-        </button>
-        <span className="w-px h-5 bg-gray-200 mx-0.5" aria-hidden="true" />
-        {teams.map((t) => toolBtn({ id: t.id, label: t.name }, () => (
-          <>
-            <ChipGlyph board={board} el={{ team: t.id }} look={look} size={16} />
-            <span className="hidden md:inline max-w-[64px] truncate">{t.name}</span>
-          </>
-        )))}
-        {teams.length < MAX_TEAMS && (
-          <button type="button" onClick={newTeam} title="Nuevo equipo (otro color de fichas)" aria-label="Nuevo equipo" className="h-8 px-1.5 rounded-md border border-dashed border-gray-300 bg-white text-[11px] font-semibold text-gray-600 hover:bg-gray-50 flex items-center gap-1">
-            <Plus className="w-3.5 h-3.5" /><span className="hidden sm:inline">Equipo</span>
-          </button>
-        )}
-        <span className="w-px h-5 bg-gray-200 mx-0.5" aria-hidden="true" />
-        {OBJECT_TOOLS.map(iconTool)}
-        <span className="w-px h-5 bg-gray-200 mx-0.5" aria-hidden="true" />
-        {LINE_TOOLS.map(iconTool)}
-      </div>
-
-      <div className="relative" ref={wrapRef}>
-      <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex justify-center">
-        <Board
-          ref={svgRef}
-          board={board}
-          els={shownEls}
-          selIds={playing ? [] : sel}
-          marks={playing ? [] : tool === "link" ? pick : selected?.k === "link" ? selected.ids || [] : []}
-          markNumbers={!playing && (tool === "link" || (selected?.k === "link" && (selected.mode || "line") === "line"))}
-          ghosts={ghosts}
-          draft={draft}
-          handles={!playing}
-          className="w-full max-w-[560px] select-none"
-          style={{ touchAction: "none", cursor, maxHeight: tall ? 560 : 380, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
-          label="Pizarra"
-          onPointerDown={onDown}
-          onPointerMove={onMove}
-          onPointerUp={onUp}
-          onPointerCancel={onUp}
-          onDoubleClick={onDoubleClick}
-          onContextMenu={onContextMenu}
-          onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
-        />
-      </div>
-      {!playing && (
-        <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 rounded-lg border border-gray-200 bg-white/95 shadow-sm p-0.5" data-testid="board-zoom">
-          <button type="button" className={zoomBtn} onClick={() => zoomStep(-1)} disabled={cam.z <= 1} title="Alejar" aria-label="Alejar"><ZoomOut className="w-3.5 h-3.5" /></button>
-          <span className="text-[11px] font-semibold text-gray-600 w-10 text-center tabular-nums" data-testid="zoom-level">{Math.round(cam.z * 100)}%</span>
-          <button type="button" className={zoomBtn} onClick={() => zoomStep(1)} disabled={cam.z >= 4} title="Acercar (también Ctrl + rueda o pellizcando)" aria-label="Acercar"><ZoomIn className="w-3.5 h-3.5" /></button>
-          <button type="button" className={zoomBtn} onClick={() => { setCam(null); if (tool === "pan") pickTool("select"); }} disabled={cam.z <= 1} title="Ver todo el campo" aria-label="Ver todo el campo"><Maximize className="w-3.5 h-3.5" /></button>
-          <button type="button" aria-pressed={tool === "pan"} className={`${zoomBtn} ${tool === "pan" ? "bg-[var(--granate)] text-white hover:bg-[var(--granate)]" : ""}`} onClick={() => pickTool(tool === "pan" ? "select" : "pan")} disabled={cam.z <= 1 && tool !== "pan"} title="Mover la vista (arrastra el campo)" aria-label="Mover la vista"><Hand className="w-3.5 h-3.5" /></button>
+      {!imageMode && board.frames.length > 1 && (
+        <div className="space-y-1">
+          <span className="text-[11px] font-semibold text-gray-600">Animación</span>
+          <div className="flex flex-wrap gap-1 items-center">
+            <select value={speed} onChange={(e) => commit({ ...live.current, speed: Number(e.target.value) }, { record: false })} className={selectCls} aria-label="Velocidad">
+              {SPEEDS.map((sp) => <option key={sp.id} value={sp.id}>{sp.label}</option>)}
+            </select>
+            <button type="button" aria-pressed={loop} onClick={() => setLoop((l) => !l)} className={`h-8 px-2 rounded-md border text-[11px] font-semibold flex items-center gap-1 ${loop ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200"}`}><Repeat className="w-3.5 h-3.5" /> Repetir</button>
+            <button type="button" aria-pressed={trails} onClick={() => setTrails((tr) => !tr)} className={`h-8 px-2 rounded-md border text-[11px] font-semibold ${trails ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200"}`}>Rastro (J)</button>
+          </div>
+          <div className="flex flex-wrap gap-1 items-center text-[11px] text-gray-600">
+            <span>Fotograma {idx + 1}</span>
+            <Button type="button" size="sm" variant="outline" className="h-7 px-1.5" onClick={() => frameOp((b, i) => moveFrame(b, i, -1))} disabled={idx === 0} aria-label="Mover fotograma antes"><ChevronLeft className="w-3.5 h-3.5" /></Button>
+            <Button type="button" size="sm" variant="outline" className="h-7 px-1.5" onClick={() => frameOp((b, i) => moveFrame(b, i, 1))} disabled={idx === last} aria-label="Mover fotograma después"><ChevronRight className="w-3.5 h-3.5" /></Button>
+          </div>
         </div>
       )}
+      <div className="space-y-1">
+        <span className="text-[11px] font-semibold text-gray-600">Descargar</span>
+        <BoardDownloads board={board} frame={idx} filename={filename} />
+      </div>
+      <Button type="button" size="sm" variant="outline" className="h-8 px-2 gap-1 text-xs text-red-600" onClick={clearFrame} disabled={!cur.els.length}><Trash2 className="w-3.5 h-3.5" /> Vaciar este fotograma</Button>
+    </div>
+  );
+
+  const rosterBody = (
+    <div className="space-y-1.5" data-testid="board-roster">
+      <p className="text-[11px] text-gray-500">Toca un nombre para añadir su ficha con el equipo elegido en la barra ({teams.find((t) => t.id === (isTeamTool(tool) ? tool : "a"))?.name}).</p>
+      <div className="flex flex-wrap gap-1">
+        {roster.map((pl) => (
+          <button key={pl.id} type="button" onClick={() => addPlayer(pl)}
+            className={`px-2 py-0.5 rounded-full border text-[11px] ${used.has(pl.label) ? "bg-gray-100 text-gray-400 border-gray-200" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}`}>
+            + {pl.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const linkBody = tool === "link" ? (
+    <div className="space-y-1.5" data-testid="link-bar">
+      <p className="text-[11px] text-gray-600">
+        {pick.length ? `${pick.length} ${pick.length === 1 ? "elegida" : "elegidas"}` : "Toca las fichas que quieras unir, o arrastra un recuadro sobre ellas (también vale con conos y balón)."}
+      </p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={pick.length < 2} onClick={() => makeLink("line")}>Línea</Button>
+        <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={pick.length < 3} onClick={() => makeLink("zone")}>Zona</Button>
+        <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={pick.length < 2} onClick={() => makeLink("mesh")}>Red</Button>
+        <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs ml-auto" disabled={!pick.length} onClick={() => setPick([])}>Borrar elección</Button>
+      </div>
+    </div>
+  ) : null;
+
+  const propsBody = panelEl && !multi ? (
+    <div className="space-y-1.5" data-testid="board-props">
+      {variants}
+      {selected && <p className="text-[11px] text-amber-800">{selected.k === "arrow" ? "Arrastra la flecha o sus puntos" : selected.k === "token" && selected.feet ? "Arrastra la ficha; el punto naranja gira hacia dónde mira" : materialOf(selected.k) ? "Arrastra el material; el punto naranja lo gira" : selected.k === "link" ? "Sigue a sus fichas: mueve las fichas para cambiar la figura" : isQuad(selected) ? "Arrastra la zona o sus esquinas" : isMovable(selected) && board.frames.length > 1 ? "Arrástrala en cada fotograma" : "Arrastra para moverla"}</p>}
+      <BoardProps
+        key={selected ? selected.id : `tool-${tool}`}
+        el={panelEl}
+        brush={!selected}
+        board={board}
+        look={look}
+        patch={selected ? patchSel : patchBrush}
+        onType={setArrowType}
+        patchTeam={patchTeam}
+        setChip={setChip}
+        setFeet={setFeet}
+        canRemoveTeam={Boolean(panelEl.k === "token" && !["a", "b", "c", "gk"].includes(panelEl.team) && !teamInUse(board, panelEl.team))}
+        onRemoveTeam={dropTeam}
+        onQuick={() => selected && setQuick(selected.id)}
+      />
+      {selected && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <LayerButtons onLayer={layer} />
+          {selected.k !== "link" && <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs" onClick={dupSel}><Copy className="w-3.5 h-3.5" /> Duplicar</Button>}
+          {isCarried(selected) && board.frames.length > 1 && <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => delSel(true)}>Solo aquí</Button>}
+          <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs text-red-600" onClick={() => delSel(false)}><Trash2 className="w-3.5 h-3.5" /> Quitar</Button>
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  const panelTitle = side === "settings" ? "Campo y ajustes" : side === "roster" ? "Plantilla"
+    : tool === "link" ? "Unir fichas" : multi ? `${selEls.length} elegidos`
+      : selected ? KIND_LABEL[selected.k] : panelEl ? (isTeamTool(tool) ? `Fichas · ${teams.find((t) => t.id === tool)?.name || ""}` : curGroup ? curGroup.label : KIND_LABEL[panelEl.k]) : layersOpen ? "Capas" : "";
+  const panelBody = playing ? null : side === "settings" ? settingsBody : side === "roster" ? rosterBody : (
+    linkBody || (multi ? (
+      <MultiPanel els={selEls} board={board} look={look} frames={board.frames.length} onTeam={teamMany} onColor={colorMany} onFeet={feetMany} onBib={bibMany} onTurn={turnMany} onResize={resizeMany} onSpread={spreadMany} onAlign={alignMany} onDistribute={distributeMany} onLayer={layer} onDup={dupMany} onDel={delMany} onClear={() => setSel([])} />
+    ) : propsBody)
+  );
+  const layersBody = layersOpen && !playing && !side ? <LayerList els={cur.els} board={board} look={look} sel={sel} onPick={pickLayer} onStep={stepOne} onMoveTo={moveRow} /> : null;
+  const showPanel = !panelHidden && (panelBody || layersBody);
+  const panel = showPanel ? (
+    <section
+      aria-label={panelTitle || "Panel"}
+      data-testid="board-panel"
+      className={narrow ? "absolute left-2 right-2 bottom-2 max-h-[48%] overflow-y-auto rounded-xl bg-white shadow-2xl border border-gray-200" : "absolute left-[76px] top-3 w-[372px] max-h-[calc(100%-24px)] overflow-y-auto rounded-xl bg-white shadow-2xl border border-gray-200"}
+      style={{ zIndex: 5 }}
+    >
+      <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b" style={{ background: RAIL.bg, color: RAIL.text, borderColor: RAIL.border }}>
+        <h2 className="text-sm font-bold flex-1 truncate">{panelTitle || "Capas"}</h2>
+        <button type="button" onClick={() => { setPanelHidden(true); setSide(null); }} aria-label="Cerrar panel" className="h-7 w-7 rounded-md flex items-center justify-center hover:bg-white/10"><X className="w-4 h-4" /></button>
+      </div>
+      <div className="p-3 space-y-3 text-gray-800">
+        {panelBody}
+        {layersBody}
+      </div>
+    </section>
+  ) : null;
+
+  const frameBtn = (f, i) => (
+    <button key={f.id} type="button" role="tab" aria-selected={i === idx} onClick={() => goFrame(i)} data-testid={`frame-${i + 1}`}
+      className="shrink-0 rounded-lg text-sm font-bold tabular-nums"
+      style={{ width: narrow ? 44 : 52, height: narrow ? 36 : 30, background: i === idx ? RAIL.text : RAIL.btn, color: i === idx ? RAIL.onInk : RAIL.text, border: `1px solid ${i === idx ? RAIL.text : RAIL.line}` }}>
+      {String(i + 1).padStart(2, "0")}
+    </button>
+  );
+  const playBtn = (
+    <RailBtn label={playing ? "Parar" : "Reproducir"} title={board.frames.length < 2 ? "Añade otro fotograma para animar (N)" : playing ? "Parar (Espacio)" : "Reproducir (Espacio)"} on={playing} disabled={imageMode || board.frames.length < 2} onClick={() => (playing ? stop() : setPlaying(true))} testid="rail-play">
+      {playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+    </RailBtn>
+  );
+  const frameOps = !imageMode && (
+    <>
+      <RailBtn label="Añadir fotograma" title="Añadir fotograma (N)" disabled={board.frames.length >= MAX_FRAMES} onClick={() => frameOp((b, i) => addFrame(b, i))} narrow={narrow} testid="rail-add-frame"><Plus className="w-5 h-5" />{narrow && <RailLabel>Nuevo</RailLabel>}</RailBtn>
+      <RailBtn label="Duplicar fotograma" title="Duplicar fotograma (las flechas y zonas se deslizan)" disabled={board.frames.length >= MAX_FRAMES} onClick={() => frameOp((b, i) => duplicateFrame(b, i))} narrow={narrow}><Copy className="w-5 h-5" />{narrow && <RailLabel>Duplicar</RailLabel>}</RailBtn>
+      <RailBtn label="Quitar fotograma" title="Quitar fotograma (M)" disabled={board.frames.length < 2} onClick={() => frameOp((b, i) => removeFrame(b, i))} narrow={narrow}><Minus className="w-5 h-5" />{narrow && <RailLabel>Quitar</RailLabel>}</RailBtn>
+    </>
+  );
+  const helpBtn = (
+    <BoardHelp open={helpOpen} onOpenChange={setHelpOpen} side={narrow ? "bottom" : "left"} trigger={
+      <button type="button" aria-label="Ayuda y atajos" title="Ayuda y atajos (Mayús + H)" className="shrink-0 rounded-xl flex items-center justify-center" style={{ width: 44, height: 44, background: RAIL.btn, color: RAIL.ink, border: `1px solid ${RAIL.line}` }}>
+        <Keyboard className="w-5 h-5" />
+      </button>
+    } />
+  );
+  const zoomBox = !playing && (
+    <div className="absolute top-2 right-2 flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} data-testid="board-zoom">
+      <button type="button" className={zoomBtnDark} onClick={() => zoomStep(-1)} disabled={cam.z <= 1} aria-label="Alejar"><ZoomOut className="w-4 h-4" /></button>
+      <span className="text-[11px] font-semibold w-10 text-center tabular-nums" data-testid="zoom-level">{Math.round(cam.z * 100)}%</span>
+      <button type="button" className={zoomBtnDark} onClick={() => zoomStep(1)} disabled={cam.z >= 4} aria-label="Acercar"><ZoomIn className="w-4 h-4" /></button>
+      <button type="button" className={zoomBtnDark} onClick={() => { setCam(null); if (tool === "pan") pickTool("select"); }} disabled={cam.z <= 1} aria-label="Ver todo el campo"><Maximize className="w-4 h-4" /></button>
+      <button type="button" aria-pressed={tool === "pan"} className={zoomBtnDark} style={tool === "pan" ? { background: RAIL.on, color: RAIL.onInk } : undefined} onClick={() => pickTool(tool === "pan" ? "select" : "pan")} disabled={cam.z <= 1 && tool !== "pan"} aria-label="Mover la vista"><Hand className="w-4 h-4" /></button>
+    </div>
+  );
+  const stage = (
+    <div ref={wrapRef} className={narrow ? "relative flex-1 min-h-0 flex items-center justify-center p-1" : "absolute inset-y-0 left-[72px] right-[80px] flex items-center justify-center p-3"}>
+      <Board
+        ref={svgRef}
+        board={board}
+        els={shownEls}
+        selIds={playing ? [] : sel}
+        marks={playing ? [] : tool === "link" ? pick : selected?.k === "link" ? selected.ids || [] : []}
+        markNumbers={!playing && (tool === "link" || (selected?.k === "link" && (selected.mode || "line") === "line"))}
+        ghosts={ghosts}
+        draft={draft}
+        handles={!playing}
+        className="w-full h-full select-none"
+        style={{ touchAction: "none", cursor, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
+        label="Pizarra"
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        onDoubleClick={onDoubleClick}
+        onContextMenu={onContextMenu}
+        onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
+      />
+      {zoomBox}
       {quickEl && quickPos && (
         <ChipQuickEdit
           el={quickEl}
@@ -825,138 +1001,118 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           onDup={() => { setQuick(null); dupSel(); }}
           onDel={(onlyHere) => { setQuick(null); delSel(onlyHere); }}
           canDelHere={isCarried(quickEl) && board.frames.length > 1}
-          style={{ position: "absolute", left: quickPos.left, ...(quickPos.up ? { bottom: `calc(100% - ${quickPos.mid}px)` } : { top: quickPos.top }) }}
+          style={{ position: "absolute", left: quickPos.left, zIndex: 6, ...(quickPos.up ? { bottom: `calc(100% - ${quickPos.mid}px)` } : { top: quickPos.top }) }}
         />
       )}
-      </div>
-
-      {tool === "link" && !playing && (
-        <div className="rounded-lg border px-2 py-1.5 space-y-1.5 bg-gray-50 border-gray-200" data-testid="link-bar">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500">Unir fichas</span>
-            <span className="text-[11px] text-gray-600 flex-1 min-w-[120px]">
-              {pick.length ? `${pick.length} ${pick.length === 1 ? "elegida" : "elegidas"}` : "Toca las fichas que quieras unir, o arrastra un recuadro sobre ellas (también vale con conos y balón)."}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-semibold text-gray-600">Crear</span>
-            <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={pick.length < 2} onClick={() => makeLink("line")} title="Una línea de un extremo al otro de las fichas">Línea</Button>
-            <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={pick.length < 3} onClick={() => makeLink("zone")} title="Una zona que envuelve a todas las fichas">Zona</Button>
-            <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={pick.length < 2} onClick={() => makeLink("mesh")} title="Todas las fichas unidas entre sí">Red</Button>
-            <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs ml-auto" disabled={!pick.length} onClick={() => setPick([])}>Borrar elección</Button>
-          </div>
-        </div>
-      )}
-
-      {multi && !playing && (
-        <MultiPanel
-          els={selEls}
-          board={board}
-          look={look}
-          frames={board.frames.length}
-          onTeam={teamMany}
-          onColor={colorMany}
-          onFeet={feetMany}
-          onBib={bibMany}
-          onTurn={turnMany}
-          onResize={resizeMany}
-          onSpread={spreadMany}
-          onAlign={alignMany}
-          onDistribute={distributeMany}
-          onLayer={layer}
-          onDup={dupMany}
-          onDel={delMany}
-          onClear={() => setSel([])}
-        />
-      )}
-
-      {panelEl && (
-        <div className={`rounded-lg border px-2 py-1.5 space-y-1.5 ${selected ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-200"}`} data-testid="board-props">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
-              {selected ? KIND_LABEL[selected.k] : `Lo siguiente que dibujes${isTeamTool(tool) ? "" : ` (${KIND_LABEL[panelEl.k].toLowerCase()})`}`}
-            </span>
-            {selected && <span className="text-[11px] text-amber-800 flex-1 min-w-[80px]">{selected.k === "arrow" ? "Arrastra la flecha o sus puntos" : selected.k === "token" && selected.feet ? "Arrastra la ficha; el punto naranja gira hacia dónde mira" : materialOf(selected.k) ? "Arrastra el material; el punto naranja lo gira" : selected.k === "link" ? "Sigue a sus fichas: mueve las fichas para cambiar la figura" : isQuad(selected) ? "Arrastra la zona o sus esquinas" : isMovable(selected) && board.frames.length > 1 ? "Arrástrala en cada fotograma" : "Arrastra para moverla"}</span>}
-          </div>
-          <BoardProps
-            key={selected ? selected.id : `tool-${tool}`}
-            el={panelEl}
-            brush={!selected}
-            board={board}
-            look={look}
-            patch={selected ? patchSel : patchBrush}
-            onType={setArrowType}
-            patchTeam={patchTeam}
-            setChip={setChip}
-            setFeet={setFeet}
-            canRemoveTeam={Boolean(panelEl.k === "token" && !["a", "b", "c", "gk"].includes(panelEl.team) && !teamInUse(board, panelEl.team))}
-            onRemoveTeam={dropTeam}
-            onQuick={() => selected && setQuick(selected.id)}
-          />
-          {selected && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-              <LayerButtons onLayer={layer} />
-              {selected.k !== "link" && <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs" onClick={dupSel} title="Duplicar"><Copy className="w-3.5 h-3.5" /> Duplicar</Button>}
-              {isCarried(selected) && board.frames.length > 1 && (
-                <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => delSel(true)} title="Quitar solo de este fotograma">Solo aquí</Button>
-              )}
-              <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs text-red-600" onClick={() => delSel(false)} title={isCarried(selected) && board.frames.length > 1 ? "Quitar de todos los fotogramas" : "Quitar"}><Trash2 className="w-3.5 h-3.5" /> Quitar</Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {layersOpen && !playing && <LayerList els={cur.els} board={board} look={look} sel={sel} onPick={pickLayer} onStep={stepOne} onMoveTo={moveRow} />}
-
-      {!imageMode && <div className="flex flex-wrap items-center gap-1.5">
-        <Button type="button" size="sm" className="h-8 px-2.5 gap-1 text-xs" onClick={() => (playing ? stop() : setPlaying(true))} disabled={board.frames.length < 2} title={board.frames.length < 2 ? "Añade otro fotograma para animar" : playing ? "Parar" : "Reproducir la animación"}>
-          {playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />} {playing ? "Parar" : "Reproducir"}
-        </Button>
-        <div className="flex flex-wrap gap-1 items-center" role="tablist" aria-label="Fotogramas">
-          {board.frames.map((f, i) => (
-            <button key={f.id} type="button" role="tab" aria-selected={i === idx} onClick={() => goFrame(i)}
-              className={`h-8 min-w-8 px-2 rounded-md border text-xs font-bold ${i === idx ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>
-              {i + 1}
-            </button>
-          ))}
-          <Button type="button" size="sm" variant="outline" className="h-8 px-2" onClick={() => frameOp((b, i) => addFrame(b, i))} disabled={board.frames.length >= MAX_FRAMES} title="Nuevo fotograma (copia las posiciones del actual)" aria-label="Nuevo fotograma"><Plus className="w-3.5 h-3.5" /></Button>
-        </div>
-        {board.frames.length > 1 && (
-          <div className="flex gap-1 items-center ml-auto">
-            <select value={speed} onChange={(e) => commit({ ...live.current, speed: Number(e.target.value) }, { record: false })} className={selectCls} aria-label="Velocidad">
-              {SPEEDS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
-            <button type="button" aria-pressed={loop} title="Repetir" aria-label="Repetir" onClick={() => setLoop((l) => !l)} className={`h-8 w-8 rounded-md border flex items-center justify-center ${loop ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-200"}`}><Repeat className="w-3.5 h-3.5" /></button>
-            <button type="button" aria-pressed={trails} title="Mostrar de dónde viene cada ficha" aria-label="Rastro" onClick={() => setTrails((t) => !t)} className={`h-8 px-2 rounded-md border text-[11px] font-semibold ${trails ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-200"}`}>Rastro</button>
-          </div>
-        )}
-      </div>}
-      {!imageMode && board.frames.length > 1 && (
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500">
-          <span>Fotograma {idx + 1} de {board.frames.length}</span>
-          <Button type="button" size="sm" variant="outline" className="h-7 px-1.5" onClick={() => frameOp((b, i) => moveFrame(b, i, -1))} disabled={idx === 0} title="Mover antes" aria-label="Mover fotograma antes"><ChevronLeft className="w-3.5 h-3.5" /></Button>
-          <Button type="button" size="sm" variant="outline" className="h-7 px-1.5" onClick={() => frameOp((b, i) => moveFrame(b, i, 1))} disabled={idx === last} title="Mover después" aria-label="Mover fotograma después"><ChevronRight className="w-3.5 h-3.5" /></Button>
-          <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1" onClick={() => frameOp((b, i) => duplicateFrame(b, i))} disabled={board.frames.length >= MAX_FRAMES}><Copy className="w-3 h-3" /> Duplicar</Button>
-          <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-red-600" onClick={() => frameOp((b, i) => removeFrame(b, i))}><Trash2 className="w-3 h-3" /> Quitar fotograma</Button>
-        </div>
-      )}
-      {error && <p className="text-xs text-red-600" role="alert">{error}</p>}
-
-      {roster.length > 0 && (
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1">Añadir jugador (con el color del equipo elegido arriba)</p>
-          <div className="flex flex-wrap gap-1">
-            {roster.map((p) => (
-              <button key={p.id} type="button" onClick={() => addPlayer(p)}
-                className={`px-2 py-0.5 rounded-full border text-[11px] ${used.has(p.label) ? "bg-gray-100 text-gray-400 border-gray-200" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}`}>
-                + {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      {hasEls && tool === "select" && !sel.length && !playing && <p className="text-[11px] text-gray-400">Toca algo para elegirlo. Para elegir varias cosas, arrastra un recuadro por el campo o activa «Varios».</p>}
-      {!hasEls && <p className="text-[11px] text-gray-400">Elige una herramienta y toca el campo. Con «+» añades un fotograma para animar el movimiento.</p>}
+      {narrow && panel}
     </div>
   );
+  const hint = playing ? "Reproduciendo…" : error ? error
+    : tool === "select" ? (sel.length ? "Arrastra para mover · Supr para quitar" : hasEls ? "Toca algo para elegirlo · arrastra un recuadro para elegir varios" : "Elige una herramienta en la barra de la izquierda y toca el campo")
+      : isTeamTool(tool) ? "Toca el campo para colocar fichas" : ARROW_TOOLS.includes(tool) ? "Arrastra para dibujar la flecha" : tool === "zone" || tool === "quad" ? "Arrastra para dibujar la zona" : tool === "pan" ? "Arrastra para mover la vista" : "Toca el campo para colocarlo";
+
+  const studio = narrow ? (
+    <div className="fixed inset-0 flex flex-col" style={{ background: styleOf(look).surround || RAIL.bg, color: RAIL.text, zIndex: 50 }} onKeyDown={onKey} tabIndex={-1} data-testid="board-studio">
+      <header className="flex items-center gap-1.5 px-2 py-2" style={{ background: RAIL.bg, borderBottom: `1px solid ${RAIL.border}` }}>
+        <RailBtn label="Salir de la pizarra" title="Salir" onClick={closeStudio} testid="board-close"><ChevronLeft className="w-5 h-5" /></RailBtn>
+        <div className="flex-1 min-w-0">
+          <DialogPrimitive.Title className="text-sm font-bold truncate">{title}</DialogPrimitive.Title>
+          <p className="text-[11px] truncate" style={{ color: RAIL.sub }}>{imageMode ? "Imagen" : `Fotograma ${idx + 1} de ${board.frames.length}`}</p>
+        </div>
+        <RailBtn label="Deshacer" title="Deshacer" disabled={!history.length} onClick={undo}><Undo2 className="w-5 h-5" /></RailBtn>
+        <RailBtn label="Rehacer" title="Rehacer" disabled={!future.length} onClick={redo}><Redo2 className="w-5 h-5" /></RailBtn>
+        {!imageMode && playBtn}
+        <RailBtn label="Campo y ajustes" title="Campo, modo visual, animación y descargas" on={side === "settings"} onClick={() => toggleSide("settings")} testid="rail-settings"><Settings2 className="w-5 h-5" /></RailBtn>
+      </header>
+      {stage}
+      {!imageMode && (
+        <div role="tablist" aria-label="Fotogramas" className="flex items-center gap-1.5 px-2 py-1.5 overflow-x-auto" style={{ background: RAIL.bg, borderTop: `1px solid ${RAIL.border}` }}>
+          {board.frames.map(frameBtn)}
+          {frameOps}
+        </div>
+      )}
+      <nav aria-label="Herramientas" className="flex items-center gap-1.5 px-2 pt-1.5 pb-3 overflow-x-auto" style={{ background: "#1c0007" }}>
+        {toolButtons}
+        <RailBtn label="Deshacer" disabled={!history.length} onClick={undo} narrow><Undo2 className="w-5 h-5" /><RailLabel>Deshacer</RailLabel></RailBtn>
+      </nav>
+    </div>
+  ) : (
+    <div className="fixed inset-0" style={{ background: styleOf(look).surround || "#0d2a1f", color: RAIL.text, zIndex: 50 }} onKeyDown={onKey} tabIndex={-1} data-testid="board-studio">
+      {stage}
+      <nav aria-label="Herramientas" className="absolute left-3 top-3 bottom-3 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden pr-0.5 no-scrollbar" style={{ zIndex: 6 }}>
+        {toolButtons}
+        <RailSep />
+        <RailBtn label="Deshacer" title="Deshacer (Ctrl + Z)" disabled={!history.length} onClick={undo}><Undo2 className="w-5 h-5" /></RailBtn>
+        <RailBtn label="Rehacer" title="Rehacer (Ctrl + Mayús + Z)" disabled={!future.length} onClick={redo}><Redo2 className="w-5 h-5" /></RailBtn>
+      </nav>
+      <nav aria-label="Fotogramas y archivo" className="absolute right-3 top-3 bottom-3 flex flex-col items-center gap-1.5 overflow-y-auto overflow-x-hidden no-scrollbar" style={{ zIndex: 6 }}>
+        <RailBtn label="Salir de la pizarra" title="Salir (Esc)" onClick={closeStudio} testid="board-close"><LogOut className="w-5 h-5 rotate-180" /></RailBtn>
+        {!imageMode && playBtn}
+        {!imageMode && (
+          <div role="tablist" aria-label="Fotogramas" className="flex flex-col gap-1 my-1">
+            {board.frames.map(frameBtn)}
+          </div>
+        )}
+        {frameOps}
+        <RailSep />
+        <RailBtn label="Campo y ajustes" title="Campo, modo visual, animación y descargas" on={side === "settings"} onClick={() => toggleSide("settings")} testid="rail-settings"><Settings2 className="w-5 h-5" /></RailBtn>
+        {helpBtn}
+      </nav>
+      {panel}
+      <div className="absolute left-1/2 -translate-x-1/2 top-3 max-w-[50%] pointer-events-none rounded-full px-4 py-1.5 text-sm font-bold truncate" style={{ background: "rgba(36,0,10,0.9)", border: `1px solid ${RAIL.border}`, zIndex: 3 }}>
+        <DialogPrimitive.Title className="truncate">{title}</DialogPrimitive.Title>
+      </div>
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-3 max-w-[60%] pointer-events-none rounded-full px-4 py-1.5 text-xs flex gap-3 items-center" style={{ background: "rgba(36,0,10,0.9)", border: `1px solid ${RAIL.border}`, zIndex: 3 }} role="status">
+        {!imageMode && board.frames.length > 1 && <span className="font-bold whitespace-nowrap">Fotograma {idx + 1} de {board.frames.length}</span>}
+        <span className="truncate" style={{ color: error ? "#fca5a5" : RAIL.sub }}>{hint}</span>
+        <span className="whitespace-nowrap hidden lg:inline" style={{ color: RAIL.sub }}>Mayús + H · atajos</span>
+      </div>
+    </div>
+  );
+
+  return (
+    <DialogPrimitive.Root open onOpenChange={(o) => { if (!o) closeStudio(); }}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Content
+          aria-describedby={undefined}
+          className="outline-none"
+          onEscapeKeyDown={(e) => { if (quick) { e.preventDefault(); setQuick(null); } else if (sel.length || tool !== "select") { e.preventDefault(); setSel([]); pickTool("select"); } }}
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+        >
+          {studio}
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  );
 }
+
+// ── Barras de la pantalla completa ─────────────────────────────────────────────────────────────────────────────────
+const RAIL = { bg: "#24000a", btn: "rgba(42,0,9,0.94)", line: "#a84a2a", ink: "#FF9B4A", on: "#FF6E00", onInk: "#2a0009", text: "#F7E9E4", sub: "#E2C3BA", border: "#7a2a2f" };
+const zoomBtnDark = "h-8 w-8 rounded-md flex items-center justify-center hover:bg-white/10 disabled:opacity-30";
+function RailBtn({ label, title, on, disabled, onClick, children, narrow = false, dashed = false, testid }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={title || label}
+      aria-pressed={on === undefined ? undefined : !!on}
+      disabled={disabled}
+      onClick={onClick}
+      data-testid={testid}
+      className="shrink-0 rounded-xl flex flex-col items-center justify-center gap-0.5 disabled:opacity-35 transition-colors"
+      style={{ width: narrow ? 58 : 44, height: narrow ? 52 : 44, background: on ? RAIL.on : RAIL.btn, color: on ? RAIL.onInk : RAIL.ink, border: `1px ${dashed ? "dashed" : "solid"} ${on ? RAIL.on : RAIL.line}` }}
+    >
+      {children}
+    </button>
+  );
+}
+const RailLabel = ({ children }) => <span className="text-[10px] font-semibold leading-none max-w-[54px] truncate">{children}</span>;
+const RailSep = ({ narrow = false }) => <span aria-hidden="true" className={narrow ? "w-px h-8 shrink-0 mx-0.5" : "h-px w-8 shrink-0 my-0.5 mx-auto"} style={{ background: RAIL.border }} />;
+const TOOL_INFO = Object.fromEntries([...OBJECT_TOOLS, ...LINE_TOOLS].map((t) => [t.id, t]));
+const TOOL_GROUPS = [
+  { id: "arrow", label: "Flechas", short: "Flecha", key: "A", icon: MoveUpRight, tools: ARROW_TOOLS },
+  { id: "zone", label: "Zonas", short: "Zona", key: "D", icon: Square, tools: ["zone", "quad"] },
+  { id: "material", label: "Material", short: "Material", key: "T", icon: Triangle, tools: ["cone", "goal", ...MATERIAL_IDS] },
+];
+

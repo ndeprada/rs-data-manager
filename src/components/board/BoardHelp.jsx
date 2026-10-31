@@ -5,15 +5,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { BOARD_SHORTCUTS } from "@/lib/boardKeys";
 
 // Ayuda con los atajos de teclado de la pizarra (botón del teclado o Mayús + H)
-export default function BoardHelp({ open, onOpenChange }) {
+export default function BoardHelp({ open, onOpenChange, trigger = null, side = "bottom" }) {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button type="button" size="sm" variant="outline" className="h-8 px-2" title="Atajos de teclado (Mayús + H)" aria-label="Atajos de teclado">
-          <Keyboard className="w-3.5 h-3.5" />
-        </Button>
+        {trigger || (
+          <Button type="button" size="sm" variant="outline" className="h-8 px-2" title="Atajos de teclado (Mayús + H)" aria-label="Atajos de teclado">
+            <Keyboard className="w-3.5 h-3.5" />
+          </Button>
+        )}
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(92vw,560px)] p-3" data-testid="board-help">
+      <PopoverContent align="end" side={side} className="w-[min(92vw,560px)] p-3" data-testid="board-help">
         <p className="text-xs font-bold text-gray-800 mb-2">Atajos de teclado</p>
         <div className="grid sm:grid-cols-2 gap-x-5 gap-y-3">
           {BOARD_SHORTCUTS.map((g) => (

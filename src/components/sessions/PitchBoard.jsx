@@ -1,7 +1,7 @@
 import React from "react";
 import BoardEditor from "@/components/board/BoardEditor";
 import Board from "@/components/board/BoardSvg";
-import { fieldOf, hasBoard, normalizeBoard } from "@/lib/board";
+import { fieldOf, hasBoard, isStadium, normalizeBoard } from "@/lib/board";
 
 // Dibujo de tareas de entrenamiento. Usa la pizarra común (src/components/board): fichas por equipo, balón, conos,
 // porterías, flechas, zonas y textos, con fotogramas para animar. Los dibujos antiguos se abren como primer fotograma.
@@ -18,8 +18,10 @@ export default function PitchBoard({ value, onChange, roster = [], filename = "t
 }
 
 // Vista de solo lectura (ficha impresa y vista previa): primer fotograma (o el indicado) en el modo visual del dibujo.
-export function PitchView({ board, frame = 0, className = "", style }) {
-  const b = normalizeBoard(board);
+// En la ficha impresa (`print`) los modos de estadio salen en blanco: sin gradas y con poca tinta.
+export function PitchView({ board, frame = 0, className = "", style, print = false }) {
+  const raw = normalizeBoard(board);
+  const b = print && isStadium(raw.look) ? { ...raw, look: "blanco" } : raw;
   const f = b.frames[Math.min(frame, b.frames.length - 1)];
   return <Board board={b} els={f.els} className={className} style={style} label="Dibujo de la tarea" />;
 }
