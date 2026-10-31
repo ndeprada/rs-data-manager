@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { LICENCE, LICENCE_KEYS, PLAYS_IN, PLAYS_IN_KEYS, cleanLicence, licenceOf } from "@/lib/scoutLicence";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,10 +61,10 @@ const EMPTY_FORM = {
   skill_mental: 0, skill_attack: 0, skill_defense: 0,
   key_points: "", observations: "", match_observed: "", observation_date: "",
   photo_url: "", futbolbase_url: "", tags: [], decision: "seguir_viendo", origin: "visto",
-  category: "", league_group: "",
+  category: "", league_group: "", birth_year: "", licence: "federado", plays_in: "",
 };
 
-export default function ScoutedPlayerForm({ open, onOpenChange, player, onSave, isLoading }) {
+export default function ScoutedPlayerForm({ open, onOpenChange, player, onSave, isLoading, defaults }) {
   const [form, setForm] = React.useState(EMPTY_FORM);
 
   useEffect(() => {
@@ -106,19 +107,23 @@ export default function ScoutedPlayerForm({ open, onOpenChange, player, onSave, 
           origin: player.origin || (player.source === "fcf" || player.fcf_id ? "fcf" : "visto"),
           category: player.category || "",
           league_group: player.league_group || "",
+          birth_year: player.birth_year ? String(player.birth_year) : "",
+          licence: licenceOf(player),
+          plays_in: player.plays_in || "",
         });
       } else {
-        setForm(EMPTY_FORM);
+        setForm({ ...EMPTY_FORM, ...(defaults || {}) });
       }
     }
   }, [open, player]);
+  const nonFed = form.licence === "no_federado";
 
   const set = (field, val) => setForm(f => ({ ...f, [field]: val }));
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const data = {
-      ...form,
+      ...cleanLicence(form),
       height_cm: form.height_cm ? Number(form.height_cm) : null,
       weight_kg: form.weight_kg ? Number(form.weight_kg) : null,
     };
@@ -130,7 +135,7 @@ export default function ScoutedPlayerForm({ open, onOpenChange, player, onSave, 
       <DialogContent className="bg-white max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
-            {player ? "Editar jugador observado" : "Nuevo jugador observado"}
+            {player ? "Editar jugador observado" : nonFed ? "Nuevo jugador no federado" : "Nuevo jugador observado"}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -140,7 +145,8 @@ export default function ScoutedPlayerForm({ open, onOpenChange, player, onSave, 
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">Nombre *</Label><Input value={form.first_name} onChange={e => set("first_name", e.target.value)} required /></div>
               <div><Label className="text-xs">Apellidos *</Label><Input value={form.last_name} onChange={e => set("last_name", e.target.value)} required /></div>
-              <div><Label className="text-xs">Fecha de nacimiento</Label><Input type="date" value={form.birth_date} onChange={e => set("birth_date", e.target.value)} /></div>
+              <div><Label className="text-xs">Año de nacimiento</Label><Input inputMode="numeric" maxLength={4} placeholder="Ej: 2013" value={form.birth_date ? form.birth_date.slice(0, 4) : form.birth_year} disabled={!!form.birth_date} onChange={e => set("birth_year", e.target.value.replace(/\D/g, "").slice(0, 4))} data-testid="sp-birth-year" /></div>
+              <div><Label className="text-xs">Fecha de nacimiento (si se sabe)</Label><Input type="date" value={form.birth_date} onChange={e => set("birth_date", e.target.value)} /></div>
               <div><Label className="text-xs">Nacionalidad</Label><Input value={form.nationality} onChange={e => set("nationality", e.target.value)} /></div>
               <div><Label className="text-xs">Altura (cm)</Label><Input type="number" value={form.height_cm} onChange={e => set("height_cm", e.target.value)} /></div>
               <div><Label className="text-xs">Peso (kg)</Label><Input type="number" value={form.weight_kg} onChange={e => set("weight_kg", e.target.value)} /></div>
@@ -161,7 +167,33 @@ export default function ScoutedPlayerForm({ open, onOpenChange, player, onSave, 
           {/* Datos futbolísticos */}
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2" style={{ fontFamily: "var(--font-display)" }}>Datos futbolísticos</p>
+            <div className="mb-3">
+              <Label className="text-xs">Licencia</Label>
+              <div className="flex flex-wrap gap-2 mt-1" role="radiogroup" aria-label="Licencia">
+                {LICENCE_KEYS.map((k) => (
+                  <button key={k} type="button" role="radio" aria-checked={form.licence === k} data-testid={`sp-licence-${k}`}
+                    disabled={k === "no_federado" && !!player?.fcf_id}
+                    onClick={() => set("licence", k)}
+                    className="px-3 py-1.5 rounded-md text-sm font-semibold border disabled:opacity-40"
+                    style={form.licence === k ? { background: "var(--granate)", color: "#fff", borderColor: "var(--granate)" } : { background: "#fff", color: "#3a2a2d", borderColor: "#E6DEDD" }}>
+                    {LICENCE[k]}
+                  </button>
+                ))}
+              </div>
+              {player?.fcf_id && <p className="text-xs text-gray-500 mt-1">Vinculado a la FCF: es federado.</p>}
+            </div>
             <div className="grid grid-cols-2 gap-3">
+              {nonFed && (
+                <div>
+                  <Label className="text-xs">Dónde juega</Label>
+                  <Select value={form.plays_in} onValueChange={v => set("plays_in", v)}>
+                    <SelectTrigger data-testid="sp-plays-in"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                    <SelectContent>
+                      {PLAYS_IN_KEYS.map((k) => <SelectItem key={k} value={k}>{PLAYS_IN[k]}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div>
                 <Label className="text-xs">Posición principal</Label>
                 <Select value={form.position} onValueChange={v => setForm(f => ({ ...f, position: v, reference_role: v === f.position ? f.reference_role : "" }))}>
@@ -205,9 +237,9 @@ export default function ScoutedPlayerForm({ open, onOpenChange, player, onSave, 
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label className="text-xs">Club actual</Label><Input value={form.current_club} onChange={e => set("current_club", e.target.value)} /></div>
+              <div><Label className="text-xs">{nonFed ? "Club, escuela o equipo" : "Club actual"}</Label><Input value={form.current_club} onChange={e => set("current_club", e.target.value)} placeholder={nonFed ? "Ej: Escola Sant Ignasi" : ""} data-testid="sp-club" /></div>
               <div><Label className="text-xs">Categoría</Label><Input value={form.category} onChange={e => set("category", e.target.value)} placeholder="Ej: Cadete" /></div>
-              <div><Label className="text-xs">Liga y grupo</Label><Input value={form.league_group} onChange={e => set("league_group", e.target.value)} /></div>
+              {!nonFed && <div><Label className="text-xs">Liga y grupo</Label><Input value={form.league_group} onChange={e => set("league_group", e.target.value)} /></div>}
             </div>
           </div>
 

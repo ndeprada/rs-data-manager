@@ -14,6 +14,7 @@ import PlayerVideosTab from "@/components/scouting/PlayerVideosTab";
 import PlayerImagesTab from "@/components/scouting/PlayerImagesTab";
 import PlayerSeasonHistoryTab from "@/components/scouting/PlayerSeasonHistoryTab";
 import PlayerFollowUpsTab from "@/components/scouting/PlayerFollowUpsTab";
+import { isNonFederated, playsInText } from "@/lib/scoutLicence";
 import { RS, Card, Btn, BackLink, Chip, Empty, Pills, Dorsals, DECISION, DECISION_KEYS, ORIGIN, originOf, fmtDate, seasonShort } from "@/components/rs2/kit";
 import { titleCase, fcfDisplayName } from "@/lib/fcfNames";
 import { juvenilYear, JUV_STYLE } from "@/lib/juvenilYear";
@@ -106,6 +107,7 @@ export default function ScoutPlayer() {
               <>
                 <Chip style={{ ...dec.chip, fontWeight: 700 }}>{dec.letter} · {dec.label}</Chip>
                 <Chip style={{ background: RS.soft, color: RS.granateDark }}>Origen: {ORIGIN[originOf(sp)].toLowerCase()}</Chip>
+                {isNonFederated(sp) && <Chip style={{ background: "#E8F0FB", color: "#1F4E8C", fontWeight: 700 }} testId="player-nonfed">No federado</Chip>}
                 <span style={{ fontSize: 12, color: RS.muted }}>En seguimiento desde {fmtDate(sp.created_date)}</span>
               </>
             ) : (
@@ -131,7 +133,7 @@ export default function ScoutPlayer() {
             </div>
             <div className="flex flex-col" style={{ gap: 2 }}>
               <span style={label}>Club actual</span>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>{cur ? titleCase(cur.team) : sp?.current_club || "—"}</span>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{cur ? titleCase(cur.team) : isNonFederated(sp) ? playsInText(sp) : sp?.current_club || "—"}</span>
               {(cur || sp?.category) && <span style={{ fontSize: 12, color: RS.ink2 }}>{cur ? `${titleCase(cur.competition)} · ${titleCase(cur.grp)}` : sp.category}</span>}
             </div>
             <div className="flex flex-col" style={{ gap: 2 }}>

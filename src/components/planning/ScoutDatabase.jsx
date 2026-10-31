@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/use-toast";
 import ScoutedPlayerForm from "@/components/scouting/ScoutedPlayerForm";
 import { base44 } from "@/api/base44Client";
 import { juvenilYear, JUV_STYLE } from "@/lib/juvenilYear";
+import { LICENCE, LICENCE_KEYS, isNonFederated, licenceOf, playsInText } from "@/lib/scoutLicence";
 import { RS, YearBadge, Dorsals, DecisionChip, Tag, Pills, ORIGIN, ORIGIN_KEYS, DECISION_KEYS, DECISION, originOf, seasonShort, JuvLegend, useDensity, DensityToggle } from "@/components/rs2/kit";
 import { titleCase, fcfDisplayName } from "@/lib/fcfNames";
 import { SEASON, useScouted, useScoutedByFcf, useFcfMeta, useAlerts, usePlanningNav, useIsPlanningAdmin } from "./useScouting";
@@ -36,6 +37,7 @@ export default function ScoutDatabase() {
   const sort = get("sort", "tit");
   const origins = csv(get("origin"));
   const states = csv(get("state"));
+  const lics = csv(get("lic"));
   const alertsFirst = get("af") !== "0";
   const [q, setQ] = useState(get("q"));
   const dq = useDebounced(q);
@@ -46,6 +48,8 @@ export default function ScoutDatabase() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [newOpen, setNewOpen] = useState(false);
+  const [newDefaults, setNewDefaults] = useState(null);
+  const openNew = (defaults = null) => { setNewDefaults(defaults); setNewOpen(true); };
   const create = useMutation({
     mutationFn: (data) => base44.entities.ScoutedPlayer.create(data),
     onSuccess: (created) => { qc.invalidateQueries({ queryKey: ["scouted_players"] }); setNewOpen(false); toast({ title: "Jugador añadido a seguimiento" }); if (created?.id) go({ s: "jugador", sp: created.id }); },
@@ -87,9 +91,10 @@ export default function ScoutDatabase() {
       if (year && String(spYear(p)) !== String(year)) return false;
       if (origins.length && !origins.includes(originOf(p))) return false;
       if (states.length && !states.includes(DECISION[p.decision] ? p.decision : "sin")) return false;
+      if (lics.length && !lics.includes(licenceOf(p))) return false;
       return true;
     });
-  }, [scouted, dq, year, origins.join(), states.join()]);
+  }, [scouted, dq, year, origins.join(), states.join(), lics.join()]);
   const segIds = segBase.map((p) => p.fcf_id).filter(Boolean).map(String);
   const segStats = useQuery({
     queryKey: ["fcf-search", "ids", SEASON, segIds.join(",")], enabled: admin && mode === "seg" && segIds.length > 0,
@@ -109,7 +114,7 @@ export default function ScoutDatabase() {
     return segBase.map((p) => {
       const st = p.fcf_id ? statOf.get(String(p.fcf_id)) : null;
       return { key: `s:${p.id}`, sp: p, fcf: p.fcf_id || null, name: spName(p), year: spYear(p) || st?.birth_year || null,
-        team: st ? titleCase(st.team) : p.current_club || "—", comp: st ? `${titleCase(st.competition)} · ${titleCase(st.grp)}` : p.category || "",
+        team: st ? titleCase(st.team) : isNonFederated(p) ? playsInText(p) : p.current_club || "—", comp: st ? `${titleCase(st.competition)} · ${titleCase(st.grp)}` : p.category || "", nonFed: isNonFederated(p),
         dorsals: st?.dorsals, pj: st?.pj ?? "", tit: st?.tit ?? "", goals: st?.goals ?? "", origin: ORIGIN[originOf(p)], decision: p.decision,
         alert: p.fcf_id ? alertOf.get(String(p.fcf_id)) || null : null };
     });
@@ -190,6 +195,17 @@ export default function ScoutDatabase() {
           ))}
         </fieldset>
 
+        <fieldset style={{ border: "none", margin: 0, padding: 0 }} className="flex flex-col" data-testid="db-lic">
+          <legend style={{ ...flabel, padding: 0, marginBottom: 6 }}>Licencia</legend>
+          {LICENCE_KEYS.map((k) => (
+            <label key={k} className="flex items-center" style={{ gap: 10, minHeight: 30, fontSize: 13 }}>
+              <input type="checkbox" checked={lics.includes(k)} onChange={() => toggle("lic", lics, k)} data-testid={`db-lic-${k}`} style={{ width: 18, height: 18, accentColor: RS.granate }} />
+              <span style={{ flex: 1 }}>{LICENCE[k]}</span>
+              <span style={{ fontSize: 12, color: RS.muted }}>{scouted.filter((p) => licenceOf(p) === k).length}</span>
+            </label>
+          ))}
+        </fieldset>
+
         <fieldset style={{ border: "none", margin: 0, padding: 0 }} className="flex flex-col">
           <legend style={{ ...flabel, padding: 0, marginBottom: 6 }}>Estado</legend>
           {[...DECISION_KEYS, "sin"].map((k) => (
@@ -206,7 +222,7 @@ export default function ScoutDatabase() {
             Con alerta activa primero
           </label>
         )}
-        {(year || comp || origins.length || states.length || q) && (
+        {(year || comp || origins.length || states.length || lics.length || q) && (
           <button type="button" onClick={() => { setQ(""); go({ s: "bd", mode: mode === "seg" ? "seg" : null }, { replace: true }); }} style={{ fontSize: 13, color: RS.granate, fontWeight: 600, background: "none", textAlign: "left" }}>Quitar filtros</button>
         )}
       </aside>
@@ -230,11 +246,16 @@ export default function ScoutDatabase() {
               </label>
             )}
             {mode === "seg" && (
-              <button type="button" onClick={() => setNewOpen(true)} data-testid="db-new" className="inline-flex items-center"
+              <button type="button" onClick={() => openNew()} data-testid="db-new" className="inline-flex items-center"
                 style={{ height: 30, gap: 6, padding: "0 12px", borderRadius: 8, background: RS.granate, color: "#fff", fontSize: 13, fontWeight: 600 }}>
                 <Plus width={16} height={16} />Añadir jugador
               </button>
             )}
+            <button type="button" onClick={() => openNew({ licence: "no_federado", origin: "visto" })} data-testid="db-new-nonfed" className="inline-flex items-center"
+              title="Jugador que no está en la FCF: escuela, liga escolar, fútbol sala, extranjero…"
+              style={{ height: 30, gap: 6, padding: "0 12px", borderRadius: 8, background: "#fff", color: RS.granate, border: `1px solid ${RS.granate}`, fontSize: 13, fontWeight: 600 }}>
+              <Plus width={16} height={16} />Añadir no federado
+            </button>
             <DensityToggle value={density} onChange={setDensity} />
             {loading && <Loader2 className="animate-spin" width={16} height={16} color={RS.faint} />}
           </div>
@@ -261,6 +282,7 @@ export default function ScoutDatabase() {
                   <td className="l">
                     <button type="button" onClick={(e) => { e.stopPropagation(); open(r); }} className="inline-flex items-center" style={{ gap: 6, fontWeight: 600, color: RS.ink, background: "none", textAlign: "left" }}>
                       {r.name}
+                      {r.nonFed && <span title="No federado" data-testid="nonfed-tag" style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 5px", borderRadius: 4, background: "#E8F0FB", color: "#1F4E8C" }}>NO FED.</span>}
                       {r.alert && <span title={r.alert.kind === "arriba" ? "Juega por arriba" : "Juvenil de 1.º año titular"} style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 5px", borderRadius: 4, ...(r.alert.kind === "arriba" ? { background: RS.naranja, color: RS.ink } : { background: RS.granateDark, color: "#fff" }) }}>{r.alert.kind === "arriba" ? "↑" : "1.º"}</span>}
                     </button>
                   </td>
@@ -279,6 +301,7 @@ export default function ScoutDatabase() {
                   <td className="l">
                     <button type="button" onClick={(e) => { e.stopPropagation(); open(r); }} className="inline-flex items-center" style={{ gap: 8, fontWeight: 600, color: RS.ink, background: "none", textAlign: "left" }}>
                       {r.name}
+                      {r.nonFed && <span data-testid="nonfed-tag" style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#E8F0FB", color: "#1F4E8C" }}>NO FEDERADO</span>}
                       {r.alert && <Tag kind={r.alert.kind === "arriba" ? "orange" : "dark"}>{r.alert.kind === "arriba" ? "POR ARRIBA" : "1.º AÑO"}</Tag>}
                     </button>
                   </td>
@@ -313,7 +336,7 @@ export default function ScoutDatabase() {
           PJ = partidos en acta (titular + suplente); las actas de fútbol base no registran cambios, por eso no hay minutos. El año sale de la categoría más joven en la que ha jugado (en naranja, si juega por arriba).
         </p>
       </section>
-      <ScoutedPlayerForm open={newOpen} onOpenChange={setNewOpen} player={null} onSave={(d) => create.mutate(d)} isLoading={create.isPending} />
+      <ScoutedPlayerForm open={newOpen} onOpenChange={setNewOpen} player={null} defaults={newDefaults} onSave={(d) => create.mutate(d)} isLoading={create.isPending} />
     </div>
   );
 }
