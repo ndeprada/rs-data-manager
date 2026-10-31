@@ -1,3 +1,4 @@
+import { AD_LOGOS } from "@/lib/adLogos";
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, camBox, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
@@ -220,13 +221,23 @@ function Stadium({ field, s, board, orient, T, textAt }) {
   const drawPanel = (pn) => {
     const up = standing(pn);
     const at = up ? textAt({ x: (pn.pts[0].x + pn.pts[1].x) / 2, y: (pn.pts[0].y + pn.pts[1].y) / 2 }) : textAt ? textAt(pn.mid) : { x: pn.mid.x, y: pn.mid.y, k: 1 };
-    const fs = (up ? 0.78 : 0.62) * at.k;
+    const fs = (up ? 0.9 : 0.82) * at.k;
     // en el suelo y en perspectiva solo se escribe en las vallas de delante (las de los lados quedan de canto)
     const flatText = !textAt || (() => { const a = T(pn.pts[0]), b = T(pn.pts[1]); return Math.abs(b.x - a.x) > Math.abs(b.y - a.y) * 1.5; })();
     return (
       <g key={`ad${pn.text}${pn.mid.x.toFixed(1)}${pn.mid.y.toFixed(1)}`}>
         {up ? <path d={standingBoard(pn, T, textAt)} fill={pn.bg} stroke="rgba(0,0,0,0.3)" strokeWidth={0.06} /> : <path d={P(pn.pts)} fill={pn.bg} stroke="rgba(0,0,0,0.25)" strokeWidth={0.05} />}
-        {(up || flatText) && (
+        {(up || flatText) && pn.logo && AD_LOGOS[pn.logo] && (() => {
+          const L = AD_LOGOS[pn.logo];
+          const a = textAt ? T(pn.pts[0]) : pn.pts[0], b = textAt ? T(pn.pts[1]) : pn.pts[1];
+          const span = textAt ? Math.hypot(b.x - a.x, b.y - a.y) : pn.len;
+          const h = Math.min((up ? 0.92 : 1.05) * at.k, (span * 0.8) / L.ar);
+          const cy = up ? at.y - BOARD_H * at.k * 0.5 : at.y;
+          const rot = textAt ? 0 : uprightAngle(pn.angle, oa);
+          return <image href={pn.ink === "#ffffff" ? L.w : L.o} x={-L.ar / 2} y={-0.5} width={L.ar} height={1} preserveAspectRatio="xMidYMid meet"
+            transform={`translate(${at.x.toFixed(2)} ${cy.toFixed(2)}) rotate(${rot}) scale(${h.toFixed(3)})`} />;
+        })()}
+        {(up || flatText) && !pn.logo && (
           <text x={at.x} y={up ? at.y - BOARD_H * at.k * 0.5 + fs * 0.36 : at.y + fs * 0.36} fontSize={fs} fontWeight={800} fill={pn.ink} textAnchor="middle" letterSpacing={fs * 0.08}
             transform={textAt ? undefined : `rotate(${uprightAngle(pn.angle, oa)} ${at.x} ${at.y})`} style={{ fontFamily: "Arial, sans-serif" }}>{pn.text}</text>
         )}

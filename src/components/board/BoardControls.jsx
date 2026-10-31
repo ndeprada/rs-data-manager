@@ -139,6 +139,17 @@ export function Row({ title, children }) {
 }
 
 /** Icono de portería (marco con red) para la barra de herramientas. */
+// Balón de fútbol (blanco con pentágono central), para que se reconozca en la barra de herramientas
+export function BallIcon({ className = "", style }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} style={style} aria-hidden="true">
+      <circle cx="12" cy="12" r="9.2" fill="#fff" stroke="#111" strokeWidth="1.6" />
+      <path d="M12 8.3l3.5 2.55-1.34 4.12H9.84L8.5 10.85z" fill="#111" />
+      <path d="M12 8.3V3.2M15.5 10.85l4.6-1.7M14.16 14.97l2.9 4.1M9.84 14.97l-2.9 4.1M8.5 10.85l-4.6-1.7" stroke="#111" strokeWidth="1.3" fill="none" />
+    </svg>
+  );
+}
+
 export function GoalIcon({ className = "", style }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style} aria-hidden="true">

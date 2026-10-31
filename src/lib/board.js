@@ -47,11 +47,12 @@ export function marginOf(look, b = null) {
 }
 // Vallas publicitarias alrededor del campo (modos estadio): la app y los patrocinadores del club, en este orden y repetidos;
 // todas granates y el texto alterna blanco y naranja (pedido por Nacho el 31/10/2026)
+// Vallas: todas granates, alternando blanco y naranja. `logo` = clave de src/lib/adLogos.js (silueta incrustada); sin logo, el texto.
 export const AD_PANELS = [
   { text: "RS MANAGER", bg: "#73000A", ink: "#ffffff" },
-  { text: "CHALITO", bg: "#73000A", ink: "#FF6E00" },
-  { text: "RACING SARRIÀ", bg: "#73000A", ink: "#ffffff" },
-  { text: "BPV", bg: "#73000A", ink: "#FF6E00" },
+  { text: "CHALITO", logo: "chalito", bg: "#73000A", ink: "#FF6E00" },
+  { text: "BPV", logo: "bpv", bg: "#73000A", ink: "#ffffff" },
+  { text: "MANGO", logo: "mango", bg: "#73000A", ink: "#FF6E00" },
 ];
 
 // Equipos: cuatro de partida (granate, azul, amarillo y verde de portero), todos con nombre y color libres, y se pueden crear

@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Circle, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X } from "lucide-react";
+import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
@@ -10,7 +10,7 @@ import {
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
 import { boardKeyAction } from "@/lib/boardKeys";
 import BoardHelp from "./BoardHelp";
-import { DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon } from "./BoardControls";
+import { BallIcon, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon } from "./BoardControls";
 import BoardProps, { ARROW_PRESETS, KIND_LABEL, typeOfArrow } from "./BoardProps";
 import BoardDownloads from "./BoardDownloads";
 import ChipQuickEdit from "./BoardChipEdit";
@@ -24,7 +24,7 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const round = (n) => Math.round(n * 10) / 10;
 
 const OBJECT_TOOLS = [
-  { id: "ball", label: "Balón", icon: Circle, ring: true },
+  { id: "ball", label: "Balón", icon: BallIcon },
   { id: "cone", label: "Cono", icon: Triangle, color: "#f97316" },
   { id: "goal", label: "Portería", icon: GoalIcon, color: "#6b7280" },
   { id: "pole", label: "Pica", icon: PoleIcon, color: "#eab308" },
@@ -751,7 +751,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         </RailBtn>
       )}
       <RailSep narrow={narrow} />
-      {railTool({ id: "ball", label: "Balón", title: "Balón (0)", icon: Circle })}
+      {railTool({ id: "ball", label: "Balón", title: "Balón (0)", icon: BallIcon })}
       {TOOL_GROUPS.map(groupBtn)}
       {railTool({ id: "link", label: "Unir fichas", title: "Unir fichas (L)", icon: Waypoints, short: "Unir" })}
       {railTool({ id: "text", label: "Texto", title: "Texto (E)", icon: Type })}
