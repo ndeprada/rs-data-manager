@@ -45,12 +45,13 @@ export function marginOf(look, b = null) {
   if (hasStands(b)) return STADIUM_MARGIN;
   return hasAds(b) ? 5.5 : 3;
 }
-// Vallas publicitarias alrededor del campo (modos estadio): la app y los patrocinadores del club, en este orden y repetidos
+// Vallas publicitarias alrededor del campo (modos estadio): la app y los patrocinadores del club, en este orden y repetidos;
+// todas granates y el texto alterna blanco y naranja (pedido por Nacho el 31/10/2026)
 export const AD_PANELS = [
   { text: "RS MANAGER", bg: "#73000A", ink: "#ffffff" },
-  { text: "CHALITO", bg: "#ffffff", ink: "#73000A" },
-  { text: "RACING SARRIÀ", bg: "#36000D", ink: "#FF6E00" },
-  { text: "BPV", bg: "#FF6E00", ink: "#ffffff" },
+  { text: "CHALITO", bg: "#73000A", ink: "#FF6E00" },
+  { text: "RACING SARRIÀ", bg: "#73000A", ink: "#ffffff" },
+  { text: "BPV", bg: "#73000A", ink: "#FF6E00" },
 ];
 
 // Equipos: cuatro de partida (granate, azul, amarillo y verde de portero), todos con nombre y color libres, y se pueden crear
