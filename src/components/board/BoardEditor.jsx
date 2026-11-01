@@ -907,10 +907,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   };
   const teamBtn = (t, i) => (
     <RailBtn key={t.id} label={`Fichas: ${t.name}`} title={`${t.name} (${i + 1})`} on={tool === t.id} onClick={() => pickTool(t.id)} narrow={narrow} testid={`rail-team-${t.id}`}>
-      <ChipGlyph board={board} el={{ team: t.id }} look={look === "bn" ? "estadio" : look} size={26} />
+      <ChipGlyph board={board} el={{ team: t.id }} look={look === "bn" ? "estadio" : look} size={narrow ? 26 : 22} />
       {narrow && <RailLabel>{t.name}</RailLabel>}
     </RailBtn>
   );
+  // Barra izquierda del ordenador: botones que caben en la altura de la pantalla sin bajar (entre 26 y 38 px)
+  const railCount = 3 + teams.length + (teams.length < MAX_TEAMS ? 1 : 0) + (roster.length > 0 ? 1 : 0) + 1 + TOOL_GROUPS.length + 3 + 2;
+  const railSize = `clamp(26px, calc((100vh - 60px) / ${railCount} - 3px), 38px)`;
   const toolButtons = (
     <>
       {railTool({ id: "select", label: "Mover", title: "Mover y elegir (V)", icon: MousePointer2 })}
@@ -1195,7 +1198,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     <section
       aria-label={panelTitle || "Panel"}
       data-testid="board-panel"
-      className={narrow ? "absolute left-2 right-2 bottom-2 max-h-[48%] overflow-y-auto rounded-xl bg-white shadow-2xl border border-gray-200" : "absolute left-[76px] top-3 w-[372px] max-h-[calc(100%-24px)] overflow-y-auto rounded-xl bg-white shadow-2xl border border-gray-200"}
+      className={narrow ? "absolute left-2 right-2 bottom-2 max-h-[48%] overflow-y-auto rounded-xl bg-white shadow-2xl border border-gray-200" : "absolute left-[58px] top-3 w-[372px] max-h-[calc(100%-24px)] overflow-y-auto rounded-xl bg-white shadow-2xl border border-gray-200"}
       style={{ zIndex: 5 }}
     >
       <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b" style={{ background: RAIL.bg, color: RAIL.text, borderColor: RAIL.border }}>
@@ -1245,7 +1248,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     </div>
   );
   const stage = (
-    <div ref={setWrap} className={narrow ? "relative flex-1 min-h-0 flex items-center justify-center p-1" : "absolute inset-y-0 left-[72px] right-[80px] flex items-center justify-center p-3"}>
+    <div ref={setWrap} className={narrow ? "relative flex-1 min-h-0 flex items-center justify-center p-1" : "absolute inset-y-0 left-[54px] right-[80px] flex items-center justify-center p-3"}>
       {show3d && (
         <Board3DView
           ref={v3}
@@ -1352,7 +1355,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   ) : (
     <div className="fixed inset-0" style={{ background: styleOf(look).surround || "#0d2a1f", color: RAIL.text, zIndex: 50 }} onKeyDown={onKey} tabIndex={-1} data-testid="board-studio">
       {stage}
-      <nav aria-label="Herramientas" className="absolute left-3 top-3 bottom-3 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden pr-0.5 no-scrollbar" style={{ zIndex: 6 }}>
+      <nav aria-label="Herramientas" className="absolute left-2.5 top-2.5 bottom-2.5 flex flex-col gap-[3px] overflow-y-auto overflow-x-hidden no-scrollbar [&_.w-5]:w-[18px] [&_.w-5]:h-[18px]" style={{ zIndex: 6, "--rb": railSize }}>
         {toolButtons}
         <RailSep />
         <RailBtn label="Deshacer" title="Deshacer (Ctrl + Z)" disabled={!history.length} onClick={undo}><Undo2 className="w-5 h-5" /></RailBtn>
@@ -1414,14 +1417,14 @@ function RailBtn({ label, title, on, disabled, onClick, children, narrow = false
       onClick={onClick}
       data-testid={testid}
       className="shrink-0 rounded-xl flex flex-col items-center justify-center gap-0.5 disabled:opacity-35 transition-colors"
-      style={{ width: narrow ? 58 : 44, height: narrow ? 52 : 44, background: on ? RAIL.on : RAIL.btn, color: on ? RAIL.onInk : RAIL.ink, border: `1px ${dashed ? "dashed" : "solid"} ${on ? RAIL.on : RAIL.line}` }}
+      style={{ width: narrow ? 58 : "var(--rb, 44px)", height: narrow ? 52 : "var(--rb, 44px)", background: on ? RAIL.on : RAIL.btn, color: on ? RAIL.onInk : RAIL.ink, border: `1px ${dashed ? "dashed" : "solid"} ${on ? RAIL.on : RAIL.line}` }}
     >
       {children}
     </button>
   );
 }
 const RailLabel = ({ children }) => <span className="text-[10px] font-semibold leading-none max-w-[54px] truncate">{children}</span>;
-const RailSep = ({ narrow = false }) => <span aria-hidden="true" className={narrow ? "w-px h-8 shrink-0 mx-0.5" : "h-px w-8 shrink-0 my-0.5 mx-auto"} style={{ background: RAIL.border }} />;
+const RailSep = ({ narrow = false }) => <span aria-hidden="true" className={narrow ? "w-px h-8 shrink-0 mx-0.5" : "h-px w-7 shrink-0 my-[3px] mx-auto"} style={{ background: RAIL.border }} />;
 const TOOL_INFO = Object.fromEntries([...OBJECT_TOOLS, ...LINE_TOOLS].map((t) => [t.id, t]));
 const TOOL_GROUPS = [
   { id: "arrow", label: "Flechas", short: "Flecha", key: "A", icon: MoveUpRight, tools: ARROW_TOOLS },
