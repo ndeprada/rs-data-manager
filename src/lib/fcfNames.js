@@ -27,13 +27,26 @@ export function fcfDisplayName(name) {
 
 export const shortComp = (c) => titleCase(c);
 
-// Club de un equipo sin la letra del equipo («CATALONIA "B"» → «CATALONIA»): para saber si un jugador ha cambiado de club
-export const clubOf = (team) => String(team || '').toUpperCase().replace(/\s*["'][A-Z]["']\s*$/, '').replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim();
+// Los equipos de la FCF llevan la letra al final («CAN BUXERES, F.C. A», «SANT ANDREU, U.E F»; en algunas actas, «CLUB "B"»)
+const TEAM_LETTER = /\s+["'«]?([A-Z])["'»]?$/;
+const plain = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+/** Letra del equipo (A, B, C…) o null. */
+export const teamLetter = (team) => plain(team).trim().match(TEAM_LETTER)?.[1] || null;
+/** Club de un equipo, sin la letra, los acentos ni la puntuación: para saber si un jugador ha cambiado de club. */
+export const clubOf = (team) => plain(team).trim().replace(TEAM_LETTER, '').replace(/[.,'"«»]/g, ' ').replace(/\s+/g, ' ').trim();
 
-// Procedencia de un jugador (equipo de la temporada anterior) comparada con su equipo actual:
-// 'none' = sin actas, 'same' = mismo equipo, 'club' = otro equipo del mismo club, 'new' = viene de otro club
-export function originKind(prev, team) {
+// Procedencia (equipo de la temporada anterior) comparada con su equipo actual (02/11/2026, Nacho: «continúan, promocionados
+// o fichados»): 'none' = sin actas · 'same' = mismo equipo · 'up' = sube de otro equipo del club (de una categoría inferior,
+// p. ej. del cadete al juvenil, o de un equipo con letra posterior, del «C» al «A») · 'club' = otro equipo del club que no es
+// una subida · 'new' = viene de otro club. `lvl` = edad de la categoría (S15 = 15, juvenil = 17).
+export function originKind(prev, team, lvl = null) {
   if (!prev?.team) return 'none';
-  if (prev.team === team) return 'same';
-  return clubOf(prev.team) === clubOf(team) ? 'club' : 'new';
+  if (clubOf(prev.team) !== clubOf(team)) return 'new';
+  // (el cadete A y el juvenil A del mismo club se llaman igual: manda la categoría)
+  const a = Number(prev.lvl), b = Number(lvl);
+  if (Number.isFinite(a) && Number.isFinite(b) && a > 0 && b > 0 && a !== b) return a < b ? 'up' : 'club';
+  if (plain(prev.team).trim() === plain(team).trim()) return 'same';
+  const la = teamLetter(prev.team), lb = teamLetter(team);
+  if (la && lb && la !== lb) return lb < la ? 'up' : 'club';
+  return 'club';
 }

@@ -334,7 +334,7 @@ export async function teamSquad(db, { season, competition, grp, team } = {}) {
   if (competition) { params.push(String(competition)); extra += ` and c.competition = $${params.length}`; }
   if (grp) { params.push(String(grp)); extra += ` and c.grp = $${params.length}`; }
   const { rows } = await db.query(
-    `select count(distinct p.acta)::int as pj, sum(p.goals)::int as goals, max(c.match_date) as last_date, max(c.imported_at) as last_import
+    `select count(distinct p.acta)::int as pj, sum(p.goals)::int as goals, max(c.match_date) as last_date, max(c.imported_at) as last_import, max(c.lvl)::int as lvl
      from fcf_apps p join fcf_actas c on c.acta = p.acta where c.season = $1 and p.team = $2${extra}`, params
   );
   const prev = prevSeason(season);
@@ -349,7 +349,7 @@ export async function prevSeasonTeams(db, season, ids) {
   const list = [...new Set((ids || []).map(String))];
   if (!SEASON_RE.test(season || '') || !list.length) return new Map();
   const { rows } = await db.query(
-    `select p.player_id, p.team, c.competition, c.grp, count(*)::int as pj
+    `select p.player_id, p.team, c.competition, c.grp, count(*)::int as pj, max(c.lvl)::int as lvl
      from fcf_apps p join fcf_actas c on c.acta = p.acta
      where c.season = $1 and p.player_id = any($2::text[])
      group by p.player_id, p.team, c.competition, c.grp
@@ -358,7 +358,7 @@ export async function prevSeasonTeams(db, season, ids) {
   const out = new Map();
   for (const r of rows) {
     const cur = out.get(r.player_id);
-    if (!cur) out.set(r.player_id, { team: r.team, competition: r.competition, grp: r.grp, pj: r.pj, teams: [r.team] });
+    if (!cur) out.set(r.player_id, { team: r.team, competition: r.competition, grp: r.grp, lvl: r.lvl ?? null, pj: r.pj, teams: [r.team] });
     else { cur.pj += r.pj; if (!cur.teams.includes(r.team)) cur.teams.push(r.team); }
   }
   for (const v of out.values()) { v.more = v.teams.length - 1; delete v.teams; }

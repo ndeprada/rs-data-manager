@@ -185,5 +185,6 @@ console.log('fcfDb ok');
     prevA('2103', 'OTRO CLUB', 'INFANTIL SEGONA DIVISIÓ', '32')]);
   t = await teamSquad(db, { season: '2026-2027', competition: 'CADET SEGONA DIVISIÓ S15', grp: 'GRUP 6', team: 'CLUB X "B"' });
   assert.deepEqual(t.players.find((p) => p.player_id === '32').prev,
-    { team: 'CATALONIA "A"', competition: 'INFANTIL PRIMERA DIVISIÓ', grp: 'GRUP 3', pj: 3, more: 1 });
+    { team: 'CATALONIA "A"', competition: 'INFANTIL PRIMERA DIVISIÓ', grp: 'GRUP 3', lvl: 14, pj: 3, more: 1 });
+  assert.equal(t.lvl, 15, 'nivel de la competición actual (S15)');
 }

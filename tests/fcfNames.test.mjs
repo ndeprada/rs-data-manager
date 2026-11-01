@@ -15,11 +15,24 @@ assert.equal(fcfDisplayName(''), '');
 console.log('fcfNames ok');
 
 {
-  const { clubOf, originKind } = await import('../src/lib/fcfNames.js');
+  const { clubOf, originKind, teamLetter } = await import('../src/lib/fcfNames.js');
   assert.equal(clubOf('CATALONIA "B"'), 'CATALONIA');
-  assert.equal(clubOf('U.E. CORNELLÀ "A"'), clubOf('U.E. CORNELLÀ "C"'));
+  assert.equal(clubOf('CAN BUXERES, F.C. A'), clubOf('CAN BUXERES, F.C. C'));
+  assert.equal(clubOf('SANT ANDREU, U.E F'), 'SANT ANDREU U E');
+  assert.equal(clubOf('CATALÒNIA, U.B. A'), clubOf('CATALONIA, U.B. B'));
+  assert.equal(teamLetter('CAN BUXERES, F.C. C'), 'C');
+  assert.equal(teamLetter('MARIANAO POBLET UD A'), 'A');
   assert.equal(originKind(null, 'X'), 'none');
-  assert.equal(originKind({ team: 'CAMBUCHERAS "A"' }, 'CAMBUCHERAS "A"'), 'same');
-  assert.equal(originKind({ team: 'CAMBUCHERAS "B"' }, 'CAMBUCHERAS "A"'), 'club');
-  assert.equal(originKind({ team: 'CATALONIA "A"' }, 'CAMBUCHERAS "A"'), 'new');
+  assert.equal(originKind({ team: 'CAN BUXERES, F.C. B' }, 'CAN BUXERES, F.C. B', 17), 'same');
+  // del cadete al juvenil del mismo club = sube
+  assert.equal(originKind({ team: 'CAN BUXERES, F.C. A', lvl: 16 }, 'CAN BUXERES, F.C. B', 17), 'up');
+  // misma categoría: del C al B sube; del A al B no
+  assert.equal(originKind({ team: 'CAN BUXERES, F.C. C', lvl: 17 }, 'CAN BUXERES, F.C. B', 17), 'up');
+  assert.equal(originKind({ team: 'CAN BUXERES, F.C. A', lvl: 17 }, 'CAN BUXERES, F.C. B', 17), 'club');
+  // de una categoría superior a una inferior del club: no es subida
+  assert.equal(originKind({ team: 'CAN BUXERES, F.C. A', lvl: 16 }, 'CAN BUXERES, F.C. A', 17), 'up', 'el cadete A y el juvenil A se llaman igual');
+  assert.equal(originKind({ team: 'CAN BUXERES, F.C. A', lvl: 17 }, 'CAN BUXERES, F.C. A', 17), 'same');
+  assert.equal(originKind({ team: 'CAN BUXERES, F.C. A', lvl: 17 }, 'CAN BUXERES, F.C. A', 16), 'club');
+  assert.equal(originKind({ team: 'CAN BUXERES, F.C. B', lvl: 17 }, 'CAN BUXERES, F.C. A', 16), 'club');
+  assert.equal(originKind({ team: 'CATALÒNIA, U.B. A', lvl: 17 }, 'CAN BUXERES, F.C. B', 17), 'new');
 }

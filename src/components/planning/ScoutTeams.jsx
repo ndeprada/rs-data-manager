@@ -45,17 +45,34 @@ function StarButton({ on, onClick, busy, label }) {
   );
 }
 
-// Equipo de la temporada anterior: «Mismo equipo» en gris; si viene de otro club, con un punto naranja para verlo de un vistazo
-function Origin({ prev, team, season, dense }) {
-  const kind = originKind(prev, team);
+// Equipo de la temporada anterior (02/11/2026, Nacho: «una vista rápida de los que continúan, los promocionados y los fichados»):
+// «Mismo equipo» en gris · ↑ verde = promocionado (sube de otro equipo del club) · punto naranja y negrita = fichado de otro club ·
+// otro equipo del club que no es una subida: solo el nombre
+const ORIGIN_UP = "#2E7D32";
+function OriginMark({ kind }) {
+  if (kind === "new") return <span aria-label="Fichado de otro club" style={{ width: 8, height: 8, borderRadius: 99, background: RS.naranja, flex: "none" }} />;
+  if (kind === "up") return <span aria-label="Promocionado del club" style={{ color: ORIGIN_UP, fontWeight: 800, fontSize: 13, lineHeight: 1, flex: "none" }}>↑</span>;
+  return null;
+}
+export function OriginLegend() {
+  return (
+    <span className="inline-flex items-center" style={{ gap: 10, fontSize: 12, color: RS.muted }} data-testid="origin-legend">
+      <span className="inline-flex items-center" style={{ gap: 4 }}><OriginMark kind="new" />Fichado</span>
+      <span className="inline-flex items-center" style={{ gap: 4 }}><OriginMark kind="up" />Promocionado</span>
+    </span>
+  );
+}
+function Origin({ prev, team, lvl, season, dense }) {
+  const kind = originKind(prev, team, lvl);
   if (kind === "none") return <span style={{ color: RS.faint }} title={`Sin actas de la temporada ${seasonShort(season)} cargadas`}>—</span>;
-  if (kind === "same") return <span style={{ fontSize: 13, color: RS.faint }}>Mismo equipo</span>;
+  if (kind === "same") return <span style={{ fontSize: 13, color: RS.faint }} data-testid="squad-origin" data-kind="same">Mismo equipo</span>;
   const isNew = kind === "new";
   const more = prev.more ? ` +${prev.more}` : "";
-  const tip = `${titleCase(prev.team)} · ${titleCase(prev.competition)}${prev.grp ? ` · ${titleCase(prev.grp)}` : ""} · ${prev.pj} partidos${prev.more ? ` (y ${prev.more} equipo${prev.more > 1 ? "s" : ""} más)` : ""}${isNew ? " · viene de otro club" : ""}`;
+  const why = isNew ? " · fichado de otro club" : kind === "up" ? " · promocionado: sube de otro equipo del club" : " · otro equipo del club";
+  const tip = `${titleCase(prev.team)} · ${titleCase(prev.competition)}${prev.grp ? ` · ${titleCase(prev.grp)}` : ""} · ${prev.pj} partidos${prev.more ? ` (y ${prev.more} equipo${prev.more > 1 ? "s" : ""} más)` : ""}${why}`;
   const name = (
-    <span className="inline-flex items-center" style={{ gap: 6, fontWeight: isNew ? 600 : 500, color: isNew ? RS.ink : RS.ink2 }}>
-      {isNew && <span aria-label="Viene de otro club" style={{ width: 8, height: 8, borderRadius: 99, background: RS.naranja, flex: "none" }} />}
+    <span className="inline-flex items-center" style={{ gap: 6, fontWeight: isNew ? 600 : 400, color: isNew ? RS.ink : RS.ink2 }}>
+      <OriginMark kind={kind} />
       {titleCase(prev.team)}{more && <span style={{ color: RS.faint, fontWeight: 400 }}>{more}</span>}
     </span>
   );
@@ -270,7 +287,7 @@ function TeamView({ season, comp, grp, team }) {
       <section aria-labelledby="squad-title" className="rs2-card" style={{ overflow: "hidden" }}>
         <div className="flex flex-wrap justify-between items-center" style={{ gap: 8, padding: "10px 14px" }}>
           <h2 id="squad-title" className="rs2-title">Plantilla · {players.length} jugadores</h2>
-          <span className="flex flex-wrap items-center" style={{ gap: "4px 14px", fontSize: 12, color: RS.muted }}><JuvLegend />Según las actas de la temporada {seasonShort(season)} en esta competición<DensityToggle value={density} onChange={setDensity} /></span>
+          <span className="flex flex-wrap items-center" style={{ gap: "4px 14px", fontSize: 12, color: RS.muted }}><JuvLegend /><OriginLegend />Según las actas de la temporada {seasonShort(season)} en esta competición<DensityToggle value={density} onChange={setDensity} /></span>
         </div>
         <div className="rs2-scroll-x">
           <table className={`rs2-tbl${dense ? " rs2-compact" : ""}`} style={{ minWidth: 1080 }} data-testid="squad-table" data-density={density}>
@@ -290,7 +307,7 @@ function TeamView({ season, comp, grp, team }) {
                     <td><Dorsals list={p.dorsals} size={dense ? "sm" : "md"} /></td>
                     <td className="l"><span style={{ fontWeight: 600 }}>{fcfDisplayName(p.name)}</span></td>
                     <td><YearBadge year={p.birth_year} up={upIds.has(String(p.player_id))} estimated season={season} sm={dense} /></td>
-                    <td className="l"><Origin prev={p.prev} team={team} season={sq?.prev_season} dense={dense} /></td>
+                    <td className="l"><Origin prev={p.prev} team={team} lvl={sq?.lvl} season={sq?.prev_season} dense={dense} /></td>
                     <td style={{ fontWeight: 600 }}>{p.pj}</td><td>{p.tit}</td><td>{p.sup}</td>
                     <td style={{ fontWeight: 700, color: RS.granate }}>{p.goals}</td><td>{p.yellow || ""}</td><td>{p.reds || ""}</td>
                     <td className="l" style={{ fontSize: 13, color: RS.ink2 }}>{pos || "—"}</td>
@@ -304,7 +321,7 @@ function TeamView({ season, comp, grp, team }) {
           </table>
         </div>
         <p style={{ margin: 0, padding: "8px 14px", fontSize: 12, color: RS.muted, borderTop: `1px solid ${RS.lineSoft}` }}>
-          PJ = partidos en acta (titular + suplente). En fútbol base las actas no registran cambios, por eso no se calculan minutos. Posición, lateralidad y estado los introduce el club en la ficha del jugador. Los goles no incluyen los de propia puerta. Dorsal = el que más ha llevado en este equipo (al lado, otros que ha usado). Procedencia = equipo y competición en los que más actas tiene la temporada anterior (punto naranja = viene de otro club; solo si esas actas están cargadas).
+          PJ = partidos en acta (titular + suplente). En fútbol base las actas no registran cambios, por eso no se calculan minutos. Posición, lateralidad y estado los introduce el club en la ficha del jugador. Los goles no incluyen los de propia puerta. Dorsal = el que más ha llevado en este equipo (al lado, otros que ha usado). Procedencia = equipo y competición en los que más actas tiene la temporada anterior (punto naranja = fichado de otro club; ↑ = promocionado, sube de otro equipo del club; solo si esas actas están cargadas).
         </p>
       </section>
       {!isLoading && !sq && <Btn kind="ghost" onClick={() => go({ s: "equipos" })}>Volver</Btn>}
