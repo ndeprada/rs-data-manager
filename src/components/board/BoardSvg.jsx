@@ -1381,13 +1381,13 @@ export function GroundSvg({ board, region }) {
   return <Board board={b} els={[]} camera={null} viewOverride={[region[0], region[1], region[2] - region[0], region[3] - region[1]]} />;
 }
 /** Lo pintado en el suelo (zonas, flechas, conectores y lo que está tumbado) sobre fondo transparente, en el mismo recuadro. */
-export function GroundMarksSvg({ board, els, all, region }) {
+export function GroundMarksSvg({ board, els, all, region, sel = [] }) {
   const field = fieldOf(isCutField(board.field) ? "full" : board.field);
   const ctx = { board, field, orient: "v", look: lookOf(board.look), chip: chipOf(board), persp: null, V: (p) => p };
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox={`${region[0]} ${region[1]} ${region[2] - region[0]} ${region[3] - region[1]}`}>
       <defs>{SVG_DEFS}</defs>
-      {paintOrder(els, field, "v", null).map((el) => <Item key={el.id} el={el} els={all || els} ctx={ctx} />)}
+      {paintOrder(els, field, "v", null).map((el) => <Item key={el.id} el={el} els={all || els} ctx={ctx} selected={sel.includes(el.id)} />)}
     </svg>
   );
 }

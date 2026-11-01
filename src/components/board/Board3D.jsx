@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { boardView } from "@/lib/board";
 import { load3d } from "./load3d";
 
@@ -7,7 +7,7 @@ import { load3d } from "./load3d";
  * Ocupa el ancho del contenedor con la proporción de lo que se ve (como el SVG del 2D) y se vuelve a dibujar al cambiar
  * el dibujo, los elementos o el tamaño. El motor (three.js) se carga la primera vez.
  */
-export default function Board3DView({ board, els, camera, frame = 0, aspect = null, fullView = false, viewOverride = null, className = "", style, label = "Vista 3D", fill = false }) {
+const Board3DView = forwardRef(function Board3DView({ board, els, camera, frame = 0, aspect = null, fullView = false, viewOverride = null, className = "", style, label = "Vista 3D", fill = false, sel = null, draft = null, canvasStyle = null, ...events }, ref) {
   const wrap = useRef(null);
   const canvas = useRef(null);
   const [box, setBox] = useState(null);
@@ -27,7 +27,7 @@ export default function Board3DView({ board, els, camera, frame = 0, aspect = nu
 
   // lo que se dibuja: siempre lo último que llega (si llegan cambios mientras dibuja, se dibuja una vez más al acabar)
   const latest = useRef(null);
-  latest.current = { board, els, opts: { camera, frame, aspect, fullView, viewOverride } };
+  latest.current = { board, els, opts: { camera, frame, aspect, fullView, viewOverride, sel, draft } };
   const busy = useRef(false);
   const again = useRef(false);
   const raf = useRef(0);
@@ -61,12 +61,31 @@ export default function Board3DView({ board, els, camera, frame = 0, aspect = nu
         if (again.current) { again.current = false; raf.current = requestAnimationFrame(draw); }
       }
     });
-  }, [box, board, els, camera, frame, aspect, fullView, viewOverride, ar, fill, style?.maxHeight]);
+  }, [box, board, els, camera, frame, aspect, fullView, viewOverride, ar, fill, style?.maxHeight, sel, draft]);
+
+  // Para dibujar en 3D (editor): puntero → campo, qué hay debajo y dónde cae en pantalla un punto del campo
+  const libRef = useRef(null);
+  useEffect(() => { load3d().then((l) => { libRef.current = l; }); }, []);
+  const px = (e) => { const c = canvas.current, r = c.getBoundingClientRect(); return { x: ((e.clientX - r.left) * c.width) / r.width, y: ((e.clientY - r.top) * c.height) / r.height }; };
+  useImperativeHandle(ref, () => ({
+    ground: (e) => { const l = libRef.current; if (!l || !canvas.current) return null; const q = px(e); return l.groundAt(canvas.current, q.x, q.y); },
+    pickable: (el) => Boolean(libRef.current?.pickable3D(el)),
+    pick: (list, e) => { const l = libRef.current; if (!l || !canvas.current) return null; const q = px(e); return l.pickAt(canvas.current, list, q.x, q.y); },
+    toScreen: (x, y, h = 0) => {
+      const l = libRef.current, c = canvas.current;
+      if (!l || !c) return null;
+      const q = l.projectAt(c, x, y, h);
+      if (!q) return null;
+      const r = c.getBoundingClientRect();
+      return { x: r.left + (q.x * r.width) / c.width, y: r.top + (q.y * r.height) / c.height };
+    },
+  }), []);
 
   return (
     <div ref={wrap} className={`${className} flex items-center justify-center`} style={{ ...style, ...(fill ? {} : { aspectRatio: String(ar) }), position: "relative" }} role="img" aria-label={label} data-testid="board-3d">
-      <canvas ref={canvas} style={{ display: "block", maxWidth: "100%" }} />
-      {!ready && <span className="absolute inset-0 flex items-center justify-center text-xs text-white/80">Cargando 3D…</span>}
+      <canvas ref={canvas} style={{ display: "block", maxWidth: "100%", ...(canvasStyle || {}) }} {...events} />
+      {!ready && <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-white/80">Cargando 3D…</span>}
     </div>
   );
-}
+});
+export default Board3DView;

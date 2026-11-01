@@ -77,7 +77,7 @@ function shared() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  SHARED = { canvas, renderer, statics: new Map(), tex: new Map(), mats: new Map(), geos: {} };
+  SHARED = { canvas, renderer, statics: new Map(), tex: new Map(), marks: new Map(), views: new WeakMap(), mats: new Map(), geos: {} };
   return SHARED;
 }
 const maxAniso = () => shared().renderer.capabilities.getMaxAnisotropy();
@@ -89,8 +89,8 @@ function canvasTexture(c) {
 }
 
 // Texturas que tardan (SVG → imagen): se piden una vez y mientras tanto se dibuja sin ellas. Devuelve la textura o null.
-function asyncTexture(key, make, pending, limit = 400) {
-  const S = shared();
+function asyncTexture(key, make, pending, limit = 400, store = shared().tex) {
+  const S = { tex: store };
   const hit = S.tex.get(key);
   if (hit) { if (hit.texture) return hit.texture; pending.push(hit.promise); return null; }
   const entry = { texture: null, promise: null };
@@ -724,11 +724,14 @@ export function drawBoard3D(target, board, els, opts = {}) {
   sun.shadow.radius = 3;
   scene.add(sun, sun.target);
   // lo pintado en el suelo
-  const flat = els.filter(isFlatMark);
+  // (al dibujar en 3D: lo que se está dibujando y la marca de lo elegido que va en el suelo)
+  const sel = opts.sel || [];
+  const flat = [...els.filter(isFlatMark), ...draftEls(opts.draft)];
+  const flatSel = sel.filter((id) => flat.some((e) => e.id === id));
   if (flat.length) {
     const linked = new Set(flat.filter((e) => e.k === "link").flatMap((e) => e.ids || []));
-    const mk = JSON.stringify([flat, els.filter((e) => linked.has(e.id)).map((e) => [e.id, e.x, e.y]), look, board.teams || null]);
-    const tex = asyncTexture(`marks:${key}:${mk}`, () => svgCanvas(React.createElement(GroundMarksSvg, { board, els: flat, all: els, region }), 3072), pending, 60);
+    const mk = JSON.stringify([flat, flatSel, els.filter((e) => linked.has(e.id)).map((e) => [e.id, e.x, e.y]), look, board.teams || null]);
+    const tex = asyncTexture(`marks:${key}:${mk}`, () => svgCanvas(React.createElement(GroundMarksSvg, { board, els: flat, all: els, region, sel: [...flatSel, "draft"] }), 3072), pending, 40, S.marks);
     const prev = S.lastMarks?.get(target);
     const use = tex || (prev && prev.key === key ? prev.tex : null);
     if (tex) { if (!S.lastMarks) S.lastMarks = new WeakMap(); S.lastMarks.set(target, { key, tex }); }
@@ -752,12 +755,25 @@ export function drawBoard3D(target, board, els, opts = {}) {
     dyn.add(o);
   }
   scene.add(dyn);
+  // lo elegido (al dibujar en 3D): un aro naranja en el suelo
+  for (const id of sel) {
+    const el = els.find((e) => e.id === id);
+    if (!el || isFlatMark(el) || el.x == null) continue;
+    const R = pickRadius(board, el, chip) * 1.25 + 0.4;
+    const ring = new THREE.Mesh(geo("selRing", () => new THREE.RingGeometry(0.86, 1, 48).rotateX(-Math.PI / 2)), new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.95, depthTest: false }));
+    ring.scale.set(R, 1, R);
+    ring.position.set(el.x, 0.06, el.y);
+    ring.renderOrder = 5;
+    dyn.add(ring);
+  }
   // dibujar en el canvas compartido y copiar
   renderer.setPixelRatio(1);
   renderer.setSize(W, H, false);
   renderer.render(scene, camera);
   const g = target.getContext("2d");
   g.drawImage(renderer.domElement, 0, 0, W, H);
+  // la cámara se guarda para llevar el puntero al campo y saber qué hay debajo
+  S.views.set(target, { camera, W, H, board, chip });
   // limpiar lo de este fotograma (las geometrías y materiales compartidos se quedan)
   scene.remove(st.group);
   dyn.traverse((n) => { if (n.isSprite) n.material.dispose(); else if (n.material && !Array.from(S.mats.values()).includes(n.material)) { n.material.dispose(); } });
@@ -777,4 +793,64 @@ export async function renderBoard3D(target, board, els, opts = {}) {
     await p;
   }
   return target;
+}
+
+// ── Dibujar en 3D: puntero → campo y qué hay debajo ──────────────────────────────────────────────────────────────────
+// Lo que se está dibujando (flecha, zona o recuadro de elegir) se pinta en el suelo como un elemento más
+function draftEls(d) {
+  if (!d) return [];
+  if (d.k === "box") {
+    const x = Math.min(d.x, d.x + d.w), y = Math.min(d.y, d.y + d.h);
+    return [{ id: "draft", k: "zone", shape: "rect", x, y, w: Math.abs(d.w), h: Math.abs(d.h), fill: "#f59e0b", fillOpacity: 0.14, stroke: "#f59e0b", dash: "dashed", strokeWidth: 0.35 }];
+  }
+  if (d.k === "zone") {
+    const x = Math.min(d.x, d.x + d.w), y = Math.min(d.y, d.y + d.h);
+    return [{ ...d, id: "draft", x, y, w: Math.abs(d.w), h: Math.abs(d.h) }];
+  }
+  return [{ ...d, id: "draft" }];
+}
+// Lo que se agarra en 3D por donde se ve (de pie); lo demás (pintado en el suelo, porterías, escaleras) se agarra en el suelo
+export const pickable3D = (el) => el.k === "token" || el.k === "ball" || el.k === "text" || (el.k === "cone" && el.shape !== "flat") || el.k === "pole" || el.k === "dummy" || el.k === "hurdle";
+function pickRadius(board, el, chip) {
+  const k = Number(el.size) || 1;
+  if (el.k === "token") return tokenR(chip, el) * (isPersp(board) ? PERSP.chip : 1) * 0.92;
+  if (el.k === "ball") return Math.max(0.7, chip * 0.55) * k * 0.75;
+  if (el.k === "text") return (Number(el.size) || 3) * Math.max(1, String(el.text || "").length * 0.3);
+  if (el.k === "goal") return (Number(el.w) || 7.32) / 2;
+  return 1.2 * k;
+}
+const pickHeight = (el, chip) => (el.k === "token" ? 0.3 : el.k === "text" ? (Number(el.size) || 3) * 0.6 : el.k === "pole" ? 1.2 : el.k === "dummy" ? 1.1 : 0.6);
+/** Punto del campo (m) bajo el píxel (px, py) del canvas, o null si no se ha dibujado todavía. */
+export function groundAt(target, px, py) {
+  const v = shared().views.get(target);
+  if (!v) return null;
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2((px / v.W) * 2 - 1, -((py / v.H) * 2 - 1)), v.camera);
+  const hit = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
+  return hit ? { x: hit.x, y: hit.z } : null;
+}
+/** Píxel del canvas de un punto del campo a una altura h. */
+export function projectAt(target, x, y, h = 0) {
+  const v = shared().views.get(target);
+  if (!v) return null;
+  const q = new THREE.Vector3(x, h, y).project(v.camera);
+  return { x: ((q.x + 1) / 2) * v.W, y: ((1 - q.y) / 2) * v.H, depth: q.z };
+}
+/** Lo que se ve bajo el píxel (de la lista, de arriba abajo); solo lo que está de pie (`pickable3D`). */
+export function pickAt(target, list, px, py) {
+  const v = shared().views.get(target);
+  if (!v) return null;
+  let best = null;
+  for (const el of list) {
+    if (!pickable3D(el) || el.x == null) continue;
+    const r = pickRadius(v.board, el, v.chip), h = pickHeight(el, v.chip);
+    const c = projectAt(target, el.x, el.y, h);
+    // radio en pantalla: el punto a r metros hacia la derecha de la cámara
+    const right = new THREE.Vector3().setFromMatrixColumn(v.camera.matrixWorld, 0);
+    const e = projectAt(target, el.x + right.x * r, el.y + right.z * r, h);
+    const rp = Math.max(10, Math.hypot(e.x - c.x, e.y - c.y) * 1.1);
+    const d = Math.hypot(px - c.x, py - c.y);
+    if (d <= rp && (!best || c.depth < best.depth - 1e-4 || (Math.abs(c.depth - best.depth) <= 1e-4 && d < best.d))) best = { el, d, depth: c.depth };
+  }
+  return best?.el || null;
 }

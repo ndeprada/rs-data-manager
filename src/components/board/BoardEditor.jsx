@@ -197,7 +197,11 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
 
   const shownEls = anim && board.frames[anim.i + 1] ? lerpFrames(board.frames[anim.i], board.frames[anim.i + 1], anim.t) : cur.els;
   const ghosts = !playing && trails && prev ? ghostsOf(prev, cur) : [];
-  const show3d = is3D(board) && (see3d || playing);
+  const show3d = is3D(board) && (see3d || playing) && tool !== "camera";
+  // Dibujar en 3D: el puntero se lleva al campo con la cámara 3D (`v3`) en vez del SVG
+  const in3d = show3d && !playing;
+  const v3 = useRef(null);
+  const last3d = useRef({ x: 0, y: 0 });
 
   // ── Puntero ──────────────────────────────────────────────────────────────────────────────────────────────────────
   // En perspectiva, el punto de la pantalla se lleva al suelo deshaciendo la proyección
@@ -252,7 +256,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const host = hostEl;
     if (!host) return undefined;
     const svgOf = () => svgRef.current;
-    const atOf = (e) => { const svg = svgOf(); const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
+    const atOf = (e) => { const svg = svgOf(); const ctm = svg?.getScreenCTM(); if (!ctm) return null; const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(ctm.inverse()); };
     const baseZ = () => { const z = camOf(live.current).z; if (zAcc.current == null || Math.abs(zAcc.current - z) > 0.02) zAcc.current = z; return zAcc.current; };
     const zoomBy = (f, at) => { const nz = Math.min(ZOOM_MAX, Math.max(1, baseZ() * f)); zAcc.current = nz; zoomTo(nz, at); };
     const onWheel = (e) => {
@@ -284,9 +288,19 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       host.removeEventListener("gesturechange", onGestureChange);
     };
   });
-  const toField = (e) => { const q = svgPoint(e); return fromView(field, orient, persp ? persp.inv(q) : q); };
-  // Qué hay bajo el dedo: en perspectiva, lo que está de pie se agarra por donde se ve
-  const hitAt = (list, e, p) => (persp ? hitTestPersp(paintOrder(list, field, orient, persp), svgPoint(e), { field, orient, chip, persp }) : hitTest(list, p, { orient, chip }));
+  const toField = (e) => {
+    if (in3d) { const g = v3.current?.ground(e); if (g) last3d.current = g; return g || last3d.current; }
+    const q = svgPoint(e); return fromView(field, orient, persp ? persp.inv(q) : q);
+  };
+  // Qué hay bajo el dedo: en perspectiva, lo que está de pie se agarra por donde se ve; en 3D, igual con la cámara 3D
+  const hitAt = (list, e, p) => {
+    if (in3d) {
+      const api = v3.current;
+      if (!api) return null;
+      return api.pick(list, e) || hitTest(list.filter((el) => !api.pickable(el)), p, { orient, chip });
+    }
+    return persp ? hitTestPersp(paintOrder(list, field, orient, persp), svgPoint(e), { field, orient, chip, persp }) : hitTest(list, p, { orient, chip });
+  };
   const point = (e) => {
     const p = toField(e);
     return { x: round(clamp(p.x, -2, field.w + 2)), y: round(clamp(p.y, -2, field.h + 2)) };
@@ -304,7 +318,16 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
 
   // Dónde se abre la edición rápida: junto a la ficha (debajo si cabe, si no encima), sin salirse del recuadro de la pizarra
   useLayoutEffect(() => {
-    if (!quickEl || !svgRef.current || !wrapRef.current) { setQuickPos(null); return; }
+    if (!quickEl || !wrapRef.current || (!svgRef.current && !in3d)) { setQuickPos(null); return; }
+    if (in3d) {
+      const m = v3.current?.toScreen(quickEl.x, quickEl.y, 0.3);
+      if (!m) { setQuickPos(null); return; }
+      const box = wrapRef.current.getBoundingClientRect();
+      const W = Math.min(300, box.width - 8);
+      const left = Math.max(4, Math.min(m.x - box.left - W / 2, box.width - W - 4));
+      setQuickPos({ left, top: m.y - box.top + 34, up: m.y - box.top > box.height / 2, mid: m.y - box.top - 30 });
+      return;
+    }
     const svg = svgRef.current;
     const v = toView(field, orient, quickEl);
     const c = persp ? persp.P(v) : v;
@@ -323,7 +346,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     // en la mitad de abajo de la pizarra se abre por encima de la ficha
     const rs = Math.abs(below.y - mid.y) / 2.2;
     setQuickPos({ left, top, up: mid.y - box.top > box.height / 2, mid: mid.y - box.top - rs - 6 });
-  }, [quickEl, board, orient, field]);
+  }, [quickEl, board, orient, field, in3d]);
 
   const setEls = (els, opts) => commit({ ...live.current, frames: live.current.frames.map((f, i) => (i === idx ? { ...f, els } : f)) }, opts);
   const add = (el) => { commit(addElement(live.current, idx, el)); setSelId(el.id); };
@@ -332,6 +355,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     // dos dedos: acercar o alejar (se deshace lo que hubiera empezado el primer dedo)
     if (pointers.current.size === 2) {
+      if (in3d) { drag.current = null; setDraft(null); return; }
       const d = drag.current;
       if (d?.snapshot && d.moved) onChange(d.snapshot);
       setDraft(null);
@@ -462,7 +486,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   // Doble clic (también el del navegador) o clic derecho / mantener pulsado sobre una ficha: su edición rápida.
   // Se anula el menú y la selección de texto que el navegador haría ahí.
   const openQuickAt = (e) => {
-    if (playing || !svgRef.current) return false;
+    if (playing || (!svgRef.current && !in3d)) return false;
     const p = point(e);
     const hit = hitAt(drawOrder(cur.els.filter((el) => el.k === "token")), e, p);
     if (!hit) return false;
@@ -488,7 +512,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       return;
     }
     if (d.mode === "pan") {
-      const ctm = svgRef.current.getScreenCTM();
+      const ctm = svgRef.current?.getScreenCTM();
+      if (!ctm) return;
       setCam(panCam(fullVb, d.cam0, -(e.clientX - d.cx) / ctm.a, -(e.clientY - d.cy) / ctm.d) || null);
       return;
     }
@@ -758,7 +783,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (ARROW_TOOLS.includes(id)) lastPick.current.arrow = id;
     if (id === "zone" || id === "quad") lastPick.current.zone = id;
     if (id === "goal" || MATERIAL_IDS.includes(id)) lastPick.current.material = id;
-    setTool(id); setSee3d(false); if (id !== "select") { setSel([]); setMultiMode(false); } setPick([]); setDraft(null); stop();
+    setTool(id); if (id !== "select") { setSel([]); setMultiMode(false); } setPick([]); setDraft(null); stop();
   };
 
   // Conector entre las fichas elegidas: línea (de un extremo al otro), zona (contorno que las envuelve) o red (todas con todas)
@@ -1184,11 +1209,32 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   );
   const stage = (
     <div ref={setWrap} className={narrow ? "relative flex-1 min-h-0 flex items-center justify-center p-1" : "absolute inset-y-0 left-[72px] right-[80px] flex items-center justify-center p-3"}>
-      {show3d && <Board3DView board={board} els={shownEls} camera={camTool ? null : showCam ? frameCam(board, idx) : null} viewOverride={camView} fill className="w-full h-full" label="Pizarra en 3D" />}
+      {show3d && (
+        <Board3DView
+          ref={v3}
+          board={board}
+          els={shownEls}
+          camera={showCam ? frameCam(board, idx) : null}
+          viewOverride={camView}
+          fill
+          className="w-full h-full"
+          label="Pizarra en 3D"
+          sel={playing ? null : sel}
+          draft={playing ? null : draft}
+          canvasStyle={{ touchAction: "none", cursor, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
+          onPointerDown={onDown}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onPointerCancel={onUp}
+          onDoubleClick={onDoubleClick}
+          onContextMenu={onContextMenu}
+          onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
+        />
+      )}
       {is3D(board) && !playing && (
-        <div className="absolute top-2 left-2 flex items-center gap-0.5 rounded-lg p-0.5 text-[11px] font-semibold" style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} role="group" aria-label="Vista 2D o 3D" data-testid="board-3d-switch">
-          {[{ id: false, label: "Dibujar (2D)" }, { id: true, label: "Ver en 3D" }].map((o) => (
-            <button key={String(o.id)} type="button" aria-pressed={see3d === o.id} onClick={() => { setSee3d(o.id); if (o.id) { setSel([]); setQuick(null); } }} data-testid={o.id ? "board-see-3d" : "board-see-2d"}
+        <div className="absolute top-2 left-2 flex items-center gap-0.5 rounded-lg p-0.5 text-[11px] font-semibold" style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} role="group" aria-label="Dibujar en 2D o en 3D" title="Dibujar en 2D o en 3D" data-testid="board-3d-switch">
+          {[{ id: false, label: "2D" }, { id: true, label: "3D" }].map((o) => (
+            <button key={String(o.id)} type="button" aria-pressed={see3d === o.id} onClick={() => { setSee3d(o.id); setQuick(null); if (o.id && tool === "camera") pickTool("select"); }} data-testid={o.id ? "board-see-3d" : "board-see-2d"}
               className="h-7 px-2 rounded-md" style={see3d === o.id ? { background: RAIL.on, color: RAIL.onInk } : undefined}>{o.label}</button>
           ))}
         </div>
@@ -1234,9 +1280,10 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       {narrow && panel}
     </div>
   );
-  const hint = playing ? "Reproduciendo…" : error ? error
+  const hint0 = playing ? "Reproduciendo…" : error ? error
     : tool === "select" ? (sel.length ? "Arrastra para mover · Supr para quitar" : hasEls ? "Toca algo para elegirlo · arrastra un recuadro para elegir varios" : "Elige una herramienta en la barra de la izquierda y toca el campo")
       : tool === "camera" ? "Arrastra el recuadro o sus esquinas · 1–4 encuadres · P formato · R igual que el anterior" : isTeamTool(tool) ? "Toca el campo para colocar fichas" : ARROW_TOOLS.includes(tool) ? "Arrastra para dibujar la flecha" : tool === "zone" || tool === "quad" ? "Arrastra para dibujar la zona" : tool === "pan" ? "Arrastra para mover la vista" : "Toca el campo para colocarlo";
+  const hint = in3d && !error ? `En 3D · ${hint0} · curvas, quiebros, giros y trayectorias: en 2D` : hint0;
 
   const studio = narrow ? (
     <div className="fixed inset-0 flex flex-col" style={{ background: styleOf(look).surround || RAIL.bg, color: RAIL.text, zIndex: 50 }} onKeyDown={onKey} tabIndex={-1} data-testid="board-studio">
