@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X } from "lucide-react";
+import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
-  boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
+  boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
   insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
@@ -87,6 +87,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const [anim, setAnim] = useState(null);
   const [loop, setLoop] = useState(false);
   const [trails, setTrails] = useState(true);
+  // ver en el editor lo que ve la cámara (como «Show camera view in edit mode» de FmStadio)
+  const [showCam, setShowCam] = useState(false);
   const [error, setError] = useState("");
   const [quick, setQuick] = useState(null); // ficha abierta con doble clic (su id)
   const [quickPos, setQuickPos] = useState(null);
@@ -205,6 +207,29 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   // Zoom: lo que se ve sale del zoom guardado en el dibujo (`board.cam`)
   const fullVb = persp ? persp.vb : viewBox(field, orient, marginOf(look, board));
   const cam = camOf(board);
+  // ── Cámara: lo que se exporta ──
+  const camTool = tool === "camera";
+  const camRatio = CAM_RATIOS[camRatioOf(board)];
+  const curCam = frameCam(board, idx);
+  const ownCam = Boolean(board.frames[idx]?.cam);
+  const camShown = curCam || cameraPreset(board, "full");
+  const camR = camRect(fullVb, camShown, camRatio);
+  const withCam = (b, i, c) => ({ ...b, frames: b.frames.map((f, j) => (j === i ? (c ? { ...f, cam: c } : (({ cam: _c, ...rest }) => rest)(f)) : f)) });
+  const setFrameCam = (c) => commit(withCam(live.current, idx, c));
+  const setCamRatio = (r) => {
+    // al cambiar de formato cada cámara conserva su centro y su ancho
+    const { camRatio: _r, ...rest } = live.current;
+    commit(r === "port" ? { ...rest, camRatio: "port" } : rest);
+  };
+  const applyPreset = (id) => setFrameCam(cameraPreset(live.current, id));
+  const clearAllCams = () => commit({ ...live.current, frames: live.current.frames.map(({ cam: _c, ...f }) => f) });
+  const camView = (() => {
+    if (!camTool) return null;
+    const x = Math.min(fullVb[0], camR[0]), y = Math.min(fullVb[1], camR[1]);
+    const w = Math.max(fullVb[0] + fullVb[2], camR[0] + camR[2]) - x, h = Math.max(fullVb[1] + fullVb[3], camR[1] + camR[3]) - y;
+    const pad = Math.max(w, h) * 0.02;
+    return [x - pad, y - pad, w + 2 * pad, h + 2 * pad];
+  })();
   const setCam = (c) => { const { cam: _c, ...rest } = live.current; commit(c ? { ...rest, cam: c } : rest, { key: "cam" }); };
   const zoomTo = (z, at) => setCam(zoomCam(fullVb, camOf(live.current), z, at));
   const zoomStep = (dir) => {
@@ -315,6 +340,14 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     }
     if (playing) return;
     if (e.button !== undefined && e.button > 0) return;
+    if (tool === "camera") {
+      const h = e.target?.dataset?.h;
+      if (h && /^(k[0-3]|cm)$/.test(h)) {
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+        drag.current = { mode: "cam", h, start: svgPoint(e), rect0: camR, snapshot: live.current };
+      }
+      return;
+    }
     const p = point(e);
     e.currentTarget.setPointerCapture?.(e.pointerId);
     if (tool === "pan") { const cam0 = camOf(live.current); drag.current = cam0.z > 1 ? { mode: "pan", cx: e.clientX, cy: e.clientY, cam0 } : null; return; }
@@ -460,6 +493,22 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       setDraft((c) => (c ? (c.k === "arrow" ? { ...c, x2: p.x, y2: p.y } : { ...c, w: round(p.x - c.x), h: round(p.y - c.y) }) : c));
       return;
     }
+    if (d.mode === "cam") {
+      const q = svgPoint(e);
+      const [x, y, w, h] = d.rect0;
+      let r;
+      if (d.h === "cm") r = [x + q.x - d.start.x, y + q.y - d.start.y, w, h];
+      else {
+        // la esquina contraria se queda quieta y el recuadro conserva su formato
+        const corners = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+        const o = corners[(Number(d.h[1]) + 2) % 4];
+        const nw = Math.max(fullVb[2] * 0.08, Math.abs(q.x - o[0]), Math.abs(q.y - o[1]) * camRatio), nh = nw / camRatio;
+        r = [q.x < o[0] ? o[0] - nw : o[0], q.y < o[1] ? o[1] - nh : o[1], nw, nh];
+      }
+      onChange(withCam(d.snapshot, idx, rectToCam(fullVb, r)));
+      d.moved = true;
+      return;
+    }
     if (d.mode === "handle") {
       let patch;
       if (d.h === "tc") {
@@ -508,7 +557,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (d?.mode === "pinch") { if (pointers.current.size === 0) drag.current = null; return; }
     drag.current = null;
     if (!d) return;
-    if ((d.mode === "move" || d.mode === "handle") && d.moved) {
+    if ((d.mode === "move" || d.mode === "handle" || d.mode === "cam") && d.moved) {
       pushHistory(d.base || d.snapshot);
       coalesce.current = { key: null, at: 0 };
     }
@@ -632,6 +681,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const onKey = (e) => {
     if (e.defaultPrevented) return;
     if (e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable=true], [role=slider], [role=dialog] [role=dialog]")) return;
+    // con la cámara elegida: 1–4 encuadres, P horizontal/vertical, R igual que el fotograma anterior, Supr quita la de este fotograma
+    if (tool === "camera" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const n = /^Digit([1-4])$/.exec(e.code);
+      if (n) { e.preventDefault(); applyPreset(CAM_PRESETS[Number(n[1]) - 1].id); return; }
+      if (e.code === "KeyP") { e.preventDefault(); setCamRatio(camRatioOf(board) === "port" ? "land" : "port"); return; }
+      if (e.code === "KeyR" || e.code === "Backspace" || e.code === "Delete") { e.preventDefault(); if (ownCam) setFrameCam(null); return; }
+    }
     const action = boardKeyAction(e, { hasSel: sel.length > 0 });
     if (!action) return;
     if (playing && action !== "play") return;
@@ -654,7 +710,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       case "deleteHere": return sel.length > 1 ? delMany(true) : delSel(true);
       case "select": return pickTool("select");
       case "ball": return pickTool("ball");
-      case "cone": return pickTool("cone");
+      case "camera": return pickTool("camera");
       case "link": return pickTool("link");
       case "text": return pickTool("text");
       case "arrow": return pickTool(lastPick.current.arrow);
@@ -720,7 +776,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const allowed = fields ? FIELDS.filter((f) => fields.includes(f.id)) : FIELDS;
   const used = new Set(cur.els.filter((e) => e.k === "token").map((e) => e.label));
   const tall = (isSideways(orient) ? field.w : field.h) > 80;
-  const cursor = tool === "pan" ? "grab" : tool === "select" || playing ? "default" : "crosshair";
+  const cursor = tool === "pan" ? "grab" : tool === "select" || tool === "camera" || playing ? "default" : "crosshair";
   const hasEls = board.frames.some((f) => f.els.length);
 
   // Qué muestra el panel de propiedades: el elemento seleccionado o la herramienta elegida
@@ -820,6 +876,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       {TOOL_GROUPS.map(groupBtn)}
       {railTool({ id: "link", label: "Unir fichas", title: "Unir fichas (L)", icon: Waypoints, short: "Unir" })}
       {railTool({ id: "text", label: "Texto", title: "Texto (E)", icon: Type })}
+      {railTool({ id: "camera", label: "Cámara", title: "Cámara: lo que se exporta (C)", icon: Video })}
     </>
   );
 
@@ -1017,10 +1074,41 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     </div>
   ) : null;
 
-  const panelTitle = side === "settings" ? "Campo y ajustes" : side === "roster" ? "Plantilla"
+  const camBody = camTool && !playing ? (
+    <div className="space-y-2.5" data-testid="camera-panel">
+      <p className="text-[11px] text-gray-600 leading-snug">La cámara marca lo que sale en la imagen, en el vídeo y en las vistas previas. Cada fotograma puede tener su encuadre y, al reproducir, la cámara se mueve de uno a otro.</p>
+      <div className="space-y-1">
+        <span className="text-[11px] font-semibold text-gray-600">Formato (P)</span>
+        <div className="flex gap-1">
+          {[{ id: "land", label: "Horizontal 16:9" }, { id: "port", label: "Vertical 9:16" }].map((o) => (
+            <button key={o.id} type="button" data-testid={`cam-ratio-${o.id}`} aria-pressed={camRatioOf(board) === o.id} onClick={() => setCamRatio(o.id)}
+              className={`h-8 px-2.5 rounded-md border text-[12px] font-semibold ${camRatioOf(board) === o.id ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-700 border-gray-200"}`}>{o.label}</button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1">
+        <span className="text-[11px] font-semibold text-gray-600">Encuadres rápidos (1–4)</span>
+        <div className="flex flex-wrap gap-1">
+          {CAM_PRESETS.map((pr, i) => (
+            <button key={pr.id} type="button" data-testid={`cam-preset-${pr.id}`} onClick={() => applyPreset(pr.id)} className="h-8 px-2.5 rounded-md border border-gray-200 bg-white text-[12px] font-semibold text-gray-700 hover:bg-gray-50">{i + 1} · {pr.label}</button>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {idx > 0 && <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-xs" disabled={!ownCam} onClick={() => setFrameCam(null)} data-testid="cam-inherit">Igual que el fotograma anterior (R)</Button>}
+        <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-xs text-red-600" disabled={!hasCamera(board)} onClick={clearAllCams} data-testid="cam-clear">Quitar la cámara</Button>
+      </div>
+      <label className="flex items-center gap-2 text-[12px] text-gray-700">
+        <input type="checkbox" checked={showCam} onChange={(e) => setShowCam(e.target.checked)} data-testid="cam-show" style={{ accentColor: "#FF6E00" }} />
+        Ver lo que ve la cámara mientras dibujo
+      </label>
+    </div>
+  ) : null;
+
+  const panelTitle = camTool ? "Cámara" : side === "settings" ? "Campo y ajustes" : side === "roster" ? "Plantilla"
     : tool === "link" ? "Unir fichas" : multi ? `${selEls.length} elegidos`
       : selected ? KIND_LABEL[selected.k] : panelEl ? (isTeamTool(tool) ? `Fichas · ${teams.find((t) => t.id === tool)?.name || ""}` : curGroup ? curGroup.label : KIND_LABEL[panelEl.k]) : layersOpen ? "Capas" : "";
-  const panelBody = playing ? null : side === "settings" ? settingsBody : side === "roster" ? rosterBody : (
+  const panelBody = playing ? null : camTool && !side ? camBody : side === "settings" ? settingsBody : side === "roster" ? rosterBody : (
     linkBody || (multi ? (
       <MultiPanel els={selEls} board={board} look={look} frames={board.frames.length} onTeam={teamMany} onColor={colorMany} onFeet={feetMany} onBib={bibMany} onTurn={turnMany} onResize={resizeMany} onSpread={spreadMany} onAlign={alignMany} onDistribute={distributeMany} onLayer={layer} onDup={dupMany} onDel={delMany} onClear={() => setSel([])} />
     ) : propsBody)
@@ -1091,7 +1179,10 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         markNumbers={!playing && (tool === "link" || (selected?.k === "link" && (selected.mode || "line") === "line"))}
         ghosts={ghosts}
         draft={draft}
-        handles={!playing}
+        handles={!playing && !camTool}
+        camera={camTool ? null : showCam ? frameCam(board, idx) : null}
+        viewOverride={camView}
+        overlay={camTool && !playing ? <CameraOverlay rect={camR} view={camView} frame={idx} own={ownCam} has={Boolean(curCam)} inheritedFrom={!ownCam && curCam ? board.frames.slice(0, idx).map((f, i) => (f.cam ? i : -1)).filter((i) => i >= 0).pop() : null} /> : null}
         className="w-full h-full select-none"
         style={{ touchAction: "none", cursor, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
         label="Pizarra"
@@ -1122,7 +1213,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   );
   const hint = playing ? "Reproduciendo…" : error ? error
     : tool === "select" ? (sel.length ? "Arrastra para mover · Supr para quitar" : hasEls ? "Toca algo para elegirlo · arrastra un recuadro para elegir varios" : "Elige una herramienta en la barra de la izquierda y toca el campo")
-      : isTeamTool(tool) ? "Toca el campo para colocar fichas" : ARROW_TOOLS.includes(tool) ? "Arrastra para dibujar la flecha" : tool === "zone" || tool === "quad" ? "Arrastra para dibujar la zona" : tool === "pan" ? "Arrastra para mover la vista" : "Toca el campo para colocarlo";
+      : tool === "camera" ? "Arrastra el recuadro o sus esquinas · 1–4 encuadres · P formato · R igual que el anterior" : isTeamTool(tool) ? "Toca el campo para colocar fichas" : ARROW_TOOLS.includes(tool) ? "Arrastra para dibujar la flecha" : tool === "zone" || tool === "quad" ? "Arrastra para dibujar la zona" : tool === "pan" ? "Arrastra para mover la vista" : "Toca el campo para colocarlo";
 
   const studio = narrow ? (
     <div className="fixed inset-0 flex flex-col" style={{ background: styleOf(look).surround || RAIL.bg, color: RAIL.text, zIndex: 50 }} onKeyDown={onKey} tabIndex={-1} data-testid="board-studio">
@@ -1229,3 +1320,25 @@ const TOOL_GROUPS = [
   { id: "material", label: "Material", short: "Material", key: "T", icon: Triangle, tools: ["cone", "goal", ...MATERIAL_IDS] },
 ];
 
+
+// Rectángulo de la cámara sobre el estadio: fuera, oscurecido; esquinas para cambiar el tamaño (sin perder el formato) y
+// dentro para moverlo. Discontinuo si este fotograma no tiene cámara propia (usa la del anterior o aún no hay ninguna).
+function CameraOverlay({ rect, view, frame, own, has, inheritedFrom }) {
+  const [x, y, w, h] = rect;
+  const [X, Y, W, H] = view;
+  const u = Math.max(W, H) / 400;
+  const label = !has ? "Sin cámara: arrastra el recuadro o elige un encuadre" : own ? `Cámara del fotograma ${frame + 1}` : `Usa la cámara del fotograma ${inheritedFrom + 1}: muévela para darle una propia`;
+  return (
+    <g data-testid="camera-overlay">
+      <path d={`M ${X} ${Y} h ${W} v ${H} h ${-W} Z M ${x} ${y} h ${w} v ${h} h ${-w} Z`} fill="#000" fillOpacity={0.5} fillRule="evenodd" pointerEvents="none" />
+      <rect data-h="cm" x={x} y={y} width={w} height={h} fill="transparent" stroke="#fff" strokeWidth={u * 0.9} strokeDasharray={own ? undefined : `${u * 4} ${u * 3}`} style={{ cursor: "move" }} />
+      {[[x, y], [x + w, y], [x + w, y + h], [x, y + h]].map(([cx, cy], i) => (
+        <g key={i}>
+          <circle cx={cx} cy={cy} r={u * 3.2} fill="#fff" stroke="#FF6E00" strokeWidth={u * 0.9} pointerEvents="none" />
+          <circle data-h={`k${i}`} cx={cx} cy={cy} r={u * 8} fill="transparent" style={{ cursor: i % 2 ? "nesw-resize" : "nwse-resize" }} />
+        </g>
+      ))}
+      <text x={x + u * 4} y={y - u * 4} fontSize={u * 9} fontWeight={700} fill="#fff" style={{ fontFamily: "Arial, sans-serif" }} pointerEvents="none">{label}</text>
+    </g>
+  );
+}

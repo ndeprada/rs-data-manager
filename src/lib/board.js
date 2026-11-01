@@ -320,7 +320,8 @@ export function normalizeBoard(value) {
       ...(grassOf(value) !== "auto" ? { grass: grassOf(value) } : {}),
       ...(marksOf(value) !== "none" ? { marks: marksOf(value) } : {}),
       ...(camOf(value).z > 1 ? { cam: camOf(value) } : {}),
-      frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [] })),
+      ...(value.camRatio === "port" ? { camRatio: "port" } : {}),
+      frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [], ...(validCam(f.cam) ? { cam: validCam(f.cam) } : {}) })),
     };
   }
   return {
@@ -643,6 +644,86 @@ export function viewBox(field, orient, m = 3) {
     default: return [-l, -t, W, H];
   }
 }
+// ── Cámara (como en FmStadio) ─────────────────────────────────────────────────────────────────────────────────────
+// Lo que se exporta (imagen, vídeo, vistas de solo lectura) lo marca la cámara: un rectángulo horizontal (16:9) o vertical
+// (9:16) por fotograma. `frame.cam = { x, y, w }` = centro y ancho en fracción del recuadro completo del dibujo; un fotograma
+// sin cámara usa la del anterior, y al reproducir la cámara se mueve de un encuadre al siguiente. Sin ninguna cámara, se
+// exporta como antes (todo el campo o el zoom guardado en `board.cam`).
+export const CAM_RATIOS = { land: 16 / 9, port: 9 / 16 };
+export const camRatioOf = (b) => (b?.camRatio === "port" ? "port" : "land");
+const r4 = (n) => Math.round(n * 10000) / 10000;
+function validCam(c) {
+  const x = Number(c?.x), y = Number(c?.y), w = Number(c?.w);
+  return Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(w) && w > 0.02 ? { x: r4(x), y: r4(y), w: r4(Math.min(w, 4)) } : null;
+}
+export const hasCamera = (b) => Array.isArray(b?.frames) && b.frames.some((f) => validCam(f.cam));
+/** Cámara del fotograma i (la suya o la del anterior que tenga). */
+export function frameCam(b, i = 0) {
+  const frames = b?.frames || [];
+  for (let k = Math.min(i, frames.length - 1); k >= 0; k--) { const c = validCam(frames[k].cam); if (c) return c; }
+  return null;
+}
+/** Recuadro [x, y, ancho, alto] de una cámara dentro del recuadro completo. */
+export function camRect(fullVb, cam, ratio) {
+  const [X, Y, W, H] = fullVb;
+  const w = cam.w * W, h = w / ratio;
+  return [X + cam.x * W - w / 2, Y + cam.y * H - h / 2, w, h];
+}
+export const rectToCam = (fullVb, rect) => ({ x: r4((rect[0] + rect[2] / 2 - fullVb[0]) / fullVb[2]), y: r4((rect[1] + rect[3] / 2 - fullVb[1]) / fullVb[3]), w: r4(rect[2] / fullVb[2]) });
+/** El recuadro más pequeño con la proporción `ratio` que contiene `box` (más `pad` alrededor), centrado en él. */
+export function fitRect(box, ratio, pad = 0) {
+  const w0 = box[2] + 2 * pad, h0 = box[3] + 2 * pad;
+  const w = Math.max(w0, h0 * ratio), h = w / ratio;
+  return [box[0] + box[2] / 2 - w / 2, box[1] + box[3] / 2 - h / 2, w, h];
+}
+/** Recuadro completo del dibujo (campo + margen, en perspectiva el de la perspectiva). */
+export function fullViewBox(board) {
+  const b = board || {};
+  const field = fieldOf(b.field), orient = orientOf(b.orient), m = marginOf(lookOf(b.look), b);
+  return isPersp(b) ? perspectiveOf(field, orient, m).vb : viewBox(field, orient, m);
+}
+// Zonas del campo (en metros) para los encuadres rápidos
+export const CAM_PRESETS = [
+  { id: "full", label: "Completo" },
+  { id: "attack", label: "Mitad de ataque" },
+  { id: "own", label: "Mitad propia" },
+  { id: "box", label: "Área" },
+];
+function presetRegion(field, id) {
+  const { w, h } = field;
+  const f7 = field.id === "f7";
+  if (id === "attack") return [0, -2, w, h / 2 + 2];
+  if (id === "own") return [0, h / 2, w, h / 2 + 2];
+  if (id === "box") { const aw = (f7 ? 24 : 40.32) + 12, ad = (f7 ? 9 : 16.5) + 10; return [w / 2 - aw / 2, -3, aw, ad]; }
+  return [-2, -2, w + 4, h + 4];
+}
+/** Cámara de un encuadre rápido para este dibujo y su formato. */
+export function cameraPreset(board, id) {
+  const b = board || {};
+  const field = fieldOf(b.field), orient = orientOf(b.orient), m = marginOf(lookOf(b.look), b);
+  const persp = isPersp(b) ? perspectiveOf(field, orient, m) : null;
+  const [rx, ry, rw, rh] = presetRegion(field, id);
+  const pts = [[rx, ry], [rx + rw, ry], [rx + rw, ry + rh], [rx, ry + rh]].map(([x, y]) => { const v = toView(field, orient, { x, y }); return persp ? persp.P(v) : v; });
+  const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+  const box = [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
+  const full = fullViewBox(b);
+  return rectToCam(full, fitRect(box, CAM_RATIOS[camRatioOf(b)], 1));
+}
+/** Cámara en un instante de la animación (se mueve de un encuadre al siguiente con la misma suavidad que las fichas). */
+export function camAtTime(board, ms, { speed = 1500, holdStart = ANIM_HOLD.start } = {}) {
+  const n = board.frames.length;
+  if (!hasCamera(board)) return null;
+  if (n < 2) return frameCam(board, 0);
+  const seg = (ms - holdStart) / speed;
+  if (seg <= 0) return frameCam(board, 0);
+  if (seg >= n - 1) return frameCam(board, n - 1);
+  const i = Math.floor(seg);
+  const a = frameCam(board, i), b = frameCam(board, i + 1);
+  if (!a || !b) return b || a;
+  const k = ease(seg - i);
+  return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, w: a.w + (b.w - a.w) * k };
+}
+
 // Un cuarto de vuelta en el sentido de las agujas del reloj (para el vídeo: un campo vertical en un vídeo 16:9 se gira)
 export const ORIENT_TURN = { v: "hi", hi: "vi", vi: "h", h: "v" };
 export function turnQuarter(b) {

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Play } from "lucide-react";
-import { animationDuration, boardSpeed, elsAtTime, isAnimation, normalizeBoard } from "@/lib/board";
+import { animationDuration, boardSpeed, camAtTime, elsAtTime, isAnimation, normalizeBoard } from "@/lib/board";
 import Board from "./BoardSvg";
 
 /**
@@ -33,7 +33,7 @@ export default function BoardPlayer({ board, className = "", style, label = "Dib
   const els = t == null ? b.frames[0].els : elsAtTime(b, t, { speed });
   return (
     <div className="relative inline-flex max-w-full" style={{ height: style?.height }}>
-      <Board board={b} els={els} className={className} style={style} label={label} />
+      <Board board={b} els={els} camera={t == null ? undefined : camAtTime(b, t, { speed })} className={className} style={style} label={label} />
       {anim && t == null && (
         <button
           type="button"

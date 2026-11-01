@@ -23,7 +23,7 @@ export function PitchView({ board, frame = 0, className = "", style, print = fal
   const raw = normalizeBoard(board);
   const b = print && isStadium(raw.look) ? { ...raw, look: "blanco" } : raw;
   const f = b.frames[Math.min(frame, b.frames.length - 1)];
-  return <Board board={b} els={f.els} className={className} style={style} label="Dibujo de la tarea" />;
+  return <Board board={b} els={f.els} frame={Math.min(frame, b.frames.length - 1)} className={className} style={style} label="Dibujo de la tarea" />;
 }
 
 export const boardFieldOf = (b) => fieldOf(normalizeBoard(b).field);

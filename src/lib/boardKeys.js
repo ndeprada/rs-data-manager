@@ -30,7 +30,7 @@ export function boardKeyAction(e, { hasSel = false } = {}) {
   if (e.shiftKey && (k === "h" || k === "Slash")) return "help";
   if (e.shiftKey) return null;
   if (/^[0-9]$/.test(k)) return k === "0" ? "ball" : `team${k}`;
-  const single = { v: "select", a: "arrow", d: "zone", e: "text", t: "material", c: "cone", l: "link", n: "addFrame", m: "removeFrame", j: "trail", y: "alignH", u: "alignV", i: "spread", Space: "play", Equal: "zoomIn", NumpadAdd: "zoomIn", Minus: "zoomOut", NumpadSubtract: "zoomOut" };
+  const single = { v: "select", a: "arrow", d: "zone", e: "text", t: "material", c: "camera", l: "link", n: "addFrame", m: "removeFrame", j: "trail", y: "alignH", u: "alignV", i: "spread", Space: "play", Equal: "zoomIn", NumpadAdd: "zoomIn", Minus: "zoomOut", NumpadSubtract: "zoomOut" };
   return single[k] || null;
 }
 
@@ -44,7 +44,7 @@ export const BOARD_SHORTCUTS = [
     ["D", "Zona (Alt + D cambia de forma)"],
     ["E", "Texto"],
     ["T", "Material (Alt + T cambia de material)"],
-    ["C", "Cono"],
+    ["C", "Cámara (encuadre de lo que se exporta). Con la cámara: 1–4 encuadres, P horizontal/vertical, R igual que el anterior"],
     ["L", "Unir fichas"],
   ] },
   { group: "Lo elegido", items: [

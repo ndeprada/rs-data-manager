@@ -1,6 +1,6 @@
 import React from "react";
 import Board, { styleOf } from "./BoardSvg";
-import { animationDuration, elsAtTime, lookOf, normalizeBoard, turnQuarter } from "@/lib/board";
+import { animationDuration, camAtTime, camRatioOf, elsAtTime, hasCamera, lookOf, normalizeBoard, turnQuarter } from "@/lib/board";
 import { boardSvgMarkup, loadSvgImage } from "./exportPng";
 import { videoFrameSize } from "@/lib/videoSize";
 
@@ -56,15 +56,18 @@ export async function boardToVideo(board, { speed = 1500, quality = 1080, fps = 
   let b = normalizeBoard(board);
   const total = animationDuration(b, { speed });
   if (!total) throw new Error("Para crear un vídeo hacen falta al menos dos fotogramas.");
+  // con cámara, el formato del vídeo es el de la cámara y el encuadre se mueve con ella
+  const withCam = hasCamera(b);
+  if (withCam) format = camRatioOf(b) === "port" ? "portrait" : "landscape";
   let probe = await boardSvgMarkup(<Board board={b} els={b.frames[0].els} />, 1000);
   // vídeo horizontal con el campo en vertical (o al revés): el campo se gira un cuarto de vuelta para llenar la pantalla
-  if ((format === "landscape" && probe.width < probe.height) || (format === "portrait" && probe.width > probe.height)) {
+  if (!withCam && ((format === "landscape" && probe.width < probe.height) || (format === "portrait" && probe.width > probe.height))) {
     b = turnQuarter(b);
     probe = await boardSvgMarkup(<Board board={b} els={b.frames[0].els} />, 1000);
   }
   const size = videoFrameSize({ format, quality, ratio: probe.width / probe.height });
   // 16:9 y 9:16: el dibujo se encuadra a la proporción del vídeo (sin bandas vacías a los lados)
-  if (format === "landscape" || format === "portrait") size.inner = { width: size.width, height: size.height, aspect: size.width / size.height };
+  if (format === "landscape" || format === "portrait") size.inner = { width: size.width, height: size.height, aspect: withCam ? null : size.width / size.height };
   if (hasWebCodecs()) {
     const out = await encodeOffline(b, total, { speed, fps, size, onProgress });
     if (out) return out;
@@ -80,7 +83,7 @@ function painter(b, size) {
   const ctx = canvas.getContext("2d");
   const bg = styleOf(lookOf(b.look))?.surround || styleOf(lookOf(b.look))?.bg || "#ffffff";
   const draw = async (ms, speed) => {
-    const { svg, width, height } = await boardSvgMarkup(<Board board={b} els={elsAtTime(b, ms, { speed })} aspect={size.inner.aspect || null} />, size.inner.width);
+    const { svg, width, height } = await boardSvgMarkup(<Board board={b} els={elsAtTime(b, ms, { speed })} camera={hasCamera(b) ? camAtTime(b, ms, { speed }) : undefined} aspect={size.inner.aspect || null} />, size.inner.width);
     const img = await loadSvgImage(svg);
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, size.width, size.height);

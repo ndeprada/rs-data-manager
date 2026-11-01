@@ -57,7 +57,7 @@ export default function BoardDownloads({ board, frame = 0, filename = "tarea", c
     setBusy("png");
     setError("");
     try {
-      const blob = await boardToPngBlob(<Board board={b} els={b.frames[idx].els} />, { width: 2400 });
+      const blob = await boardToPngBlob(<Board board={b} els={b.frames[idx].els} frame={idx} />, { width: 2400 });
       downloadBlob(blob, `${base}${anim ? `-${idx + 1}` : ""}.png`);
     } catch (err) {
       setError(err?.message || "No se pudo descargar la imagen");

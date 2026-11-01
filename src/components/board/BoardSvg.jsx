@@ -2,7 +2,7 @@ import { AD_LOGOS } from "@/lib/adLogos";
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, camBox, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  isGroundEl, isPersp, isCutField, fitViewBox, isSideways, camOf, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
+  isGroundEl, isPersp, isCutField, fitViewBox, isSideways, camOf, frameCam, camRect, CAM_RATIOS, camRatioOf, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -383,6 +383,7 @@ function grassGroups(field, look, board) {
 }
 const markStyle = (s) => ({ stroke: s.line, strokeOpacity: 0.62, strokeWidth: s.lineW * 0.85, strokeDasharray: "1.3 1", fill: "none", strokeLinecap: "round" });
 
+const unionVb = (a, b) => { const x = Math.min(a[0], b[0]), y = Math.min(a[1], b[1]); return [x, y, Math.max(a[0] + a[2], b[0] + b[2]) - x, Math.max(a[1] + a[3], b[1] + b[3]) - y]; };
 // Medio campo y 3/4 son un encuadre del campo completo (como un zoom): se pinta el campo entero y el recuadro lo corta
 const drawFieldOf = (field) => (isCutField(field.id) ? { ...field, id: "full", h: FULL_H } : field);
 function Field({ field: shown, orient, look, vb, board }) {
@@ -1313,7 +1314,7 @@ function ItemFlat({ el, ctx, els, selected, handles }) {
  * ghosts  [{ …elemento, from, to }] posición anterior de lo que se ha movido (rastro)
  * draft   flecha o zona que se está dibujando
  */
-const Board = React.forwardRef(function Board({ board, els, selId = null, selIds = null, marks = [], markNumbers = false, ghosts = [], draft = null, handles = false, className = "", style, label = "Dibujo", aspect = null, ...rest }, ref) {
+const Board = React.forwardRef(function Board({ board, els, selId = null, selIds = null, marks = [], markNumbers = false, ghosts = [], draft = null, handles = false, className = "", style, label = "Dibujo", aspect = null, camera, frame = 0, fullView = false, viewOverride = null, overlay = null, ...rest }, ref) {
   const field = fieldOf(board.field);
   const orient = orientOf(board.orient);
   const look = lookOf(board.look);
@@ -1321,10 +1322,12 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
   const persp = isPersp(board) ? perspectiveOf(field, orient, margin) : null;
   // todo el recuadro (campo + margen) y lo que se ve con el zoom guardado en el dibujo
   const fullVb = persp ? persp.vb : viewBox(field, orient, margin);
-  const vb0 = camBox(fullVb, board.cam);
+  // Cámara: la indicada, o (sin indicar) la del fotograma `frame`; `null` = sin cámara (el editor). Sin cámara, el zoom guardado.
+  const camSel = camera === undefined ? frameCam(board, frame) : camera;
+  const vb0 = camSel ? camRect(fullVb, camSel, CAM_RATIOS[camRatioOf(board)]) : fullView ? fullVb : camBox(fullVb, board.cam);
   // proporción fija (vídeo 16:9 o 9:16): se recorta o amplía el recuadro sin cortar el campo
   const pitchView = !persp && camOf(board).z <= 1 ? (isSideways(orient) ? [0, 0, field.h, field.w] : [0, 0, field.w, field.h]) : null;
-  const vb = aspect ? fitViewBox(vb0, aspect, pitchView) : vb0;
+  const vb = viewOverride || (aspect ? fitViewBox(vb0, aspect, pitchView) : vb0);
   const clipVb = `vbclip-${React.useId().replace(/:/g, "")}`;
   const V = persp ? (p) => persp.P(toView(field, orient, p)) : (p) => toView(field, orient, p);
   const ctx = { board, field, orient, look, chip: chipOf(board), persp, V };
@@ -1346,7 +1349,7 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
         <clipPath id={clipVb}><rect x={vb[0]} y={vb[1]} width={vb[2]} height={vb[3]} /></clipPath>
       </defs>
       <g clipPath={`url(#${clipVb})`}>
-      {persp ? <FieldPersp field={field} orient={orient} look={look} vb={fullVb} persp={persp} board={board} /> : <Field field={field} orient={orient} look={look} vb={fullVb} board={board} />}
+      {persp ? <FieldPersp field={field} orient={orient} look={look} vb={unionVb(fullVb, vb)} persp={persp} board={board} /> : <Field field={field} orient={orient} look={look} vb={unionVb(fullVb, vb)} board={board} />}
       {ghosts.map((g) => {
         const ghost = { ...g, x: g.from.x, y: g.from.y };
         const mine = handles && sel.length === 1 && sel[0] === g.id;
@@ -1366,6 +1369,7 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
       {handles && selEl && ((selEl.k === "token" && selEl.feet) || materialOf(selEl.k)) && (persp ? <g transform={perspWrap(selEl, ctx, selEl.k === "token" || lyingFlat(selEl))}><TurnHandle el={selEl} ctx={ctx} /></g> : <TurnHandle el={selEl} ctx={ctx} />)}
       {draft && draft.k === "box" && <BoxMark box={draft} ctx={ctx} />}
       {draft && draft.k !== "box" && <Item el={{ id: "draft", ...draft }} ctx={ctx} selected />}
+      {overlay}
       </g>
     </svg>
   );

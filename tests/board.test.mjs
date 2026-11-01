@@ -1165,3 +1165,27 @@ test("vídeo 16:9: el campo vertical se gira y el recuadro se ajusta sin cortar 
   const wide = B.fitViewBox([0, 0, 10, 10], 2);
   assert.deepEqual(wide, [-5, 0, 20, 10]);
 });
+
+test("cámara: hereda del fotograma anterior, se mueve entre fotogramas y los encuadres rápidos caben en su formato", async () => {
+  const B = await import("../src/lib/board.js");
+  const base = { v: 2, field: "full", look: "blanco", orient: "v", frames: [
+    { id: "f1", els: [], cam: { x: 0.5, y: 0.5, w: 1 } },
+    { id: "f2", els: [] },
+    { id: "f3", els: [], cam: { x: 0.5, y: 0.25, w: 0.5 } },
+  ] };
+  const b = B.normalizeBoard(base);
+  assert.ok(B.hasCamera(b));
+  assert.deepEqual(B.frameCam(b, 1), { x: 0.5, y: 0.5, w: 1 }, "el 2 usa la del 1");
+  assert.deepEqual(B.frameCam(b, 2), { x: 0.5, y: 0.25, w: 0.5 });
+  assert.equal(B.hasCamera(B.normalizeBoard({ v: 2, field: "full", frames: [{ id: "a", els: [], cam: { x: 1 } }] })), false, "una cámara incompleta no cuenta");
+  const mid = B.camAtTime(b, 600 + 1500 * 1.5, { speed: 1500 });
+  assert.ok(mid.w < 1 && mid.w > 0.5, "a mitad del paso 2→3 la cámara va de un encuadre al otro");
+  const full = B.fullViewBox(b);
+  const rect = B.camRect(full, B.cameraPreset(b, "full"), 16 / 9);
+  assert.ok(Math.abs(rect[2] / rect[3] - 16 / 9) < 0.001);
+  assert.ok(rect[1] <= 0 && rect[1] + rect[3] >= 105, "el encuadre completo contiene todo el largo del campo");
+  const port = B.camRect(full, B.cameraPreset({ ...b, camRatio: "port" }, "attack"), 9 / 16);
+  assert.ok(Math.abs(port[2] / port[3] - 9 / 16) < 0.001);
+  assert.ok(port[1] + port[3] / 2 < 30, "la mitad de ataque queda centrada arriba");
+  assert.equal(B.normalizeBoard({ ...base, camRatio: "port" }).camRatio, "port");
+});
