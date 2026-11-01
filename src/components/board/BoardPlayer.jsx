@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Play } from "lucide-react";
-import { animationDuration, boardSpeed, camAtTime, elsAtTime, isAnimation, normalizeBoard } from "@/lib/board";
+import { animationDuration, boardSpeed, camAtTime, elsAtTime, is3D, isAnimation, normalizeBoard } from "@/lib/board";
 import Board from "./BoardSvg";
+import Board3DView from "./Board3D";
 
 /**
  * Vista de solo lectura de un dibujo. Si es una animación, un botón la reproduce (a la velocidad con que se guardó) y
@@ -32,8 +33,10 @@ export default function BoardPlayer({ board, className = "", style, label = "Dib
 
   const els = t == null ? b.frames[0].els : elsAtTime(b, t, { speed });
   return (
-    <div className="relative inline-flex max-w-full" style={{ height: style?.height }}>
-      <Board board={b} els={els} camera={t == null ? undefined : camAtTime(b, t, { speed })} className={className} style={style} label={label} />
+    <div className={`relative ${is3D(b) ? "flex w-full" : "inline-flex"} max-w-full`} style={{ height: style?.height }}>
+      {is3D(b)
+        ? <Board3DView board={b} els={els} camera={t == null ? undefined : camAtTime(b, t, { speed })} className={`${className} w-full`} style={style} label={label} />
+        : <Board board={b} els={els} camera={t == null ? undefined : camAtTime(b, t, { speed })} className={className} style={style} label={label} />}
       {anim && t == null && (
         <button
           type="button"

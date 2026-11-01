@@ -1,6 +1,7 @@
 import React from "react";
 import Board, { styleOf } from "./BoardSvg";
-import { animationDuration, camAtTime, camRatioOf, elsAtTime, hasCamera, lookOf, normalizeBoard, turnQuarter } from "@/lib/board";
+import { animationDuration, boardView, camAtTime, camRatioOf, elsAtTime, hasCamera, is3D, lookOf, normalizeBoard, turnQuarter } from "@/lib/board";
+import { load3d } from "./load3d";
 import { boardSvgMarkup, loadSvgImage } from "./exportPng";
 import { videoFrameSize } from "@/lib/videoSize";
 
@@ -82,9 +83,24 @@ function painter(b, size) {
   canvas.height = size.height;
   const ctx = canvas.getContext("2d");
   const bg = styleOf(lookOf(b.look))?.surround || styleOf(lookOf(b.look))?.bg || "#ffffff";
+  const c3 = is3D(b) ? document.createElement("canvas") : null;
   const draw = async (ms, speed) => {
-    const { svg, width, height } = await boardSvgMarkup(<Board board={b} els={elsAtTime(b, ms, { speed })} camera={hasCamera(b) ? camAtTime(b, ms, { speed }) : undefined} aspect={size.inner.aspect || null} />, size.inner.width);
-    const img = await loadSvgImage(svg);
+    const els = elsAtTime(b, ms, { speed });
+    const camera = hasCamera(b) ? camAtTime(b, ms, { speed }) : undefined;
+    const aspect = size.inner.aspect || null;
+    let img, width, height;
+    if (c3) {
+      // vista 3D: el estadio se dibuja con three.js en un canvas del tamaño del vídeo
+      const { vb } = boardView(b, { camera, aspect });
+      width = size.inner.width; height = Math.round((width * vb[3]) / vb[2]);
+      if (height > size.inner.height) { height = size.inner.height; width = Math.round((height * vb[2]) / vb[3]); }
+      if (c3.width !== width || c3.height !== height) { c3.width = width; c3.height = height; }
+      img = await (await load3d()).renderBoard3D(c3, b, els, { camera, aspect });
+    } else {
+      const m = await boardSvgMarkup(<Board board={b} els={els} camera={camera} aspect={aspect} />, size.inner.width);
+      img = await loadSvgImage(m.svg);
+      width = m.width; height = m.height;
+    }
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, size.width, size.height);
     const k = Math.min(size.inner.width / width, size.inner.height / height);

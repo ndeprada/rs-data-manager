@@ -1189,3 +1189,23 @@ test("cámara: hereda del fotograma anterior, se mueve entre fotogramas y los en
   assert.ok(port[1] + port[3] / 2 < 30, "la mitad de ataque queda centrada arriba");
   assert.equal(B.normalizeBoard({ ...base, camRatio: "port" }).camRatio, "port");
 });
+
+test("vista 3D: marca, encuadre común y suelo que se ve", async () => {
+  const B = await import("../src/lib/board.js");
+  assert.equal(B.is3D(B.normalizeBoard({ v: 2, field: "full", view3d: true, frames: [{ els: [] }] })), true);
+  assert.equal(B.normalizeBoard({ v: 2, field: "full", view3d: "si", frames: [{ els: [] }] }).view3d, undefined);
+  const b = { v: 2, field: "full", look: "estadio", orient: "v", frames: [{ id: "f", els: [] }] };
+  const { fullVb, vb } = B.boardView(b);
+  assert.deepEqual(vb, fullVb);
+  assert.deepEqual(fullVb, B.viewBox(B.fieldOf("full"), "v", 13));
+  // con proporción fija (vídeo) el recuadro tiene esa proporción
+  const v169 = B.boardView(b, { aspect: 16 / 9 }).vb;
+  assert.ok(Math.abs(v169[2] / v169[3] - 16 / 9) < 0.01);
+  // con cámara, el recuadro de la cámara
+  const cam = { x: 0.5, y: 0.5, w: 0.5 };
+  assert.deepEqual(B.boardView({ ...b, frames: [{ id: "f", els: [], cam }] }).vb, B.camRect(fullVb, cam, 16 / 9));
+  // suelo: campo + margen; en medio campo, solo 3 m por el corte
+  assert.deepEqual(B.groundRegion(b), [-13, -13, 81, 118]);
+  assert.deepEqual(B.groundRegion({ ...b, field: "half" }), [-13, -13, 81, 55.5]);
+  assert.deepEqual(B.groundRegion({ ...b, look: "blanco" }), [-3, -3, 71, 108]);
+});

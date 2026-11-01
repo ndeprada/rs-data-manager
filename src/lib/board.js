@@ -321,6 +321,7 @@ export function normalizeBoard(value) {
       ...(marksOf(value) !== "none" ? { marks: marksOf(value) } : {}),
       ...(camOf(value).z > 1 ? { cam: camOf(value) } : {}),
       ...(value.camRatio === "port" ? { camRatio: "port" } : {}),
+      ...(value.view3d === true ? { view3d: true } : {}),
       frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [], ...(validCam(f.cam) ? { cam: validCam(f.cam) } : {}) })),
     };
   }
@@ -682,6 +683,32 @@ export function fullViewBox(board) {
   const field = fieldOf(b.field), orient = orientOf(b.orient), m = marginOf(lookOf(b.look), b);
   return isPersp(b) ? perspectiveOf(field, orient, m).vb : viewBox(field, orient, m);
 }
+/**
+ * Encuadre de un dibujo: recuadro completo (`fullVb`) y lo que se ve (`vb`), igual para el 2D y el 3D.
+ * camera: la indicada; sin indicar, la del fotograma `frame`; `null` = sin cámara (sin cámara, el zoom guardado).
+ * aspect: proporción fija (vídeo 16:9 / 9:16): se recorta o amplía sin cortar el campo. viewOverride manda sobre todo.
+ */
+export function boardView(board, { camera, frame = 0, aspect = null, fullView = false, viewOverride = null } = {}) {
+  const field = fieldOf(board.field), orient = orientOf(board.orient), look = lookOf(board.look);
+  const margin = marginOf(look, board);
+  const persp = isPersp(board) ? perspectiveOf(field, orient, margin) : null;
+  const fullVb = persp ? persp.vb : viewBox(field, orient, margin);
+  const camSel = camera === undefined ? frameCam(board, frame) : camera;
+  const vb0 = camSel ? camRect(fullVb, camSel, CAM_RATIOS[camRatioOf(board)]) : fullView ? fullVb : camBox(fullVb, board.cam);
+  const pitchView = !persp && camOf(board).z <= 1 ? (isSideways(orient) ? [0, 0, field.h, field.w] : [0, 0, field.w, field.h]) : null;
+  const vb = viewOverride || (aspect ? fitViewBox(vb0, aspect, pitchView) : vb0);
+  return { field, orient, look, margin, persp, fullVb, vb };
+}
+// ── Vista 3D (como el estadio de FmStadio) ──────────────────────────────────────────────────────────────────────────
+// `board.view3d = true`: se ve, se reproduce y se exporta en 3D (se dibuja igual que siempre, en 2D).
+export const is3D = (b) => b?.view3d === true;
+/** Suelo que se ve en metros del campo: el campo más su margen por cada lado ([x0, y0, x1, y1]). */
+export function groundRegion(board) {
+  const field = fieldOf(board?.field);
+  const s = marginSides(marginOf(lookOf(board?.look), board));
+  return [-s.l, -s.t, field.w + s.r, field.h + s.b];
+}
+
 // Zonas del campo (en metros) para los encuadres rápidos
 export const CAM_PRESETS = [
   { id: "full", label: "Completo" },

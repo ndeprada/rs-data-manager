@@ -1,8 +1,8 @@
 import { AD_LOGOS } from "@/lib/adLogos";
 import React from "react";
 import {
-  arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, camBox, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  isGroundEl, isPersp, isCutField, fitViewBox, isSideways, camOf, frameCam, camRect, CAM_RATIOS, camRatioOf, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
+  arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
+  boardView, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -137,7 +137,7 @@ function Lines({ field, s }) {
 // ── Estadio (modos «estadio»): gradas y vallas alrededor del campo, en coordenadas del campo (vertical) ────────────────
 // Rectángulo de esquinas redondeadas a `d` m por fuera de las líneas (las esquinas se abren más cuanto más lejos)
 const cornerR = (d) => 2.5 + d * 0.85;
-function roundRect(field, d) {
+export function roundRect(field, d) {
   const r = cornerR(d), x0 = -d, y0 = -d, x1 = field.w + d, y1 = field.h + d;
   const arc = (cx, cy, a0) => Array.from({ length: 10 }, (_, i) => { const a = ((a0 + i * 10) * Math.PI) / 180; return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r }; });
   return [...arc(x1 - r, y0 + r, -90), ...arc(x1 - r, y1 - r, 0), ...arc(x0 + r, y1 - r, 90), ...arc(x0 + r, y0 + r, 180)];
@@ -750,7 +750,7 @@ function Bib({ color, bn }) {
 
 // Ficha dibujada: sombra, pies (si los tiene), cuerpo con su dibujo y relieve, borde y texto de dentro
 // Color más oscuro (para el canto de las fichas en perspectiva)
-function darken(hex, f = 0.38) {
+export function darken(hex, f = 0.38) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
   if (!m) return "#374151";
   const n = parseInt(m[1], 16);
@@ -1315,19 +1315,8 @@ function ItemFlat({ el, ctx, els, selected, handles }) {
  * draft   flecha o zona que se está dibujando
  */
 const Board = React.forwardRef(function Board({ board, els, selId = null, selIds = null, marks = [], markNumbers = false, ghosts = [], draft = null, handles = false, className = "", style, label = "Dibujo", aspect = null, camera, frame = 0, fullView = false, viewOverride = null, overlay = null, ...rest }, ref) {
-  const field = fieldOf(board.field);
-  const orient = orientOf(board.orient);
-  const look = lookOf(board.look);
-  const margin = marginOf(look, board);
-  const persp = isPersp(board) ? perspectiveOf(field, orient, margin) : null;
-  // todo el recuadro (campo + margen) y lo que se ve con el zoom guardado en el dibujo
-  const fullVb = persp ? persp.vb : viewBox(field, orient, margin);
-  // Cámara: la indicada, o (sin indicar) la del fotograma `frame`; `null` = sin cámara (el editor). Sin cámara, el zoom guardado.
-  const camSel = camera === undefined ? frameCam(board, frame) : camera;
-  const vb0 = camSel ? camRect(fullVb, camSel, CAM_RATIOS[camRatioOf(board)]) : fullView ? fullVb : camBox(fullVb, board.cam);
-  // proporción fija (vídeo 16:9 o 9:16): se recorta o amplía el recuadro sin cortar el campo
-  const pitchView = !persp && camOf(board).z <= 1 ? (isSideways(orient) ? [0, 0, field.h, field.w] : [0, 0, field.w, field.h]) : null;
-  const vb = viewOverride || (aspect ? fitViewBox(vb0, aspect, pitchView) : vb0);
+  // todo el recuadro (campo + margen) y lo que se ve: cámara del fotograma, zoom guardado o proporción fija
+  const { field, orient, look, persp, fullVb, vb } = boardView(board, { camera, frame, aspect, fullView, viewOverride });
   const clipVb = `vbclip-${React.useId().replace(/:/g, "")}`;
   const V = persp ? (p) => persp.P(toView(field, orient, p)) : (p) => toView(field, orient, p);
   const ctx = { board, field, orient, look, chip: chipOf(board), persp, V };
@@ -1375,3 +1364,49 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
   );
 });
 export default Board;
+
+// ── Piezas para la vista 3D (src/lib/board3d.js): se pintan en 2D y se usan como texturas ─────────────────────────────
+const SVG_DEFS = (
+  <>
+    <pattern id="bn-hatch" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="1.6" stroke="#111" strokeWidth="0.3" /></pattern>
+    <pattern id="bn-stripes" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.6" height="1.6" fill="#fff" /><rect width="0.8" height="1.6" fill="#111" /></pattern>
+    <pattern id="bn-dots" width="1.4" height="1.4" patternUnits="userSpaceOnUse"><rect width="1.4" height="1.4" fill="#fff" /><circle cx="0.7" cy="0.7" r="0.3" fill="#111" /></pattern>
+    <clipPath id="chip-clip"><circle r="1" /></clipPath>
+    <ChipDefs />
+  </>
+);
+/** Suelo del 3D: el campo en plano (vertical, ataca arriba), sin gradas ni vallas, en el recuadro `region` [x0, y0, x1, y1]. */
+export function GroundSvg({ board, region }) {
+  const b = { ...board, field: isCutField(board.field) ? "full" : board.field, view: undefined, orient: "v", stands: false, ads: false, cam: undefined, frames: [{ id: "g", els: [] }] };
+  return <Board board={b} els={[]} camera={null} viewOverride={[region[0], region[1], region[2] - region[0], region[3] - region[1]]} />;
+}
+/** Lo pintado en el suelo (zonas, flechas, conectores y lo que está tumbado) sobre fondo transparente, en el mismo recuadro. */
+export function GroundMarksSvg({ board, els, all, region }) {
+  const field = fieldOf(isCutField(board.field) ? "full" : board.field);
+  const ctx = { board, field, orient: "v", look: lookOf(board.look), chip: chipOf(board), persp: null, V: (p) => p };
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox={`${region[0]} ${region[1]} ${region[2] - region[0]} ${region[3] - region[1]}`}>
+      <defs>{SVG_DEFS}</defs>
+      {paintOrder(els, field, "v", null).map((el) => <Item key={el.id} el={el} els={all || els} ctx={ctx} />)}
+    </svg>
+  );
+}
+/** Cara de arriba de una ficha (sin relieve: lo pone la luz del 3D). `ang` = hacia dónde mira el peto en pantalla; el dorsal, derecho. */
+export function ChipTopSvg({ board, el, look, ang = 0 }) {
+  const paint = chipPaint(board, el, look);
+  const bn = lookOf(look) === "bn";
+  const inner = (el.inner || "").toString().slice(0, 3);
+  const fs = inner.length > 2 ? 0.95 : inner.length > 1 ? 1.2 : 1.5;
+  const bib = el.bib ? (bn ? { text: "#111111", halo: "#ffffff" } : { text: contrastColor(el.bib), halo: contrastColor(el.bib) === "#ffffff" ? "#111827" : "#ffffff" }) : null;
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 2 2">
+      <defs>{SVG_DEFS}</defs>
+      <rect x="-1" y="-1" width="2" height="2" fill={bn ? "#ffffff" : darken(paint.color)} />
+      <ChipBody paint={paint} bn={bn} sw={0.12} />
+      {el.bib && <g transform={`rotate(${ang})`}><Bib color={el.bib} bn={bn} /></g>}
+      {!bn && <ellipse cx={-0.3} cy={-0.42} rx={0.5} ry={0.32} fill="url(#chip-gloss)" opacity={0.6} />}
+      <circle r={0.96} fill="none" stroke={paint.stroke} strokeWidth={0.1} />
+      {inner && <text x={0} y={fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight={800} fill={bib ? bib.text : paint.text} stroke={bib ? bib.halo : paint.halo} strokeWidth={Math.max(0.12, fs * (paint.pattern === "solid" || bn ? 0.09 : 0.16))} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{inner}</text>}
+    </svg>
+  );
+}

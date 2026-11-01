@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
   boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
-  insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
+  is3D, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
+import Board3DView from "./Board3D";
 import { boardKeyAction } from "@/lib/boardKeys";
 import BoardHelp from "./BoardHelp";
 import { BallIcon, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon } from "./BoardControls";
@@ -89,6 +90,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const [trails, setTrails] = useState(true);
   // ver en el editor lo que ve la cámara (como «Show camera view in edit mode» de FmStadio)
   const [showCam, setShowCam] = useState(false);
+  // Vista 3D: se dibuja en 2D y con «Ver en 3D» (o al reproducir) se ve el estadio en 3D
+  const [see3d, setSee3d] = useState(false);
   const [error, setError] = useState("");
   const [quick, setQuick] = useState(null); // ficha abierta con doble clic (su id)
   const [quickPos, setQuickPos] = useState(null);
@@ -194,6 +197,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
 
   const shownEls = anim && board.frames[anim.i + 1] ? lerpFrames(board.frames[anim.i], board.frames[anim.i + 1], anim.t) : cur.els;
   const ghosts = !playing && trails && prev ? ghostsOf(prev, cur) : [];
+  const show3d = is3D(board) && (see3d || playing);
 
   // ── Puntero ──────────────────────────────────────────────────────────────────────────────────────────────────────
   // En perspectiva, el punto de la pantalla se lleva al suelo deshaciendo la proyección
@@ -754,7 +758,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (ARROW_TOOLS.includes(id)) lastPick.current.arrow = id;
     if (id === "zone" || id === "quad") lastPick.current.zone = id;
     if (id === "goal" || MATERIAL_IDS.includes(id)) lastPick.current.material = id;
-    setTool(id); if (id !== "select") { setSel([]); setMultiMode(false); } setPick([]); setDraft(null); stop();
+    setTool(id); setSee3d(false); if (id !== "select") { setSel([]); setMultiMode(false); } setPick([]); setDraft(null); stop();
   };
 
   // Conector entre las fichas elegidas: línea (de un extremo al otro), zona (contorno que las envuelve) o red (todas con todas)
@@ -808,7 +812,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           aria-label={hasEls ? "Abrir la pizarra para editar" : "Abrir la pizarra para dibujar"}
           data-testid="board-open"
         >
-          <Board board={board} els={first.els} className="w-full pointer-events-none" style={{ maxHeight: tall ? 420 : 300 }} label="Vista previa de la pizarra" />
+          {is3D(board)
+            ? <Board3DView board={board} els={first.els} className="w-full pointer-events-none" style={{ maxHeight: tall ? 420 : 300 }} label="Vista previa de la pizarra en 3D" />
+            : <Board board={board} els={first.els} className="w-full pointer-events-none" style={{ maxHeight: tall ? 420 : 300 }} label="Vista previa de la pizarra" />}
           <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/15 transition-colors">
             <span className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold shadow-lg" style={{ background: RAIL.on, color: RAIL.onInk }}>
               <Maximize2 className="w-4 h-4" /> {hasEls ? "Abrir pizarra" : "Dibujar en la pizarra"}
@@ -934,6 +940,14 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
             {VIEWS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
           </select>
         </label>
+      </div>
+      <div className="space-y-1" data-testid="board-3d">
+        <button type="button" aria-pressed={is3D(board)} data-testid="toggle-3d"
+          onClick={() => { const { view3d: _v, ...rest } = live.current; const on = !is3D(live.current); commit(on ? { ...rest, view3d: true } : rest); setSee3d(on); }}
+          className={`h-8 px-2.5 rounded-md border text-xs font-semibold ${is3D(board) ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>
+          {is3D(board) ? "✓ " : ""}Vista 3D
+        </button>
+        <p className="text-[10px] text-gray-500 leading-snug">Se dibuja en 2D; la vista previa, la animación, la imagen y el vídeo salen en 3D (estadio, fichas con volumen y sombras). Vista plana = desde arriba; perspectiva = inclinada.</p>
       </div>
       {isStadium(look) && (
         <div className="space-y-1" data-testid="board-stadium">
@@ -1170,6 +1184,15 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   );
   const stage = (
     <div ref={setWrap} className={narrow ? "relative flex-1 min-h-0 flex items-center justify-center p-1" : "absolute inset-y-0 left-[72px] right-[80px] flex items-center justify-center p-3"}>
+      {show3d && <Board3DView board={board} els={shownEls} camera={camTool ? null : showCam ? frameCam(board, idx) : null} viewOverride={camView} fill className="w-full h-full" label="Pizarra en 3D" />}
+      {is3D(board) && !playing && (
+        <div className="absolute top-2 left-2 flex items-center gap-0.5 rounded-lg p-0.5 text-[11px] font-semibold" style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} role="group" aria-label="Vista 2D o 3D" data-testid="board-3d-switch">
+          {[{ id: false, label: "Dibujar (2D)" }, { id: true, label: "Ver en 3D" }].map((o) => (
+            <button key={String(o.id)} type="button" aria-pressed={see3d === o.id} onClick={() => { setSee3d(o.id); if (o.id) { setSel([]); setQuick(null); } }} data-testid={o.id ? "board-see-3d" : "board-see-2d"}
+              className="h-7 px-2 rounded-md" style={see3d === o.id ? { background: RAIL.on, color: RAIL.onInk } : undefined}>{o.label}</button>
+          ))}
+        </div>
+      )}
       <Board
         ref={svgRef}
         board={board}
@@ -1183,7 +1206,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         camera={camTool ? null : showCam ? frameCam(board, idx) : null}
         viewOverride={camView}
         overlay={camTool && !playing ? <CameraOverlay rect={camR} view={camView} frame={idx} own={ownCam} has={Boolean(curCam)} inheritedFrom={!ownCam && curCam ? board.frames.slice(0, idx).map((f, i) => (f.cam ? i : -1)).filter((i) => i >= 0).pop() : null} /> : null}
-        className="w-full h-full select-none"
+        className={`w-full h-full select-none${show3d ? " hidden" : ""}`}
         style={{ touchAction: "none", cursor, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
         label="Pizarra"
         onPointerDown={onDown}
@@ -1194,7 +1217,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         onContextMenu={onContextMenu}
         onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
       />
-      {zoomBox}
+      {!show3d && zoomBox}
       {quickEl && quickPos && (
         <ChipQuickEdit
           el={quickEl}
