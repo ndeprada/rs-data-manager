@@ -854,13 +854,16 @@ export const isPersp = (b) => b?.view === "persp";
 export const PERSP = { far: 0.6, height: 0.58, top: 4.5, bottom: 2.5, chip: 1.35 };
 // En perspectiva las fichas se ven algo más grandes (como en FM Studio): se agarran también por ese tamaño
 export const perspBoost = (el) => (el?.k === "token" ? PERSP.chip : 1);
+const PERSP_NEAR = 2.2;
 export function perspectiveOf(field, orient, m = 3) {
   const [x0, y0, W, H] = viewBox(field, orient, m);
   const cx = x0 + W / 2, zf = 1 / PERSP.far, Hp = H * PERSP.height;
   // con gradas (margen de estadio) hace falta más sitio arriba: la grada de enfrente se levanta
   const pTop = PERSP.top + (marginMax(m) >= 12 ? 6 : 0);
   const top = y0, Ybot = top + pTop + Hp, beta = Hp / (1 - PERSP.far);
-  const scaleAt = (p) => 1 / (zf + (1 - zf) * ((p.y - y0) / H));
+  // por delante del todo la proyección se dispara (y más allá, se da la vuelta): lo que queda muy por debajo de la imagen —p. ej. la
+  // grada de detrás de la otra portería en medio campo— se queda a esa profundidad máxima en vez de taparlo todo
+  const scaleAt = (p) => 1 / (zf + (1 - zf) * Math.min((p.y - y0) / H, PERSP_NEAR));
   const P = (p) => { const k = scaleAt(p); return { x: cx + (p.x - cx) * k, y: Ybot - beta * (1 - k) }; };
   const inv = (q) => {
     const k = Math.max(0.05, 1 - (Ybot - q.y) / beta);
