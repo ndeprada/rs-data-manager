@@ -1,6 +1,6 @@
 import React from "react";
 import Board, { styleOf } from "./BoardSvg";
-import { animationDuration, elsAtTime, lookOf, normalizeBoard } from "@/lib/board";
+import { animationDuration, elsAtTime, lookOf, normalizeBoard, turnQuarter } from "@/lib/board";
 import { boardSvgMarkup, loadSvgImage } from "./exportPng";
 import { videoFrameSize } from "@/lib/videoSize";
 
@@ -53,11 +53,18 @@ const bitrateOf = (w, h, fps) => Math.round(Math.min(60_000_000, Math.max(3_000_
  * Devuelve { blob, ext }.
  */
 export async function boardToVideo(board, { speed = 1500, quality = 1080, fps = 30, format = "fit", onProgress } = {}) {
-  const b = normalizeBoard(board);
+  let b = normalizeBoard(board);
   const total = animationDuration(b, { speed });
   if (!total) throw new Error("Para crear un vídeo hacen falta al menos dos fotogramas.");
-  const probe = await boardSvgMarkup(<Board board={b} els={b.frames[0].els} />, 1000);
+  let probe = await boardSvgMarkup(<Board board={b} els={b.frames[0].els} />, 1000);
+  // vídeo horizontal con el campo en vertical (o al revés): el campo se gira un cuarto de vuelta para llenar la pantalla
+  if ((format === "landscape" && probe.width < probe.height) || (format === "portrait" && probe.width > probe.height)) {
+    b = turnQuarter(b);
+    probe = await boardSvgMarkup(<Board board={b} els={b.frames[0].els} />, 1000);
+  }
   const size = videoFrameSize({ format, quality, ratio: probe.width / probe.height });
+  // 16:9 y 9:16: el dibujo se encuadra a la proporción del vídeo (sin bandas vacías a los lados)
+  if (format === "landscape" || format === "portrait") size.inner = { width: size.width, height: size.height, aspect: size.width / size.height };
   if (hasWebCodecs()) {
     const out = await encodeOffline(b, total, { speed, fps, size, onProgress });
     if (out) return out;
@@ -73,7 +80,7 @@ function painter(b, size) {
   const ctx = canvas.getContext("2d");
   const bg = styleOf(lookOf(b.look))?.surround || styleOf(lookOf(b.look))?.bg || "#ffffff";
   const draw = async (ms, speed) => {
-    const { svg, width, height } = await boardSvgMarkup(<Board board={b} els={elsAtTime(b, ms, { speed })} />, size.inner.width);
+    const { svg, width, height } = await boardSvgMarkup(<Board board={b} els={elsAtTime(b, ms, { speed })} aspect={size.inner.aspect || null} />, size.inner.width);
     const img = await loadSvgImage(svg);
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, size.width, size.height);

@@ -1097,14 +1097,14 @@ test("estadio: se pueden quitar las gradas y las vallas, y el margen se ajusta; 
 test("medio campo y 3/4 en estadio: el marco se corta en línea recta por el lado del corte", async () => {
   const B = await import("../src/lib/board.js");
   const m = B.marginOf("estadio", { field: "half" });
-  assert.deepEqual(m, { t: 13, r: 13, b: 1.5, l: 13 });
+  assert.deepEqual(m, { t: 13, r: 13, b: 3, l: 13 });
   assert.equal(B.marginOf("estadio", { field: "full" }), 13);
   assert.equal(B.marginOf("blanco", { field: "half" }), 3);
   const f = B.fieldOf("half");
-  assert.deepEqual(B.viewBox(f, "v", m), [-13, -13, 94, 67]);
-  assert.deepEqual(B.viewBox(f, "vi", m), [-13, -1.5, 94, 67]);
-  assert.deepEqual(B.viewBox(f, "h", m), [-13, -13, 67, 94]);
-  assert.deepEqual(B.viewBox(f, "hi", m), [-1.5, -13, 67, 94]);
+  assert.deepEqual(B.viewBox(f, "v", m), [-13, -13, 94, 68.5]);
+  assert.deepEqual(B.viewBox(f, "vi", m), [-13, -3, 94, 68.5]);
+  assert.deepEqual(B.viewBox(f, "h", m), [-13, -13, 68.5, 94]);
+  assert.deepEqual(B.viewBox(f, "hi", m), [-3, -13, 68.5, 94]);
   assert.deepEqual(B.viewBox(f, "v", 3), [-3, -3, 74, 58.5]);
 });
 
@@ -1151,4 +1151,17 @@ test("trayectoria del movimiento: recta, curva o con cambios de dirección, y no
   assert.ok(Math.abs(at.y - 10) < 0.5, "la animación sigue la trayectoria");
   assert.equal(B.addFrame(board, 1).board.frames[2].els[0].path, undefined);
   assert.equal(B.duplicateFrame(board, 1).board.frames[2].els[0].path, undefined);
+});
+
+test("vídeo 16:9: el campo vertical se gira y el recuadro se ajusta sin cortar el campo", async () => {
+  const B = await import("../src/lib/board.js");
+  assert.equal(B.turnQuarter({ orient: "v" }).orient, "hi");
+  assert.equal(B.turnQuarter(B.turnQuarter(B.turnQuarter(B.turnQuarter({ orient: "h" })))).orient, "h");
+  // campo horizontal con gradas: 131 × 94 → 16:9 recorta arriba y abajo sin pasar del campo (68 + 2 × 2 m)
+  const vb = B.fitViewBox([-13, -13, 131, 94], 16 / 9, [0, 0, 105, 68]);
+  assert.ok(Math.abs(vb[2] / vb[3] - 16 / 9) < 0.01);
+  assert.ok(vb[1] <= -2 && vb[1] + vb[3] >= 70, "el campo y 2 m alrededor siguen dentro");
+  // sin campo de referencia: no recorta, solo amplía
+  const wide = B.fitViewBox([0, 0, 10, 10], 2);
+  assert.deepEqual(wide, [-5, 0, 20, 10]);
 });

@@ -94,12 +94,12 @@ export function grassRects(field, grass) {
 }
 
 // Medio campo y 3/4: el campo de verdad sigue más allá del corte, así que las gradas no lo rodean por ahí:
-// la imagen se corta en línea recta a 1,5 m del corte (margen por lados: t arriba, b abajo, l izquierda, r derecha).
+// la imagen se corta en línea recta a 3 m del corte (margen por lados: t arriba, b abajo, l izquierda, r derecha).
 export const isCutField = (id) => id === "half" || id === "tq";
 export function marginOf(look, b = null) {
   if (!isStadium(lookOf(look))) return 3;
   const m = hasStands(b) ? STADIUM_MARGIN : hasAds(b) ? 5.5 : 3;
-  return m > 3 && isCutField(b?.field) ? { t: m, r: m, b: 1.5, l: m } : m;
+  return m > 3 && isCutField(b?.field) ? { t: m, r: m, b: 3, l: m } : m;
 }
 export const marginSides = (m) => (typeof m === "number" ? { t: m, r: m, b: m, l: m } : { t: 3, r: 3, b: 3, l: 3, ...m });
 export const marginMax = (m) => { const s = marginSides(m); return Math.max(s.t, s.r, s.b, s.l); };
@@ -643,6 +643,36 @@ export function viewBox(field, orient, m = 3) {
     default: return [-l, -t, W, H];
   }
 }
+// Un cuarto de vuelta en el sentido de las agujas del reloj (para el vídeo: un campo vertical en un vídeo 16:9 se gira)
+export const ORIENT_TURN = { v: "hi", hi: "vi", vi: "h", h: "v" };
+export function turnQuarter(b) {
+  const cam = camOf(b);
+  return { ...b, orient: ORIENT_TURN[orientOf(b.orient)], ...(cam.z > 1 ? { cam: { ...cam, x: 1 - cam.y, y: cam.x } } : {}) };
+}
+/**
+ * Recuadro con la proporción A (ancho / alto) a partir de `vb`: primero recorta lo que sobra (gradas, margen) sin cortar
+ * nunca el campo (`pitch`, con `pad` m alrededor) y, si aún falta, amplía por los lados. Sin `pitch` no recorta.
+ */
+export function fitViewBox(vb, A, pitch = null, pad = 2) {
+  let [x, y, w, h] = vb;
+  const clampC = (c, lo, hi) => (lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, c)));
+  if (w / h < A) {
+    const loP = pitch ? pitch[1] - pad : y, hiP = pitch ? pitch[1] + pitch[3] + pad : y + h;
+    const nh = Math.min(h, Math.max(w / A, hiP - loP));
+    const cy = clampC(clampC(y + h / 2, hiP - nh / 2, loP + nh / 2), y + nh / 2, y + h - nh / 2);
+    y = cy - nh / 2; h = nh;
+    if (w / h < A) { const nw = h * A; x -= (nw - w) / 2; w = nw; }
+  } else if (w / h > A) {
+    const loP = pitch ? pitch[0] - pad : x, hiP = pitch ? pitch[0] + pitch[2] + pad : x + w;
+    const nw = Math.min(w, Math.max(h * A, hiP - loP));
+    const cx = clampC(clampC(x + w / 2, hiP - nw / 2, loP + nw / 2), x + nw / 2, x + w - nw / 2);
+    x = cx - nw / 2; w = nw;
+    if (w / h > A) { const nh = w / A; y -= (nh - h) / 2; h = nh; }
+  }
+  const r = (n) => Math.round(n * 1000) / 1000;
+  return [r(x), r(y), r(w), r(h)];
+}
+
 // ── Zoom (cámara) ────────────────────────────────────────────────────────────────────────────────────────────────────
 // `board.cam = { z, x, y }`: z = aumento (1 = todo el campo, hasta ZOOM_MAX) y x, y = centro de lo que se ve, en fracción (0–1)
 // del recuadro completo. Se guarda en el dibujo: la imagen, el vídeo y las vistas de solo lectura salen con ese encuadre.
