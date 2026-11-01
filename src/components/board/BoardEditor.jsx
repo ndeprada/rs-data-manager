@@ -971,7 +971,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         </label>
         <label className="text-[11px] font-semibold text-gray-600 space-y-0.5">Modo visual
           <select value={look} onChange={(e) => commit({ ...board, look: e.target.value })} className={`${selectCls} w-full`} aria-label="Modo visual">
-            {LOOKS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+            <optgroup label="Pizarra">{LOOKS.filter((l) => !isStadium(l.id)).map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}</optgroup>
+            <optgroup label="Estadio (con gradas)">{LOOKS.filter((l) => isStadium(l.id)).map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}</optgroup>
           </select>
         </label>
         {field.id !== "free" && look !== "bn" && (

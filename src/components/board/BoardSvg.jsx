@@ -2,7 +2,7 @@ import { AD_LOGOS } from "@/lib/adLogos";
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  boardView, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
+  boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -41,9 +41,40 @@ const NOCHE = {
   stadium: { outer: "#080d1d", roof: "#121729", roofLine: "#3d4566", riser: "#141a38", riserLine: "rgba(0,0,0,0.4)", seats: ["#2c3878", "#33418a", "#28336e", "#3a4996"], seatDark: "#1a2257", seatLight: "#8a98e0", aisle: "#545d80", concourse: "#1c2136", track: "#1a2038", boards: "#c9cfdc",
     seatA: "#2a3aa0", seatB: "#6c80e4", concrete: "#3c4258", concreteLight: "#555c76", roofTop: "#4e5672", roofEdge: "#9aa3c4" },
 };
+// Estilos de estadio (como los de FmStadio, con colores propios): el mismo estadio con otro césped, otras líneas y otras gradas.
+// o = { pitch, check, line, surround, outer, track, seatA, seatB, concrete, concreteLight, roof, roofEdge, seat3d, concrete3d, night, light }
+// `light` = césped claro: flechas, textos y nombres oscuros (como en el modo blanco) para que se lean.
+function stadiumStyle(o) {
+  const base = o.light ? { ...ESTADIO, arrows: BLANCO.arrows, zoneFill: BLANCO.zoneFill, zoneAlpha: 0.1, zoneLine: BLANCO.zoneLine, link: BLANCO.link, label: BLANCO.label, textFill: BLANCO.textFill, textStroke: BLANCO.textStroke } : ESTADIO;
+  return {
+    ...base, bg: o.pitch, margin: o.pitch, check: o.check, line: o.line || ESTADIO.line, surround: o.surround,
+    stadium: {
+      ...ESTADIO.stadium, outer: o.outer, track: o.track, seatA: o.seatA, seatB: o.seatB, concrete: o.concrete, concreteLight: o.concreteLight,
+      roofTop: o.roof, roofEdge: o.roofEdge, seatDark: o.seatA, seatLight: o.seatB, seat3d: o.seat3d, concrete3d: o.concrete3d, night: !!o.night,
+      riser: o.concrete, aisle: o.concreteLight, roof: o.roof, roofLine: o.roofEdge, concourse: o.concrete,
+    },
+  };
+}
+const STADIUM_STYLES = {
+  "estadio-bosque": stadiumStyle({ pitch: "#2a6b3c", check: "rgba(255,255,255,0.06)", surround: "#0b1d12", outer: "#0a1a10", track: "#1f2e24",
+    seatA: "#14532d", seatB: "#3f8f5c", concrete: "#3e4640", concreteLight: "#59625b", roof: "#6c746e", roofEdge: "#b8c0ba", seat3d: ["#1f6b3f", "#4fa872"], concrete3d: "#7f8780" }),
+  "estadio-electrico": stadiumStyle({ pitch: "#1f55c8", check: "rgba(255,255,255,0.07)", surround: "#06123a", outer: "#050f30", track: "#13235a",
+    seatA: "#0b2fa0", seatB: "#3fa0ff", concrete: "#2a3560", concreteLight: "#3e4b80", roof: "#4a5788", roofEdge: "#9fb4ff", seat3d: ["#1846d8", "#4fb4ff"], concrete3d: "#5a6596", night: true }),
+  "estadio-cielo": stadiumStyle({ pitch: "#4f9fd4", check: "rgba(255,255,255,0.09)", surround: "#16405e", outer: "#123650", track: "#2b5c7e",
+    seatA: "#2b7fc0", seatB: "#8fd0f5", concrete: "#6d8597", concreteLight: "#8ea3b2", roof: "#a9bccb", roofEdge: "#e3eef6", seat3d: ["#3a92d4", "#a2dcf8"], concrete3d: "#a2b4c2" }),
+  "estadio-morado": stadiumStyle({ pitch: "#4a3291", check: "rgba(255,255,255,0.065)", surround: "#140a33", outer: "#10082a", track: "#2a1d55",
+    seatA: "#3b1f86", seatB: "#a07cf0", concrete: "#3d3660", concreteLight: "#554d7c", roof: "#5f5888", roofEdge: "#c3b4f2", seat3d: ["#5a35c8", "#b796ff"], concrete3d: "#6c6596", night: true }),
+  "estadio-neon": stadiumStyle({ pitch: "#17171c", check: "rgba(255,255,255,0.035)", line: "#ff3a4c", surround: "#050506", outer: "#060607", track: "#1e1e24",
+    seatA: "#7a0d18", seatB: "#ff4d5e", concrete: "#2b2b31", concreteLight: "#3c3c44", roof: "#33333b", roofEdge: "#ff6b78", seat3d: ["#b0121f", "#ff5a69"], concrete3d: "#4a4a52", night: true }),
+  "estadio-negro": stadiumStyle({ pitch: "#1f2124", check: "rgba(255,255,255,0.045)", surround: "#08090a", outer: "#08090a", track: "#25272b",
+    seatA: "#2b2d31", seatB: "#5d6168", concrete: "#33363b", concreteLight: "#474a50", roof: "#3c3f45", roofEdge: "#9aa0a8", seat3d: ["#36393f", "#6e737b"], concrete3d: "#55585e", night: true }),
+  "estadio-invierno": stadiumStyle({ pitch: "#e8eef3", check: "rgba(70,100,130,0.07)", line: "#8fa3b8", surround: "#c9d4de", outer: "#c2ced9", track: "#d6dfe7",
+    seatA: "#9fb2c5", seatB: "#eef4f9", concrete: "#b6c2cd", concreteLight: "#cdd6de", roof: "#dde5ec", roofEdge: "#ffffff", seat3d: ["#a9bccd", "#f4f8fb"], concrete3d: "#c3ced8", light: true }),
+};
 const STYLE = {
   estadio: ESTADIO,
   "estadio-noche": NOCHE,
+  ...STADIUM_STYLES,
   blanco: BLANCO,
   "blanco-liso": { ...BLANCO, stripe: null, margin: "#ffffff" },
   "blanco-cuadros": { ...BLANCO, stripe: null, check: "#eef0f3" },
@@ -90,10 +121,12 @@ const SPEC = {
 // ── Porterías ────────────────────────────────────────────────────────────────────────────────────────────────────────
 // Alto y fondo de una portería según su ancho (los mismos que el 3D)
 export function goalDims(gw) {
-  const h = gw >= 7 ? 2.44 : gw >= 5 ? 2 : Math.max(0.8, gw * 0.5);
+  const h = gw >= 7 ? 2.44 : gw >= 2.9 ? 2 : Math.max(0.8, gw * 0.5);
   return { h, gd: Math.max(1.1, Math.min(2.4, gw * 0.4)) };
 }
-const FIELD_GOAL = { f11: { gw: 7.32, h: 2.44, gd: 2 }, f7: { gw: 6, h: 2, gd: 1.5 } };
+// Porterías de cada tipo de campo (ancho, alto y fondo en m); el rectángulo y el espacio libre no llevan
+export const FIELD_GOAL = { f11: { gw: 7.32, h: 2.44, gd: 2 }, f7: { gw: 6, h: 2, gd: 1.5 }, futsal: { gw: 3, h: 2, gd: 1 }, f4: { gw: 3, h: 1.5, gd: 1 } };
+const SMALL_KINDS = new Set(["futsal", "f4", "rect"]);
 // Portería «de verdad»: postes y larguero gruesos con un borde oscuro, red con malla (techo inclinado, fondo y laterales) y barras finas
 // detrás. En coordenadas locales la boca está en y = 0 y la red hacia −y; `proj(x, y, z)` lleva un punto (z = altura en m) a la pantalla:
 // en plano es la vista desde arriba (la altura no cuenta) y en perspectiva el suelo proyectado levantado z × su escala.
@@ -154,6 +187,21 @@ function Lines({ field, s, goals = true, rot = 0 }) {
   const { w, h } = field;
   if (field.id === "free") return null;
   const p = { fill: "none", stroke: s.line, strokeWidth: s.lineW, strokeLinejoin: "round", strokeLinecap: "round" };
+  const kind = fieldKind(field);
+  if (SMALL_KINDS.has(kind)) {
+    // fútbol sala, fútbol 4 y rectángulo: las mismas líneas que en perspectiva (fieldShapes), con sus porterías
+    const fg = FIELD_GOAL[kind];
+    const goal = (r, flip) => goals && fg && <GoalShape key={`g${flip ? 1 : 0}`} gw={fg.gw} gd={fg.gd} h={fg.h} frame={goalFrame(s)} net={goalNet(s)} proj={(px, py) => (flip ? { x: w / 2 - px, y: h - py } : { x: w / 2 + px, y: py })} shadow={s.shadow || 0} sv={lightVec(r, fg.h * 0.3)} />;
+    return (
+      <g>
+        {fieldShapes(field).map((g, i) => (g.dot
+          ? <circle key={i} cx={g.dot.x} cy={g.dot.y} r={0.25} fill={s.line} />
+          : <path key={i} d={g.pts.map((q, j) => `${j ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + (g.closed ? " Z" : "")} {...p} strokeDasharray={g.dash ? "1.4 1.1" : undefined} />))}
+        {goal(rot, false)}
+        {goal(rot + 180, true)}
+      </g>
+    );
+  }
   const sp = field.id === "f7" ? SPEC.f7 : SPEC.f11;
   const arcX = sp.arc ? Math.sqrt(Math.max(sp.arc ** 2 - (sp.ah - sp.spot) ** 2, 0)) : 0;
   const end = (
@@ -553,10 +601,37 @@ function Field({ field: shown, orient, look, vb, board }) {
 // Campo en perspectiva: las mismas líneas que el plano, pero cada punto se proyecta (los círculos y arcos, muestreados)
 const arcPts = (cx, cy, r, a0, a1, n = 40) => Array.from({ length: n + 1 }, (_, i) => { const a = a0 + ((a1 - a0) * i) / n; return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r }; });
 const rectPts = (x, y, w, h) => [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }];
+// Fútbol sala (40 × 20, reglas de la FIFA): área de 6 m hecha con dos cuartos de círculo desde los postes y una recta, punto de
+// penalti a 6 m y doble penalti a 10 m, círculo central de 3 m, arcos de esquina y zonas de cambio (a 5 y 10 m de la línea
+// central, en una banda). Fútbol 4 (30 × 20): bandas, línea central y círculo de 3 m. Rectángulo: solo el contorno.
+function smallFieldShapes(field, kind) {
+  const { w, h } = field, out = [];
+  const line = (pts, closed = false, dash = false) => out.push({ pts, closed, dash });
+  line(rectPts(0, 0, w, h), true);
+  if (kind === "rect") return out;
+  line([{ x: 0, y: h / 2 }, { x: w, y: h / 2 }]);
+  line(arcPts(w / 2, h / 2, 3, 0, 2 * Math.PI, 40), true);
+  out.push({ dot: { x: w / 2, y: h / 2 } });
+  const corner = kind === "futsal" ? 0.25 : 0.6;
+  for (const flip of [false, true]) {
+    const f = flip ? (q) => ({ x: w - q.x, y: h - q.y }) : (q) => q;
+    line(arcPts(0, 0, corner, Math.PI / 2, 0, 6).map(f));
+    line(arcPts(w, 0, corner, Math.PI, Math.PI / 2, 6).map(f));
+    if (kind === "futsal") {
+      const a = w / 2 - 1.5, b = w / 2 + 1.5;
+      line([...arcPts(a, 0, 6, Math.PI, Math.PI / 2, 16), ...arcPts(b, 0, 6, Math.PI / 2, 0, 16)].map(f));
+      out.push({ dot: f({ x: w / 2, y: 6 }) }, { dot: f({ x: w / 2, y: 10 }) });
+    }
+  }
+  if (kind === "futsal") for (const d of [-10, -5, 5, 10]) line([{ x: -0.4, y: h / 2 + d }, { x: 0.4, y: h / 2 + d }]);
+  return out;
+}
 export function fieldShapes(field) {
   // en coordenadas del campo (vertical, portería a atacar arriba): { pts, closed } para líneas, { dot } para puntos
   const { w, h } = field;
   if (field.id === "free") return [];
+  const kind = fieldKind(field);
+  if (SMALL_KINDS.has(kind)) return smallFieldShapes(field, kind);
   const sp = field.id === "f7" ? SPEC.f7 : SPEC.f11;
   const out = [];
   const line = (pts, closed = false, dash = false) => out.push({ pts, closed, dash });
@@ -620,7 +695,8 @@ function FieldPersp({ field: shown, orient, look, vb, persp, board }) {
               : <path key={i} d={poly(g.pts, g.closed)} {...lp} strokeDasharray={g.dash ? "1.4 1.1" : undefined} />))}
           </g>
           {(() => {
-            const fg = FIELD_GOAL[field.id === "f7" ? "f7" : "f11"], Hh = tqH ? 105 : field.h;
+            const fg = FIELD_GOAL[fieldKind(field)], Hh = tqH ? 105 : field.h;
+            if (!fg) return null;
             const lift = (p, z) => { const v = toView(shown, orient, p); const q = persp.P(v); return { x: q.x, y: q.y - z * persp.scaleAt(v) }; };
             const ends = [{ p: (px, py) => ({ x: field.w / 2 + px, y: py }), at: { x: field.w / 2, y: 0 } }];
             if (field.id !== "half" && !tqH) ends.push({ p: (px, py) => ({ x: field.w / 2 - px, y: Hh - py }), at: { x: field.w / 2, y: Hh } });

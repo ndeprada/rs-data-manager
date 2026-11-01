@@ -16,9 +16,14 @@ export const FIELDS = [
   { id: "tq", label: "3/4 de campo", w: 68, h: 78.75 },
   { id: "half", label: "Medio campo", w: 68, h: 52.5 },
   { id: "f7", label: "Fútbol 7", w: 45, h: 65 },
+  { id: "futsal", label: "Fútbol sala (40 × 20)", w: 20, h: 40 },
+  { id: "f4", label: "Fútbol 4 (30 × 20)", w: 20, h: 30 },
+  { id: "rect", label: "Rectángulo (40 × 30)", w: 30, h: 40 },
   { id: "free", label: "Espacio libre (en blanco)", w: 68, h: 52.5 },
 ];
 export const fieldOf = (id) => FIELDS.find((f) => f.id === id) || FIELDS.find((f) => f.id === "half");
+/** Tipo de campo para las medidas de sus líneas y porterías: f11 (completo, 3/4, medio), f7, futsal, f4, rect o free. */
+export const fieldKind = (f) => { const id = typeof f === "string" ? f : f?.id; return id === "full" || id === "tq" || id === "half" ? "f11" : FIELDS.some((x) => x.id === id) ? id : "f11"; };
 
 // Modos visuales: pensados para pantalla y para imprimir sin gastar tinta. «blanco» y «color» son los de siempre (con
 // franjas); los demás ids son nuevos (liso y cuadrícula).
@@ -31,11 +36,19 @@ export const LOOKS = [
   { id: "bn", label: "Blanco y negro (impresión)" },
   { id: "estadio", label: "Estadio (césped verde)" },
   { id: "estadio-noche", label: "Estadio (noche)" },
+  // estilos de estadio (01/11/2026, como los estilos de FmStadio pero con colores propios): mismo estadio con otro césped y otras gradas
+  { id: "estadio-bosque", label: "Estadio verde bosque" },
+  { id: "estadio-electrico", label: "Estadio azul eléctrico" },
+  { id: "estadio-cielo", label: "Estadio azul cielo" },
+  { id: "estadio-morado", label: "Estadio morado" },
+  { id: "estadio-neon", label: "Estadio rojo neón" },
+  { id: "estadio-negro", label: "Estadio negro" },
+  { id: "estadio-invierno", label: "Estadio blanco invierno" },
 ];
 export const DEFAULT_LOOK = "blanco";
 export const lookOf = (id) => LOOKS.find((l) => l.id === id)?.id || DEFAULT_LOOK;
 // Modos «estadio» (como FmStadio): césped a cuadros y gradas alrededor, por eso llevan más margen alrededor del campo (m)
-export const isStadium = (look) => look === "estadio" || look === "estadio-noche";
+export const isStadium = (look) => typeof look === "string" && look.startsWith("estadio");
 // En los modos estadio se pueden quitar las gradas (`board.stands === false`) y las vallas publicitarias (`board.ads === false`)
 export const STADIUM_MARGIN = 13;
 export const hasStands = (b) => b?.stands !== false;
@@ -59,17 +72,27 @@ export const MARKS = [
   { id: "carriles5-franjas6", label: "5 carriles y 6 franjas" },
   { id: "carriles5-tercios", label: "5 carriles y tercios" },
   { id: "zonas18", label: "18 zonas (3 carriles × 6 franjas)" },
+  { id: "rejilla3", label: "Cuadrícula 3 × 3" },
+  { id: "rejilla4", label: "Cuadrícula 4 × 4" },
 ];
 export const grassOf = (b) => (GRASS.some((g) => g.id === b?.grass) ? b.grass : "auto");
 export const marksOf = (b) => (MARKS.some((m) => m.id === b?.marks) ? b.marks : "none");
 // Largo del campo entero (en medio campo y 3/4 las franjas se cuentan sobre el campo completo)
-const fullLength = (field) => (field.id === "f7" ? 65 : field.id === "free" ? field.h : 105);
+const fullLength = (field) => (fieldKind(field) === "f11" ? 105 : field.h);
 /** Líneas de las marcas en metros del campo: carriles a lo largo (anchos del área y del área pequeña) y franjas a lo ancho. */
 export function markLines(field, marks) {
   if (!marks || marks === "none" || field.id === "free") return [];
-  const f7 = field.id === "f7";
+  const kind = fieldKind(field);
   const { w, h } = field, L = fullLength(field);
-  const pa = f7 ? 12 : 20.16, ga = f7 ? 6 : 9.16, cx = w / 2;
+  if (marks.startsWith("rejilla")) {
+    // cuadrícula: el campo partido en n × n partes iguales (para juegos de posición y rondos)
+    const n = Number(marks.slice(7)) || 4, r2 = (v) => Math.round(v * 100) / 100, out = [];
+    for (let k = 1; k < n; k++) { const x = (w * k) / n; out.push({ x1: r2(x), y1: 0, x2: r2(x), y2: h }); }
+    for (let k = 1; k < n; k++) { const y = (L * k) / n; if (y < h - 0.1) out.push({ x1: 0, y1: r2(y), x2: w, y2: r2(y) }); }
+    return out;
+  }
+  // carriles: anchos del área y del área pequeña (en los campos pequeños, en la misma proporción que en fútbol 11)
+  const pa = kind === "f11" ? 20.16 : kind === "f7" ? 12 : w * 0.3, ga = kind === "f11" ? 9.16 : kind === "f7" ? 6 : w * 0.135, cx = w / 2;
   const xs = marks.startsWith("carriles5") ? [cx - pa, cx - ga, cx + ga, cx + pa] : marks === "carriles3" || marks === "zonas18" ? [cx - pa, cx + pa] : [];
   const parts = marks.includes("franjas6") || marks === "zonas18" ? 6 : marks.includes("tercios") ? 3 : 0;
   const ys = [];
@@ -249,6 +272,7 @@ export function textBgBox(x, y, text, fs, bold = true) {
 // Medidas de portería (anchura entre postes, metros)
 export const GOAL_SIZES = [
   { id: "mini", label: "Mini", w: 2 },
+  { id: "futsal", label: "Fútbol sala", w: 3 },
   { id: "f7", label: "Fútbol 7", w: 6 },
   { id: "f11", label: "Grande", w: 7.32 },
 ];
@@ -737,10 +761,14 @@ export const CAM_PRESETS = [
 ];
 function presetRegion(field, id) {
   const { w, h } = field;
-  const f7 = field.id === "f7";
+  const kind = fieldKind(field);
   if (id === "attack") return [0, -2, w, h / 2 + 2];
   if (id === "own") return [0, h / 2, w, h / 2 + 2];
-  if (id === "box") { const aw = (f7 ? 24 : 40.32) + 12, ad = (f7 ? 9 : 16.5) + 10; return [w / 2 - aw / 2, -3, aw, ad]; }
+  if (id === "box") {
+    const [aw0, ad0] = kind === "f11" ? [40.32, 16.5] : kind === "f7" ? [24, 9] : kind === "futsal" ? [15, 6] : [w * 0.6, h * 0.2];
+    const aw = Math.min(w + 4, aw0 + (kind === "f11" || kind === "f7" ? 12 : 4)), ad = ad0 + (kind === "f11" || kind === "f7" ? 10 : 4);
+    return [w / 2 - aw / 2, -3, aw, ad];
+  }
   return [-2, -2, w + 4, h + 4];
 }
 /** Cámara de un encuadre rápido para este dibujo y su formato. */

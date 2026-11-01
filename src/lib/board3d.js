@@ -14,7 +14,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  boardView, chipOf, contrastColor, faceOf, fieldOf, fromView, groundRegion, hasAds, hasStands, isCutField, isGroundEl, isPersp,
+  boardView, chipOf, fieldKind, contrastColor, faceOf, fieldOf, fromView, groundRegion, hasAds, hasStands, isCutField, isGroundEl, isPersp,
   isStadium, lookOf, materialOf, PERSP, orientAngle, orientOf, tokenR, ballStyle,
 } from "@/lib/board";
 import { AD_LOGOS } from "@/lib/adLogos";
@@ -41,6 +41,8 @@ const W0 = 10000; // imagen virtual completa (px) para setViewOffset
 const FIELD_SPEC = {
   f11: { goalW: 7.32, goalH: 2.44, goalD: 2.0 },
   f7: { goalW: 6, goalH: 2, goalD: 1.5 },
+  futsal: { goalW: 3, goalH: 2, goalD: 1 },
+  f4: { goalW: 3, goalH: 1.5, goalD: 1 },
 };
 
 // ── Utilidades ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -437,16 +439,18 @@ function buildStatic(board, pending) {
   if (isStadium(look)) {
     if (hasStands(board)) {
       // asientos de color vivo sobre hormigón gris (como en FmStadio)
-      const seat3d = look === "estadio-noche" ? ["#3346b8", "#7d92f0"] : ["#17a878", "#45e0aa"];
-      group.add(buildStands(full, { ...s.stadium, seat3d, concrete: look === "estadio-noche" ? "#6a7090" : "#9aa09e", concourse: look === "estadio-noche" ? "#5a6080" : "#8a908e" }));
+      const st = s.stadium;
+      const seat3d = st.seat3d || (look === "estadio-noche" ? ["#3346b8", "#7d92f0"] : ["#17a878", "#45e0aa"]);
+      const concrete = st.concrete3d || (look === "estadio-noche" ? "#6a7090" : "#9aa09e");
+      group.add(buildStands(full, { ...st, seat3d, concrete, concourse: st.concrete3d || (look === "estadio-noche" ? "#5a6080" : "#8a908e") }));
       // por fuera de la grada (las esquinas son redondas), el color de alrededor del estadio
       group.add(flatRing(full, S3.outer - 0.05, 160, bg));
     }
     if (hasAds(board)) group.add(buildAds(full, board, pending));
   }
   // porterías del campo
-  if (field.id !== "free") {
-    const sp = field.id === "f7" ? FIELD_SPEC.f7 : FIELD_SPEC.f11;
+  const sp = FIELD_SPEC[fieldKind(field)];
+  if (sp) {
     const ink = look === "bn" ? "#111111" : "#ffffff";
     const top = makeGoal(sp.goalW, sp.goalH, sp.goalD, ink);
     top.position.set(full.w / 2, 0, 0);
@@ -670,7 +674,7 @@ function buildPiece(board, el, look, chip, scr, pending) {
   }
   if (el.k === "goal") {
     const w = Number(el.w) || 7.32;
-    const h = w >= 7 ? 2.44 : w >= 5 ? 2 : Math.max(0.8, w * 0.5);
+    const h = w >= 7 ? 2.44 : w >= 2.9 ? 2 : Math.max(0.8, w * 0.5);
     const d = Math.max(1.1, Math.min(2.4, w * 0.4));
     const g = makeGoal(w, h, d, bn ? "#111111" : el.color || "#ffffff");
     // en 2D la boca está en el borde de abajo del recuadro (+y local) y la red hacia arriba
@@ -817,7 +821,7 @@ export function drawBoard3D(target, board, els, opts = {}) {
   const scr = { angle: orientAngle(orientOf(board.orient)), texRot: Math.atan2(-sc.up[0], -sc.up[1]) };
   // luz: ambiente + sol desde arriba a la izquierda de la pantalla (las sombras caen abajo a la derecha, como en 2D)
   const s = styleOf(look);
-  const night = look === "estadio-noche";
+  const night = look === "estadio-noche" || !!styleOf(look).stadium?.night;
   scene.add(new THREE.HemisphereLight(night ? 0xc8d0ff : 0xffffff, night ? 0x202840 : 0x6b7a70, night ? 1.9 : 2.1));
   const sun = new THREE.DirectionalLight(0xffffff, night ? 1.3 : 1.7);
   const R3 = new THREE.Vector3(sc.right[0], 0, sc.right[1]);

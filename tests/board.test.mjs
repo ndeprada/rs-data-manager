@@ -188,8 +188,10 @@ test("al cambiar de campo, lo dibujado se reescala en proporción", () => {
   assert.equal(b.frames[0].els[0].y, 52.5, "el original no se toca");
 });
 
-test("hay cinco campos y uno desconocido cae en medio campo", () => {
-  assert.deepEqual(FIELDS.map((f) => f.id), ["full", "tq", "half", "f7", "free"]);
+test("campos (también fútbol sala, fútbol 4 y rectángulo) y uno desconocido cae en medio campo", () => {
+  assert.deepEqual(FIELDS.map((f) => f.id), ["full", "tq", "half", "f7", "futsal", "f4", "rect", "free"]);
+  assert.deepEqual([fieldOf("futsal").w, fieldOf("futsal").h], [20, 40]);
+  assert.deepEqual(["full", "tq", "half", "f7", "futsal", "f4", "rect", "free", "inventado"].map((id) => BS.fieldKind(id)), ["f11", "f11", "f11", "f7", "futsal", "f4", "rect", "free", "f11"]);
   assert.equal(fieldOf("tq").h, 78.75);
   assert.equal(fieldOf("f7").w, 45);
   assert.equal(fieldOf("f7").h, 65);
@@ -249,8 +251,11 @@ test("diseño de ficha: lo del equipo, y lo propio de la ficha manda; el texto c
   assert.ok(CHIP_PATTERNS.length >= 5 && CHIP_PATTERNS[0].id === "solid");
 });
 
-test("ocho modos visuales (dos de estadio) y uno desconocido cae en blanco", () => {
-  assert.deepEqual(LOOKS.map((l) => l.id), ["blanco", "blanco-liso", "blanco-cuadros", "color", "color-cuadros", "bn", "estadio", "estadio-noche"]);
+test("modos visuales (nueve de estadio) y uno desconocido cae en blanco", () => {
+  assert.deepEqual(LOOKS.map((l) => l.id), ["blanco", "blanco-liso", "blanco-cuadros", "color", "color-cuadros", "bn", "estadio", "estadio-noche",
+    "estadio-bosque", "estadio-electrico", "estadio-cielo", "estadio-morado", "estadio-neon", "estadio-negro", "estadio-invierno"]);
+  assert.equal(LOOKS.filter((l) => BS.isStadium(l.id)).length, 9);
+  assert.equal(BS.marginOf("estadio-neon", {}), BS.STADIUM_MARGIN);
   assert.equal(lookOf("color-cuadros"), "color-cuadros");
   assert.equal(lookOf("inventado"), "blanco");
   assert.equal(normalizeBoard({ v: 2, field: "tq", look: "blanco-liso", frames: [{ els: [] }] }).look, "blanco-liso");
@@ -1124,14 +1129,14 @@ test("medio campo y 3/4 en estadio: el marco se corta en línea recta por el lad
 test("marcas del campo: 5 carriles por las áreas, 6 franjas sobre el campo entero y nada en el espacio libre", async () => {
   const B = await import("../src/lib/board.js");
   const full = B.fieldOf("full");
-  const lanes = B.markLines(full, "carriles5");
+  const lanes = BS.markLines(full, "carriles5");
   assert.deepEqual(lanes.map((l) => l.x1), [13.84, 24.84, 43.16, 54.16]);
-  const bands = B.markLines(full, "franjas6");
+  const bands = BS.markLines(full, "franjas6");
   assert.deepEqual(bands.map((l) => l.y1), [17.5, 35, 70, 87.5], "la del medio coincide con la línea de medio campo y no se repite");
-  assert.equal(B.markLines(B.fieldOf("half"), "franjas6").length, 2, "en medio campo solo las franjas que caben");
-  assert.equal(B.markLines(B.fieldOf("f7"), "carriles5")[0].x1, 10.5);
-  assert.equal(B.markLines(B.fieldOf("free"), "carriles5").length, 0);
-  assert.equal(B.markLines(full, "zonas18").length, 2 + 4);
+  assert.equal(BS.markLines(B.fieldOf("half"), "franjas6").length, 2, "en medio campo solo las franjas que caben");
+  assert.equal(BS.markLines(B.fieldOf("f7"), "carriles5")[0].x1, 10.5);
+  assert.equal(BS.markLines(B.fieldOf("free"), "carriles5").length, 0);
+  assert.equal(BS.markLines(full, "zonas18").length, 2 + 4);
   assert.equal(B.normalizeBoard({ v: 2, field: "full", marks: "zonas18", grass: "cruzado", frames: [{ id: "f", els: [] }] }).marks, "zonas18");
   assert.equal(B.normalizeBoard({ v: 2, field: "full", marks: "rara", frames: [{ id: "f", els: [] }] }).marks, undefined);
 });
@@ -1221,4 +1226,14 @@ test("vista 3D: marca, encuadre común y suelo que se ve", async () => {
   assert.deepEqual(B.groundRegion(b), [-13, -13, 81, 118]);
   assert.deepEqual(B.groundRegion({ ...b, field: "half" }), [-13, -13, 81, 118]);
   assert.deepEqual(B.groundRegion({ ...b, look: "blanco" }), [-3, -3, 71, 108]);
+});
+
+test("cuadrícula y carriles en los campos pequeños", () => {
+  const f = fieldOf("rect");
+  const g = BS.markLines(f, "rejilla4");
+  assert.equal(g.length, 6);
+  assert.deepEqual(g.map((l) => l.x1 === l.x2 ? l.x1 : null).filter((v) => v != null), [7.5, 15, 22.5]);
+  assert.deepEqual(g.map((l) => l.y1 === l.y2 ? l.y1 : null).filter((v) => v != null), [10, 20, 30]);
+  const c = BS.markLines(fieldOf("futsal"), "carriles5").map((l) => l.x1);
+  assert.deepEqual(c, [4, 7.3, 12.7, 16]);
 });
