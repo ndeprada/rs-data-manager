@@ -2,7 +2,7 @@ import { AD_LOGOS } from "@/lib/adLogos";
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
+  ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -888,6 +888,11 @@ export function ChipDefs() {
         <stop offset="0.74" stopColor="#000000" stopOpacity="0.06" />
         <stop offset="1" stopColor="#000000" stopOpacity="0.34" />
       </radialGradient>
+      <radialGradient id="hl-glow" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stopColor="#ffd60a" stopOpacity="0.55" />
+        <stop offset="0.6" stopColor="#ffd60a" stopOpacity="0.28" />
+        <stop offset="1" stopColor="#ffd60a" stopOpacity="0" />
+      </radialGradient>
       <radialGradient id="ball-shade" cx="0.38" cy="0.34" r="0.78">
         <stop offset="0" stopColor="#ffffff" stopOpacity="0.18" />
         <stop offset="0.5" stopColor="#ffffff" stopOpacity="0" />
@@ -1278,7 +1283,7 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
       );
     }
     case "ball": {
-      const r = Math.max(0.7, ctx.chip * 0.55) * (Number(el.size) || 1);
+      const r = ballR(ctx.chip) * (Number(el.size) || 1);
       return (
         <g opacity={op}>
           {ring(r + 1.2)}
@@ -1589,7 +1594,34 @@ function PerspGoal({ el, ctx, selected }) {
     </g>
   );
 }
+// Resaltado (tecla H, como en FmStadio): halo amarillo en el suelo alrededor de una ficha, el balón o el material.
+// Va en el suelo (en perspectiva, aplastado como el campo) y sale también en la imagen y el vídeo.
+function HighlightHalo({ el, ctx }) {
+  if (!el.hl || el.x == null || el.k === "zone" || el.k === "arrow" || el.k === "link") return null;
+  const mat = materialOf(el.k);
+  const r = el.k === "token" ? tokenR(ctx.chip, el) * 1.75 * (ctx.persp ? perspBoost(el) : 1)
+    : el.k === "ball" ? ballR(ctx.chip) * (Number(el.size) || 1) * 2.4
+    : el.k === "text" ? (Number(el.size) || 3) * 0.9
+    : el.k === "goal" ? (el.w || 7.32) * 0.7
+    : mat ? Math.max(mat.hw, mat.hh) * (Number(el.size) || 1) * 1.6 : 2.4 * (Number(el.size) || 1);
+  const ring = (rr) => {
+    if (!ctx.persp) { const c = toView(ctx.field, ctx.orient, el); return { cx: c.x, cy: c.y, rx: rr, ry: rr }; }
+    const c = toView(ctx.field, ctx.orient, el), q = ctx.persp.P(c);
+    return { cx: q.x, cy: q.y, rx: rr * ctx.persp.scaleAt(c), ry: rr * ctx.persp.depthAt(c) };
+  };
+  const a = ring(r), b = ring(r * 0.92);
+  return (
+    <g pointerEvents="none" opacity={el.opacity ?? 1}>
+      <ellipse {...a} fill="url(#hl-glow)" />
+      <ellipse {...b} fill="none" stroke="#ffd60a" strokeWidth={Math.max(0.18, r * 0.07)} strokeOpacity={0.95} />
+    </g>
+  );
+}
 export function Item({ el, ctx, els = [], selected = false, handles = false }) {
+  if (el.hl) return <><HighlightHalo el={el} ctx={ctx} /><ItemInner el={el} ctx={ctx} els={els} selected={selected} handles={handles} /></>;
+  return <ItemInner el={el} ctx={ctx} els={els} selected={selected} handles={handles} />;
+}
+function ItemInner({ el, ctx, els = [], selected = false, handles = false }) {
   if (ctx.persp && el.k === "token") return <PerspToken el={el} ctx={ctx} selected={selected} />;
   if (ctx.persp && el.k === "goal") return <PerspGoal el={el} ctx={ctx} selected={selected} />;
   if (ctx.persp && !isGround(el)) return <g transform={perspWrap(el, ctx)}><ItemFlat el={el} ctx={ctx} els={els} selected={selected} handles={handles} /></g>;

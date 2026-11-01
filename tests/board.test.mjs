@@ -1237,3 +1237,16 @@ test("cuadrícula y carriles en los campos pequeños", () => {
   const c = BS.markLines(fieldOf("futsal"), "carriles5").map((l) => l.x1);
   assert.deepEqual(c, [4, 7.3, 12.7, 16]);
 });
+
+test("cambiar de campo: fichas, conos y textos en proporción (no entre campos de 11)", () => {
+  const b = { v: 2, field: "full", chipSize: 1, frames: [{ id: "f", els: [{ id: "c", k: "cone", x: 10, y: 10, size: 1 }, { id: "t", k: "text", x: 5, y: 5, size: 3, text: "a" }] }] };
+  const fs = changeField(b, "futsal");
+  assert.ok(fs.chipSize < 0.5 && fs.chipSize >= 0.3);
+  assert.ok(fs.frames[0].els[0].size < 1);
+  assert.ok(fs.frames[0].els[1].size < 3);
+  const back = changeField(fs, "full");
+  assert.ok(Math.abs(back.chipSize - 1) < 0.1);
+  const half = changeField(b, "half");
+  assert.equal(half.chipSize, 1);
+  assert.equal(half.frames[0].els[0].size, 1);
+});

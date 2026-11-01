@@ -230,7 +230,9 @@ export function chipStyle(board, el) {
 
 // Radio base de las fichas (metros) y tamaño de cada una (múltiplo del base)
 export const DEFAULT_CHIP = 1.5;
-export const CHIP_RANGE = [0.8, 3.2];
+export const CHIP_RANGE = [0.3, 3.2];
+// Radio del balón según el tamaño de las fichas (en campos pequeños, con fichas por debajo de 0,8 m, se hace más pequeño en proporción)
+export const ballR = (chip) => Math.max(0.7 * Math.min(1, chip / 0.8), chip * 0.55);
 export const chipOf = (board) => Math.min(CHIP_RANGE[1], Math.max(CHIP_RANGE[0], Number(board?.chipSize) || DEFAULT_CHIP));
 export const tokenR = (base, el) => base * (Number(el?.size) || 1);
 
@@ -437,8 +439,48 @@ export function changeField(board, id) {
     if (e.k === "zone") return { ...e, x: round(e.x * kx), y: round(e.y * ky), w: round(e.w * kx), h: round(e.h * ky) };
     return { ...e, x: round(e.x * kx), y: round(e.y * ky) };
   };
-  return { ...board, field: to.id, frames: board.frames.map((f) => ({ ...f, els: f.els.map(sc) })) };
+  // fichas, material y textos en proporción al campo (01/11/2026, Nacho: «puedes tomar las fichas en proporción»): en un campo
+  // pequeño se hacen más pequeños y al volver a uno grande, más grandes; las porterías conservan su medida real
+  // (completo, 3/4 y medio son el mismo campo de 11 con otro encuadre: ahí no se tocan los tamaños)
+  const k = Math.sqrt(kx * ky);
+  const sameF11 = fieldKind(from.id) === "f11" && fieldKind(to.id) === "f11";
+  const scaleObj = !sameF11 && Math.abs(k - 1) > 0.05;
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const sz = (e) => {
+    if (!scaleObj) return e;
+    if (e.k === "text") return { ...e, size: r2(Math.max(0.6, (Number(e.size) || 3) * k)) };
+    if (e.k === "cone" || materialOf(e.k)) return { ...e, size: r2(Math.max(0.2, (Number(e.size) || 1) * k)) };
+    return e;
+  };
+  const chipPatch = scaleObj ? { chipSize: r2(Math.min(CHIP_RANGE[1], Math.max(CHIP_RANGE[0], chipOf(board) * k))) } : {};
+  return { ...board, ...chipPatch, field: to.id, frames: board.frames.map((f) => ({ ...f, els: f.els.map((e) => sz(sc(e))) })) };
 }
+
+// ── Bloquear, resaltar y volver a la posición (teclas B, H y R, como en FmStadio) ────────────────────────────────────
+// `locked`: no se mueve al arrastrar, con las flechas ni al alinear (se puede elegir para desbloquearlo); vale en todos los fotogramas.
+// `hl`: resaltado (un halo alrededor), también en la imagen y el vídeo; vale en todos los fotogramas.
+export const isLocked = (el) => el?.locked === true;
+export const isHighlighted = (el) => el?.hl === true;
+const POS_KEYS = ["x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "via", "pts", "w", "h", "face", "rot", "lift"];
+/** Devuelve lo elegido a donde estaba en el fotograma anterior (deshace su movimiento en este fotograma). */
+export function resetToPrevious(board, index, ids) {
+  if (index < 1) return board;
+  const prev = new Map(board.frames[index - 1].els.map((e) => [e.id, e]));
+  let changed = false;
+  const els = board.frames[index].els.map((e) => {
+    const p = ids.includes(e.id) && !isLocked(e) ? prev.get(e.id) : null;
+    if (!p) return e;
+    const o = { ...e };
+    for (const key of POS_KEYS) { if (p[key] === undefined) delete o[key]; else o[key] = clone(p[key]); }
+    delete o.path;
+    changed = true;
+    return o;
+  });
+  return changed ? setFrameEls(board, index, els) : board;
+}
+// Rejilla (tecla G): al colocar y al arrastrar, las posiciones caen en múltiplos de SNAP_STEP metros
+export const SNAP_STEP = 1;
+export const snapTo = (v, step = SNAP_STEP) => Math.round(v / step) * step;
 
 export const setFrameEls = (board, index, els) => ({
   ...board,
@@ -1308,7 +1350,7 @@ export function elementBounds(el, chip = DEFAULT_CHIP) {
   const k = Number(el?.size) || 1;
   if (!el) return null;
   if (el.k === "token") { const r = tokenR(chip, el); return box(el.x, el.y, r, r); }
-  if (el.k === "ball") { const r = Math.max(0.7, chip * 0.55) * k; return box(el.x, el.y, r, r); }
+  if (el.k === "ball") { const r = ballR(chip) * k; return box(el.x, el.y, r, r); }
   if (el.k === "cone") return box(el.x, el.y, 1.3 * k, 1.5 * k);
   if (el.k === "goal") {
     const gw = el.w || 7.32, gd = Math.max(1.1, Math.min(2.4, gw * 0.4));

@@ -14,7 +14,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  boardView, chipOf, fieldKind, contrastColor, faceOf, fieldOf, fromView, groundRegion, hasAds, hasStands, isCutField, isGroundEl, isPersp,
+  ballR, boardView, chipOf, fieldKind, contrastColor, faceOf, fieldOf, fromView, groundRegion, hasAds, hasStands, isCutField, isGroundEl, isPersp,
   isStadium, lookOf, materialOf, PERSP, orientAngle, orientOf, tokenR, ballStyle,
 } from "@/lib/board";
 import { AD_LOGOS } from "@/lib/adLogos";
@@ -454,10 +454,12 @@ function buildStatic(board, pending) {
     const ink = look === "bn" ? "#111111" : "#ffffff";
     const top = makeGoal(sp.goalW, sp.goalH, sp.goalD, ink);
     top.position.set(full.w / 2, 0, 0);
-    top.rotation.y = Math.PI;
+    // makeGoal deja la boca en z = 0 mirando a +z y la red hacia −z: la de arriba (línea de meta en y = 0) ya mira al campo
+    // con la red por fuera; la de abajo se gira media vuelta (antes estaban al revés, con la red dentro del campo)
     group.add(top);
     const bot = makeGoal(sp.goalW, sp.goalH, sp.goalD, ink);
     bot.position.set(full.w / 2, 0, full.h);
+    bot.rotation.y = Math.PI;
     group.add(bot);
   }
   return { group, background: bg, region, complete: pending.length === 0 };
@@ -648,7 +650,7 @@ function buildPiece(board, el, look, chip, scr, pending) {
   const at = (obj) => { obj.position.set(el.x, obj.position.y, el.y); return obj; };
   if (el.k === "token") return buildToken(board, el, look, chip, scr, pending);
   if (el.k === "ball") {
-    const rb = Math.max(0.7, chip * 0.55) * k * 0.75;
+    const rb = ballR(chip) * k * 0.75;
     const bs = ballStyle(el);
     const m = new THREE.Mesh(geo("ball", () => new THREE.SphereGeometry(1, 32, 20)), new THREE.MeshLambertMaterial({ map: ballTexture(bn ? { ...bs, color: "#ffffff", color2: "#111111" } : bs) }));
     m.scale.setScalar(rb);
@@ -885,7 +887,17 @@ export function drawBoard3D(target, board, els, opts = {}) {
   // dibujar en el canvas compartido y copiar
   renderer.setPixelRatio(1);
   renderer.setSize(W, H, false);
+  // En perspectiva, lo que queda entre la cámara y el borde de abajo de la imagen (la grada de este lado) solo puede tapar el
+  // campo: se recorta (con zoom cerca de la portería de abajo, la grada y su cubierta tapaban el área)
+  renderer.clippingPlanes = [];
+  if (isPersp(board)) {
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(0, -1), camera);
+    const hit = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
+    if (hit) renderer.clippingPlanes = [new THREE.Plane(cam.U.clone(), -(cam.U.dot(hit) - 2))];
+  }
   renderer.render(scene, camera);
+  renderer.clippingPlanes = [];
   const g = target.getContext("2d");
   g.drawImage(renderer.domElement, 0, 0, W, H);
   // la cámara se guarda para llevar el puntero al campo y saber qué hay debajo
@@ -930,7 +942,7 @@ export const pickable3D = (el) => el.k === "token" || el.k === "ball" || el.k ==
 function pickRadius(board, el, chip) {
   const k = Number(el.size) || 1;
   if (el.k === "token") return tokenR(chip, el) * (isPersp(board) ? PERSP.chip : 1) * 0.92;
-  if (el.k === "ball") return Math.max(0.7, chip * 0.55) * k * 0.75;
+  if (el.k === "ball") return ballR(chip) * k * 0.75;
   if (el.k === "text") return (Number(el.size) || 3) * Math.max(1, String(el.text || "").length * 0.3);
   if (el.k === "goal") return (Number(el.w) || 7.32) / 2;
   return 1.2 * k;
