@@ -1275,8 +1275,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       {is3D(board) && !playing && (
         <div className="absolute top-2 left-2 flex items-center gap-0.5 rounded-lg p-0.5 text-[11px] font-semibold" style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} role="group" aria-label="Dibujar en 2D o en 3D" title="Dibujar en 2D o en 3D" data-testid="board-3d-switch">
           {[{ id: false, label: "2D" }, { id: true, label: "3D" }].map((o) => (
-            <button key={String(o.id)} type="button" aria-pressed={see3d === o.id} onClick={() => { setSee3d(o.id); setQuick(null); if (o.id && tool === "camera") pickTool("select"); }} data-testid={o.id ? "board-see-3d" : "board-see-2d"}
-              className="h-7 px-2 rounded-md" style={see3d === o.id ? { background: RAIL.on, color: RAIL.onInk } : undefined}>{o.label}</button>
+            <button key={String(o.id)} type="button" aria-pressed={show3d === o.id} onClick={() => { setSee3d(o.id); setQuick(null); if (o.id && tool === "camera") pickTool("select"); }} data-testid={o.id ? "board-see-3d" : "board-see-2d"}
+              className="h-7 px-2 rounded-md" style={show3d === o.id ? { background: RAIL.on, color: RAIL.onInk } : undefined}>{o.label}</button>
           ))}
         </div>
       )}

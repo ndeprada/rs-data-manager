@@ -173,14 +173,18 @@ export const CHIP_KINDS = [
   { id: "boton", label: "Botón" },
   { id: "camiseta", label: "Camiseta" },
 ];
-// Diseño del balón: color, segundo color (los dibujos) y estilo. Sin estilo guardado es el de antes (punto central).
+// Diseño del balón: color, segundo color (los dibujos) y modelo. Los cuatro primeros son los modelos «de verdad» (01/11/2026);
+// punto, liso y franja se mantienen para los dibujos que ya los usan. Sin modelo guardado, el clásico.
 export const BALL_PATTERNS = [
   { id: "classic", label: "Clásico" },
+  { id: "modern", label: "Moderno" },
+  { id: "helix", label: "Hélice" },
+  { id: "seams", label: "Entreno" },
   { id: "dot", label: "Punto" },
   { id: "plain", label: "Liso" },
   { id: "stripe", label: "Franja" },
 ];
-export const ballStyle = (el) => ({ pattern: el?.pattern || "dot", color: el?.color || "#ffffff", color2: el?.color2 || "#111827", stroke: el?.stroke || null });
+export const ballStyle = (el) => ({ pattern: el?.pattern || "classic", color: el?.color || "#ffffff", color2: el?.color2 || "#111827", stroke: el?.stroke || null });
 
 export function contrastColor(hex) {
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hex || "").trim());

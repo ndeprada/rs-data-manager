@@ -1,7 +1,7 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { AIR_MAX, BALL_PATTERNS, CHIP_KINDS, CHIP_PATTERNS, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, LADDER_RUNGS, arrowPath, arrowProps, ballStyle, chipOf, chipStyle, contrastColor, defaultControl, firstBend, hasVia, ladderRungs, linkProps, materialOf, teamsOf, zoneShapePatch } from "@/lib/board";
-import { ChipGlyph, styleOf } from "./BoardSvg";
+import { BallGlyph, ChipGlyph, styleOf } from "./BoardSvg";
 import { ColorPick, NO_FILL, Row, Seg, Slider, Toggle } from "./BoardControls";
 import BoardKitPicker from "./BoardKitPicker";
 
@@ -107,7 +107,18 @@ function BallBlock({ el, patch, look }) {
   return (
     <>
       <Row>
-        <Seg label="Diseño del balón" value={bs.pattern} options={BALL_PATTERNS} onChange={(v) => patch({ pattern: v })} />
+        <div className="w-full">
+          <div className="text-[11px] font-semibold text-gray-500 mb-1">Modelo</div>
+          <div className="grid grid-cols-4 gap-1" role="group" aria-label="Modelo de balón" data-testid="ball-models">
+            {BALL_PATTERNS.map((o) => (
+              <button key={o.id} type="button" aria-pressed={bs.pattern === o.id} onClick={() => patch({ pattern: o.id })} data-testid={`ball-model-${o.id}`}
+                className={`flex flex-col items-center gap-0.5 rounded-md border py-1 text-[10px] font-semibold ${bs.pattern === o.id ? "border-gray-900 bg-gray-100 text-gray-900" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+                <BallGlyph pattern={o.id} color={bn ? "#ffffff" : bs.color} color2={bn ? "#111111" : el.color2 || s.ball.stroke} size={28} />
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
         {!bn && (
           <>
             <ColorPick value={el.color || ""} onChange={(c) => patch({ color: c || undefined })} label="Color" auto="Blanco" autoSwatch="#ffffff" wide />

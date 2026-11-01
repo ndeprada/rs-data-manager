@@ -86,7 +86,71 @@ const SPEC = {
   f7: { aw: 24, ah: 9, gw: 12, gh: 3, goalW: 6, spot: 9, circle: 6, arc: 0, offside: 12 },
 };
 
-function Lines({ field, s }) {
+
+// ── Porterías ────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Alto y fondo de una portería según su ancho (los mismos que el 3D)
+export function goalDims(gw) {
+  const h = gw >= 7 ? 2.44 : gw >= 5 ? 2 : Math.max(0.8, gw * 0.5);
+  return { h, gd: Math.max(1.1, Math.min(2.4, gw * 0.4)) };
+}
+const FIELD_GOAL = { f11: { gw: 7.32, h: 2.44, gd: 2 }, f7: { gw: 6, h: 2, gd: 1.5 } };
+// Portería «de verdad»: postes y larguero gruesos con un borde oscuro, red con malla (techo inclinado, fondo y laterales) y barras finas
+// detrás. En coordenadas locales la boca está en y = 0 y la red hacia −y; `proj(x, y, z)` lleva un punto (z = altura en m) a la pantalla:
+// en plano es la vista desde arriba (la altura no cuenta) y en perspectiva el suelo proyectado levantado z × su escala.
+function GoalShape({ gw, gd, h, frame, net, proj, k = 1, flat = true, shadow = 0, sv = null }) {
+  const x = gw / 2, ins = Math.min(gd * 0.22, gw * 0.08), bx = x - ins, hb = h * 0.62;
+  const P = (p) => { const q = proj(p[0], p[1], p[2] || 0); return `${q.x.toFixed(3)} ${q.y.toFixed(3)}`; };
+  const seg = (a, b) => `M ${P(a)} L ${P(b)}`;
+  const quad = (q) => `M ${q.map(P).join(" L ")} Z`;
+  const bw = Math.max(0.16, Math.min(0.3, gw * 0.04)) * k;
+  const roof = [[-x, 0, h], [x, 0, h], [bx, -gd, hb], [-bx, -gd, hb]];
+  const back = [[-bx, -gd, hb], [bx, -gd, hb], [bx, -gd, 0], [-bx, -gd, 0]];
+  const sideL = [[-x, 0, h], [-bx, -gd, hb], [-bx, -gd, 0], [-x, 0, 0]];
+  const sideR = [[x, 0, h], [bx, -gd, hb], [bx, -gd, 0], [x, 0, 0]];
+  const nets = flat ? [roof] : [back, sideL, sideR, roof];
+  const lerp = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], (a[2] || 0) - (b[2] || 0));
+  const mesh = (q, cell = 0.3) => {
+    const U = Math.max(1, Math.round(dist(q[0], q[1]) / cell)), V = Math.max(1, Math.round(dist(q[1], q[2]) / cell));
+    const out = [];
+    for (let i = 1; i < U; i++) out.push(seg(lerp(q[0], q[1], i / U), lerp(q[3], q[2], i / U)));
+    for (let j = 1; j < V; j++) out.push(seg(lerp(q[0], q[3], j / V), lerp(q[1], q[2], j / V)));
+    return out.join(" ");
+  };
+  const front = `${seg([-x, 0, 0], [-x, 0, h])} L ${P([x, 0, h])} L ${P([x, 0, 0])}`;
+  const rear = [seg([-x, 0, 0], [-bx, -gd, 0]), seg([x, 0, 0], [bx, -gd, 0]), seg([-bx, -gd, 0], [bx, -gd, 0]), seg([-bx, -gd, 0], [-bx, -gd, hb]), seg([bx, -gd, 0], [bx, -gd, hb]), seg([-bx, -gd, hb], [bx, -gd, hb]), seg([-x, 0, h], [-bx, -gd, hb]), seg([x, 0, h], [bx, -gd, hb])].join(" ");
+  const line = { fill: "none", strokeLinecap: "round", strokeLinejoin: "round" };
+  const netEls = (
+    <g key="net">
+      {nets.map((q, i) => <path key={i} d={quad(q)} fill={net} fillOpacity={q === roof ? 0.14 : 0.08} />)}
+      <path d={nets.map((q) => mesh(q)).join(" ")} stroke={net} strokeOpacity={0.6} strokeWidth={0.06 * k} {...line} />
+    </g>
+  );
+  const rearEls = <path key="rear" d={rear} stroke={frame} strokeOpacity={0.85} strokeWidth={bw * 0.32} {...line} />;
+  const frontEls = (
+    <g key="front">
+      <path d={front} stroke="#111827" strokeOpacity={0.5} strokeWidth={bw + 0.12 * k} {...line} />
+      <path d={front} stroke={frame} strokeWidth={bw} {...line} />
+    </g>
+  );
+  // de frente (se ve la boca) primero la red y luego el marco; de espaldas, al revés
+  const mouthFirst = flat || proj(0, 0, 0).y > proj(0, -gd, 0).y;
+  return (
+    <>
+      {shadow > 0 && sv && (
+        <g transform={`translate(${sv.x.toFixed(3)} ${sv.y.toFixed(3)})`} opacity={shadow * 0.7}>
+          <path d={quad(roof)} fill="#000" fillOpacity={0.3} />
+          <path d={front} stroke="#000" strokeOpacity={0.6} strokeWidth={bw * 0.7} {...line} />
+        </g>
+      )}
+      {mouthFirst ? [rearEls, netEls, frontEls] : [frontEls, netEls, rearEls]}
+    </>
+  );
+}
+const goalNet = (s) => (contrastColor(s.bg) === "#ffffff" ? "#ffffff" : "#6b7280");
+const goalFrame = (s) => (s.goal?.stroke === "#4b5563" ? "#ffffff" : s.goal?.stroke || "#ffffff");
+
+function Lines({ field, s, goals = true, rot = 0 }) {
   const { w, h } = field;
   if (field.id === "free") return null;
   const p = { fill: "none", stroke: s.line, strokeWidth: s.lineW, strokeLinejoin: "round", strokeLinecap: "round" };
@@ -97,16 +161,18 @@ function Lines({ field, s }) {
       <rect x={w / 2 - sp.aw / 2} y={0} width={sp.aw} height={sp.ah} />
       <rect x={w / 2 - sp.gw / 2} y={0} width={sp.gw} height={sp.gh} />
       {sp.arc ? <path d={`M ${w / 2 - arcX} ${sp.ah} A ${sp.arc} ${sp.arc} 0 0 0 ${w / 2 + arcX} ${sp.ah}`} /> : null}
-      <rect x={w / 2 - sp.goalW / 2} y={-1.8} width={sp.goalW} height={1.8} />
       <path d={`M 0 1 A 1 1 0 0 0 1 0 M ${w - 1} 0 A 1 1 0 0 0 ${w} 1`} />
       <circle cx={w / 2} cy={sp.spot} r={0.35} fill={s.line} stroke="none" />
     </g>
   );
+  const fg = FIELD_GOAL[field.id === "f7" ? "f7" : "f11"];
+  const goal = (r) => goals && <GoalShape gw={fg.gw} gd={fg.gd} h={fg.h} frame={goalFrame(s)} net={goalNet(s)} proj={(px, py) => ({ x: w / 2 + px, y: py })} shadow={s.shadow || 0} sv={lightVec(r, fg.h * 0.3)} />;
   if (field.id === "half") {
     return (
       <g>
         <rect x={0} y={0} width={w} height={h} {...p} />
         {end}
+        {goal(rot)}
         <path d={`M ${w / 2 - 9.15} ${h} A 9.15 9.15 0 0 1 ${w / 2 + 9.15} ${h}`} {...p} />
       </g>
     );
@@ -119,7 +185,8 @@ function Lines({ field, s }) {
       <g clipPath={tq ? "url(#tq-clip)" : undefined}>
         <rect x={0} y={0} width={w} height={H} {...p} />
         {end}
-        <g transform={`rotate(180 ${w / 2} ${H / 2})`}>{end}</g>
+        {goal(rot)}
+        <g transform={`rotate(180 ${w / 2} ${H / 2})`}>{end}{goal(rot + 180)}</g>
         <line x1={0} y1={H / 2} x2={w} y2={H / 2} {...p} />
         <circle cx={w / 2} cy={H / 2} r={sp.circle} {...p} />
         <circle cx={w / 2} cy={H / 2} r={0.35} fill={s.line} stroke="none" />
@@ -235,6 +302,52 @@ function bigHeight(d) {
   return 38;
 }
 const SEAT = 1.1; // un asiento cada 1,1 m (0,92 de asiento y 0,18 de hueco)
+// Rejilla de asientos de una fila a la distancia d de las líneas: en los lados rectos, cada SEAT m contando desde el centro del lado
+// (así todas las filas tienen las columnas alineadas) y saltando las escaleras; en las esquinas, repartidos por el arco.
+// Devuelve [{ a, b, n, side, k }]: extremos del asiento, dirección hacia fuera (para el respaldo), lado y número de asiento.
+const STAIR_AT = [-44, -22, 0, 22, 44];
+const SEAT_HL = 0.46;
+function standSeats(field, d) {
+  const r = cornerR(d), W = field.w, H = field.h, out = [];
+  const sides = [
+    { side: 0, c: { x: W / 2, y: -d }, u: { x: 1, y: 0 }, n: { x: 0, y: -1 }, half: W / 2 + d - r },
+    { side: 1, c: { x: W + d, y: H / 2 }, u: { x: 0, y: 1 }, n: { x: 1, y: 0 }, half: H / 2 + d - r },
+    { side: 2, c: { x: W / 2, y: H + d }, u: { x: -1, y: 0 }, n: { x: 0, y: 1 }, half: W / 2 + d - r },
+    { side: 3, c: { x: -d, y: H / 2 }, u: { x: 0, y: -1 }, n: { x: -1, y: 0 }, half: H / 2 + d - r },
+  ];
+  for (const sd of sides) {
+    const K = Math.floor((sd.half - SEAT_HL) / SEAT);
+    for (let k = -K; k <= K; k++) {
+      const t = k * SEAT;
+      if (STAIR_AT.some((c) => Math.abs(c - t) < SEAT * 0.6)) continue;
+      const p = { x: sd.c.x + sd.u.x * t, y: sd.c.y + sd.u.y * t };
+      out.push({ a: { x: p.x - sd.u.x * SEAT_HL, y: p.y - sd.u.y * SEAT_HL }, b: { x: p.x + sd.u.x * SEAT_HL, y: p.y + sd.u.y * SEAT_HL }, n: sd.n, side: sd.side, k });
+    }
+  }
+  const x0 = -d, y0 = -d, x1 = W + d, y1 = H + d;
+  const arcLen = (Math.PI / 2) * r, n = Math.max(1, Math.round(arcLen / SEAT)), hl = Math.min(SEAT_HL, (arcLen / n) * 0.42);
+  [[x1 - r, y0 + r, -90], [x1 - r, y1 - r, 0], [x0 + r, y1 - r, 90], [x0 + r, y0 + r, 180]].forEach(([cx, cy, a0], ci) => {
+    for (let k = 0; k < n; k++) {
+      const a = ((a0 + ((k + 0.5) / n) * 90) * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
+      const p = { x: cx + ca * r, y: cy + sa * r };
+      out.push({ a: { x: p.x + sa * hl, y: p.y - ca * hl }, b: { x: p.x - sa * hl, y: p.y + ca * hl }, n: { x: ca, y: sa }, side: 4 + ci, k });
+    }
+  });
+  return out;
+}
+// Escalera de un lado recto en la posición c (m desde el centro del lado), entre las distancias d0 y d1
+function stairQuad(field, side, c, d0, d1) {
+  const W = field.w, H = field.h, w = SEAT * 0.75;
+  const halfOf = (d) => (side === "top" || side === "bottom" ? W / 2 : H / 2) + d - cornerR(d);
+  if (Math.abs(c) + w > halfOf(d0) - 1) return null;
+  const at = (t, d) => {
+    if (side === "top") return { x: W / 2 + t, y: -d };
+    if (side === "bottom") return { x: W / 2 - t, y: H + d };
+    if (side === "right") return { x: W + d, y: H / 2 + t };
+    return { x: -d, y: H / 2 - t };
+  };
+  return [at(c - w, d0), at(c + w, d0), at(c + w, d1), at(c - w, d1)];
+}
 function Stands({ field, st, T, textAt }) {
   const persp = !!textAt;
   const center = persp ? textAt({ x: field.w / 2, y: field.h / 2 }) : null;
@@ -258,7 +371,10 @@ function Stands({ field, st, T, textAt }) {
   els.push(<path key="roofout" d={ring(BS.roofOut, 38)} fill={st.roofTop || st.roof} />);
   for (let d = BS.outer + 4; d < BS.roofOut; d += 6) els.push(<path key={`rp${d}`} d={ring(d, 38)} fill="none" stroke="#000" strokeOpacity={0.12} strokeWidth={0.3} />);
   els.push(<path key="back" d={ring(BS.outer, 38)} fill={conc} />);
-  // de la fila de arriba a la de abajo
+  // Asientos uno a uno, en una rejilla común: en los lados rectos todas las filas tienen los asientos en las mismas posiciones
+  // (columnas alineadas, contadas desde el centro de cada lado) y las escaleras ocupan el hueco de un asiento en todas las filas.
+  const seg = (a, b, h) => { const qa = lift(a, h), qb = lift(b, h); return `M ${qa.x.toFixed(2)} ${qa.y.toFixed(2)} L ${qb.x.toFixed(2)} ${qb.y.toFixed(2)}`; };
+  const tones = [mixHex(B, "#ffffff", 0.15), mixHex(A, "#000000", 0.15), B];
   for (let i = rows.length - 1; i >= 0; i--) {
     const r = rows[i];
     if (r.tier === 0 && i === BS.lowRows - 1) els.push(<path key="aisle" d={ring(BS.upStart)} fill={concL} />);
@@ -266,27 +382,28 @@ function Stands({ field, st, T, textAt }) {
     els.push(<path key={`f${i}`} d={ring(d1)} fill={conc} />);
     // la arista del escalón, más oscura (sombra de la contrahuella)
     els.push(<path key={`e${i}`} d={ring(r.d0 + 0.06)} fill="none" stroke="#000" strokeOpacity={0.3} strokeWidth={0.16} />);
-    const mid = r.d0 + BS.row * 0.42;
+    const mid = r.d0 + BS.row * 0.42, h = bigHeight(mid);
     const base = mixHex(A, B, Math.min(1, 0.2 + r.t * 0.7));
-    const dash = `0.92 ${(SEAT - 0.92).toFixed(2)}`;
-    // asiento y respaldo (un poco más oscuro)
-    els.push(<path key={`a${i}`} d={ring(mid)} fill="none" stroke={base} strokeWidth={0.72} strokeDasharray={dash} />);
-    els.push(<path key={`b${i}`} d={ring(mid + 0.44)} fill="none" stroke={mixHex(base, "#000000", 0.28)} strokeWidth={0.18} strokeDasharray={dash} />);
-    // motas: asientos de otros tonos mezclados (como en las gradas de verdad)
-    [[mixHex(B, "#ffffff", 0.15), 5], [mixHex(A, "#000000", 0.15), 4], [B, 7]].forEach(([c, k], j) => els.push(
-      <path key={`m${i}-${j}`} d={ring(mid)} stroke={c} fill="none" strokeWidth={0.72} strokeDasharray={`0.92 ${(SEAT * k - 0.92).toFixed(2)}`} strokeDashoffset={(-SEAT * ((i * 3 + j * 2) % k)).toFixed(2)} />,
-    ));
+    const groups = [[], [], [], []], backs = [];
+    standSeats(field, mid).forEach((st0) => {
+      const hash = ((st0.k * 73856093) ^ (i * 19349663) ^ (st0.side * 83492791)) >>> 0;
+      const v = hash % 100;
+      groups[v < 64 ? 0 : v < 79 ? 1 : v < 91 ? 2 : 3].push(seg(st0.a, st0.b, h));
+      const off = (p) => ({ x: p.x + st0.n.x * 0.44, y: p.y + st0.n.y * 0.44 });
+      backs.push(seg(off(st0.a), off(st0.b), h));
+    });
+    groups.forEach((g, j) => g.length && els.push(<path key={`a${i}-${j}`} d={g.join(" ")} fill="none" stroke={j ? tones[j - 1] : base} strokeWidth={0.72} />));
+    els.push(<path key={`b${i}`} d={backs.join(" ")} fill="none" stroke={mixHex(base, "#000000", 0.28)} strokeWidth={0.18} />);
   }
-  // escaleras (hormigón más claro) cada ~22 m en los lados rectos
-  const stairs = (d0, d1) => {
-    const out = [];
-    for (const sd of straightSides(field, d1)) {
-      const k = Math.max(2, Math.round(sd.len / 22));
-      for (let j = 1; j < k; j++) { const tt = (sd.len * j) / k; out.push(sideQuad(sd, tt - 1.1, tt + 1.1, d0, d1, d1)); }
+  // escaleras (hormigón más claro), en el hueco de asiento que dejan libre todas las filas
+  STAIR_AT.forEach((c, j) => {
+    for (const sd of straightSides(field, BS.upTop)) {
+      [[BS.track, BS.lowTop], [BS.upStart, BS.upTop]].forEach(([d0, d1], t) => {
+        const q = stairQuad(field, sd.id, c, d0, d1);
+        if (q) els.push(<path key={`st${j}-${sd.id}-${t}`} d={quad(q)} fill={concL} />);
+      });
     }
-    return out;
-  };
-  [...stairs(BS.track, BS.lowTop), ...stairs(BS.upStart, BS.upTop)].forEach((q, i) => els.push(<path key={`st${i}`} d={quad(q)} fill={concL} />));
+  });
   // cubierta volada por encima de las filas de atrás, con su canto claro y su sombra
   els.push(<path key="roofshade" d={`${ring(BS.roofIn - 2.5, 30)} ${ring(BS.roofIn, 30)}`} fill="#000" fillRule="evenodd" opacity={0.18} />);
   els.push(<path key="roof" d={`${ring(BS.roofOut, 38)} ${ring(BS.roofIn, 32)}`} fill={st.roofTop || st.roof} fillRule="evenodd" />);
@@ -295,6 +412,17 @@ function Stands({ field, st, T, textAt }) {
   return <g>{els}</g>;
 }
 
+// Las gradas tienen miles de asientos: se guardan ya dibujadas (mismo campo, colores, orientación y perspectiva = mismo dibujo),
+// así al animar o mover algo no se vuelven a calcular.
+const STANDS_CACHE = new WeakMap();
+function cachedStands(field, st, orient, T, textAt) {
+  const f = (p) => { const q = T ? T(p) : p; return `${q.x.toFixed(3)},${q.y.toFixed(3)}`; };
+  const key = [field.id, field.w, field.h, orient, textAt ? `p${f({ x: 0, y: 0 })};${f({ x: field.w, y: field.h })};${f({ x: field.w, y: 0 })}` : "f"].join("|");
+  let m = STANDS_CACHE.get(st);
+  if (!m) { m = new Map(); STANDS_CACHE.set(st, m); }
+  if (!m.has(key)) { if (m.size > 12) m.clear(); m.set(key, <Stands field={field} st={st} T={T} textAt={textAt} />); }
+  return m.get(key);
+}
 function Stadium({ field, s, board, orient, T, textAt }) {
   const st = s.stadium;
   // en medio campo y 3/4 se dibuja el estadio del campo completo (la imagen lo corta en línea recta)
@@ -339,7 +467,7 @@ function Stadium({ field, s, board, orient, T, textAt }) {
   };
   return (
     <g>
-      {parts.stands && <Stands field={field} st={st} T={T} textAt={textAt} />}
+      {parts.stands && cachedStands(field, st, orient, T, textAt)}
       {parts.boards && <path d={P(parts.boards)} fill={st.boards} />}
       {flatPanels.map(drawPanel)}
       <path d={P(parts.apron)} fill={s.bg} />
@@ -416,7 +544,7 @@ function Field({ field: shown, orient, look, vb, board }) {
         {free ? null : <rect x={0} y={0} width={field.w} height={field.h} fill={s.bg} />}
         {grass.map((gr, i) => <path key={`g${i}`} d={gr.rects.map((r) => `M ${r.x} ${r.y} h ${r.w} v ${r.h} h ${-r.w} Z`).join(" ")} fill={gr.fill} />)}
         {marks.length > 0 && <g {...markStyle(s)} data-testid="board-marks">{marks.map((m, i) => <line key={i} x1={m.x1} y1={m.y1} x2={m.x2} y2={m.y2} />)}</g>}
-        <Lines field={field} s={s} />
+        <Lines field={field} s={s} goals={!board?._noGoals} rot={orientAngle(orient)} />
       </g>
     </>
   );
@@ -438,7 +566,6 @@ export function fieldShapes(field) {
     line(rectPts(w / 2 - sp.aw / 2, 0, sp.aw, sp.ah).map(f), true);
     line(rectPts(w / 2 - sp.gw / 2, 0, sp.gw, sp.gh).map(f), true);
     if (sp.arc) { const dy = sp.ah - sp.spot, a = Math.acos(Math.min(1, dy / sp.arc)); line(arcPts(w / 2, sp.spot, sp.arc, Math.PI / 2 + a, Math.PI / 2 - a, 24).map(f)); }
-    line(rectPts(w / 2 - sp.goalW / 2, -1.8, sp.goalW, 1.8).map(f), true);
     line(arcPts(0, 0, 1, Math.PI / 2, 0, 8).map(f));
     line(arcPts(w, 0, 1, Math.PI, Math.PI / 2, 8).map(f));
     out.push({ dot: f({ x: w / 2, y: sp.spot }) });
@@ -492,6 +619,13 @@ function FieldPersp({ field: shown, orient, look, vb, persp, board }) {
               ? (() => { const q = T(g.dot), k = persp.scaleAt(toView(shown, orient, g.dot)); return <ellipse key={i} cx={q.x} cy={q.y} rx={0.35 * k} ry={0.35 * persp.depthAt(toView(shown, orient, g.dot))} fill={s.line} />; })()
               : <path key={i} d={poly(g.pts, g.closed)} {...lp} strokeDasharray={g.dash ? "1.4 1.1" : undefined} />))}
           </g>
+          {(() => {
+            const fg = FIELD_GOAL[field.id === "f7" ? "f7" : "f11"], Hh = tqH ? 105 : field.h;
+            const lift = (p, z) => { const v = toView(shown, orient, p); const q = persp.P(v); return { x: q.x, y: q.y - z * persp.scaleAt(v) }; };
+            const ends = [{ p: (px, py) => ({ x: field.w / 2 + px, y: py }), at: { x: field.w / 2, y: 0 } }];
+            if (field.id !== "half" && !tqH) ends.push({ p: (px, py) => ({ x: field.w / 2 - px, y: Hh - py }), at: { x: field.w / 2, y: Hh } });
+            return ends.map((e, i) => <GoalShape key={`goal${i}`} gw={fg.gw} gd={fg.gd} h={fg.h} frame={goalFrame(s)} net={goalNet(s)} flat={false} k={persp.scaleAt(toView(shown, orient, e.at))} proj={(px, py, pz) => lift(e.p(px, py), pz)} />);
+          })()}
         </>
       )}
     </>
@@ -678,6 +812,12 @@ export function ChipDefs() {
         <stop offset="0.74" stopColor="#000000" stopOpacity="0.06" />
         <stop offset="1" stopColor="#000000" stopOpacity="0.34" />
       </radialGradient>
+      <radialGradient id="ball-shade" cx="0.38" cy="0.34" r="0.78">
+        <stop offset="0" stopColor="#ffffff" stopOpacity="0.18" />
+        <stop offset="0.5" stopColor="#ffffff" stopOpacity="0" />
+        <stop offset="0.8" stopColor="#000000" stopOpacity="0.1" />
+        <stop offset="1" stopColor="#000000" stopOpacity="0.42" />
+      </radialGradient>
       <radialGradient id="chip-gloss" cx="0.5" cy="0.5" r="0.5">
         <stop offset="0" stopColor="#ffffff" stopOpacity="0.75" />
         <stop offset="0.55" stopColor="#ffffff" stopOpacity="0.22" />
@@ -833,34 +973,90 @@ export function ChipGlyph({ board, el, look = "blanco", size = 18 }) {
 }
 
 // Balón: color, dibujo y borde editables. Sin estilo guardado es el de siempre (punto central).
+// Dibujo de cada modelo de balón en un círculo de radio 1 (recortado al círculo). Diseños propios, sin marcas:
+//  · classic: pentágono en el centro, cinco medio asomando por el borde y las costuras de los hexágonos
+//  · modern: cuatro paneles curvos en aspa con un ribete fino
+//  · helix: tres aspas curvas que giran desde el centro
+//  · seams: balón de entreno, las costuras y los pentágonos apenas teñidos
+const PENT = [0, 1, 2, 3, 4].map((i) => { const a = ((-90 + i * 72) * Math.PI) / 180; return [Math.cos(a), Math.sin(a)]; });
+const f3 = (v) => v.toFixed(3);
+function BallArt({ pattern, ink, seam }) {
+  const pent = (r, cx = 0, cy = 0, rot = 0, sq = 1) => PENT.map(([x, y]) => {
+    const a = (rot * Math.PI) / 180, X = x * r, Y = y * r * sq;
+    return `${f3(cx + X * Math.cos(a) - Y * Math.sin(a))},${f3(cy + X * Math.sin(a) + Y * Math.cos(a))}`;
+  }).join(" ");
+  if (pattern === "dot") return <circle r={0.36} fill={ink} />;
+  if (pattern === "stripe") return <rect x={-1} y={-0.28} width={2} height={0.56} fill={ink} />;
+  if (pattern === "plain") return null;
+  if (pattern === "classic" || pattern === "seams") {
+    const edge = [0, 1, 2, 3, 4].map((i) => -54 + i * 72);
+    const lines = [];
+    PENT.forEach(([x, y]) => {
+      const a = Math.atan2(y, x);
+      lines.push(`M ${f3(x * 0.36)} ${f3(y * 0.36)} L ${f3(Math.cos(a) * 0.66)} ${f3(Math.sin(a) * 0.66)}`);
+      [-1, 1].forEach((sg) => { const b = a + sg * 0.5; lines.push(`M ${f3(Math.cos(a) * 0.66)} ${f3(Math.sin(a) * 0.66)} L ${f3(Math.cos(b) * 0.84)} ${f3(Math.sin(b) * 0.84)}`); });
+    });
+    const fillP = pattern === "classic";
+    return (
+      <>
+        <path d={lines.join(" ")} stroke={seam} strokeWidth={0.05} strokeLinecap="round" fill="none" />
+        <polygon points={pent(0.36)} fill={ink} fillOpacity={fillP ? 1 : 0.16} stroke={seam} strokeWidth={fillP ? 0.04 : 0.06} strokeLinejoin="round" />
+        {edge.map((deg, i) => {
+          const a = (deg * Math.PI) / 180;
+          return <polygon key={i} points={pent(0.34, Math.cos(a) * 1.0, Math.sin(a) * 1.0, deg + 90, 0.6)} fill={ink} fillOpacity={fillP ? 1 : 0.16} stroke={seam} strokeWidth={fillP ? 0.04 : 0.06} strokeLinejoin="round" />;
+        })}
+      </>
+    );
+  }
+  if (pattern === "modern") {
+    const blade = "M 0.12 -0.12 C 0.25 -0.62 0.62 -0.98 1.05 -0.9 C 0.74 -0.66 0.46 -0.3 0.12 -0.12 Z";
+    return (
+      <>
+        {[0, 90, 180, 270].map((d) => <path key={d} d={blade} transform={`rotate(${d})`} fill={ink} stroke={seam} strokeWidth={0.05} strokeLinejoin="round" />)}
+        {[45, 135, 225, 315].map((d) => <path key={`s${d}`} d="M 0 0 L 0 -1.05" transform={`rotate(${d})`} stroke={seam} strokeWidth={0.04} />)}
+        <circle r={0.16} fill="none" stroke={seam} strokeWidth={0.05} />
+      </>
+    );
+  }
+  if (pattern === "helix") {
+    const blade = "M 0 0 C 0.38 -0.08 0.62 -0.42 0.58 -1.05 C 0.84 -0.74 0.86 -0.3 0.66 0.06 C 0.46 -0.02 0.24 0.02 0 0 Z";
+    return (
+      <>
+        {[0, 120, 240].map((d) => <path key={d} d={blade} transform={`rotate(${d})`} fill={ink} stroke={seam} strokeWidth={0.05} strokeLinejoin="round" />)}
+        <circle r={0.13} fill={ink} stroke={seam} strokeWidth={0.04} />
+      </>
+    );
+  }
+  return null;
+}
 function BallBody({ el, c, r, look, shadow = 0 }) {
   const s = styleOf(look);
   const bn = lookOf(look) === "bn";
   const bs = ballStyle(el);
   const fill = bn ? "#ffffff" : bs.color;
   const ink = bn ? "#111111" : el.color2 || s.ball.stroke;
-  const stroke = bn ? "#111111" : bs.stroke || s.ball.stroke;
-  const pent = [0, 1, 2, 3, 4].map((i) => { const a = ((-90 + i * 72) * Math.PI) / 180; return [Math.cos(a), Math.sin(a)]; });
+  const stroke = bn ? "#111111" : bs.stroke || mixHex(contrastColor(fill) === "#ffffff" ? "#ffffff" : "#111827", fill.length === 7 ? fill : "#ffffff", 0.35);
+  const seam = mixHex(ink.length === 7 ? ink : "#111827", fill.length === 7 ? fill : "#ffffff", 0.45);
   return (
     <>
-      {shadow > 0 && <circle cx={c.x + SHADOW.x * r * 1.1} cy={c.y + SHADOW.y * r * 1.1} r={r * 1.12} fill="url(#chip-shadow)" fillOpacity={shadow} />}
-      <circle cx={c.x} cy={c.y} r={r} fill={fill} />
+      {shadow > 0 && <ellipse cx={c.x + SHADOW.x * r * 1.3} cy={c.y + SHADOW.y * r * 1.3} rx={r * 1.08} ry={r * 0.98} fill="url(#chip-shadow)" fillOpacity={shadow * 1.1} />}
       <g transform={`translate(${c.x} ${c.y}) scale(${r})`}>
-        <g clipPath="url(#chip-clip)">
-          {bs.pattern === "dot" && <circle r={0.36} fill={ink} />}
-          {bs.pattern === "stripe" && <rect x={-1} y={-0.28} width={2} height={0.56} fill={ink} />}
-          {bs.pattern === "classic" && (
-            <>
-              <polygon points={pent.map(([x, y]) => `${(x * 0.4).toFixed(3)},${(y * 0.4).toFixed(3)}`).join(" ")} fill={ink} />
-              {pent.map(([x, y], i) => <line key={`s${i}`} x1={x * 0.4} y1={y * 0.4} x2={x * 0.8} y2={y * 0.8} stroke={ink} strokeWidth={0.1} />)}
-              {pent.map((_, i) => { const a = ((-54 + i * 72) * Math.PI) / 180; return <circle key={`p${i}`} cx={Math.cos(a) * 1.02} cy={Math.sin(a) * 1.02} r={0.32} fill={ink} />; })}
-            </>
-          )}
-        </g>
+        <circle r={1} fill={fill} />
+        <g clipPath="url(#chip-clip)"><BallArt pattern={bs.pattern} ink={ink} seam={seam} /></g>
+        {!bn && <circle r={1} fill="url(#ball-shade)" />}
+        {!bn && <ellipse cx={-0.36} cy={-0.42} rx={0.3} ry={0.2} transform="rotate(-35 -0.36 -0.42)" fill="#ffffff" fillOpacity={0.55} />}
+        <circle r={1} fill="none" stroke={stroke} strokeWidth={bn ? 0.12 : 0.09} />
       </g>
-      {!bn && <circle cx={c.x} cy={c.y} r={r} fill="url(#chip-shade)" />}
-      <circle cx={c.x} cy={c.y} r={r} fill="none" stroke={stroke} strokeWidth={0.35} />
     </>
+  );
+}
+/** Balón pequeño para el selector de modelos */
+export function BallGlyph({ pattern, color = "#ffffff", color2 = "#111827", size = 30 }) {
+  return (
+    <svg width={size} height={size} viewBox="-1.15 -1.15 2.3 2.3" aria-hidden="true">
+      <defs><clipPath id="chip-clip"><circle r="1" /></clipPath><ChipDefs /></defs>
+      <BallBody el={{ pattern, color, color2 }} c={{ x: 0, y: 0 }} r={1} look="blanco" />
+    </svg>
   );
 }
 
@@ -1041,44 +1237,15 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
     }
     case "goal": {
       const gw = el.w || 7.32;
-      const gd = Math.max(1.1, Math.min(2.4, gw * 0.4));
+      const { h, gd } = goalDims(gw);
       const rot = (el.rot || 0) + orientAngle(orient);
       const bn = look === "bn";
-      const col = bn ? s.goal.stroke : el.color || s.goal.stroke;
-      // Vista desde arriba: la boca (postes y larguero) en el borde de abajo y la red hacia atrás, algo más estrecha al fondo
-      const inset = Math.min(gd * 0.3, gw * 0.12);
-      const fy = gd / 2, by = -gd / 2;
-      const nx = Math.min(16, Math.max(3, Math.round(gw / 0.6)));
-      const ny = Math.max(2, Math.round(gd / 0.45));
-      const mesh = [];
-      for (let i = 1; i < nx; i++) {
-        const t = i / nx;
-        mesh.push(`M ${(-gw / 2 + t * gw).toFixed(2)} ${fy} L ${(-gw / 2 + inset + t * (gw - 2 * inset)).toFixed(2)} ${by}`);
-      }
-      for (let j = 1; j < ny; j++) {
-        const v = j / ny, y = fy - v * gd, x = gw / 2 - v * inset;
-        mesh.push(`M ${(-x).toFixed(2)} ${y.toFixed(2)} L ${x.toFixed(2)} ${y.toFixed(2)}`);
-      }
+      const col = bn ? s.goal.stroke : el.color || goalFrame(s);
+      // Vista desde arriba: la boca (postes y larguero) en el borde de abajo del recuadro y la red hacia atrás
       return (
         <g opacity={op} transform={`translate(${c.x} ${c.y}) rotate(${rot})`}>
-          {selected && !ghost && <rect x={-gw / 2 - 1.2} y={by - 1.1} width={gw + 2.4} height={gd + 2.2} fill="none" stroke="#f59e0b" strokeWidth={0.5} strokeDasharray="1 0.8" />}
-          <Shadow amount={ghost ? 0 : s.shadow || 0} v={lightVec(rot, 0.6)} halo={0.3}>
-            {(g) => (
-              <>
-                <polygon points={`${-gw / 2},${fy} ${gw / 2},${fy} ${gw / 2 - inset},${by} ${-gw / 2 + inset},${by}`} fill="#000" fillOpacity={0.22} />
-                <path d={`M ${-gw / 2} ${fy} L ${-gw / 2 + inset} ${by} L ${gw / 2 - inset} ${by} L ${gw / 2} ${fy}`} stroke="#000" strokeWidth={0.3 + g} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-                <line x1={-gw / 2} y1={fy} x2={gw / 2} y2={fy} stroke="#000" strokeWidth={0.55 + g} strokeLinecap="round" />
-                <circle cx={-gw / 2} cy={fy} r={0.38 + g / 2} fill="#000" />
-                <circle cx={gw / 2} cy={fy} r={0.38 + g / 2} fill="#000" />
-              </>
-            )}
-          </Shadow>
-          <polygon points={`${-gw / 2},${fy} ${gw / 2},${fy} ${gw / 2 - inset},${by} ${-gw / 2 + inset},${by}`} fill={bn ? "#ffffff" : col} fillOpacity={bn ? 1 : 0.1} />
-          <path d={mesh.join(" ")} stroke={col} strokeOpacity={0.7} strokeWidth={0.13} fill="none" />
-          <path d={`M ${-gw / 2} ${fy} L ${-gw / 2 + inset} ${by} L ${gw / 2 - inset} ${by} L ${gw / 2} ${fy}`} stroke={col} strokeWidth={0.3} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-          <line x1={-gw / 2} y1={fy} x2={gw / 2} y2={fy} stroke={col} strokeWidth={0.55} strokeLinecap="round" />
-          <circle cx={-gw / 2} cy={fy} r={0.38} fill={col} />
-          <circle cx={gw / 2} cy={fy} r={0.38} fill={col} />
+          {selected && !ghost && <rect x={-gw / 2 - 1.2} y={-gd / 2 - 1.1} width={gw + 2.4} height={gd + 2.2} fill="none" stroke="#f59e0b" strokeWidth={0.5} strokeDasharray="1 0.8" />}
+          <GoalShape gw={gw} gd={gd} h={h} frame={col} net={goalNet(s)} proj={(px, py) => ({ x: px, y: py + gd / 2 })} shadow={ghost ? 0 : s.shadow || 0} sv={lightVec(rot, h * 0.3)} />
         </g>
       );
     }
@@ -1328,8 +1495,27 @@ function PerspToken({ el, ctx, selected, ghost = false }) {
   );
 }
 
+// Portería de material en perspectiva: de pie, con su altura (no aplastada en el suelo)
+function PerspGoal({ el, ctx, selected }) {
+  const s = styleOf(ctx.look);
+  const gw = el.w || 7.32;
+  const { h, gd } = goalDims(gw);
+  const c = toView(ctx.field, ctx.orient, el);
+  const a = (((el.rot || 0) + orientAngle(ctx.orient)) * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
+  const lift = (lx, ly, z = 0) => { const v = { x: c.x + lx * ca - ly * sa, y: c.y + lx * sa + ly * ca }; const q = ctx.persp.P(v); return { x: q.x, y: q.y - z * ctx.persp.scaleAt(v) }; };
+  const bn = ctx.look === "bn";
+  const col = bn ? s.goal.stroke : el.color || goalFrame(s);
+  const box = [[-gw / 2 - 1.2, -gd / 2 - 1.1], [gw / 2 + 1.2, -gd / 2 - 1.1], [gw / 2 + 1.2, gd / 2 + 1.1], [-gw / 2 - 1.2, gd / 2 + 1.1]].map(([x, y]) => lift(x, y));
+  return (
+    <g opacity={el.opacity ?? 1}>
+      {selected && <polygon points={box.map((q) => `${q.x},${q.y}`).join(" ")} fill="none" stroke="#f59e0b" strokeWidth={0.5 * ctx.persp.scaleAt(c)} strokeDasharray="1 0.8" />}
+      <GoalShape gw={gw} gd={gd} h={h} frame={col} net={goalNet(s)} flat={false} k={ctx.persp.scaleAt(c)} proj={(px, py, pz) => lift(px, py + gd / 2, pz)} />
+    </g>
+  );
+}
 export function Item({ el, ctx, els = [], selected = false, handles = false }) {
   if (ctx.persp && el.k === "token") return <PerspToken el={el} ctx={ctx} selected={selected} />;
+  if (ctx.persp && el.k === "goal") return <PerspGoal el={el} ctx={ctx} selected={selected} />;
   if (ctx.persp && !isGround(el)) return <g transform={perspWrap(el, ctx)}><ItemFlat el={el} ctx={ctx} els={els} selected={selected} handles={handles} /></g>;
   return <ItemFlat el={el} ctx={ctx} els={els} selected={selected} handles={handles} />;
 }
@@ -1411,7 +1597,7 @@ const SVG_DEFS = (
 );
 /** Suelo del 3D: el campo en plano (vertical, ataca arriba), sin gradas ni vallas, en el recuadro `region` [x0, y0, x1, y1]. */
 export function GroundSvg({ board, region }) {
-  const b = { ...board, field: isCutField(board.field) ? "full" : board.field, view: undefined, orient: "v", stands: false, ads: false, cam: undefined, frames: [{ id: "g", els: [] }] };
+  const b = { ...board, field: isCutField(board.field) ? "full" : board.field, view: undefined, orient: "v", stands: false, ads: false, cam: undefined, frames: [{ id: "g", els: [] }], _noGoals: true };
   return <Board board={b} els={[]} camera={null} viewOverride={[region[0], region[1], region[2] - region[0], region[3] - region[1]]} />;
 }
 /** Lo pintado en el suelo (zonas, flechas, conectores y lo que está tumbado) sobre fondo transparente, en el mismo recuadro. */

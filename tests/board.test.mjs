@@ -579,9 +579,9 @@ test("pies y orientación de la ficha: ángulo hacia donde apunta el dedo, por f
 });
 
 test("diseño del balón: sin estilo guardado es el de siempre y los colores se respetan", () => {
-  assert.deepEqual(ballStyle({}), { pattern: "dot", color: "#ffffff", color2: "#111827", stroke: null });
+  assert.deepEqual(ballStyle({}), { pattern: "classic", color: "#ffffff", color2: "#111827", stroke: null });
   assert.deepEqual(ballStyle({ pattern: "classic", color: "#fde047", color2: "#000", stroke: "#f00" }), { pattern: "classic", color: "#fde047", color2: "#000", stroke: "#f00" });
-  assert.deepEqual(BALL_PATTERNS.map((p) => p.id), ["classic", "dot", "plain", "stripe"]);
+  assert.deepEqual(BALL_PATTERNS.map((p) => p.id), ["classic", "modern", "helix", "seams", "dot", "plain", "stripe"]);
 });
 
 test("tipo de dibujo: sin elegir se deduce de los fotogramas y los fotogramas se conservan al pasar a imagen", () => {

@@ -326,9 +326,14 @@ function buildAds(field, board, pending) {
     g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
     g.computeVertexNormals();
-    const m = new THREE.Mesh(g, tex ? new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }) : new THREE.MeshBasicMaterial({ color: new THREE.Color(pn.bg), side: THREE.DoubleSide }));
+    // la cara de los anuncios mira al campo; por detrás, lisa (si no, desde la grada se leerían al revés)
+    const a = new THREE.Vector3(p0.x, 0.05, p0.y), n = new THREE.Vector3().subVectors(new THREE.Vector3(p1.x, 0.05, p1.y), a).cross(new THREE.Vector3().subVectors(new THREE.Vector3(p2.x, H, p2.y), a));
+    const toField = new THREE.Vector3(field.w / 2 - p0.x, 0, field.h / 2 - p0.y);
+    const front = n.dot(toField) > 0 ? THREE.FrontSide : THREE.BackSide;
+    const m = new THREE.Mesh(g, tex ? new THREE.MeshBasicMaterial({ map: tex, side: front }) : new THREE.MeshBasicMaterial({ color: new THREE.Color(pn.bg), side: front }));
     m.castShadow = true;
     group.add(m);
+    group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: new THREE.Color("#3a0710"), side: front === THREE.FrontSide ? THREE.BackSide : THREE.FrontSide })));
   }
   return group;
 }
@@ -340,7 +345,9 @@ function netTexture() {
     NET_CANVAS = document.createElement("canvas");
     NET_CANVAS.width = NET_CANVAS.height = 64;
     const g = NET_CANVAS.getContext("2d");
-    g.strokeStyle = "rgba(255,255,255,0.95)"; g.lineWidth = 5;
+    // un velo blanco muy suave (para que la red se lea como superficie) y los hilos más gruesos
+    g.fillStyle = "rgba(255,255,255,0.16)"; g.fillRect(0, 0, 64, 64);
+    g.strokeStyle = "rgba(255,255,255,1)"; g.lineWidth = 9;
     g.strokeRect(0, 0, 64, 64);
   }
   const t = new THREE.CanvasTexture(NET_CANVAS);
@@ -350,7 +357,8 @@ function netTexture() {
 // Portería con la boca en z = 0 mirando a +z y la red hacia −z
 function makeGoal(w, h, depth, color = "#ffffff") {
   const group = new THREE.Group();
-  const r = Math.max(0.05, Math.min(0.08, w * 0.011));
+  // postes y larguero algo más gruesos que los reales (12 cm) para que se vean desde lejos
+  const r = Math.max(0.06, Math.min(0.13, w * 0.017));
   const post = lambert(hexOf(color, "#ffffff"));
   const cyl = (len) => new THREE.CylinderGeometry(r, r, len, 10);
   const bar = (a, b, rr = r) => {
@@ -367,6 +375,8 @@ function makeGoal(w, h, depth, color = "#ffffff") {
   const thin = r * 0.5;
   bar([-x, 0, -depth], [x, 0, -depth], thin); bar([-x, 0, 0], [-x, 0, -depth], thin); bar([x, 0, 0], [x, 0, -depth], thin);
   bar([-x, 0, -depth], [-x, hb, -depth], thin); bar([x, 0, -depth], [x, hb, -depth], thin);
+  // barras de arriba: del larguero al fondo y la de atrás
+  bar([-x, h, 0], [-x, hb, -depth], thin); bar([x, h, 0], [x, hb, -depth], thin); bar([-x, hb, -depth], [x, hb, -depth], thin);
   // red: techo (del larguero al fondo), fondo y laterales
   const quads = [
     [[-x, h, 0], [x, h, 0], [x, hb, -depth], [-x, hb, -depth]],
@@ -375,7 +385,7 @@ function makeGoal(w, h, depth, color = "#ffffff") {
     [[x, h, 0], [x, hb, -depth], [x, 0, -depth], [x, 0, 0]],
   ];
   const pos = [], uv = [];
-  const cell = 0.16;
+  const cell = 0.22;
   for (const q of quads) {
     const len = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
     const U = len(q[0], q[1]) / cell, V = len(q[1], q[2]) / cell;
@@ -385,7 +395,7 @@ function makeGoal(w, h, depth, color = "#ffffff") {
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-  const net = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: netTexture(), color: new THREE.Color(hexOf(color, "#ffffff")), transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false }));
+  const net = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: netTexture(), color: new THREE.Color(hexOf(color, "#ffffff")), transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false }));
   net.renderOrder = 2;
   group.add(net);
   return group;
@@ -489,34 +499,83 @@ function labelSprite(key, text, opts, heightM) {
   return sp;
 }
 
-let BALL_CANVAS = null;
+// Texturas del balón (equirectangular, 512 × 256), píxel a píxel para que los dibujos salgan bien en toda la esfera (también en
+// los polos). Clásico y entreno = balón de 32 paneles (12 pentágonos en los vértices de un icosaedro, girado para que ningún panel
+// caiga en un polo) con sus costuras; moderno y hélice = paneles curvos en espiral; punto = 12 manchas; franja = el ecuador.
+const BALL_CENTERS = (() => {
+  const t = (1 + Math.sqrt(5)) / 2, out = [];
+  for (const [a, b] of [[1, t], [-1, t], [1, -t], [-1, -t]]) out.push([0, a, b], [a, b, 0], [b, 0, a]);
+  // giro fijo (para que no haya un pentágono justo en el polo de la textura)
+  const rx = 0.42, rz = 0.31;
+  return out.map(([x, y, z]) => {
+    const n = Math.hypot(x, y, z); x /= n; y /= n; z /= n;
+    const y1 = y * Math.cos(rx) - z * Math.sin(rx), z1 = y * Math.sin(rx) + z * Math.cos(rx);
+    return [x * Math.cos(rz) - y1 * Math.sin(rz), x * Math.sin(rz) + y1 * Math.cos(rz), z1];
+  });
+})();
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const norm3 = (a) => { const n = Math.hypot(...a) || 1; return a.map((v) => v / n); };
+// vecinos de cada pentágono (los 5 vértices del icosaedro más cercanos) y un eje de referencia para medir el ángulo alrededor del centro
+const BALL_NB = BALL_CENTERS.map((c) => BALL_CENTERS.map((o, j) => [dot3(c, o), j]).filter(([d]) => d < 0.999).sort((a, b) => b[0] - a[0]).slice(0, 5).map(([, j]) => j));
+const PENT_R = 0.36; // radio angular del pentágono (rad)
+function ballPixel(pattern, v) {
+  // 0 = color del balón, 1 = dibujo, 2 = costura
+  if (pattern === "plain") return 0;
+  if (pattern === "stripe") return Math.abs(v[1]) < 0.22 ? 1 : 0;
+  let best = -2, bi = 0, second = -2, si = 0;
+  for (let i = 0; i < 12; i++) { const d = dot3(v, BALL_CENTERS[i]); if (d > best) { second = best; si = bi; best = d; bi = i; } else if (d > second) { second = d; si = i; } }
+  const th = Math.acos(Math.min(1, best));
+  if (pattern === "dot") return th < 0.22 ? 1 : 0;
+  if (pattern === "modern" || pattern === "helix") {
+    const lat = Math.asin(Math.max(-1, Math.min(1, v[1]))), lon = Math.atan2(v[2], v[0]);
+    const f = pattern === "modern" ? Math.sin(2 * lon + 2.6 * Math.sin(2 * lat)) : Math.sin(3 * lon + 3.8 * lat);
+    const cut = pattern === "modern" ? 0.5 : 0.25;
+    if (Math.abs(f - cut) < 0.07) return 2;
+    return f > cut ? 1 : 0;
+  }
+  // clásico / entreno: pentágono con los vértices hacia los vecinos
+  const c = BALL_CENTERS[bi], nb = BALL_CENTERS[BALL_NB[bi][0]];
+  const e1 = norm3(cross3(cross3(c, nb), c)), e2 = cross3(c, e1);
+  const phi = Math.atan2(dot3(v, e2), dot3(v, e1));
+  const seg = (2 * Math.PI) / 5, m = ((phi % seg) + seg) % seg - seg / 2;
+  const rEdge = (PENT_R * Math.cos(Math.PI / 5)) / Math.cos(m);
+  const w = 0.022;
+  if (Math.abs(th - rEdge) < w) return 2;
+  if (th < rEdge) return pattern === "classic" ? 1 : 0;
+  // costura entre hexágonos: el arco entre dos pentágonos vecinos, fuera de los pentágonos
+  if (BALL_NB[bi].includes(si)) {
+    const n = norm3(cross3(c, BALL_CENTERS[si]));
+    if (Math.abs(dot3(v, n)) < w) return 2;
+  }
+  return 0;
+}
 function ballTexture(bs) {
   const key = `ball:${bs.pattern}:${bs.color}:${bs.color2}`;
   const S = shared();
   if (S.tex.has(key)) return S.tex.get(key).texture;
-  BALL_CANVAS = document.createElement("canvas");
-  BALL_CANVAS.width = 512; BALL_CANVAS.height = 256;
-  const g = BALL_CANVAS.getContext("2d");
-  g.fillStyle = bs.color; g.fillRect(0, 0, 512, 256);
-  g.fillStyle = bs.color2;
-  if (bs.pattern === "stripe") g.fillRect(0, 108, 512, 40);
-  else if (bs.pattern !== "plain") {
-    // las 12 manchas del balón clásico (vértices de un icosaedro)
-    const pts = [[90, 0], [-90, 0]];
-    for (let i = 0; i < 5; i++) { pts.push([26.57, i * 72]); pts.push([-26.57, i * 72 + 36]); }
-    for (const [lat, lon] of pts) {
-      const y = ((90 - lat) / 180) * 256;
-      const rr = 22;
-      const sx = 1 / Math.max(0.2, Math.cos((lat * Math.PI) / 180));
-      for (const dx of [-512, 0, 512]) {
-        g.beginPath();
-        g.ellipse(((lon + 180) / 360) * 512 + dx, y, rr * sx, rr, 0, 0, Math.PI * 2);
-        g.fill();
-      }
-      if (Math.abs(lat) === 90) g.fillRect(0, lat > 0 ? 0 : 256 - 14, 512, 14);
+  const W = 512, H = 256;
+  const cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const g = cv.getContext("2d");
+  const img = g.createImageData(W, H);
+  // el lienzo va en sRGB: se leen los colores tal cual (THREE.Color los pasaría a lineal y saldrían más oscuros)
+  const rgb = (h) => { const x = hexOf(h, "#ffffff"); return [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16)); };
+  const base = rgb(bs.color), ink = rgb(bs.color2);
+  const seam = base.map((b, i) => Math.round(ink[i] * 0.6 + b * 0.4));
+  const cols = [base, ink, seam];
+  for (let y = 0; y < H; y++) {
+    const lat = Math.PI / 2 - ((y + 0.5) / H) * Math.PI;
+    for (let x = 0; x < W; x++) {
+      const lon = ((x + 0.5) / W) * 2 * Math.PI - Math.PI;
+      const v = [Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)];
+      const col = cols[ballPixel(bs.pattern, v)];
+      const o = (y * W + x) * 4;
+      img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = 255;
     }
   }
-  const t = canvasTexture(BALL_CANVAS);
+  g.putImageData(img, 0, 0);
+  const t = canvasTexture(cv);
   S.tex.set(key, { texture: t, promise: null });
   return t;
 }
@@ -584,7 +643,7 @@ function buildPiece(board, el, look, chip, scr, pending) {
   if (el.k === "ball") {
     const rb = Math.max(0.7, chip * 0.55) * k * 0.75;
     const bs = ballStyle(el);
-    const m = new THREE.Mesh(geo("ball", () => new THREE.SphereGeometry(1, 32, 20)), new THREE.MeshLambertMaterial({ map: ballTexture(bn ? { pattern: "dot", color: "#ffffff", color2: "#111111" } : bs) }));
+    const m = new THREE.Mesh(geo("ball", () => new THREE.SphereGeometry(1, 32, 20)), new THREE.MeshLambertMaterial({ map: ballTexture(bn ? { ...bs, color: "#ffffff", color2: "#111111" } : bs) }));
     m.scale.setScalar(rb);
     m.position.y = rb;
     m.rotation.set(0.5, 0.8, 0.2);
