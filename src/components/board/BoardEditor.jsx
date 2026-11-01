@@ -4,7 +4,7 @@ import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, Chev
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
-  boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
+  boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
   insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
@@ -319,6 +319,34 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     e.currentTarget.setPointerCapture?.(e.pointerId);
     if (tool === "pan") { const cam0 = camOf(live.current); drag.current = cam0.z > 1 ? { mode: "pan", cx: e.clientX, cy: e.clientY, cam0 } : null; return; }
     const handle = e.target?.dataset?.h;
+    // trayectoria de una ficha o del balón (desde el fotograma anterior): control de la curva, «+» y quiebros
+    const fromEl = handle && /^t(c|m\d+|v\d+)$/.test(handle) && selected && prev ? prev.els.find((x) => x.id === selected.id) : null;
+    if (fromEl) {
+      const via = pathMode(selected) === "poly" ? selected.path.via : [];
+      if (/^tv\d+$/.test(handle)) {
+        const key = `${selected.id}:${handle}`, now = Date.now();
+        if (lastTap.current.id === key && now - lastTap.current.at < 420) {
+          lastTap.current = { id: null, at: 0 };
+          drag.current = null;
+          const rest = via.filter((_, j) => j !== Number(handle.slice(2)));
+          commit(patchElement(live.current, idx, selected.id, { path: rest.length ? { via: rest } : undefined }));
+          return;
+        }
+        lastTap.current = { id: key, at: now };
+      }
+      const mid = /^tm(\d+)$/.exec(handle);
+      if (mid) {
+        const i = Number(mid[1]);
+        const corners = [fromEl, ...via, selected];
+        const q = { x: round((corners[i].x + corners[i + 1].x) / 2), y: round((corners[i].y + corners[i + 1].y) / 2) };
+        const nv = [...via]; nv.splice(i, 0, q);
+        const el = { ...selected, path: { via: nv } };
+        drag.current = { mode: "handle", h: `tv${i}`, id: selected.id, el, snapshot: patchElement(live.current, idx, selected.id, { path: { via: nv } }), base: live.current };
+        return;
+      }
+      drag.current = { mode: "handle", h: handle, id: selected.id, el: selected, snapshot: live.current };
+      return;
+    }
     if (handle && (selected?.k === "arrow" || (isQuad(selected) && /^q[0-3]$/.test(handle)) || (selected?.k === "token" && handle === "f") || (materialOf(selected?.k) && handle === "r"))) {
       // «+» en mitad de un tramo de flecha: nace ahí un quiebro nuevo y se arrastra
       // doble clic o doble toque sobre un quiebro: se quita
@@ -434,7 +462,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     }
     if (d.mode === "handle") {
       let patch;
-      if (d.h === "l") {
+      if (d.h === "tc") {
+        const p = point(e);
+        patch = { path: { cx: p.x, cy: p.y } };
+      } else if (/^tv\d+$/.test(d.h)) {
+        const p = point(e), i = Number(d.h.slice(2));
+        patch = { path: { via: d.el.path.via.map((q, j) => (j === i ? { x: p.x, y: p.y } : q)) } };
+      } else if (d.h === "l") {
         const g = arrowPoints(d.el, 24)[12], n = liftNormal(d.el, orient), r = toField(e);
         const raw = (r.x - g.x) * n.x + (r.y - g.y) * n.y;
         const sign = raw < 0 ? -1 : 1;
@@ -936,10 +970,27 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     </div>
   ) : null;
 
+  // posición anterior de lo elegido si se ha movido desde el fotograma anterior: su trayectoria se puede doblar
+  const pathFrom = (() => {
+    if (!selected || !prev || !isMovable(selected) || board.frames.length < 2) return null;
+    const p = prev.els.find((x) => x.id === selected.id);
+    return p && Math.hypot(p.x - selected.x, p.y - selected.y) > 0.8 ? p : null;
+  })();
   const propsBody = panelEl && !multi ? (
     <div className="space-y-1.5" data-testid="board-props">
       {variants}
       {selected && <p className="text-[11px] text-amber-800">{selected.k === "arrow" ? "Arrastra la flecha o sus puntos" : selected.k === "token" && selected.feet ? "Arrastra la ficha; el punto naranja gira hacia dónde mira" : materialOf(selected.k) ? "Arrastra el material; el punto naranja lo gira" : selected.k === "link" ? "Sigue a sus fichas: mueve las fichas para cambiar la figura" : isQuad(selected) ? "Arrastra la zona o sus esquinas" : isMovable(selected) && board.frames.length > 1 ? "Arrástrala en cada fotograma" : "Arrastra para moverla"}</p>}
+      {pathFrom && (
+        <div className="flex flex-wrap items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5" data-testid="path-mode">
+          <span className="text-[11px] font-semibold text-amber-900 mr-1">Trayectoria desde el fotograma {idx}</span>
+          {[{ id: "straight", label: "Recta" }, { id: "curve", label: "Curva" }, { id: "poly", label: "Cambios de dirección" }].map((o) => (
+            <button key={o.id} type="button" data-testid={`path-${o.id}`} aria-pressed={pathMode(selected) === o.id}
+              onClick={() => commit(patchElement(board, idx, selected.id, { path: pathFor(o.id, pathFrom, selected, selected.path) }))}
+              className={`h-7 px-2 rounded-md border text-[11px] font-semibold ${pathMode(selected) === o.id ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-700 border-gray-200"}`}>{o.label}</button>
+          ))}
+          <p className="w-full text-[10.5px] text-amber-900/80 leading-snug">{pathMode(selected) === "curve" ? "Arrastra el punto naranja para doblar la curva." : "Arrastra el «+» del recorrido para cambiar de dirección; doble clic en un punto lo quita."}</p>
+        </div>
+      )}
       <BoardProps
         key={selected ? selected.id : `tool-${tool}`}
         el={panelEl}

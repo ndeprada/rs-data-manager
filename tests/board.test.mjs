@@ -1130,3 +1130,25 @@ test("césped cortado en dos direcciones: franjas a lo ancho y a lo largo con to
   assert.ok(r.every((x) => x.y + x.h <= 105.0001 && x.x + x.w <= 68.0001));
   assert.equal(B.grassRects(B.fieldOf("full"), "liso").length, 0);
 });
+
+test("trayectoria del movimiento: recta, curva o con cambios de dirección, y no se copia a fotogramas nuevos", async () => {
+  const B = await import("../src/lib/board.js");
+  const a = { x: 0, y: 0 }, b = { x: 20, y: 0 };
+  assert.deepEqual(B.moveAt(a, b, undefined, 0.5), { x: 10, y: 0 });
+  const curve = B.pathFor("curve", a, b);
+  assert.equal(B.pathMode({ path: curve }), "curve");
+  const mid = B.moveAt(a, b, curve, 0.5);
+  assert.ok(Math.abs(mid.y) > 1, "la curva se separa de la recta");
+  const poly = { via: [{ x: 10, y: 10 }] };
+  const half = B.moveAt(a, b, poly, 0.5);
+  assert.ok(Math.abs(half.x - 10) < 0.01 && Math.abs(half.y - 10) < 0.01, "a mitad de recorrido está en el quiebro (dos tramos iguales)");
+  assert.deepEqual(B.moveAt(a, b, poly, 1), { x: 20, y: 0 });
+  const board = { v: 2, field: "full", frames: [
+    { id: "f1", els: [{ id: "t", k: "token", team: "a", x: 0, y: 0 }] },
+    { id: "f2", els: [{ id: "t", k: "token", team: "a", x: 20, y: 0, path: poly }] },
+  ] };
+  const at = B.lerpFrames(board.frames[0], board.frames[1], 0.5).find((e) => e.id === "t");
+  assert.ok(Math.abs(at.y - 10) < 0.5, "la animación sigue la trayectoria");
+  assert.equal(B.addFrame(board, 1).board.frames[2].els[0].path, undefined);
+  assert.equal(B.duplicateFrame(board, 1).board.frames[2].els[0].path, undefined);
+});

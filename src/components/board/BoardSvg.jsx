@@ -2,7 +2,7 @@ import { AD_LOGOS } from "@/lib/adLogos";
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, camBox, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  isGroundEl, isPersp, isCutField, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
+  isGroundEl, isPersp, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -328,6 +328,39 @@ function Stadium({ field, s, board, orient, T, textAt }) {
       {flatPanels.map(drawPanel)}
       <path d={P(parts.apron)} fill={s.bg} />
       {standPanels.map(drawPanel)}
+    </g>
+  );
+}
+
+// Tiradores de la trayectoria de una ficha o del balón elegido (desde el fotograma anterior): «+» en cada tramo para
+// añadir un cambio de dirección, quiebros que se arrastran (doble clic lo quita) y el punto de control de la curva.
+function PathHandles({ g, V }) {
+  const mode = pathMode(g);
+  const corners = [g.from, ...(mode === "poly" ? g.path.via : []), g.to];
+  const ctrl = mode === "curve" ? { x: g.path.cx, y: g.path.cy } : null;
+  const C = ctrl && V(ctrl), A = V(g.from), B = V(g.to);
+  return (
+    <g data-testid="path-handles">
+      {C && <line x1={A.x} y1={A.y} x2={C.x} y2={C.y} stroke="#f59e0b" strokeWidth={0.2} strokeDasharray="0.8 0.6" pointerEvents="none" />}
+      {C && <line x1={B.x} y1={B.y} x2={C.x} y2={C.y} stroke="#f59e0b" strokeWidth={0.2} strokeDasharray="0.8 0.6" pointerEvents="none" />}
+      {C && <circle cx={C.x} cy={C.y} r={1.3} fill="#f59e0b" stroke="#fff" strokeWidth={0.4} pointerEvents="none" />}
+      {C && <circle data-h="tc" cx={C.x} cy={C.y} r={3} fill="transparent" />}
+      {!ctrl && corners.slice(0, -1).map((c, i) => {
+        const m = V({ x: (c.x + corners[i + 1].x) / 2, y: (c.y + corners[i + 1].y) / 2 });
+        return (
+          <g key={`tm${i}`}>
+            <circle cx={m.x} cy={m.y} r={0.95} fill="#fff" stroke="#f59e0b" strokeWidth={0.3} strokeDasharray="0.5 0.35" pointerEvents="none" />
+            <path d={`M ${m.x - 0.5} ${m.y} H ${m.x + 0.5} M ${m.x} ${m.y - 0.5} V ${m.y + 0.5}`} stroke="#f59e0b" strokeWidth={0.28} pointerEvents="none" />
+            <circle data-h={`tm${i}`} cx={m.x} cy={m.y} r={2.2} fill="transparent" />
+          </g>
+        );
+      })}
+      {corners.slice(1, -1).map((c, i) => { const q = V(c); return (
+        <g key={`tv${i}`}>
+          <circle cx={q.x} cy={q.y} r={1.15} fill="#f59e0b" stroke="#fff" strokeWidth={0.4} pointerEvents="none" />
+          <circle data-h={`tv${i}`} cx={q.x} cy={q.y} r={2.8} fill="transparent" />
+        </g>
+      ); })}
     </g>
   );
 }
@@ -1304,16 +1337,18 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
       </defs>
       {persp ? <FieldPersp field={field} orient={orient} look={look} vb={fullVb} persp={persp} board={board} /> : <Field field={field} orient={orient} look={look} vb={fullVb} board={board} />}
       {ghosts.map((g) => {
-        const a = V(g.from), b = V(g.to);
         const ghost = { ...g, x: g.from.x, y: g.from.y };
+        const mine = handles && sel.length === 1 && sel[0] === g.id;
+        const route = movePoints(g.from, g.to, g.path).map(V);
         return (
           <g key={`g${g.id}`}>
-            <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={styleOf(look).ink} strokeWidth={0.3} strokeDasharray="0.9 0.9" opacity={0.45} />
+            <polyline points={route.map((q) => `${q.x.toFixed(2)},${q.y.toFixed(2)}`).join(" ")} fill="none" stroke={mine ? "#f59e0b" : styleOf(look).ink} strokeWidth={mine ? 0.42 : 0.3} strokeDasharray="0.9 0.9" opacity={mine ? 0.95 : 0.45} strokeLinejoin="round" />
             {persp ? (ghost.k === "token" ? <PerspToken el={ghost} ctx={ctx} ghost /> : <g transform={perspWrap(ghost, ctx)}><Piece el={ghost} ctx={ctx} ghost /></g>) : <Piece el={ghost} ctx={ctx} ghost />}
           </g>
         );
       })}
       {order.map((el) => <Item key={el.id} el={el} els={els} ctx={ctx} selected={sel.includes(el.id) || (el.k !== "link" && marks.includes(el.id))} handles={handles} />)}
+      {handles && sel.length === 1 && ghosts.filter((g) => g.id === sel[0]).map((g) => <PathHandles key={`ph${g.id}`} g={g} V={V} />)}
       {handles && sel.length > 1 && <GroupBox ids={sel} els={els} ctx={ctx} />}
       {markNumbers && marks.length > 0 && <MarkNumbers ids={marks} els={els} ctx={ctx} />}
       {handles && selEl && isQuad(selEl) && <QuadHandles el={selEl} ctx={ctx} />}

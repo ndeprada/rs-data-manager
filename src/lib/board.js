@@ -354,7 +354,7 @@ export const isAnimation = (b) => boardMode(b) === "anim" && (b?.frames?.length 
 export function addFrame(board, after = board.frames.length - 1) {
   if (board.frames.length >= MAX_FRAMES) return { board, index: after };
   const src = board.frames[Math.min(Math.max(after, 0), board.frames.length - 1)];
-  const frame = { id: newId(), els: clone(src.els.filter(isCarried)) };
+  const frame = { id: newId(), els: stripPath(clone(src.els.filter(isCarried))) };
   const frames = [...board.frames];
   frames.splice(after + 1, 0, frame);
   return { board: { ...board, frames }, index: after + 1 };
@@ -365,7 +365,7 @@ export function addFrame(board, after = board.frames.length - 1) {
 export function duplicateFrame(board, index) {
   if (board.frames.length >= MAX_FRAMES) return { board, index };
   const src = board.frames[index];
-  const els = clone(src.els);
+  const els = stripPath(clone(src.els));
   const frames = [...board.frames];
   frames.splice(index + 1, 0, { id: newId(), els });
   return { board: { ...board, frames }, index: index + 1 };
@@ -515,7 +515,8 @@ export function lerpFrames(a, b, t) {
     if (isCarried(e)) {
       if (n && isCarried(n)) {
         if (isMovable(e)) {
-          const o = { ...e, x: e.x + (n.x - e.x) * k, y: e.y + (n.y - e.y) * k, opacity: 1 };
+          const at = moveAt(e, n, n.path, k);
+          const o = { ...e, x: at.x, y: at.y, opacity: 1 };
           if (e.k === "token" && e.feet && (e.face != null || n.face != null)) o.face = lerpAngle(faceOf(e), faceOf(n), k);
           out.push(o);
         } else out.push({ ...e, opacity: 1 });
@@ -549,6 +550,44 @@ export function elsAtTime(board, ms, { speed = 1500, holdStart = ANIM_HOLD.start
   const i = Math.floor(seg);
   return lerpFrames(frames[i], frames[i + 1], seg - i);
 }
+
+// ── Trayectoria del movimiento (desmarques en curva o con cambios de dirección) ───────────────────────────────────────
+// Va en el elemento del fotograma de LLEGADA: `path = { cx, cy }` (curva) o `path = { via: [{x,y}…] }` (con quiebros);
+// sin `path`, recta. Es de ese fotograma (no se copia al añadir o duplicar fotogramas).
+export const pathMode = (el) => (Array.isArray(el?.path?.via) && el.path.via.length ? "poly" : el?.path && el.path.cx != null && el.path.cy != null ? "curve" : "straight");
+const pathArrow = (from, to, path) => ({ x1: from.x, y1: from.y, x2: to.x, y2: to.y, ...(pathMode({ path }) === "poly" ? { via: path.via } : pathMode({ path }) === "curve" ? { cx: path.cx, cy: path.cy } : {}) });
+/** Puntos del recorrido de `from` a `to` siguiendo la trayectoria. */
+export const movePoints = (from, to, path, steps = 32) => arrowPoints(pathArrow(from, to, path), steps);
+/** Punto a una fracción k (0–1) del recorrido, medida por distancia (la velocidad no cambia en las curvas). */
+export function moveAt(from, to, path, k) {
+  if (pathMode({ path }) === "straight") return { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k };
+  if (k >= 1) return { x: to.x, y: to.y };
+  if (k <= 0) return { x: from.x, y: from.y };
+  const pts = movePoints(from, to, path, 48);
+  const lens = pts.slice(1).map((q, i) => Math.hypot(q.x - pts[i].x, q.y - pts[i].y));
+  const total = lens.reduce((a, b) => a + b, 0);
+  if (!total) return { ...to };
+  let want = total * Math.min(1, Math.max(0, k));
+  for (let i = 0; i < lens.length; i++) {
+    if (want <= lens[i] || i === lens.length - 1) { const f = lens[i] ? Math.min(1, want / lens[i]) : 0; return { x: pts[i].x + (pts[i + 1].x - pts[i].x) * f, y: pts[i].y + (pts[i + 1].y - pts[i].y) * f }; }
+    want -= lens[i];
+  }
+  return { ...to };
+}
+/** Trayectoria nueva al elegir «Recta», «Curva» o «Con quiebros» (desde la posición anterior `from` hasta la actual `to`). */
+export function pathFor(mode, from, to, cur = null) {
+  if (mode === "curve") {
+    if (pathMode({ path: cur }) === "curve") return cur;
+    const c = defaultControl({ x1: from.x, y1: from.y, x2: to.x, y2: to.y });
+    return { cx: c.cx, cy: c.cy };
+  }
+  if (mode === "poly") {
+    if (pathMode({ path: cur }) === "poly") return cur;
+    return { via: [firstBend({ x1: from.x, y1: from.y, x2: to.x, y2: to.y })] };
+  }
+  return undefined;
+}
+const stripPath = (els) => els.map((e) => { if (!e.path) return e; const { path: _p, ...rest } = e; return rest; });
 
 // Posición de cada elemento que se mueve entre el fotograma anterior y el actual (rastro en el editor).
 export function ghostsOf(prev, cur) {
