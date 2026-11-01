@@ -595,7 +595,9 @@ export const perspBoost = (el) => (el?.k === "token" ? PERSP.chip : 1);
 export function perspectiveOf(field, orient, m = 3) {
   const [x0, y0, W, H] = viewBox(field, orient, m);
   const cx = x0 + W / 2, zf = 1 / PERSP.far, Hp = H * PERSP.height;
-  const top = y0, Ybot = top + PERSP.top + Hp, beta = Hp / (1 - PERSP.far);
+  // con gradas (margen de estadio) hace falta más sitio arriba: la grada de enfrente se levanta
+  const pTop = PERSP.top + (m >= 12 ? 6 : 0);
+  const top = y0, Ybot = top + pTop + Hp, beta = Hp / (1 - PERSP.far);
   const scaleAt = (p) => 1 / (zf + (1 - zf) * ((p.y - y0) / H));
   const P = (p) => { const k = scaleAt(p); return { x: cx + (p.x - cx) * k, y: Ybot - beta * (1 - k) }; };
   const inv = (q) => {
@@ -605,7 +607,7 @@ export function perspectiveOf(field, orient, m = 3) {
   };
   // alto en pantalla de 1 m de suelo en profundidad (para aplastar lo que está tumbado en el suelo)
   const depthAt = (p) => Math.abs(P({ x: p.x, y: p.y + 0.5 }).y - P({ x: p.x, y: p.y - 0.5 }).y);
-  return { P, inv, scaleAt, depthAt, vb: [x0, top, W, PERSP.top + Hp + PERSP.bottom] };
+  return { P, inv, scaleAt, depthAt, vb: [x0, top, W, pTop + Hp + PERSP.bottom] };
 }
 
 // Transformación SVG que lleva el campo (dibujado en vertical) a la orientación elegida

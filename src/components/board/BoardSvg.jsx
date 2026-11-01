@@ -31,12 +31,12 @@ const COLOR = {
 const ESTADIO = {
   ...COLOR, bg: "#3d8b5f", margin: "#3d8b5f", stripe: null, check: "rgba(255,255,255,0.065)", line: "rgba(255,255,255,0.95)", lineW: 0.3, chipStroke: null, shadow: 0.4,
   surround: "#0d2a1f",
-  stadium: { outer: "#0b2219", roof: "#1b2420", roofLine: "#56635d", riser: "#0f3324", riserLine: "rgba(0,0,0,0.35)", seats: ["#1f7a4f", "#238556", "#1c6f48", "#26905c"], aisle: "#6b7671", concourse: "#2b3330", track: "#26332d", boards: "#dfe4e6" },
+  stadium: { outer: "#0b2219", roof: "#1b2420", roofLine: "#56635d", riser: "#0f3324", riserLine: "rgba(0,0,0,0.35)", seats: ["#1f7a4f", "#238556", "#1c6f48", "#26905c"], seatDark: "#0f4a2f", seatLight: "#8fd3a9", aisle: "#6b7671", concourse: "#2b3330", track: "#26332d", boards: "#dfe4e6" },
 };
 const NOCHE = {
   ...ESTADIO, bg: "#2c3374", margin: "#2c3374", check: "rgba(255,255,255,0.055)",
   surround: "#0a1124",
-  stadium: { outer: "#080d1d", roof: "#121729", roofLine: "#3d4566", riser: "#141a38", riserLine: "rgba(0,0,0,0.4)", seats: ["#2c3878", "#33418a", "#28336e", "#3a4996"], aisle: "#545d80", concourse: "#1c2136", track: "#1a2038", boards: "#c9cfdc" },
+  stadium: { outer: "#080d1d", roof: "#121729", roofLine: "#3d4566", riser: "#141a38", riserLine: "rgba(0,0,0,0.4)", seats: ["#2c3878", "#33418a", "#28336e", "#3a4996"], seatDark: "#1a2257", seatLight: "#8a98e0", aisle: "#545d80", concourse: "#1c2136", track: "#1a2038", boards: "#c9cfdc" },
 };
 const STYLE = {
   estadio: ESTADIO,
@@ -197,17 +197,91 @@ function standingBoard(pn, T, textAt) {
 }
 // Ángulo del texto de una valla para que se lea derecho en pantalla, sea cual sea la orientación del campo
 const uprightAngle = (base, oa) => { const sc = (((base + oa + 180) % 360) + 360) % 360 - 180; return sc > 90 || sc <= -90 ? base + 180 : base; };
+// Altura (m) de la grada a una distancia d de las líneas: grada baja y grada alta con su pendiente, pasillo plano entre las dos
+export function standHeight(d) {
+  const S = STAND;
+  if (d <= S.track) return 0;
+  const low = (x) => 0.6 + (x - S.track) * 0.8;
+  if (d <= S.lowTop) return low(d);
+  const hLow = low(S.lowTop);
+  if (d <= S.ring) return hLow;
+  const up = hLow + 0.5 + (Math.min(d, S.upTop) - S.ring) * 1.05;
+  return d <= S.upTop ? up : up + 1.6;
+}
+const mixHex = (a, b, t) => {
+  const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const A = p(a), B = p(b);
+  return `#${A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, "0")).join("")}`;
+};
+const SEAT = 0.53; // un asiento cada 0,53 m (0,4 m de asiento y 0,13 de hueco)
+// Gradas: cada fila es un escalón. Se pinta de fuera hacia dentro (cada fila tapa lo que queda dentro de ella).
+// En perspectiva, las gradas de enfrente y de los lados se levantan su altura (como las vallas de pie): se ve la pendiente.
+// Los asientos van de oscuro abajo a claro arriba, mezclados como en los estadios de la Liga (efecto difuminado).
+function Stands({ field, st, T, textAt }) {
+  const S = STAND;
+  const persp = !!textAt;
+  const center = persp ? textAt({ x: field.w / 2, y: field.h / 2 }) : null;
+  // en perspectiva: subir el punto su altura, solo en las gradas que se ven de cara (la de delante queda tumbada)
+  const lift = (p, h) => {
+    if (!persp || !h) return T ? T(p) : p;
+    const at = textAt(p);
+    const vx = at.x - center.x, vy = at.y - center.y, len = Math.hypot(vx, vy) || 1;
+    const f = Math.max(0, Math.min(1, 0.55 - (vy / len) * 1.1));
+    return { x: at.x, y: at.y - h * at.k * f };
+  };
+  const ring = (d, h = standHeight(d)) => roundRect(field, d).map((p) => lift(p, h)).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + " Z";
+  // distancia de un punto a las líneas (en los lados rectos es exacta): para las escaleras
+  const distOf = (p) => Math.max(-p.x, p.x - field.w, -p.y, p.y - field.h, 0);
+  const quad = (pts) => pts.map((p) => lift(p, standHeight(distOf(p)))).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + " Z";
+  const tiers = [[S.track, S.lowTop], [S.ring, S.upTop]];
+  const rows = [];
+  tiers.forEach(([d0, d1], tier) => { for (let d = d0; d + S.row * 0.6 < d1; d += S.row) rows.push({ d0: d, d1: Math.min(d1, d + S.row), tier }); });
+  const n = rows.length;
+  const els = [];
+  els.push(<path key="roof" d={ring(S.roof)} fill={st.roof} stroke={st.roofLine} strokeWidth={0.12} />);
+  // de la fila de arriba a la de abajo
+  for (let i = n - 1; i >= 0; i--) {
+    const r = rows[i];
+    const t = n > 1 ? i / (n - 1) : 0; // 0 abajo · 1 arriba
+    if (r.tier === 0 && i === rows.findLastIndex((x) => x.tier === 0)) els.push(<path key="ring" d={ring(S.ring)} fill={st.concourse} />);
+    // escalón (contrahuella): más oscuro abajo, donde llega menos luz
+    els.push(<path key={`f${i}`} d={ring(r.d1)} fill={st.seatDark} />);
+    els.push(<path key={`s${i}`} d={ring(r.d1)} fill="#000" opacity={0.42 - t * 0.3} />);
+    const mid = (r.d0 + r.d1) / 2;
+    const base = mixHex(st.seatDark, st.seatLight, Math.min(1, t * 0.85));
+    const seat = { fill: "none", strokeWidth: 0.42, strokeDasharray: `0.4 ${(SEAT - 0.4).toFixed(2)}` };
+    els.push(<path key={`a${i}`} d={ring(mid)} stroke={base} {...seat} />);
+    // motas: claras que aumentan hacia arriba y oscuras que aumentan hacia abajo
+    const spots = [];
+    if (t > 0.12) spots.push([st.seatLight, t > 0.7 ? 2 : t > 0.4 ? 3 : 5]);
+    if (t < 0.88) spots.push([st.seatDark, t < 0.3 ? 2 : t < 0.6 ? 3 : 5]);
+    if (t > 0.45 && t < 0.95) spots.push([mixHex(st.seatLight, "#ffffff", 0.35), 7]);
+    spots.forEach(([c, k], j) => els.push(
+      <path key={`m${i}-${j}`} d={ring(mid)} stroke={c} fill="none" strokeWidth={0.42} strokeDasharray={`0.4 ${(SEAT * k - 0.4).toFixed(2)}`} strokeDashoffset={(-SEAT * ((i * 3 + j * 2) % k)).toFixed(2)} />,
+    ));
+    // borde del escalón (la arista se ve un poco más clara)
+    els.push(<path key={`e${i}`} d={ring(r.d0 + 0.05)} fill="none" stroke="#fff" strokeOpacity={0.07 + t * 0.06} strokeWidth={0.08} />);
+  }
+  // sombra de la cubierta sobre las filas de arriba
+  els.push(<path key="roofshade" d={`${ring(S.upTop)} ${ring(S.upTop - 1.6)}`} fill="#000" fillRule="evenodd" opacity={0.2} />);
+  // escaleras de las dos gradas
+  const stairs = (d0, d1) => {
+    const out = [];
+    for (const sd of straightSides(field, d1)) {
+      const k = Math.max(2, Math.round(sd.len / 13));
+      for (let j = 1; j < k; j++) { const tt = (sd.len * j) / k; out.push(sideQuad(sd, tt - 0.55, tt + 0.55, d0, d1, d1)); }
+    }
+    return out;
+  };
+  [...stairs(S.track, S.lowTop), ...stairs(S.ring, S.upTop)].forEach((q, i) => els.push(<path key={`st${i}`} d={quad(q)} fill={st.aisle} opacity={0.85} />));
+  els.push(<path key="track" d={ring(S.track, 0)} fill={st.track} />);
+  return <g>{els}</g>;
+}
+
 function Stadium({ field, s, board, orient, T, textAt }) {
   const st = s.stadium;
   const parts = stadiumParts(field, { stands: hasStands(board), ads: hasAds(board) });
   const P = (pts) => ptsPath(pts, T);
-  const seats = (rows, key) => rows.map((r) => (
-    <g key={`${key}${r.i}`}>
-      <path d={P(r.pts)} fill="none" stroke={st.seats[r.i % st.seats.length]} strokeWidth={0.46} strokeDasharray="0.4 0.13" />
-      <path d={P(roundRect(field, r.d + STAND.row / 2))} fill="none" stroke={st.riserLine} strokeWidth={0.07} />
-    </g>
-  ));
-  const aisles = (list, key) => list.map((q, i) => <path key={`${key}${i}`} d={P(q)} fill={st.aisle} />);
   const oa = orientAngle(orient);
   // En perspectiva, las vallas del fondo (las que se ven de frente) se dibujan de pie, por encima del césped; las demás, en el suelo
   const centerY = textAt ? textAt({ x: field.w / 2, y: field.h / 2 }).y : 0;
@@ -246,19 +320,7 @@ function Stadium({ field, s, board, orient, T, textAt }) {
   };
   return (
     <g>
-      {parts.stands && (
-        <>
-          <path d={P(parts.roof)} fill={st.roof} />
-          <path d={P(parts.upper)} fill={st.riser} stroke={st.roofLine} strokeWidth={0.12} />
-          {seats(parts.upRows, "u")}
-          {aisles(parts.upAisles, "ua")}
-          <path d={P(parts.ring)} fill={st.concourse} />
-          <path d={P(parts.lower)} fill={st.riser} stroke={st.riserLine} strokeWidth={0.1} />
-          {seats(parts.lowRows, "l")}
-          {aisles(parts.lowAisles, "la")}
-          <path d={P(parts.track)} fill={st.track} />
-        </>
-      )}
+      {parts.stands && <Stands field={field} st={st} T={T} textAt={textAt} />}
       {parts.boards && <path d={P(parts.boards)} fill={st.boards} />}
       {flatPanels.map(drawPanel)}
       <path d={P(parts.apron)} fill={s.bg} />

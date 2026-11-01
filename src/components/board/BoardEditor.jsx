@@ -1,10 +1,10 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
-  boardMode, boardSpeed, camOf, panCam, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
+  boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
   insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
@@ -103,6 +103,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   }, []);
   const lastTap = useRef({ id: null, at: 0 });
   const wrapRef = useRef(null);
+  // el contenedor del campo aparece cuando se abre la pantalla completa: se guarda también en estado para enganchar el zoom
+  const [hostEl, setHostEl] = useState(null);
+  const setWrap = useCallback((el) => { wrapRef.current = el; setHostEl(el); }, []);
   const svgRef = useRef(null);
   const drag = useRef(null);
   const live = useRef(board);
@@ -210,19 +213,47 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     zoomTo(next ?? (dir > 0 ? ZOOM_STEPS[ZOOM_STEPS.length - 1] : 1));
   };
   const pointers = useRef(new Map());
-  // Con Ctrl (o el gesto de pellizcar del ratón táctil) la rueda acerca y aleja sobre el punto donde está el puntero
+  // Zoom con el panel táctil o la rueda, en toda la zona del campo (no solo encima del dibujo):
+  //  · pellizcar con dos dedos (el navegador lo manda como rueda + Ctrl) o Ctrl/⌘ + rueda → acerca o aleja sobre el puntero;
+  //  · Safari manda el pellizco como «gesture» → igual;
+  //  · deslizar con dos dedos sin Ctrl, con zoom puesto → mueve la vista.
+  // El aumento se acumula sin redondear (`zAcc`): los pellizcos dan pasos muy pequeños y, redondeados, no avanzaban.
+  const zAcc = useRef(null);
   useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return undefined;
+    const host = hostEl;
+    if (!host) return undefined;
+    const svgOf = () => svgRef.current;
+    const atOf = (e) => { const svg = svgOf(); const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
+    const baseZ = () => { const z = camOf(live.current).z; if (zAcc.current == null || Math.abs(zAcc.current - z) > 0.02) zAcc.current = z; return zAcc.current; };
+    const zoomBy = (f, at) => { const nz = Math.min(ZOOM_MAX, Math.max(1, baseZ() * f)); zAcc.current = nz; zoomTo(nz, at); };
     const onWheel = (e) => {
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
-      const at = pt.matrixTransform(svg.getScreenCTM().inverse());
-      zoomTo(camOf(live.current).z * Math.exp(-Math.max(-60, Math.min(60, e.deltaY)) * 0.004), at);
+      if (!svgOf()) return;
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+        zoomBy(Math.exp(-Math.max(-80, Math.min(80, d)) * 0.012), atOf(e));
+        return;
+      }
+      if (camOf(live.current).z > 1) {
+        e.preventDefault();
+        const svg = svgOf(); if (!svg) return;
+        const box = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
+        if (!box.width || !vb?.width) return;
+        const c = panCam(fullVb, camOf(live.current), (e.deltaX * vb.width) / box.width, (e.deltaY * vb.height) / box.height);
+        if (c) setCam(c);
+      }
     };
-    svg.addEventListener("wheel", onWheel, { passive: false });
-    return () => svg.removeEventListener("wheel", onWheel);
+    let gz = 1;
+    const onGestureStart = (e) => { e.preventDefault(); gz = 1; };
+    const onGestureChange = (e) => { e.preventDefault(); if (!svgOf()) return; const f = e.scale / gz; gz = e.scale; zoomBy(f, atOf(e)); };
+    host.addEventListener("wheel", onWheel, { passive: false });
+    host.addEventListener("gesturestart", onGestureStart, { passive: false });
+    host.addEventListener("gesturechange", onGestureChange, { passive: false });
+    return () => {
+      host.removeEventListener("wheel", onWheel);
+      host.removeEventListener("gesturestart", onGestureStart);
+      host.removeEventListener("gesturechange", onGestureChange);
+    };
   });
   const toField = (e) => { const q = svgPoint(e); return fromView(field, orient, persp ? persp.inv(q) : q); };
   // Qué hay bajo el dedo: en perspectiva, lo que está de pie se agarra por donde se ve
@@ -985,7 +1016,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     </div>
   );
   const stage = (
-    <div ref={wrapRef} className={narrow ? "relative flex-1 min-h-0 flex items-center justify-center p-1" : "absolute inset-y-0 left-[72px] right-[80px] flex items-center justify-center p-3"}>
+    <div ref={setWrap} className={narrow ? "relative flex-1 min-h-0 flex items-center justify-center p-1" : "absolute inset-y-0 left-[72px] right-[80px] flex items-center justify-center p-3"}>
       <Board
         ref={svgRef}
         board={board}
