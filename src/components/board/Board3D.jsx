@@ -7,7 +7,7 @@ import { load3d } from "./load3d";
  * Ocupa el ancho del contenedor con la proporción de lo que se ve (como el SVG del 2D) y se vuelve a dibujar al cambiar
  * el dibujo, los elementos o el tamaño. El motor (three.js) se carga la primera vez.
  */
-const Board3DView = forwardRef(function Board3DView({ board, els, camera, frame = 0, aspect = null, fullView = false, viewOverride = null, orbit: orbitProp, className = "", style, label = "Vista 3D", fill = false, sel = null, draft = null, canvasStyle = null, ...events }, ref) {
+const Board3DView = forwardRef(function Board3DView({ board, els, camera, frame = 0, aspect = null, fullView = false, viewOverride = null, orbit: orbitProp, className = "", style, label = "Vista 3D", fill = false, sel = null, draft = null, canvasStyle = null, onDrawn = null, ...events }, ref) {
   const wrap = useRef(null);
   const canvas = useRef(null);
   const [box, setBox] = useState(null);
@@ -15,6 +15,10 @@ const Board3DView = forwardRef(function Board3DView({ board, els, camera, frame 
   const { vb } = boardView(board, { camera, frame, aspect, fullView, viewOverride });
   // cámara libre del 3D: la que se pase o la del fotograma (sin ninguna, la automática)
   const orbit = orbitProp === undefined ? orbitOf(board, frame) : orbitProp;
+  // (la cámara libre llega como objeto nuevo en cada pintado: se compara por su contenido para no redibujar sin motivo)
+  const orbitKey = orbit ? JSON.stringify(orbit) : "";
+  const drawnRef = useRef(onDrawn);
+  drawnRef.current = onDrawn;
   const ar = vb[2] / vb[3];
 
   // tamaño disponible
@@ -55,6 +59,7 @@ const Board3DView = forwardRef(function Board3DView({ board, els, camera, frame 
         const cur = latest.current;
         const pending = lib.drawBoard3D(c, cur.board, cur.els, cur.opts);
         setReady(true);
+        drawnRef.current?.();
         if (pending) pending.then(() => { again.current = false; raf.current = requestAnimationFrame(draw); });
       } catch (e) {
         console.warn("Vista 3D", e);
@@ -63,7 +68,7 @@ const Board3DView = forwardRef(function Board3DView({ board, els, camera, frame 
         if (again.current) { again.current = false; raf.current = requestAnimationFrame(draw); }
       }
     });
-  }, [box, board, els, camera, frame, aspect, fullView, viewOverride, ar, fill, style?.maxHeight, sel, draft, orbit]);
+  }, [box, board, els, camera, frame, aspect, fullView, viewOverride, ar, fill, style?.maxHeight, sel, draft, orbitKey]);
 
   // Para dibujar en 3D (editor): puntero → campo, qué hay debajo y dónde cae en pantalla un punto del campo
   const libRef = useRef(null);

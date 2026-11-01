@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
   boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
-  is3D, VIEW_MODES, viewModeOf, setViewMode, orbitOf, orbitBetween, orbitPreset, ORBIT_PRESETS, setOrbit, clearFrameOrbit, clearOrbits, hasFrameOrbits, validOrbit, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
+  is3D, handleSpec, PERSP, VIEW_MODES, viewModeOf, setViewMode, orbitOf, orbitBetween, orbitPreset, ORBIT_PRESETS, setOrbit, clearFrameOrbit, clearOrbits, hasFrameOrbits, validOrbit, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
 import Board3DView from "./Board3D";
@@ -230,6 +230,29 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   // (se apunta ya en `live` para que la rueda o el pellizco, que llegan muy seguidos, no pierdan pasos)
   const putOrbit = (o, opts) => { const next = setOrbit(live.current, idx, o); commit(next, { key: "orbit", ...opts }); live.current = next; };
   const orbitBy = ({ daz = 0, dtilt = 0, kdist = 1 }) => { const o = orbitNow(); if (o) putOrbit({ ...o, az: o.az + daz, tilt: o.tilt + dtilt, dist: o.dist * kdist }); };
+  // Tiradores en 3D (02/11/2026, Nacho: «¿se pueden poner flechas curvadas, quiebros y girar fichas en 3D?»): los mismos que
+  // en 2D (`handleSpec`), llevados a la pantalla con la cámara 3D después de cada pintado y arrastrados con el mismo código
+  const handles3d = (() => {
+    if (!in3d || sel.length !== 1) return null;
+    const el = cur.els.find((x) => x.id === sel[0]);
+    if (!el) return null;
+    const spec = handleSpec(el, { orient, chip, ghost: ghosts.find((g) => g.id === el.id) || null, scale: isPersp(board) ? PERSP.chip : 1 });
+    return spec.pts.length ? spec : null;
+  })();
+  const handlesRef = useRef(null);
+  handlesRef.current = handles3d;
+  const [h3, setH3] = useState(null);
+  const place3d = useCallback(() => {
+    const spec = handlesRef.current, api = v3.current, wrap = wrapRef.current;
+    if (!spec || !api || !wrap) { setH3((p) => (p ? null : p)); return; }
+    const box = wrap.getBoundingClientRect();
+    const S = (q) => { const m = api.toScreen(q.x, q.y, 0); return m ? { x: Math.round((m.x - box.left) * 10) / 10, y: Math.round((m.y - box.top) * 10) / 10 } : null; };
+    const res = { pts: spec.pts.map((p) => ({ h: p.h, kind: p.kind, s: S(p) })), lines: spec.lines.map(([a, b, k]) => [S(a), S(b), k || ""]) };
+    const key = JSON.stringify(res);
+    setH3((p) => (p?.key === key ? p : { ...res, key }));
+  }, []);
+  const handlesKey = handles3d ? JSON.stringify(handles3d) : "";
+  useLayoutEffect(() => { place3d(); }, [handlesKey, place3d]);
   const orbitPan = (o0, dxPx, dyPx, hPx) => {
     // mover el punto al que mira: lo que se arrastra a la derecha se va a la derecha (la cámara, a la izquierda)
     const a = (o0.az * Math.PI) / 180, k = (o0.dist * 1.1) / Math.max(200, hPx);
@@ -1363,7 +1386,33 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           onDoubleClick={onDoubleClick}
           onContextMenu={onContextMenu}
           onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
+          onDrawn={place3d}
         />
+      )}
+      {in3d && handles3d && h3 && (
+        <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 3, overflow: "visible", pointerEvents: "none", touchAction: "none" }} data-testid="handles-3d"
+          onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+          {h3.lines.map(([a, b, k], i) => a && b && (
+            <line key={`l${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#f59e0b" strokeWidth={k === "trail" ? 3 : 1.5} strokeDasharray={k === "trail" ? "7 5" : "4 3"} strokeLinecap="round" opacity={k === "trail" ? 0.85 : 1} />
+          ))}
+          {h3.pts.map((p) => p.s && (
+            <g key={p.h}>
+              {p.kind === "mid" ? (
+                <>
+                  <circle cx={p.s.x} cy={p.s.y} r={8} fill="#fff" stroke="#f59e0b" strokeWidth={2} strokeDasharray="3 2" />
+                  <path d={`M ${p.s.x - 4} ${p.s.y} H ${p.s.x + 4} M ${p.s.x} ${p.s.y - 4} V ${p.s.y + 4}`} stroke="#f59e0b" strokeWidth={2} />
+                </>
+              ) : p.kind === "corner" ? (
+                <rect x={p.s.x - 7} y={p.s.y - 7} width={14} height={14} rx={2} fill="#f59e0b" stroke="#fff" strokeWidth={2} />
+              ) : p.kind === "edge" ? (
+                <rect x={p.s.x - 6} y={p.s.y - 6} width={12} height={12} rx={3} fill="#fff" stroke="#f59e0b" strokeWidth={2} />
+              ) : (
+                <circle cx={p.s.x} cy={p.s.y} r={p.kind === "end" ? 8 : 7} fill={p.kind === "end" ? "#fff" : p.kind === "lift" ? "#2563eb" : "#f59e0b"} stroke={p.kind === "end" ? "#f59e0b" : "#fff"} strokeWidth={2.5} />
+              )}
+              <circle data-h={p.h} data-testid={`h3-${p.h}`} cx={p.s.x} cy={p.s.y} r={18} fill="transparent" style={{ pointerEvents: "all", cursor: "grab" }} />
+            </g>
+          ))}
+        </svg>
       )}
       {!playing && (
         <div className="absolute top-2 left-2 flex items-center gap-0.5 rounded-lg p-0.5 text-[11px] font-semibold" style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} role="group" aria-label="Vista del campo" title="Vista del campo" data-testid="board-view-mode">
@@ -1419,7 +1468,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const hint0 = playing ? "Reproduciendo…" : error ? error
     : tool === "select" ? (sel.length ? "Arrastra para mover · Supr para quitar" : hasEls ? "Toca algo para elegirlo · arrastra un recuadro para elegir varios" : "Elige una herramienta en la barra de la izquierda y toca el campo")
       : tool === "camera" ? "Arrastra el recuadro o sus esquinas · 1–4 encuadres · P formato · R igual que el anterior" : isTeamTool(tool) ? "Toca el campo para colocar fichas" : ARROW_TOOLS.includes(tool) ? "Arrastra para dibujar la flecha" : tool === "zone" || tool === "quad" ? "Arrastra para dibujar la zona" : tool === "pan" ? "Arrastra para mover la vista" : "Toca el campo para colocarlo";
-  const hint = in3d && !error ? (tool === "pan" ? "En 3D · Arrastra para girar la cámara · Mayús + arrastrar para moverla · rueda para acercar" : `En 3D · ${hint0} · Alt + arrastrar gira la cámara · curvas, quiebros, giros y trayectorias: en Plana o Perspectiva`) : hint0;
+  const hint = in3d && !error ? (tool === "pan" ? "En 3D · Arrastra para girar la cámara · Mayús + arrastrar para moverla · rueda para acercar" : `En 3D · ${hint0} · Alt + arrastrar gira la cámara`) : hint0;
 
   const studio = narrow ? (
     <div className="fixed inset-0 flex flex-col" style={{ background: styleOf(look).surround || RAIL.bg, color: RAIL.text, zIndex: 50 }} onKeyDown={onKey} tabIndex={-1} data-testid="board-studio">

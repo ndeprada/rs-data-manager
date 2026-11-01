@@ -1751,3 +1751,53 @@ export function turnElements(board, index, ids, { turn = null, toward = null } =
   });
   return changed ? setFrameEls(board, index, els) : board;
 }
+
+// ── Tiradores en metros del campo (para la vista 3D, que los pinta encima del dibujo) ─────────────────────────────────
+// Los mismos que el 2D (mismos `h`, así el editor los arrastra igual): extremos, curva, quiebros y «+» de una flecha y su
+// altura si va por el aire; esquinas y lados de una zona; esquinas de la zona libre; giro de una ficha con pies o del material;
+// y la trayectoria desde el fotograma anterior (`ghost` = la de `ghostsOf`). `kind` dice cómo se pinta.
+export function handleSpec(el, { orient = "v", chip = 1.5, ghost = null, scale = 1 } = {}) {
+  const pts = [], lines = [];
+  if (!el) return { pts, lines };
+  const P = (h, p, kind) => pts.push({ h, x: p.x, y: p.y, kind });
+  if (el.k === "arrow") {
+    const corners = arrowCorners(el);
+    const ctrl = el.cx != null && !hasVia(el) ? { x: el.cx, y: el.cy } : null;
+    P("p1", corners[0], "end");
+    P("p2", corners[corners.length - 1], "end");
+    if (ctrl) { P("c", ctrl, "ctrl"); lines.push([corners[0], ctrl], [corners[corners.length - 1], ctrl]); }
+    if (!el.air && !ctrl) corners.slice(0, -1).forEach((c, i) => P(`m${i}`, { x: (c.x + corners[i + 1].x) / 2, y: (c.y + corners[i + 1].y) / 2 }, "mid"));
+    corners.slice(1, -1).forEach((c, i) => P(`v${i}`, c, "via"));
+    if (el.air) P("l", arrowFlight(el, orient)[12], "lift");
+  } else if (isQuad(el)) {
+    el.pts.forEach((q, i) => P(`q${i}`, q, "end"));
+  } else if (el.k === "zone") {
+    const { x0, y0, x1, y1 } = zoneBox(el);
+    [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }].forEach((q, i) => P(`zc${i}`, q, "corner"));
+    [{ x: (x0 + x1) / 2, y: y0 }, { x: x1, y: (y0 + y1) / 2 }, { x: (x0 + x1) / 2, y: y1 }, { x: x0, y: (y0 + y1) / 2 }].forEach((q, i) => P(`ze${i}`, q, "edge"));
+  } else if ((el.k === "token" && el.feet) || materialOf(el.k)) {
+    const mat = materialOf(el.k);
+    const base = mat ? mat.hh * (Number(el.size) || 1) + 0.6 : tokenR(chip, el) * 1.5 * scale;
+    const a = ((mat ? el.rot || 0 : faceOf(el)) * Math.PI) / 180;
+    const R = base + 2.1;
+    const c = { x: el.x, y: el.y };
+    const q = { x: el.x + Math.sin(a) * R, y: el.y - Math.cos(a) * R };
+    P(mat ? "r" : "f", q, "turn");
+    lines.push([{ x: c.x + Math.sin(a) * base, y: c.y - Math.cos(a) * base }, q]);
+  }
+  if (ghost && ghost.id === el.id) {
+    const mode = pathMode(ghost);
+    const corners = [ghost.from, ...(mode === "poly" ? ghost.path.via : []), ghost.to];
+    if (mode === "curve") {
+      const C = { x: ghost.path.cx, y: ghost.path.cy };
+      P("tc", C, "ctrl");
+      lines.push([ghost.from, C], [ghost.to, C]);
+    } else {
+      corners.slice(0, -1).forEach((c, i) => P(`tm${i}`, { x: (c.x + corners[i + 1].x) / 2, y: (c.y + corners[i + 1].y) / 2 }, "mid"));
+    }
+    corners.slice(1, -1).forEach((c, i) => P(`tv${i}`, c, "via"));
+    const trail = movePoints(ghost.from, ghost.to, ghost.path, 24);
+    for (let i = 0; i < trail.length - 1; i++) lines.push([trail[i], trail[i + 1], "trail"]);
+  }
+  return { pts, lines };
+}

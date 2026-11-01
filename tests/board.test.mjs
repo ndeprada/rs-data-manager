@@ -1286,3 +1286,20 @@ test("vista en un solo selector y cámara libre del 3D", async () => {
   assert.equal(L.hasFrameOrbits(auto), false);
   for (const p of L.ORBIT_PRESETS) assert.ok(L.orbitPreset(b0, p.id), p.id);
 });
+
+test("tiradores para la vista 3D (mismos que en 2D)", async () => {
+  const L = await import("../src/lib/board.js");
+  const hs = (el, o) => L.handleSpec(el, o).pts.map((p) => p.h);
+  assert.deepEqual(hs({ k: "arrow", x1: 0, y1: 0, x2: 10, y2: 0 }), ["p1", "p2", "m0"]);
+  assert.deepEqual(hs({ k: "arrow", x1: 0, y1: 0, x2: 10, y2: 0, cx: 5, cy: 5 }), ["p1", "p2", "c"]);
+  assert.deepEqual(hs({ k: "arrow", x1: 0, y1: 0, x2: 10, y2: 0, via: [{ x: 5, y: 3 }] }), ["p1", "p2", "m0", "m1", "v0"]);
+  assert.ok(hs({ k: "arrow", x1: 0, y1: 0, x2: 10, y2: 0, air: true, lift: 4 }).includes("l"));
+  assert.deepEqual(hs({ k: "zone", shape: "rect", x: 0, y: 0, w: 4, h: 4 }), ["zc0", "zc1", "zc2", "zc3", "ze0", "ze1", "ze2", "ze3"]);
+  assert.deepEqual(hs({ k: "token", x: 10, y: 10, feet: true }), ["f"]);
+  assert.deepEqual(hs({ k: "token", x: 10, y: 10 }), []);
+  const g = { id: "t", k: "token", x: 20, y: 20, from: { x: 10, y: 10 }, to: { x: 20, y: 20 } };
+  assert.deepEqual(hs({ id: "t", k: "token", x: 20, y: 20 }, { ghost: g }), ["tm0"]);
+  // la ficha con pies mira hacia arriba (face 0): el tirador va por delante (y menor)
+  const f = L.handleSpec({ k: "token", x: 10, y: 10, feet: true }, { chip: 1.5 }).pts[0];
+  assert.ok(f.y < 10 && Math.abs(f.x - 10) < 1e-9);
+});
