@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Download, Film, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { boardSpeed, boardView, is3D, isAnimation, normalizeBoard } from "@/lib/board";
+import { boardSpeed, boardView, is3D, isAnimation, normalizeBoard, orbitOf } from "@/lib/board";
 import { VIDEO_FORMATS, VIDEO_FPS, VIDEO_QUALITIES } from "@/lib/videoSize";
 import Board from "./BoardSvg";
 import { boardToPngBlob, downloadBlob } from "./exportPng";
@@ -64,7 +64,7 @@ export default function BoardDownloads({ board, frame = 0, filename = "tarea", c
         const { vb } = boardView(b, { frame: idx });
         const c = document.createElement("canvas");
         c.width = 2400; c.height = Math.round((2400 * vb[3]) / vb[2]);
-        await (await load3d()).renderBoard3D(c, b, b.frames[idx].els, { frame: idx });
+        await (await load3d()).renderBoard3D(c, b, b.frames[idx].els, { frame: idx, orbit: orbitOf(b, idx) });
         blob = await new Promise((resolve, reject) => c.toBlob((x) => (x ? resolve(x) : reject(new Error("No se pudo crear el PNG"))), "image/png"));
       } else blob = await boardToPngBlob(<Board board={b} els={b.frames[idx].els} frame={idx} />, { width: 2400 });
       downloadBlob(blob, `${base}${anim ? `-${idx + 1}` : ""}.png`);

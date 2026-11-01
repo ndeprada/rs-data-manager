@@ -1,6 +1,6 @@
 import React from "react";
 import Board, { styleOf } from "./BoardSvg";
-import { animationDuration, boardView, camAtTime, camRatioOf, elsAtTime, hasCamera, hasStands, is3D, isStadium, lookOf, normalizeBoard, turnQuarter } from "@/lib/board";
+import { animationDuration, boardView, camAtTime, camRatioOf, elsAtTime, hasCamera, hasStands, is3D, isStadium, lookOf, normalizeBoard, orbitAtTime, turnQuarter } from "@/lib/board";
 import { load3d } from "./load3d";
 import { boardSvgMarkup, loadSvgImage } from "./exportPng";
 import { videoFrameSize } from "@/lib/videoSize";
@@ -99,7 +99,7 @@ function painter(b, size) {
       width = size.inner.width; height = Math.round((width * vb[3]) / vb[2]);
       if (height > size.inner.height) { height = size.inner.height; width = Math.round((height * vb[2]) / vb[3]); }
       if (c3.width !== width || c3.height !== height) { c3.width = width; c3.height = height; }
-      { const lib = await load3d(); img = await lib.renderBoard3D(c3, b, els, { camera, aspect, tilt: lib.TILT_VIDEO }); }
+      { const lib = await load3d(); img = await lib.renderBoard3D(c3, b, els, { camera, aspect, tilt: lib.TILT_VIDEO, orbit: orbitAtTime(b, ms, { speed }) }); }
     } else {
       const m = await boardSvgMarkup(<Board board={b} els={els} camera={camera} aspect={aspect} />, size.inner.width);
       img = await loadSvgImage(m.svg);

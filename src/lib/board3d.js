@@ -790,6 +790,41 @@ function placeCamera(camera, board, view, aspect, tilt = TILT_VIEW) {
   return { T, U, span, D };
 }
 
+// Cámara libre (`orbit`, ver board.js): mira al punto (x, y) desde `dist` m, girada `az` e inclinada `tilt`
+function placeOrbit(camera, o, aspect) {
+  const a = (o.az * Math.PI) / 180, e = (o.tilt * Math.PI) / 180;
+  const off = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
+  const T = new THREE.Vector3(o.x, 0, o.y);
+  camera.fov = FOV;
+  camera.aspect = aspect;
+  camera.near = Math.max(0.5, o.dist * 0.02);
+  camera.far = o.dist * 8 + 400;
+  camera.position.copy(T).addScaledVector(off, o.dist * Math.cos(e));
+  camera.position.y = o.dist * Math.sin(e);
+  // «arriba» de la imagen = hacia donde mira la cámara (sin girar la imagen, también desde arriba)
+  const U = off.clone().multiplyScalar(-1);
+  camera.up.copy(U);
+  camera.lookAt(T);
+  camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+  return { T, U, span: o.dist, D: o.dist };
+}
+// La cámara automática que se está viendo, como cámara libre (para empezar a girarla desde ahí sin saltos)
+function orbitFromCamera(camera) {
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2(0, 0), camera);
+  let hit = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
+  if (!hit) return null;
+  const v = camera.position.clone().sub(hit);
+  const len = v.length();
+  const f = camera.view?.enabled ? camera.view.height / camera.view.fullHeight : 1;
+  const horiz = Math.hypot(v.x, v.z);
+  // desde arriba del todo no hay dirección: se toma la de «arriba» de la imagen
+  const az = horiz > 1e-3 ? Math.atan2(v.x, v.z) : Math.atan2(-camera.up.x, -camera.up.z);
+  return { az: (az * 180) / Math.PI, tilt: (Math.atan2(v.y, horiz) * 180) / Math.PI, dist: len * f, x: hit.x, y: hit.z };
+}
+
 // ── Dibujar ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 /**
  * Dibuja un fotograma en 3D sobre `target` (canvas 2D) con el tamaño de ese canvas.
@@ -818,9 +853,14 @@ export function drawBoard3D(target, board, els, opts = {}) {
   scene.add(st.group);
   const region = st.region;
   const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 1000);
-  const cam = placeCamera(camera, board, view, W / H, opts.tilt);
-  const sc = SCREEN[orientOf(board.orient)];
-  const scr = { angle: orientAngle(orientOf(board.orient)), texRot: Math.atan2(-sc.up[0], -sc.up[1]) };
+  const orbit = opts.orbit || null;
+  const cam = orbit ? placeOrbit(camera, orbit, W / H) : placeCamera(camera, board, view, W / H, opts.tilt);
+  const sc0 = SCREEN[orientOf(board.orient)];
+  // con la cámara libre, «arriba» y «derecha» de la pantalla salen de hacia dónde mira
+  const sc = orbit ? { up: [cam.U.x, cam.U.z], right: [-cam.U.z, cam.U.x] } : sc0;
+  const scr = orbit
+    ? { angle: (Math.atan2(-sc.up[0], -sc.up[1]) * 180) / Math.PI, texRot: Math.atan2(-sc.up[0], -sc.up[1]) }
+    : { angle: orientAngle(orientOf(board.orient)), texRot: Math.atan2(-sc.up[0], -sc.up[1]) };
   // luz: ambiente + sol desde arriba a la izquierda de la pantalla (las sombras caen abajo a la derecha, como en 2D)
   const s = styleOf(look);
   const night = look === "estadio-noche" || !!styleOf(look).stadium?.night;
@@ -890,7 +930,7 @@ export function drawBoard3D(target, board, els, opts = {}) {
   // En perspectiva, lo que queda entre la cámara y el borde de abajo de la imagen (la grada de este lado) solo puede tapar el
   // campo: se recorta (con zoom cerca de la portería de abajo, la grada y su cubierta tapaban el área)
   renderer.clippingPlanes = [];
-  if (isPersp(board)) {
+  if (isPersp(board) || orbit) {
     const ray = new THREE.Raycaster();
     ray.setFromCamera(new THREE.Vector2(0, -1), camera);
     const hit = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
@@ -901,7 +941,7 @@ export function drawBoard3D(target, board, els, opts = {}) {
   const g = target.getContext("2d");
   g.drawImage(renderer.domElement, 0, 0, W, H);
   // la cámara se guarda para llevar el puntero al campo y saber qué hay debajo
-  S.views.set(target, { camera, W, H, board, chip });
+  S.views.set(target, { camera, W, H, board, chip, orbit: orbit || orbitFromCamera(camera) });
   // limpiar lo de este fotograma (las geometrías y materiales compartidos se quedan)
   scene.remove(st.group);
   dyn.traverse((n) => { if (n.isSprite) n.material.dispose(); else if (n.material && !Array.from(S.mats.values()).includes(n.material)) { n.material.dispose(); } });
@@ -956,6 +996,10 @@ export function groundAt(target, px, py) {
   ray.setFromCamera(new THREE.Vector2((px / v.W) * 2 - 1, -((py / v.H) * 2 - 1)), v.camera);
   const hit = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
   return hit ? { x: hit.x, y: hit.z } : null;
+}
+/** Cámara libre con la que se ve ahora (la automática convertida si no hay ninguna), para empezar a girar desde ahí. */
+export function orbitAt(target) {
+  return shared().views.get(target)?.orbit || null;
 }
 /** Píxel del canvas de un punto del campo a una altura h. */
 export function projectAt(target, x, y, h = 0) {

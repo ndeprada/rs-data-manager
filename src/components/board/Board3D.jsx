@@ -1,5 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
-import { boardView } from "@/lib/board";
+import { boardView, orbitOf } from "@/lib/board";
 import { load3d } from "./load3d";
 
 /**
@@ -7,12 +7,14 @@ import { load3d } from "./load3d";
  * Ocupa el ancho del contenedor con la proporción de lo que se ve (como el SVG del 2D) y se vuelve a dibujar al cambiar
  * el dibujo, los elementos o el tamaño. El motor (three.js) se carga la primera vez.
  */
-const Board3DView = forwardRef(function Board3DView({ board, els, camera, frame = 0, aspect = null, fullView = false, viewOverride = null, className = "", style, label = "Vista 3D", fill = false, sel = null, draft = null, canvasStyle = null, ...events }, ref) {
+const Board3DView = forwardRef(function Board3DView({ board, els, camera, frame = 0, aspect = null, fullView = false, viewOverride = null, orbit: orbitProp, className = "", style, label = "Vista 3D", fill = false, sel = null, draft = null, canvasStyle = null, ...events }, ref) {
   const wrap = useRef(null);
   const canvas = useRef(null);
   const [box, setBox] = useState(null);
   const [ready, setReady] = useState(false);
   const { vb } = boardView(board, { camera, frame, aspect, fullView, viewOverride });
+  // cámara libre del 3D: la que se pase o la del fotograma (sin ninguna, la automática)
+  const orbit = orbitProp === undefined ? orbitOf(board, frame) : orbitProp;
   const ar = vb[2] / vb[3];
 
   // tamaño disponible
@@ -27,7 +29,7 @@ const Board3DView = forwardRef(function Board3DView({ board, els, camera, frame 
 
   // lo que se dibuja: siempre lo último que llega (si llegan cambios mientras dibuja, se dibuja una vez más al acabar)
   const latest = useRef(null);
-  latest.current = { board, els, opts: { camera, frame, aspect, fullView, viewOverride, sel, draft } };
+  latest.current = { board, els, opts: { camera, frame, aspect, fullView, viewOverride, sel, draft, orbit } };
   const busy = useRef(false);
   const again = useRef(false);
   const raf = useRef(0);
@@ -61,7 +63,7 @@ const Board3DView = forwardRef(function Board3DView({ board, els, camera, frame 
         if (again.current) { again.current = false; raf.current = requestAnimationFrame(draw); }
       }
     });
-  }, [box, board, els, camera, frame, aspect, fullView, viewOverride, ar, fill, style?.maxHeight, sel, draft]);
+  }, [box, board, els, camera, frame, aspect, fullView, viewOverride, ar, fill, style?.maxHeight, sel, draft, orbit]);
 
   // Para dibujar en 3D (editor): puntero → campo, qué hay debajo y dónde cae en pantalla un punto del campo
   const libRef = useRef(null);
@@ -71,6 +73,8 @@ const Board3DView = forwardRef(function Board3DView({ board, els, camera, frame 
     ground: (e) => { const l = libRef.current; if (!l || !canvas.current) return null; const q = px(e); return l.groundAt(canvas.current, q.x, q.y); },
     pickable: (el) => Boolean(libRef.current?.pickable3D(el)),
     pick: (list, e) => { const l = libRef.current; if (!l || !canvas.current) return null; const q = px(e); return l.pickAt(canvas.current, list, q.x, q.y); },
+    // cámara libre con la que se ve ahora (la automática convertida), para girarla desde ahí
+    orbit: () => (libRef.current && canvas.current ? libRef.current.orbitAt(canvas.current) : null),
     toScreen: (x, y, h = 0) => {
       const l = libRef.current, c = canvas.current;
       if (!l || !c) return null;

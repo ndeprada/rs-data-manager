@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Play } from "lucide-react";
-import { animationDuration, boardSpeed, camAtTime, elsAtTime, is3D, isAnimation, normalizeBoard } from "@/lib/board";
+import { animationDuration, boardSpeed, camAtTime, elsAtTime, is3D, isAnimation, normalizeBoard, orbitAtTime } from "@/lib/board";
 import Board from "./BoardSvg";
 import Board3DView from "./Board3D";
 
@@ -35,7 +35,7 @@ export default function BoardPlayer({ board, className = "", style, label = "Dib
   return (
     <div className={`relative ${is3D(b) ? "flex w-full" : "inline-flex"} max-w-full`} style={{ height: style?.height }}>
       {is3D(b)
-        ? <Board3DView board={b} els={els} camera={t == null ? undefined : camAtTime(b, t, { speed })} className={`${className} w-full`} style={style} label={label} />
+        ? <Board3DView board={b} els={els} camera={t == null ? undefined : camAtTime(b, t, { speed })} orbit={t == null ? undefined : orbitAtTime(b, t, { speed })} className={`${className} w-full`} style={style} label={label} />
         : <Board board={b} els={els} camera={t == null ? undefined : camAtTime(b, t, { speed })} className={className} style={style} label={label} />}
       {anim && t == null && (
         <button

@@ -356,7 +356,8 @@ export function normalizeBoard(value) {
       ...(camOf(value).z > 1 ? { cam: camOf(value) } : {}),
       ...(value.camRatio === "port" ? { camRatio: "port" } : {}),
       ...(value.view3d === true ? { view3d: true } : {}),
-      frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [], ...(validCam(f.cam) ? { cam: validCam(f.cam) } : {}) })),
+      ...(validOrbit(value.orbit) ? { orbit: validOrbit(value.orbit) } : {}),
+      frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [], ...(validCam(f.cam) ? { cam: validCam(f.cam) } : {}), ...(validOrbit(f.orbit) ? { orbit: validOrbit(f.orbit) } : {}) })),
     };
   }
   return {
@@ -784,6 +785,117 @@ export function boardView(board, { camera, frame = 0, aspect = null, fullView = 
 // ── Vista 3D (como el estadio de FmStadio) ──────────────────────────────────────────────────────────────────────────
 // `board.view3d = true`: se ve, se reproduce y se exporta en 3D (se dibuja igual que siempre, en 2D).
 export const is3D = (b) => b?.view3d === true;
+
+// Vista del campo en un solo selector (01/11/2026, Nacho: «la 2D con perspectiva y la 3D son casi idénticas»):
+// «flat» = plana, «persp» = perspectiva (dibujo 2D inclinado), «3d» = maqueta 3D con cámara libre
+export const VIEW_MODES = [
+  { id: "flat", label: "Plana" },
+  { id: "persp", label: "Perspectiva" },
+  { id: "3d", label: "3D" },
+];
+export const viewModeOf = (b) => (is3D(b) ? "3d" : b?.view === "persp" ? "persp" : "flat");
+/** Cambia la vista: en 3D se queda la inclinación (`view: "persp"`) para que la cámara automática siga igual. */
+export function setViewMode(b, mode) {
+  const { view: _v, view3d: _3, ...rest } = b;
+  if (mode === "3d") return { ...rest, view: "persp", view3d: true };
+  if (mode === "persp") return { ...rest, view: "persp" };
+  return rest;
+}
+
+// ── Cámara libre del 3D («órbita») ────────────────────────────────────────────────────────────────────────────────
+// { az, tilt, dist, x, y }: la cámara mira al punto (x, y) del campo (m) desde `dist` m, girada `az` grados alrededor del
+// punto (0 = detrás de la portería propia mirando hacia la que se ataca; 90 = desde la banda derecha) e inclinada `tilt`
+// grados sobre el suelo (90 = desde arriba). `board.orbit` = la de todo el dibujo; `frame.orbit` = la de ese fotograma, para
+// que la cámara se mueva durante la jugada (un fotograma sin la suya usa la del anterior que la tenga). Sin ninguna, la
+// cámara automática de siempre.
+export const ORBIT_LIMITS = { tilt: [6, 89.5], dist: [8, 320] };
+export function validOrbit(o) {
+  if (!o || typeof o !== "object") return null;
+  const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+  const az = n(o.az), tilt = n(o.tilt), dist = n(o.dist), x = n(o.x), y = n(o.y);
+  if (az == null || tilt == null || dist == null || x == null || y == null) return null;
+  const r1 = (v) => Math.round(v * 10) / 10;
+  return {
+    az: r1(((az % 360) + 360) % 360),
+    tilt: r1(Math.min(ORBIT_LIMITS.tilt[1], Math.max(ORBIT_LIMITS.tilt[0], tilt))),
+    dist: r1(Math.min(ORBIT_LIMITS.dist[1], Math.max(ORBIT_LIMITS.dist[0], dist))),
+    x: r1(x), y: r1(y),
+  };
+}
+export const hasFrameOrbits = (b) => Array.isArray(b?.frames) && b.frames.some((f) => validOrbit(f.orbit));
+/** Cámara libre del fotograma i: la suya, la del último anterior que la tenga o la del dibujo (null = automática). */
+export function orbitOf(b, i = 0) {
+  const frames = b?.frames || [];
+  for (let k = Math.min(i, frames.length - 1); k >= 0; k--) { const o = validOrbit(frames[k].orbit); if (o) return o; }
+  return validOrbit(b?.orbit);
+}
+const lerpAz = (a, b, k) => { const d = ((((b - a) % 360) + 540) % 360) - 180; return (((a + d * k) % 360) + 360) % 360; };
+export function lerpOrbit(a, b, k) {
+  if (!a || !b) return b || a || null;
+  return { az: lerpAz(a.az, b.az, k), tilt: a.tilt + (b.tilt - a.tilt) * k, dist: a.dist + (b.dist - a.dist) * k, x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
+}
+/** Cámara libre entre el fotograma i y el siguiente (t = 0…1 del paso), con la misma suavidad que las fichas. */
+export const orbitBetween = (b, i, t) => (b?.frames?.[i + 1] ? lerpOrbit(orbitOf(b, i), orbitOf(b, i + 1), ease(Math.min(1, Math.max(0, t)))) : orbitOf(b, i));
+/** Cámara libre en el instante ms de la animación (como `camAtTime`). */
+export function orbitAtTime(board, ms, { speed = 1500, holdStart = ANIM_HOLD.start } = {}) {
+  const n = board?.frames?.length || 0;
+  if (!n) return null;
+  const seg = (ms - holdStart) / speed;
+  if (n < 2 || seg <= 0) return orbitOf(board, 0);
+  if (seg >= n - 1) return orbitOf(board, n - 1);
+  const i = Math.floor(seg);
+  return orbitBetween(board, i, seg - i);
+}
+/** Guarda la cámara libre: en el fotograma i si la cámara se mueve por fotogramas (o `perFrame`), si no en el dibujo. */
+export function setOrbit(b, i, o, { perFrame = hasFrameOrbits(b) } = {}) {
+  const v = validOrbit(o);
+  if (!perFrame) {
+    const { orbit: _o, ...rest } = b;
+    return v ? { ...rest, orbit: v } : rest;
+  }
+  // la primera vez que se fija en un fotograma que no es el primero, el primero se queda con la de antes (no da un salto)
+  const base = orbitOf(b, 0);
+  return {
+    ...b,
+    frames: b.frames.map((f, k) => {
+      if (k === i) { const { orbit: _o, ...rest } = f; return v ? { ...rest, orbit: v } : rest; }
+      if (k === 0 && !hasFrameOrbits(b) && base) return { ...f, orbit: base };
+      return f;
+    }),
+  };
+}
+/** Quita la cámara propia del fotograma i (vuelve a usar la del anterior). */
+export function clearFrameOrbit(b, i) {
+  return { ...b, frames: b.frames.map((f, k) => { if (k !== i) return f; const { orbit: _o, ...rest } = f; return rest; }) };
+}
+/** Vuelve a la cámara automática (quita todas las cámaras libres). */
+export function clearOrbits(b) {
+  const { orbit: _o, ...rest } = b;
+  return { ...rest, frames: b.frames.map((f) => { const { orbit: _f, ...r } = f; return r; }) };
+}
+/** Encuadres rápidos de la cámara 3D (en metros del campo que se ve). */
+export const ORBIT_PRESETS = [
+  { id: "tribuna", label: "Tribuna" },
+  { id: "porteria", label: "Detrás de la portería" },
+  { id: "rival", label: "Desde la portería rival" },
+  { id: "cenital", label: "Desde arriba" },
+  { id: "pie", label: "A pie de campo" },
+];
+export function orbitPreset(board, id) {
+  const cut = isCutField(board?.field);
+  const f = fieldOf(board?.field);
+  const L = Math.max(f.w, f.h), cx = f.w / 2, cy = f.h / 2;
+  // en medio campo y 3/4 la cámara mira a la parte que se ve (desde la portería que se ataca, que está arriba)
+  const ty = cut ? Math.min(cy, f.h * 0.55) : cy;
+  const presets = {
+    tribuna: { az: 90, tilt: 32, dist: L * 1.4, x: cx, y: ty },
+    porteria: { az: 0, tilt: 24, dist: L * 1.1, x: cx, y: ty },
+    rival: { az: 180, tilt: 24, dist: L * 1.1, x: cx, y: ty },
+    cenital: { az: 0, tilt: 89.5, dist: L * 1.35, x: cx, y: ty },
+    pie: { az: 135, tilt: 12, dist: L * 0.7, x: cx, y: ty },
+  };
+  return validOrbit(presets[id] || presets.tribuna);
+}
 /** Suelo que se ve en metros del campo: el campo más su margen por cada lado ([x0, y0, x1, y1]). */
 export function groundRegion(board) {
   // en medio campo y 3/4 el 3D tiene el campo entero (en perspectiva el corte no puede ser recto: se ve el resto del campo)

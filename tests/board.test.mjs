@@ -1250,3 +1250,39 @@ test("cambiar de campo: fichas, conos y textos en proporción (no entre campos d
   assert.equal(half.chipSize, 1);
   assert.equal(half.frames[0].els[0].size, 1);
 });
+
+test("vista en un solo selector y cámara libre del 3D", async () => {
+  const L = await import("../src/lib/board.js");
+  const b0 = L.emptyBoard("full");
+  assert.equal(L.viewModeOf(b0), "flat");
+  const b3 = L.setViewMode(b0, "3d");
+  assert.equal(L.viewModeOf(b3), "3d");
+  assert.equal(b3.view, "persp");
+  assert.equal(L.viewModeOf(L.setViewMode(b3, "persp")), "persp");
+  assert.equal(L.setViewMode(b3, "flat").view3d, undefined);
+  // validar y limitar
+  assert.equal(L.validOrbit({ az: 1 }), null);
+  const o = L.validOrbit({ az: -90, tilt: 120, dist: 2, x: 10, y: 20 });
+  assert.deepEqual(o, { az: 270, tilt: 89.5, dist: 8, x: 10, y: 20 });
+  // dibujo entero
+  let b = L.setOrbit({ ...b0, frames: [b0.frames[0], { id: "f2", els: [] }, { id: "f3", els: [] }] }, 1, { az: 0, tilt: 30, dist: 100, x: 34, y: 52 });
+  assert.equal(b.orbit.dist, 100);
+  assert.equal(L.orbitOf(b, 2).dist, 100);
+  // por fotograma: el primero se queda con la de antes y el resto la hereda
+  b = L.setOrbit(b, 2, { az: 90, tilt: 50, dist: 60, x: 34, y: 20 }, { perFrame: true });
+  assert.equal(b.frames[0].orbit.dist, 100);
+  assert.equal(L.orbitOf(b, 1).dist, 100);
+  assert.equal(L.orbitOf(b, 2).az, 90);
+  // a mitad de camino entre el 2 y el 3 (giro por el lado corto)
+  const m = L.orbitBetween(b, 1, 0.5);
+  assert.ok(m.az > 40 && m.az < 50 && m.dist > 79 && m.dist < 81);
+  assert.equal(L.lerpOrbit({ az: 350, tilt: 0, dist: 1, x: 0, y: 0 }, { az: 10, tilt: 0, dist: 1, x: 0, y: 0 }, 0.5).az, 0);
+  assert.equal(L.orbitAtTime(b, 0).dist, 100);
+  // se conserva al normalizar, se quita de un fotograma y se vuelve a la automática
+  assert.deepEqual(L.normalizeBoard(b).frames[2].orbit, b.frames[2].orbit);
+  assert.equal(L.orbitOf(L.clearFrameOrbit(b, 2), 2).dist, 100);
+  const auto = L.clearOrbits(b);
+  assert.equal(L.orbitOf(auto, 2), null);
+  assert.equal(L.hasFrameOrbits(auto), false);
+  for (const p of L.ORBIT_PRESETS) assert.ok(L.orbitPreset(b0, p.id), p.id);
+});

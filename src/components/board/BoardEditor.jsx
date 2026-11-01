@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X } from "lucide-react";
+import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X, RotateCcw, RotateCw, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
-  boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
-  is3D, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
+  boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
+  is3D, VIEW_MODES, viewModeOf, setViewMode, orbitOf, orbitBetween, orbitPreset, ORBIT_PRESETS, setOrbit, clearFrameOrbit, clearOrbits, hasFrameOrbits, validOrbit, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
 import Board3DView from "./Board3D";
@@ -91,7 +91,6 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   // ver en el editor lo que ve la cámara (como «Show camera view in edit mode» de FmStadio)
   const [showCam, setShowCam] = useState(false);
   // Vista 3D: se dibuja en 2D y con «Ver en 3D» (o al reproducir) se ve el estadio en 3D
-  const [see3d, setSee3d] = useState(false);
   const [error, setError] = useState("");
   const [quick, setQuick] = useState(null); // ficha abierta con doble clic (su id)
   const [quickPos, setQuickPos] = useState(null);
@@ -207,11 +206,37 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
 
   const shownEls = anim && board.frames[anim.i + 1] ? lerpFrames(board.frames[anim.i], board.frames[anim.i + 1], anim.t) : cur.els;
   const ghosts = !playing && trails && prev ? ghostsOf(prev, cur) : [];
-  const show3d = is3D(board) && (see3d || playing) && tool !== "camera";
+  // Vista en un solo selector (Plana · Perspectiva · 3D); con la herramienta Cámara se ve el recuadro en 2D
+  const show3d = is3D(board) && tool !== "camera";
   // Dibujar en 3D: el puntero se lleva al campo con la cámara 3D (`v3`) en vez del SVG
   const in3d = show3d && !playing;
   const v3 = useRef(null);
   const last3d = useRef({ x: 0, y: 0 });
+  const viewMode = viewModeOf(board);
+  const pickViewMode = (m) => {
+    if (m === viewModeOf(live.current)) return;
+    commit(setViewMode(live.current, m));
+    setQuick(null);
+    if (m === "3d" && tool === "camera") pickTool("select");
+  };
+
+  // ── Cámara libre del 3D: girar alrededor del campo, inclinar, acercar y mover ──────────────────────────────────────
+  // Se guarda en el dibujo (`orbit`) o, si la cámara se mueve durante la jugada, en cada fotograma (`frame.orbit`).
+  const curOrbit = orbitOf(board, idx);
+  const perFrameOrbit = hasFrameOrbits(board);
+  const ownOrbit = Boolean(validOrbit(board.frames[idx]?.orbit));
+  const shownOrbit = anim && playing ? orbitBetween(board, anim.i, anim.t) : curOrbit;
+  const orbitNow = () => orbitOf(live.current, idx) || v3.current?.orbit() || orbitPreset(live.current, "tribuna");
+  // (se apunta ya en `live` para que la rueda o el pellizco, que llegan muy seguidos, no pierdan pasos)
+  const putOrbit = (o, opts) => { const next = setOrbit(live.current, idx, o); commit(next, { key: "orbit", ...opts }); live.current = next; };
+  const orbitBy = ({ daz = 0, dtilt = 0, kdist = 1 }) => { const o = orbitNow(); if (o) putOrbit({ ...o, az: o.az + daz, tilt: o.tilt + dtilt, dist: o.dist * kdist }); };
+  const orbitPan = (o0, dxPx, dyPx, hPx) => {
+    // mover el punto al que mira: lo que se arrastra a la derecha se va a la derecha (la cámara, a la izquierda)
+    const a = (o0.az * Math.PI) / 180, k = (o0.dist * 1.1) / Math.max(200, hPx);
+    const right = { x: Math.cos(a), y: -Math.sin(a) }, up = { x: -Math.sin(a), y: -Math.cos(a) };
+    const f = fieldOf(live.current.field);
+    return { ...o0, x: clamp(o0.x - dxPx * k * right.x + dyPx * k * up.x, -10, f.w + 10), y: clamp(o0.y - dxPx * k * right.y + dyPx * k * up.y, -10, f.h + 10) };
+  };
 
   // ── Puntero ──────────────────────────────────────────────────────────────────────────────────────────────────────
   // En perspectiva, el punto de la pantalla se lleva al suelo deshaciendo la proyección
@@ -251,6 +276,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const setCam = (c) => { const { cam: _c, ...rest } = live.current; commit(c ? { ...rest, cam: c } : rest, { key: "cam" }); };
   const zoomTo = (z, at) => setCam(zoomCam(fullVb, camOf(live.current), z, at));
   const zoomStep = (dir) => {
+    if (show3d) { orbitBy({ kdist: dir > 0 ? 0.8 : 1.25 }); return; }
     const z = camOf(live.current).z;
     const next = dir > 0 ? ZOOM_STEPS.find((v) => v > z + 0.01) : [...ZOOM_STEPS].reverse().find((v) => v < z - 0.01);
     zoomTo(next ?? (dir > 0 ? ZOOM_STEPS[ZOOM_STEPS.length - 1] : 1));
@@ -270,6 +296,16 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const baseZ = () => { const z = camOf(live.current).z; if (zAcc.current == null || Math.abs(zAcc.current - z) > 0.02) zAcc.current = z; return zAcc.current; };
     const zoomBy = (f, at) => { const nz = Math.min(ZOOM_MAX, Math.max(1, baseZ() * f)); zAcc.current = nz; zoomTo(nz, at); };
     const onWheel = (e) => {
+      // 3D: la rueda (o pellizcar) acerca o aleja la cámara; con Mayús, la inclina
+      if (show3d && !playing) {
+        e.preventDefault();
+        const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+        const o = orbitNow();
+        if (!o) return;
+        if (e.shiftKey) putOrbit({ ...o, tilt: o.tilt - Math.max(-60, Math.min(60, d || e.deltaX)) * 0.08 });
+        else putOrbit({ ...o, dist: o.dist * Math.exp(Math.max(-80, Math.min(80, d)) * ((e.ctrlKey || e.metaKey) ? 0.012 : 0.0012)) });
+        return;
+      }
       if (!svgOf()) return;
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
@@ -288,7 +324,10 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     };
     let gz = 1;
     const onGestureStart = (e) => { e.preventDefault(); gz = 1; };
-    const onGestureChange = (e) => { e.preventDefault(); if (!svgOf()) return; const f = e.scale / gz; gz = e.scale; zoomBy(f, atOf(e)); };
+    const onGestureChange = (e) => {
+      e.preventDefault();
+      if (show3d && !playing) { const f = e.scale / gz; gz = e.scale; const o = orbitNow(); if (o) putOrbit({ ...o, dist: o.dist / f }); return; }
+      if (!svgOf()) return; const f = e.scale / gz; gz = e.scale; zoomBy(f, atOf(e)); };
     host.addEventListener("wheel", onWheel, { passive: false });
     host.addEventListener("gesturestart", onGestureStart, { passive: false });
     host.addEventListener("gesturechange", onGestureChange, { passive: false });
@@ -365,7 +404,17 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     // dos dedos: acercar o alejar (se deshace lo que hubiera empezado el primer dedo)
     if (pointers.current.size === 2) {
-      if (in3d) { drag.current = null; setDraft(null); return; }
+      if (in3d) {
+        // dos dedos en 3D: pellizcar = acercar o alejar la cámara
+        const d = drag.current;
+        if (d?.snapshot && d.moved) onChange(d.snapshot);
+        setDraft(null);
+        const [a, b] = [...pointers.current.values()];
+        const o0 = orbitNow();
+        drag.current = o0 ? { mode: "pinch3d", d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, o0 } : null;
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+        return;
+      }
       const d = drag.current;
       if (d?.snapshot && d.moved) onChange(d.snapshot);
       setDraft(null);
@@ -384,6 +433,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         e.currentTarget.setPointerCapture?.(e.pointerId);
         drag.current = { mode: "cam", h, start: svgPoint(e), rect0: camR, snapshot: live.current };
       }
+      return;
+    }
+    // 3D: con la mano (o Alt + arrastrar) se gira la cámara; con Mayús se mueve
+    if (in3d && (tool === "pan" || e.altKey)) {
+      const o0 = orbitNow();
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      drag.current = o0 ? { mode: "orbit", cx: e.clientX, cy: e.clientY, o0, shift: e.shiftKey, h: e.currentTarget.getBoundingClientRect().height } : null;
       return;
     }
     const p = point(e);
@@ -521,6 +577,18 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       zoomTo(d.z0 * (Math.hypot(a.x - b.x, a.y - b.y) / d.d0), d.at);
       return;
     }
+    if (d.mode === "pinch3d") {
+      if (pointers.current.size < 2) return;
+      const [a, b] = [...pointers.current.values()];
+      putOrbit({ ...d.o0, dist: d.o0.dist * (d.d0 / (Math.hypot(a.x - b.x, a.y - b.y) || 1)) });
+      return;
+    }
+    if (d.mode === "orbit") {
+      const dx = e.clientX - d.cx, dy = e.clientY - d.cy;
+      if (d.shift) putOrbit(orbitPan(d.o0, dx, dy, d.h));
+      else putOrbit({ ...d.o0, az: d.o0.az - dx * 0.35, tilt: d.o0.tilt + dy * 0.25 });
+      return;
+    }
     if (d.mode === "pan") {
       const ctm = svgRef.current?.getScreenCTM();
       if (!ctm) return;
@@ -611,7 +679,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const onUp = (e) => {
     if (e?.pointerId !== undefined) pointers.current.delete(e.pointerId);
     const d = drag.current;
-    if (d?.mode === "pinch") { if (pointers.current.size === 0) drag.current = null; return; }
+    if (d?.mode === "pinch" || d?.mode === "pinch3d") { if (pointers.current.size === 0) drag.current = null; return; }
     drag.current = null;
     if (!d) return;
     if ((d.mode === "move" || d.mode === "handle" || d.mode === "cam") && d.moved) {
@@ -994,19 +1062,16 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
             {ORIENTS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
           </select>
         </label>
-        <label className="text-[11px] font-semibold text-gray-600 space-y-0.5">Vista
-          <select value={board.view === "persp" ? "persp" : "flat"} onChange={(e) => { const { view: _v, ...rest } = board; commit(e.target.value === "persp" ? { ...rest, view: "persp" } : rest); }} className={`${selectCls} w-full`} aria-label="Vista del campo">
-            {VIEWS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
-          </select>
-        </label>
       </div>
-      <div className="space-y-1" data-testid="board-3d">
-        <button type="button" aria-pressed={is3D(board)} data-testid="toggle-3d"
-          onClick={() => { const { view3d: _v, ...rest } = live.current; const on = !is3D(live.current); commit(on ? { ...rest, view3d: true } : rest); setSee3d(on); }}
-          className={`h-8 px-2.5 rounded-md border text-xs font-semibold ${is3D(board) ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>
-          {is3D(board) ? "✓ " : ""}Vista 3D
-        </button>
-        <p className="text-[10px] text-gray-500 leading-snug">Se dibuja en 2D; la vista previa, la animación, la imagen y el vídeo salen en 3D (estadio, fichas con volumen y sombras). Vista plana = desde arriba; perspectiva = inclinada.</p>
+      <div className="space-y-1" data-testid="board-view-settings">
+        <span className="text-[11px] font-semibold text-gray-600">Vista</span>
+        <div className="flex gap-1" role="group" aria-label="Vista del campo">
+          {VIEW_MODES.map((m) => (
+            <button key={m.id} type="button" aria-pressed={viewMode === m.id} onClick={() => pickViewMode(m.id)} data-testid={`settings-view-${m.id}`}
+              className={`h-8 px-2.5 rounded-md border text-xs font-semibold ${viewMode === m.id ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>{m.label}</button>
+          ))}
+        </div>
+        <p className="text-[10px] text-gray-500 leading-snug">Plana = desde arriba · Perspectiva = el dibujo inclinado · 3D = estadio con volumen y luz, con la cámara que quieras (mano: arrastra para girar, Mayús + arrastrar para mover, rueda para acercar).</p>
       </div>
       {isStadium(look) && (
         <div className="space-y-1" data-testid="board-stadium">
@@ -1248,6 +1313,32 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       <button type="button" aria-pressed={tool === "pan"} className={zoomBtnDark} style={tool === "pan" ? { background: RAIL.on, color: RAIL.onInk } : undefined} onClick={() => pickTool(tool === "pan" ? "select" : "pan")} disabled={cam.z <= 1 && tool !== "pan"} aria-label="Mover la vista"><Hand className="w-4 h-4" /></button>
     </div>
   );
+  // Cámara del 3D: girar, inclinar, acercar, encuadres rápidos y, en las animaciones, que se mueva durante la jugada
+  const toggleFrameOrbit = () => commit(ownOrbit ? clearFrameOrbit(live.current, idx) : setOrbit(live.current, idx, orbitNow(), { perFrame: true }));
+  const orbitBox = !playing && (
+    <div className={`absolute right-2 flex flex-wrap justify-end items-center gap-0.5 rounded-lg p-0.5 ${narrow ? "top-11" : "top-14"}`} style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4, maxWidth: "calc(100% - 16px)" }} data-testid="board-orbit">
+      <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ daz: -45 })} aria-label="Girar la cámara a la izquierda" title="Girar a la izquierda"><RotateCcw className="w-4 h-4" /></button>
+      <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ daz: 45 })} aria-label="Girar la cámara a la derecha" title="Girar a la derecha"><RotateCw className="w-4 h-4" /></button>
+      <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ dtilt: 10 })} aria-label="Ver más desde arriba" title="Más desde arriba"><ChevronUp className="w-4 h-4" /></button>
+      <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ dtilt: -10 })} aria-label="Ver más a ras de suelo" title="Más a ras de suelo"><ChevronDown className="w-4 h-4" /></button>
+      <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ kdist: 1.25 })} aria-label="Alejar la cámara" title="Alejar"><ZoomOut className="w-4 h-4" /></button>
+      <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ kdist: 0.8 })} aria-label="Acercar la cámara" title="Acercar"><ZoomIn className="w-4 h-4" /></button>
+      <button type="button" aria-pressed={tool === "pan"} className={zoomBtnDark} style={tool === "pan" ? { background: RAIL.on, color: RAIL.onInk } : undefined} onClick={() => pickTool(tool === "pan" ? "select" : "pan")} aria-label="Mover la cámara arrastrando" title="Arrastra para girar · Mayús + arrastrar para mover · rueda para acercar" data-testid="orbit-hand"><Hand className="w-4 h-4" /></button>
+      <select value="" onChange={(e) => { if (e.target.value) putOrbit(orbitPreset(live.current, e.target.value), { key: null }); }} aria-label="Encuadres de la cámara" data-testid="orbit-preset"
+        className="h-8 w-[92px] rounded-md bg-transparent text-[11px] font-semibold px-1 hover:bg-white/10 focus:outline-none" style={{ color: RAIL.text, fontSize: 11 }}>
+        <option value="" style={{ color: "#111" }}>Encuadre…</option>
+        {ORBIT_PRESETS.map((p) => <option key={p.id} value={p.id} style={{ color: "#111" }}>{p.label}</option>)}
+      </select>
+      <button type="button" className={`${zoomBtnDark} w-auto px-1.5 text-[11px] font-semibold`} onClick={() => commit(clearOrbits(live.current))} disabled={!curOrbit && !perFrameOrbit} aria-label="Volver a la cámara automática" title="Cámara automática" data-testid="orbit-auto"><Maximize className={`w-4 h-4${narrow ? "" : " mr-1"}`} />{!narrow && "Automática"}</button>
+      {!imageMode && board.frames.length > 1 && (
+        <button type="button" aria-pressed={ownOrbit} onClick={toggleFrameOrbit} data-testid="orbit-frame"
+          title={ownOrbit ? "Quitar la cámara de este fotograma (usará la del anterior)" : "Guardar la cámara en este fotograma: al reproducir y en el vídeo, la cámara se mueve de un fotograma a otro"}
+          className={`${zoomBtnDark} w-auto px-1.5 text-[11px] font-semibold`} style={ownOrbit ? { background: RAIL.on, color: RAIL.onInk } : undefined}>
+          <Video className="w-4 h-4 mr-1" />{narrow ? (ownOrbit ? String(idx + 1).padStart(2, "0") : "+") : ownOrbit ? `Cámara del ${String(idx + 1).padStart(2, "0")}` : perFrameOrbit ? "Fijar aquí" : "Mover en la jugada"}
+        </button>
+      )}
+    </div>
+  );
   const stage = (
     <div ref={setWrap} className={narrow ? "relative flex-1 min-h-0 flex items-center justify-center p-1" : "absolute inset-y-0 left-[54px] right-[80px] flex items-center justify-center p-3"}>
       {show3d && (
@@ -1258,6 +1349,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           camera={showCam ? frameCam(board, idx) : null}
           viewOverride={camView}
           aspect={showCam ? null : stageAR}
+          orbit={shownOrbit}
           fill
           className="w-full h-full"
           label="Pizarra en 3D"
@@ -1273,11 +1365,11 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
         />
       )}
-      {is3D(board) && !playing && (
-        <div className="absolute top-2 left-2 flex items-center gap-0.5 rounded-lg p-0.5 text-[11px] font-semibold" style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} role="group" aria-label="Dibujar en 2D o en 3D" title="Dibujar en 2D o en 3D" data-testid="board-3d-switch">
-          {[{ id: false, label: "2D" }, { id: true, label: "3D" }].map((o) => (
-            <button key={String(o.id)} type="button" aria-pressed={show3d === o.id} onClick={() => { setSee3d(o.id); setQuick(null); if (o.id && tool === "camera") pickTool("select"); }} data-testid={o.id ? "board-see-3d" : "board-see-2d"}
-              className="h-7 px-2 rounded-md" style={show3d === o.id ? { background: RAIL.on, color: RAIL.onInk } : undefined}>{o.label}</button>
+      {!playing && (
+        <div className="absolute top-2 left-2 flex items-center gap-0.5 rounded-lg p-0.5 text-[11px] font-semibold" style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} role="group" aria-label="Vista del campo" title="Vista del campo" data-testid="board-view-mode">
+          {VIEW_MODES.map((m) => (
+            <button key={m.id} type="button" aria-pressed={viewMode === m.id} onClick={() => pickViewMode(m.id)} data-testid={`view-${m.id}`}
+              className="h-7 px-2 rounded-md" style={viewMode === m.id ? { background: RAIL.on, color: RAIL.onInk } : undefined}>{m.label}</button>
           ))}
         </div>
       )}
@@ -1307,6 +1399,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
       />
       {!show3d && zoomBox}
+      {show3d && orbitBox}
       {quickEl && quickPos && (
         <ChipQuickEdit
           el={quickEl}
@@ -1326,7 +1419,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const hint0 = playing ? "Reproduciendo…" : error ? error
     : tool === "select" ? (sel.length ? "Arrastra para mover · Supr para quitar" : hasEls ? "Toca algo para elegirlo · arrastra un recuadro para elegir varios" : "Elige una herramienta en la barra de la izquierda y toca el campo")
       : tool === "camera" ? "Arrastra el recuadro o sus esquinas · 1–4 encuadres · P formato · R igual que el anterior" : isTeamTool(tool) ? "Toca el campo para colocar fichas" : ARROW_TOOLS.includes(tool) ? "Arrastra para dibujar la flecha" : tool === "zone" || tool === "quad" ? "Arrastra para dibujar la zona" : tool === "pan" ? "Arrastra para mover la vista" : "Toca el campo para colocarlo";
-  const hint = in3d && !error ? `En 3D · ${hint0} · curvas, quiebros, giros y trayectorias: en 2D` : hint0;
+  const hint = in3d && !error ? (tool === "pan" ? "En 3D · Arrastra para girar la cámara · Mayús + arrastrar para moverla · rueda para acercar" : `En 3D · ${hint0} · Alt + arrastrar gira la cámara · curvas, quiebros, giros y trayectorias: en Plana o Perspectiva`) : hint0;
 
   const studio = narrow ? (
     <div className="fixed inset-0 flex flex-col" style={{ background: styleOf(look).surround || RAIL.bg, color: RAIL.text, zIndex: 50 }} onKeyDown={onKey} tabIndex={-1} data-testid="board-studio">
