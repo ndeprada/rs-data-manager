@@ -1,6 +1,6 @@
 import React from "react";
 import Board, { styleOf } from "./BoardSvg";
-import { animationDuration, boardView, isSideways, orientOf, camAtTime, camRatioOf, elsAtTime, hasCamera, is3D, lookOf, normalizeBoard, turnQuarter } from "@/lib/board";
+import { animationDuration, boardView, camAtTime, camRatioOf, elsAtTime, hasCamera, is3D, lookOf, normalizeBoard, turnQuarter } from "@/lib/board";
 import { load3d } from "./load3d";
 import { boardSvgMarkup, loadSvgImage } from "./exportPng";
 import { videoFrameSize } from "@/lib/videoSize";
@@ -63,8 +63,9 @@ export async function boardToVideo(board, { speed = 1500, quality = 1080, fps = 
   let probe = await boardSvgMarkup(<Board board={b} els={b.frames[0].els} />, 1000);
   // vídeo horizontal con el campo en vertical (o al revés): el campo se gira un cuarto de vuelta para llenar la pantalla
   // (en 3D manda la orientación del campo: en perspectiva el recuadro 2D sale casi cuadrado aunque el campo vaya en vertical)
-  const tall = is3D(b) ? !isSideways(orientOf(b.orient)) : probe.width < probe.height;
-  if (!withCam && ((format === "landscape" && tall) || (format === "portrait" && !tall))) {
+  // En 3D NO se gira: como en FmStadio, en 16:9 el campo vertical llena el alto y a los lados se ven las gradas.
+  const tall = probe.width < probe.height;
+  if (!withCam && !is3D(b) && ((format === "landscape" && tall) || (format === "portrait" && !tall))) {
     b = turnQuarter(b);
     probe = await boardSvgMarkup(<Board board={b} els={b.frames[0].els} />, 1000);
   }

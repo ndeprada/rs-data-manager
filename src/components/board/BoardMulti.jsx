@@ -172,6 +172,7 @@ export default function MultiPanel({ els, board, look, frames, onTeam, onColor, 
       </Row>
       <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
         <Button type="button" size="sm" variant="outline" className={btn} onClick={onDup} title="Duplicar todo lo elegido"><Copy className="w-3.5 h-3.5" /> Duplicar</Button>
+        {frames > 1 && <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onDel("from")} data-testid="multi-del-from-here" title="Siguen en los fotogramas anteriores y desaparecen desde este">Desaparecen desde aquí</Button>}
         {carried && frames > 1 && <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onDel(true)} title="Quitar solo de este fotograma">Solo aquí</Button>}
         <Button type="button" size="sm" variant="outline" className={`${btn} text-red-600`} onClick={() => onDel(false)} title={carried && frames > 1 ? "Quitar de todos los fotogramas" : "Quitar"}><Trash2 className="w-3.5 h-3.5" /> Quitar</Button>
       </div>

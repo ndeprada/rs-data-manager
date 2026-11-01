@@ -10,6 +10,7 @@
 // Un solo renderizador WebGL para toda la app (los navegadores limitan los contextos): cada vista copia el resultado a su
 // propio canvas 2D.
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
@@ -29,7 +30,8 @@ const SCREEN = {
   hi: { up: [-1, 0], right: [0, -1] },
 };
 // Inclinación de la cámara en perspectiva (grados sobre el horizonte) y apertura
-const TILT = 50;
+// (como el vídeo de ejemplo de FmStadio que pasó Nacho el 01/11/2026: casi desde arriba, con un poco de inclinación)
+const TILT = 74;
 const FOV = 30;
 const W0 = 10000; // imagen virtual completa (px) para setViewOffset
 
@@ -134,12 +136,15 @@ function ringPts(field, d) {
 }
 // Medidas del estadio 3D (m desde las líneas). Más grande que el dibujo 2D (pedido por Nacho el 01/11/2026: «gradas
 // bastante más grandes, con cubierta»): grada baja, pasillo, grada alta, muro de atrás y cubierta volada hacia el campo.
-const ST3 = { ads: 4.0, track: 5.5, row: 0.8, lowRows: 12, lowRise: 0.42, lowFront: 1.1, aisle: 1.6, upFront: 1.2, upRows: 13, upRise: 0.6, back: 0.5, wallTop: 19, roofIn: 22.5, roofLow: 17.6 };
+// Las gradas van a doble tamaño (filas de 1,6 m y asientos de 1 m): como en FmStadio, que no van a escala; así, en un vídeo
+// 16:9 con el campo en vertical, llenan los lados de la imagen (vídeo de ejemplo de Nacho del 01/11/2026).
+const SK = 2;
+const ST3 = { ads: 4.0, track: 5.5, row: 0.8 * SK, lowRows: 12, lowRise: 0.42 * SK, lowFront: 1.1 * SK, aisle: 1.6 * SK, upFront: 1.2 * SK, upRows: 13, upRise: 0.6 * SK, back: 0.5 * SK, wallTop: 19 * SK, roofIn: 0, roofLow: 17.6 * SK };
 const S3 = (() => {
   const lowTop = ST3.track + ST3.lowRows * ST3.row;
   const upStart = lowTop + ST3.aisle;
   const upTop = upStart + ST3.upRows * ST3.row;
-  return { ...ST3, lowTop, upStart, upTop, outer: upTop + ST3.back };
+  return { ...ST3, lowTop, upStart, upTop, outer: upTop + ST3.back, roofIn: upTop - 9 * SK };
 })();
 // Perfil de la grada (distancia d, altura h): escalones de la grada baja, pasillo, grada alta y muro exterior
 function standProfile() {
@@ -164,8 +169,8 @@ function buildStands(field, st) {
   const ref = ring(S.lowTop);
   const stair = ref.map((p) => {
     if (!p.side) return false;
-    const n = Math.max(2, Math.round(p.len / 13));
-    for (let k = 1; k < n; k++) if (Math.abs(p.t - k / n) * p.len < 0.6) return true;
+    const n = Math.max(2, Math.round(p.len / (11 * SK)));
+    for (let k = 1; k < n; k++) if (Math.abs(p.t - k / n) * p.len < 0.6 * SK) return true;
     return false;
   });
   const pos = [], col = [];
@@ -174,7 +179,6 @@ function buildStands(field, st) {
     c.set(color).convertSRGBToLinear();
     for (const p of pts) { pos.push(p[0], p[1], p[2]); col.push(c.r, c.g, c.b); }
   };
-  const seats = (st.seats || []).map((x) => hexOf(x));
   const loft = (sg, si, colorOf) => {
     const A = ring(sg.d0), B = ring(sg.d1);
     const n = A.length;
@@ -185,14 +189,11 @@ function buildStands(field, st) {
   };
   segs.forEach((sg, si) => loft(sg, si, (k) => {
     if (sg.kind === "seat") {
-      if (stair[k]) return hexOf(st.aisle);
-      const r = hash(k * 31 + si * 7);
-      const base = mixHex(st.seatDark || seats[0], st.seatLight || seats[1], 0.2 + 0.7 * sg.rowT);
-      let color = mixHex(base, seats[Math.floor(r * seats.length) % seats.length] || base, 0.15 + 0.2 * hash(k + si * 13));
-      if (r > 0.94) color = mixHex(color, "#ffffff", 0.2);
-      return color;
+      // el escalón (hormigón); los asientos van encima, como objetos
+      if (stair[k]) return mixHex(hexOf(st.concrete || "#6a706e"), "#ffffff", 0.12);
+      return mixHex(hexOf(st.concrete || "#5f6563"), "#000000", 0.08 * hash(k + si * 13));
     }
-    if (sg.kind === "riser") return mixHex(hexOf(st.riser), "#000000", 0.2);
+    if (sg.kind === "riser") return mixHex(hexOf(st.concrete || "#5f6563"), "#000000", 0.3);
     if (sg.kind === "aisle") return hexOf(st.concourse);
     if (sg.kind === "top") return hexOf(st.concourse);
     if (sg.kind === "outer") return mixHex(hexOf(st.outer), hexOf(st.roof), 0.6);
@@ -219,11 +220,60 @@ function buildStands(field, st) {
   const roof = new THREE.Mesh(rg, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
   roof.castShadow = true;
   roof.receiveShadow = true;
+  // asientos de verdad (un asiento con respaldo cada 0,55 m), mirando al campo, con tonos mezclados como en FmStadio
+  const seatsMesh = buildSeats(field, segs, stair, st);
   // foso entre las vallas y la grada
   const track = flatRing(field, S.ads, S.track, hexOf(st.track));
   const group = new THREE.Group();
   group.add(mesh, roof, track);
+  if (seatsMesh) group.add(seatsMesh);
   return group;
+}
+// Asientos: un InstancedMesh (respaldo + asiento) a lo largo de cada fila, saltando las escaleras
+function buildSeats(field, segs, stair, st) {
+  const pan = new THREE.BoxGeometry(0.46 * SK, 0.07 * SK, 0.36 * SK).translate(0, 0.38 * SK, -0.02 * SK);
+  const back = new THREE.BoxGeometry(0.46 * SK, 0.42 * SK, 0.06 * SK).translate(0, 0.6 * SK, 0.17 * SK);
+  const geo1 = mergeGeometries([pan, back]);
+  const seats = (st.seats || []).map((x) => hexOf(x));
+  const dark = hexOf(st.seat3d?.[0] || st.seatDark || "#1f7a4f"), light = hexOf(st.seat3d?.[1] || st.seatLight || "#8fd3a9");
+  const rows = segs.filter((sg) => sg.kind === "seat");
+  const items = [];
+  rows.forEach((sg, ri) => {
+    const ring = ringPts(field, sg.d0 + (sg.d1 - sg.d0) * 0.42);
+    const n = ring.length;
+    let carry = 0;
+    for (let k = 0; k < n; k++) {
+      const a = ring[k], b = ring[(k + 1) % n];
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      if (stair[k] || len < 1e-6) { carry = 0; continue; }
+      const tx = (b.x - a.x) / len, ty = (b.y - a.y) / len;
+      // hacia fuera del campo
+      let nx = ty, ny = -tx;
+      const mx = (a.x + b.x) / 2 - field.w / 2, my = (a.y + b.y) / 2 - field.h / 2;
+      if (nx * mx + ny * my < 0) { nx = -nx; ny = -ny; }
+      let t = carry;
+      for (; t < len; t += 0.55 * SK) items.push({ x: a.x + tx * t, y: a.y + ty * t, h: sg.h0, yaw: Math.atan2(nx, ny), ri, rowT: sg.rowT });
+      carry = t - len;
+    }
+  });
+  if (!items.length) return null;
+  const mesh = new THREE.InstancedMesh(geo1, new THREE.MeshLambertMaterial({ color: 0xffffff }), items.length);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), at = new THREE.Vector3();
+  items.forEach((it, i) => {
+    q.setFromAxisAngle(up, it.yaw);
+    m.compose(at.set(it.x, it.h, it.y), q, one);
+    mesh.setMatrixAt(i, m);
+    const r = hash(i * 7.13 + it.ri);
+    let col = mixHex(dark, light, Math.min(1, Math.max(0, 0.5 + 0.35 * it.rowT + (r - 0.5) * 0.3)));
+    if (!st.seat3d && seats.length) col = mixHex(col, seats[Math.floor(hash(i * 3.7) * seats.length) % seats.length], 0.3);
+    if (r > 0.97) col = mixHex(col, "#ffffff", 0.25);
+    mesh.setColorAt(i, c.set(col).convertSRGBToLinear());
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
 }
 function flatRing(field, d0, d1, color) {
   const A = ringPts(field, d0), B = ringPts(field, d1);
@@ -373,9 +423,11 @@ function buildStatic(board, pending) {
   }
   if (isStadium(look)) {
     if (hasStands(board)) {
-      group.add(buildStands(full, s.stadium));
+      // asientos de color vivo sobre hormigón gris (como en FmStadio)
+      const seat3d = look === "estadio-noche" ? ["#3346b8", "#7d92f0"] : ["#17a878", "#45e0aa"];
+      group.add(buildStands(full, { ...s.stadium, seat3d, concrete: look === "estadio-noche" ? "#6a7090" : "#9aa09e", concourse: look === "estadio-noche" ? "#5a6080" : "#8a908e" }));
       // por fuera de la grada (las esquinas son redondas), el color de alrededor del estadio
-      group.add(flatRing(full, S3.outer - 0.05, 90, bg));
+      group.add(flatRing(full, S3.outer - 0.05, 160, bg));
     }
     if (hasAds(board)) group.add(buildAds(full, board, pending));
   }
@@ -620,7 +672,8 @@ function placeCamera(camera, board, view, aspect) {
   const U = new THREE.Vector3(sc.up[0], 0, sc.up[1]);
   const persp = isPersp(board);
   const cut = isCutField(board.field);
-  const lim = [-4, -4, field.w + 4, field.h + (cut ? 3 : 4)];
+  // el campo con las porterías (2 m por detrás de cada línea de meta) y un poco de aire a los lados
+  const lim = [-3, -3.2, field.w + 3, field.h + (cut ? 3 : 3.2)];
   const corners = [[vb[0], vb[1]], [vb[0] + vb[2], vb[1]], [vb[0] + vb[2], vb[1] + vb[3]], [vb[0], vb[1] + vb[3]]];
   let gx0 = Infinity, gy0 = Infinity, gx1 = -Infinity, gy1 = -Infinity;
   for (const [x, y] of corners) {
@@ -645,18 +698,8 @@ function placeCamera(camera, board, view, aspect) {
   camera.clearViewOffset();
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
-  // el trozo de suelo tiene que caber; en perspectiva, un poco de la grada de enfrente por encima
+  // el trozo de suelo tiene que caber (lo que sobra a los lados, según la proporción de la imagen, son gradas)
   const pts = [[gx0, 0, gy0], [gx1, 0, gy0], [gx1, 0, gy1], [gx0, 0, gy1]];
-  if (persp) {
-    const far = pts.filter((q) => (q[0] - T.x) * U.x + (q[2] - T.z) * U.z > 0);
-    // con estadio, hasta la cubierta de la grada de enfrente (si el encuadre llega al fondo del campo)
-    const stadium = isStadium(lookOf(board.look)) && hasStands(board);
-    const reach = stadium ? S3.outer : 4, hgt = stadium ? S3.wallTop : 6;
-    for (const q of far) {
-      const edge = U.z < 0 ? q[2] <= 0 : U.z > 0 ? q[2] >= field.h : U.x > 0 ? q[0] >= field.w : q[0] <= 0;
-      pts.push(edge ? [q[0] + U.x * reach, hgt, q[2] + U.z * reach] : [q[0] + U.x * 4, 6, q[2] + U.z * 4]);
-    }
-  }
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   const v = new THREE.Vector3();
   for (const q of pts) {

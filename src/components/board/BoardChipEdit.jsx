@@ -62,6 +62,7 @@ export default function ChipQuickEdit({ el, board, look, patch, onClose, onDup, 
       </Row>
       <div className="flex flex-wrap items-center gap-1 pt-0.5">
         <button type="button" className={btn} onClick={onDup}><Copy className="w-3.5 h-3.5" /> Duplicar</button>
+        {canDelHere && <button type="button" className={btn} onClick={() => onDel("from")} title="Sigue en los fotogramas anteriores y desaparece desde este">Desaparece desde aquí</button>}
         {canDelHere && <button type="button" className={btn} onClick={() => onDel(true)} title="Quitar solo de este fotograma">Solo aquí</button>}
         <button type="button" className={`${btn} text-red-600`} onClick={() => onDel(false)}><Trash2 className="w-3.5 h-3.5" /> Quitar</button>
         <button type="button" className="h-7 px-3 rounded-md border text-[11px] font-semibold ml-auto bg-gray-900 text-white border-gray-900 hover:bg-gray-800" onClick={onClose}>Hecho</button>

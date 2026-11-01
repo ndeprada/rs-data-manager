@@ -39,14 +39,28 @@ test("hasBoard distingue vacío y con contenido en los dos formatos", () => {
   assert.equal(hasBoard(addElement(emptyBoard(), 0, token("t", 1, 1))), true);
 });
 
-test("un fotograma nuevo copia lo que se mueve y deja vacías las anotaciones", () => {
+test("un fotograma nuevo sigue con todo lo que había (como en FmStadio): fichas y también flechas, zonas y textos", () => {
   let b = emptyBoard();
   b = addElement(b, 0, token("t1", 10, 10));
   b = addElement(b, 0, arrow("a1"));
   const r = addFrame(b, 0);
   assert.equal(r.index, 1);
-  assert.deepEqual(r.board.frames[1].els.map((e) => e.id), ["t1"]);
+  assert.deepEqual(r.board.frames[1].els.map((e) => e.id).sort(), ["a1", "t1"]);
   assert.equal(r.board.frames[0].els.length, 2);
+});
+
+test("desaparece desde este fotograma: sigue en los anteriores y se va de este y los siguientes", () => {
+  let b = emptyBoard();
+  b = addElement(b, 0, arrow("a1"));
+  b = addFrame(b, 0).board;
+  b = addFrame(b, 1).board;
+  const r = removeElement(b, 1, "a1", { fromHere: true });
+  assert.deepEqual(r.frames.map((f) => f.els.length), [1, 0, 0]);
+  // «Quitar» lo quita de todos
+  assert.deepEqual(removeElement(b, 1, "a1").frames.map((f) => f.els.length), [0, 0, 0]);
+  // una flecha nueva en el fotograma 2 entra ahí y en los siguientes, no en los anteriores
+  const n = addElement(b, 1, arrow("a2"));
+  assert.deepEqual(n.frames.map((f) => f.els.some((e) => e.id === "a2")), [false, true, true]);
 });
 
 test("lo que se mueve entra en todos los fotogramas; las anotaciones solo en el actual", () => {
@@ -733,15 +747,14 @@ test("más grande / más pequeño cambia el tamaño de cada cosa a su manera y r
   assert.equal(h.ar.width, 2);
 });
 
-test("el tamaño de lo que pasa de fotograma en fotograma vale en todos; el de flechas y textos, solo en el actual", () => {
+test("el tamaño (un cambio de estilo) vale en todos los fotogramas donde está cada cosa", () => {
   let b = addFrame(boardWith([token("t1", 5, 5)]), 0).board;
   b = addElement(b, 0, textEl("tx", 9, 9));
-  b = addElement(b, 1, textEl("tx2", 9, 9));
-  const r = resizeElements(b, 0, ["t1", "tx", "tx2"], 2);
+  const r = resizeElements(b, 0, ["t1", "tx"], 2);
   assert.equal(r.frames[0].els.find((e) => e.id === "t1").size, 2);
   assert.equal(r.frames[1].els.find((e) => e.id === "t1").size, 2);
   assert.equal(r.frames[0].els.find((e) => e.id === "tx").size, 6);
-  assert.equal(r.frames[1].els.find((e) => e.id === "tx2").size, undefined, "otro fotograma: no se toca");
+  assert.equal(r.frames[1].els.find((e) => e.id === "tx").size, 6);
 });
 
 test("separar y juntar mueven las posiciones respecto al centro y no cambian los tamaños", () => {

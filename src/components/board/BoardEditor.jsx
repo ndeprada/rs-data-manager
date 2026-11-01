@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X } from "lucide-react";
+import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
   boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
-  is3D, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
+  is3D, isGeometryPatch, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
 import Board3DView from "./Board3D";
@@ -632,8 +632,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   // Sobre un elemento seleccionado se cambia el elemento; sin selección, la herramienta activa (lo siguiente que se dibuje).
   const patchSel = (patch, key = null) => {
     if (!selected) return;
-    // la posición y hacia dónde mira o cómo está girada cada cosa valen para su fotograma; lo demás, para todos
-    const allFrames = isCarried(selected) && !("x" in patch) && !("y" in patch) && !("face" in patch) && !("rot" in patch);
+    // la posición, la forma y hacia dónde mira o cómo está girada cada cosa valen para su fotograma; lo demás (color, trazo,
+    // texto…), para todos los fotogramas donde está
+    const allFrames = !isGeometryPatch(patch);
     commit(patchElement(live.current, idx, selId, patch, { allFrames }), { key: key || Object.keys(patch).join(",") });
     const t = toolOfEl(selected);
     const keep = Object.fromEntries(Object.entries(patch).filter(([k]) => BRUSH_KEYS.includes(k)));
@@ -662,13 +663,14 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     pickTool("select");
   };
 
-  const delSel = (onlyHere = false) => { commit(removeElement(board, idx, selId, { onlyHere })); setSelId(null); };
+  // onlyHere: true = solo este fotograma; "from" = desde este fotograma en adelante; false = de todos
+  const delSel = (onlyHere = false) => { commit(removeElement(board, idx, selId, onlyHere === "from" ? { fromHere: true } : { onlyHere })); setSelId(null); };
   const dupSel = () => {
     if (!selected) return;
     add(shiftElement({ ...selected, id: newId() }, 3, 3));
   };
   // Varios elegidos a la vez
-  const delMany = (onlyHere = false) => { commit(removeElements(live.current, idx, sel, { onlyHere })); setSel([]); };
+  const delMany = (onlyHere = false) => { commit(removeElements(live.current, idx, sel, onlyHere === "from" ? { fromHere: true } : { onlyHere })); setSel([]); };
   const dupMany = () => {
     let b = live.current;
     const ids = [];
@@ -1106,8 +1108,15 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
           <LayerButtons onLayer={layer} />
           {selected.k !== "link" && <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs" onClick={dupSel}><Copy className="w-3.5 h-3.5" /> Duplicar</Button>}
-          {isCarried(selected) && board.frames.length > 1 && <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => delSel(true)}>Solo aquí</Button>}
-          <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs text-red-600" onClick={() => delSel(false)}><Trash2 className="w-3.5 h-3.5" /> Quitar</Button>
+          <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs text-red-600" onClick={() => delSel(false)} title="Quitar de todos los fotogramas"><Trash2 className="w-3.5 h-3.5" /> Quitar</Button>
+          {board.frames.length > 1 && (
+            <div className="w-full flex flex-wrap items-center gap-1.5">
+              <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs" onClick={() => delSel("from")} data-testid="del-from-here" title="Sigue en los fotogramas anteriores y desaparece desde este">
+                <EyeOff className="w-3.5 h-3.5" /> Desaparece desde este fotograma
+              </Button>
+              {isCarried(selected) && <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => delSel(true)} title="Quitar solo de este fotograma">Solo aquí</Button>}
+            </div>
+          )}
         </div>
       )}
     </div>

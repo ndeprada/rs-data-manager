@@ -284,8 +284,12 @@ export function setAllFeet(board, on) {
 const MOVABLE = new Set(["token", "ball", "cone", "goal", "pole", "hurdle", "ladder", "dummy"]);
 export const isMovable = (el) => MOVABLE.has(el?.k);
 // Lo que pasa de un fotograma al siguiente con el mismo id: lo que se mueve y los conectores (que unen fichas por su id y
-// siguen sus posiciones). Flechas, zonas y textos son de su fotograma.
+// siguen sus posiciones). Desde el 01/11/2026 (como en FmStadio, pedido por Nacho) flechas, zonas y textos también siguen en
+// los fotogramas siguientes hasta que se les dice «Desaparece desde este fotograma» (`removeElement(..., { fromHere: true })`).
 export const isCarried = (el) => isMovable(el) || el?.k === "link";
+// Claves de posición/forma: valen para su fotograma (así se anima de uno a otro); el resto (color, trazo, texto…) para todos.
+const GEOMETRY_KEYS = new Set(["x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "via", "pts", "w", "h", "lift", "face", "rot", "path", "z", "shape"]);
+export const isGeometryPatch = (patch) => Object.keys(patch || {}).some((k) => GEOMETRY_KEYS.has(k));
 // Lo que se puede unir con un conector: fichas, conos, balón, picas y maniquíes (puntos, no porterías ni escaleras)
 export const isLinkable = (el) => ["token", "cone", "ball", "pole", "dummy"].includes(el?.k);
 
@@ -352,11 +356,12 @@ export const isAnimation = (b) => boardMode(b) === "anim" && (b?.frames?.length 
 
 // ── Fotogramas ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
-// Nuevo fotograma detrás del indicado: copia lo que se mueve (con los mismos ids) y deja vacías las anotaciones.
+// Nuevo fotograma detrás del indicado: sigue TODO lo que había (fichas, material, flechas, zonas, textos) con los mismos ids,
+// como en FmStadio; lo que no deba seguir se quita con «Desaparece desde este fotograma».
 export function addFrame(board, after = board.frames.length - 1) {
   if (board.frames.length >= MAX_FRAMES) return { board, index: after };
   const src = board.frames[Math.min(Math.max(after, 0), board.frames.length - 1)];
-  const frame = { id: newId(), els: stripPath(clone(src.els.filter(isCarried))) };
+  const frame = { id: newId(), els: stripPath(clone(src.els)) };
   const frames = [...board.frames];
   frames.splice(after + 1, 0, frame);
   return { board: { ...board, frames }, index: after + 1 };
@@ -413,19 +418,20 @@ export const setFrameEls = (board, index, els) => ({
 });
 
 // Añade un elemento. Lo que se mueve (y los conectores) entra en todos los fotogramas (forma parte del ejercicio);
-// flechas, zonas y textos solo en el fotograma actual.
+// flechas, zonas y textos, en el fotograma actual y en los siguientes (aparecen ahí y siguen hasta que se les haga desaparecer).
 export function addElement(board, index, el) {
-  if (!isCarried(el)) return setFrameEls(board, index, placeElement(board.frames[index].els, el));
+  if (!isCarried(el)) return { ...board, frames: board.frames.map((f, i) => (i >= index && !f.els.some((e) => e.id === el.id) ? { ...f, els: placeElement(f.els, clone(el)) } : f)) };
   const next = { ...board, frames: board.frames.map((f) => ({ ...f, els: placeElement(f.els, clone(el)) })) };
   return el.k === "link" ? pruneLinks(next) : next;
 }
 
-// Quita un elemento: de todos los fotogramas (lo habitual) o solo del actual.
-export function removeElement(board, index, id, { onlyHere = false } = {}) {
+// Quita un elemento: de todos los fotogramas (lo habitual), solo del actual (`onlyHere`) o desde el actual en adelante
+// (`fromHere`: «Desaparece desde este fotograma»; en los anteriores sigue y al reproducir se funde al llegar aquí).
+export function removeElement(board, index, id, { onlyHere = false, fromHere = false } = {}) {
   const el = board.frames[index]?.els.find((e) => e.id === id);
   if (!el) return board;
-  if (onlyHere || !isCarried(el)) return pruneLinks(setFrameEls(board, index, board.frames[index].els.filter((e) => e.id !== id)));
-  return pruneLinks({ ...board, frames: board.frames.map((f) => ({ ...f, els: f.els.filter((e) => e.id !== id) })) });
+  if (onlyHere) return pruneLinks(setFrameEls(board, index, board.frames[index].els.filter((e) => e.id !== id)));
+  return pruneLinks({ ...board, frames: board.frames.map((f, i) => (fromHere && i < index ? f : { ...f, els: f.els.filter((e) => e.id !== id) })) });
 }
 
 // Un conector solo vale si todavía tiene al menos dos fichas en su fotograma: se le quitan las que ya no están y, si
@@ -1330,11 +1336,10 @@ export function elementsInBox(els, box) {
   }).map((e) => e.id);
 }
 
-// Aplica `fn` a los elementos de `ids`: lo que pasa de un fotograma a otro (fichas, material…) en todos los fotogramas y lo demás
-// (flechas, zonas, textos) solo en el fotograma actual, igual que al cambiar un elemento suelto.
+// Aplica `fn` (un cambio de estilo: color, tamaño, equipo…) a los elementos de `ids` en todos los fotogramas donde están.
 function mapElements(board, index, ids, fn) {
   const sel = new Set(ids);
-  return { ...board, frames: board.frames.map((f, i) => ({ ...f, els: f.els.map((e) => (sel.has(e.id) && (i === index || isCarried(e)) ? fn(e) : e)) })) };
+  return { ...board, frames: board.frames.map((f) => ({ ...f, els: f.els.map((e) => (sel.has(e.id) ? fn(e) : e)) })) };
 }
 const clampTo = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
