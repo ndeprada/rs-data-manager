@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
   boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
-  is3D, isGeometryPatch, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
+  is3D, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
 import Board3DView from "./Board3D";
@@ -111,6 +111,16 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   // el contenedor del campo aparece cuando se abre la pantalla completa: se guarda también en estado para enganchar el zoom
   const [hostEl, setHostEl] = useState(null);
   const setWrap = useCallback((el) => { wrapRef.current = el; setHostEl(el); }, []);
+  // Proporción de la zona del campo: el dibujo la llena entera (como en FmStadio, lo que sobra a los lados son gradas)
+  const [stageAR, setStageAR] = useState(null);
+  useEffect(() => {
+    if (!hostEl) return undefined;
+    const read = () => { const r = hostEl.getBoundingClientRect(); const pad = r.width < 768 ? 8 : 24; if (r.width > pad && r.height > pad) setStageAR(Math.round(((r.width - pad) / (r.height - pad)) * 100) / 100); };
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(hostEl);
+    return () => ro.disconnect();
+  }, [hostEl]);
   const svgRef = useRef(null);
   const drag = useRef(null);
   const live = useRef(board);
@@ -408,7 +418,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       drag.current = { mode: "handle", h: handle, id: selected.id, el: selected, snapshot: live.current };
       return;
     }
-    if (handle && (selected?.k === "arrow" || (isQuad(selected) && /^q[0-3]$/.test(handle)) || (selected?.k === "token" && handle === "f") || (materialOf(selected?.k) && handle === "r"))) {
+    if (handle && (selected?.k === "arrow" || (isQuad(selected) && /^q[0-3]$/.test(handle)) || (selected?.k === "zone" && !isQuad(selected) && /^z[ce][0-3]$/.test(handle)) || (selected?.k === "token" && handle === "f") || (materialOf(selected?.k) && handle === "r"))) {
       // «+» en mitad de un tramo de flecha: nace ahí un quiebro nuevo y se arrastra
       // doble clic o doble toque sobre un quiebro: se quita
       if (/^v\d+$/.test(handle) && selected.k === "arrow") {
@@ -558,6 +568,24 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       } else if (/^v\d+$/.test(d.h)) {
         const p = point(e), i = Number(d.h.slice(1));
         patch = { via: d.el.via.map((q, j) => (j === i ? { x: p.x, y: p.y } : q)) };
+      } else if (/^z[ce][0-3]$/.test(d.h)) {
+        // zona rectangular o elíptica: la esquina (o el lado) contraria se queda quieta; con Mayús, la esquina conserva la proporción
+        const p = point(e), i = Number(d.h[2]);
+        const b = zoneBox(d.el);
+        let { x0, y0, x1, y1 } = b;
+        const MIN = 1;
+        if (d.h[1] === "c") {
+          const ax = i === 0 || i === 3 ? x1 : x0, ay = i === 0 || i === 1 ? y1 : y0;
+          let w = Math.max(MIN, Math.abs(p.x - ax)), h = Math.max(MIN, Math.abs(p.y - ay));
+          if (e.shiftKey) { const r = (b.x1 - b.x0) / Math.max(0.01, b.y1 - b.y0); if (w / h > r) h = w / r; else w = h * r; }
+          const sx = i === 0 || i === 3 ? -1 : 1, sy = i === 0 || i === 1 ? -1 : 1;
+          x0 = Math.min(ax, ax + sx * w); x1 = Math.max(ax, ax + sx * w); y0 = Math.min(ay, ay + sy * h); y1 = Math.max(ay, ay + sy * h);
+        } else if (i === 0) y0 = Math.min(p.y, y1 - MIN);
+        else if (i === 1) x1 = Math.max(p.x, x0 + MIN);
+        else if (i === 2) y1 = Math.max(p.y, y0 + MIN);
+        else x0 = Math.min(p.x, x1 - MIN);
+        const r1 = (n) => Math.round(n * 10) / 10;
+        patch = { x: r1(x0), y: r1(y0), w: r1(x1 - x0), h: r1(y1 - y0) };
       } else if (/^q[0-3]$/.test(d.h)) {
         const p = point(e), i = Number(d.h[1]);
         patch = { pts: d.el.pts.map((q, j) => (j === i ? { x: p.x, y: p.y } : q)) };
@@ -1225,6 +1253,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           els={shownEls}
           camera={showCam ? frameCam(board, idx) : null}
           viewOverride={camView}
+          aspect={showCam ? null : stageAR}
           fill
           className="w-full h-full"
           label="Pizarra en 3D"
@@ -1260,6 +1289,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         handles={!playing && !camTool}
         camera={camTool ? null : showCam ? frameCam(board, idx) : null}
         viewOverride={camView}
+        aspect={camTool || showCam ? null : stageAR}
         overlay={camTool && !playing ? <CameraOverlay rect={camR} view={camView} frame={idx} own={ownCam} has={Boolean(curCam)} inheritedFrom={!ownCam && curCam ? board.frames.slice(0, idx).map((f, i) => (f.cam ? i : -1)).filter((i) => i >= 0).pop() : null} /> : null}
         className={`w-full h-full select-none${show3d ? " hidden" : ""}`}
         style={{ touchAction: "none", cursor, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}

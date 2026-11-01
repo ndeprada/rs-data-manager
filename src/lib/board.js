@@ -701,8 +701,14 @@ export function boardView(board, { camera, frame = 0, aspect = null, fullView = 
   const fullVb = persp ? persp.vb : viewBox(field, orient, margin);
   const camSel = camera === undefined ? frameCam(board, frame) : camera;
   const vb0 = camSel ? camRect(fullVb, camSel, CAM_RATIOS[camRatioOf(board)]) : fullView ? fullVb : camBox(fullVb, board.cam);
-  const pitchView = !persp && camOf(board).z <= 1 ? (isSideways(orient) ? [0, 0, field.h, field.w] : [0, 0, field.w, field.h]) : null;
-  const vb = viewOverride || (aspect ? fitViewBox(vb0, aspect, pitchView) : vb0);
+  // el campo con sus porterías (2,5 m por detrás de cada línea de meta), tal como se ve: al encajar en otra proporción no se corta nunca
+  let pitchView = null;
+  if (camOf(board).z <= 1 && !camSel) {
+    const pts = [[0, -2.5], [field.w, -2.5], [field.w, field.h + 2.5], [0, field.h + 2.5]].map(([x, y]) => { const v = toView(field, orient, { x, y }); return persp ? persp.P(v) : v; });
+    const xs = pts.map((q) => q.x), ys = pts.map((q) => q.y);
+    pitchView = [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
+  }
+  const vb = viewOverride || (aspect ? fitViewBox(vb0, aspect, pitchView, 1) : vb0);
   return { field, orient, look, margin, persp, fullVb, vb };
 }
 // ── Vista 3D (como el estadio de FmStadio) ──────────────────────────────────────────────────────────────────────────

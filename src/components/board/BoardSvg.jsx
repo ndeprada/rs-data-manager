@@ -31,12 +31,15 @@ const COLOR = {
 const ESTADIO = {
   ...COLOR, bg: "#3d8b5f", margin: "#3d8b5f", stripe: null, check: "rgba(255,255,255,0.065)", line: "rgba(255,255,255,0.95)", lineW: 0.3, chipStroke: null, shadow: 0.4,
   surround: "#0d2a1f",
-  stadium: { outer: "#0b2219", roof: "#1b2420", roofLine: "#56635d", riser: "#0f3324", riserLine: "rgba(0,0,0,0.35)", seats: ["#1f7a4f", "#238556", "#1c6f48", "#26905c"], seatDark: "#0f4a2f", seatLight: "#8fd3a9", aisle: "#6b7671", concourse: "#2b3330", track: "#26332d", boards: "#dfe4e6" },
+  stadium: { outer: "#0b2219", roof: "#1b2420", roofLine: "#56635d", riser: "#0f3324", riserLine: "rgba(0,0,0,0.35)", seats: ["#1f7a4f", "#238556", "#1c6f48", "#26905c"], seatDark: "#0f4a2f", seatLight: "#8fd3a9", aisle: "#6b7671", concourse: "#2b3330", track: "#26332d", boards: "#dfe4e6",
+    // estadio grande (como FmStadio): asientos verde vivo sobre hormigón gris y cubierta gris clara
+    seatA: "#0f7d59", seatB: "#2fbd8a", concrete: "#5d6361", concreteLight: "#7b817f", roofTop: "#858d8a", roofEdge: "#c9cfcc" },
 };
 const NOCHE = {
   ...ESTADIO, bg: "#2c3374", margin: "#2c3374", check: "rgba(255,255,255,0.055)",
   surround: "#0a1124",
-  stadium: { outer: "#080d1d", roof: "#121729", roofLine: "#3d4566", riser: "#141a38", riserLine: "rgba(0,0,0,0.4)", seats: ["#2c3878", "#33418a", "#28336e", "#3a4996"], seatDark: "#1a2257", seatLight: "#8a98e0", aisle: "#545d80", concourse: "#1c2136", track: "#1a2038", boards: "#c9cfdc" },
+  stadium: { outer: "#080d1d", roof: "#121729", roofLine: "#3d4566", riser: "#141a38", riserLine: "rgba(0,0,0,0.4)", seats: ["#2c3878", "#33418a", "#28336e", "#3a4996"], seatDark: "#1a2257", seatLight: "#8a98e0", aisle: "#545d80", concourse: "#1c2136", track: "#1a2038", boards: "#c9cfdc",
+    seatA: "#2a3aa0", seatB: "#6c80e4", concrete: "#3c4258", concreteLight: "#555c76", roofTop: "#4e5672", roofEdge: "#9aa3c4" },
 };
 const STYLE = {
   estadio: ESTADIO,
@@ -214,68 +217,81 @@ const mixHex = (a, b, t) => {
   return `#${A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, "0")).join("")}`;
 };
 const FULL_H = 105;
-const SEAT = 0.53; // un asiento cada 0,53 m (0,4 m de asiento y 0,13 de hueco)
-// Gradas: cada fila es un escalón. Se pinta de fuera hacia dentro (cada fila tapa lo que queda dentro de ella).
-// En perspectiva, las gradas de enfrente y de los lados se levantan su altura (como las vallas de pie): se ve la pendiente.
-// Los asientos van de oscuro abajo a claro arriba, mezclados como en los estadios de la Liga (efecto difuminado).
+// Gradas grandes, como en FmStadio (y como en la vista 3D): filas de 1,6 m con asientos de 1 m (no van a escala, para que en un
+// vídeo 16:9 con el campo en vertical llenen los lados), grada baja, pasillo, grada alta y cubierta gris por detrás.
+// Se pinta de fuera hacia dentro: cada fila tapa lo que queda dentro de ella. En perspectiva se levantan su altura (a medias).
+export const BIG_STAND = { track: 5.5, row: 1.6, lowRows: 12, aisle: 3.2, upRows: 13, back: 1.0, roofIn: 43, roofOut: 90 };
+const BS = (() => {
+  const S = BIG_STAND;
+  const lowTop = S.track + S.lowRows * S.row, upStart = lowTop + S.aisle, upTop = upStart + S.upRows * S.row;
+  return { ...S, lowTop, upStart, upTop, outer: upTop + S.back };
+})();
+// Altura (m) de las gradas grandes a una distancia d de las líneas (para levantarlas en perspectiva)
+function bigHeight(d) {
+  if (d <= BS.track) return 0;
+  if (d <= BS.lowTop) return 2.2 + (d - BS.track) * 0.52;
+  if (d <= BS.upStart) return 2.2 + (BS.lowTop - BS.track) * 0.52;
+  if (d <= BS.upTop) return 15 + (d - BS.upStart) * 0.75;
+  return 38;
+}
+const SEAT = 1.1; // un asiento cada 1,1 m (0,92 de asiento y 0,18 de hueco)
 function Stands({ field, st, T, textAt }) {
-  const S = STAND;
   const persp = !!textAt;
   const center = persp ? textAt({ x: field.w / 2, y: field.h / 2 }) : null;
-  // en perspectiva: subir el punto su altura, solo en las gradas que se ven de cara (la de delante queda tumbada)
+  // en perspectiva: subir el punto (a media altura, para no tapar el campo), solo en las gradas que se ven de cara
   const lift = (p, h) => {
     if (!persp || !h) return T ? T(p) : p;
     const at = textAt(p);
     const vx = at.x - center.x, vy = at.y - center.y, len = Math.hypot(vx, vy) || 1;
-    const f = Math.max(0, Math.min(1, 0.55 - (vy / len) * 1.1));
+    const f = Math.max(0, Math.min(1, 0.55 - (vy / len) * 1.1)) * 0.45;
     return { x: at.x, y: at.y - h * at.k * f };
   };
-  const ring = (d, h = standHeight(d)) => roundRect(field, d).map((p) => lift(p, h)).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + " Z";
-  // distancia de un punto a las líneas (en los lados rectos es exacta): para las escaleras
+  const ring = (d, h = bigHeight(d)) => roundRect(field, d).map((p) => lift(p, h)).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + " Z";
   const distOf = (p) => Math.max(-p.x, p.x - field.w, -p.y, p.y - field.h, 0);
-  const quad = (pts) => pts.map((p) => lift(p, standHeight(distOf(p)))).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + " Z";
-  const tiers = [[S.track, S.lowTop], [S.ring, S.upTop]];
+  const quad = (pts) => pts.map((p) => lift(p, bigHeight(distOf(p)))).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + " Z";
+  const A = st.seatA || st.seatDark, B = st.seatB || st.seatLight, conc = st.concrete || st.riser, concL = st.concreteLight || st.aisle;
   const rows = [];
-  tiers.forEach(([d0, d1], tier) => { for (let d = d0; d + S.row * 0.6 < d1; d += S.row) rows.push({ d0: d, d1: Math.min(d1, d + S.row), tier }); });
-  const n = rows.length;
+  for (let i = 0; i < BS.lowRows; i++) rows.push({ d0: BS.track + i * BS.row, tier: 0, t: (i / (BS.lowRows - 1)) * 0.5 });
+  for (let j = 0; j < BS.upRows; j++) rows.push({ d0: BS.upStart + j * BS.row, tier: 1, t: 0.5 + (j / (BS.upRows - 1)) * 0.5 });
   const els = [];
-  els.push(<path key="roof" d={ring(S.roof)} fill={st.roof} stroke={st.roofLine} strokeWidth={0.12} />);
+  // fuera de la grada: la cubierta (gris), con paneles
+  els.push(<path key="roofout" d={ring(BS.roofOut, 38)} fill={st.roofTop || st.roof} />);
+  for (let d = BS.outer + 4; d < BS.roofOut; d += 6) els.push(<path key={`rp${d}`} d={ring(d, 38)} fill="none" stroke="#000" strokeOpacity={0.12} strokeWidth={0.3} />);
+  els.push(<path key="back" d={ring(BS.outer, 38)} fill={conc} />);
   // de la fila de arriba a la de abajo
-  for (let i = n - 1; i >= 0; i--) {
+  for (let i = rows.length - 1; i >= 0; i--) {
     const r = rows[i];
-    const t = n > 1 ? i / (n - 1) : 0; // 0 abajo · 1 arriba
-    if (r.tier === 0 && i === rows.findLastIndex((x) => x.tier === 0)) els.push(<path key="ring" d={ring(S.ring)} fill={st.concourse} />);
-    // escalón (contrahuella): más oscuro abajo, donde llega menos luz
-    els.push(<path key={`f${i}`} d={ring(r.d1)} fill={st.seatDark} />);
-    els.push(<path key={`s${i}`} d={ring(r.d1)} fill="#000" opacity={0.42 - t * 0.3} />);
-    const mid = (r.d0 + r.d1) / 2;
-    const base = mixHex(st.seatDark, st.seatLight, Math.min(1, t * 0.85));
-    const seat = { fill: "none", strokeWidth: 0.42, strokeDasharray: `0.4 ${(SEAT - 0.4).toFixed(2)}` };
-    els.push(<path key={`a${i}`} d={ring(mid)} stroke={base} {...seat} />);
-    // motas: claras que aumentan hacia arriba y oscuras que aumentan hacia abajo
-    const spots = [];
-    if (t > 0.12) spots.push([st.seatLight, t > 0.7 ? 2 : t > 0.4 ? 3 : 5]);
-    if (t < 0.88) spots.push([st.seatDark, t < 0.3 ? 2 : t < 0.6 ? 3 : 5]);
-    if (t > 0.45 && t < 0.95) spots.push([mixHex(st.seatLight, "#ffffff", 0.35), 7]);
-    spots.forEach(([c, k], j) => els.push(
-      <path key={`m${i}-${j}`} d={ring(mid)} stroke={c} fill="none" strokeWidth={0.42} strokeDasharray={`0.4 ${(SEAT * k - 0.4).toFixed(2)}`} strokeDashoffset={(-SEAT * ((i * 3 + j * 2) % k)).toFixed(2)} />,
+    if (r.tier === 0 && i === BS.lowRows - 1) els.push(<path key="aisle" d={ring(BS.upStart)} fill={concL} />);
+    const d1 = r.d0 + BS.row;
+    els.push(<path key={`f${i}`} d={ring(d1)} fill={conc} />);
+    // la arista del escalón, más oscura (sombra de la contrahuella)
+    els.push(<path key={`e${i}`} d={ring(r.d0 + 0.06)} fill="none" stroke="#000" strokeOpacity={0.3} strokeWidth={0.16} />);
+    const mid = r.d0 + BS.row * 0.42;
+    const base = mixHex(A, B, Math.min(1, 0.2 + r.t * 0.7));
+    const dash = `0.92 ${(SEAT - 0.92).toFixed(2)}`;
+    // asiento y respaldo (un poco más oscuro)
+    els.push(<path key={`a${i}`} d={ring(mid)} fill="none" stroke={base} strokeWidth={0.72} strokeDasharray={dash} />);
+    els.push(<path key={`b${i}`} d={ring(mid + 0.44)} fill="none" stroke={mixHex(base, "#000000", 0.28)} strokeWidth={0.18} strokeDasharray={dash} />);
+    // motas: asientos de otros tonos mezclados (como en las gradas de verdad)
+    [[mixHex(B, "#ffffff", 0.15), 5], [mixHex(A, "#000000", 0.15), 4], [B, 7]].forEach(([c, k], j) => els.push(
+      <path key={`m${i}-${j}`} d={ring(mid)} stroke={c} fill="none" strokeWidth={0.72} strokeDasharray={`0.92 ${(SEAT * k - 0.92).toFixed(2)}`} strokeDashoffset={(-SEAT * ((i * 3 + j * 2) % k)).toFixed(2)} />,
     ));
-    // borde del escalón (la arista se ve un poco más clara)
-    els.push(<path key={`e${i}`} d={ring(r.d0 + 0.05)} fill="none" stroke="#fff" strokeOpacity={0.07 + t * 0.06} strokeWidth={0.08} />);
   }
-  // sombra de la cubierta sobre las filas de arriba
-  els.push(<path key="roofshade" d={`${ring(S.upTop)} ${ring(S.upTop - 1.6)}`} fill="#000" fillRule="evenodd" opacity={0.2} />);
-  // escaleras de las dos gradas
+  // escaleras (hormigón más claro) cada ~22 m en los lados rectos
   const stairs = (d0, d1) => {
     const out = [];
     for (const sd of straightSides(field, d1)) {
-      const k = Math.max(2, Math.round(sd.len / 13));
-      for (let j = 1; j < k; j++) { const tt = (sd.len * j) / k; out.push(sideQuad(sd, tt - 0.55, tt + 0.55, d0, d1, d1)); }
+      const k = Math.max(2, Math.round(sd.len / 22));
+      for (let j = 1; j < k; j++) { const tt = (sd.len * j) / k; out.push(sideQuad(sd, tt - 1.1, tt + 1.1, d0, d1, d1)); }
     }
     return out;
   };
-  [...stairs(S.track, S.lowTop), ...stairs(S.ring, S.upTop)].forEach((q, i) => els.push(<path key={`st${i}`} d={quad(q)} fill={st.aisle} opacity={0.85} />));
-  els.push(<path key="track" d={ring(S.track, 0)} fill={st.track} />);
+  [...stairs(BS.track, BS.lowTop), ...stairs(BS.upStart, BS.upTop)].forEach((q, i) => els.push(<path key={`st${i}`} d={quad(q)} fill={concL} />));
+  // cubierta volada por encima de las filas de atrás, con su canto claro y su sombra
+  els.push(<path key="roofshade" d={`${ring(BS.roofIn - 2.5, 30)} ${ring(BS.roofIn, 30)}`} fill="#000" fillRule="evenodd" opacity={0.18} />);
+  els.push(<path key="roof" d={`${ring(BS.roofOut, 38)} ${ring(BS.roofIn, 32)}`} fill={st.roofTop || st.roof} fillRule="evenodd" />);
+  els.push(<path key="roofedge" d={ring(BS.roofIn, 32)} fill="none" stroke={st.roofEdge || st.roofLine} strokeWidth={0.5} />);
+  els.push(<path key="track" d={ring(BS.track, 0)} fill={st.track} />);
   return <g>{els}</g>;
 }
 
@@ -1182,6 +1198,23 @@ function QuadHandles({ el, ctx }) {
   );
 }
 
+// Tiradores de una zona rectangular o elíptica: en las esquinas cambian ancho y alto a la vez (la esquina contraria se queda
+// quieta) y en los lados solo el ancho o solo el alto; la figura sigue siendo un rectángulo o una elipse (no se deforma).
+function ZoneHandles({ el, ctx }) {
+  const toV = ctx.V;
+  const { x0, y0, x1, y1 } = zoneBox(el);
+  const corners = [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+  const edges = [{ x: (x0 + x1) / 2, y: y0 }, { x: x1, y: (y0 + y1) / 2 }, { x: (x0 + x1) / 2, y: y1 }, { x: x0, y: (y0 + y1) / 2 }];
+  return (
+    <g data-testid="zone-handles">
+      {edges.map((q, i) => { const c = toV(q); return <rect key={`ev${i}`} x={c.x - 0.8} y={c.y - 0.8} width={1.6} height={1.6} rx={0.4} fill="#fff" stroke="#f59e0b" strokeWidth={0.4} pointerEvents="none" />; })}
+      {corners.map((q, i) => { const c = toV(q); return <rect key={`cv${i}`} x={c.x - 1.05} y={c.y - 1.05} width={2.1} height={2.1} rx={0.3} fill="#f59e0b" stroke="#fff" strokeWidth={0.4} pointerEvents="none" />; })}
+      {edges.map((q, i) => { const c = toV(q); return <circle key={`eh${i}`} data-h={`ze${i}`} cx={c.x} cy={c.y} r={2.6} fill="transparent" />; })}
+      {corners.map((q, i) => { const c = toV(q); return <circle key={`ch${i}`} data-h={`zc${i}`} cx={c.x} cy={c.y} r={3} fill="transparent" />; })}
+    </g>
+  );
+}
+
 // Fondo opcional de un texto (recuadro redondeado). En blanco y negro, blanco con borde negro fino.
 function TextBg({ x, y, text, fs, bold, bg, alpha, look }) {
   if (!bg || !String(text || "").trim()) return null;
@@ -1355,6 +1388,7 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
       {handles && sel.length > 1 && <GroupBox ids={sel} els={els} ctx={ctx} />}
       {markNumbers && marks.length > 0 && <MarkNumbers ids={marks} els={els} ctx={ctx} />}
       {handles && selEl && isQuad(selEl) && <QuadHandles el={selEl} ctx={ctx} />}
+      {handles && selEl && selEl.k === "zone" && !isQuad(selEl) && <ZoneHandles el={selEl} ctx={ctx} />}
       {handles && selEl && ((selEl.k === "token" && selEl.feet) || materialOf(selEl.k)) && (persp ? <g transform={perspWrap(selEl, ctx, selEl.k === "token" || lyingFlat(selEl))}><TurnHandle el={selEl} ctx={ctx} /></g> : <TurnHandle el={selEl} ctx={ctx} />)}
       {draft && draft.k === "box" && <BoxMark box={draft} ctx={ctx} />}
       {draft && draft.k !== "box" && <Item el={{ id: "draft", ...draft }} ctx={ctx} selected />}
