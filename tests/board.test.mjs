@@ -1093,3 +1093,40 @@ test("estadio: se pueden quitar las gradas y las vallas, y el margen se ajusta; 
   assert.equal("stands" in BS.normalizeBoard({ v: 2, field: "full", look: "estadio", frames: [{ id: "f", els: [] }] }), false, "por defecto, con gradas");
   assert.ok(BS.AD_PANELS.some((p) => p.text === "RS MANAGER"));
 });
+
+test("medio campo y 3/4 en estadio: el marco se corta en línea recta por el lado del corte", async () => {
+  const B = await import("../src/lib/board.js");
+  const m = B.marginOf("estadio", { field: "half" });
+  assert.deepEqual(m, { t: 13, r: 13, b: 1.5, l: 13 });
+  assert.equal(B.marginOf("estadio", { field: "full" }), 13);
+  assert.equal(B.marginOf("blanco", { field: "half" }), 3);
+  const f = B.fieldOf("half");
+  assert.deepEqual(B.viewBox(f, "v", m), [-13, -13, 94, 67]);
+  assert.deepEqual(B.viewBox(f, "vi", m), [-13, -1.5, 94, 67]);
+  assert.deepEqual(B.viewBox(f, "h", m), [-13, -13, 67, 94]);
+  assert.deepEqual(B.viewBox(f, "hi", m), [-1.5, -13, 67, 94]);
+  assert.deepEqual(B.viewBox(f, "v", 3), [-3, -3, 74, 58.5]);
+});
+
+test("marcas del campo: 5 carriles por las áreas, 6 franjas sobre el campo entero y nada en el espacio libre", async () => {
+  const B = await import("../src/lib/board.js");
+  const full = B.fieldOf("full");
+  const lanes = B.markLines(full, "carriles5");
+  assert.deepEqual(lanes.map((l) => l.x1), [13.84, 24.84, 43.16, 54.16]);
+  const bands = B.markLines(full, "franjas6");
+  assert.deepEqual(bands.map((l) => l.y1), [17.5, 35, 70, 87.5], "la del medio coincide con la línea de medio campo y no se repite");
+  assert.equal(B.markLines(B.fieldOf("half"), "franjas6").length, 2, "en medio campo solo las franjas que caben");
+  assert.equal(B.markLines(B.fieldOf("f7"), "carriles5")[0].x1, 10.5);
+  assert.equal(B.markLines(B.fieldOf("free"), "carriles5").length, 0);
+  assert.equal(B.markLines(full, "zonas18").length, 2 + 4);
+  assert.equal(B.normalizeBoard({ v: 2, field: "full", marks: "zonas18", grass: "cruzado", frames: [{ id: "f", els: [] }] }).marks, "zonas18");
+  assert.equal(B.normalizeBoard({ v: 2, field: "full", marks: "rara", frames: [{ id: "f", els: [] }] }).marks, undefined);
+});
+
+test("césped cortado en dos direcciones: franjas a lo ancho y a lo largo con tonos distintos", async () => {
+  const B = await import("../src/lib/board.js");
+  const r = B.grassRects(B.fieldOf("full"), "cruzado");
+  assert.ok(r.some((x) => x.tone === "h") && r.some((x) => x.tone === "v"));
+  assert.ok(r.every((x) => x.y + x.h <= 105.0001 && x.x + x.w <= 68.0001));
+  assert.equal(B.grassRects(B.fieldOf("full"), "liso").length, 0);
+});

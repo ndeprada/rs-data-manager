@@ -4,7 +4,7 @@ import { Activity, BoxSelect, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, Chev
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
-  boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
+  boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, VIEWS, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
   insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
@@ -819,6 +819,20 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
             {LOOKS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
           </select>
         </label>
+        {field.id !== "free" && look !== "bn" && (
+          <label className="text-[11px] font-semibold text-gray-600 space-y-0.5">Césped
+            <select value={grassOf(board)} onChange={(e) => { const { grass: _g, ...rest } = board; commit(e.target.value === "auto" ? rest : { ...rest, grass: e.target.value }); }} className={`${selectCls} w-full`} aria-label="Césped" data-testid="board-grass">
+              {GRASS.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
+            </select>
+          </label>
+        )}
+        {field.id !== "free" && (
+          <label className="text-[11px] font-semibold text-gray-600 space-y-0.5">Marcas en el campo
+            <select value={marksOf(board)} onChange={(e) => { const { marks: _m, ...rest } = board; commit(e.target.value === "none" ? rest : { ...rest, marks: e.target.value }); }} className={`${selectCls} w-full`} aria-label="Marcas en el campo" data-testid="board-marks-select">
+              {MARKS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+            </select>
+          </label>
+        )}
         <label className="text-[11px] font-semibold text-gray-600 space-y-0.5">Orientación
           <select value={orient} onChange={(e) => commit({ ...board, orient: orientOf(e.target.value) })} className={`${selectCls} w-full`} aria-label="Orientación del campo">
             {ORIENTS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}

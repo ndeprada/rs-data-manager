@@ -40,11 +40,69 @@ export const isStadium = (look) => look === "estadio" || look === "estadio-noche
 export const STADIUM_MARGIN = 13;
 export const hasStands = (b) => b?.stands !== false;
 export const hasAds = (b) => b?.ads !== false;
+// ── Césped y marcas tácticas (como en FmStadio) ──────────────────────────────────────────────────────────────────────
+// `board.grass`: dibujo del corte del césped (sin dato = el del modo visual). `board.marks`: líneas de carriles y franjas.
+export const GRASS = [
+  { id: "auto", label: "El del modo visual" },
+  { id: "liso", label: "Liso" },
+  { id: "franjas", label: "Franjas a lo ancho" },
+  { id: "verticales", label: "Franjas a lo largo" },
+  { id: "cuadros", label: "Cuadros" },
+  { id: "cruzado", label: "Cortado en dos direcciones" },
+];
+export const MARKS = [
+  { id: "none", label: "Sin marcas" },
+  { id: "carriles5", label: "5 carriles" },
+  { id: "carriles3", label: "3 carriles" },
+  { id: "franjas6", label: "6 franjas" },
+  { id: "tercios", label: "Tercios" },
+  { id: "carriles5-franjas6", label: "5 carriles y 6 franjas" },
+  { id: "carriles5-tercios", label: "5 carriles y tercios" },
+  { id: "zonas18", label: "18 zonas (3 carriles × 6 franjas)" },
+];
+export const grassOf = (b) => (GRASS.some((g) => g.id === b?.grass) ? b.grass : "auto");
+export const marksOf = (b) => (MARKS.some((m) => m.id === b?.marks) ? b.marks : "none");
+// Largo del campo entero (en medio campo y 3/4 las franjas se cuentan sobre el campo completo)
+const fullLength = (field) => (field.id === "f7" ? 65 : field.id === "free" ? field.h : 105);
+/** Líneas de las marcas en metros del campo: carriles a lo largo (anchos del área y del área pequeña) y franjas a lo ancho. */
+export function markLines(field, marks) {
+  if (!marks || marks === "none" || field.id === "free") return [];
+  const f7 = field.id === "f7";
+  const { w, h } = field, L = fullLength(field);
+  const pa = f7 ? 12 : 20.16, ga = f7 ? 6 : 9.16, cx = w / 2;
+  const xs = marks.startsWith("carriles5") ? [cx - pa, cx - ga, cx + ga, cx + pa] : marks === "carriles3" || marks === "zonas18" ? [cx - pa, cx + pa] : [];
+  const parts = marks.includes("franjas6") || marks === "zonas18" ? 6 : marks.includes("tercios") ? 3 : 0;
+  const ys = [];
+  for (let k = 1; k < parts; k++) { const y = (L * k) / parts; if (y < h - 0.1 && Math.abs(y - L / 2) > 0.1) ys.push(y); }
+  const r = (n) => Math.round(n * 100) / 100;
+  return [...xs.map((x) => ({ x1: r(x), y1: 0, x2: r(x), y2: h })), ...ys.map((y) => ({ x1: 0, y1: r(y), x2: w, y2: r(y) }))];
+}
+/** Rectángulos del césped (en metros del campo) con su tono: «a» = el tono del modo, «h»/«v» = las dos direcciones del corte. */
+export function grassRects(field, grass) {
+  const { w, h } = field, L = fullLength(field);
+  const out = [];
+  const rows = (tone) => { const n = Math.max(2, Math.round(L / 7.5)), b = L / n; for (let i = 0; i * b < h; i += 2) out.push({ x: 0, y: i * b, w, h: Math.min(b, h - i * b), tone }); };
+  const cols = (tone) => { const n = Math.max(2, Math.round(w / 6.8)), b = w / n; for (let i = 0; i < n; i += 2) out.push({ x: i * b, y: 0, w: b, h, tone }); };
+  if (grass === "franjas") rows("a");
+  else if (grass === "verticales") cols("a");
+  else if (grass === "cruzado") { rows("h"); cols("v"); }
+  else if (grass === "cuadros") {
+    const n = Math.max(4, Math.round(w / 6.2)), c = w / n;
+    for (let j = 0; j * c < h; j++) for (let i = 0; i < n; i++) if ((i + j) % 2 === 0) out.push({ x: i * c, y: j * c, w: c, h: Math.min(c, h - j * c), tone: "a" });
+  }
+  return out;
+}
+
+// Medio campo y 3/4: el campo de verdad sigue más allá del corte, así que las gradas no lo rodean por ahí:
+// la imagen se corta en línea recta a 1,5 m del corte (margen por lados: t arriba, b abajo, l izquierda, r derecha).
+export const isCutField = (id) => id === "half" || id === "tq";
 export function marginOf(look, b = null) {
   if (!isStadium(lookOf(look))) return 3;
-  if (hasStands(b)) return STADIUM_MARGIN;
-  return hasAds(b) ? 5.5 : 3;
+  const m = hasStands(b) ? STADIUM_MARGIN : hasAds(b) ? 5.5 : 3;
+  return m > 3 && isCutField(b?.field) ? { t: m, r: m, b: 1.5, l: m } : m;
 }
+export const marginSides = (m) => (typeof m === "number" ? { t: m, r: m, b: m, l: m } : { t: 3, r: 3, b: 3, l: 3, ...m });
+export const marginMax = (m) => { const s = marginSides(m); return Math.max(s.t, s.r, s.b, s.l); };
 // Vallas publicitarias alrededor del campo (modos estadio): la app y los patrocinadores del club, en este orden y repetidos;
 // todas granates y el texto alterna blanco y naranja (pedido por Nacho el 31/10/2026)
 // Vallas: todas granates, alternando blanco y naranja. `logo` = clave de src/lib/adLogos.js (silueta incrustada); sin logo, el texto.
@@ -259,6 +317,8 @@ export function normalizeBoard(value) {
       ...(value.view === "persp" ? { view: "persp" } : {}),
       ...(value.stands === false ? { stands: false } : {}),
       ...(value.ads === false ? { ads: false } : {}),
+      ...(grassOf(value) !== "auto" ? { grass: grassOf(value) } : {}),
+      ...(marksOf(value) !== "none" ? { marks: marksOf(value) } : {}),
       ...(camOf(value).z > 1 ? { cam: camOf(value) } : {}),
       frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [] })),
     };
@@ -534,7 +594,16 @@ export function fromView(field, orient, p) {
     default: return { x: round(p.x), y: round(p.y) };
   }
 }
-export const viewBox = (field, orient, m = 3) => (isSideways(orient) ? [-m, -m, field.h + 2 * m, field.w + 2 * m] : [-m, -m, field.w + 2 * m, field.h + 2 * m]);
+export function viewBox(field, orient, m = 3) {
+  const { t, r, b, l } = marginSides(m);
+  const W = field.w + l + r, H = field.h + t + b;
+  switch (orient) {
+    case "h": return [-t, -r, H, W];
+    case "vi": return [-r, -b, W, H];
+    case "hi": return [-b, -l, H, W];
+    default: return [-l, -t, W, H];
+  }
+}
 // ── Zoom (cámara) ────────────────────────────────────────────────────────────────────────────────────────────────────
 // `board.cam = { z, x, y }`: z = aumento (1 = todo el campo, hasta ZOOM_MAX) y x, y = centro de lo que se ve, en fracción (0–1)
 // del recuadro completo. Se guarda en el dibujo: la imagen, el vídeo y las vistas de solo lectura salen con ese encuadre.
@@ -596,7 +665,7 @@ export function perspectiveOf(field, orient, m = 3) {
   const [x0, y0, W, H] = viewBox(field, orient, m);
   const cx = x0 + W / 2, zf = 1 / PERSP.far, Hp = H * PERSP.height;
   // con gradas (margen de estadio) hace falta más sitio arriba: la grada de enfrente se levanta
-  const pTop = PERSP.top + (m >= 12 ? 6 : 0);
+  const pTop = PERSP.top + (marginMax(m) >= 12 ? 6 : 0);
   const top = y0, Ybot = top + pTop + Hp, beta = Hp / (1 - PERSP.far);
   const scaleAt = (p) => 1 / (zf + (1 - zf) * ((p.y - y0) / H));
   const P = (p) => { const k = scaleAt(p); return { x: cx + (p.x - cx) * k, y: Ybot - beta * (1 - k) }; };

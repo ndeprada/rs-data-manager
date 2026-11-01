@@ -2,7 +2,7 @@ import { AD_LOGOS } from "@/lib/adLogos";
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, camBox, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldOf, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  isGroundEl, isPersp, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
+  isGroundEl, isPersp, isCutField, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, orientOf, paintOrder, perspectiveOf, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -213,6 +213,7 @@ const mixHex = (a, b, t) => {
   const A = p(a), B = p(b);
   return `#${A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, "0")).join("")}`;
 };
+const FULL_H = 105;
 const SEAT = 0.53; // un asiento cada 0,53 m (0,4 m de asiento y 0,13 de hueco)
 // Gradas: cada fila es un escalón. Se pinta de fuera hacia dentro (cada fila tapa lo que queda dentro de ella).
 // En perspectiva, las gradas de enfrente y de los lados se levantan su altura (como las vallas de pie): se ve la pendiente.
@@ -280,6 +281,8 @@ function Stands({ field, st, T, textAt }) {
 
 function Stadium({ field, s, board, orient, T, textAt }) {
   const st = s.stadium;
+  // en medio campo y 3/4 se dibuja el estadio del campo completo (la imagen lo corta en línea recta)
+  if (isCutField(field.id)) field = { ...field, h: FULL_H };
   const parts = stadiumParts(field, { stands: hasStands(board), ads: hasAds(board) });
   const P = (pts) => ptsPath(pts, T);
   const oa = orientAngle(orient);
@@ -329,32 +332,37 @@ function Stadium({ field, s, board, orient, T, textAt }) {
   );
 }
 
+// Césped: rectángulos agrupados por tono (un trazo por tono) y marcas de carriles/franjas
+function grassGroups(field, look, board) {
+  const s = styleOf(look);
+  if (lookOf(look) === "bn" || field.id === "free") return [];
+  let g = grassOf(board);
+  if (g === "auto") g = s.check ? "cuadros" : s.stripe ? "franjas" : "liso";
+  const white = s.bg === "#ffffff";
+  const tones = {
+    a: s.check || s.stripe || (white ? "#f3f5f8" : "rgba(255,255,255,0.06)"),
+    h: white ? "rgba(17,24,39,0.035)" : "rgba(0,0,0,0.075)",
+    v: white ? "rgba(17,24,39,0.022)" : "rgba(255,255,255,0.07)",
+  };
+  const by = new Map();
+  for (const r of grassRects(field, g)) { const k = r.tone; if (!by.has(k)) by.set(k, []); by.get(k).push(r); }
+  return [...by.entries()].map(([k, list]) => ({ fill: tones[k], rects: list }));
+}
+const markStyle = (s) => ({ stroke: s.line, strokeOpacity: 0.62, strokeWidth: s.lineW * 0.85, strokeDasharray: "1.3 1", fill: "none", strokeLinecap: "round" });
+
 function Field({ field, orient, look, vb, board }) {
   const s = styleOf(look);
-  const bands = [];
-  if (s.stripe) for (let y = 0; y < field.h; y += 14) bands.push(<rect key={y} x={0} y={y} width={field.w} height={Math.min(7, field.h - y)} fill={s.stripe} />);
   const free = field.id === "free";
-  // Cuadrícula de segadora: casillas de unos 6 m que encajan justo en el ancho del campo
-  const cols = Math.max(4, Math.round(field.w / 6.2)), cell = field.w / cols;
-  const checkId = `chk-${lookOf(look)}-${field.w}`;
+  const grass = grassGroups(field, look, board);
+  const marks = markLines(field, marksOf(board));
   return (
     <>
       <rect x={vb[0]} y={vb[1]} width={vb[2]} height={vb[3]} fill={free ? s.bg : s.stadium && hasStands(board) ? s.stadium.outer : s.margin || s.bg} />
       <g transform={fieldTurn(field, orient)}>
         {!free && s.stadium && <Stadium field={field} s={s} board={board} orient={orient} />}
         {free ? null : <rect x={0} y={0} width={field.w} height={field.h} fill={s.bg} />}
-        {free ? null : bands}
-        {!free && s.check && (
-          <>
-            <defs>
-              <pattern id={checkId} width={cell * 2} height={cell * 2} patternUnits="userSpaceOnUse">
-                <rect x={0} y={0} width={cell} height={cell} fill={s.check} />
-                <rect x={cell} y={cell} width={cell} height={cell} fill={s.check} />
-              </pattern>
-            </defs>
-            <rect x={0} y={0} width={field.w} height={field.h} fill={`url(#${checkId})`} />
-          </>
-        )}
+        {grass.map((gr, i) => <path key={`g${i}`} d={gr.rects.map((r) => `M ${r.x} ${r.y} h ${r.w} v ${r.h} h ${-r.w} Z`).join(" ")} fill={gr.fill} />)}
+        {marks.length > 0 && <g {...markStyle(s)} data-testid="board-marks">{marks.map((m, i) => <line key={i} x1={m.x1} y1={m.y1} x2={m.x2} y2={m.y2} />)}</g>}
         <Lines field={field} s={s} />
       </g>
     </>
@@ -410,13 +418,8 @@ function FieldPersp({ field, orient, look, vb, persp, board }) {
   const tqH = field.id === "tq";
   const clipId = `pclip-${field.id}-${orient}`;
   const fieldPoly = poly(rectPts(0, 0, field.w, field.h), true);
-  const bands = [];
-  if (!free && s.stripe) for (let y = 0; y < field.h; y += 14) bands.push(<path key={y} d={poly(rectPts(0, y, field.w, Math.min(7, field.h - y)), true)} fill={s.stripe} />);
-  const checks = [];
-  if (!free && s.check) {
-    const cols = Math.max(4, Math.round(field.w / 6.2)), cell = field.w / cols;
-    for (let j = 0; j * cell < field.h; j++) for (let i = 0; i < cols; i++) if ((i + j) % 2 === 0) checks.push(rectPts(i * cell, j * cell, cell, Math.min(cell, field.h - j * cell)));
-  }
+  const grass = grassGroups(field, look, board);
+  const marks = markLines(field, marksOf(board));
   const lp = { fill: "none", stroke: s.line, strokeWidth: s.lineW, strokeLinejoin: "round", strokeLinecap: "round" };
   return (
     <>
@@ -427,8 +430,8 @@ function FieldPersp({ field, orient, look, vb, persp, board }) {
           {s.stadium && <Stadium field={field} s={s} board={board} orient={orient} T={T} textAt={textAt} />}
           <defs><clipPath id={clipId}><path d={fieldPoly} /></clipPath></defs>
           <path d={fieldPoly} fill={s.bg} />
-          {bands}
-          {checks.length > 0 && <path d={checks.map((c) => poly(c, true)).join(" ")} fill={s.check} />}
+          {grass.map((gr, i) => <path key={`g${i}`} d={gr.rects.map((r) => poly(rectPts(r.x, r.y, r.w, r.h), true)).join(" ")} fill={gr.fill} />)}
+          {marks.length > 0 && <g {...markStyle(s)} data-testid="board-marks">{marks.map((m, i) => <path key={i} d={poly([{ x: m.x1, y: m.y1 }, { x: m.x2, y: m.y2 }], false)} />)}</g>}
           <g clipPath={tqH ? `url(#${clipId}-tq)` : undefined}>
             {tqH && <defs><clipPath id={`${clipId}-tq`}><path d={poly(rectPts(-3, -3, field.w + 6, field.h + 3), true)} /></clipPath></defs>}
             {fieldShapes(field).map((g, i) => (g.dot
