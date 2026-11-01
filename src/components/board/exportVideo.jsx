@@ -99,7 +99,7 @@ function painter(b, size) {
       width = size.inner.width; height = Math.round((width * vb[3]) / vb[2]);
       if (height > size.inner.height) { height = size.inner.height; width = Math.round((height * vb[2]) / vb[3]); }
       if (c3.width !== width || c3.height !== height) { c3.width = width; c3.height = height; }
-      img = await (await load3d()).renderBoard3D(c3, b, els, { camera, aspect });
+      { const lib = await load3d(); img = await lib.renderBoard3D(c3, b, els, { camera, aspect, tilt: lib.TILT_VIDEO }); }
     } else {
       const m = await boardSvgMarkup(<Board board={b} els={els} camera={camera} aspect={aspect} />, size.inner.width);
       img = await loadSvgImage(m.svg);

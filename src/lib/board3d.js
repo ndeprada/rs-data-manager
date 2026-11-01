@@ -31,7 +31,10 @@ const SCREEN = {
 };
 // Inclinación de la cámara en perspectiva (grados sobre el horizonte) y apertura
 // (como el vídeo de ejemplo de FmStadio que pasó Nacho el 01/11/2026: casi desde arriba, con un poco de inclinación)
-const TILT = 74;
+// Inclinación de la cámara en perspectiva (grados sobre el suelo): en el editor, la vista previa y la imagen, parecida a la
+// perspectiva del 2D, para que se note que es 3D; en el vídeo, casi desde arriba, como el ejemplo de FmStadio (01/11/2026, Nacho).
+export const TILT_VIEW = 42;
+export const TILT_VIDEO = 74;
 const FOV = 30;
 const W0 = 10000; // imagen virtual completa (px) para setViewOffset
 
@@ -725,7 +728,7 @@ function buildPiece(board, el, look, chip, scr, pending) {
 // Lo que enseña el recuadro `vb` del 2D se lleva al suelo (en perspectiva, deshaciendo la proyección) y la cámara 3D se
 // coloca para que ese trozo de campo llene la imagen. Sin cámara ni zoom, el campo entero (con 4 m alrededor) ocupa toda
 // la imagen y las gradas salen por los lados, como en FmStadio.
-function placeCamera(camera, board, view, aspect) {
+function placeCamera(camera, board, view, aspect, tilt = TILT_VIEW) {
   const { field, orient, persp: p2, vb } = view;
   const sc = SCREEN[orient];
   const U = new THREE.Vector3(sc.up[0], 0, sc.up[1]);
@@ -745,7 +748,7 @@ function placeCamera(camera, board, view, aspect) {
   const T = new THREE.Vector3((gx0 + gx1) / 2, 0, (gy0 + gy1) / 2);
   const span = Math.max(gx1 - gx0, gy1 - gy0);
   const D = (span / (2 * Math.tan((FOV * Math.PI) / 360))) * (persp ? 1.05 : 2.4);
-  const e = ((persp ? TILT : 89.9) * Math.PI) / 180;
+  const e = ((persp ? tilt : 89.9) * Math.PI) / 180;
   camera.fov = FOV;
   camera.aspect = 1;
   camera.near = D * 0.05;
@@ -767,8 +770,15 @@ function placeCamera(camera, board, view, aspect) {
   }
   // se amplía el lado que sobra hasta la proporción de la imagen (lo que entra de más son las gradas)
   let w = x1 - x0, h = y1 - y0;
-  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  let cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const w0 = w, h0 = h;
   if (w / h < aspect) w = h * aspect; else h = w / aspect;
+  // en medio campo y 3/4 el campo se acaba en el corte: lo que sobra se añade por el otro lado (como el corte recto del 2D)
+  if (cut) {
+    const c = v.set(field.w / 2, 0, field.h).project(camera);
+    if (Math.abs(c.y - cy) >= Math.abs(c.x - cx)) { if (h > h0) cy = c.y < cy ? y0 + h / 2 : y1 - h / 2; }
+    else if (w > w0) cx = c.x < cx ? x0 + w / 2 : x1 - w / 2;
+  }
   camera.setViewOffset(W0, W0, ((cx - w / 2 + 1) / 2) * W0, ((1 - (cy + h / 2)) / 2) * W0, (w / 2) * W0, (h / 2) * W0);
   camera.updateProjectionMatrix();
   return { T, U, span, D };
@@ -802,7 +812,7 @@ export function drawBoard3D(target, board, els, opts = {}) {
   scene.add(st.group);
   const region = st.region;
   const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 1000);
-  const cam = placeCamera(camera, board, view, W / H);
+  const cam = placeCamera(camera, board, view, W / H, opts.tilt);
   const sc = SCREEN[orientOf(board.orient)];
   const scr = { angle: orientAngle(orientOf(board.orient)), texRot: Math.atan2(-sc.up[0], -sc.up[1]) };
   // luz: ambiente + sol desde arriba a la izquierda de la pantalla (las sombras caen abajo a la derecha, como en 2D)

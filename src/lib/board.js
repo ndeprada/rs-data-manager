@@ -720,8 +720,11 @@ export function boardView(board, { camera, frame = 0, aspect = null, fullView = 
 export const is3D = (b) => b?.view3d === true;
 /** Suelo que se ve en metros del campo: el campo más su margen por cada lado ([x0, y0, x1, y1]). */
 export function groundRegion(board) {
-  const field = fieldOf(board?.field);
-  const s = marginSides(marginOf(lookOf(board?.look), board));
+  // en medio campo y 3/4 el 3D tiene el campo entero (en perspectiva el corte no puede ser recto: se ve el resto del campo)
+  const cut = isCutField(board?.field);
+  const b = cut ? { ...board, field: "full" } : board;
+  const field = fieldOf(b?.field);
+  const s = marginSides(marginOf(lookOf(b?.look), b));
   return [-s.l, -s.t, field.w + s.r, field.h + s.b];
 }
 

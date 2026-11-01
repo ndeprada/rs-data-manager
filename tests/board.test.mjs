@@ -1219,6 +1219,6 @@ test("vista 3D: marca, encuadre común y suelo que se ve", async () => {
   assert.deepEqual(B.boardView({ ...b, frames: [{ id: "f", els: [], cam }] }).vb, B.camRect(fullVb, cam, 16 / 9));
   // suelo: campo + margen; en medio campo, solo 3 m por el corte
   assert.deepEqual(B.groundRegion(b), [-13, -13, 81, 118]);
-  assert.deepEqual(B.groundRegion({ ...b, field: "half" }), [-13, -13, 81, 55.5]);
+  assert.deepEqual(B.groundRegion({ ...b, field: "half" }), [-13, -13, 81, 118]);
   assert.deepEqual(B.groundRegion({ ...b, look: "blanco" }), [-3, -3, 71, 108]);
 });
