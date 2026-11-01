@@ -174,3 +174,16 @@ assert.deepEqual(await actaIds(db, { season: '2024-2025', competition: 'DIVISIÓ
 assert.deepEqual(await actaIds(db, { season: 'x' }), []);
 
 console.log('fcfDb ok');
+
+// ── Procedencia: equipo con más actas de la temporada anterior (01/11/2026) ──
+{
+  const prevA = (id, team, comp, pid) => acta(id, 1, team, 'RIVAL P', [P(pid, 'MAS GIL, POL', team, true)], [], [], { season: '2025-2026', competition: comp, group: 'GRUP 3' });
+  let t = await teamSquad(db, { season: '2026-2027', competition: 'CADET SEGONA DIVISIÓ S15', grp: 'GRUP 6', team: 'CLUB X "B"' });
+  assert.equal(t.prev_season, '2025-2026');
+  assert.equal(t.players.find((p) => p.player_id === '32').prev, null, 'sin actas de la temporada anterior');
+  await importActas(db, [prevA('2101', 'CATALONIA "A"', 'INFANTIL PRIMERA DIVISIÓ', '32'), prevA('2102', 'CATALONIA "A"', 'INFANTIL PRIMERA DIVISIÓ', '32'),
+    prevA('2103', 'OTRO CLUB', 'INFANTIL SEGONA DIVISIÓ', '32')]);
+  t = await teamSquad(db, { season: '2026-2027', competition: 'CADET SEGONA DIVISIÓ S15', grp: 'GRUP 6', team: 'CLUB X "B"' });
+  assert.deepEqual(t.players.find((p) => p.player_id === '32').prev,
+    { team: 'CATALONIA "A"', competition: 'INFANTIL PRIMERA DIVISIÓ', grp: 'GRUP 3', pj: 3, more: 1 });
+}

@@ -337,7 +337,32 @@ export async function teamSquad(db, { season, competition, grp, team } = {}) {
     `select count(distinct p.acta)::int as pj, sum(p.goals)::int as goals, max(c.match_date) as last_date, max(c.imported_at) as last_import
      from fcf_apps p join fcf_actas c on c.acta = p.acta where c.season = $1 and p.team = $2${extra}`, params
   );
-  return { team, season, competition: competition || squad.rows[0]?.competition || null, grp: grp || squad.rows[0]?.grp || null, ...rows[0], players: squad.rows };
+  const prev = prevSeason(season);
+  const from = await prevSeasonTeams(db, prev, squad.rows.map((r) => r.player_id));
+  const players = squad.rows.map((r) => ({ ...r, prev: from.get(String(r.player_id)) || null }));
+  return { team, season, prev_season: prev, competition: competition || squad.rows[0]?.competition || null, grp: grp || squad.rows[0]?.grp || null, ...rows[0], players };
+}
+
+// Equipo de procedencia (01/11/2026, Nacho: «saber dónde jugaba la temporada anterior… para detectar jugadores que ya se han movido
+// de club»): el equipo y la competición en los que más actas tiene en la temporada indicada; `more` = otros equipos en los que jugó.
+export async function prevSeasonTeams(db, season, ids) {
+  const list = [...new Set((ids || []).map(String))];
+  if (!SEASON_RE.test(season || '') || !list.length) return new Map();
+  const { rows } = await db.query(
+    `select p.player_id, p.team, c.competition, c.grp, count(*)::int as pj
+     from fcf_apps p join fcf_actas c on c.acta = p.acta
+     where c.season = $1 and p.player_id = any($2::text[])
+     group by p.player_id, p.team, c.competition, c.grp
+     order by p.player_id, pj desc, c.competition`, [season, list]
+  );
+  const out = new Map();
+  for (const r of rows) {
+    const cur = out.get(r.player_id);
+    if (!cur) out.set(r.player_id, { team: r.team, competition: r.competition, grp: r.grp, pj: r.pj, teams: [r.team] });
+    else { cur.pj += r.pj; if (!cur.teams.includes(r.team)) cur.teams.push(r.team); }
+  }
+  for (const v of out.values()) { v.more = v.teams.length - 1; delete v.teams; }
+  return out;
 }
 
 const prevSeason = (s) => { const a = Number(String(s).slice(0, 4)); return `${a - 1}-${a}`; };

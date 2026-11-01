@@ -13,3 +13,13 @@ assert.equal(fcfDisplayName('DE LA TORRE ARELLANO, PATRICIO'), 'Patricio De la T
 assert.equal(fcfDisplayName('KOLTSOV , MIKHAIL'), 'Mikhail Koltsov');
 assert.equal(fcfDisplayName(''), '');
 console.log('fcfNames ok');
+
+{
+  const { clubOf, originKind } = await import('../src/lib/fcfNames.js');
+  assert.equal(clubOf('CATALONIA "B"'), 'CATALONIA');
+  assert.equal(clubOf('U.E. CORNELLÀ "A"'), clubOf('U.E. CORNELLÀ "C"'));
+  assert.equal(originKind(null, 'X'), 'none');
+  assert.equal(originKind({ team: 'CAMBUCHERAS "A"' }, 'CAMBUCHERAS "A"'), 'same');
+  assert.equal(originKind({ team: 'CAMBUCHERAS "B"' }, 'CAMBUCHERAS "A"'), 'club');
+  assert.equal(originKind({ team: 'CATALONIA "A"' }, 'CAMBUCHERAS "A"'), 'new');
+}

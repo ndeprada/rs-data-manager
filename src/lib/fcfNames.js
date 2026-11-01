@@ -26,3 +26,14 @@ export function fcfDisplayName(name) {
 }
 
 export const shortComp = (c) => titleCase(c);
+
+// Club de un equipo sin la letra del equipo («CATALONIA "B"» → «CATALONIA»): para saber si un jugador ha cambiado de club
+export const clubOf = (team) => String(team || '').toUpperCase().replace(/\s*["'][A-Z]["']\s*$/, '').replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim();
+
+// Procedencia de un jugador (equipo de la temporada anterior) comparada con su equipo actual:
+// 'none' = sin actas, 'same' = mismo equipo, 'club' = otro equipo del mismo club, 'new' = viene de otro club
+export function originKind(prev, team) {
+  if (!prev?.team) return 'none';
+  if (prev.team === team) return 'same';
+  return clubOf(prev.team) === clubOf(team) ? 'club' : 'new';
+}

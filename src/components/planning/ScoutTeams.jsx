@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import ObservedTeamsList from "@/components/scouting/ObservedTeamsList";
 import { juvenilYear, JUV_STYLE } from "@/lib/juvenilYear";
 import { RS, Card, Btn, BackLink, YearBadge, Dorsals, DecisionChip, Empty, SearchBox, fmtDateTime, seasonShort, JuvLegend, useDensity, DensityToggle } from "@/components/rs2/kit";
-import { titleCase, fcfDisplayName } from "@/lib/fcfNames";
+import { titleCase, fcfDisplayName, originKind } from "@/lib/fcfNames";
 import { SEASON, useFcfMeta, useFollows, useScoutedByFcf, useAlerts, useUpIds, usePlanningNav, useIsPlanningAdmin } from "./useScouting";
 import { SCOUT_POSITION, LATERALITY, teamInitials } from "./labels";
 
@@ -42,6 +42,34 @@ function StarButton({ on, onClick, busy, label }) {
       <Star width={16} height={16} fill={on ? RS.ink : "none"} color={on ? RS.ink : "#fff"} aria-hidden="true" />
       {on ? `${label} seguido` : `Seguir ${label.toLowerCase()}`}
     </button>
+  );
+}
+
+// Equipo de la temporada anterior: «Mismo equipo» en gris; si viene de otro club, con un punto naranja para verlo de un vistazo
+function Origin({ prev, team, season, dense }) {
+  const kind = originKind(prev, team);
+  if (kind === "none") return <span style={{ color: RS.faint }} title={`Sin actas de la temporada ${seasonShort(season)} cargadas`}>—</span>;
+  if (kind === "same") return <span style={{ fontSize: 13, color: RS.faint }}>Mismo equipo</span>;
+  const isNew = kind === "new";
+  const more = prev.more ? ` +${prev.more}` : "";
+  const tip = `${titleCase(prev.team)} · ${titleCase(prev.competition)}${prev.grp ? ` · ${titleCase(prev.grp)}` : ""} · ${prev.pj} partidos${prev.more ? ` (y ${prev.more} equipo${prev.more > 1 ? "s" : ""} más)` : ""}${isNew ? " · viene de otro club" : ""}`;
+  const name = (
+    <span className="inline-flex items-center" style={{ gap: 6, fontWeight: isNew ? 600 : 500, color: isNew ? RS.ink : RS.ink2 }}>
+      {isNew && <span aria-label="Viene de otro club" style={{ width: 8, height: 8, borderRadius: 99, background: RS.naranja, flex: "none" }} />}
+      {titleCase(prev.team)}{more && <span style={{ color: RS.faint, fontWeight: 400 }}>{more}</span>}
+    </span>
+  );
+  if (dense) {
+    return (
+      <span className="inline-flex items-center" title={tip} data-testid="squad-origin" data-kind={kind} style={{ gap: 6, whiteSpace: "nowrap", maxWidth: 330, overflow: "hidden", textOverflow: "ellipsis" }}>
+        {name}<span style={{ fontSize: 12, color: RS.muted }}>· {titleCase(prev.competition)}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="flex flex-col" title={tip} data-testid="squad-origin" data-kind={kind} style={{ gap: 1, lineHeight: 1.25 }}>
+      {name}<span style={{ fontSize: 12, color: RS.muted }}>{titleCase(prev.competition)}</span>
+    </span>
   );
 }
 
@@ -245,10 +273,11 @@ function TeamView({ season, comp, grp, team }) {
           <span className="flex flex-wrap items-center" style={{ gap: "4px 14px", fontSize: 12, color: RS.muted }}><JuvLegend />Según las actas de la temporada {seasonShort(season)} en esta competición<DensityToggle value={density} onChange={setDensity} /></span>
         </div>
         <div className="rs2-scroll-x">
-          <table className={`rs2-tbl${dense ? " rs2-compact" : ""}`} style={{ minWidth: 900 }} data-testid="squad-table" data-density={density}>
+          <table className={`rs2-tbl${dense ? " rs2-compact" : ""}`} style={{ minWidth: 1080 }} data-testid="squad-table" data-density={density}>
             <thead>
               <tr>
-                <th scope="col" title="Dorsal habitual en este equipo (y otros que ha llevado)">Dorsal</th><th className="l" scope="col">Jugador</th><th scope="col">Año</th><th scope="col">PJ</th><th scope="col">Titular</th><th scope="col">Suplente</th>
+                <th scope="col" title="Dorsal habitual en este equipo (y otros que ha llevado)">Dorsal</th><th className="l" scope="col">Jugador</th><th scope="col">Año</th>
+                <th className="l" scope="col" title={`Equipo y competición en los que más jugó la temporada ${seasonShort(sq?.prev_season)}`}>Procedencia {seasonShort(sq?.prev_season)}</th><th scope="col">PJ</th><th scope="col">Titular</th><th scope="col">Suplente</th>
                 <th scope="col">Goles</th><th scope="col" title="Amarillas">TA</th><th scope="col" title="Rojas">TR</th><th className="l" scope="col">Posición · Lateralidad</th><th className="l" scope="col">Estado</th>
               </tr>
             </thead>
@@ -261,6 +290,7 @@ function TeamView({ season, comp, grp, team }) {
                     <td><Dorsals list={p.dorsals} size={dense ? "sm" : "md"} /></td>
                     <td className="l"><span style={{ fontWeight: 600 }}>{fcfDisplayName(p.name)}</span></td>
                     <td><YearBadge year={p.birth_year} up={upIds.has(String(p.player_id))} estimated season={season} sm={dense} /></td>
+                    <td className="l"><Origin prev={p.prev} team={team} season={sq?.prev_season} dense={dense} /></td>
                     <td style={{ fontWeight: 600 }}>{p.pj}</td><td>{p.tit}</td><td>{p.sup}</td>
                     <td style={{ fontWeight: 700, color: RS.granate }}>{p.goals}</td><td>{p.yellow || ""}</td><td>{p.reds || ""}</td>
                     <td className="l" style={{ fontSize: 13, color: RS.ink2 }}>{pos || "—"}</td>
@@ -268,13 +298,13 @@ function TeamView({ season, comp, grp, team }) {
                   </tr>
                 );
               })}
-              {isLoading && <tr><td colSpan={11} style={{ padding: 30 }}><Loader2 className="animate-spin mx-auto" color={RS.faint} /></td></tr>}
-              {!isLoading && rows.length === 0 && <tr><td colSpan={11} style={{ padding: "20px 14px", color: RS.faint }}>Ningún jugador.</td></tr>}
+              {isLoading && <tr><td colSpan={12} style={{ padding: 30 }}><Loader2 className="animate-spin mx-auto" color={RS.faint} /></td></tr>}
+              {!isLoading && rows.length === 0 && <tr><td colSpan={12} style={{ padding: "20px 14px", color: RS.faint }}>Ningún jugador.</td></tr>}
             </tbody>
           </table>
         </div>
         <p style={{ margin: 0, padding: "8px 14px", fontSize: 12, color: RS.muted, borderTop: `1px solid ${RS.lineSoft}` }}>
-          PJ = partidos en acta (titular + suplente). En fútbol base las actas no registran cambios, por eso no se calculan minutos. Posición, lateralidad y estado los introduce el club en la ficha del jugador. Los goles no incluyen los de propia puerta. Dorsal = el que más ha llevado en este equipo (al lado, otros que ha usado).
+          PJ = partidos en acta (titular + suplente). En fútbol base las actas no registran cambios, por eso no se calculan minutos. Posición, lateralidad y estado los introduce el club en la ficha del jugador. Los goles no incluyen los de propia puerta. Dorsal = el que más ha llevado en este equipo (al lado, otros que ha usado). Procedencia = equipo y competición en los que más actas tiene la temporada anterior (punto naranja = viene de otro club; solo si esas actas están cargadas).
         </p>
       </section>
       {!isLoading && !sq && <Btn kind="ghost" onClick={() => go({ s: "equipos" })}>Volver</Btn>}
