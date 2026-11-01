@@ -13,7 +13,7 @@ import * as THREE from "three";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  boardView, chipOf, contrastColor, faceOf, fieldOf, groundRegion, hasAds, hasStands, isCutField, isGroundEl, isPersp,
+  boardView, chipOf, contrastColor, faceOf, fieldOf, fromView, groundRegion, hasAds, hasStands, isCutField, isGroundEl, isPersp,
   isStadium, lookOf, materialOf, PERSP, orientAngle, orientOf, tokenR, ballStyle,
 } from "@/lib/board";
 import { AD_LOGOS } from "@/lib/adLogos";
@@ -132,34 +132,40 @@ function ringPts(field, d) {
   }
   return out;
 }
-// Perfil de la grada (distancia d, altura h): escalones de la grada baja, pasillo, grada alta, cubierta y muro exterior
+// Medidas del estadio 3D (m desde las líneas). Más grande que el dibujo 2D (pedido por Nacho el 01/11/2026: «gradas
+// bastante más grandes, con cubierta»): grada baja, pasillo, grada alta, muro de atrás y cubierta volada hacia el campo.
+const ST3 = { ads: 4.0, track: 5.5, row: 0.8, lowRows: 12, lowRise: 0.42, lowFront: 1.1, aisle: 1.6, upFront: 1.2, upRows: 13, upRise: 0.6, back: 0.5, wallTop: 19, roofIn: 22.5, roofLow: 17.6 };
+const S3 = (() => {
+  const lowTop = ST3.track + ST3.lowRows * ST3.row;
+  const upStart = lowTop + ST3.aisle;
+  const upTop = upStart + ST3.upRows * ST3.row;
+  return { ...ST3, lowTop, upStart, upTop, outer: upTop + ST3.back };
+})();
+// Perfil de la grada (distancia d, altura h): escalones de la grada baja, pasillo, grada alta y muro exterior
 function standProfile() {
-  const S = STAND;
+  const S = S3;
   const segs = [];
   let h = 0;
   const step = (d0, d1, hTread, kind, rowT) => { if (hTread !== h) segs.push({ d0, d1: d0, h0: h, h1: hTread, kind: kind === "seat" ? "riser" : "wall" }); segs.push({ d0, d1, h0: hTread, h1: hTread, kind, rowT }); h = hTread; };
-  const nLow = Math.round((S.lowTop - S.track) / S.row), rl = (S.lowTop - S.track) / nLow;
-  for (let i = 0; i < nLow; i++) step(S.track + i * rl, S.track + (i + 1) * rl, 0.6 + i * rl * 0.8, "seat", i / (nLow - 1));
-  const hA = standHeight(S.lowTop);
-  step(S.lowTop, S.ring, hA, "aisle");
-  const nUp = Math.round((S.upTop - S.ring) / S.row), ru = (S.upTop - S.ring) / nUp;
-  for (let j = 0; j < nUp; j++) step(S.ring + j * ru, S.ring + (j + 1) * ru, hA + 0.5 + j * ru * 1.05, "seat", 0.35 + (0.65 * j) / Math.max(1, nUp - 1));
-  const hTop = standHeight(S.roof) + 0.6;
-  step(S.upTop, S.roof, hTop, "roof");
-  segs.push({ d0: S.roof, d1: S.roof, h0: hTop, h1: 0, kind: "outer" });
+  for (let i = 0; i < S.lowRows; i++) step(S.track + i * S.row, S.track + (i + 1) * S.row, S.lowFront + i * S.lowRise, "seat", i / (S.lowRows - 1) * 0.55);
+  const hA = h + 0.3;
+  step(S.lowTop, S.upStart, hA, "aisle");
+  for (let j = 0; j < S.upRows; j++) step(S.upStart + j * S.row, S.upStart + (j + 1) * S.row, hA + S.upFront + j * S.upRise, "seat", 0.45 + (0.55 * j) / (S.upRows - 1));
+  step(S.upTop, S.outer, S.wallTop, "top");
+  segs.push({ d0: S.outer, d1: S.outer, h0: S.wallTop, h1: 0, kind: "outer" });
   return segs;
 }
 function buildStands(field, st) {
-  const S = STAND;
+  const S = S3;
   const segs = standProfile();
   const rings = new Map();
   const ring = (d) => { if (!rings.has(d)) rings.set(d, ringPts(field, d)); return rings.get(d); };
-  // escaleras: cada ~13 m en los lados rectos (mismos sitios que en 2D)
+  // escaleras: cada ~13 m en los lados rectos
   const ref = ring(S.lowTop);
   const stair = ref.map((p) => {
     if (!p.side) return false;
     const n = Math.max(2, Math.round(p.len / 13));
-    for (let k = 1; k < n; k++) if (Math.abs(p.t - k / n) * p.len < 0.55) return true;
+    for (let k = 1; k < n; k++) if (Math.abs(p.t - k / n) * p.len < 0.6) return true;
     return false;
   });
   const pos = [], col = [];
@@ -169,29 +175,29 @@ function buildStands(field, st) {
     for (const p of pts) { pos.push(p[0], p[1], p[2]); col.push(c.r, c.g, c.b); }
   };
   const seats = (st.seats || []).map((x) => hexOf(x));
-  segs.forEach((sg, si) => {
+  const loft = (sg, si, colorOf) => {
     const A = ring(sg.d0), B = ring(sg.d1);
     const n = A.length;
     for (let k = 0; k < n; k++) {
       const k2 = (k + 1) % n;
-      const a0 = [A[k].x, sg.h0, A[k].y], a1 = [A[k2].x, sg.h0, A[k2].y], b1 = [B[k2].x, sg.h1, B[k2].y], b0 = [B[k].x, sg.h1, B[k].y];
-      let color;
-      if (sg.kind === "seat") {
-        if (stair[k]) color = st.aisle;
-        else {
-          const r = hash(k * 31 + si * 7);
-          const base = mixHex(st.seatDark || seats[0], st.seatLight || seats[1], sg.rowT * 0.85);
-          color = mixHex(base, seats[Math.floor(r * seats.length) % seats.length] || base, 0.45 + 0.2 * hash(k + si * 13));
-          if (r > 0.93) color = mixHex(color, "#ffffff", 0.18);
-        }
-      } else if (sg.kind === "riser") color = mixHex(hexOf(st.riser), "#000000", 0.25);
-      else if (sg.kind === "aisle") color = hexOf(st.concourse);
-      else if (sg.kind === "roof") color = hexOf(st.roof);
-      else if (sg.kind === "outer") color = mixHex(hexOf(st.outer), hexOf(st.roof), 0.6);
-      else color = mixHex(hexOf(st.riser), "#000000", 0.1);
-      push([a0, a1, b1, a0, b1, b0], color);
+      push([[A[k].x, sg.h0, A[k].y], [A[k2].x, sg.h0, A[k2].y], [B[k2].x, sg.h1, B[k2].y], [A[k].x, sg.h0, A[k].y], [B[k2].x, sg.h1, B[k2].y], [B[k].x, sg.h1, B[k].y]], colorOf(k, si));
     }
-  });
+  };
+  segs.forEach((sg, si) => loft(sg, si, (k) => {
+    if (sg.kind === "seat") {
+      if (stair[k]) return hexOf(st.aisle);
+      const r = hash(k * 31 + si * 7);
+      const base = mixHex(st.seatDark || seats[0], st.seatLight || seats[1], 0.2 + 0.7 * sg.rowT);
+      let color = mixHex(base, seats[Math.floor(r * seats.length) % seats.length] || base, 0.15 + 0.2 * hash(k + si * 13));
+      if (r > 0.94) color = mixHex(color, "#ffffff", 0.2);
+      return color;
+    }
+    if (sg.kind === "riser") return mixHex(hexOf(st.riser), "#000000", 0.2);
+    if (sg.kind === "aisle") return hexOf(st.concourse);
+    if (sg.kind === "top") return hexOf(st.concourse);
+    if (sg.kind === "outer") return mixHex(hexOf(st.outer), hexOf(st.roof), 0.6);
+    return mixHex(hexOf(st.riser), "#000000", 0.05);
+  }));
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
@@ -199,10 +205,24 @@ function buildStands(field, st) {
   const mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  // cubierta volada: del muro de atrás hacia el campo, algo inclinada, con el canto delantero más claro
+  pos.length = 0; col.length = 0;
+  // cubierta gris clara con paneles (franjas alternas) y canto blanco
+  const roofC = mixHex(hexOf(st.roofLine || st.roof), "#ffffff", 0.32);
+  loft({ d0: S.outer, d1: S.roofIn, h0: S.wallTop + 0.6, h1: S.roofLow }, 0, (k) => (Math.floor(k / 3) % 2 ? roofC : mixHex(roofC, "#000000", 0.08)));
+  loft({ d0: S.roofIn, d1: S.roofIn, h0: S.roofLow, h1: S.roofLow - 0.7 }, 1, () => mixHex(roofC, "#ffffff", 0.55));
+  loft({ d0: S.outer, d1: S.outer, h0: S.wallTop, h1: S.wallTop + 0.6 }, 2, () => mixHex(roofC, "#000000", 0.3));
+  const rg = new THREE.BufferGeometry();
+  rg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  rg.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  rg.computeVertexNormals();
+  const roof = new THREE.Mesh(rg, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  roof.castShadow = true;
+  roof.receiveShadow = true;
   // foso entre las vallas y la grada
   const track = flatRing(field, S.ads, S.track, hexOf(st.track));
   const group = new THREE.Group();
-  group.add(mesh, track);
+  group.add(mesh, roof, track);
   return group;
 }
 function flatRing(field, d0, d1, color) {
@@ -355,7 +375,7 @@ function buildStatic(board, pending) {
     if (hasStands(board)) {
       group.add(buildStands(full, s.stadium));
       // por fuera de la grada (las esquinas son redondas), el color de alrededor del estadio
-      group.add(flatRing(full, STAND.roof - 0.05, 60, bg));
+      group.add(flatRing(full, S3.outer - 0.05, 90, bg));
     }
     if (hasAds(board)) group.add(buildAds(full, board, pending));
   }
@@ -591,21 +611,33 @@ function buildPiece(board, el, look, chip, scr, pending) {
 }
 
 // ── Cámara ──────────────────────────────────────────────────────────────────────────────────────────────────────────
-// Coloca la cámara para que el recuadro completo (`fullVb`) sea el suelo del dibujo y enseña la fracción `vb` de él
-function placeCamera(camera, board, region, fullVb, vb) {
-  const orient = orientOf(board.orient);
+// Lo que enseña el recuadro `vb` del 2D se lleva al suelo (en perspectiva, deshaciendo la proyección) y la cámara 3D se
+// coloca para que ese trozo de campo llene la imagen. Sin cámara ni zoom, el campo entero (con 4 m alrededor) ocupa toda
+// la imagen y las gradas salen por los lados, como en FmStadio.
+function placeCamera(camera, board, view, aspect) {
+  const { field, orient, persp: p2, vb } = view;
   const sc = SCREEN[orient];
   const U = new THREE.Vector3(sc.up[0], 0, sc.up[1]);
   const persp = isPersp(board);
-  const rw = region[2] - region[0], rh = region[3] - region[1];
-  const T = new THREE.Vector3(region[0] + rw / 2, 0, region[1] + rh / 2);
-  const span = Math.max(rw, rh);
-  const D = (span / (2 * Math.tan((FOV * Math.PI) / 360))) * (persp ? 0.9 : 2.4);
+  const cut = isCutField(board.field);
+  const lim = [-4, -4, field.w + 4, field.h + (cut ? 3 : 4)];
+  const corners = [[vb[0], vb[1]], [vb[0] + vb[2], vb[1]], [vb[0] + vb[2], vb[1] + vb[3]], [vb[0], vb[1] + vb[3]]];
+  let gx0 = Infinity, gy0 = Infinity, gx1 = -Infinity, gy1 = -Infinity;
+  for (const [x, y] of corners) {
+    const q = fromView(field, orient, p2 ? p2.inv({ x, y }) : { x, y });
+    const gx = Math.min(lim[2], Math.max(lim[0], q.x)), gy = Math.min(lim[3], Math.max(lim[1], q.y));
+    gx0 = Math.min(gx0, gx); gx1 = Math.max(gx1, gx); gy0 = Math.min(gy0, gy); gy1 = Math.max(gy1, gy);
+  }
+  if (gx1 - gx0 < 6) { const m = (gx0 + gx1) / 2; gx0 = m - 3; gx1 = m + 3; }
+  if (gy1 - gy0 < 6) { const m = (gy0 + gy1) / 2; gy0 = m - 3; gy1 = m + 3; }
+  const T = new THREE.Vector3((gx0 + gx1) / 2, 0, (gy0 + gy1) / 2);
+  const span = Math.max(gx1 - gx0, gy1 - gy0);
+  const D = (span / (2 * Math.tan((FOV * Math.PI) / 360))) * (persp ? 1.05 : 2.4);
   const e = ((persp ? TILT : 89.9) * Math.PI) / 180;
   camera.fov = FOV;
   camera.aspect = 1;
   camera.near = D * 0.05;
-  camera.far = D * 4;
+  camera.far = D * 5;
   camera.position.copy(T).addScaledVector(U, -D * Math.cos(e));
   camera.position.y = D * Math.sin(e);
   camera.up.copy(persp ? new THREE.Vector3(0, 1, 0) : U);
@@ -613,28 +645,29 @@ function placeCamera(camera, board, region, fullVb, vb) {
   camera.clearViewOffset();
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
-  // puntos que deben caber: esquinas y mitades del suelo, levantadas lo que mide la grada en ese lado
-  const field = fieldOf(board.field);
-  const stadium = isStadium(lookOf(board.look)) && hasStands(board);
-  const hAt = (d) => (stadium && d > STAND.track ? standHeight(Math.min(d, STAND.roof)) + 0.6 : 0);
-  const xs = [region[0], (region[0] + region[2]) / 2, region[2]], ys = [region[1], (region[1] + region[3]) / 2, region[3]];
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  const v = new THREE.Vector3();
-  for (const x of xs) for (const y of ys) {
-    const d = Math.max(-x, x - field.w, -y, y - field.h, 0);
-    for (const hh of [0, hAt(d)]) {
-      v.set(x, hh, y).project(camera);
-      x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
+  // el trozo de suelo tiene que caber; en perspectiva, un poco de la grada de enfrente por encima
+  const pts = [[gx0, 0, gy0], [gx1, 0, gy0], [gx1, 0, gy1], [gx0, 0, gy1]];
+  if (persp) {
+    const far = pts.filter((q) => (q[0] - T.x) * U.x + (q[2] - T.z) * U.z > 0);
+    // con estadio, hasta la cubierta de la grada de enfrente (si el encuadre llega al fondo del campo)
+    const stadium = isStadium(lookOf(board.look)) && hasStands(board);
+    const reach = stadium ? S3.outer : 4, hgt = stadium ? S3.wallTop : 6;
+    for (const q of far) {
+      const edge = U.z < 0 ? q[2] <= 0 : U.z > 0 ? q[2] >= field.h : U.x > 0 ? q[0] >= field.w : q[0] <= 0;
+      pts.push(edge ? [q[0] + U.x * reach, hgt, q[2] + U.z * reach] : [q[0] + U.x * 4, 6, q[2] + U.z * 4]);
     }
   }
-  // al recuadro completo se le da la proporción del de 2D (para que la cámara de la pizarra encuadre lo mismo)
-  const A = fullVb[2] / fullVb[3];
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const v = new THREE.Vector3();
+  for (const q of pts) {
+    v.set(...q).project(camera);
+    x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
+  }
+  // se amplía el lado que sobra hasta la proporción de la imagen (lo que entra de más son las gradas)
   let w = x1 - x0, h = y1 - y0;
   const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-  if (w / h < A) w = h * A; else h = w / A;
-  const R = { x: ((cx - w / 2 + 1) / 2) * W0, y: ((1 - (cy + h / 2)) / 2) * W0, w: (w / 2) * W0, h: (h / 2) * W0 };
-  const fx = (vb[0] - fullVb[0]) / fullVb[2], fy = (vb[1] - fullVb[1]) / fullVb[3], fw = vb[2] / fullVb[2], fh = vb[3] / fullVb[3];
-  camera.setViewOffset(W0, W0, R.x + fx * R.w, R.y + fy * R.h, fw * R.w, fh * R.h);
+  if (w / h < aspect) w = h * aspect; else h = w / aspect;
+  camera.setViewOffset(W0, W0, ((cx - w / 2 + 1) / 2) * W0, ((1 - (cy + h / 2)) / 2) * W0, (w / 2) * W0, (h / 2) * W0);
   camera.updateProjectionMatrix();
   return { T, U, span, D };
 }
@@ -650,7 +683,7 @@ export function drawBoard3D(target, board, els, opts = {}) {
   const { renderer } = S;
   const look = lookOf(board.look);
   const pending = [];
-  const { fullVb, vb } = boardView(board, opts);
+  const view = boardView(board, opts);
   const W = target.width, H = target.height;
   if (!W || !H) return null;
   // escena fija (cacheada por dibujo)
@@ -667,7 +700,7 @@ export function drawBoard3D(target, board, els, opts = {}) {
   scene.add(st.group);
   const region = st.region;
   const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 1000);
-  const cam = placeCamera(camera, board, region, fullVb, vb);
+  const cam = placeCamera(camera, board, view, W / H);
   const sc = SCREEN[orientOf(board.orient)];
   const scr = { angle: orientAngle(orientOf(board.orient)), texRot: Math.atan2(-sc.up[0], -sc.up[1]) };
   // luz: ambiente + sol desde arriba a la izquierda de la pantalla (las sombras caen abajo a la derecha, como en 2D)
@@ -676,11 +709,15 @@ export function drawBoard3D(target, board, els, opts = {}) {
   scene.add(new THREE.HemisphereLight(night ? 0xc8d0ff : 0xffffff, night ? 0x202840 : 0x6b7a70, night ? 1.9 : 2.1));
   const sun = new THREE.DirectionalLight(0xffffff, night ? 1.3 : 1.7);
   const R3 = new THREE.Vector3(sc.right[0], 0, sc.right[1]);
-  sun.position.copy(cam.T).addScaledVector(R3, -cam.span * 0.35).addScaledVector(cam.U, cam.span * 0.55).add(new THREE.Vector3(0, cam.span * 0.9, 0));
-  sun.target.position.copy(cam.T);
+  // el sol y su sombra cubren todo el estadio, sea cual sea el encuadre
+  const full = fieldOf(isCutField(board.field) ? "full" : board.field);
+  const C = new THREE.Vector3(full.w / 2, 0, full.h / 2);
+  const big = Math.max(full.w, full.h) + 2 * S3.outer;
+  sun.position.copy(C).addScaledVector(R3, -big * 0.35).addScaledVector(cam.U, big * 0.55).add(new THREE.Vector3(0, big * 0.9, 0));
+  sun.target.position.copy(C);
   sun.castShadow = (s.shadow || 0) > 0;
-  const half = cam.span * 0.75;
-  Object.assign(sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 1, far: cam.span * 3 });
+  const half = big * 0.62;
+  Object.assign(sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 1, far: big * 3 });
   sun.shadow.mapSize.set(4096, 4096);
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.02;
