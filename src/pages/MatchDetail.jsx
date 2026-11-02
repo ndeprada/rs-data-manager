@@ -173,8 +173,8 @@ export default function MatchDetail() {
 
   const TABS = [
     { key: "convocatoria", label: msg("Convocatoria"),        icon: Users },
-    { key: "acta",         label: msg("Acta"),                icon: FileText },
     { key: "tactica",      label: msg("Preparación partido"), short: t("Preparación"), icon: Map },
+    { key: "acta",         label: msg("Acta"),                icon: FileText },
     { key: "postpartido",  label: msg("Post-partido"), icon: ClipboardCheck },
   ];
 
