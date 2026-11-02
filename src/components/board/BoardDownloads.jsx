@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Download, Film, Loader2 } from "lucide-react";
+import { Download, Film, Images, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { boardSpeed, boardView, is3D, isAnimation, normalizeBoard, orbitOf } from "@/lib/board";
@@ -35,6 +35,38 @@ function Choice({ label, options, value, onPick }) {
   );
 }
 
+// Imagen PNG (2400 px) de un fotograma, en 2D o en 3D según el dibujo
+export async function boardFramePng(b, idx) {
+  if (is3D(b)) {
+    // vista 3D: se dibuja el estadio con la misma proporción que la imagen 2D
+    const { vb } = boardView(b, { frame: idx });
+    const c = document.createElement("canvas");
+    c.width = 2400; c.height = Math.round((2400 * vb[3]) / vb[2]);
+    await (await load3d()).renderBoard3D(c, b, b.frames[idx].els, { frame: idx, orbit: orbitOf(b, idx) });
+    return new Promise((resolve, reject) => c.toBlob((x) => (x ? resolve(x) : reject(new Error("No se pudo crear el PNG"))), "image/png"));
+  }
+  return boardToPngBlob(<Board board={b} els={b.frames[idx].els} frame={idx} />, { width: 2400 });
+}
+/** Descarga la imagen de un fotograma (botón «Imagen» y tecla Intro del editor). */
+export async function downloadFramePng(board, idx, filename = "tarea") {
+  const b = normalizeBoard(board);
+  const i = Math.min(idx, b.frames.length - 1);
+  const blob = await boardFramePng(b, i);
+  downloadBlob(blob, `${slug(filename)}${isAnimation(b) ? `-${i + 1}` : ""}.png`);
+}
+/** Todas las imágenes de una animación en un .zip (una por fotograma, como el «PNGs» de FmStadio). */
+export async function downloadAllPngs(board, filename = "tarea", onProgress) {
+  const b = normalizeBoard(board);
+  const { zipSync } = await import("fflate");
+  const files = {};
+  for (let i = 0; i < b.frames.length; i++) {
+    const blob = await boardFramePng(b, i);
+    files[`${slug(filename)}-${String(i + 1).padStart(2, "0")}.png`] = [new Uint8Array(await blob.arrayBuffer()), { level: 0 }];
+    onProgress?.((i + 1) / b.frames.length);
+  }
+  downloadBlob(new Blob([zipSync(files)], { type: "application/zip" }), `${slug(filename)}-imagenes.zip`);
+}
+
 /**
  * Botones para descargar el dibujo: imagen (PNG) del fotograma indicado y, si es una animación, vídeo (calidad, fps y formato).
  * board      dibujo guardado
@@ -58,18 +90,21 @@ export default function BoardDownloads({ board, frame = 0, filename = "tarea", c
     setBusy("png");
     setError("");
     try {
-      let blob;
-      if (is3D(b)) {
-        // vista 3D: se dibuja el estadio con la misma proporción que la imagen 2D
-        const { vb } = boardView(b, { frame: idx });
-        const c = document.createElement("canvas");
-        c.width = 2400; c.height = Math.round((2400 * vb[3]) / vb[2]);
-        await (await load3d()).renderBoard3D(c, b, b.frames[idx].els, { frame: idx, orbit: orbitOf(b, idx) });
-        blob = await new Promise((resolve, reject) => c.toBlob((x) => (x ? resolve(x) : reject(new Error("No se pudo crear el PNG"))), "image/png"));
-      } else blob = await boardToPngBlob(<Board board={b} els={b.frames[idx].els} frame={idx} />, { width: 2400 });
-      downloadBlob(blob, `${base}${anim ? `-${idx + 1}` : ""}.png`);
+      await downloadFramePng(b, idx, filename);
     } catch (err) {
       setError(err?.message || "No se pudo descargar la imagen");
+    } finally {
+      setBusy(null);
+    }
+  };
+  const pngs = async () => {
+    setBusy("pngs");
+    setProgress(0);
+    setError("");
+    try {
+      await downloadAllPngs(b, filename, setProgress);
+    } catch (err) {
+      setError(err?.message || "No se pudieron descargar las imágenes");
     } finally {
       setBusy(null);
     }
@@ -98,6 +133,12 @@ export default function BoardDownloads({ board, frame = 0, filename = "tarea", c
         {busy === "png" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
         {!compact && <span>Imagen</span>}
       </Button>
+      {anim && !compact && b.frames.length > 1 && (
+        <Button type="button" size="sm" variant="outline" className={btn} onClick={pngs} disabled={!!busy} title="Descargar una imagen de cada fotograma (.zip)" aria-label="Descargar todas las imágenes" data-testid="download-pngs">
+          {busy === "pngs" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Images className="w-3.5 h-3.5" />}
+          <span>{busy === "pngs" ? `Imágenes… ${Math.round(progress * 100)}%` : "Todas las imágenes"}</span>
+        </Button>
+      )}
       {anim && (
         <Popover open={open} onOpenChange={(o) => !busy && setOpen(o)}>
           <PopoverTrigger asChild>

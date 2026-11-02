@@ -913,6 +913,18 @@ export function drawBoard3D(target, board, els, opts = {}) {
     dyn.add(o);
   }
   scene.add(dyn);
+  // lo resaltado (tecla H): un halo amarillo en el suelo, también en la imagen y el vídeo
+  for (const el of els) {
+    if (el.hl !== true || isFlatMark(el) || el.x == null) continue;
+    const R = pickRadius(board, el, chip) * 1.3 + 0.6;
+    for (const [k, op] of [[1, 0.9], [1.35, 0.35]]) {
+      const halo = new THREE.Mesh(geo("hlRing", () => new THREE.RingGeometry(0.78, 1, 48).rotateX(-Math.PI / 2)), new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: op * (el.opacity ?? 1), depthWrite: false }));
+      halo.scale.set(R * k, 1, R * k);
+      halo.position.set(el.x, 0.05, el.y);
+      halo.renderOrder = 4;
+      dyn.add(halo);
+    }
+  }
   // lo elegido (al dibujar en 3D): un aro naranja en el suelo
   for (const id of sel) {
     const el = els.find((e) => e.id === id);

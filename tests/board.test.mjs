@@ -1303,3 +1303,20 @@ test("tiradores para la vista 3D (mismos que en 2D)", async () => {
   const f = L.handleSpec({ k: "token", x: 10, y: 10, feet: true }, { chip: 1.5 }).pts[0];
   assert.ok(f.y < 10 && Math.abs(f.x - 10) < 1e-9);
 });
+
+test("bloquear y resaltar en todos los fotogramas; lo bloqueado no se mueve", async () => {
+  const L = await import("../src/lib/board.js");
+  const t = { id: "t1", k: "token", x: 10, y: 10, team: "a" };
+  let b = { v: 2, field: "full", frames: [{ id: "f1", els: [t] }, { id: "f2", els: [{ ...t, x: 20 }] }] };
+  b = L.toggleFlag(b, 1, ["t1"], "locked");
+  assert.equal(b.frames[0].els[0].locked, true);
+  assert.equal(b.frames[1].els[0].locked, true);
+  assert.deepEqual(L.movableIds(b, 1, ["t1"]), []);
+  assert.equal(L.resetToPrevious(b, 1, ["t1"]), b, "lo bloqueado no vuelve atrás");
+  b = L.toggleFlag(b, 1, ["t1"], "locked");
+  assert.equal(b.frames[1].els[0].locked, undefined);
+  assert.equal(L.resetToPrevious(b, 1, ["t1"]).frames[1].els[0].x, 10);
+  b = L.toggleFlag(b, 0, ["t1"], "hl");
+  assert.equal(L.isHighlighted(b.frames[1].els[0]), true);
+  assert.equal(L.snapTo(10.4), 10);
+});

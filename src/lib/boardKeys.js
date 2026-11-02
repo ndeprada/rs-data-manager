@@ -30,7 +30,12 @@ export function boardKeyAction(e, { hasSel = false } = {}) {
   if (e.shiftKey && (k === "h" || k === "Slash")) return "help";
   if (e.shiftKey) return null;
   if (/^[0-9]$/.test(k)) return k === "0" ? "ball" : `team${k}`;
-  const single = { v: "select", a: "arrow", d: "zone", e: "text", t: "material", c: "camera", l: "link", n: "addFrame", m: "removeFrame", j: "trail", y: "alignH", u: "alignV", i: "spread", Space: "play", Equal: "zoomIn", NumpadAdd: "zoomIn", Minus: "zoomOut", NumpadSubtract: "zoomOut" };
+  // como en FmStadio: B bloquear, H resaltar y R volver a donde estaba en el fotograma anterior (con algo elegido);
+  // G rejilla, F pantalla completa, «.» campo y ajustes, Intro descargar la imagen
+  if (hasSel && k === "b") return "lock";
+  if (hasSel && k === "h") return "highlight";
+  if (hasSel && k === "r") return "resetPos";
+  const single = { g: "grid", f: "fullscreen", Period: "settings", NumpadDecimal: "settings", Enter: "exportPng", NumpadEnter: "exportPng", v: "select", a: "arrow", d: "zone", e: "text", t: "material", c: "camera", l: "link", n: "addFrame", m: "removeFrame", j: "trail", y: "alignH", u: "alignV", i: "spread", Space: "play", Equal: "zoomIn", NumpadAdd: "zoomIn", Minus: "zoomOut", NumpadSubtract: "zoomOut" };
   return single[k] || null;
 }
 
@@ -56,6 +61,12 @@ export const BOARD_SHORTCUTS = [
     ["Y", "Alinear en horizontal"],
     ["U", "Alinear en vertical"],
     ["I", "Repartir con el mismo hueco"],
+    ["B", "Bloquear / desbloquear (no se mueve sin querer)"],
+    ["H", "Resaltar / quitar el resalte (halo amarillo)"],
+    ["R", "Volver a donde estaba en el fotograma anterior"],
+    ["Mayús + rueda", "Más grande / más pequeño"],
+    ["Alt + rueda", "Más o menos transparente"],
+    ["Rueda (sobre un material)", "Girarlo"],
   ] },
   { group: "Fotogramas", items: [
     ["N", "Nuevo fotograma"],
@@ -70,6 +81,10 @@ export const BOARD_SHORTCUTS = [
     ["Ctrl + Z", "Deshacer"],
     ["Ctrl + Mayús + Z", "Rehacer (también Ctrl + Y)"],
     ["+ / −", "Acercar / alejar"],
+    ["G", "Rejilla: lo que se coloca o se arrastra cae en metros enteros"],
+    ["F", "Pantalla completa"],
+    [".", "Campo y ajustes"],
+    ["Intro", "Descargar la imagen de este fotograma"],
     ["Mayús + H", "Esta ayuda"],
   ] },
 ];

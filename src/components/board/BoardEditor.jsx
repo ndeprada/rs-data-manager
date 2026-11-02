@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X, RotateCcw, RotateCw, ChevronUp, ChevronDown } from "lucide-react";
+import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X, RotateCcw, RotateCw, ChevronUp, ChevronDown, Lock, Grid3x3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
   boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
-  is3D, handleSpec, PERSP, VIEW_MODES, viewModeOf, setViewMode, orbitOf, orbitBetween, orbitPreset, ORBIT_PRESETS, setOrbit, clearFrameOrbit, clearOrbits, hasFrameOrbits, validOrbit, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
+  is3D, handleSpec, PERSP, toggleFlag, movableIds, snapTo, isLocked, isHighlighted, resetToPrevious, resizeElements as resizeEls, VIEW_MODES, viewModeOf, setViewMode, orbitOf, orbitBetween, orbitPreset, ORBIT_PRESETS, setOrbit, clearFrameOrbit, clearOrbits, hasFrameOrbits, validOrbit, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
 import Board3DView from "./Board3D";
@@ -13,7 +13,7 @@ import { boardKeyAction } from "@/lib/boardKeys";
 import BoardHelp from "./BoardHelp";
 import { BallIcon, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon } from "./BoardControls";
 import BoardProps, { ARROW_PRESETS, KIND_LABEL, typeOfArrow } from "./BoardProps";
-import BoardDownloads from "./BoardDownloads";
+import BoardDownloads, { downloadFramePng } from "./BoardDownloads";
 import ChipQuickEdit from "./BoardChipEdit";
 import MultiPanel, { LayerButtons, LayerList } from "./BoardMulti";
 
@@ -97,6 +97,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const [full, setFull] = useState(false); // editor a pantalla completa (fuera de él, solo la vista previa)
   const [side, setSide] = useState(null); // panel de «Campo y ajustes» o «Plantilla»
   const [panelHidden, setPanelHidden] = useState(false);
+  // Rejilla (tecla G): lo que se coloca, se dibuja o se arrastra cae en metros enteros
+  const [snap, setSnap] = useState(false);
   const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia?.("(max-width: 767px)").matches);
   useEffect(() => {
     const mq = window.matchMedia?.("(max-width: 767px)");
@@ -311,6 +313,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   //  · deslizar con dos dedos sin Ctrl, con zoom puesto → mueve la vista.
   // El aumento se acumula sin redondear (`zAcc`): los pellizcos dan pasos muy pequeños y, redondeados, no avanzaban.
   const zAcc = useRef(null);
+  // la rueda gira un material o una portería elegidos si el puntero está encima
+  const wheelRotates = (e) => {
+    if (sel.length !== 1) return false;
+    const el = cur.els.find((x) => x.id === sel[0]);
+    if (!el || !(materialOf(el.k) || el.k === "goal")) return false;
+    try { const hit = hitAt([el], e, toField(e)); return hit?.id === el.id; } catch { return false; }
+  };
   useEffect(() => {
     const host = hostEl;
     if (!host) return undefined;
@@ -319,6 +328,32 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const baseZ = () => { const z = camOf(live.current).z; if (zAcc.current == null || Math.abs(zAcc.current - z) > 0.02) zAcc.current = z; return zAcc.current; };
     const zoomBy = (f, at) => { const nz = Math.min(ZOOM_MAX, Math.max(1, baseZ() * f)); zAcc.current = nz; zoomTo(nz, at); };
     const onWheel = (e) => {
+      // Con algo elegido (como en FmStadio): Mayús + rueda = tamaño, Alt + rueda = transparencia de zonas y flechas,
+      // y la rueda sola sobre un material o una portería elegidos los gira
+      if (!playing && sel.length && !(e.ctrlKey || e.metaKey) && (e.shiftKey || e.altKey || wheelRotates(e))) {
+        e.preventDefault();
+        const d = (e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY) || (e.deltaMode === 1 ? e.deltaX * 16 : e.deltaX);
+        if (!d) return;
+        const up = d < 0;
+        const ids = sel;
+        if (e.shiftKey) { const next = resizeEls(live.current, idx, ids, up ? 1.08 : 1 / 1.08); if (next !== live.current) { commit(next, { key: "wheel-size" }); live.current = next; } return; }
+        if (e.altKey) {
+          let next = live.current;
+          for (const id of ids) {
+            const el = next.frames[idx].els.find((x) => x.id === id);
+            if (!el) continue;
+            const key = el.k === "zone" || el.k === "link" ? "fillOpacity" : el.k === "arrow" ? "alpha" : null;
+            if (!key) continue;
+            const v0 = Number(el[key] ?? (key === "alpha" ? 1 : 0.35));
+            next = patchElement(next, idx, id, { [key]: Math.round(Math.min(1, Math.max(key === "alpha" ? 0.15 : 0, v0 + (up ? 0.05 : -0.05))) * 100) / 100 }, { allFrames: true });
+          }
+          if (next !== live.current) { commit(next, { key: "wheel-alpha" }); live.current = next; }
+          return;
+        }
+        const el = live.current.frames[idx].els.find((x) => x.id === ids[0]);
+        if (el && !isLocked(el)) { const next = patchElement(live.current, idx, el.id, { rot: ((((Number(el.rot) || 0) + (up ? -15 : 15)) % 360) + 360) % 360 }); commit(next, { key: "wheel-rot" }); live.current = next; }
+        return;
+      }
       // 3D: la rueda (o pellizcar) acerca o aleja la cámara; con Mayús, la inclina
       if (show3d && !playing) {
         e.preventDefault();
@@ -375,7 +410,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   };
   const point = (e) => {
     const p = toField(e);
-    return { x: round(clamp(p.x, -2, field.w + 2)), y: round(clamp(p.y, -2, field.h + 2)) };
+    const q = { x: round(clamp(p.x, -2, field.w + 2)), y: round(clamp(p.y, -2, field.h + 2)) };
+    return snap ? { x: snapTo(q.x), y: snapTo(q.y) } : q;
   };
   // Altura máxima de un pase aéreo (hacia el lado indicado por sign) para que su punto más alto siga dentro de lo que se ve
   const liftMax = (a, sign) => {
@@ -497,6 +533,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       drag.current = { mode: "handle", h: handle, id: selected.id, el: selected, snapshot: live.current };
       return;
     }
+    if (handle && isLocked(selected)) { drag.current = null; return; }
     if (handle && (selected?.k === "arrow" || (isQuad(selected) && /^q[0-3]$/.test(handle)) || (selected?.k === "zone" && !isQuad(selected) && /^z[ce][0-3]$/.test(handle)) || (selected?.k === "token" && handle === "f") || (materialOf(selected?.k) && handle === "r"))) {
       // «+» en mitad de un tramo de flecha: nace ahí un quiebro nuevo y se arrastra
       // doble clic o doble toque sobre un quiebro: se quita
@@ -552,7 +589,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         const inGroup = sel.length > 1 && sel.includes(target.id);
         if (!inGroup) setSel([target.id]);
         // un conector no se arrastra: su forma sale de las fichas que une
-        drag.current = target.k === "link" && !inGroup ? null : { mode: "move", ids: inGroup ? sel : [target.id], only: inGroup ? target.id : null, from: p, moved: false, snapshot: live.current };
+        // (lo bloqueado se elige pero no se mueve)
+        const ids = movableIds(live.current, idx, inGroup ? sel : [target.id]);
+        drag.current = (target.k === "link" && !inGroup) || !ids.length ? null : { mode: "move", ids, only: inGroup ? target.id : null, anchor: target.id, from: p, moved: false, snapshot: live.current };
       } else {
         // espacio vacío: recuadro para elegir varias cosas a la vez
         lastTap.current = { id: null, at: 0 };
@@ -690,7 +729,12 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     }
     if (d.mode === "move") {
       const p = point(e);
-      const dx = p.x - d.from.x, dy = p.y - d.from.y;
+      let dx = p.x - d.from.x, dy = p.y - d.from.y;
+      // con la rejilla, lo que se agarra cae en metros enteros (y lo demás se mueve lo mismo)
+      if (snap) {
+        const a = d.snapshot.frames[idx].els.find((x) => x.id === d.anchor);
+        if (a && a.x != null) { dx = snapTo(a.x + dx) - a.x; dy = snapTo(a.y + dy) - a.y; }
+      }
       if (!d.moved && Math.hypot(dx, dy) < 0.6) return;
       d.moved = true;
       lastTap.current = { id: null, at: 0 };
@@ -803,7 +847,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     setSel(ids);
   };
   const resizeMany = (f) => commit(resizeElements(live.current, idx, sel, f));
-  const spreadMany = (f) => commit(spreadElements(live.current, idx, sel, f));
+  const spreadMany = (f) => commit(spreadElements(live.current, idx, movableIds(live.current, idx, sel), f));
   const colorMany = (c) => commit(recolorElements(live.current, idx, sel, c));
   const teamMany = (t) => commit(setTeamOf(live.current, idx, sel, t));
   const feetMany = (on) => commit(setFeetOf(live.current, idx, sel, on));
@@ -812,8 +856,19 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   // Capas: lo elegido (una o varias cosas) sube o baja en el orden de dibujo de este fotograma
   const commitIfChanged = (next) => { if (next !== live.current) commit(next); };
   const layer = (where) => commitIfChanged(moveLayer(live.current, idx, sel, where, chip));
-  const alignMany = (where) => commitIfChanged(alignElements(live.current, idx, sel, where));
-  const distributeMany = (axis) => commitIfChanged(distributeElements(live.current, idx, sel, axis));
+  const alignMany = (where) => commitIfChanged(alignElements(live.current, idx, movableIds(live.current, idx, sel), where));
+  const distributeMany = (axis) => commitIfChanged(distributeElements(live.current, idx, movableIds(live.current, idx, sel), axis));
+  // Bloquear (B), resaltar (H) y volver a la posición del fotograma anterior (R)
+  const lockSel = () => commitIfChanged(toggleFlag(live.current, idx, sel, "locked"));
+  const hlSel = () => commitIfChanged(toggleFlag(live.current, idx, sel, "hl"));
+  const resetSel = () => commitIfChanged(resetToPrevious(live.current, idx, sel));
+  const exportPng = () => { downloadFramePng(live.current, idx, filename).catch((err) => setError(err?.message || "No se pudo descargar la imagen")); };
+  const toggleFullscreen = () => {
+    try {
+      if (document.fullscreenElement) document.exitFullscreen?.();
+      else document.documentElement.requestFullscreen?.();
+    } catch { /* el navegador no lo permite */ }
+  };
   // Lista de capas: elegir una fila y subir o bajar esa cosa un puesto
   const pickLayer = (id, add) => {
     if (tool !== "select") pickTool("select");
@@ -845,7 +900,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const nudge = { nudgeLeft: [-1, 0], nudgeRight: [1, 0], nudgeUp: [0, -1], nudgeDown: [0, 1] }[action];
     if (nudge) {
       const step = e.shiftKey ? 2 : 0.5;
-      const next = nudgeElements(live.current, idx, sel, nudge[0] * step, nudge[1] * step);
+      const next = nudgeElements(live.current, idx, movableIds(live.current, idx, sel), nudge[0] * step, nudge[1] * step);
       if (next !== live.current) commit(next, { key: "nudge" });
       return;
     }
@@ -890,6 +945,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       case "zoomIn": return zoomStep(1);
       case "zoomOut": return zoomStep(-1);
       case "help": return setHelpOpen((o) => !o);
+      case "lock": return lockSel();
+      case "highlight": return hlSel();
+      case "resetPos": return resetSel();
+      case "grid": return setSnap((v) => !v);
+      case "fullscreen": return toggleFullscreen();
+      case "settings": return toggleSide("settings");
+      case "exportPng": return exportPng();
       default: return undefined;
     }
   };
@@ -1226,6 +1288,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       />
       {selected && (
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <FlagButtons locked={isLocked(selected)} hl={isHighlighted(selected)} canReset={idx > 0 && isCarried(selected)} onLock={lockSel} onHl={hlSel} onReset={resetSel} />
           <LayerButtons onLayer={layer} />
           {selected.k !== "link" && <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs" onClick={dupSel}><Copy className="w-3.5 h-3.5" /> Duplicar</Button>}
           <Button type="button" size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs text-red-600" onClick={() => delSel(false)} title="Quitar de todos los fotogramas"><Trash2 className="w-3.5 h-3.5" /> Quitar</Button>
@@ -1278,7 +1341,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       : selected ? KIND_LABEL[selected.k] : panelEl ? (isTeamTool(tool) ? `Fichas · ${teams.find((t) => t.id === tool)?.name || ""}` : curGroup ? curGroup.label : KIND_LABEL[panelEl.k]) : layersOpen ? "Capas" : "";
   const panelBody = playing ? null : camTool && !side ? camBody : side === "settings" ? settingsBody : side === "roster" ? rosterBody : (
     linkBody || (multi ? (
-      <MultiPanel els={selEls} board={board} look={look} frames={board.frames.length} onTeam={teamMany} onColor={colorMany} onFeet={feetMany} onBib={bibMany} onTurn={turnMany} onResize={resizeMany} onSpread={spreadMany} onAlign={alignMany} onDistribute={distributeMany} onLayer={layer} onDup={dupMany} onDel={delMany} onClear={() => setSel([])} />
+      <MultiPanel els={selEls} board={board} look={look} frames={board.frames.length} onTeam={teamMany} onColor={colorMany} onFeet={feetMany} onBib={bibMany} onTurn={turnMany} onResize={resizeMany} onSpread={spreadMany} onAlign={alignMany} onDistribute={distributeMany} onLayer={layer} onDup={dupMany} onDel={delMany} onClear={() => setSel([])}
+        flags={<FlagButtons locked={selEls.length > 0 && selEls.every(isLocked)} hl={selEls.length > 0 && selEls.every(isHighlighted)} canReset={idx > 0} onLock={lockSel} onHl={hlSel} onReset={resetSel} />} />
     ) : propsBody)
   );
   const layersBody = layersOpen && !playing && !side ? <LayerList els={cur.els} board={board} look={look} sel={sel} onPick={pickLayer} onStep={stepOne} onMoveTo={moveRow} /> : null;
@@ -1327,6 +1391,10 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       </button>
     } />
   );
+  const gridBtn = (
+    <button type="button" aria-pressed={snap} className={zoomBtnDark} style={snap ? { background: RAIL.on, color: RAIL.onInk } : undefined} onClick={() => setSnap((v) => !v)}
+      aria-label="Rejilla" title="Rejilla (G): lo que se coloca o se arrastra cae en metros enteros" data-testid="board-grid"><Grid3x3 className="w-4 h-4" /></button>
+  );
   const zoomBox = !playing && (
     <div className="absolute top-2 right-2 flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} data-testid="board-zoom">
       <button type="button" className={zoomBtnDark} onClick={() => zoomStep(-1)} disabled={cam.z <= 1} aria-label="Alejar"><ZoomOut className="w-4 h-4" /></button>
@@ -1334,6 +1402,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       <button type="button" className={zoomBtnDark} onClick={() => zoomStep(1)} disabled={cam.z >= 4} aria-label="Acercar"><ZoomIn className="w-4 h-4" /></button>
       <button type="button" className={zoomBtnDark} onClick={() => { setCam(null); if (tool === "pan") pickTool("select"); }} disabled={cam.z <= 1} aria-label="Ver todo el campo"><Maximize className="w-4 h-4" /></button>
       <button type="button" aria-pressed={tool === "pan"} className={zoomBtnDark} style={tool === "pan" ? { background: RAIL.on, color: RAIL.onInk } : undefined} onClick={() => pickTool(tool === "pan" ? "select" : "pan")} disabled={cam.z <= 1 && tool !== "pan"} aria-label="Mover la vista"><Hand className="w-4 h-4" /></button>
+      {gridBtn}
     </div>
   );
   // Cámara del 3D: girar, inclinar, acercar, encuadres rápidos y, en las animaciones, que se mueva durante la jugada
@@ -1347,6 +1416,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ kdist: 1.25 })} aria-label="Alejar la cámara" title="Alejar"><ZoomOut className="w-4 h-4" /></button>
       <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ kdist: 0.8 })} aria-label="Acercar la cámara" title="Acercar"><ZoomIn className="w-4 h-4" /></button>
       <button type="button" aria-pressed={tool === "pan"} className={zoomBtnDark} style={tool === "pan" ? { background: RAIL.on, color: RAIL.onInk } : undefined} onClick={() => pickTool(tool === "pan" ? "select" : "pan")} aria-label="Mover la cámara arrastrando" title="Arrastra para girar · Mayús + arrastrar para mover · rueda para acercar" data-testid="orbit-hand"><Hand className="w-4 h-4" /></button>
+      {gridBtn}
       <select value="" onChange={(e) => { if (e.target.value) putOrbit(orbitPreset(live.current, e.target.value), { key: null }); }} aria-label="Encuadres de la cámara" data-testid="orbit-preset"
         className="h-8 w-[92px] rounded-md bg-transparent text-[11px] font-semibold px-1 hover:bg-white/10 focus:outline-none" style={{ color: RAIL.text, fontSize: 11 }}>
         <option value="" style={{ color: "#111" }}>Encuadre…</option>
@@ -1435,7 +1505,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         camera={camTool ? null : showCam ? frameCam(board, idx) : null}
         viewOverride={camView}
         aspect={camTool || showCam ? null : stageAR}
-        overlay={camTool && !playing ? <CameraOverlay rect={camR} view={camView} frame={idx} own={ownCam} has={Boolean(curCam)} inheritedFrom={!ownCam && curCam ? board.frames.slice(0, idx).map((f, i) => (f.cam ? i : -1)).filter((i) => i >= 0).pop() : null} /> : null}
+        overlay={snap && !camTool && !persp && !playing ? <GridOverlay field={field} orient={orient} /> : camTool && !playing ? <CameraOverlay rect={camR} view={camView} frame={idx} own={ownCam} has={Boolean(curCam)} inheritedFrom={!ownCam && curCam ? board.frames.slice(0, idx).map((f, i) => (f.cam ? i : -1)).filter((i) => i >= 0).pop() : null} /> : null}
         className={`w-full h-full select-none${show3d ? " hidden" : ""}`}
         style={{ touchAction: "none", cursor, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
         label="Pizarra"
@@ -1594,6 +1664,33 @@ function CameraOverlay({ rect, view, frame, own, has, inheritedFrom }) {
         </g>
       ))}
       <text x={x + u * 4} y={y - u * 4} fontSize={u * 9} fontWeight={700} fill="#fff" style={{ fontFamily: "Arial, sans-serif" }} pointerEvents="none">{label}</text>
+    </g>
+  );
+}
+
+// Bloquear, resaltar y volver a la posición del fotograma anterior (teclas B, H y R)
+function FlagButtons({ locked, hl, canReset, onLock, onHl, onReset }) {
+  const cls = (on) => `h-7 px-2 gap-1 text-xs ${on ? "bg-amber-100 border-amber-300 text-amber-900" : ""}`;
+  return (
+    <div className="w-full flex flex-wrap items-center gap-1.5" data-testid="flag-buttons">
+      <Button type="button" size="sm" variant="outline" className={cls(locked)} aria-pressed={locked} onClick={onLock} data-testid="flag-lock" title="Bloquear (B): no se mueve al arrastrar, con las flechas ni al alinear"><Lock className="w-3.5 h-3.5" /> {locked ? "Bloqueado" : "Bloquear"}</Button>
+      <Button type="button" size="sm" variant="outline" className={cls(hl)} aria-pressed={hl} onClick={onHl} data-testid="flag-hl" title="Resaltar (H): halo amarillo, también en la imagen y el vídeo"><span aria-hidden className="w-3 h-3 rounded-full" style={{ background: "#facc15", boxShadow: "0 0 0 3px rgba(250,204,21,.35)" }} /> {hl ? "Resaltado" : "Resaltar"}</Button>
+      {canReset && <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={onReset} data-testid="flag-reset" title="Volver a donde estaba en el fotograma anterior (R)">Como en el anterior</Button>}
+    </div>
+  );
+}
+
+// Rejilla de la vista plana: una línea cada metro (más marcada cada 5)
+function GridOverlay({ field, orient }) {
+  const lines = [];
+  for (let x = 0; x <= field.w + 1e-6; x += 1) lines.push([{ x, y: 0 }, { x, y: field.h }, x % 5 === 0]);
+  for (let y = 0; y <= field.h + 1e-6; y += 1) lines.push([{ x: 0, y }, { x: field.w, y }, y % 5 === 0]);
+  return (
+    <g pointerEvents="none" data-testid="grid-overlay">
+      {lines.map(([a, b, strong], i) => {
+        const p = toView(field, orient, a), q = toView(field, orient, b);
+        return <line key={i} x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke="#ffffff" strokeOpacity={strong ? 0.35 : 0.14} strokeWidth={strong ? 0.12 : 0.06} />;
+      })}
     </g>
   );
 }

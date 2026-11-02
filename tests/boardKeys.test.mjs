@@ -35,3 +35,17 @@ test("deshacer, rehacer, borrar y lo que se deja al navegador", () => {
   assert.equal(boardKeyAction(k("KeyC", { ctrlKey: true })), null, "copiar es del navegador");
   assert.equal(boardKeyAction(k("KeyP", { ctrlKey: true })), null);
 });
+
+{
+  const { boardKeyAction: K } = await import('../src/lib/boardKeys.js');
+  const ev = (code, o = {}) => ({ code, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...o });
+  assert.equal(K(ev('KeyB'), { hasSel: true }), 'lock');
+  assert.equal(K(ev('KeyB'), { hasSel: false }), null);
+  assert.equal(K(ev('KeyH'), { hasSel: true }), 'highlight');
+  assert.equal(K(ev('KeyH', { shiftKey: true }), { hasSel: true }), 'help');
+  assert.equal(K(ev('KeyR'), { hasSel: true }), 'resetPos');
+  assert.equal(K(ev('KeyG')), 'grid');
+  assert.equal(K(ev('KeyF')), 'fullscreen');
+  assert.equal(K(ev('Period')), 'settings');
+  assert.equal(K(ev('Enter')), 'exportPng');
+}

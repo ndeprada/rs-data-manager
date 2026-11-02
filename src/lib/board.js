@@ -479,6 +479,28 @@ export function resetToPrevious(board, index, ids) {
   });
   return changed ? setFrameEls(board, index, els) : board;
 }
+/** Pone o quita `locked` (bloquear) o `hl` (resaltar) a lo elegido en todos los fotogramas; si alguno no lo tiene, se pone a todos. */
+export function toggleFlag(board, index, ids, key) {
+  const els = board.frames[index]?.els || [];
+  const list = els.filter((e) => ids.includes(e.id) && e.k !== "link");
+  if (!list.length) return board;
+  const on = !list.every((e) => e[key] === true);
+  const set = new Set(list.map((e) => e.id));
+  return {
+    ...board,
+    frames: board.frames.map((f) => ({ ...f, els: f.els.map((e) => {
+      if (!set.has(e.id)) return e;
+      if (on) return { ...e, [key]: true };
+      const { [key]: _x, ...rest } = e;
+      return rest;
+    }) })),
+  };
+}
+/** Ids que se pueden mover (los bloqueados se quedan quietos al arrastrar, con las flechas, al alinear y al repartir). */
+export const movableIds = (board, index, ids) => {
+  const els = new Map((board.frames[index]?.els || []).map((e) => [e.id, e]));
+  return ids.filter((id) => !isLocked(els.get(id)));
+};
 // Rejilla (tecla G): al colocar y al arrastrar, las posiciones caen en múltiplos de SNAP_STEP metros
 export const SNAP_STEP = 1;
 export const snapTo = (v, step = SNAP_STEP) => Math.round(v / step) * step;

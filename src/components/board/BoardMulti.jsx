@@ -118,7 +118,7 @@ function TurnBar({ onTurn, noFeet }) {
   );
 }
 
-export default function MultiPanel({ els, board, look, frames, onTeam, onColor, onFeet, onBib, onTurn, onResize, onSpread, onAlign, onDistribute, onLayer, onDup, onDel, onClear }) {
+export default function MultiPanel({ els, board, look, frames, onTeam, onColor, onFeet, onBib, onTurn, onResize, onSpread, onAlign, onDistribute, onLayer, onDup, onDel, onClear, flags = null }) {
   const tokens = els.filter((e) => e.k === "token");
   const teams = teamsOf(board);
   const teamOfAll = tokens.length && tokens.every((t) => t.team === tokens[0].team) ? tokens[0].team : null;
@@ -170,6 +170,7 @@ export default function MultiPanel({ els, board, look, frames, onTeam, onColor, 
         {spreadable && <AlignBar onAlign={onAlign} onDistribute={onDistribute} canDistribute={els.filter((e) => elementBounds(e)).length > 2} />}
         <LayerButtons onLayer={onLayer} />
       </Row>
+      {flags}
       <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
         <Button type="button" size="sm" variant="outline" className={btn} onClick={onDup} title="Duplicar todo lo elegido"><Copy className="w-3.5 h-3.5" /> Duplicar</Button>
         {frames > 1 && <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onDel("from")} data-testid="multi-del-from-here" title="Siguen en los fotogramas anteriores y desaparecen desde este">Desaparecen desde aquí</Button>}
