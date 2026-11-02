@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {
-  STAGES, BLOCKS, targetPct, stageContents, contentId, stageOfTeamName, taskMinutes, seriesLabel, fmtMin,
+  STAGES, BLOCKS, targetPct, stageContents, contentId, stageOfTeamName, taskMinutes, seriesLabel, recText, fmtMin,
   registerSession, aggregateSessions, taskWarnings, marginState, compareWithStage, hierarchyIssues, phasesLabel, emptySession, emptyTask, isBlankTask,
   priorityOf, contentBlock, contentName,
 } from '../src/lib/sessionPlan.js';
@@ -53,7 +53,8 @@ assert.equal(taskMinutes({ series: 6, serie_min: 3, rec_min: 0.5 }), 20.5);
 assert.equal(taskMinutes({ series: 4, serie_min: 4, rec_min: 1, total_override: 20 }), 20, 'el total puesto a mano manda');
 assert.equal(taskMinutes({ series: '3', serie_min: '6', rec_min: '1,5' }), 21, 'acepta coma decimal');
 assert.equal(taskMinutes({}), 0);
-assert.equal(seriesLabel({ series: 4, serie_min: 4 }), '4x4’');
+assert.equal(seriesLabel({ series: 4, serie_min: 4 }), '4×4’');
+assert.equal(recText(0.5), '30’’'); assert.equal(recText(2), '2’'); assert.equal(recText(1.5), '1,5’'); assert.equal(recText(0), '');
 assert.equal(seriesLabel({ series: 1, serie_min: 0 }), '');
 assert.equal(fmtMin(20), '20’');
 assert.equal(fmtMin(20.5), '20,5’');

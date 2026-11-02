@@ -284,12 +284,20 @@ export function taskMinutes(task) {
 
 export const fmtMin = (n) => `${Number.isInteger(n) ? n : String(round1(n)).replace(".", ",")}’`;
 
-// «4x4’» o «2x12’ (rec. 1’)»
+// Recuperación en texto: «2’», «1,5’» o, por debajo del minuto, en segundos «30’’»
+export function recText(min) {
+  const m = Number(String(min ?? "").replace(",", ".")) || 0;
+  if (m <= 0) return "";
+  if (m < 1) return `${Math.round(m * 60)}’’`;
+  return `${String(Math.round(m * 10) / 10).replace(".", ",")}’`;
+}
+
+// «4×4’»
 export function seriesLabel(task) {
   const series = Math.max(1, Math.round(num(task.series) || 1));
   const each = num(task.serie_min);
   if (!each) return "";
-  return `${series}x${String(each).replace(".", ",")}’`;
+  return `${series}×${String(each).replace(".", ",")}’`;
 }
 
 export const hasText = (s) => String(s ?? "").trim().length > 0;

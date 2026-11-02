@@ -5,19 +5,16 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, ChevronRight, BookmarkPlus, Copy, Library, ListChecks, Pencil, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, BookmarkPlus, ChevronDown, ChevronRight, Copy, Library, ListChecks, Plus, Trash2, X } from "lucide-react";
+import { C, D, Field, Lab, Pill, SBtn, inputCls } from "./sessionUi";
 import ContentPicker, { ContentChip } from "./ContentPicker";
 import PitchBoard, { hasBoard } from "./PitchBoard";
 import LibraryTaskPicker from "./LibraryTaskPicker";
-import { PHASES, TASK_STAFF_ROLES, TASK_TYPES, fmtMin, hasText, isBlankTask, phasesLabel, seriesLabel, taskMinutes, taskTypeLabel, taskWarnings } from "@/lib/sessionPlan";
+import { PHASES, TASK_STAFF_ROLES, recText, TASK_TYPES, fmtMin, hasText, isBlankTask, seriesLabel, taskMinutes, taskWarnings } from "@/lib/sessionPlan";
 import { libraryToSessionTask, sessionTaskToLibrary } from "@/lib/taskLibrary";
 
-const L = ({ children, className = "" }) => (
-  <Label className={`text-[11px] font-bold uppercase tracking-wider text-gray-500 ${className}`}>{children}</Label>
-);
 
 const GROUPS = ["Individual", "Colectiva", "Otras"];
 const GROUP_LABEL = { Individual: "Orientación individual", Colectiva: "Orientación colectiva", Otras: "Otras" };
@@ -25,7 +22,6 @@ const GROUP_LABEL = { Individual: "Orientación individual", Colectiva: "Orienta
 export default function TaskEditor({ task, index, label, stage, roster, onChange, onRemove, onMove, onDuplicate, canMoveUp, canMoveDown, defaultOpen = false, part, onChangePart, staffNames = [], prevStaff = null }) {
   const [open, setOpen] = useState(!!defaultOpen);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [boardOpen, setBoardOpen] = useState(hasBoard(task.board));
   const [libOpen, setLibOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const queryClient = useQueryClient();
@@ -38,7 +34,6 @@ export default function TaskEditor({ task, index, label, stage, roster, onChange
     if (!isBlankTask(task) && !window.confirm(`Se sustituirá lo escrito en esta tarea (título, descripción, tiempos, dibujo…) por «${lib.name}». Los contenidos del currículum se mantienen. ¿Continuar?`)) return;
     const { id: _id, part: _part, principal: _p, secondary: _s, no_curriculum: _n, ...rest } = libraryToSessionTask(lib, task.part);
     set({ ...rest, diagram_url: rest.diagram_url || "", library_saved: null });
-    setBoardOpen(hasBoard(rest.board));
   };
   const saveToLibrary = async () => {
     const name = String(task.title || "").trim();
@@ -69,59 +64,49 @@ export default function TaskEditor({ task, index, label, stage, roster, onChange
   const removeRole = (i) => set({ staff_roles: roles.filter((_, k) => k !== i) });
   const nums = (k, v) => set({ [k]: v === "" ? "" : Math.max(0, Number(String(v).replace(",", ".")) || 0) });
 
+  const rec = Number(String(task.rec_min || "").replace(",", ".")) || 0;
+  const seriesText = [seriesLabel(task), rec ? `rec. ${recText(rec)}` : ""].filter(Boolean).join(" · ");
+  const P = task.principal || [], S = task.secondary || [];
+
   return (
-    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 cursor-pointer" onClick={() => setOpen((o) => !o)}>
-        {open ? <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />}
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold truncate" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
-            {label} {index + 1}{task.title ? ` · ${task.title}` : ""}
-          </p>
-          {!open && (
-            <div className="flex flex-wrap items-center gap-1 mt-0.5">
-              {seriesLabel(task) && <span className="text-[10px] text-gray-500">{seriesLabel(task)}{Number(task.rec_min) > 0 ? ` · rec. ${String(task.rec_min).replace(".", ",")}’` : ""}</span>}
-              {task.type && <span className="text-[10px] text-gray-500">{taskTypeLabel(task.type)}</span>}
-              {task.no_curriculum && <span className="text-[10px] rounded bg-gray-200 text-gray-600 px-1">Sin currículum</span>}
-              {(task.principal || []).map((id) => <ContentChip key={id} id={id} stage={stage} kind="principal" task={task} />)}
-              {(task.secondary || []).map((id) => <ContentChip key={id} id={id} stage={stage} kind="secondary" task={task} />)}
-            </div>
-          )}
+    <div style={{ borderTop: index ? `1px solid ${C.paleLine}` : 0 }} data-testid={`task-${task.id}`}>
+      {/* Fila de la tarea (cerrada: así se ve en la maqueta) */}
+      <div className="flex items-start gap-3 px-4 sm:px-5 py-3 cursor-pointer hover:bg-[#FBF8F8]" onClick={() => setOpen((o) => !o)}>
+        {open ? <ChevronDown className="w-4 h-4 shrink-0 mt-1" style={{ color: C.muted }} /> : <ChevronRight className="w-4 h-4 shrink-0 mt-1" style={{ color: C.muted }} />}
+        <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <D size={open ? 20 : 16} className="min-w-0" style={open ? { flex: 1 } : undefined}>{index + 1} · {task.title || (open ? label : "Sin título")}</D>
+          {!open && seriesText && <span className="text-xs whitespace-nowrap" style={{ color: C.muted }}>{seriesText}</span>}
+          {!open && task.no_curriculum && <span className="text-[11px] rounded px-1.5" style={{ background: "#F3F0F0", color: C.muted }}>Sin contenidos</span>}
+          {!open && P.map((id) => <ContentChip key={id} id={id} stage={stage} kind="principal" task={task} />)}
+          {!open && S.map((id) => <ContentChip key={id} id={id} stage={stage} kind="secondary" task={task} />)}
         </div>
-        {warns.length > 0 && <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" aria-label="Tiene avisos" />}
-        <span className="text-sm font-black text-gray-700 shrink-0" style={{ fontFamily: "var(--font-display)" }}>{mins ? fmtMin(mins) : "—"}</span>
+        {warns.length > 0 && <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" aria-label="Tiene avisos" />}
+        <span className="text-[13px] font-bold shrink-0 mt-0.5" style={{ color: C.ink }}>{mins ? fmtMin(mins) : "—"}</span>
       </div>
 
       {open && (
-        <div className="p-3 space-y-3">
-          <div className="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2 space-y-1.5" data-testid="task-library-bar">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {onChangePart && (
-                <div className="flex rounded-md border border-gray-300 overflow-hidden text-xs font-semibold mr-auto" role="group" aria-label="Parte de la sesión" data-testid="task-part">
-                  {[["initial", "Parte inicial"], ["main", "Parte principal"]].map(([k, l]) => (
-                    <button key={k} type="button" onClick={() => k !== part && onChangePart(k)} aria-pressed={k === part}
-                      className={`px-2.5 h-8 ${k === part ? "bg-[var(--granate)] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}>{l}</button>
-                  ))}
-                </div>
-              )}
-              <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => setLibOpen(true)}><Library className="w-3.5 h-3.5" /> Cargar de la biblioteca</Button>
-              <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={saveToLibrary} disabled={saving}><BookmarkPlus className="w-3.5 h-3.5" /> {saving ? "Guardando…" : "Guardar en la biblioteca"}</Button>
-            </div>
-            {task.from_library && (
-              <p className="text-[11px] text-amber-800">
-                Cargada de la biblioteca: «{task.from_library.name}». Lo que cambies aquí vale solo para esta sesión y la tarea de la biblioteca no se modifica. Si quieres conservar los cambios, «Guardar en la biblioteca» crea una tarea nueva.
-              </p>
+        <div className="px-5 pb-5 flex flex-col gap-3.5">
+          <div className="flex flex-wrap items-center gap-2.5" data-testid="task-library-bar">
+            {onChangePart && (
+              <div className="flex rounded-lg overflow-hidden text-xs font-semibold" style={{ border: `1px solid ${C.field}` }} role="group" aria-label="Parte de la sesión" data-testid="task-part">
+                {[["initial", "Parte inicial"], ["main", "Parte principal"]].map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => k !== part && onChangePart(k)} aria-pressed={k === part}
+                    className="px-2.5 py-1.5" style={k === part ? { background: C.granate, color: "#fff" } : { background: "#fff", color: C.muted }}>{l}</button>
+                ))}
+              </div>
             )}
-            {task.library_saved && <p className="text-[11px] text-green-700">Guardada en la biblioteca como «{task.library_saved.name}».</p>}
+            <span className="flex-1" />
+            <SBtn small onClick={() => setLibOpen(true)}><Library className="w-3.5 h-3.5" /> Cargar de la biblioteca</SBtn>
+            <SBtn small onClick={saveToLibrary} disabled={saving}><BookmarkPlus className="w-3.5 h-3.5" /> {saving ? "Guardando…" : "Guardar en la biblioteca"}</SBtn>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_16rem] gap-3">
-            <div>
-              <L>Título de la tarea</L>
-              <Input value={task.title} onChange={(e) => set({ title: e.target.value })} placeholder="Ej: Rondo de presión 6v3+3v6" className="mt-1" />
-            </div>
-            <div>
-              <L>Tipo de tarea</L>
-              <Select value={task.type || ""} onValueChange={(v) => set({ type: v })}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Elegir tipo…" /></SelectTrigger>
+          {task.from_library && <p className="text-[11px] text-amber-800 -mt-1.5">Cargada de la biblioteca: «{task.from_library.name}». Lo que cambies aquí vale solo para esta sesión.</p>}
+          {task.library_saved && <p className="text-[11px] text-green-700 -mt-1.5">Guardada en la biblioteca como «{task.library_saved.name}».</p>}
+
+          <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_220px] gap-3">
+            <Field label="Título"><Input value={task.title} onChange={(e) => set({ title: e.target.value })} placeholder="Ej: Juego de posición 6v6+3" className={`${inputCls} font-semibold`} /></Field>
+            <Field label="Tipo de tarea">
+              <Select value={task.type || ""} onValueChange={(v) => v && set({ type: v })}>
+                <SelectTrigger className={inputCls}><SelectValue placeholder="Elegir tipo…" /></SelectTrigger>
                 <SelectContent>
                   {GROUPS.map((g) => (
                     <SelectGroup key={g}>
@@ -131,142 +116,110 @@ export default function TaskEditor({ task, index, label, stage, roster, onChange
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
           </div>
 
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 items-end">
-            <div>
-              <L>Series</L>
-              <Input type="number" inputMode="decimal" min={1} value={task.series} onChange={(e) => nums("series", e.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <L>Min. por serie</L>
-              <Input type="number" inputMode="decimal" min={0} step="0.5" value={task.serie_min} onChange={(e) => nums("serie_min", e.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <L>Recup. (min)</L>
-              <Input type="number" inputMode="decimal" min={0} step="0.5" value={task.rec_min} onChange={(e) => nums("rec_min", e.target.value)} className="mt-1" />
-            </div>
-            <div className="col-span-3 sm:col-span-1">
-              <L>Total (min)</L>
-              <Input type="number" inputMode="decimal" min={0} step="0.5" value={task.total_override} onChange={(e) => nums("total_override", e.target.value)} placeholder={String(taskMinutes({ ...task, total_override: "" }) || "")} className="mt-1" />
-            </div>
-          </div>
-          <p className="text-[11px] text-gray-400 -mt-1">El total se calcula con series × minutos + recuperaciones. Si lo escribes tú, manda el tuyo.</p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <div><L>Espacio</L><Input value={task.space || ""} onChange={(e) => set({ space: e.target.value })} placeholder="40 × 35 m" className="mt-1" /></div>
-            <div><L>Jugadores</L><Input value={task.players_n || ""} onChange={(e) => set({ players_n: e.target.value })} placeholder="15 (6v6 + 3 comodines)" className="mt-1" /></div>
-            <div><L>Material</L><Input value={task.material || ""} onChange={(e) => set({ material: e.target.value })} placeholder="Conos, petos, balones…" className="mt-1" /></div>
+          <div className="grid grid-cols-2 sm:grid-cols-[repeat(4,minmax(0,1fr))_1.4fr] gap-3 items-end">
+            <Field label="Series"><Input type="number" inputMode="decimal" min={1} value={task.series} onChange={(e) => nums("series", e.target.value)} className={inputCls} /></Field>
+            <Field label="Min. por serie"><Input type="number" inputMode="decimal" min={0} step="0.5" value={task.serie_min} onChange={(e) => nums("serie_min", e.target.value)} className={inputCls} /></Field>
+            <Field label="Recuperación (min)"><Input type="number" inputMode="decimal" min={0} step="0.5" value={task.rec_min} onChange={(e) => nums("rec_min", e.target.value)} className={inputCls} /></Field>
+            <Field label="Total"><Input type="number" inputMode="decimal" min={0} step="0.5" value={task.total_override} onChange={(e) => nums("total_override", e.target.value)} placeholder={`${taskMinutes({ ...task, total_override: "" }) || ""} (auto)`} className={`${inputCls} bg-[#FBF8F8] font-bold`} /></Field>
+            <p className="text-xs pb-2.5 col-span-2 sm:col-span-1" style={{ color: C.muted }}>{seriesLabel(task) ? `${seriesLabel(task)}${Number(task.series) > 1 && rec ? ` + ${Math.round(Number(task.series)) - 1} recuperaciones de ${recText(rec)}` : ""}` : "Series × minutos + recuperaciones"}</p>
           </div>
 
-          <div>
-            <L>Descripción</L>
-            <Textarea value={task.description} onChange={(e) => set({ description: e.target.value })} rows={4} className="mt-1 text-sm" placeholder={"Una línea por punto:\n3 equipos de 6 jugadores\n1 equipo conserva contra la presión de 3…"} />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Field label="Espacio"><Input value={task.space || ""} onChange={(e) => set({ space: e.target.value })} placeholder="40 × 35 m" className={inputCls} /></Field>
+            <Field label="Jugadores"><Input value={task.players_n || ""} onChange={(e) => set({ players_n: e.target.value })} placeholder="15 (6v6 + 3 comodines)" className={inputCls} /></Field>
+            <Field label="Material"><Input value={task.material || ""} onChange={(e) => set({ material: e.target.value })} placeholder="12 conos, petos de 3 colores…" className={inputCls} /></Field>
           </div>
 
-          <div className="rounded-lg border border-gray-200 p-2.5 space-y-2.5 bg-gray-50/60">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-xs font-black uppercase tracking-wider text-gray-700" style={{ fontFamily: "var(--font-display)" }}>Qué se trabaja</p>
-                <p className="text-[11px] text-gray-500">Es lo que alimenta el control de contenidos de la temporada.</p>
+          <Field label="Descripción"><Textarea value={task.description} onChange={(e) => set({ description: e.target.value })} rows={3} className={`${inputCls} leading-relaxed`} placeholder={"Una línea por punto:\nDos equipos de 6 y 3 comodines…"} /></Field>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Objetivo de la tarea"><Input value={task.objective} onChange={(e) => set({ objective: e.target.value })} placeholder="Encontrar al hombre libre y progresar por dentro" className={inputCls} /></Field>
+            <div className="flex flex-col gap-1.5">
+              <Lab>Fase del juego</Lab>
+              <div className="flex flex-wrap gap-1.5">
+                {PHASES.map((p) => <Pill key={p.id} on={phaseSet.has(p.id)} onClick={() => togglePhase(p.id)}>{p.label}</Pill>)}
+                <Pill on={allGame} dashed color={C.soft} onClick={toggleAll} data-testid="phase-all">Todas</Pill>
               </div>
-              <label className="flex items-center gap-1.5 text-[11px] text-gray-600 shrink-0 cursor-pointer">
-                <Switch checked={!!task.no_curriculum} onCheckedChange={(v) => set({ no_curriculum: v })} />
-                Sin contenidos (PF, activación…)
+            </div>
+          </div>
+
+          <div className="rounded-[10px] px-3.5 py-3 flex flex-col gap-2.5" style={{ background: C.pale, border: `1px solid ${C.paleLine}` }}>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <D size={16} style={{ color: C.soft, flex: 1 }}>Contenidos</D>
+              <label className="flex items-center gap-1.5 text-[11px] cursor-pointer" style={{ color: C.muted }}>
+                <Switch checked={!!task.no_curriculum} onCheckedChange={(v) => set({ no_curriculum: v })} /> Sin contenidos (PF, activación…)
               </label>
+              {!task.no_curriculum && <SBtn small onClick={() => setPickerOpen(true)}><ListChecks className="w-3.5 h-3.5" /> {P.length + S.length ? "Cambiar contenidos" : "Elegir contenidos"}</SBtn>}
             </div>
-
-            <div>
-              <L>Objetivo</L>
-              <Input value={task.objective} onChange={(e) => set({ objective: e.target.value })} placeholder="Mejora de la presión y los espacios libres" className="mt-1" />
-            </div>
-
-            <div>
-              <L>Fase del juego <span className="normal-case font-normal text-gray-400">(una o varias)</span></L>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {PHASES.map((p) => (
-                  <button key={p.id} type="button" onClick={() => togglePhase(p.id)} aria-pressed={phaseSet.has(p.id)}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${phaseSet.has(p.id) ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"}`}>
-                    {p.label}
-                  </button>
-                ))}
-                <button type="button" onClick={toggleAll} aria-pressed={allGame} data-testid="phase-all"
-                  className={`rounded-full border border-dashed px-2.5 py-1 text-xs font-semibold ${allGame ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-600 border-gray-400 hover:bg-gray-50"}`}>
-                  Todas
-                </button>
-                {phaseSet.size > 0 && <span className="text-[11px] text-gray-400 self-center">En la ficha: {phasesLabel(task.phases)}</span>}
-              </div>
-            </div>
-
             {!task.no_curriculum && (
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <L>Contenidos</L>
-                  <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => setPickerOpen(true)}>
-                    <ListChecks className="w-3.5 h-3.5" /> {(task.principal || []).length + (task.secondary || []).length ? "Cambiar contenidos" : "Elegir contenidos"}
-                  </Button>
+              <>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Lab style={{ width: 110 }}>Principales {P.length}/2</Lab>
+                  {P.map((id) => <ContentChip key={id} id={id} stage={stage} kind="principal" task={task} onRemove={() => set({ principal: P.filter((x) => x !== id) })} />)}
+                  {P.length > 0 && mins > 0 && <span className="text-xs" style={{ color: C.muted }}>{fmtMin(mins)} a cada uno</span>}
+                  {!P.length && <span className="text-xs" style={{ color: C.muted }}>Ninguno</span>}
                 </div>
-                <div className="mt-1.5 space-y-1">
-                  {(task.principal || []).length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-[10px] uppercase font-bold text-gray-400 w-20 shrink-0">Principales</span>
-                      {task.principal.map((id) => <ContentChip key={id} id={id} stage={stage} kind="principal" task={task} onRemove={() => set({ principal: task.principal.filter((x) => x !== id) })} />)}
-                    </div>
-                  )}
-                  {(task.secondary || []).length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-[10px] uppercase font-bold text-gray-400 w-20 shrink-0">Secundarios</span>
-                      {task.secondary.map((id) => <ContentChip key={id} id={id} stage={stage} kind="secondary" task={task} onRemove={() => set({ secondary: task.secondary.filter((x) => x !== id) })} />)}
-                    </div>
-                  )}
-                  {!(task.principal || []).length && !(task.secondary || []).length && <p className="text-xs text-gray-400">Aún no has elegido contenidos.</p>}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Lab style={{ width: 110 }}>Secundarios {S.length}/2</Lab>
+                  {S.map((id) => <ContentChip key={id} id={id} stage={stage} kind="secondary" task={task} onRemove={() => set({ secondary: S.filter((x) => x !== id) })} />)}
+                  {S.length > 0 && mins > 0 && <span className="text-xs" style={{ color: C.muted }}>{fmtMin(mins)} cada uno, como secundario</span>}
+                  {!S.length && <span className="text-xs" style={{ color: C.muted }}>Ninguno</span>}
                 </div>
-              </div>
+              </>
             )}
           </div>
 
-          <div>
-            <L>Correcciones</L>
-            <Textarea value={task.corrections} onChange={(e) => set({ corrections: e.target.value })} rows={3} className="mt-1 text-sm" placeholder="Consignas para desarrollar los contenidos: jugar de costado, doy y voy, aparecer en los espacios libres…" />
-          </div>
-          <div className="space-y-1.5" data-testid="task-staff">
-            <div className="flex items-center justify-between gap-2">
-              <L>Cuerpo técnico en la tarea <span className="normal-case font-normal text-gray-400">(quién está y de qué se encarga)</span></L>
-              {prevStaff?.length > 0 && roles.length === 0 && (
-                <button type="button" className="text-[11px] font-semibold text-[var(--granate)] hover:underline" onClick={() => set({ staff_roles: prevStaff.map((r) => ({ ...r })) })}>Copiar el de la tarea anterior</button>
-              )}
+          <Field label="Correcciones"><Textarea value={task.corrections} onChange={(e) => set({ corrections: e.target.value })} rows={3} className={`${inputCls} leading-relaxed`} placeholder="Perfil abierto antes de recibir. Apoyo de costado…" /></Field>
+
+          <div className="flex flex-col gap-2" data-testid="task-staff">
+            <div className="flex items-center gap-2.5">
+              <Lab style={{ flex: 1 }}>Cuerpo técnico en la tarea</Lab>
+              {prevStaff?.length > 0 && roles.length === 0
+                ? <button type="button" className="text-xs font-semibold hover:underline" style={{ color: C.granate }} onClick={() => set({ staff_roles: prevStaff.map((r) => ({ ...r })) })}>Copiar el de la tarea anterior</button>
+                : <span className="text-xs" style={{ color: C.muted }}>Quién está y de qué se encarga</span>}
             </div>
             {roles.map((r, i) => (
-              <div key={i} className="grid grid-cols-[minmax(0,10rem)_minmax(0,10rem)_1fr_auto] gap-1.5 items-center" data-testid={`staff-row-${i}`}>
+              <div key={i} className="grid grid-cols-1 sm:grid-cols-[190px_190px_minmax(0,1fr)_28px] gap-2 items-center" data-testid={`staff-row-${i}`}>
                 <Select value={r.role} onValueChange={(v) => v && setRole(i, { role: v })}>
-                  <SelectTrigger className="h-8 text-xs font-semibold"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={`${inputCls} h-9 font-semibold`}><SelectValue /></SelectTrigger>
                   <SelectContent>{TASK_STAFF_ROLES.map((x) => <SelectItem key={x.id} value={x.id}>{x.label}</SelectItem>)}</SelectContent>
                 </Select>
-                <Input value={r.name || ""} onChange={(e) => setRole(i, { name: e.target.value })} placeholder="Nombre" list="session-staff-names" className="h-8 text-xs" />
-                <Input value={r.aspect || ""} onChange={(e) => setRole(i, { aspect: e.target.value })} placeholder="De qué se encarga" className="h-8 text-xs" />
-                <button type="button" onClick={() => removeRole(i)} className="p-1 rounded hover:bg-gray-100 text-gray-400" aria-label="Quitar"><X className="w-4 h-4" /></button>
+                <Input value={r.name || ""} onChange={(e) => setRole(i, { name: e.target.value })} placeholder="Nombre" list="session-staff-names" className={`${inputCls} h-9`} />
+                <Input value={r.aspect || ""} onChange={(e) => setRole(i, { aspect: e.target.value })} placeholder="De qué se encarga" className={`${inputCls} h-9`} />
+                <button type="button" onClick={() => removeRole(i)} className="p-1 rounded hover:bg-gray-100" style={{ color: "#9A8C8E" }} aria-label="Quitar"><X className="w-4 h-4" /></button>
               </div>
             ))}
-            <div className="flex flex-wrap items-center gap-1">
-              <span className="text-[11px] text-gray-500 mr-0.5">Añadir:</span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs" style={{ color: C.muted }}>Añadir:</span>
               {TASK_STAFF_ROLES.map((x) => (
-                <button key={x.id} type="button" onClick={() => addRole(x.id)} className="inline-flex items-center gap-0.5 rounded-full border border-gray-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-50" data-testid={`staff-add-${x.id}`}>
-                  <Plus className="w-3 h-3" />{x.label}
-                </button>
+                <Pill key={x.id} onClick={() => addRole(x.id)} className="!py-[3px]" data-testid={`staff-add-${x.id}`}><Plus className="w-3 h-3" />{x.label}</Pill>
               ))}
             </div>
             <datalist id="session-staff-names">{staffNames.map((n) => <option key={n} value={n} />)}</datalist>
             {hasText(task.staff_corrections) && (
-              <div>
-                <L>Correcciones por entrenador <span className="normal-case font-normal text-gray-400">(formato antiguo)</span></L>
-                <Textarea value={task.staff_corrections} onChange={(e) => set({ staff_corrections: e.target.value })} rows={2} className="mt-1 text-sm" />
-              </div>
+              <Field label="Correcciones por entrenador (formato antiguo)"><Textarea value={task.staff_corrections} onChange={(e) => set({ staff_corrections: e.target.value })} rows={2} className={inputCls} /></Field>
             )}
           </div>
-          <div>
-            <L>Puntuación</L>
-            <Textarea value={task.scoring} onChange={(e) => set({ scoring: e.target.value })} rows={2} className="mt-1 text-sm" placeholder={"8 pases = 1 punto.\n[3p] equipo ganador"} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3.5 items-start">
+            <div className="flex flex-col gap-1.5 min-w-0">
+              <Lab>Dibujo · la pizarra de siempre</Lab>
+              <PitchBoard value={task.board} onChange={(board) => set({ board })} roster={roster} filename={task.title || "tarea"} />
+              {task.diagram_url && (
+                <div className="mt-1 flex items-center gap-2">
+                  <img src={task.diagram_url} alt="Imagen de la tarea" className="h-14 rounded border border-gray-200 bg-white object-contain" />
+                  <span className="text-[11px] flex-1" style={{ color: C.muted }}>Imagen que venía de la biblioteca{hasBoard(task.board) ? ": en la hoja sale el dibujo de la pizarra." : "."}</span>
+                  <button type="button" className="text-[11px] text-red-600 underline" onClick={() => set({ diagram_url: "" })}>Quitar imagen</button>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <Field label="Equipos"><Textarea value={task.teams_text || ""} onChange={(e) => set({ teams_text: e.target.value })} rows={3} className={`${inputCls} leading-relaxed`} placeholder={"Granate: Marc, Pol, Biel…\nAzul: Pau, Arnau…\nComodines: Martí, Iker"} /></Field>
+              <Field label="Puntuación"><Textarea value={task.scoring} onChange={(e) => set({ scoring: e.target.value })} rows={2} className={inputCls} placeholder="6 pases = 1 punto · cambio de orientación = 2" /></Field>
+            </div>
           </div>
 
           {warns.length > 0 && (
@@ -275,25 +228,7 @@ export default function TaskEditor({ task, index, label, stage, roster, onChange
             </div>
           )}
 
-          <div>
-            <button type="button" onClick={() => setBoardOpen((o) => !o)} className="flex items-center gap-1.5 text-xs font-bold text-[var(--granate)]">
-              <Pencil className="w-3.5 h-3.5" /> {boardOpen ? "Ocultar dibujo" : hasBoard(task.board) ? "Editar dibujo" : "Añadir dibujo"}
-            </button>
-            {boardOpen && <div className="mt-2"><PitchBoard value={task.board} onChange={(board) => set({ board })} roster={roster} filename={task.title || "tarea"} /></div>}
-            <div className="mt-2">
-              <L>Equipos <span className="normal-case font-normal text-gray-400">(sale debajo del dibujo)</span></L>
-              <Textarea value={task.teams_text || ""} onChange={(e) => set({ teams_text: e.target.value })} rows={2} className="mt-1 text-sm" placeholder={"Granate: Marc, Pol, Biel…\nAzul: Pau, Arnau…\nComodines: Martí, Iker"} />
-            </div>
-            {task.diagram_url && (
-              <div className="mt-2 flex items-center gap-2">
-                <img src={task.diagram_url} alt="Imagen de la tarea" className="h-14 rounded border border-gray-200 bg-white object-contain" />
-                <span className="text-[11px] text-gray-500 flex-1">Imagen de la tarea (viene de la biblioteca){hasBoard(task.board) ? ": en la ficha se imprime el dibujo de la pizarra." : "."}</span>
-                <button type="button" className="text-[11px] text-red-600 underline" onClick={() => set({ diagram_url: "" })}>Quitar imagen</button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-end gap-1 pt-1 border-t border-gray-100">
+          <div className="flex items-center justify-end gap-1">
             <Button type="button" size="sm" variant="ghost" className="h-8 px-2" onClick={() => onMove(-1)} disabled={!canMoveUp} title="Subir"><ArrowUp className="w-4 h-4" /></Button>
             <Button type="button" size="sm" variant="ghost" className="h-8 px-2" onClick={() => onMove(1)} disabled={!canMoveDown} title="Bajar"><ArrowDown className="w-4 h-4" /></Button>
             <Button type="button" size="sm" variant="ghost" className="h-8 px-2" onClick={onDuplicate} title="Duplicar tarea"><Copy className="w-4 h-4" /></Button>
@@ -307,8 +242,8 @@ export default function TaskEditor({ task, index, label, stage, roster, onChange
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         stage={stage}
-        principal={task.principal || []}
-        secondary={task.secondary || []}
+        principal={P}
+        secondary={S}
         custom={task.custom_contents || {}}
         onChange={(patch) => set(patch)}
       />

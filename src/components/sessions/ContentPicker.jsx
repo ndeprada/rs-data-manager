@@ -20,13 +20,16 @@ export function ContentChip({ id, stage, kind, onRemove, task }) {
   const pr = priorityOf(stage, id);
   const b = blockInfo(contentBlock(id, task));
   const palette = String(id).startsWith("pal.");
+  const main = kind === "principal";
+  // Aspecto de la maqueta: principal en granate claro, secundario en gris con «· sec.»
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border pl-2 ${onRemove ? "pr-1" : "pr-2"} py-0.5 text-[11px] font-semibold ${kind === "principal" ? "bg-[var(--granate-pale)] border-[var(--granate)]/30 text-[var(--granate)]" : "bg-gray-50 border-gray-300 text-gray-600"}`} title={b?.label}>
-      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: b?.color || "#999" }} />
-      {contentName(id, task)}
-      {pr && <span className="text-[9px] font-black rounded px-1" style={{ background: PRIORITY[pr].bg, color: PRIORITY[pr].color }} title={`Prioridad ${PRIORITY[pr].label.toLowerCase()} en la etapa`}>{PRIORITY[pr].short}</span>}
-      {!pr && palette && <span className="text-[9px] rounded px-1 bg-orange-100 text-orange-800" title="Contenido de la paleta del club">paleta</span>}
-      {!pr && !palette && <span className="text-[9px] rounded px-1 bg-amber-100 text-amber-700" title="Este contenido no es de la etapa del equipo">otra etapa</span>}
+    <span className={`inline-flex items-center gap-1.5 rounded-full ${onRemove ? "pl-2 pr-1" : "px-2"} py-[3px] text-[11px] font-semibold whitespace-nowrap max-w-full`} title={b?.label}
+      style={main ? { background: "#FBEDEE", border: "1px solid #E6B9BE", color: "#73000A" } : { background: "#F7F4F4", border: "1px solid #DDD3D4", color: "#6B5E60" }}>
+      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: b?.color || "#999" }} />
+      <span className="truncate">{contentName(id, task)}{!main && " · sec."}</span>
+      {pr && <span className="text-[10px] font-extrabold rounded px-1" style={{ background: PRIORITY[pr].bg, color: PRIORITY[pr].color }} title={`Prioridad ${PRIORITY[pr].label.toLowerCase()} en la etapa`}>{PRIORITY[pr].short}</span>}
+      {!pr && palette && <span className="text-[10px] rounded px-1 bg-orange-100 text-orange-800" title="Contenido de la paleta del club">paleta</span>}
+      {!pr && !palette && <span className="text-[10px] rounded px-1 bg-amber-100 text-amber-700" title="Este contenido no es de la etapa del equipo">otra etapa</span>}
       {onRemove && <button type="button" onClick={onRemove} className="p-0.5 rounded-full hover:bg-black/10" aria-label={`Quitar ${contentName(id, task)}`}><X className="w-3 h-3" /></button>}
     </span>
   );

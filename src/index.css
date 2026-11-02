@@ -166,12 +166,20 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 
 /* ── Ficha de sesión (Sesiones): se imprime fuera de la app ─────────────────── */
 .session-print-root { display: none; }
+/* Pantalla de sesiones (Metodología → Sesiones): las letras de la maqueta aprobada (Inter y, en los títulos, Barlow Condensed) */
+.session-ui { font-family: Inter, Arial, Helvetica, sans-serif; }
+.session-ui * { font-family: inherit; }
+/* La hoja de sesión lleva sus propias letras (las de la maqueta): la regla general «* { font-family }» de la app no las pisa */
+.session-page, .session-measure { font-family: Inter, Arial, Helvetica, sans-serif; }
+.session-page *, .session-measure * { font-family: inherit; }
 @media print {
-  @page { size: A4 portrait; margin: 7mm 8mm; }
+  @page { size: A4 portrait; margin: 0; }
   html body.printing-session > *:not(.session-print-root) { display: none !important; }
   html:has(body.printing-session), html body.printing-session { height: auto !important; min-height: 0 !important; overflow: visible !important; position: static !important; margin: 0 !important; padding: 0 !important; background: #fff !important; pointer-events: auto !important; }
   html body.printing-session .session-print-root { display: block !important; }
   html body.printing-session .session-print-root, html body.printing-session .session-print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body.printing-session .session-print-root > div { margin: 0 auto; }
   body.printing-session .session-print-root [data-avoid-break] { break-inside: avoid; }
+  body.printing-session .session-print-root .session-page { break-after: page; box-shadow: none !important; }
+  body.printing-session .session-print-root .session-page:last-of-type { break-after: auto; }
 }

@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
-import { pageBreaks } from '../src/components/sessions/sessionPdf.js';
+import { packPages, pageBreaks } from '../src/components/sessions/sessionPdf.js';
 
-// Todo cabe en una hoja
+// Cortes por píxeles (se sigue usando en pruebas antiguas)
 assert.deepEqual(pageBreaks([{ top: 0, bottom: 100 }, { top: 110, bottom: 300 }], 1000, 300), [0]);
-// La tercera tarea no cabe: la hoja 2 empieza justo en ella
 assert.deepEqual(pageBreaks([{ top: 0, bottom: 400 }, { top: 410, bottom: 900 }, { top: 910, bottom: 1400 }], 1000, 1400), [0, 910]);
-// Un bloque más alto que una hoja se corta por donde toque
-assert.deepEqual(pageBreaks([{ top: 0, bottom: 100 }, { top: 120, bottom: 2300 }], 1000, 2300), [0, 120, 1120, 2120]);
-// Hoja exacta
-assert.deepEqual(pageBreaks([{ top: 0, bottom: 1000 }], 1000, 1000), [0]);
+
+// Reparto de bloques en hojas
+const B = (h, o = {}) => ({ h, gap: 10, ...o });
+assert.deepEqual(packPages([B(100), B(200), B(300)], 1000), [[0, 1, 2]]);
+// el tercero no cabe: pasa entero a la hoja 2
+assert.deepEqual(packPages([B(400), B(400), B(400)], 1000), [[0, 1], [2]]);
+// un título pegado al siguiente no se queda solo al final de una hoja
+assert.deepEqual(packPages([B(500), B(400), B(30, { stick: true, gap: 6 }), B(300)], 1000), [[0, 1], [2, 3]]);
+// un bloque más alto que una hoja ocupa su hoja
+assert.deepEqual(packPages([B(100), B(1500), B(100)], 1000), [[0], [1], [2]]);
+assert.deepEqual(packPages([], 1000), [[]]);
 console.log('sessionPdf ok');

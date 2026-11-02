@@ -6,13 +6,13 @@ import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
 import { useAutosave } from "@/lib/useAutosave";
 import SaveStatus from "@/components/common/SaveStatus";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, ArrowLeft, CalendarCheck, ChevronDown, ChevronRight, CopyPlus, Eye, Library, Lock, Plus, Users } from "lucide-react";
+import { AlertTriangle, CalendarCheck, CopyPlus, Download, Eye, Library, Lock, Plus } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Band, C, D, Field, Lab, Pill, SBtn, SCard, inputCls } from "./sessionUi";
 import TaskEditor from "./TaskEditor";
 import LibraryTaskPicker from "./LibraryTaskPicker";
 import { useToast } from "@/components/ui/use-toast";
@@ -30,7 +30,6 @@ import { isCancelled } from "@/lib/eventCancel";
 
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico"];
 const META = ["id", "created_date", "updated_date", "owner_id", "owner_name", "season"];
-const L = ({ children, className = "" }) => <Label className={`text-[11px] font-bold uppercase tracking-wider text-gray-500 ${className}`}>{children}</Label>;
 
 const stripMeta = (s) => Object.fromEntries(Object.entries(s).filter(([k]) => !META.includes(k)));
 
@@ -40,30 +39,17 @@ export function newSessionFor({ team, date = todayStr() }) {
   return emptySession({ teamId: team?.id || "", date, stage, type: null });
 }
 
-function Card({ title, right, children, open = true, onToggle }) {
-  return (
-    <section className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
-      <div className={`flex items-center gap-2 px-3 py-2.5 ${onToggle ? "cursor-pointer" : ""} bg-gray-50/70`} onClick={onToggle}>
-        {onToggle && (open ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />)}
-        <h2 className="text-sm font-black uppercase tracking-wide flex-1" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{title}</h2>
-        {right}
-      </div>
-      {(!onToggle || open) && <div className="p-3">{children}</div>}
-    </section>
-  );
-}
-
 // Lo que se trabaja en esta sesión, al instante: minutos y % de cada contenido (principal y secundario) y de cada bloque
 function ContentLines({ list, total, kind, custom }) {
   return (
-    <div className="space-y-1">
+    <div className="flex flex-col gap-[7px] text-[13px]" style={{ color: kind === "principal" ? C.ink : C.soft }}>
       {list.map((c) => {
         const b = BLOCKS.find((x) => x.id === contentBlock(c.id, { custom_contents: custom }));
         const m = kind === "principal" ? c.principal : c.secondary;
         return (
-          <div key={c.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 text-xs" data-testid={`live-${kind}-${c.id}`}>
+          <div key={c.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2" data-testid={`live-${kind}-${c.id}`}>
             <span className="truncate"><span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ background: b?.color || "#999" }} />{contentName(c.id, { custom_contents: custom })}</span>
-            <span className={`tabular-nums whitespace-nowrap ${kind === "principal" ? "font-bold" : "text-gray-600"}`}>{fmtMin(m)} · {fmtPct(pctOf(m, total))}</span>
+            <span className={`tabular-nums whitespace-nowrap ${kind === "principal" ? "font-bold" : ""}`}>{fmtMin(m)} · {fmtPct(pctOf(m, total))}</span>
           </div>
         );
       })}
@@ -81,55 +67,105 @@ function LiveSummary({ session, stage }) {
   const dur = Number(session.duration) || 0;
   const diff = dur ? Math.round((dur - planned) * 10) / 10 : 0;
   return (
-    <div className="space-y-3">
-      <div>
-        <p className="text-2xl font-black" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{fmtMin(planned)}<span className="text-sm font-semibold text-gray-400"> de {dur || "—"}’</span></p>
-        {dur > 0 && planned > 0 && (
-          diff < 0
-            ? <p className="text-xs font-semibold text-amber-700 flex items-center gap-1" data-testid="live-over"><AlertTriangle className="w-3.5 h-3.5" /> Las tareas suman {fmtMin(-diff)} más que la duración de la sesión</p>
-            : <p className="text-xs text-gray-500" data-testid="live-left">{diff > 0 ? `Quedan ${fmtMin(diff)} sin tareas` : "Las tareas llenan justo la sesión"}</p>
-        )}
-        {dur > 0 && <div className="h-2 rounded-full bg-gray-100 overflow-hidden mt-1.5"><div className="h-full rounded-full" style={{ width: `${Math.min(100, (planned / dur) * 100)}%`, background: diff < 0 ? "#d97706" : "var(--granate)" }} /></div>}
-        <p className="text-[11px] text-gray-500 mt-1">
-          {reg.unclassified > 0 && <span className="text-amber-600 font-semibold">Sin contenido principal: {fmtMin(reg.unclassified)} · </span>}
-          {reg.noCurriculum > 0 && <span>Sin contenidos (PF, activación…): {fmtMin(reg.noCurriculum)}</span>}
-        </p>
-      </div>
-      {principals.length === 0 && seconds.length === 0 ? (
-        <p className="text-xs text-gray-400">Cuando elijas contenidos en las tareas, aquí verás cuánto tiempo va a cada uno.</p>
-      ) : (
-        <>
-          {principals.length > 0 && <div><p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Contenidos principales</p><ContentLines list={principals} total={planned} kind="principal" custom={reg.custom} /></div>}
-          {seconds.length > 0 && <div><p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Contenidos secundarios</p><ContentLines list={seconds} total={planned} kind="secondary" custom={reg.custom} /></div>}
-          <p className="text-[10px] text-gray-400">% sobre el tiempo de las tareas de esta sesión. Una tarea con dos principales suma su tiempo a los dos.</p>
-        </>
-      )}
-      {rows.length > 0 && (
-        <div className="space-y-1.5 pt-2 border-t border-gray-100">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Por bloque frente a la etapa</p>
-          {rows.map((r) => {
-            const b = BLOCKS.find((x) => x.id === r.block);
-            return (
-              <div key={r.block} className="grid grid-cols-[6.5rem_1fr_auto] items-center gap-2 text-xs">
-                <span className="font-bold truncate" style={{ color: b.color }}>{b.short}</span>
-                <div className="relative h-2.5 rounded-full bg-gray-100 overflow-hidden">
-                  <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, r.pct)}%`, background: b.color }} />
-                  <div className="absolute inset-y-0 w-0.5 bg-gray-800/60" style={{ left: `${Math.min(100, r.target)}%` }} title={`Referencia de la etapa: ${r.target}%`} />
-                </div>
-                <span className="tabular-nums text-gray-600 whitespace-nowrap">{Math.round(r.pct)}% <span className="text-gray-400">(ref. {r.target}%)</span></span>
-              </div>
-            );
-          })}
-          <p className="text-[10px] text-gray-400">La raya oscura es el % de referencia de la etapa.</p>
+    <>
+      <SCard className="px-[18px] py-4 flex flex-col gap-3" data-testid="live-summary">
+        <D size={18}>Lo que se trabaja hoy</D>
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <D size={40} style={{ lineHeight: 1 }}>{fmtMin(planned)}</D>
+          {dur > 0 && planned > 0 && diff < 0
+            ? <span className="text-[13px] font-semibold text-amber-700 flex items-center gap-1" data-testid="live-over"><AlertTriangle className="w-3.5 h-3.5" /> de {dur}’ previstos · {fmtMin(-diff)} de más</span>
+            : <span className="text-[13px]" style={{ color: C.muted }} data-testid="live-left">de {dur || "—"}’ previstos{dur > 0 && planned > 0 ? (diff > 0 ? ` · quedan ${fmtMin(diff)}` : " · justo") : ""}</span>}
         </div>
+        {dur > 0 && <div className="h-2 rounded-full overflow-hidden" style={{ background: "#F0EAEA" }}><div className="h-full" style={{ width: `${Math.min(100, (planned / dur) * 100)}%`, background: diff < 0 ? "#d97706" : C.granate }} /></div>}
+        {(reg.unclassified > 0 || reg.noCurriculum > 0) && (
+          <p className="text-[11px] m-0" style={{ color: C.muted }}>
+            {reg.unclassified > 0 && <span className="text-amber-700 font-semibold">Sin contenido principal: {fmtMin(reg.unclassified)}{reg.noCurriculum > 0 ? " · " : ""}</span>}
+            {reg.noCurriculum > 0 && <span>Sin contenidos (PF, activación…): {fmtMin(reg.noCurriculum)}</span>}
+          </p>
+        )}
+        {principals.length === 0 && seconds.length === 0 ? (
+          <p className="text-xs m-0" style={{ color: C.muted }}>Cuando elijas contenidos en las tareas, aquí verás cuánto tiempo va a cada uno.</p>
+        ) : (
+          <>
+            {principals.length > 0 && <><Lab style={{ marginTop: 4 }}>Contenidos principales</Lab><ContentLines list={principals} total={planned} kind="principal" custom={reg.custom} /></>}
+            {seconds.length > 0 && <><Lab style={{ marginTop: 4 }}>Contenidos secundarios</Lab><ContentLines list={seconds} total={planned} kind="secondary" custom={reg.custom} /></>}
+            <p className="text-[11px] m-0 leading-[1.45]" style={{ color: C.muted }}>% sobre los {fmtMin(planned)} de la sesión. Una tarea con dos principales suma su tiempo a los dos, por eso los % pueden sumar más de 100.</p>
+          </>
+        )}
+      </SCard>
+      {rows.length > 0 && (
+        <SCard className="px-[18px] py-4 flex flex-col gap-2.5">
+          <D size={18}>Por bloque frente a la etapa</D>
+          <div className="grid grid-cols-[110px_minmax(0,1fr)_54px] gap-2 items-center text-xs">
+            {rows.map((r) => {
+              const b = BLOCKS.find((x) => x.id === r.block);
+              return (
+                <React.Fragment key={r.block}>
+                  <span className="font-bold truncate" style={{ color: b.color }} title={b.label}>{b.short}</span>
+                  <div className="h-2 rounded-full relative" style={{ background: "#F0EAEA" }}>
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, r.pct)}%`, background: b.color }} />
+                    <div className="absolute" style={{ left: `${Math.min(100, r.target)}%`, top: -2, width: 2, height: 12, background: C.dark }} title={`Referencia de la etapa: ${r.target}%`} />
+                  </div>
+                  <b className="tabular-nums">{Math.round(r.pct)}%</b>
+                </React.Fragment>
+              );
+            })}
+          </div>
+          <p className="text-[11px] m-0" style={{ color: C.muted }}>La raya oscura es el % de referencia de la etapa.</p>
+        </SCard>
       )}
-    </div>
+    </>
   );
 }
 
-const ATT = [["si", "Sí", "#16a34a", "#fff"], ["ad", "Al margen", "#bde3c3", "#14532d"], ["no", "No", "#dc2626", "#fff"]];
+// Disponible: Sí / Al margen / No, con el motivo
+const ATT = {
+  si: { icon: "✓", label: "Sí", color: "#15803D" },
+  ad: { icon: "●", label: "Al margen", color: "#B45309" },
+  no: { icon: "✕", label: "No", color: "#C81E1E" },
+};
+const attText = (e) => {
+  if (!e.st) return "Sin marcar";
+  if (e.st === "si") return "Sí";
+  if (e.st === "ad") return e.obs ? `Al margen · ${e.obs}` : "Al margen";
+  return e.obs ? e.obs.charAt(0).toUpperCase() + e.obs.slice(1) : "No";
+};
 
-function AttendanceBlock({ session, roster, onChange, events, prevSession, pdiGoals }) {
+function AttCell({ e, a, onSet }) {
+  const [open, setOpen] = useState(false);
+  const info = ATT[e.st];
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" className="text-left font-semibold truncate rounded px-1 -mx-1 hover:bg-[#F5F2F1]" style={{ color: info?.color || "#9A8C8E" }} data-testid="att-cell">
+          {info ? `${info.icon} ` : "○ "}{attText(e)}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 p-3 space-y-2.5 session-ui">
+        <div className="flex gap-1.5">
+          {Object.entries(ATT).map(([k, x]) => (
+            <button key={k} type="button" onClick={() => { onSet({ st: k, ...(k === "si" ? { obs: "" } : {}) }); if (k === "si") setOpen(false); }} aria-pressed={e.st === k}
+              className="flex-1 rounded-lg py-1.5 text-xs font-bold" style={e.st === k ? { background: x.color, color: "#fff", border: `1px solid ${x.color}` } : { background: "#fff", color: x.color, border: `1px solid ${C.field}` }}>{x.icon} {x.label}</button>
+          ))}
+        </div>
+        {(e.st === "no" || e.st === "ad") && (
+          <>
+            <Lab>Motivo</Lab>
+            <div className="flex flex-wrap gap-1">
+              {ATT_REASONS.map((r) => <Pill key={r} on={(a.obs ?? e.obs) === r} className="!py-[3px] !text-[11px]" onClick={() => { onSet({ obs: r }); setOpen(false); }}>{r}</Pill>)}
+            </div>
+            <Input value={a.obs ?? e.obs ?? ""} onChange={(ev) => onSet({ obs: ev.target.value })} placeholder="Otro motivo" className={`${inputCls} h-8 text-xs`} />
+          </>
+        )}
+        {a.st && <button type="button" className="text-[11px] underline" style={{ color: C.muted }} onClick={() => { onSet({ st: "", obs: "" }); setOpen(false); }}>Quitar la marca</button>}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+const ROW = "grid grid-cols-[44px_34px_minmax(0,1fr)] sm:grid-cols-[44px_34px_minmax(0,1fr)_170px_minmax(0,1.1fr)] gap-x-2.5 gap-y-0.5 items-center px-3 sm:px-5 py-[7px] text-[13px]";
+
+function AttendanceCard({ session, roster, onChange, events, prevSession, pdiGoals }) {
   const att = session.attendance || {};
   const [importing, setImporting] = useState(false);
   const [msg, setMsg] = useState("");
@@ -163,51 +199,48 @@ function AttendanceBlock({ session, roster, onChange, events, prevSession, pdiGo
     onChange({ attendance: next });
   };
   const eff = roster.map((p) => attendanceOf(p, att[p.id]));
-  const counts = ATT.map(([k]) => eff.filter((a) => a.st === k).length);
+  const avail = eff.filter((a) => a.st === "si" || a.st === "ad" || !a.st).length;
+  const notAvail = eff.filter((a) => a.st === "no").length;
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={importCalendar} disabled={importing || trainings.length === 0} title={trainings.length ? "" : "No hay un entrenamiento de este equipo ese día en el calendario"}>
-          <CalendarCheck className="w-4 h-4 mr-1.5" /> {importing ? "Trayendo…" : "Traer asistencia del calendario"}
-        </Button>
-        {prevSession && <Button type="button" variant="outline" size="sm" onClick={copyAreas}>Copiar áreas de la sesión anterior</Button>}
-        <span className="text-xs text-gray-500 ml-auto">Disponibles <b className="text-green-700">{counts[0]}</b> · al margen <b>{counts[1]}</b> · no <b className="text-red-600">{counts[2]}</b></span>
+    <SCard className="overflow-hidden" data-testid="session-players">
+      <div className="flex flex-wrap items-center gap-2.5 px-5 py-3.5">
+        <D size={18} style={{ flex: 1 }}>Jugadores · {roster.length}</D>
+        <span className="text-xs" style={{ color: C.muted }}>Disponibles <b style={{ color: "#15803D" }}>{avail}</b> · No disponibles <b style={{ color: "#C81E1E" }}>{notAvail}</b></span>
+        {trainings.length > 0 && <SBtn small onClick={importCalendar} disabled={importing}><CalendarCheck className="w-3.5 h-3.5" /> {importing ? "Trayendo…" : "Traer asistencia del calendario"}</SBtn>}
+        {prevSession && <SBtn small onClick={copyAreas}>Áreas de la sesión anterior</SBtn>}
       </div>
-      {msg && <p className="text-xs text-gray-500">{msg}</p>}
-      <p className="text-[11px] text-gray-500">Los lesionados salen como «No · lesión» y el área sale del objetivo del PDI que el jugador tiene «en curso»; puedes cambiar las dos cosas.</p>
-      <div className="rounded-xl border border-gray-100 divide-y divide-gray-100">
-        {roster.map((p, i) => {
-          const a = att[p.id] || {};
-          const e = eff[i];
-          const pdi = pdiAreaOf(p.id, pdiGoals);
-          return (
-            <div key={p.id} className="grid grid-cols-[2.2rem_1.6rem_minmax(0,1fr)] sm:grid-cols-[2.2rem_1.6rem_minmax(7rem,12rem)_auto_8rem_1fr] items-center gap-x-2 gap-y-1 px-2 py-1.5" data-testid={`att-row-${p.id}`}>
-              <span className="text-[10px] font-black text-[var(--granate)]">{posShort(p.position)}</span>
-              <span className="text-[11px] text-gray-500 tabular-nums">{p.jersey_number ?? ""}</span>
-              <span className="text-sm font-semibold truncate">{playerFullName(p)}</span>
-              <div className="flex gap-1 col-span-3 sm:col-span-1">
-                {ATT.map(([k, label, bg, fg]) => (
-                  <button key={k} type="button" onClick={() => setPlayer(p.id, { st: e.st === k && a.st ? "" : k })} aria-pressed={e.st === k}
-                    className="h-7 px-2 rounded-md border text-[11px] font-bold whitespace-nowrap" style={e.st === k ? { background: bg, color: fg, borderColor: bg, opacity: a.st ? 1 : 0.75 } : { background: "#fff", color: "#9ca3af", borderColor: "#e5e7eb" }}>{label}</button>
-                ))}
+      {msg && <p className="text-xs px-5 -mt-1.5 pb-2" style={{ color: C.muted }}>{msg}</p>}
+      {roster.length ? (
+        <>
+          <div className={`${ROW} hidden sm:grid`} style={{ background: C.pale, fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: ".05em", borderTop: "1px solid #F0EAEA" }}>
+            <span>Pos.</span><span>Nº</span><span>Nombre y apellido</span><span>Disponible</span><span>Área del PDI que trabaja</span>
+          </div>
+          {roster.map((p, i) => {
+            const a = att[p.id] || {};
+            const e = eff[i];
+            const pdi = pdiAreaOf(p.id, pdiGoals);
+            const out = e.st === "no";
+            return (
+              <div key={p.id} className={ROW} style={{ borderTop: "1px solid #F0EAEA" }} data-testid={`att-row-${p.id}`}>
+                <b style={{ color: C.granate }}>{posShort(p.position) || "—"}</b>
+                <span className="tabular-nums">{p.jersey_number ?? ""}</span>
+                <span className="truncate">{playerFullName(p)}</span>
+                <div className="col-start-3 sm:col-start-auto min-w-0"><AttCell e={e} a={a} onSet={(patch) => setPlayer(p.id, patch)} /></div>
+                <input value={a.areas || ""} onChange={(ev) => setPlayer(p.id, { areas: ev.target.value })} placeholder={out ? "—" : (pdi || "Escribe el área…")}
+                  className={`col-start-3 sm:col-start-auto min-w-0 w-full text-[13px] bg-transparent rounded px-1 -mx-1 py-0.5 outline-none focus:bg-white focus:ring-1 focus:ring-[#DDD3D4] ${pdi && !out ? "placeholder:text-[#3A2E30]" : "placeholder:text-[#9A8C8E]"}`}
+                  style={{ color: C.soft }} title={pdi && !a.areas ? `Del PDI: ${pdi}` : ""} aria-label={`Área del PDI de ${playerFullName(p)}`} />
               </div>
-              <div className="col-span-3 sm:col-span-1">
-                {e.st === "no" || e.st === "ad" ? (
-                  <Input value={a.obs ?? e.obs ?? ""} onChange={(ev) => setPlayer(p.id, { obs: ev.target.value })} placeholder="Motivo" list="att-reasons" className="h-7 text-xs" />
-                ) : <span />}
-              </div>
-              <Input value={a.areas || ""} onChange={(ev) => setPlayer(p.id, { areas: ev.target.value })} placeholder={pdi || "Área del PDI que trabaja"} className={`h-7 text-xs col-span-3 sm:col-span-1 ${!a.areas && pdi ? "placeholder:text-gray-700" : ""}`} title={pdi && !a.areas ? `Del PDI: ${pdi}` : ""} />
-            </div>
-          );
-        })}
+            );
+          })}
+        </>
+      ) : <p className="text-sm px-5 pb-4" style={{ color: C.muted }}>Este equipo no tiene jugadores en la plantilla.</p>}
+      <div className="flex items-center gap-2 px-5 py-2.5 text-xs" style={{ color: C.muted, borderTop: "1px solid #F0EAEA" }}>
+        <span className="shrink-0">Otros / a prueba:</span>
+        <input value={session.attendance_others || ""} onChange={(e) => onChange({ attendance_others: e.target.value })} placeholder="Ej: Martí (Infantil S13 A), Leo (prueba)"
+          className="flex-1 min-w-0 bg-transparent rounded px-1 py-0.5 outline-none focus:bg-white focus:ring-1 focus:ring-[#DDD3D4]" style={{ color: C.soft }} />
       </div>
-      <datalist id="att-reasons">{ATT_REASONS.map((r) => <option key={r} value={r} />)}</datalist>
-      <div>
-        <L>Otros jugadores / pruebas</L>
-        <Input value={session.attendance_others || ""} onChange={(e) => onChange({ attendance_others: e.target.value })} placeholder="Ej: Marc (Cadet S16 B), Leo (prueba)" className="mt-1" />
-      </div>
-    </div>
+    </SCard>
   );
 }
 
@@ -228,7 +261,6 @@ export default function SessionEditor({ session, draft, teams, sessions = [], on
     return { ...base, session_type: normalizeSessionType(base.session_type) };
   });
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [attOpen, setAttOpen] = useState(true);
   const [copyOpen, setCopyOpen] = useState(false);
 
   const isOwner = !session || session.owner_id === user?.id;
@@ -332,18 +364,38 @@ export default function SessionEditor({ session, draft, teams, sessions = [], on
       canMoveUp={i > 0} canMoveDown={i < list.length - 1} defaultOpen={(i === 0 && isBlankTask(t)) || t.id === justLoaded} />
   ));
 
+  const partMin = (list) => fmtMin(list.reduce((sum, t) => sum + taskMinutes(t), 0));
+  const PartCard = ({ part, list, label, title }) => (
+    <SCard className="overflow-hidden" data-testid={`part-${part}`}>
+      <Band title={title} minutes={partMin(list)} />
+      {renderTasks(part, list, label)}
+      <div className="flex flex-wrap gap-2 px-5 pb-4 pt-3" style={{ borderTop: list.length ? `1px solid ${C.paleLine}` : 0 }}>
+        {list.length < TASK_LIMIT[part] && <SBtn onClick={() => addTask(part)}><Plus className="w-4 h-4" /> {part === "initial" ? "Añadir tarea inicial" : "Añadir tarea"}</SBtn>}
+        <SBtn onClick={() => setLibPart(part)}><Library className="w-4 h-4" /> Cargar de la biblioteca</SBtn>
+      </div>
+    </SCard>
+  );
+  const fromCalendar = nextMatch && matchRefOf(nextMatch) === form.match_ref;
+
   return (
-    <fieldset disabled={readOnly} className="space-y-3 min-w-0 border-0 p-0 m-0">
-      <div className="flex items-center gap-2 flex-wrap">
-        <Button type="button" variant="ghost" size="sm" onClick={goBack} className="-ml-2"><ArrowLeft className="w-4 h-4 mr-1" /> Sesiones</Button>
-        <div className="min-w-0 flex-1">
-          <p className="text-base font-black truncate" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
-            {team?.name || "Sesión"} · {form.date ? fullDate(form.date, { year: false }) : "sin fecha"}
-          </p>
+    <fieldset disabled={readOnly} className="session-ui min-w-0 border-0 m-0 -mx-2 sm:mx-0 rounded-xl px-2 py-3 sm:px-6 sm:py-5 flex flex-col gap-4" style={{ background: C.bg, color: C.ink }}>
+      <div className="flex items-center gap-3.5 flex-wrap">
+        <button type="button" onClick={goBack} className="text-[13px] font-semibold hover:underline shrink-0" style={{ color: C.granate }}>← Sesiones</button>
+        <div className="flex-1 min-w-[220px]">
+          <D size={28} className="truncate" style={{ lineHeight: 1 }}>{team?.name || "Sesión"} · {form.date ? fullDate(form.date, { year: false }) : "sin fecha"}</D>
+          <div className="text-xs mt-1 flex flex-wrap items-center gap-x-1.5" style={{ color: C.muted }}>
+            <select value={stage || ""} onChange={(e) => e.target.value && set({ stage: e.target.value })} className="bg-transparent outline-none cursor-pointer hover:underline" style={{ color: C.muted, fieldSizing: "content" }} title="Etapa: contenidos que se pueden elegir" data-testid="session-stage">
+              {!stage && <option value="">Elige etapa</option>}
+              {STAGES.map((st) => <option key={st.id} value={st.id}>{st.label} ({st.teams})</option>)}
+            </select>
+            <span>· Sesión de {session?.owner_name || user?.full_name || "—"}</span>
+            {!readOnly && <span>·</span>}
+            {!readOnly && <SaveStatus state={autosave.state} onRetry={autosave.flush} />}
+          </div>
         </div>
-        {!readOnly && <SaveStatus state={autosave.state} onRetry={autosave.flush} />}
-        {!readOnly && <Button type="button" variant="outline" size="sm" onClick={() => setCopyOpen(true)} data-testid="session-copy"><CopyPlus className="w-4 h-4 mr-1.5" /> Copiar de otra sesión</Button>}
-        <Button type="button" variant="club" size="sm" onClick={() => setPreviewOpen(true)} data-testid="session-sheet"><Eye className="w-4 h-4 mr-1.5" /> Hoja / PDF</Button>
+        {!readOnly && <SBtn onClick={() => setCopyOpen(true)} data-testid="session-copy"><CopyPlus className="w-4 h-4" /> Copiar de otra sesión</SBtn>}
+        <SBtn onClick={() => setPreviewOpen("view")} data-testid="session-sheet"><Eye className="w-4 h-4" /> Vista previa</SBtn>
+        <SBtn primary onClick={() => setPreviewOpen("pdf")} data-testid="session-download"><Download className="w-4 h-4" /> Descargar PDF</SBtn>
       </div>
 
       {readOnly && (
@@ -352,112 +404,83 @@ export default function SessionEditor({ session, draft, teams, sessions = [], on
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_22rem] gap-3 items-start">
-        <div className="space-y-3 min-w-0">
-          <Card title="Datos de la sesión">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div className="sm:col-span-2">
-                <L>Equipo</L>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
+        <div className="flex flex-col gap-4 min-w-0">
+          <SCard className="px-4 sm:px-5 py-[18px] flex flex-col gap-3.5" data-testid="session-data">
+            <D size={18}>Datos de la sesión</D>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Field label="Equipo">
                 <Select value={form.team_id || ""} onValueChange={changeTeam}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Elige equipo" /></SelectTrigger>
+                  <SelectTrigger className={inputCls}><SelectValue placeholder="Elige equipo" /></SelectTrigger>
                   <SelectContent>{teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
                 </Select>
-              </div>
-              <div>
-                <L>Fecha</L>
-                <Input type="date" value={form.date || ""} onChange={(e) => changeDate(e.target.value)} className="mt-1" />
-                {form.date && <p className="text-[11px] text-gray-500 mt-0.5 first-letter:uppercase" data-testid="session-weekday">{fullDate(form.date)}</p>}
-              </div>
-              <div>
-                <L>Duración (min)</L>
-                <Input type="number" inputMode="numeric" min={0} value={form.duration ?? ""} onChange={(e) => set({ duration: e.target.value === "" ? "" : Number(e.target.value) })} className="mt-1" />
-              </div>
+              </Field>
+              <Field label={form.date ? `Fecha · ${fullDate(form.date, { year: false }).split(" ")[0]}` : "Fecha"}>
+                <Input type="date" value={form.date || ""} onChange={(e) => changeDate(e.target.value)} className={inputCls} data-testid="session-date" />
+              </Field>
+              <Field label="Hora y campo"><Input value={form.time_place || ""} onChange={(e) => set({ time_place: e.target.value })} placeholder="18:30 · Campo 2 (mitad)" className={inputCls} /></Field>
+              <Field label="Duración">
+                <div className="relative">
+                  <Input type="number" inputMode="numeric" min={0} value={form.duration ?? ""} onChange={(e) => set({ duration: e.target.value === "" ? "" : Number(e.target.value) })} className={`${inputCls} pr-11`} />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm pointer-events-none" style={{ color: C.muted }}>min</span>
+                </div>
+              </Field>
             </div>
+            {form.date && <span className="hidden" data-testid="session-weekday">{fullDate(form.date)}</span>}
 
-            <div className="mt-3">
-              <L>Tipo de sesión</L>
-              <div className="mt-1 flex flex-wrap gap-1.5" data-testid="session-types">
+            <div className="flex flex-col gap-1.5">
+              <Lab>Tipo de sesión</Lab>
+              <div className="flex flex-wrap gap-2" data-testid="session-types">
                 {SESSION_TYPES.map((t) => (
-                  <button key={t.id} type="button" onClick={() => set({ session_type: form.session_type === t.id ? null : t.id })} aria-pressed={form.session_type === t.id}
-                    className="h-8 px-3 rounded-full border text-xs font-bold"
-                    style={form.session_type === t.id ? { background: t.color, color: "#fff", borderColor: t.color } : { background: "#fff", color: t.color, borderColor: `${t.color}55` }}>{sessionTypeName(t)}</button>
+                  <Pill key={t.id} on={form.session_type === t.id} color={t.color} onClick={() => set({ session_type: form.session_type === t.id ? null : t.id })}>{sessionTypeName(t)}</Pill>
                 ))}
               </div>
-              {type && <p className="text-[11px] text-gray-500 mt-1">{type.hint}</p>}
+              {type?.hint && <span className="text-[11px]" style={{ color: C.muted }}>{type.hint}</span>}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-[14rem_1fr] gap-3 mt-3">
-              <div>
-                <L>Etapa (contenidos que se pueden elegir)</L>
-                <Select value={stage || ""} onValueChange={(v) => v && set({ stage: v })}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Elige etapa" /></SelectTrigger>
-                  <SelectContent>{STAGES.map((s) => <SelectItem key={s.id} value={s.id}>{s.label} · {s.teams}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <L>Próximo partido</L>
-                <Input value={form.match_ref || ""} onChange={(e) => set({ match_ref: e.target.value })} placeholder="Congrès (Casa) | Sáb. 24 | 16:30h" className="mt-1" />
-                {nextMatch && matchRefOf(nextMatch) !== form.match_ref && (
-                  <button type="button" onClick={() => set({ match_ref: matchRefOf(nextMatch), event_id: nextMatch.id })} className="text-[11px] text-[var(--granate)] font-semibold mt-1 hover:underline">
+            <div className="flex flex-col gap-1.5">
+              <Lab>Próximo partido</Lab>
+              <div className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm flex-wrap" style={{ background: C.pale, border: `1px solid ${C.paleLine}` }}>
+                <input value={form.match_ref || ""} onChange={(e) => set({ match_ref: e.target.value })} placeholder="CE Europa B (Fuera) | Sáb. 7 | 11:30h"
+                  className="flex-1 min-w-[200px] bg-transparent outline-none font-bold py-1" style={{ color: C.ink }} aria-label="Próximo partido" />
+                {fromCalendar && <span className="text-xs font-semibold" style={{ color: C.muted }}>Del calendario</span>}
+                {nextMatch && !fromCalendar && (
+                  <button type="button" onClick={() => set({ match_ref: matchRefOf(nextMatch), event_id: nextMatch.id })} className="text-xs font-semibold hover:underline" style={{ color: C.granate }}>
                     Poner el del calendario: {matchRefOf(nextMatch)}
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-              <div><L>Objetivos ofensivos</L><Textarea value={form.obj_atk || ""} onChange={(e) => set({ obj_atk: e.target.value })} rows={3} placeholder="Ej: Salir jugando desde atrás con apoyos de costado y encontrar al hombre libre entre líneas." className="mt-1 text-sm" /></div>
-              <div><L>Objetivos defensivos</L><Textarea value={form.obj_def || ""} onChange={(e) => set({ obj_def: e.target.value })} rows={3} placeholder="Ej: Reaccionar a la pérdida en menos de 5 segundos y cerrar el pase interior." className="mt-1 text-sm" /></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Objetivos ofensivos"><Textarea value={form.obj_atk || ""} onChange={(e) => set({ obj_atk: e.target.value })} rows={3} placeholder="Salir jugando desde atrás con apoyos de costado y encontrar al hombre libre entre líneas." className={`${inputCls} leading-[1.45] min-h-[58px]`} /></Field>
+              <Field label="Objetivos defensivos"><Textarea value={form.obj_def || ""} onChange={(e) => set({ obj_def: e.target.value })} rows={3} placeholder="Reaccionar a la pérdida en menos de 5 segundos y cerrar el pase interior al rival." className={`${inputCls} leading-[1.45] min-h-[58px]`} /></Field>
             </div>
 
-            <label className="flex items-center gap-2 mt-3 text-sm">
+            <label className="flex items-center gap-2 text-xs" style={{ color: C.muted }}>
               <Switch checked={form.held !== false} onCheckedChange={(v) => set({ held: v })} />
-              <span>Sesión realizada <span className="text-xs text-gray-400">— si no se llegó a hacer, desmárcalo y no cuenta en los porcentajes</span></span>
+              Sesión realizada (si no se llegó a hacer, desmárcalo y no cuenta en los porcentajes)
             </label>
-          </Card>
+          </SCard>
 
-          <Card title={`Jugadores · ${roster.length}`} open={attOpen} onToggle={() => setAttOpen((o) => !o)}
-            right={<Users className="w-4 h-4 text-gray-400" />}>
-            {roster.length ? (
-              <AttendanceBlock session={form} roster={roster} onChange={set} events={events} prevSession={prevSession} pdiGoals={pdiGoals} />
-            ) : <p className="text-sm text-gray-400">Este equipo no tiene jugadores en la plantilla.</p>}
-          </Card>
+          <AttendanceCard session={form} roster={roster} onChange={set} events={events} prevSession={prevSession} pdiGoals={pdiGoals} />
 
-          <Card title="Parte inicial" right={<span className="text-xs font-bold text-gray-500">{fmtMin(initialTasks.reduce((s, t) => s + taskMinutes(t), 0))}</span>}>
-            <div className="space-y-2">
-              {renderTasks("initial", initialTasks, "Tarea inicial")}
-              <div className="flex flex-wrap gap-2">
-                {initialTasks.length < TASK_LIMIT.initial && <Button type="button" variant="outline" size="sm" onClick={() => addTask("initial")}><Plus className="w-4 h-4 mr-1" /> Añadir tarea inicial</Button>}
-                <Button type="button" variant="outline" size="sm" onClick={() => setLibPart("initial")}><Library className="w-4 h-4 mr-1" /> Cargar de la biblioteca</Button>
-              </div>
-            </div>
-          </Card>
-
-          <Card title="Parte principal" right={<span className="text-xs font-bold text-gray-500">{fmtMin(mainTasks.reduce((s, t) => s + taskMinutes(t), 0))}</span>}>
-            <div className="space-y-2">
-              {renderTasks("main", mainTasks, "Tarea")}
-              <div className="flex flex-wrap gap-2">
-                {mainTasks.length < TASK_LIMIT.main && <Button type="button" variant="outline" size="sm" onClick={() => addTask("main")}><Plus className="w-4 h-4 mr-1" /> Añadir tarea</Button>}
-                <Button type="button" variant="outline" size="sm" onClick={() => setLibPart("main")}><Library className="w-4 h-4 mr-1" /> Cargar de la biblioteca</Button>
-              </div>
-            </div>
-          </Card>
-
-          <Card title="Notas">
-            <Textarea value={form.notes || ""} onChange={(e) => set({ notes: e.target.value })} placeholder="Material, sesión de vídeo, cosas a recordar…" rows={3} />
-          </Card>
+          {PartCard({ part: "initial", list: initialTasks, label: "Tarea inicial", title: "Parte inicial" })}
+          {PartCard({ part: "main", list: mainTasks, label: "Tarea", title: "Parte principal" })}
         </div>
 
-        <div className="xl:sticky xl:top-3 space-y-3">
-          <Card title="Lo que se trabaja hoy">
-            <LiveSummary session={form} stage={stage} />
-          </Card>
-        </div>
+        <aside className="xl:sticky xl:top-3 flex flex-col gap-4">
+          <LiveSummary session={form} stage={stage} />
+          <SCard className="px-[18px] py-3.5 flex flex-col gap-1.5">
+            <Lab>Notas</Lab>
+            <Textarea value={form.notes || ""} onChange={(e) => set({ notes: e.target.value })} placeholder="Material, sesión de vídeo, cosas a recordar…" rows={3} className={`${inputCls} text-[13px] leading-[1.45]`} />
+          </SCard>
+        </aside>
       </div>
 
       <LibraryTaskPicker key={libPart || "none"} open={!!libPart} onOpenChange={(o) => { if (!o) setLibPart(null); }} part={libPart === "initial" ? "inicial" : "principal"} onPick={pickFromLibrary} />
       <CopySessionDialog open={copyOpen} onOpenChange={setCopyOpen} sessions={copyable} teams={teams} onPick={copyFrom} />
-      <SessionPreview open={previewOpen} onOpenChange={setPreviewOpen} session={sheetSession} team={team} players={roster} matchRef={form.match_ref} pdiGoals={pdiGoals} ownerName={session?.owner_name || user?.full_name || ""} />
+      <SessionPreview open={!!previewOpen} startPdf={previewOpen === "pdf"} onOpenChange={(o) => setPreviewOpen(o ? "view" : false)} session={sheetSession} team={team} players={roster} matchRef={form.match_ref} pdiGoals={pdiGoals} ownerName={session?.owner_name || user?.full_name || ""} />
     </fieldset>
   );
 }

@@ -1,126 +1,110 @@
-import React from "react";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import "./sessionFonts";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import { PitchView, hasBoard } from "./PitchBoard";
 import {
   allTasks, blockInfo, contentBlock, contentName, fmtMin, hasText, isBlankTask, phasesLabel, seriesLabel, sessionTypeInfo, sessionTypeName,
   staffRolesText, stageInfo, taskMinutes,
+  recText,
 } from "@/lib/sessionPlan";
 import { fullDate, playerFullName, posShort, sortRoster } from "./sessionHelpers";
 import { areaFor, attendanceOf } from "./sessionAttendance";
+import { packPages } from "./sessionPdf";
 
-// Hoja de la sesión (A4 vertical; rediseño del 02/11/2026 aprobado por Nacho con la maqueta).
-// Cabecera con escudo y equipo, objetivos, jugadores (disponibilidad y área del PDI), parte inicial y cada tarea de la
-// parte principal en su propio bloque con el dibujo a la derecha. Cada bloque lleva data-pdf-block: el PDF corta las páginas
-// entre bloques. Todo en milímetros y puntos para que se vea igual en pantalla y en papel. Siempre en español.
+// Hoja de la sesión en hojas A4 (rediseño del 02/11/2026, igual que la maqueta aprobada por Nacho).
+// Cada hoja mide 794 × 1123 px (A4 a 96 ppp) y se compone de bloques (cabecera, objetivos, jugadores, cada tarea…):
+// los bloques se miden y se reparten en hojas sin partir ninguno. La misma hoja se ve en la vista previa, se imprime
+// (vectorial) y se pasa a PDF. Solo estilos en línea (también se copia a la maqueta). Siempre en español.
 
-const GRANATE = "#73000A";
-const DARK = "#36000D";
-const DISPLAY = "var(--font-display), 'Racing Sarria', Arial, sans-serif";
+export const PAGE_W = 794, PAGE_H = 1123;
+const PAD = { t: 30, x: 34, b: 22 };
+const FOOT = 20; // pie de página
+const GAP = 10;
+export const CONTENT_W = PAGE_W - 2 * PAD.x;
+export const CONTENT_H = PAGE_H - PAD.t - PAD.b - FOOT;
+
+const GRANATE = "#73000A", DARK = "#36000D", INK = "#1F1416", SOFT = "#3A2E30", MUTED = "#6B5E60", LINE = "#E6DEDD";
+const DISPLAY = "'Barlow Condensed', 'Racing Sarria', Arial, sans-serif";
+const BODY = "Inter, Arial, Helvetica, sans-serif";
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const lines = (s) => String(s || "").split("\n").map((x) => x.replace(/^\s*[•\-*]\s*/, "").trim()).filter(Boolean);
 
-const Label = ({ children }) => (
-  <div style={{ fontFamily: DISPLAY, fontSize: "7.4pt", fontWeight: 800, color: GRANATE, textTransform: "uppercase", marginTop: "1.8mm", marginBottom: "0.4mm", letterSpacing: "0.03em" }}>{children}</div>
-);
+const d = { fontFamily: DISPLAY, textTransform: "uppercase", letterSpacing: ".02em" };
+const k = { fontFamily: DISPLAY, fontWeight: 800, textTransform: "uppercase", color: GRANATE, fontSize: 11, letterSpacing: ".04em" };
+const sec = { fontFamily: DISPLAY, fontWeight: 800, textTransform: "uppercase", fontSize: 9.5, color: GRANATE, marginTop: 5, letterSpacing: ".04em" };
 
+const Sec = ({ children }) => <div style={sec}>{children}</div>;
 function Bullets({ text }) {
   const rows = lines(text);
   if (!rows.length) return null;
-  return <div>{rows.map((r, i) => <div key={i} style={{ display: "flex", gap: "1.2mm", lineHeight: 1.3 }}><span style={{ flex: "none" }}>•</span><span>{r}</span></div>)}</div>;
+  return <div style={{ lineHeight: 1.35, marginTop: 3 }}>{rows.map((r, i) => <div key={i}>• {r}</div>)}</div>;
 }
 
-const Band = ({ title, minutes }) => (
-  <div style={{ background: DARK, color: "#fff", fontFamily: DISPLAY, fontWeight: 800, display: "flex", padding: "1.3mm 2.4mm", fontSize: "8.6pt", textTransform: "uppercase", letterSpacing: "0.03em" }}>
-    <span style={{ flex: 1 }}>{title}</span><span>{minutes}</span>
-  </div>
-);
+function Chip({ id, task, kind }) {
+  const b = blockInfo(contentBlock(id, task));
+  const p = kind === "P";
+  return (
+    <span style={{ display: "inline-block", borderRadius: 999, padding: "1px 6px", fontSize: 9, fontWeight: 600, margin: "0 3px 3px 0", background: p ? "#FBEDEE" : "#F3F0F0", color: p ? GRANATE : SOFT }}>
+      <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: 999, background: b?.color || "#999", marginRight: 4, verticalAlign: 0 }} />
+      {contentName(id, task)} ({kind})
+    </span>
+  );
+}
 
 function taskMeta(task) {
-  const m = taskMinutes(task);
   const sl = seriesLabel(task);
   const rec = Number(String(task.rec_min || "").replace(",", ".")) || 0;
-  return [sl && `${sl}${rec ? ` · rec. ${String(rec).replace(".", ",")}’` : ""}`, m ? `${fmtMin(m)}` : "", task.space, /^\d+$/.test(String(task.players_n || "").trim()) ? `${task.players_n} jugadores` : task.players_n, task.material]
-    .filter((x) => hasText(x)).join(" · ");
+  const players = /^\d+$/.test(String(task.players_n || "").trim()) ? `${task.players_n} jugadores` : task.players_n;
+  return [sl, rec ? `rec. ${recText(rec)}` : "", task.space, players, task.material].filter(hasText).join(" · ");
 }
 
-function Contents({ task }) {
-  const p = task.principal || [], s = task.secondary || [];
-  if (!p.length && !s.length) return null;
-  const chip = (id, kind) => {
-    const b = blockInfo(contentBlock(id, task));
-    return (
-      <span key={id} style={{ display: "inline-block", borderRadius: "3mm", padding: "0 1.8mm", lineHeight: "4.2mm", marginRight: "1mm", marginBottom: "0.8mm", fontSize: "6.8pt", fontWeight: 600, background: kind === "P" ? "#FBEDEE" : "#F2EFEF", color: kind === "P" ? GRANATE : "#3A2E30", whiteSpace: "nowrap" }}>
-        <span style={{ width: "1.6mm", height: "1.6mm", borderRadius: "50%", background: b?.color || "#999", display: "inline-block", marginRight: "1mm", verticalAlign: "middle", position: "relative", top: "-0.2mm" }} />
-        {contentName(id, task)} ({kind})
-      </span>
-    );
-  };
-  return (<><Label>Contenidos</Label><div>{p.map((id) => chip(id, "P"))}{s.map((id) => chip(id, "S"))}</div></>);
-}
-
-function TaskText({ task, compact = false }) {
-  const phases = phasesLabel(task.phases);
-  const staff = staffRolesText(task.staff_roles || []);
-  return (
-    <>
-      <Bullets text={task.description} />
-      {(hasText(task.objective) || phases) && (
-        <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "1fr 1fr", gap: "0 3mm" }}>
-          {hasText(task.objective) && <div><Label>Objetivo</Label><div style={{ lineHeight: 1.3 }}>{task.objective}</div></div>}
-          {phases && <div><Label>Fase del juego</Label><div style={{ lineHeight: 1.3 }}>{phases}</div></div>}
-        </div>
-      )}
-      <Contents task={task} />
-      {hasText(task.corrections) && (<><Label>Correcciones</Label><Bullets text={task.corrections} /></>)}
-      {(hasText(staff) || hasText(task.staff_corrections)) && (
-        <>
-          <Label>Cuerpo técnico</Label>
-          {[...lines(staff), ...lines(task.staff_corrections)].map((r, i) => {
-            const k = r.indexOf(":");
-            return <div key={i} style={{ lineHeight: 1.3 }}>{k > 0 && k < 40 ? <><b>{r.slice(0, k + 1)}</b>{r.slice(k + 1)}</> : r}</div>;
-          })}
-        </>
-      )}
-      {hasText(task.scoring) && (<><Label>Puntuación</Label><div style={{ color: "#B91C1C", lineHeight: 1.3 }}>{lines(task.scoring).map((r, i) => <div key={i}>{r}</div>)}</div></>)}
-    </>
-  );
-}
-
-// Dibujo de la tarea: el de la pizarra o, si no hay, la imagen que venía de la biblioteca
 const hasDrawing = (t) => hasBoard(t.board) || Boolean(t.diagram_url);
 function Drawing({ task, maxH }) {
-  if (hasBoard(task.board)) return <PitchView board={task.board} print style={{ width: "100%", maxHeight: maxH }} />;
-  return <img src={task.diagram_url} alt="" crossOrigin="anonymous" style={{ width: "100%", maxHeight: maxH, objectFit: "contain" }} />;
+  if (hasBoard(task.board)) return <PitchView board={task.board} print style={{ width: "100%", maxHeight: maxH, display: "block" }} />;
+  return <img src={task.diagram_url} alt="" crossOrigin="anonymous" style={{ width: "100%", maxHeight: maxH, objectFit: "contain", display: "block" }} />;
 }
 
-const Teams = ({ task }) => (hasText(task.teams_text)
-  ? <div style={{ marginTop: "1mm", lineHeight: 1.3 }}><b style={{ fontFamily: DISPLAY, color: GRANATE, textTransform: "uppercase", fontSize: "7.2pt" }}>Equipos: </b>{lines(task.teams_text).join(" · ")}</div>
-  : null);
-
-function TaskTitle({ n, task, size = "9.6pt" }) {
-  const meta = taskMeta(task);
-  return (
-    <div style={{ marginBottom: "1mm" }}>
-      <div style={{ fontFamily: DISPLAY, fontWeight: 800, color: GRANATE, fontSize: size, textTransform: "uppercase", letterSpacing: "0.02em", lineHeight: 1.15 }}>{n} · {task.title || "Tarea"}</div>
-      {meta && <div style={{ fontWeight: 600, marginTop: "0.4mm", color: "#3A2E30" }}>{meta}</div>}
-    </div>
-  );
-}
-
-function MainTask({ task, n }) {
+// Una tarea: texto a la izquierda y dibujo a la derecha (como en la maqueta)
+function TaskCard({ task, n }) {
   const draw = hasDrawing(task);
+  const phases = phasesLabel(task.phases);
+  const staff = [...lines(staffRolesText(task.staff_roles || [])), ...lines(task.staff_corrections)];
+  const m = taskMinutes(task);
+  const meta = taskMeta(task);
+  const p = task.principal || [], s = task.secondary || [];
   return (
-    <div data-pdf-block style={{ border: "0.3mm solid #E6DEDD", borderRadius: "1.5mm", marginTop: "2.5mm", overflow: "hidden", breakInside: "avoid" }}>
-      <div style={{ display: "grid", gridTemplateColumns: draw ? "minmax(0,1fr) 78mm" : "1fr", gap: "3mm", padding: "2.4mm" }}>
+    <div style={{ border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden" }}>
+      <div style={{ display: "grid", gridTemplateColumns: draw ? "minmax(0,1fr) 300px" : "minmax(0,1fr)", gap: 10, padding: 8 }}>
         <div style={{ minWidth: 0 }}>
-          <TaskTitle n={n} task={task} />
-          <TaskText task={task} />
-          {!draw && <Teams task={task} />}
+          <div style={{ ...d, fontSize: 13, fontWeight: 800, color: GRANATE, lineHeight: 1.15 }}>{n} · {task.title || "Tarea"}{m ? <span style={{ color: SOFT, fontWeight: 700 }}> · {fmtMin(m)}</span> : null}</div>
+          {meta && <div style={{ fontWeight: 600, marginTop: 1 }}>{meta}</div>}
+          {hasText(task.description) && <div style={{ lineHeight: 1.35, marginTop: 4 }}>{lines(task.description).map((r, i) => <div key={i}>• {r}</div>)}</div>}
+          {(hasText(task.objective) || phases) && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: "4px 10px", marginTop: 2 }}>
+              {hasText(task.objective) && <div><Sec>Objetivo</Sec><div style={{ lineHeight: 1.35 }}>{task.objective}</div></div>}
+              {phases && <div><Sec>Fase del juego</Sec><div style={{ lineHeight: 1.35 }}>{phases}</div></div>}
+            </div>
+          )}
+          {(p.length > 0 || s.length > 0) && (
+            <>
+              <Sec>Contenidos</Sec>
+              <div style={{ marginTop: 2 }}>{p.map((id) => <Chip key={id} id={id} task={task} kind="P" />)}{s.map((id) => <Chip key={id} id={id} task={task} kind="S" />)}</div>
+            </>
+          )}
+          {hasText(task.corrections) && (<><Sec>Correcciones</Sec><Bullets text={task.corrections} /></>)}
+          {staff.length > 0 && (
+            <>
+              <Sec>Cuerpo técnico</Sec>
+              <div style={{ lineHeight: 1.35 }}>{staff.map((r, i) => { const c = r.indexOf(":"); return <span key={i}>{i ? " · " : ""}{c > 0 && c < 40 ? <><b>{r.slice(0, c + 1)}</b>{r.slice(c + 1)}</> : r}</span>; })}</div>
+            </>
+          )}
+          {hasText(task.scoring) && (<><Sec>Puntuación</Sec><div style={{ lineHeight: 1.35, color: "#B91C1C" }}>{lines(task.scoring).join(" · ")}</div></>)}
+          {!draw && hasText(task.teams_text) && <div style={{ marginTop: 4, lineHeight: 1.35 }}><b>Equipos:</b> {lines(task.teams_text).join(" · ")}</div>}
         </div>
         {draw && (
           <div style={{ minWidth: 0 }}>
-            <div style={{ borderRadius: "1.2mm", overflow: "hidden", background: "#EEF3EE" }}><Drawing task={task} maxH="96mm" /></div>
-            <Teams task={task} />
+            <div style={{ borderRadius: 6, overflow: "hidden", background: "#EEF3EE" }}><Drawing task={task} maxH={330} /></div>
+            {hasText(task.teams_text) && <div style={{ marginTop: 4, lineHeight: 1.35 }}><b>Equipos:</b> {lines(task.teams_text).join(" · ")}</div>}
           </div>
         )}
       </div>
@@ -128,114 +112,157 @@ function MainTask({ task, n }) {
   );
 }
 
+const Band = ({ title, minutes }) => (
+  <div style={{ background: DARK, color: "#fff", display: "flex", padding: "4px 8px", borderRadius: 6, ...d }}>
+    <span style={{ flex: 1, fontWeight: 800, fontSize: 12 }}>{title}</span><span style={{ fontWeight: 800, fontSize: 12 }}>{minutes}</span>
+  </div>
+);
+
 const ST_TEXT = { si: ["Sí", "#15803D"], ad: ["Al margen", "#B45309"], no: ["No", "#C81E1E"] };
 
-export default function SessionSheet({ session, team, players = [], matchRef, pdiGoals = [], ownerName = "" }) {
+// Bloques de la hoja, en orden: cada uno se mide y se coloca entero en una hoja
+export function sheetBlocks({ session, team, players = [], matchRef, pdiGoals = [], ownerName = "" }) {
   const type = sessionTypeInfo(session.session_type);
   const initial = (session.initial?.tasks || []).filter((t) => !isBlankTask(t));
   const main = (session.main?.tasks || []).filter((t) => !isBlankTask(t));
   const sum = (ts) => ts.reduce((s, t) => s + taskMinutes(t), 0);
   const roster = sortRoster(players);
   const att = session.attendance || {};
-  const showAtt = roster.length > 0 && session.show_attendance !== false;
   const match = session.match_ref || matchRef || "";
   const stage = stageInfo(session.stage);
   const eff = roster.map((p) => attendanceOf(p, att[p.id]));
   const available = eff.filter((a) => a.st !== "no").length;
+  const total = sum(initial) + sum(main);
+  const when = [cap(fullDate(session.date)), session.time_place].filter(hasText).join(" · ");
+  const blocks = [];
 
-  const rowGrid = { display: "grid", gridTemplateColumns: initial.length ? "8mm 5.5mm minmax(0,1fr) 19mm minmax(0,0.9fr)" : "9mm 6mm minmax(0,1fr) 26mm minmax(0,1.1fr)", gap: "0 1.5mm", padding: "0.7mm 1.2mm", fontSize: "6.8pt", lineHeight: "3.3mm", alignItems: "start" };
-  const hk = { fontFamily: DISPLAY, fontWeight: 800, color: GRANATE, textTransform: "uppercase", fontSize: "7.4pt", letterSpacing: "0.03em" };
+  blocks.push({ key: "head", el: (
+    <div style={{ display: "flex", alignItems: "stretch", gap: 12 }}>
+      <div style={{ width: 58, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <img src={CLUB_LOGO_URL} alt="" crossOrigin="anonymous" style={{ width: 54, height: "auto" }} />
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 3, minWidth: 0 }}>
+        <div style={{ ...d, fontSize: 12, fontWeight: 700, color: MUTED }}>Racing Sarrià · Sesión de entrenamiento</div>
+        <div style={{ ...d, fontSize: 26, fontWeight: 800, color: GRANATE, lineHeight: 1 }}>{team?.name || "Equipo"}</div>
+        <div style={{ fontSize: 10, color: SOFT }}>{[ownerName && `Entrenador: ${ownerName}`, stage?.label].filter(Boolean).join(" · ")}</div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "3px 10px", alignContent: "center", background: "#F7F3F3", borderRadius: 8, padding: "8px 12px", maxWidth: 360 }}>
+        <span style={k}>Fecha</span><span style={{ fontWeight: 600 }}>{when || "—"}</span>
+        <span style={k}>Tipo</span>
+        <span>{type ? <span style={{ background: type.color, color: "#fff", borderRadius: 4, padding: "1px 6px", fontWeight: 700, fontSize: 9.5, textTransform: "uppercase" }}>{sessionTypeName(type)}</span> : "—"}</span>
+        <span style={k}>Duración</span><span style={{ fontWeight: 600 }}>{session.duration || 90}'{total ? ` (${fmtMin(total)} de tareas)` : ""}</span>
+        {hasText(match) && <><span style={k}>Partido</span><span style={{ fontWeight: 600 }}>{match}</span></>}
+      </div>
+    </div>
+  ) });
 
-  const initialBox = initial.length > 0 && (
-    <div data-pdf-block={showAtt ? undefined : ""} style={{ border: "0.3mm solid #E6DEDD", borderRadius: "1.5mm", overflow: "hidden" }}>
-      <Band title="Parte inicial" minutes={fmtMin(sum(initial))} />
-      <div style={{ padding: "2mm 2.4mm" }}>
-        {initial.map((t, i) => (
-          <div key={t.id} style={{ marginTop: i ? "2.5mm" : 0 }}>
-            <TaskTitle n={i + 1} task={t} size="8.8pt" />
-            <TaskText task={t} compact />
-            {hasDrawing(t) && <div style={{ marginTop: "1.5mm", borderRadius: "1.2mm", overflow: "hidden", background: "#EEF3EE" }}><Drawing task={t} maxH="62mm" /></div>}
-            <Teams task={t} />
-          </div>
-        ))}
+  if (hasText(session.obj_atk) || hasText(session.obj_def)) blocks.push({ key: "obj", el: (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 8 }}>
+      {[["Objetivos ofensivos", session.obj_atk], ["Objetivos defensivos", session.obj_def]].map(([t, v]) => (
+        <div key={t} style={{ border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px" }}>
+          <div style={k}>{t}</div>
+          <div style={{ lineHeight: 1.35, marginTop: 2, whiteSpace: "pre-line" }}>{v || "—"}</div>
+        </div>
+      ))}
+    </div>
+  ) });
+
+  if (roster.length && session.show_attendance !== false) {
+    const th = { background: DARK, color: "#fff", fontFamily: DISPLAY, fontWeight: 700, textTransform: "uppercase", fontSize: 10, letterSpacing: ".04em", padding: "3px 6px", textAlign: "left" };
+    const td = { borderBottom: "1px solid #EFE6E6", padding: "2.5px 6px", textAlign: "left", fontSize: 9.5, lineHeight: 1.25, verticalAlign: "top" };
+    blocks.push({ key: "players", el: (
+      <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "fixed" }}>
+        <colgroup><col style={{ width: 34 }} /><col style={{ width: 24 }} /><col style={{ width: 190 }} /><col style={{ width: 120 }} /><col /></colgroup>
+        <thead><tr><th style={th}>Pos</th><th style={th}>Nº</th><th style={th}>Jugador</th><th style={th}>Disponible</th><th style={th}>Área del PDI que trabaja</th></tr></thead>
+        <tbody>
+          {roster.map((p, i) => {
+            const a = eff[i];
+            const st = ST_TEXT[a.st];
+            return (
+              <tr key={p.id}>
+                <td style={td}><b style={{ color: GRANATE }}>{posShort(p.position)}</b></td>
+                <td style={td}>{p.jersey_number ?? ""}</td>
+                <td style={td}>{playerFullName(p)}</td>
+                <td style={{ ...td, color: st?.[1] || "#9A8C8E", fontWeight: a.st && a.st !== "si" ? 600 : 400 }}>{st ? `${st[0]}${a.st !== "si" && a.obs ? ` · ${a.obs}` : ""}` : ""}</td>
+                <td style={td}>{a.st === "no" ? "—" : areaFor(p, att[p.id], pdiGoals)}</td>
+              </tr>
+            );
+          })}
+          <tr><td colSpan={5} style={{ ...td, color: MUTED, borderBottom: 0 }}>{hasText(session.attendance_others) ? `Otros / a prueba: ${session.attendance_others} · ` : ""}Disponibles {available} de {roster.length}</td></tr>
+        </tbody>
+      </table>
+    ) });
+  }
+
+  if (initial.length) {
+    blocks.push({ key: "band-i", stick: true, el: <Band title="Parte inicial" minutes={fmtMin(sum(initial))} />, tight: true });
+    initial.forEach((t, i) => blocks.push({ key: `i-${t.id}`, el: <TaskCard task={t} n={i + 1} /> }));
+  }
+  if (main.length) {
+    blocks.push({ key: "band-m", stick: true, el: <Band title="Parte principal" minutes={fmtMin(sum(main))} />, tight: true });
+    main.forEach((t, i) => blocks.push({ key: `m-${t.id}`, el: <TaskCard task={t} n={i + 1} /> }));
+  }
+  if (hasText(session.notes)) blocks.push({ key: "notes", el: (
+    <div style={{ border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px" }}>
+      <span style={k}>Notas </span><span style={{ whiteSpace: "pre-line", lineHeight: 1.35 }}>{session.notes}</span>
+    </div>
+  ) });
+  return blocks;
+}
+
+export function Page({ children, n, of }) {
+  return (
+    <div className="session-page" style={{ width: PAGE_W, height: PAGE_H, boxSizing: "border-box", padding: `${PAD.t}px ${PAD.x}px ${PAD.b}px`, background: "#fff", fontFamily: BODY, color: INK, fontSize: 10, display: "flex", flexDirection: "column", overflow: "hidden", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
+      <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
+      <div style={{ height: FOOT, display: "flex", alignItems: "flex-end", justifyContent: "space-between", fontSize: 8.5, color: "#9A8C8E", borderTop: "1px solid #EFE6E6", paddingTop: 4, boxSizing: "border-box" }}>
+        <span>Racing Sarrià · RS Manager</span><span>Página {n} de {of}</span>
       </div>
     </div>
   );
+}
+
+const gapAfter = (b) => (b.tight ? 6 : GAP);
+
+/**
+ * La hoja repartida en páginas A4. Primero mide cada bloque (fuera de la vista) y luego los coloca.
+ * onReady(nodosDeLasPáginas) se llama cuando ya están colocadas (para el PDF).
+ */
+export default function SessionSheet({ onPages, ...props }) {
+  const blocks = useMemo(() => sheetBlocks(props), [props]);
+  const measure = useRef(null);
+  const [pages, setPages] = useState(null);
+  const sig = blocks.map((b) => b.key).join("|");
+  useLayoutEffect(() => {
+    const host = measure.current;
+    if (!host) return undefined;
+    let raf = 0;
+    const run = () => {
+      const hs = [...host.children].map((c) => c.getBoundingClientRect().height);
+      const next = packPages(blocks.map((b, i) => ({ h: hs[i], gap: gapAfter(b), stick: !!b.stick })), CONTENT_H);
+      // solo si cambia el reparto (si no, cada render volvería a repartir y no pararía)
+      setPages((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+    };
+    run();
+    // las imágenes (escudo, dibujos) pueden cambiar la altura al cargar
+    const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(run); });
+    [...host.children].forEach((c) => ro.observe(c));
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+  }, [sig, blocks]);
+  useLayoutEffect(() => { if (pages && onPages) onPages(pages.length); }, [pages, onPages]);
 
   return (
-    <div className="session-sheet" style={{ width: "194mm", background: "#fff", color: "#1F1416", fontFamily: "Arial, Helvetica, sans-serif", fontSize: "7.6pt", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact", boxSizing: "border-box" }}>
-      {/* Cabecera */}
-      <div data-pdf-block style={{ display: "flex", gap: "3mm", alignItems: "stretch" }}>
-        <div style={{ width: "16mm", flex: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <img src={CLUB_LOGO_URL} alt="" crossOrigin="anonymous" style={{ width: "15mm", height: "auto" }} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: "0.6mm" }}>
-          <div style={{ ...hk, color: "#6B5E60", fontSize: "7.6pt" }}>Racing Sarrià · Sesión de entrenamiento</div>
-          <div style={{ fontFamily: DISPLAY, fontWeight: 800, color: GRANATE, fontSize: "19pt", lineHeight: 1, textTransform: "uppercase" }}>{team?.name || "Equipo"}</div>
-          <div style={{ color: "#3A2E30" }}>{[ownerName && `Entrenador: ${ownerName}`, stage?.label].filter(Boolean).join(" · ")}</div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "0.8mm 3mm", alignContent: "center", background: "#F7F3F3", borderRadius: "1.5mm", padding: "2mm 3mm", maxWidth: "92mm" }}>
-          <span style={hk}>Fecha</span><span style={{ fontWeight: 700 }}>{cap(fullDate(session.date))}</span>
-          <span style={hk}>Tipo</span>
-          <span>{type ? <span style={{ display: "inline-block", background: type.color, color: "#fff", borderRadius: "1mm", padding: "0 1.6mm", lineHeight: "4mm", fontWeight: 700, fontSize: "7pt", textTransform: "uppercase" }}>{sessionTypeName(type)}</span> : "—"}</span>
-          <span style={hk}>Duración</span><span style={{ fontWeight: 700 }}>{session.duration || 90}’{initial.length + main.length ? ` (${fmtMin(sum(initial) + sum(main))} de tareas)` : ""}</span>
-          {hasText(match) && <><span style={hk}>Partido</span><span style={{ fontWeight: 700 }}>{match}</span></>}
-        </div>
+    <>
+      <div ref={measure} aria-hidden="true" className="session-measure" style={{ position: "absolute", left: -20000, top: 0, width: CONTENT_W, fontFamily: BODY, fontSize: 10, color: INK, visibility: "hidden" }}>
+        {blocks.map((b) => <div key={b.key} style={{ display: "flow-root" }}>{b.el}</div>)}
       </div>
-
-      {(hasText(session.obj_atk) || hasText(session.obj_def)) && (
-        <div data-pdf-block style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2.5mm", marginTop: "2.5mm" }}>
-          {[["Objetivos ofensivos", session.obj_atk], ["Objetivos defensivos", session.obj_def]].map(([k, v]) => (
-            <div key={k} style={{ border: "0.3mm solid #E6DEDD", borderRadius: "1.5mm", padding: "1.6mm 2.4mm" }}>
-              <div style={hk}>{k}</div>
-              <div style={{ lineHeight: 1.35, marginTop: "0.5mm", whiteSpace: "pre-line" }}>{v || "—"}</div>
-            </div>
+      {(pages || [blocks.map((_, i) => i)]).map((idxs, p, all) => (
+        <Page key={p} n={p + 1} of={all.length}>
+          {idxs.map((i, j) => (
+            <div key={blocks[i].key} style={{ marginTop: j ? gapAfter(blocks[idxs[j - 1]]) : 0, display: "flow-root" }}>{blocks[i].el}</div>
           ))}
-        </div>
-      )}
-
-      {/* Jugadores + parte inicial */}
-      {showAtt ? (
-        <div data-pdf-block style={{ display: "grid", gridTemplateColumns: initial.length ? "minmax(0,1.2fr) minmax(0,1fr)" : "1fr", gap: "2.5mm", marginTop: "2.5mm", alignItems: "start" }}>
-          <div style={{ minWidth: 0 }}>
-            {/* Rejilla en vez de <table>: html2canvas coloca mal el texto de las celdas de una tabla */}
-            <div style={{ ...rowGrid, background: DARK, color: "#fff", fontFamily: DISPLAY, fontWeight: 700, fontSize: "6.8pt", textTransform: "uppercase", letterSpacing: "0.03em" }}>
-              <span>Pos</span><span>Nº</span><span>Jugador</span><span>Disponible</span><span>Área PDI</span>
-            </div>
-            {roster.map((p, i) => {
-              const a = eff[i];
-              const st = ST_TEXT[a.st];
-              return (
-                <div key={p.id} style={{ ...rowGrid, borderBottom: "0.2mm solid #EFE6E6" }}>
-                  <span style={{ fontWeight: 700, color: GRANATE }}>{posShort(p.position)}</span>
-                  <span>{p.jersey_number ?? ""}</span>
-                  <span style={{ overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{playerFullName(p)}</span>
-                  <span style={{ color: st?.[1] || "#9A8C8E", fontWeight: a.st && a.st !== "si" ? 700 : 400 }}>{st ? `${st[0]}${a.st !== "si" && a.obs ? ` · ${a.obs}` : ""}` : ""}</span>
-                  <span>{a.st === "no" ? "—" : areaFor(p, att[p.id], pdiGoals)}</span>
-                </div>
-              );
-            })}
-            <div style={{ ...rowGrid, display: "block", color: "#6B5E60" }}>{hasText(session.attendance_others) ? `Otros / a prueba: ${session.attendance_others} · ` : ""}Disponibles {available} de {roster.length}</div>
-          </div>
-          {initialBox}
-        </div>
-      ) : initial.length > 0 && <div style={{ marginTop: "2.5mm" }}>{initialBox}</div>}
-
-      {/* Parte principal */}
-      {main.length > 0 && (
-        <div style={{ marginTop: "2.5mm" }}>
-          <div data-pdf-block style={{ borderRadius: "1.5mm", overflow: "hidden" }}><Band title="Parte principal" minutes={fmtMin(sum(main))} /></div>
-          {main.map((t, i) => <MainTask key={t.id} task={t} n={i + 1} />)}
-        </div>
-      )}
-
-      {hasText(session.notes) && (
-        <div data-pdf-block style={{ marginTop: "2.5mm", border: "0.3mm solid #E6DEDD", borderRadius: "1.5mm", padding: "1.6mm 2.4mm" }}>
-          <span style={hk}>Notas </span><span style={{ whiteSpace: "pre-line" }}>{session.notes}</span>
-        </div>
-      )}
-      <div data-pdf-block style={{ marginTop: "2mm", fontSize: "6pt", color: "#9A8C8E", textAlign: "right" }}>Racing Sarrià · RS Manager</div>
-    </div>
+        </Page>
+      ))}
+    </>
   );
 }
 
