@@ -14,7 +14,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  ballR, boardView, chipOf, fieldKind, contrastColor, faceOf, fieldOf, fromView, groundRegion, hasAds, hasStands, isCutField, isGroundEl, isPersp,
+  ballR, boardView, chipOf, labelBgOf, fieldKind, contrastColor, faceOf, fieldOf, fromView, groundRegion, hasAds, hasStands, isCutField, isGroundEl, isPersp,
   isStadium, lookOf, materialOf, PERSP, orientAngle, orientOf, tokenR, ballStyle,
 } from "@/lib/board";
 import { AD_LOGOS } from "@/lib/adLogos";
@@ -628,7 +628,7 @@ function buildToken(board, el, look, chip, scr, pending) {
   const s = styleOf(look);
   const fs = Math.max(1.8, r * 1.25) * 1.05;
   const lab = (text, below) => {
-    const bg = el.labelBg || null;
+    const bg = labelBgOf(board, el);
     const opts = bg ? { bg, bgAlpha: el.labelBgOpacity ?? 1, fill: bn ? "#111111" : contrastColor(bg), stroke: null } : { fill: s.label.fill, stroke: s.label.stroke };
     const sp = labelSprite(`lab:${text}:${JSON.stringify(opts)}`, text, opts, fs * 1.35);
     sp.position.set(0, hgt, 0);

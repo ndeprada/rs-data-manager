@@ -1,7 +1,7 @@
 import React from "react";
 import BoardEditor from "@/components/board/BoardEditor";
 import Board from "@/components/board/BoardSvg";
-import { fieldOf, hasBoard, isStadium, normalizeBoard } from "@/lib/board";
+import { emptyBoard, fieldOf, hasBoard, isStadium, normalizeBoard } from "@/lib/board";
 
 // Dibujo de tareas de entrenamiento. Usa la pizarra común (src/components/board): fichas por equipo, balón, conos,
 // porterías, flechas, zonas y textos, con fotogramas para animar. Los dibujos antiguos se abren como primer fotograma.
@@ -13,8 +13,12 @@ export { FIELDS } from "@/lib/board";
  * onChange (nuevoValor) => void
  * roster   [{ id, label }] nombres para añadir fichas con un toque
  */
+// Un dibujo nuevo de una tarea lleva los nombres de las fichas con el color de la ficha (02/11/2026, Nacho)
+export const newTaskBoard = () => ({ ...emptyBoard(), labelChip: true });
+
 export default function PitchBoard({ value, onChange, roster = [], filename = "tarea" }) {
-  return <BoardEditor value={value} onChange={onChange} roster={roster} filename={filename} modes />;
+  const [blank] = React.useState(newTaskBoard);
+  return <BoardEditor value={value || blank} onChange={onChange} roster={roster} filename={filename} modes />;
 }
 
 // Vista de solo lectura (ficha impresa y vista previa): primer fotograma (o el indicado) en el modo visual del dibujo.

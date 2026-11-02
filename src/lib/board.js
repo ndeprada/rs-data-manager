@@ -228,6 +228,15 @@ export function chipStyle(board, el) {
   };
 }
 
+// Fondo de los nombres de una ficha: el elegido en la ficha; «chip» = el color de la ficha; «none» = sin fondo.
+// Con `board.labelChip` (02/11/2026, Nacho: «el nombre en el mismo color que la bolita»), sin nada elegido sale del color de la ficha.
+export function labelBgOf(board, el) {
+  const v = el?.labelBg;
+  if (v === "none") return null;
+  if (v && v !== "chip") return v;
+  return v === "chip" || board?.labelChip ? chipStyle(board, el).color : null;
+}
+
 // Radio base de las fichas (metros) y tamaño de cada una (múltiplo del base)
 export const DEFAULT_CHIP = 1.5;
 export const CHIP_RANGE = [0.3, 3.2];
@@ -351,6 +360,7 @@ export function normalizeBoard(value) {
       ...(value.view === "persp" ? { view: "persp" } : {}),
       ...(value.stands === false ? { stands: false } : {}),
       ...(value.ads === false ? { ads: false } : {}),
+      ...(value.labelChip === true ? { labelChip: true } : {}),
       ...(grassOf(value) !== "auto" ? { grass: grassOf(value) } : {}),
       ...(marksOf(value) !== "none" ? { marks: marksOf(value) } : {}),
       ...(camOf(value).z > 1 ? { cam: camOf(value) } : {}),

@@ -1,7 +1,7 @@
 import React from "react";
 import { Copy, Trash2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { DEFAULT_CHIP, chipOf, chipStyle, teamsOf } from "@/lib/board";
+import { DEFAULT_CHIP, chipOf, chipStyle, labelBgOf, teamsOf } from "@/lib/board";
 import { ChipGlyph } from "./BoardSvg";
 import { ColorPick, NO_FILL, Row, Slider, Toggle } from "./BoardControls";
 
@@ -54,8 +54,13 @@ export default function ChipQuickEdit({ el, board, look, patch, onClose, onDup, 
       <Row>
         <ColorPick value={el.bib || ""} onChange={(c) => patch({ bib: c || undefined })} label="Peto" auto="Sin peto" autoSwatch={NO_FILL} wide />
         {!bn && <ColorPick value={own ? chipStyle(board, el).color : ""} onChange={(c) => patch(c ? { color: c } : { color: undefined, pattern: undefined, color2: undefined, stroke: undefined })} label="Color" auto="El del equipo" autoSwatch={chipStyle(board, { team: el.team }).color} wide />}
-        {(el.label || el.labelTop) && <ColorPick value={el.labelBg || ""} onChange={(c) => patch({ labelBg: c || undefined })} label="Fondo de los textos" auto="Sin fondo" autoSwatch={NO_FILL} wide />}
+        {(el.label || el.labelTop) && <ColorPick value={el.labelBg && el.labelBg !== "chip" && el.labelBg !== "none" ? el.labelBg : ""} onChange={(c) => patch({ labelBg: c || (board.labelChip ? "none" : undefined) })} label="Fondo de los textos" auto="Sin fondo" autoSwatch={NO_FILL} wide />}
       </Row>
+      {(el.label || el.labelTop) && !bn && (
+        <Row>
+          <Toggle on={!!labelBgOf(board, el) && labelBgOf(board, el) === chipStyle(board, el).color} onChange={(v) => patch({ labelBg: v ? "chip" : board.labelChip ? "none" : undefined })} title="El nombre con el color de la ficha">Nombre del color de la ficha</Toggle>
+        </Row>
+      )}
       <Row>
         <Toggle on={!!el.feet} onChange={(v) => patch({ feet: v || undefined })} title="Pies: marcan hacia dónde mira">Pies</Toggle>
         <Slider label="Tamaño" value={pctOne} min={40} max={250} step={5} onChange={(v) => patch({ size: Math.round(((v / 100) * DEFAULT_CHIP / base) * 100) / 100 }, "size")} fmt={(v) => `${v}%`} width="w-20" />

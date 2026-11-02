@@ -11,6 +11,7 @@ import { GAME_MOMENTS, TACTICAL_ASPECTS, SESSION_PHASES, DIFFICULTY_LEVELS } fro
 import { useToast } from "@/components/ui/use-toast";
 import BoardEditor from "@/components/board/BoardEditor";
 import { hasBoard } from "@/lib/board";
+import { newTaskBoard } from "@/components/sessions/PitchBoard";
 
 const TASK_TYPES = [
   { value: "parejas", label: "Parejas" },
@@ -45,6 +46,7 @@ export { TASK_TYPES };
 
 export default function TaskFormDialog({ open, onOpenChange, task, onSave, teams = [] }) {
   const [form, setForm] = useState(EMPTY_TASK);
+  const [blankBoard] = useState(newTaskBoard);
   const [uploading, setUploading] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
   const { toast } = useToast();
@@ -279,7 +281,7 @@ export default function TaskFormDialog({ open, onOpenChange, task, onSave, teams
             </div>
             {boardOpen && (
               <div className="mt-2">
-                <BoardEditor value={form.board} onChange={(b) => set("board", b)} filename={form.name || "tarea"} modes />
+                <BoardEditor value={form.board || blankBoard} onChange={(b) => set("board", b)} filename={form.name || "tarea"} modes />
               </div>
             )}
             {/* También permite subir imagen externa */}

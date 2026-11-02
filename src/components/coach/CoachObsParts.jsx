@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useT, useFormat } from "@/i18n";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
-import { SESSION_TYPES, sessionTypeInfo } from "@/lib/sessionPlan";
+import { SESSION_TYPES, sessionTypeInfo, sessionTypeName } from "@/lib/sessionPlan";
 import { OBS_SCALE, NOT_OBSERVABLE, NOT_OBSERVABLE_LABEL, scaleInfo, scaleOf, avgColor } from "@/lib/coachMethod";
 import { areaBlocks, emptyAreaScores, emptyAreaNotes, areaSummary, pruneForFormats } from "@/lib/coachAreaCriteria";
 import { GAME_FORMATS, GAME_FORMAT_LABELS, obsFormat, obsFormats } from "@/lib/coachModelGame";
@@ -103,7 +103,7 @@ export function ObsView({ obs, area, teamName }) {
           <p>
             {teamName ? <span className="font-bold text-gray-800">{teamName}</span> : null}
             {obs.date ? `${teamName ? " · " : ""}${format(new Date(`${obs.date}T12:00:00`), "d MMM yyyy", { locale })}` : ""}
-            {type ? ` · ${type.label} (${type.full})` : ""}
+            {type ? ` · ${sessionTypeName(type)}` : ""}
             {fmt ? ` · ${t(GAME_FORMAT_LABELS[fmt])}` : ""}
           </p>
           <p className="text-xs text-gray-400">
@@ -328,7 +328,7 @@ export function AreaObsDialog({ area, editing, staffId, teamIds, teamName, teamF
                   <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>{t("— Sin indicar —")}</SelectItem>
-                    {SESSION_TYPES.map((s) => <SelectItem key={s.id} value={s.id}>{s.label} · {s.full}</SelectItem>)}
+                    {SESSION_TYPES.map((s) => <SelectItem key={s.id} value={s.id}>{sessionTypeName(s)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

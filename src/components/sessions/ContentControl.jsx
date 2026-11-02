@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import { todayStr } from "./sessionHelpers";
 import {
-  BLOCKS, PRIORITY, aggregateSessions, compareWithStage, fmtMin, hierarchyIssues, marginState, stageContents, stageInfo, stageOfTeamName,
+  BLOCKS, PRIORITY, aggregateSessions, compareWithStage, contentBlock, contentName, fmtMin, fmtPct, hierarchyIssues, marginState, pctOf, stageContents, stageInfo, stageOfTeamName,
 } from "@/lib/sessionPlan";
 
 const ALL = "__all";
@@ -113,7 +113,13 @@ export default function ContentControl({ teams, isCoordinator, defaultTeamId }) 
                   {rows.map((r) => {
                     const b = BLOCKS.find((x) => x.id === r.block);
                     const st = agg.withBlock ? marginState(r.diff) : null;
-                    const list = contents.filter((c) => c.block === r.block);
+                    const own = contents.filter((c) => c.block === r.block);
+                    const ownIds = new Set(own.map((c) => c.id));
+                    // Contenidos de otras etapas o de la paleta del club que se han trabajado en este bloque
+                    const extra = Object.values(agg.contents)
+                      .filter((c) => !ownIds.has(c.id) && contentBlock(c.id, { custom_contents: agg.custom }) === r.block)
+                      .map((c) => ({ id: c.id, name: contentName(c.id, { custom_contents: agg.custom }), block: r.block, priority: null, extra: true }));
+                    const list = [...own, ...extra];
                     const open = openBlock === r.block;
                     if (!list.length && !r.minutes) return null;
                     return (
@@ -133,19 +139,24 @@ export default function ContentControl({ teams, isCoordinator, defaultTeamId }) 
                           <div className="px-3 pb-3 pl-8">
                             {list.length === 0 ? <p className="text-xs text-gray-400">Esta etapa no tiene contenidos en este bloque.</p> : (
                               <div className="rounded-lg border border-gray-100 divide-y divide-gray-100">
+                                <div className="grid grid-cols-[1.4rem_1fr_6.5rem_6.5rem_2.5rem] items-center gap-2 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                  <span /><span>Contenido</span><span className="text-right">Principal</span><span className="text-right">Secundario</span><span className="text-right">Tareas</span>
+                                </div>
                                 {list.map((c) => {
-                                  const a = agg.contents[c.id] || { principal: 0, secondary: 0, tasks: 0 };
-                                  const pr = PRIORITY[c.priority];
+                                  const a = agg.contents[c.id] || { principal: 0, secondary: 0, tasks: 0, secTasks: 0 };
+                                  const pr = c.priority ? PRIORITY[c.priority] : null;
                                   const untouched = !a.principal && !a.secondary;
+                                  const onlySec = !a.principal && a.secondary > 0;
                                   return (
-                                    <div key={c.id} className="grid grid-cols-[1.4rem_1fr_auto] items-center gap-2 px-2 py-1.5 text-xs">
-                                      <span className="text-[9px] font-black rounded px-1 text-center" style={{ background: pr.bg, color: pr.color }} title={`Prioridad ${pr.label.toLowerCase()}`}>{pr.short}</span>
-                                      <span className={untouched ? (c.priority === "A" ? "text-red-600 font-semibold" : "text-gray-400") : "font-semibold"}>{c.name}{untouched && c.priority === "A" ? " · sin trabajar" : ""}</span>
-                                      <span className="tabular-nums whitespace-nowrap text-gray-600">
-                                        {a.principal > 0 && <b className="text-[var(--granate)]">{fmtMin(a.principal)}</b>}
-                                        {a.secondary > 0 && <span className="text-gray-500"> {a.principal > 0 ? "+ " : ""}{fmtMin(a.secondary)} sec.</span>}
-                                        {untouched && "—"}
+                                    <div key={c.id} className="grid grid-cols-[1.4rem_1fr_6.5rem_6.5rem_2.5rem] items-center gap-2 px-2 py-1.5 text-xs" data-testid={`control-row-${c.id}`}>
+                                      {pr ? <span className="text-[9px] font-black rounded px-1 text-center" style={{ background: pr.bg, color: pr.color }} title={`Prioridad ${pr.label.toLowerCase()}`}>{pr.short}</span>
+                                        : <span className="text-[9px] font-black rounded px-1 text-center bg-orange-100 text-orange-800" title="De otra etapa o de la paleta del club">+</span>}
+                                      <span className={untouched ? (c.priority === "A" ? "text-red-600 font-semibold" : "text-gray-400") : "font-semibold"}>
+                                        {c.name}{untouched && c.priority === "A" ? " · sin trabajar" : ""}{onlySec ? <span className="text-[10px] font-normal text-gray-500"> (solo secundario)</span> : ""}
                                       </span>
+                                      <span className="tabular-nums whitespace-nowrap text-right">{a.principal > 0 ? <><b className="text-[var(--granate)]">{fmtMin(a.principal)}</b> · {fmtPct(pctOf(a.principal, agg.total))}</> : <span className="text-gray-300">—</span>}</span>
+                                      <span className="tabular-nums whitespace-nowrap text-right text-gray-600">{a.secondary > 0 ? <>{fmtMin(a.secondary)} · {fmtPct(pctOf(a.secondary, agg.total))}</> : <span className="text-gray-300">—</span>}</span>
+                                      <span className="tabular-nums text-right text-gray-500">{(a.tasks || 0) + (a.secTasks || 0) || ""}</span>
                                     </div>
                                   );
                                 })}
@@ -158,7 +169,7 @@ export default function ContentControl({ teams, isCoordinator, defaultTeamId }) 
                   })}
                 </div>
                 <div className="px-3 py-2 text-[10px] text-gray-400 border-t border-gray-100">
-                  Línea oscura = % de referencia de la etapa. Desviación: <b style={{ color: "#16a34a" }}>±5 correcta</b> · <b style={{ color: "#d97706" }}>±5 a ±10 a justificar</b> · <b style={{ color: "#dc2626" }}>más de ±10 revisar</b>. El % se calcula sobre el tiempo que tiene contenido.
+                  Línea oscura = % de referencia de la etapa. Desviación: <b style={{ color: "#16a34a" }}>±5 correcta</b> · <b style={{ color: "#d97706" }}>±5 a ±10 a justificar</b> · <b style={{ color: "#dc2626" }}>más de ±10 revisar</b>. El % de cada bloque se calcula sobre el tiempo que tiene contenido; el de cada contenido, sobre todo el tiempo trabajado. El secundario se cuenta aparte y no suma al bloque.
                 </div>
               </section>
 

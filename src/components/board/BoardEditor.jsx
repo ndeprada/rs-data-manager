@@ -585,13 +585,15 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         lastTap.current = { id: target.id, at: twice ? 0 : now };
         if (twice) { setSel([target.id]); setQuick(target.id); drag.current = null; return; }
         if (quick && quick !== target.id) setQuick(null);
+        // tocar (sin arrastrar) una ficha que ya estaba elegida abre su cuadro para escribir el nombre (02/11/2026, Nacho)
+        const reTap = target.k === "token" && sel.length === 1 && sel[0] === target.id && quick !== target.id;
         // arrastrar una de varias elegidas las mueve todas; tocarla sin arrastrar deja solo esa
         const inGroup = sel.length > 1 && sel.includes(target.id);
         if (!inGroup) setSel([target.id]);
         // un conector no se arrastra: su forma sale de las fichas que une
         // (lo bloqueado se elige pero no se mueve)
         const ids = movableIds(live.current, idx, inGroup ? sel : [target.id]);
-        drag.current = (target.k === "link" && !inGroup) || !ids.length ? null : { mode: "move", ids, only: inGroup ? target.id : null, anchor: target.id, from: p, moved: false, snapshot: live.current };
+        drag.current = (target.k === "link" && !inGroup) || !ids.length ? (reTap ? { mode: "tap", reTap: target.id } : null) : { mode: "move", ids, only: inGroup ? target.id : null, anchor: target.id, from: p, moved: false, snapshot: live.current, reTap: reTap ? target.id : null };
       } else {
         // espacio vacío: recuadro para elegir varias cosas a la vez
         lastTap.current = { id: null, at: 0 };
@@ -754,6 +756,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       coalesce.current = { key: null, at: 0 };
     }
     if (d.mode === "move" && !d.moved && d.only) setSel([d.only]);
+    if ((d.mode === "move" || d.mode === "tap") && !d.moved && d.reTap) setQuick(d.reTap);
     if (d.mode === "marquee") {
       if (draft && Math.abs(draft.w) > 1 && Math.abs(draft.h) > 1) {
         const ids = elementsInBox(cur.els, draft);
@@ -1172,6 +1175,18 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
                 {o.on ? "✓ " : ""}{o.label}
               </button>
             ))}
+          </div>
+        </div>
+      )}
+      {look !== "bn" && (
+        <div className="space-y-1">
+          <span className="text-[11px] font-semibold text-gray-600">Nombres de las fichas</span>
+          <div className="flex gap-1">
+            <button type="button" aria-pressed={!!board.labelChip} data-testid="toggle-labelChip"
+              onClick={() => { const { labelChip: _x, ...rest } = live.current; commit(board.labelChip ? rest : { ...rest, labelChip: true }); }}
+              className={`h-8 px-2.5 rounded-md border text-xs font-semibold ${board.labelChip ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>
+              {board.labelChip ? "✓ " : ""}Con el color de la ficha
+            </button>
           </div>
         </div>
       )}

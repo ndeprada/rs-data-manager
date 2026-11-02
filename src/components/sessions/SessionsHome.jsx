@@ -12,7 +12,7 @@ import { AlertTriangle, ClipboardList, Copy, Plus, Printer, Trash2 } from "lucid
 import SessionEditor, { newSessionFor } from "./SessionEditor";
 import SessionPreview from "./SessionPreview";
 import { longDate, todayStr } from "./sessionHelpers";
-import { allTasks, fmtMin, registerSession, sessionTypeInfo, emptyTask, taskMinutes } from "@/lib/sessionPlan";
+import { allTasks, fmtMin, registerSession, sessionTypeInfo, sessionTypeName, emptyTask, taskMinutes } from "@/lib/sessionPlan";
 
 const ALL = "__all";
 
@@ -151,7 +151,7 @@ export default function SessionsHome({ teams, isCoordinator, defaultTeamId }) {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-black" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{longDate(s.date)}</span>
                     <span className="text-sm font-semibold text-gray-700">{teamName(s.team_id)}</span>
-                    {type && <span className="text-[10px] font-black uppercase tracking-wide text-white rounded-full px-2 py-0.5" style={{ background: type.color }}>{type.label}</span>}
+                    {type && <span className="text-[10px] font-black uppercase tracking-wide text-white rounded-full px-2 py-0.5" style={{ background: type.color }}>{sessionTypeName(type)}</span>}
                     {s.held === false && <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-gray-200 text-gray-600">No realizada</span>}
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5 truncate">

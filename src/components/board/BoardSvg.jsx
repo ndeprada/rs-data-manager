@@ -2,7 +2,7 @@ import { AD_LOGOS } from "@/lib/adLogos";
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox,
+  ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox, labelBgOf,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -1258,10 +1258,11 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
           </g>
         );
       }
+      const lbg = labelBgOf(board, el);
       const tag = (text, y, key) => (
         <React.Fragment key={key}>
-          <TextBg x={c.x} y={y} text={text} fs={fs} bold bg={el.labelBg} alpha={el.labelBgOpacity} look={look} />
-          <text x={c.x} y={y} textAnchor="middle" fontSize={fs} fontWeight={700} fill={el.labelBg ? inkOnBg(el.labelBg, null, look) : s.label.fill} stroke={el.labelBg ? "none" : s.label.stroke} strokeWidth={el.labelBg ? 0 : 0.55} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{text}</text>
+          <TextBg x={c.x} y={y} text={text} fs={fs} bold bg={lbg} alpha={el.labelBgOpacity} look={look} />
+          <text x={c.x} y={y} textAnchor="middle" fontSize={fs} fontWeight={700} fill={lbg ? inkOnBg(lbg, null, look) : s.label.fill} stroke={lbg ? "none" : s.label.stroke} strokeWidth={lbg ? 0 : 0.55} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{text}</text>
         </React.Fragment>
       );
       if (part === "labels") {

@@ -45,7 +45,7 @@ export const BLOCKS = [
   { id: "oc_def", label: "Organización colectiva defensiva", short: "Org. colectiva def.", color: "#b91c1c" },
   { id: "cc_of", label: "Comportamientos colectivos ofensivos", short: "Comport. colect. of.", color: "#0ea5e9" },
   { id: "cc_def", label: "Comportamientos colectivos defensivos", short: "Comport. colect. def.", color: "#ef4444" },
-  { id: "abp", label: "Balón parado (específico)", short: "Balón parado", color: "#d97706" },
+  { id: "abp", label: "Estrategia (balón parado)", short: "Estrategia", color: "#d97706" },
 ];
 export const blockInfo = (id) => BLOCKS.find((b) => b.id === id) || null;
 
@@ -182,8 +182,17 @@ export function stageContents(stage) {
 const ALL = new Map();
 for (const s of STAGES) for (const c of stageContents(s.id)) if (!ALL.has(c.id)) ALL.set(c.id, { id: c.id, name: c.name, block: c.block });
 export const contentInfo = (id) => ALL.get(id) || null;
-export const contentName = (id) => ALL.get(id)?.name || id;
-export const contentBlock = (id) => ALL.get(id)?.block || null;
+export const contentName = (id, task) => ALL.get(id)?.name || task?.custom_contents?.[id]?.name || id;
+export const contentBlock = (id, task) => ALL.get(id)?.block || task?.custom_contents?.[id]?.block || null;
+// Contenidos de la paleta del club (SessionContent): su id en las tareas es «pal.<id>» y la tarea guarda nombre y bloque
+export const paletteContentId = (docId) => `pal.${docId}`;
+export const isPaletteContent = (id) => String(id || "").startsWith("pal.");
+// ¿Se conoce este contenido (currículum o guardado en la tarea)?
+export const knownContent = (id, task) => Boolean(ALL.get(id) || task?.custom_contents?.[id]?.block);
+// Etapas del currículum en las que aparece un contenido
+export function stagesOfContent(id) {
+  return STAGES.filter((s) => stageContents(s.id).some((c) => c.id === id)).map((s) => s.id);
+}
 
 export function priorityOf(stage, id) {
   return stageContents(stage).find((c) => c.id === id)?.priority || null;
@@ -191,14 +200,20 @@ export function priorityOf(stage, id) {
 
 // ── Tipos de sesión (TFM 4.6) ─────────────────────────────────────────────────
 // «Tensión», «Duración» y «Velocidad» son los nombres que usa el club para las tres sesiones de adquisición.
+// 02/11/2026 (Nacho): cinco tipos. Los tres de adquisición conservan su apodo del club; «Compensatoria» pasa a «Recuperación»
+// y «Prepartido» a «Activación» (las sesiones guardadas con el nombre antiguo se leen con el nuevo).
 export const SESSION_TYPES = [
   { id: "fundamentos", label: "Tensión", full: "Fundamentos individuales", color: "#dc2626", hint: "Técnica, hábitos y fundamentos individuales. Espacios reducidos y mucha repetición." },
-  { id: "juego_colectivo", label: "Duración", full: "Juego colectivo", color: "#16a34a", hint: "Sistema de juego y organización colectiva. Espacios grandes y series largas." },
+  { id: "juego_colectivo", label: "Duración", full: "Organización colectiva", color: "#16a34a", hint: "Sistema de juego y organización colectiva. Espacios grandes y series largas." },
   { id: "optimizacion", label: "Velocidad", full: "Optimización", color: "#2563eb", hint: "Contextualiza lo trabajado para la competición. Series muy cortas de máxima intensidad." },
-  { id: "compensatoria", label: "Compensatoria", full: "Compensatoria", color: "#7c3aed", hint: "Perfeccionamiento y Rendimiento: recuperación y compensación según los minutos del partido." },
-  { id: "prepartido", label: "Prepartido", full: "Prepartido", color: "#d97706", hint: "Rendimiento (seis días entre partidos): repaso del plan de partido con carga muy baja." },
+  { id: "activacion", label: "Activación", full: "Activación", color: "#d97706", hint: "Víspera del partido: activación y repaso del plan de partido con carga muy baja." },
+  { id: "recuperacion", label: "Recuperación", full: "Recuperación", color: "#7c3aed", hint: "Después del partido: recuperación y compensación según los minutos jugados." },
 ];
-export const sessionTypeInfo = (id) => SESSION_TYPES.find((t) => t.id === id) || null;
+const LEGACY_SESSION_TYPES = { compensatoria: "recuperacion", prepartido: "activacion" };
+export const normalizeSessionType = (id) => LEGACY_SESSION_TYPES[id] || id || null;
+// Nombre para enseñar: «Fundamentos individuales · Tensión» o solo «Activación»
+export const sessionTypeName = (t) => (!t ? "" : t.label === t.full ? t.full : `${t.full} · ${t.label}`);
+export const sessionTypeInfo = (id) => SESSION_TYPES.find((t) => t.id === normalizeSessionType(id)) || null;
 
 // El tipo de sesión NO depende del día de la semana (decisión de Nacho): lo elige siempre el entrenador.
 
@@ -283,27 +298,31 @@ export const allTasks = (session) => [...(session?.initial?.tasks || []), ...(se
 // ── Registro de lo trabajado (TFM 4.8.5) ─────────────────────────────────────
 //  · Los minutos de la tarea se cuentan UNA sola vez en el bloque principal (el del primer contenido principal).
 //  · Los contenidos principales (1 o 2) registran toda la duración, aunque sean dos a la vez.
-//  · Los secundarios (hasta 2) se registran aparte, sin sumarse al volumen del bloque, y solo si la tarea tiene correcciones.
+//  · Los secundarios (hasta 2) registran toda la duración como SECUNDARIO, aparte, sin sumarse al volumen del bloque.
+//    (02/11/2026, Nacho: si se elige un secundario es porque se corrige, así que siempre cuenta; antes hacía falta escribir correcciones.)
 //  · Las tareas «sin contenido del currículum» (PF, activación…) no entran en los porcentajes.
 export function registerSession(session) {
-  const out = { total: 0, withBlock: 0, noCurriculum: 0, unclassified: 0, blocks: {}, contents: {}, tasks: 0 };
-  const content = (id) => (out.contents[id] ||= { id, principal: 0, secondary: 0, tasks: 0 });
+  const out = { total: 0, withBlock: 0, noCurriculum: 0, unclassified: 0, blocks: {}, contents: {}, tasks: 0, custom: {} };
+  const content = (id, t) => {
+    if (!ALL.has(id) && t?.custom_contents?.[id]) out.custom[id] = t.custom_contents[id];
+    return (out.contents[id] ||= { id, principal: 0, secondary: 0, tasks: 0, secTasks: 0 });
+  };
   for (const t of allTasks(session)) {
     const m = taskMinutes(t);
     if (!m) continue;
     out.total += m;
     out.tasks += 1;
     if (t.no_curriculum) { out.noCurriculum += m; continue; }
-    const principals = (t.principal || []).filter(contentInfo).slice(0, 2);
-    if (!principals.length) { out.unclassified += m; continue; }
-    const block = contentBlock(principals[0]);
-    out.withBlock += m;
-    out.blocks[block] = round1((out.blocks[block] || 0) + m);
-    for (const id of principals) { const c = content(id); c.principal = round1(c.principal + m); c.tasks += 1; }
-    if (hasText(t.corrections)) {
-      for (const id of (t.secondary || []).filter((x) => contentInfo(x) && !principals.includes(x)).slice(0, 2)) {
-        const c = content(id); c.secondary = round1(c.secondary + m);
-      }
+    const principals = (t.principal || []).filter((id) => knownContent(id, t)).slice(0, 2);
+    if (!principals.length) out.unclassified += m;
+    else {
+      const block = contentBlock(principals[0], t);
+      out.withBlock += m;
+      out.blocks[block] = round1((out.blocks[block] || 0) + m);
+      for (const id of principals) { const c = content(id, t); c.principal = round1(c.principal + m); c.tasks += 1; }
+    }
+    for (const id of (t.secondary || []).filter((x) => knownContent(x, t) && !principals.includes(x)).slice(0, 2)) {
+      const c = content(id, t); c.secondary = round1(c.secondary + m); c.secTasks += 1;
     }
   }
   out.total = round1(out.total);
@@ -315,22 +334,28 @@ export function registerSession(session) {
 
 // Suma de varias sesiones
 export function aggregateSessions(sessions) {
-  const acc = { total: 0, withBlock: 0, noCurriculum: 0, unclassified: 0, blocks: {}, contents: {}, sessions: 0, tasks: 0 };
+  const acc = { total: 0, withBlock: 0, noCurriculum: 0, unclassified: 0, blocks: {}, contents: {}, sessions: 0, tasks: 0, custom: {} };
   for (const s of sessions) {
     const r = registerSession(s);
     acc.sessions += 1;
     acc.tasks += r.tasks;
     for (const k of ["total", "withBlock", "noCurriculum", "unclassified"]) acc[k] = round1(acc[k] + r[k]);
     for (const [b, m] of Object.entries(r.blocks)) acc.blocks[b] = round1((acc.blocks[b] || 0) + m);
+    Object.assign(acc.custom, r.custom);
     for (const [id, c] of Object.entries(r.contents)) {
-      const a = (acc.contents[id] ||= { id, principal: 0, secondary: 0, tasks: 0 });
+      const a = (acc.contents[id] ||= { id, principal: 0, secondary: 0, tasks: 0, secTasks: 0 });
       a.principal = round1(a.principal + c.principal);
       a.secondary = round1(a.secondary + c.secondary);
       a.tasks += c.tasks;
+      a.secTasks += c.secTasks;
     }
   }
   return acc;
 }
+
+// % de un tiempo sobre el total trabajado (con un decimal si es pequeño)
+export const pctOf = (min, total) => (total ? (min / total) * 100 : 0);
+export const fmtPct = (p) => (p > 0 && p < 1 ? "<1%" : `${Math.round(p)}%`);
 
 // Avisos de una tarea (para ayudar a rellenarla; no impiden guardar)
 export function taskWarnings(t) {
@@ -338,9 +363,8 @@ export function taskWarnings(t) {
   if (!t) return w;
   const principals = t.principal || [];
   if (!t.no_curriculum && !principals.length) w.push("Elige al menos un contenido principal: sin él, los minutos no se cuentan en ningún bloque.");
-  const blocks = new Set(principals.map(contentBlock).filter(Boolean));
-  if (blocks.size > 1) w.push(`Los contenidos principales son de bloques distintos: los minutos cuentan en «${blockInfo(contentBlock(principals[0]))?.short}» (el del primero) y el resto queda como exposición.`);
-  if ((t.secondary || []).length && !hasText(t.corrections)) w.push("Los contenidos secundarios solo computan si la tarea tiene correcciones.");
+  const blocks = new Set(principals.map((id) => contentBlock(id, t)).filter(Boolean));
+  if (blocks.size > 1) w.push(`Los contenidos principales son de bloques distintos: los minutos cuentan en «${blockInfo(contentBlock(principals[0], t))?.short}» (el del primero) y el resto queda como exposición.`);
   return w;
 }
 
@@ -382,6 +406,23 @@ export function hierarchyIssues(agg, stage) {
   return issues;
 }
 
+// ── Cuerpo técnico en una tarea (02/11/2026, Nacho): quién está y de qué se encarga ──
+export const TASK_STAFF_ROLES = [
+  { id: "1e", label: "1.er entrenador", short: "1E" },
+  { id: "2e", label: "2.º entrenador", short: "2E" },
+  { id: "asist", label: "Entrenador asistente", short: "EA" },
+  { id: "pf", label: "Preparador físico", short: "PF" },
+  { id: "porteros", label: "Entrenador de porteros", short: "EP" },
+  { id: "otro", label: "Otro", short: "OT" },
+];
+export const taskStaffRole = (id) => TASK_STAFF_ROLES.find((r) => r.id === id) || TASK_STAFF_ROLES[TASK_STAFF_ROLES.length - 1];
+// «1E Nacho: orientación y perfil» (también es lo que se guarda en la biblioteca de tareas)
+export function staffRolesText(roles = []) {
+  return roles.filter((r) => hasText(r.name) || hasText(r.aspect))
+    .map((r) => `${taskStaffRole(r.role).short}${hasText(r.name) ? ` ${String(r.name).trim()}` : ""}: ${String(r.aspect || "").trim()}`.replace(/: $/, ""))
+    .join("\n");
+}
+
 // ── Estructura vacía de una sesión y de una tarea ─────────────────────────────
 let seq = 0;
 export const newId = () => `t${Date.now().toString(36)}${(seq++).toString(36)}`;
@@ -389,8 +430,9 @@ export const newId = () => `t${Date.now().toString(36)}${(seq++).toString(36)}`;
 export function emptyTask(part = "principal") {
   return {
     id: newId(), part, title: "", type: "", series: 1, serie_min: 0, rec_min: 0, total_override: "",
-    description: "", objective: "", phases: [], principal: [], secondary: [], no_curriculum: false,
-    corrections: "", staff_corrections: "", scoring: "", board: null,
+    space: "", players_n: "", material: "",
+    description: "", objective: "", phases: [], principal: [], secondary: [], custom_contents: {}, no_curriculum: false,
+    corrections: "", staff_roles: [], staff_corrections: "", scoring: "", teams_text: "", board: null,
   };
 }
 
@@ -406,3 +448,29 @@ export function emptySession({ teamId = "", date = "", stage = null, type = null
 
 // Un trabajo vacío (sin título, sin tiempo y sin contenidos) no cuenta ni se imprime
 export const isBlankTask = (t) => !hasText(t.title) && !taskMinutes(t) && !(t.principal || []).length && !hasText(t.description);
+
+// Copia de una sesión para empezar otra (02/11/2026): tareas (con ids nuevos), tipo, objetivos y notas; nunca la asistencia
+export function duplicateSessionContent(src) {
+  const copyTasks = (part) => (src?.[part]?.tasks || []).filter((t) => !isBlankTask(t))
+    .map((t) => ({ ...JSON.parse(JSON.stringify(t)), id: newId(), library_saved: null }));
+  return {
+    session_type: normalizeSessionType(src?.session_type),
+    duration: src?.duration ?? 90,
+    obj_atk: src?.obj_atk || "", obj_def: src?.obj_def || "",
+    notes: src?.notes || "",
+    initial: { tasks: copyTasks("initial") },
+    main: { tasks: copyTasks("main") },
+  };
+}
+
+// Mover una tarea de una parte a otra (parte inicial ↔ principal)
+export function moveTaskToPart(session, taskId, toPart) {
+  const from = toPart === "initial" ? "main" : "initial";
+  const t = (session?.[from]?.tasks || []).find((x) => x.id === taskId);
+  if (!t) return session;
+  return {
+    ...session,
+    [from]: { ...session[from], tasks: session[from].tasks.filter((x) => x.id !== taskId) },
+    [toPart]: { ...(session[toPart] || {}), tasks: [...(session[toPart]?.tasks || []), { ...t, part: toPart === "initial" ? "inicial" : "principal" }] },
+  };
+}

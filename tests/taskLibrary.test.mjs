@@ -40,7 +40,9 @@ test("de la biblioteca a la sesión: título, tiempo, descripción con datos, ob
   assert.equal(t.title, "Rondo 4v2 con comodines");
   assert.equal(t.type, "rondo");
   assert.equal(taskMinutes(t), 12);
-  assert.equal(t.description, "Cuadrado de 10x10.\nSe pierde y se presiona.\nJugadores: 6 · Espacio: 10x10m\nVariantes: Dos toques · Un toque");
+  assert.equal(t.description, "Cuadrado de 10x10.\nSe pierde y se presiona.\nVariantes: Dos toques · Un toque");
+  assert.equal(t.space, "10x10m");
+  assert.equal(t.players_n, "6");
   assert.equal(t.objective, "Mantener la posesión · Apoyos");
   assert.deepEqual(t.phases, ["ataque_org"]);
   assert.equal(t.corrections, "Perfilarse antes de recibir");

@@ -1,4 +1,4 @@
-import { emptyTask, hasText, taskMinutes } from "./sessionPlan.js";
+import { emptyTask, hasText, staffRolesText, taskMinutes } from "./sessionPlan.js";
 
 // Paso de tareas entre la biblioteca de tareas (TrainingTask) y las tareas de una sesión (CoachSession.initial/main.tasks).
 // Son dos formatos distintos: la biblioteca guarda campos sueltos (jugadores, espacio, variantes, puntos de entrenamiento…)
@@ -95,7 +95,10 @@ export function libraryToSessionTask(lib, part = "principal") {
     type: sessionTypeOfLibrary(lib?.task_type),
     series: 1,
     serie_min: Number(lib?.duration_minutes) > 0 ? Number(lib.duration_minutes) : 0,
-    description: descriptionFromLibrary(lib),
+    // Desde el 02/11/2026 la tarea de la sesión tiene sus propios campos de espacio y jugadores
+    description: descriptionFromLibrary({ ...lib, players_count: "", space: "" }),
+    space: hasText(lib?.space) ? String(lib.space).trim() : "",
+    players_n: String(lib?.players_count ?? "").trim(),
     objective,
     phases: phasesOfMoment(lib?.game_moment),
     corrections: hasText(lib?.corrections) ? String(lib.corrections).trim() : "",
@@ -110,7 +113,7 @@ export function libraryToSessionTask(lib, part = "principal") {
 /** Tarea de sesión → datos para crear una tarea nueva en la biblioteca (la sesión no se toca). */
 export function sessionTaskToLibrary(task, part = task?.part || "principal") {
   const meta = descriptionToLibrary(task?.description);
-  const staff = staffToLibrary(task?.staff_corrections);
+  const staff = staffToLibrary([task?.staff_corrections, staffRolesText(task?.staff_roles || [])].filter(hasText).join("\n"));
   const mins = taskMinutes(task);
   return {
     name: String(task?.title ?? "").trim(),
@@ -126,8 +129,8 @@ export function sessionTaskToLibrary(task, part = task?.part || "principal") {
     board: task?.board ? clone(task.board) : null,
     media_files: [],
     football_format: "ambos",
-    players_count: meta.players_count,
-    space: meta.space,
+    players_count: String(task?.players_n ?? "").trim() || meta.players_count,
+    space: String(task?.space ?? "").trim() || meta.space,
     tags: [],
     principles: hasText(task?.objective) ? String(task.objective).trim() : "",
     sub_principles: "",

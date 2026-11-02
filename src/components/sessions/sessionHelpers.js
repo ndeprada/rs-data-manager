@@ -53,3 +53,11 @@ export function matchRefOf(ev) {
   const side = ev.is_home === false ? "Fuera" : ev.is_home === true ? "Casa" : "";
   return `${rival}${side ? ` (${side})` : ""} | ${day} ${d.getDate()}${time ? ` | ${time}h` : ""}`;
 }
+
+// «martes 3 de noviembre de 2026»
+const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+export function fullDate(d, { year = true } = {}) {
+  const x = parse(d);
+  if (!x) return "";
+  return `${DAY_LONG[x.getDay()]} ${x.getDate()} de ${MONTHS[x.getMonth()]}${year ? ` de ${x.getFullYear()}` : ""}`;
+}

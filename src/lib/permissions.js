@@ -136,6 +136,9 @@ export const COACH_EVAL_ENTITIES = new Set(['CoachFeedback', 'CoachPDI', 'CoachE
 export const PLANNING_ENTITIES = new Set(['SquadPlanEntry', 'ScoutFollow', 'ScoutAlertDismiss']); // + equipos/grupos seguidos y alertas descartadas de la base de datos FCF (27/10/2026)
 // Sesiones de entrenamiento: son personales de cada entrenador (owner_id). Las ve toda la coordinación, pero solo las cambia su autor.
 export const SESSION_ENTITIES = new Set(['CoachSession']);
+// Paleta del club de contenidos de sesión (02/11/2026): la lee todo el personal; la crea y aprueba coordinación;
+// un entrenador solo puede proponer (status 'propuesto') o retirar su propia propuesta.
+export const PALETTE_ENTITIES = new Set(['SessionContent']);
 // Campos de la ficha del jugador que solo escribe quien puede editar fichas (entrenadores y coordinación)
 export const PLAYER_STAFF_FIELDS = [WEAK_FOOT_FIELD];
 
@@ -203,6 +206,11 @@ export function checkRoleWrite({ perms, entity, method, body = {}, existing = nu
   if (MEDICAL_ENTITIES.has(entity)) return perms.medical === 'edit' ? { ok: true } : { ok: false, error: 'forbidden_role' };
   if (PLAYER_EVAL_ENTITIES.has(entity)) return perms.playerEval === 'edit' ? { ok: true } : { ok: false, error: 'forbidden_role' };
   if (PLANNING_ENTITIES.has(entity)) return perms.administration ? { ok: true } : { ok: false, error: 'forbidden_role' };
+  if (PALETTE_ENTITIES.has(entity)) {
+    if (perms.administration) return { ok: true };
+    if (method === 'POST') return body.status === 'propuesto' ? { ok: true } : { ok: false, error: 'forbidden_role' };
+    return { ok: false, error: 'forbidden_role' };
+  }
   if (COACH_EVAL_ENTITIES.has(entity)) {
     if (perms.evalCoaches) return { ok: true };
     const isOwn = (d) => !!d && ownIds.has(d.staff_id);
