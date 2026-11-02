@@ -58,5 +58,85 @@ X.parse = (html, id) => {
   return { acta: String(id), season, competition: cg && cg[1], group: cg && cg[2], jornada: cg && +cg[3], date, teams, players,
     goals: goals.map((g) => ({ id: idOf(g.name), name: g.name, type: g.type })), cards: cards.map((c) => ({ id: idOf(c.name), name: c.name, type: c.type, src: c.src })) };
 };
-// El resto (botón del puente, envío por lotes de 20 con acuse y FCFX.run(plan) con plan = [{temp, season, tipo, scope, minDate?}])
-// está en CLAUDE.md, «Carga de actas de la intranet (02/11/2026)».
+// ── Puente con la app, envío por lotes y recorrido ──────────────────────────────────────────────────────────────────
+const R = (window.__RUN ||= { status: 'idle', stop: false, log: [], stats: { actas: 0, saved: 0, errors: 0, groups: 0, skipped: 0 }, cards: {}, goalTypes: {}, current: '' });
+const log = (m) => { R.log.push(`${new Date().toLocaleTimeString('es-ES')} ${m}`); if (R.log.length > 400) R.log.splice(0, R.log.length - 400); };
+const APP = 'https://rs-dm.vercel.app';
+window.addEventListener('message', (e) => {
+  if (e.origin !== APP || !e.data) return;
+  if (e.data.type === 'rs-fcf-ready') window.__bridgeReady = true;
+  if (e.data.type === 'rs-fcf-ack') { const w = (window.__acks ||= {})[e.data.id]; if (w) { delete window.__acks[e.data.id]; w(e.data); } }
+});
+// Botón granate (abrir la ventana del puente necesita un clic de verdad)
+if (!document.getElementById('rs-bridge-btn')) {
+  const b = document.createElement('button');
+  b.id = 'rs-bridge-btn';
+  b.textContent = 'Abrir RS Manager (carga de actas)';
+  b.style.cssText = 'position:fixed;top:12px;right:12px;z-index:99999;background:#73000A;color:#fff;border:0;border-radius:8px;padding:14px 18px;font:600 15px Arial;cursor:pointer';
+  b.onclick = () => { window.__bridgeReady = false; window.__bridge = window.open(`${APP}/FcfBridge`, 'rs-fcf-bridge'); };
+  document.body.appendChild(b);
+}
+// Envía un lote y espera el acuse (60 s como máximo)
+const send = (actas) => new Promise((resolve) => {
+  const w = window.__bridge;
+  if (!w || w.closed) { resolve({ ok: false, error: 'ventana cerrada' }); return; }
+  const id = `b${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
+  const t = setTimeout(() => { delete window.__acks[id]; resolve({ ok: false, error: 'timeout' }); }, 60000);
+  (window.__acks ||= {})[id] = (d) => { clearTimeout(t); resolve(d); };
+  w.postMessage({ type: 'rs-fcf-batch', id, actas }, APP);
+});
+// plan = [{ temp, season, tipo, scope: /regex de competiciones/, minDate?: 'aaaa-mm-dd', skipGroups?: { 'COMPETICIÓ': ['GRUP 1', …] } }]
+// window.__L[season][competició][grup] = actas ya cargadas: sin minDate, el grupo se salta si ya tiene todas.
+X.run = async (plan) => {
+  R.status = 'running'; R.stop = false;
+  const today = new Date().toISOString().slice(0, 10);
+  for (const step of plan) {
+    if (R.stop) break;
+    const { temp, season, tipo, scope, minDate, skipGroups = {} } = step;
+    let comps;
+    try { comps = (await X.comps(temp, tipo)).filter((c) => scope.test(c.t)); } catch (e) { log('ERR comps ' + e); continue; }
+    log(`${season} tipo${tipo}: ${comps.length} competiciones`);
+    if (!comps.length) log('AVISO: ninguna competición (¿se ha cerrado la sesión de la intranet?)');
+    for (const c of comps) {
+      if (R.stop) break;
+      let groups = [];
+      try { groups = await X.groups(c.v); } catch (e) { log('ERR groups ' + c.t); continue; }
+      for (const g of groups) {
+        if (R.stop) break;
+        if ((skipGroups[c.t] || []).includes(g.t)) { R.stats.skipped++; continue; }
+        R.current = `${season} ${c.t} ${g.t}`;
+        let jor = [];
+        try { jor = (await X.jornadas(g.v)).map((j) => ({ ...j, n: +j.v, d: X.toISO(j.t) })).filter((j) => j.d && j.d <= today && (!minDate || j.d >= minDate)); } catch (e) { log('ERR jornadas ' + R.current); continue; }
+        if (!jor.length) continue;
+        const loaded = window.__L?.[season]?.[c.t]?.[g.t] || 0;
+        if (!minDate && loaded) {
+          const per = (await X.actaIds(temp, tipo, c.v, g.v, jor[0].v)).length || 1;
+          if (loaded >= (jor.length - 1) * per) { R.stats.skipped++; continue; }
+        }
+        R.stats.groups++;
+        let buf = [];
+        for (const j of jor) {
+          if (R.stop) break;
+          let ids = [];
+          try { ids = await X.actaIds(temp, tipo, c.v, g.v, j.v); } catch (e) { log('ERR jornada ' + j.v); continue; }
+          for (const id of ids) {
+            try {
+              const a = X.parse(await X.dec(`/nfg/NPcd/NFG_CmpPartido?cod_primaria=1000128&CodActa=${id}&cod_acta=${id}`), id);
+              if (!a.season || !a.competition || !a.players.length) continue;
+              for (const k of a.cards) R.cards[k.src] = (R.cards[k.src] || 0) + 1;
+              for (const k of a.goals) R.goalTypes[k.type] = (R.goalTypes[k.type] || 0) + 1;
+              a.cards = a.cards.map(({ src, ...x }) => x);
+              buf.push(a); R.stats.actas++;
+            } catch (e) { R.stats.errors++; }
+            await X.sleep(120);
+            if (buf.length >= 20) { const r = await send(buf); buf = []; if (r.ok) R.stats.saved += r.saved || 0; else { R.stats.errors++; log('ERR envío ' + r.error); } }
+          }
+        }
+        if (buf.length) { const r = await send(buf); if (r.ok) R.stats.saved += r.saved || 0; else { R.stats.errors++; log('ERR envío ' + r.error); } }
+        log(`ok ${R.current}`);
+      }
+    }
+  }
+  R.status = R.stop ? 'stopped' : 'done';
+  log('FIN');
+};
