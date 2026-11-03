@@ -1,4 +1,5 @@
 import { AD_LOGOS } from "@/lib/adLogos";
+import { BIG_STAND, BS, cornerR, roundRect, rowSeats, seatHash, stairQuads, standRows } from "@/lib/stadiumGeo";
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
@@ -253,13 +254,8 @@ function Lines({ field, s, goals = true, rot = 0 }) {
 
 
 // ── Estadio (modos «estadio»): gradas y vallas alrededor del campo, en coordenadas del campo (vertical) ────────────────
-// Rectángulo de esquinas redondeadas a `d` m por fuera de las líneas (las esquinas se abren más cuanto más lejos)
-const cornerR = (d) => 2.5 + d * 0.85;
-export function roundRect(field, d) {
-  const r = cornerR(d), x0 = -d, y0 = -d, x1 = field.w + d, y1 = field.h + d;
-  const arc = (cx, cy, a0) => Array.from({ length: 10 }, (_, i) => { const a = ((a0 + i * 10) * Math.PI) / 180; return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r }; });
-  return [...arc(x1 - r, y0 + r, -90), ...arc(x1 - r, y1 - r, 0), ...arc(x0 + r, y1 - r, 90), ...arc(x0 + r, y0 + r, 180)];
-}
+// Rectángulo de esquinas redondeadas y medidas de las gradas: en src/lib/stadiumGeo.js (los usa también el 3D)
+export { roundRect };
 // Los cuatro lados rectos a una distancia d: inicio, dirección (unitaria), largo y ángulo base del texto (para leerlo de frente)
 function straightSides(field, d) {
   const r = cornerR(d), W = field.w, H = field.h;
@@ -335,12 +331,8 @@ const FULL_H = 105;
 // Gradas grandes, como en FmStadio (y como en la vista 3D): filas de 1,6 m con asientos de 1 m (no van a escala, para que en un
 // vídeo 16:9 con el campo en vertical llenen los lados), grada baja, pasillo, grada alta y cubierta gris por detrás.
 // Se pinta de fuera hacia dentro: cada fila tapa lo que queda dentro de ella. En perspectiva se levantan su altura (a medias).
-export const BIG_STAND = { track: 5.5, row: 1.6, lowRows: 12, aisle: 3.2, upRows: 13, back: 1.0, roofIn: 43, roofOut: 90 };
-const BS = (() => {
-  const S = BIG_STAND;
-  const lowTop = S.track + S.lowRows * S.row, upStart = lowTop + S.aisle, upTop = upStart + S.upRows * S.row;
-  return { ...S, lowTop, upStart, upTop, outer: upTop + S.back };
-})();
+// La geometría (filas, esquinas, escaleras y asientos) está en src/lib/stadiumGeo.js.
+export { BIG_STAND };
 // Altura (m) de las gradas grandes a una distancia d de las líneas (para levantarlas en perspectiva)
 function bigHeight(d) {
   if (d <= BS.track) return 0;
@@ -348,53 +340,6 @@ function bigHeight(d) {
   if (d <= BS.upStart) return 2.2 + (BS.lowTop - BS.track) * 0.52;
   if (d <= BS.upTop) return 15 + (d - BS.upStart) * 0.75;
   return 38;
-}
-const SEAT = 1.1; // un asiento cada 1,1 m (0,92 de asiento y 0,18 de hueco)
-// Rejilla de asientos de una fila a la distancia d de las líneas: en los lados rectos, cada SEAT m contando desde el centro del lado
-// (así todas las filas tienen las columnas alineadas) y saltando las escaleras; en las esquinas, repartidos por el arco.
-// Devuelve [{ a, b, n, side, k }]: extremos del asiento, dirección hacia fuera (para el respaldo), lado y número de asiento.
-const STAIR_AT = [-44, -22, 0, 22, 44];
-const SEAT_HL = 0.46;
-function standSeats(field, d) {
-  const r = cornerR(d), W = field.w, H = field.h, out = [];
-  const sides = [
-    { side: 0, c: { x: W / 2, y: -d }, u: { x: 1, y: 0 }, n: { x: 0, y: -1 }, half: W / 2 + d - r },
-    { side: 1, c: { x: W + d, y: H / 2 }, u: { x: 0, y: 1 }, n: { x: 1, y: 0 }, half: H / 2 + d - r },
-    { side: 2, c: { x: W / 2, y: H + d }, u: { x: -1, y: 0 }, n: { x: 0, y: 1 }, half: W / 2 + d - r },
-    { side: 3, c: { x: -d, y: H / 2 }, u: { x: 0, y: -1 }, n: { x: -1, y: 0 }, half: H / 2 + d - r },
-  ];
-  for (const sd of sides) {
-    const K = Math.floor((sd.half - SEAT_HL) / SEAT);
-    for (let k = -K; k <= K; k++) {
-      const t = k * SEAT;
-      if (STAIR_AT.some((c) => Math.abs(c - t) < SEAT * 0.6)) continue;
-      const p = { x: sd.c.x + sd.u.x * t, y: sd.c.y + sd.u.y * t };
-      out.push({ a: { x: p.x - sd.u.x * SEAT_HL, y: p.y - sd.u.y * SEAT_HL }, b: { x: p.x + sd.u.x * SEAT_HL, y: p.y + sd.u.y * SEAT_HL }, n: sd.n, side: sd.side, k });
-    }
-  }
-  const x0 = -d, y0 = -d, x1 = W + d, y1 = H + d;
-  const arcLen = (Math.PI / 2) * r, n = Math.max(1, Math.round(arcLen / SEAT)), hl = Math.min(SEAT_HL, (arcLen / n) * 0.42);
-  [[x1 - r, y0 + r, -90], [x1 - r, y1 - r, 0], [x0 + r, y1 - r, 90], [x0 + r, y0 + r, 180]].forEach(([cx, cy, a0], ci) => {
-    for (let k = 0; k < n; k++) {
-      const a = ((a0 + ((k + 0.5) / n) * 90) * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
-      const p = { x: cx + ca * r, y: cy + sa * r };
-      out.push({ a: { x: p.x + sa * hl, y: p.y - ca * hl }, b: { x: p.x - sa * hl, y: p.y + ca * hl }, n: { x: ca, y: sa }, side: 4 + ci, k });
-    }
-  });
-  return out;
-}
-// Escalera de un lado recto en la posición c (m desde el centro del lado), entre las distancias d0 y d1
-function stairQuad(field, side, c, d0, d1) {
-  const W = field.w, H = field.h, w = SEAT * 0.75;
-  const halfOf = (d) => (side === "top" || side === "bottom" ? W / 2 : H / 2) + d - cornerR(d);
-  if (Math.abs(c) + w > halfOf(d0) - 1) return null;
-  const at = (t, d) => {
-    if (side === "top") return { x: W / 2 + t, y: -d };
-    if (side === "bottom") return { x: W / 2 - t, y: H + d };
-    if (side === "right") return { x: W + d, y: H / 2 + t };
-    return { x: -d, y: H / 2 - t };
-  };
-  return [at(c - w, d0), at(c + w, d0), at(c + w, d1), at(c - w, d1)];
 }
 function Stands({ field, st, T, textAt }) {
   const persp = !!textAt;
@@ -407,51 +352,40 @@ function Stands({ field, st, T, textAt }) {
     const f = Math.max(0, Math.min(1, 0.55 - (vy / len) * 1.1)) * 0.45;
     return { x: at.x, y: at.y - h * at.k * f };
   };
-  const ring = (d, h = bigHeight(d)) => roundRect(field, d).map((p) => lift(p, h)).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + " Z";
-  const distOf = (p) => Math.max(-p.x, p.x - field.w, -p.y, p.y - field.h, 0);
-  const quad = (pts) => pts.map((p) => lift(p, bigHeight(distOf(p)))).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + " Z";
+  const ring = (d, h = bigHeight(d)) => roundRect(field, d, 18).map((p) => lift(p, h)).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + " Z";
   const A = st.seatA || st.seatDark, B = st.seatB || st.seatLight, conc = st.concrete || st.riser, concL = st.concreteLight || st.aisle;
-  const rows = [];
-  for (let i = 0; i < BS.lowRows; i++) rows.push({ d0: BS.track + i * BS.row, tier: 0, t: (i / (BS.lowRows - 1)) * 0.5 });
-  for (let j = 0; j < BS.upRows; j++) rows.push({ d0: BS.upStart + j * BS.row, tier: 1, t: 0.5 + (j / (BS.upRows - 1)) * 0.5 });
+  const rows = standRows();
   const els = [];
   // fuera de la grada: la cubierta (gris), con paneles
   els.push(<path key="roofout" d={ring(BS.roofOut, 38)} fill={st.roofTop || st.roof} />);
   for (let d = BS.outer + 4; d < BS.roofOut; d += 6) els.push(<path key={`rp${d}`} d={ring(d, 38)} fill="none" stroke="#000" strokeOpacity={0.12} strokeWidth={0.3} />);
   els.push(<path key="back" d={ring(BS.outer, 38)} fill={conc} />);
-  // Asientos uno a uno, en una rejilla común: en los lados rectos todas las filas tienen los asientos en las mismas posiciones
-  // (columnas alineadas, contadas desde el centro de cada lado) y las escaleras ocupan el hueco de un asiento en todas las filas.
   const seg = (a, b, h) => { const qa = lift(a, h), qb = lift(b, h); return `M ${qa.x.toFixed(2)} ${qa.y.toFixed(2)} L ${qb.x.toFixed(2)} ${qb.y.toFixed(2)}`; };
-  const tones = [mixHex(B, "#ffffff", 0.15), mixHex(A, "#000000", 0.15), B];
+  const flatQuad = (pts, h) => pts.map((p) => lift(p, h)).map((q, i) => `${i ? "L" : "M"} ${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(" ") + " Z";
   for (let i = rows.length - 1; i >= 0; i--) {
     const r = rows[i];
     if (r.tier === 0 && i === BS.lowRows - 1) els.push(<path key="aisle" d={ring(BS.upStart)} fill={concL} />);
-    const d1 = r.d0 + BS.row;
-    els.push(<path key={`f${i}`} d={ring(d1)} fill={conc} />);
+    els.push(<path key={`f${i}`} d={ring(r.d1)} fill={conc} />);
     // la arista del escalón, más oscura (sombra de la contrahuella)
     els.push(<path key={`e${i}`} d={ring(r.d0 + 0.06)} fill="none" stroke="#000" strokeOpacity={0.3} strokeWidth={0.16} />);
     const mid = r.d0 + BS.row * 0.42, h = bigHeight(mid);
-    const base = mixHex(A, B, Math.min(1, 0.2 + r.t * 0.7));
+    // Degradado de delante (oscuro) a atrás (claro), con algún asiento un poco más claro u oscuro que los de su fila
+    const base = mixHex(A, B, 0.12 + r.t * 0.78);
+    const tones = [base, mixHex(base, B, 0.22), mixHex(base, A, 0.22), mixHex(base, "#ffffff", 0.14)];
     const groups = [[], [], [], []], backs = [];
-    standSeats(field, mid).forEach((st0) => {
-      const hash = ((st0.k * 73856093) ^ (i * 19349663) ^ (st0.side * 83492791)) >>> 0;
-      const v = hash % 100;
-      groups[v < 64 ? 0 : v < 79 ? 1 : v < 91 ? 2 : 3].push(seg(st0.a, st0.b, h));
-      const off = (p) => ({ x: p.x + st0.n.x * 0.44, y: p.y + st0.n.y * 0.44 });
-      backs.push(seg(off(st0.a), off(st0.b), h));
+    rowSeats(field, mid, r.tier).forEach((s0) => {
+      const v = seatHash(s0.part, s0.i, i);
+      groups[v < 0.7 ? 0 : v < 0.84 ? 1 : v < 0.95 ? 2 : 3].push(seg(s0.a, s0.b, h));
+      const off = (p) => ({ x: p.x + s0.n.x * 0.44, y: p.y + s0.n.y * 0.44 });
+      backs.push(seg(off(s0.a), off(s0.b), h));
     });
-    groups.forEach((g, j) => g.length && els.push(<path key={`a${i}-${j}`} d={g.join(" ")} fill="none" stroke={j ? tones[j - 1] : base} strokeWidth={0.72} />));
+    groups.forEach((g, j) => g.length && els.push(<path key={`a${i}-${j}`} d={g.join(" ")} fill="none" stroke={tones[j]} strokeWidth={0.72} />));
     els.push(<path key={`b${i}`} d={backs.join(" ")} fill="none" stroke={mixHex(base, "#000000", 0.28)} strokeWidth={0.18} />);
+    // escaleras: un peldaño por fila (hormigón claro), con su canto
+    const steps = stairQuads(field, r.d0, r.d1, r.tier);
+    els.push(<path key={`s${i}`} d={steps.map((q) => flatQuad(q, h)).join(" ")} fill={concL} />);
+    els.push(<path key={`sn${i}`} d={steps.map((q) => seg(q[0], q[1], h)).join(" ")} fill="none" stroke="#000" strokeOpacity={0.22} strokeWidth={0.14} />);
   }
-  // escaleras (hormigón más claro), en el hueco de asiento que dejan libre todas las filas
-  STAIR_AT.forEach((c, j) => {
-    for (const sd of straightSides(field, BS.upTop)) {
-      [[BS.track, BS.lowTop], [BS.upStart, BS.upTop]].forEach(([d0, d1], t) => {
-        const q = stairQuad(field, sd.id, c, d0, d1);
-        if (q) els.push(<path key={`st${j}-${sd.id}-${t}`} d={quad(q)} fill={concL} />);
-      });
-    }
-  });
   // cubierta volada por encima de las filas de atrás, con su canto claro y su sombra
   els.push(<path key="roofshade" d={`${ring(BS.roofIn - 2.5, 30)} ${ring(BS.roofIn, 30)}`} fill="#000" fillRule="evenodd" opacity={0.18} />);
   els.push(<path key="roof" d={`${ring(BS.roofOut, 38)} ${ring(BS.roofIn, 32)}`} fill={st.roofTop || st.roof} fillRule="evenodd" />);
