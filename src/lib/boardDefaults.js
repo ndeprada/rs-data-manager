@@ -1,0 +1,94 @@
+// Predeterminados de la pizarra de cada persona (03/11/2026, Nacho: «establecer un tamaño como el predefinido… cuando inicio una
+// tarea empiezan los elementos demasiado grandes… y el color y la transparencia de una zona, que siempre me inicie así»).
+// Solo usa board.js: se prueba en Node.
+import { teamsOf } from "./board.js";
+//   { chipSize?: número (radio de las fichas en m), teams?: { [id]: {aspecto del equipo} }, brush?: { [herramienta]: {aspecto} } }
+// Se guarda en el perfil de la persona (User.board_defaults) y una copia en este navegador.
+
+export const DEFAULT_KEYS = ["bends", "curved", "shape", "color", "color2", "pattern", "size", "w", "rungs", "width", "dash", "wavy", "border", "borderColor", "pointer", "fill", "fillOpacity", "stroke", "strokeWidth", "font", "bold", "lift", "bg", "bgOpacity", "alpha"];
+export const TEAM_KEYS = ["color", "pattern", "color2", "stroke", "kit", "trim"];
+const TOOLS = new Set(["ball", "cone", "goal", "pole", "hurdle", "ladder", "dummy", "text", "zone", "quad", "move", "pass", "air", "dribble"]);
+
+const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+const pick = (o, keys) => Object.fromEntries(Object.entries(o || {}).filter(([k, v]) => keys.includes(k) && v !== undefined && v !== null && (typeof v !== "object")));
+
+// Limpia lo que venga (del perfil o del navegador): solo campos conocidos, sin objetos raros
+export function cleanDefaults(d) {
+  if (!d || typeof d !== "object") return {};
+  const out = {};
+  if (isNum(d.chipSize) && d.chipSize >= 0.3 && d.chipSize <= 3.2) out.chipSize = Math.round(d.chipSize * 100) / 100;
+  if (d.brush && typeof d.brush === "object") {
+    const b = {};
+    for (const [t, v] of Object.entries(d.brush)) if (TOOLS.has(t)) { const c = pick(v, DEFAULT_KEYS); if (Object.keys(c).length) b[t] = c; }
+    if (Object.keys(b).length) out.brush = b;
+  }
+  if (d.teams && typeof d.teams === "object") {
+    const t = {};
+    for (const [id, v] of Object.entries(d.teams)) if (/^[a-z0-9]{1,6}$/i.test(id)) { const c = pick(v, TEAM_KEYS); if (Object.keys(c).length) t[id] = c; }
+    if (Object.keys(t).length) out.teams = t;
+  }
+  return out;
+}
+
+// Herramienta a la que corresponde un elemento (para guardar su aspecto)
+export function toolOfElement(el) {
+  if (!el) return null;
+  if (el.k === "arrow") return el.air ? "air" : el.style || "move";
+  if (el.k === "zone") return Array.isArray(el.pts) ? "quad" : "zone";
+  return TOOLS.has(el.k) ? el.k : null;
+}
+
+// Guarda el aspecto de un elemento como predeterminado de su herramienta (o, si es ficha, el tamaño de las fichas y su equipo)
+export function withElementDefault(defs, el, { chipSize, team } = {}) {
+  const d = cleanDefaults(defs);
+  if (el?.k === "token") {
+    const out = { ...d };
+    if (isNum(chipSize)) out.chipSize = chipSize;
+    if (team?.id) out.teams = { ...(d.teams || {}), [team.id]: pick(team, TEAM_KEYS) };
+    return cleanDefaults(out);
+  }
+  const tool = toolOfElement(el);
+  if (!tool) return d;
+  const style = pick(el, DEFAULT_KEYS);
+  if (el.k !== "goal") delete style.w; // en las zonas «w» es el ancho dibujado, no un aspecto
+  if (el.k === "arrow") { style.curved = el.cx != null; style.bends = Array.isArray(el.via) && el.via.length > 0; }
+  return cleanDefaults({ ...d, brush: { ...(d.brush || {}), [tool]: style } });
+}
+
+// Pinceles de partida del editor: los de siempre + los predeterminados de la persona
+export function brushWithDefaults(base, defs) {
+  const d = cleanDefaults(defs);
+  const out = { ...base };
+  for (const [t, v] of Object.entries(d.brush || {})) out[t] = { ...(base[t] || {}), ...v };
+  return out;
+}
+
+// Un dibujo vacío (sin nada en ningún fotograma) toma el tamaño de fichas y los colores de equipo predeterminados
+export const isEmptyBoard = (board) => (board?.frames || []).every((f) => !(f.els || []).length);
+export function applyBoardDefaults(board, defs) {
+  const d = cleanDefaults(defs);
+  if (!isEmptyBoard(board) || (!d.chipSize && !d.teams)) return board;
+  const out = { ...board };
+  if (d.chipSize) out.chipSize = d.chipSize;
+  if (d.teams) out.teams = teamsOf(board).map((t) => (d.teams[t.id] ? { ...t, ...d.teams[t.id] } : t));
+  return out;
+}
+
+// Resumen corto para «Campo y ajustes»
+export function describeDefaults(defs) {
+  const d = cleanDefaults(defs);
+  const names = { ball: "balón", cone: "cono", goal: "portería", pole: "pica", hurdle: "valla", ladder: "escalera", dummy: "maniquí", text: "texto", zone: "zona", quad: "zona libre", move: "desplazamiento", pass: "pase", air: "pase aéreo", dribble: "conducción" };
+  const out = [];
+  if (d.chipSize) out.push(`fichas al ${Math.round((d.chipSize / 1.5) * 100)} %`);
+  if (d.teams) out.push(`colores de ${Object.keys(d.teams).length === 1 ? "1 equipo" : `${Object.keys(d.teams).length} equipos`}`);
+  for (const t of Object.keys(d.brush || {})) out.push(names[t] || t);
+  return out;
+}
+
+const LS = "rs_board_defaults";
+export function readLocalDefaults() {
+  try { return cleanDefaults(JSON.parse(localStorage.getItem(LS) || "{}")); } catch { return {}; }
+}
+export function writeLocalDefaults(d) {
+  try { localStorage.setItem(LS, JSON.stringify(cleanDefaults(d))); } catch { /* sin almacenamiento */ }
+}

@@ -638,9 +638,9 @@ const textEl = (id, x, y) => ({ id, k: "text", x, y, text: "Hola" });
 const boardWith = (els) => ({ ...emptyBoard(), frames: [{ id: "f1", els }] });
 const idsOf = (els) => drawOrder(els).map((e) => e.id);
 
-test("sin orden elegido se dibuja por capas por defecto: zona, balón, flecha, ficha, texto", () => {
+test("sin orden elegido se dibuja por capas por defecto: zona, flecha, ficha, balón (encima de las fichas), texto", () => {
   const els = [textEl("tx", 5, 5), token("t1", 5, 5), arrow("ar"), { id: "bl", k: "ball", x: 5, y: 5 }, zone("z1")];
-  assert.deepEqual(idsOf(els), ["z1", "bl", "ar", "t1", "tx"]);
+  assert.deepEqual(idsOf(els), ["z1", "ar", "t1", "bl", "tx"]);
   assert.equal(hasLayers(els), false);
 });
 
@@ -1354,3 +1354,17 @@ test("bloquear y resaltar en todos los fotogramas; lo bloqueado no se mueve", as
   // con una sola de ese tipo no cambia nada
   assert.equal(matchElements(b, 0, ['a1', 'c1'], 'cone'), b);
 }
+
+test("seleccionar: lo que está debajo del puntero gana; si no, lo más cercano dentro de un margen pequeño", () => {
+  const t = token("t1", 10, 10);
+  const b = { id: "b1", k: "ball", x: 11.6, y: 10 };
+  // el balón va encima de la ficha en el orden de dibujo: tocándolo se coge el balón aunque esté pegado al jugador
+  const order = drawOrder([b, t]);
+  assert.equal(hitTest(order, { x: 11.8, y: 10 })?.id, "b1");
+  // tocando la ficha (lejos del balón) se coge la ficha
+  assert.equal(hitTest(order, { x: 9.2, y: 10 })?.id, "t1");
+  // fuera de los dos, a menos del margen, el más cercano
+  assert.equal(hitTest(order, { x: 10, y: 12 }, { tol: 0.6 })?.id, "t1");
+  // más lejos que el margen: nada (antes una ficha se cogía a más de 2 m)
+  assert.equal(hitTest(order, { x: 10, y: 13 }, { tol: 0.6 }), null);
+});

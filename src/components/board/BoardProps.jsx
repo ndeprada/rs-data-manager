@@ -87,7 +87,7 @@ function TeamBlock({ el, brush, board, look, patch, patchTeam, setChip, setFeet,
         </Row>
       )}
       <Row>
-        <Slider label="Tamaño de todas las fichas" value={pctAll} min={55} max={210} step={5} onChange={(v) => setChip((v / 100) * DEFAULT_CHIP)} fmt={(v) => `${v}%`} />
+        <Slider label="Tamaño de todas las fichas" value={pctAll} min={20} max={210} step={5} onChange={(v) => setChip((v / 100) * DEFAULT_CHIP)} fmt={(v) => `${v}%`} />
       </Row>
       <Row>
         {brush && <Toggle on={!!el.feet} onChange={(v) => patch({ feet: v || undefined })} title="Dos pies que asoman por delante: marcan hacia dónde mira o cómo está perfilado el jugador">Fichas nuevas con pies</Toggle>}
@@ -128,7 +128,7 @@ function BallBlock({ el, patch, look }) {
         )}
       </Row>
       <Row>
-        <Slider label="Tamaño del balón" value={Number(el.size) || 1} min={0.6} max={2.2} step={0.1} onChange={(v) => patch({ size: v }, "size")} fmt={pct} />
+        <Slider label="Tamaño del balón" value={Number(el.size) || 1} min={0.25} max={2.2} step={0.05} onChange={(v) => patch({ size: v }, "size")} fmt={pct} />
       </Row>
     </>
   );
@@ -142,7 +142,7 @@ function MaterialBlock({ el, brush, patch, look }) {
     <>
       <Row>
         {!bn && <ColorPick value={el.color || ""} onChange={(c) => patch({ color: c || undefined })} label="Color" auto="Por defecto" autoSwatch={mat.color} wide />}
-        <Slider label="Tamaño" value={Number(el.size) || 1} min={0.6} max={2.2} step={0.1} onChange={(v) => patch({ size: v }, "size")} fmt={pct} />
+        <Slider label="Tamaño" value={Number(el.size) || 1} min={0.25} max={2.2} step={0.05} onChange={(v) => patch({ size: v }, "size")} fmt={pct} />
         {el.k === "ladder" && <Slider label="Peldaños" value={ladderRungs(el)} min={LADDER_RUNGS[0]} max={LADDER_RUNGS[1]} step={1} onChange={(v) => patch({ rungs: v }, "rungs")} fmt={(v) => `${v}`} />}
       </Row>
       {!brush && <p className="text-[11px] text-gray-500">Arrastra el punto naranja que sale del material para girarlo.</p>}
@@ -277,7 +277,7 @@ export default function BoardProps({ el, brush = false, board, look, patch, onTy
         <Row>
           <Seg label="Forma del cono" value={el.shape || "tri"} options={[{ id: "tri", label: "Triángulo" }, { id: "flat", label: "Plano" }]} onChange={(v) => patch({ shape: v })} />
           <ColorPick value={el.color || ""} onChange={(c) => patch({ color: c || undefined })} label="Color" auto="Naranja" autoSwatch={s.cone} wide />
-          <Slider label="Tamaño" value={Number(el.size) || 1} min={0.6} max={2.2} step={0.1} onChange={(v) => patch({ size: v }, "size")} fmt={pct} />
+          <Slider label="Tamaño" value={Number(el.size) || 1} min={0.25} max={2.2} step={0.05} onChange={(v) => patch({ size: v }, "size")} fmt={pct} />
         </Row>
       );
     case "goal":
@@ -315,7 +315,7 @@ export default function BoardProps({ el, brush = false, board, look, patch, onTy
             </Row>
           )}
           <Row>
-            <Slider label="Tamaño" value={Number(el.size) || 3} min={1.5} max={10} step={0.5} onChange={(v) => patch({ size: v }, "size")} fmt={(v) => `${v}`} />
+            <Slider label="Tamaño" value={Number(el.size) || 3} min={0.8} max={10} step={0.2} onChange={(v) => patch({ size: v }, "size")} fmt={(v) => `${v}`} />
             <select value={el.font || "sans"} onChange={(e) => patch({ font: e.target.value })} className={selectCls} aria-label="Tipografía">
               {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
             </select>

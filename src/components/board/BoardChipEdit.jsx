@@ -63,7 +63,7 @@ export default function ChipQuickEdit({ el, board, look, patch, onClose, onDup, 
       )}
       <Row>
         <Toggle on={!!el.feet} onChange={(v) => patch({ feet: v || undefined })} title="Pies: marcan hacia dónde mira">Pies</Toggle>
-        <Slider label="Tamaño" value={pctOne} min={40} max={250} step={5} onChange={(v) => patch({ size: Math.round(((v / 100) * DEFAULT_CHIP / base) * 100) / 100 }, "size")} fmt={(v) => `${v}%`} width="w-20" />
+        <Slider label="Tamaño" value={pctOne} min={20} max={250} step={5} onChange={(v) => patch({ size: Math.round(((v / 100) * DEFAULT_CHIP / base) * 100) / 100 }, "size")} fmt={(v) => `${v}%`} width="w-20" />
       </Row>
       <div className="flex flex-wrap items-center gap-1 pt-0.5">
         <button type="button" className={btn} onClick={onDup}><Copy className="w-3.5 h-3.5" /> Duplicar</button>

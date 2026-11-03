@@ -7,7 +7,8 @@ const REQUESTABLE_FUNCTIONS = [
   'preparador_fisico', 'psicologo', 'fisioterapeuta', 'jugador', 'familiar',
 ];
 // Datos de perfil que cada persona puede cambiarse a sí misma
-const PROFILE_FIELDS = ['full_name', 'first_name', 'last_name', 'phone', 'photo_url', 'notes', 'birth_date', 'birth_country', 'birth_region', 'birth_province', 'birth_city', 'language'];
+// board_defaults = predeterminados de la pizarra de cada persona (tamaños, colores, transparencias; 03/11/2026)
+const PROFILE_FIELDS = ['full_name', 'first_name', 'last_name', 'phone', 'photo_url', 'notes', 'birth_date', 'birth_country', 'birth_region', 'birth_province', 'birth_city', 'language', 'board_defaults'];
 const LANGUAGES = ['es', 'en', 'fr', 'ca'];
 // Datos de la solicitud de acceso (solo mientras no tenga acceso aprobado)
 const REQUEST_FIELDS = ['person_type', 'app_role_pending', 'requested_assignments', 'requested_team_id'];
@@ -32,6 +33,14 @@ export default async function handler(req, res) {
     PROFILE_FIELDS.forEach((k) => {
       if (k in body) patch[k] = body[k];
     });
+
+    if ('board_defaults' in patch) {
+      const d = patch.board_defaults;
+      if (d !== null && (typeof d !== 'object' || Array.isArray(d) || JSON.stringify(d).length > 8000)) {
+        res.status(400).json({ error: 'invalid_board_defaults' });
+        return;
+      }
+    }
 
     if ('language' in patch && !LANGUAGES.includes(patch.language)) {
       res.status(400).json({ error: 'invalid_language' });

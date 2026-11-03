@@ -121,15 +121,15 @@ function TurnBar({ onTurn, noFeet }) {
 // Igualar las cosas del mismo tipo (03/11/2026, Nacho): de cada tipo con dos o más elegidas, sus controles para cambiarlas todas
 // a la vez y «Igualar a la primera» (copia el aspecto de la primera elegida de ese tipo a las demás).
 const SIZE_OF = {
-  token: { label: "Tamaño", min: 0.4, max: 3, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
-  ball: { label: "Tamaño", min: 0.6, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
-  cone: { label: "Tamaño", min: 0.6, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
-  pole: { label: "Tamaño", min: 0.6, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
-  hurdle: { label: "Tamaño", min: 0.6, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
-  ladder: { label: "Tamaño", min: 0.6, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
-  dummy: { label: "Tamaño", min: 0.6, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  token: { label: "Tamaño", min: 0.2, max: 3, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  ball: { label: "Tamaño", min: 0.25, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  cone: { label: "Tamaño", min: 0.25, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  pole: { label: "Tamaño", min: 0.25, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  hurdle: { label: "Tamaño", min: 0.25, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  ladder: { label: "Tamaño", min: 0.25, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  dummy: { label: "Tamaño", min: 0.25, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
   goal: { label: "Ancho", min: 1, max: 12, step: 0.1, get: (e) => Number(e.w) || 7.32, key: "w", fmt: (v) => `${v.toFixed(1)} m` },
-  text: { label: "Tamaño", min: 1.5, max: 10, step: 0.1, get: (e) => Number(e.size) || 3, key: "size", fmt: (v) => v.toFixed(1) },
+  text: { label: "Tamaño", min: 0.8, max: 10, step: 0.1, get: (e) => Number(e.size) || 3, key: "size", fmt: (v) => v.toFixed(1) },
 };
 const ARROW_KINDS = [{ id: "move", label: "Desplaz." }, { id: "pass", label: "Pase" }, { id: "dribble", label: "Conducción" }];
 const ARROW_KIND_PATCH = { move: { style: "move", dash: "solid", wavy: false }, pass: { style: "pass", dash: "dashed", wavy: false }, dribble: { style: "dribble", dash: "solid", wavy: true } };

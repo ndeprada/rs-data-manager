@@ -64,6 +64,9 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+// Igual que useAuth, pero sin error fuera de la app (p. ej. en la página de pruebas de la pizarra): devuelve null
+export const useAuthOptional = () => useContext(AuthContext) || null;
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

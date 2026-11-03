@@ -1366,87 +1366,116 @@ export function paintOrder(els, field, orient, persp) {
 }
 /** Qué hay bajo el puntero en perspectiva. `q` = punto en la pantalla (unidades del dibujo). Lo que se ve de pie se prueba en su
  *  propio dibujo (deshaciendo su escala) y lo del suelo, en el punto del suelo que hay debajo. `els` en orden de pintado. */
-export function hitTestPersp(els, q, { field, orient, chip, persp }) {
+export function hitTestPersp(els, q, { field, orient, chip, persp, tol }) {
   const ground = fromView(field, orient, persp.inv(q));
+  let near = null;
   for (let i = els.length - 1; i >= 0; i--) {
     const el = els[i];
-    let p = ground;
+    let p = ground, k = 1;
     if (!isGroundEl(el)) {
-      const c = toView(field, orient, el), P = persp.P(c), k = persp.scaleAt(c) * perspBoost(el);
+      const c = toView(field, orient, el), P = persp.P(c);
+      k = persp.scaleAt(c) * perspBoost(el);
       const ky = lyingFlat(el) ? persp.depthAt(c) : k;
       p = fromView(field, orient, { x: c.x + (q.x - P.x) / k, y: c.y + (q.y - P.y) / ky });
     }
-    if (hitTest([el], p, { orient, chip })) return el;
+    const g = hitGap(el, p, { orient, chip, els });
+    if (g <= 0) return el;
+    const t = (tol ?? HIT_TOL) / Math.max(0.2, k);
+    if (g <= t && (!near || g < near.g)) near = { el, g };
   }
-  return null;
+  return near ? near.el : null;
 }
 
+// Qué hay bajo el puntero (03/11/2026, Nacho: «la pelota junto a un jugador me cuesta seleccionarla… que tenga que estar casi
+// encima del elemento»). Dos pasadas: primero lo que está de verdad debajo del puntero (lo de más arriba gana: el balón va encima
+// de las fichas); si no hay nada, lo más cercano dentro de un margen pequeño (`tol`, en metros; el editor lo calcula en píxeles).
+export const HIT_TOL = 0.6;
 export function hitTest(els, p, opts = {}) {
-  const orient = opts.orient || "v";
-  const chip = opts.chip || DEFAULT_CHIP;
+  let near = null;
+  const tol = opts.tol ?? HIT_TOL;
   for (let i = els.length - 1; i >= 0; i--) {
     const el = els[i];
-    if (el.k === "token" && Math.hypot(el.x - p.x, el.y - p.y) < Math.max(tokenR(chip, el) + 1.1, 2.2)) return el;
-    if ((el.k === "ball" || el.k === "cone") && Math.hypot(el.x - p.x, el.y - p.y) < Math.max(2.8 * (Number(el.size) || 1) * 0.8, 2.2)) return el;
+    const g = hitGap(el, p, { ...opts, els });
+    if (g <= 0) return el;
+    if (g <= tol && (!near || g < near.g)) near = { el, g };
+  }
+  return near ? near.el : null;
+}
+
+// Radio de lo que se ve de las cosas «redondas» (ficha, balón, cono)
+export function pointRadius(el, chip = DEFAULT_CHIP) {
+  const k = Number(el.size) || 1;
+  if (el.k === "token") return tokenR(chip, el);
+  if (el.k === "ball") return ballR(chip) * k;
+  if (el.k === "cone") return (el.shape === "flat" ? 0.9 : 1.35) * k;
+  return 0;
+}
+
+// Distancia del punto al elemento: ≤ 0 = encima; > 0 = a esa distancia (m); Infinity = lejos o no se agarra así
+export function hitGap(el, p, opts = {}) {
+  const orient = opts.orient || "v";
+  const chip = opts.chip || DEFAULT_CHIP;
+  if (el.k === "token" || el.k === "ball" || el.k === "cone") return Math.hypot(el.x - p.x, el.y - p.y) - pointRadius(el, chip);
+  if (el.k === "arrow") {
+    const pts = arrowFlight(el, orient, 16);
+    let best = Infinity;
+    for (let j = 1; j < pts.length; j++) best = Math.min(best, distToSeg(p, pts[j - 1], pts[j]));
+    return best - ((arrowProps(el).width || 0) / 2 + 0.9);
+  }
+  return legacyHit(el, p, { orient, chip, els: opts.els || [el] }) ? 0 : Infinity;
+}
+
+// Porterías, material, textos, zonas y conectores: se agarran por su forma (como siempre)
+function legacyHit(el, p, { els }) {
     if (el.k === "goal") {
       const a = ((el.rot || 0) * Math.PI) / 180;
       const dx = p.x - el.x, dy = p.y - el.y;
       const lx = dx * Math.cos(a) + dy * Math.sin(a), ly = -dx * Math.sin(a) + dy * Math.cos(a);
-      if (Math.abs(lx) < (el.w || 7.32) / 2 + 1.2 && Math.abs(ly) < 2.4) return el;
+      if (Math.abs(lx) < (el.w || 7.32) / 2 + 0.6 && Math.abs(ly) < 1.8) return true;
     }
     const mat = materialOf(el.k);
     if (mat) {
       const a = ((el.rot || 0) * Math.PI) / 180, k = Number(el.size) || 1;
       const dx = p.x - el.x, dy = p.y - el.y;
       const lx = dx * Math.cos(a) + dy * Math.sin(a), ly = -dx * Math.sin(a) + dy * Math.cos(a);
-      if (Math.abs(lx) < mat.hw * k + 0.9 && Math.abs(ly) < mat.hh * k + 0.9) return el;
+      if (Math.abs(lx) < mat.hw * k + 0.4 && Math.abs(ly) < mat.hh * k + 0.4) return true;
     }
     if (el.k === "text") {
       const fs = Number(el.size) || 3;
-      if (Math.abs(el.x - p.x) < Math.max(6, (el.text || "").length * fs * 0.3) && Math.abs(el.y - p.y) < Math.max(2.4, fs * 0.7)) return el;
-    }
-    if (el.k === "arrow") {
-      const pts = arrowFlight(el, orient, 16);
-      for (let j = 1; j < pts.length; j++) {
-        const q = pts[j - 1], r = pts[j];
-        const dx = r.x - q.x, dy = r.y - q.y;
-        const t = Math.min(1, Math.max(0, ((p.x - q.x) * dx + (p.y - q.y) * dy) / (dx * dx + dy * dy || 1)));
-        if (Math.hypot(q.x + t * dx - p.x, q.y + t * dy - p.y) < 2.2 + (arrowProps(el).width || 0) * 0.5) return el;
-      }
+      if (Math.abs(el.x - p.x) < Math.max(2.5, (el.text || "").length * fs * 0.3) && Math.abs(el.y - p.y) < Math.max(1.2, fs * 0.6)) return true;
     }
     if (el.k === "zone") {
       // Con relleno visible se agarra también por dentro (queda por debajo de lo demás); sin relleno, solo por el borde
       const filled = (el.fillOpacity ?? 1) > 0;
       if (isQuad(el)) {
-        if ((filled && pointInPoly(p, el.pts)) || distToPoly(p, el.pts, true) < 1.5) return el;
+        if ((filled && pointInPoly(p, el.pts)) || distToPoly(p, el.pts, true) < 0.8) return true;
       } else {
         const { x0, y0, x1, y1 } = zoneBox(el);
         const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
         let outer, core;
         if (el.shape === "ellipse") {
           const ell = (m) => ((p.x - cx) / Math.max((x1 - x0) / 2 + m, 0.1)) ** 2 + ((p.y - cy) / Math.max((y1 - y0) / 2 + m, 0.1)) ** 2;
-          outer = ell(1.5) <= 1;
-          core = ell(-1.5) < 1;
+          outer = ell(0.8) <= 1;
+          core = ell(-0.8) < 1;
         } else {
-          outer = p.x >= x0 - 1.5 && p.x <= x1 + 1.5 && p.y >= y0 - 1.5 && p.y <= y1 + 1.5;
-          core = p.x > x0 + 1.5 && p.x < x1 - 1.5 && p.y > y0 + 1.5 && p.y < y1 - 1.5;
+          outer = p.x >= x0 - 0.8 && p.x <= x1 + 0.8 && p.y >= y0 - 0.8 && p.y <= y1 + 0.8;
+          core = p.x > x0 + 0.8 && p.x < x1 - 0.8 && p.y > y0 + 0.8 && p.y < y1 - 0.8;
         }
-        if (outer && (filled || !core)) return el;
+        if (outer && (filled || !core)) return true;
       }
     }
     if (el.k === "link") {
       const g = linkShape(el, els);
-      if (!g) continue;
+      if (!g) return false;
       const lp = linkProps(el);
-      const tol = 2 + lp.width * 0.5;
+      const tol = 0.9 + lp.width * 0.5;
       if (g.kind === "zone") {
-        if ((lp.fillOpacity > 0 && pointInPoly(p, g.poly)) || distToPoly(p, g.poly, true) < tol) return el;
+        if ((lp.fillOpacity > 0 && pointInPoly(p, g.poly)) || distToPoly(p, g.poly, true) < tol) return true;
       } else if (g.kind === "line") {
-        if (distToPoly(p, g.pts, g.closed) < tol) return el;
-      } else if (g.segs.some(([a, b]) => distToSeg(p, a, b) < tol)) return el;
+        if (distToPoly(p, g.pts, g.closed) < tol) return true;
+      } else if (g.segs.some(([a, b]) => distToSeg(p, a, b) < tol)) return true;
     }
-  }
-  return null;
+  return false;
 }
 
 // Mueve un elemento (todo su conjunto de coordenadas) dx, dy.
@@ -1462,7 +1491,8 @@ export function shiftElement(el, dx, dy) {
   return { ...el, x: round(el.x + dx), y: round(el.y + dy) };
 }
 
-export const RANK = { zone: 0, link: 0.5, ladder: 0.9, goal: 1, cone: 1, hurdle: 1.1, pole: 1.2, dummy: 1.3, ball: 2, arrow: 3, token: 4, text: 5 };
+// El balón va encima de las fichas (03/11/2026: así se ve y se puede agarrar aunque esté pegado a un jugador)
+export const RANK = { zone: 0, link: 0.5, ladder: 0.9, goal: 1, cone: 1, hurdle: 1.1, pole: 1.2, dummy: 1.3, arrow: 3, token: 4, ball: 4.5, text: 5 };
 export const byRank = (a, b) => (RANK[a.k] ?? 2) - (RANK[b.k] ?? 2);
 
 // ── Capas (orden de dibujo) ────────────────────────────────────────────────────────────────────────────────────────
@@ -1581,9 +1611,9 @@ export function resizeElements(board, index, ids, factor) {
   const r2 = (n) => Math.round(n * 100) / 100;
   return mapElements(board, index, ids, (e) => {
     const size = Number(e.size) || (e.k === "text" ? 3 : 1);
-    if (e.k === "token") return { ...e, size: clampTo(r2(size * factor), 0.4, 3) };
-    if (e.k === "ball" || e.k === "cone" || materialOf(e.k)) return { ...e, size: clampTo(r2(size * factor), 0.6, 2.2) };
-    if (e.k === "text") return { ...e, size: clampTo(Math.round(size * factor * 10) / 10, 1.5, 10) };
+    if (e.k === "token") return { ...e, size: clampTo(r2(size * factor), 0.2, 3) };
+    if (e.k === "ball" || e.k === "cone" || materialOf(e.k)) return { ...e, size: clampTo(r2(size * factor), 0.25, 2.2) };
+    if (e.k === "text") return { ...e, size: clampTo(Math.round(size * factor * 10) / 10, 0.8, 10) };
     if (e.k === "goal") return { ...e, w: clampTo(Math.round((e.w || 7.32) * factor * 10) / 10, 1, 12) };
     if (e.k === "arrow") return { ...e, width: clampTo(Math.round(arrowProps(e).width * factor * 20) / 20, 0.2, 2) };
     return e;

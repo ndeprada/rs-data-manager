@@ -16,6 +16,9 @@ import BoardProps, { ARROW_PRESETS, KIND_LABEL, typeOfArrow } from "./BoardProps
 import BoardDownloads, { downloadFramePng } from "./BoardDownloads";
 import ChipQuickEdit from "./BoardChipEdit";
 import MultiPanel, { LayerButtons, LayerList } from "./BoardMulti";
+import { useAuthOptional } from "@/lib/AuthContext";
+import { base44 } from "@/api/base44Client";
+import { applyBoardDefaults, brushWithDefaults, cleanDefaults, describeDefaults, readLocalDefaults, withElementDefault, writeLocalDefaults } from "@/lib/boardDefaults";
 
 // Editor de la pizarra: fichas de hasta cinco equipos (cada uno de su color), balón, conos, porterías, flechas (rectas,
 // curvas o por el aire), zonas y textos, con fotogramas para animar el movimiento. Mismo editor para tareas de
@@ -79,7 +82,17 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const [layersOpen, setLayersOpen] = useState(false); // lista de capas del fotograma
   const [draft, setDraft] = useState(null);
   const [pick, setPick] = useState([]);
-  const [brush, setBrush] = useState(BRUSH0);
+  // Predeterminados de la persona (tamaños, colores, transparencias): perfil + copia en el navegador
+  const auth = useAuthOptional();
+  const [defs, setDefs] = useState(() => cleanDefaults(auth?.user?.board_defaults || readLocalDefaults()));
+  const [brush, setBrush] = useState(() => brushWithDefaults(BRUSH0, defs));
+  const saveDefs = (next) => {
+    const d = cleanDefaults(next);
+    setDefs(d);
+    writeLocalDefaults(d);
+    setBrush((b) => brushWithDefaults(b, d));
+    base44.auth?.updateMe?.({ board_defaults: d }).catch(() => {});
+  };
   const [history, setHistory] = useState([]);
   const [future, setFuture] = useState([]); // lo deshecho, para rehacer
   const [helpOpen, setHelpOpen] = useState(false);
@@ -400,13 +413,22 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const q = svgPoint(e); return fromView(field, orient, persp ? persp.inv(q) : q);
   };
   // Qué hay bajo el dedo: en perspectiva, lo que está de pie se agarra por donde se ve; en 3D, igual con la cámara 3D
+  // margen para coger algo que no está justo debajo del puntero: unos píxeles de pantalla (más con el dedo)
+  const hitTol = () => {
+    const svg = svgRef.current;
+    const vb = svg?.viewBox?.baseVal;
+    if (!vb || !svg.clientWidth || !svg.clientHeight) return undefined;
+    const mPerPx = Math.max(vb.width / svg.clientWidth, vb.height / svg.clientHeight);
+    return mPerPx * (coarse ? 12 : 6);
+  };
   const hitAt = (list, e, p) => {
     if (in3d) {
       const api = v3.current;
       if (!api) return null;
       return api.pick(list, e) || hitTest(list.filter((el) => !api.pickable(el)), p, { orient, chip });
     }
-    return persp ? hitTestPersp(paintOrder(list, field, orient, persp), svgPoint(e), { field, orient, chip, persp }) : hitTest(list, p, { orient, chip });
+    const tol = hitTol();
+    return persp ? hitTestPersp(paintOrder(list, field, orient, persp), svgPoint(e), { field, orient, chip, persp, tol }) : hitTest(list, p, { orient, chip, tol });
   };
   const point = (e) => {
     const p = toField(e);
@@ -590,6 +612,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         // arrastrar una de varias elegidas las mueve todas; tocarla sin arrastrar deja solo esa
         const inGroup = sel.length > 1 && sel.includes(target.id);
         if (!inGroup) setSel([target.id]);
+        setPanelHidden(false);
         // un conector no se arrastra: su forma sale de las fichas que une
         // (lo bloqueado se elige pero no se mueve)
         const ids = movableIds(live.current, idx, inGroup ? sel : [target.id]);
@@ -615,15 +638,21 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
 
   // Doble clic (también el del navegador) o clic derecho / mantener pulsado sobre una ficha: su edición rápida.
   // Se anula el menú y la selección de texto que el navegador haría ahí.
+  // Doble clic o clic con dos dedos sobre cualquier otra cosa (zona, flecha, material…): se elige y se abre su panel de edición
+  // (03/11/2026, Nacho: «doble clic o clic con los dos dedos en el Mac sobre un cuadrado, que me salte el cuadro de edición»).
   const openQuickAt = (e) => {
     if (playing || (!svgRef.current && !in3d)) return false;
     const p = point(e);
-    const hit = hitAt(drawOrder(cur.els.filter((el) => el.k === "token")), e, p);
+    const hit = hitAt(drawOrder(cur.els), e, p);
     if (!hit) return false;
     if (tool !== "select") pickTool("select");
     drag.current = null;
+    setDraft(null);
     setSel([hit.id]);
-    setQuick(hit.id);
+    setSide(null);
+    setPanelHidden(false);
+    if (hit.k === "token") setQuick(hit.id);
+    else setQuick(null);
     return true;
   };
   const onDoubleClick = (e) => {
@@ -1008,7 +1037,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
 
   // ── Pantalla: vista previa en la página y editor a pantalla completa (como FmStadio) ──────────────────────────────
   const title = filename || "Pizarra";
-  const openStudio = () => { setFull(true); setSide(null); };
+  const openStudio = () => {
+    setFull(true);
+    setSide(null);
+    // un dibujo vacío empieza con el tamaño de fichas y los colores de equipo predeterminados de la persona
+    const next = applyBoardDefaults(live.current, defs);
+    if (next !== live.current) commit(next, { record: false });
+  };
   const closeStudio = () => { stop(); setQuick(null); setFull(false); };
   const groupOf = (id) => TOOL_GROUPS.find((g) => g.tools.includes(id)) || null;
   const curGroup = groupOf(tool);
@@ -1120,8 +1155,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     </div>
   ) : null;
 
+  const defsList = describeDefaults(defs);
   const settingsBody = (
     <div className="space-y-2.5" data-testid="board-settings">
+      <div className="rounded-md bg-gray-50 border border-gray-200 px-2 py-1.5 text-[11px] text-gray-600" data-testid="board-defaults">
+        <b className="text-gray-800">Mis predeterminados:</b> {defsList.length ? defsList.join(" · ") : "ninguno todavía (elige una cosa y pulsa «★ Usar como predeterminado»)"}
+        {defsList.length > 0 && <button type="button" className="ml-2 underline text-gray-500" data-testid="board-defaults-reset" onClick={() => saveDefs({})}>Quitar</button>}
+      </div>
       <div className="grid grid-cols-2 gap-1.5">
         <label className="text-[11px] font-semibold text-gray-600 space-y-0.5">Campo
           <select value={board.field} onChange={(e) => commit(changeField(board, e.target.value))} className={`${selectCls} w-full`} aria-label="Tipo de campo">
@@ -1304,6 +1344,14 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         onRemoveTeam={dropTeam}
         onQuick={() => selected && setQuick(selected.id)}
       />
+      {panelEl && (selected || !isTeamTool(tool)) && (
+        <div className="flex flex-wrap items-center gap-1.5 rounded-md bg-gray-50 border border-gray-200 px-2 py-1" data-testid="board-default">
+          <span className="text-[11px] text-gray-600 flex-1 min-w-[150px]">{panelEl.k === "token" ? "Tamaño de las fichas y colores de este equipo" : "Tamaño, colores y transparencia"} para lo que dibujes a partir de ahora</span>
+          <button type="button" className="h-7 px-2 rounded-md border text-[11px] font-semibold bg-white text-gray-700 border-gray-200 hover:bg-gray-100" data-testid="board-default-save"
+            onClick={() => saveDefs(withElementDefault(defs, panelEl, { chipSize: chip, team: panelEl.k === "token" ? teams.find((t) => t.id === panelEl.team) : null }))}
+            title="Las tareas y pizarras nuevas empezarán así">★ Usar como predeterminado</button>
+        </div>
+      )}
       {selected && (
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
           <FlagButtons locked={isLocked(selected)} hl={isHighlighted(selected)} canReset={idx > 0 && isCarried(selected)} onLock={lockSel} onHl={hlSel} onReset={resetSel} />
