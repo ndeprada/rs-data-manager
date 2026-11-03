@@ -2,7 +2,7 @@ import { AD_LOGOS } from "@/lib/adLogos";
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox, labelBgOf,
+  ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox, labelBgOf, coneEdgeWidth,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -1310,19 +1310,22 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
       const bn = look === "bn";
       const sd = ghost ? 0 : s.shadow || 0;
       const tri = `${c.x},${c.y - 1.5 * k} ${c.x + 1.3 * k},${c.y + 1.1 * k} ${c.x - 1.3 * k},${c.y + 1.1 * k}`;
+      // borde: color y grosor elegibles (03/11/2026, Nacho: «el cono plano tiene un borde muy ancho»); el grosor va con el tamaño
+      const edgeCol = bn ? s.coneStroke : el.stroke || s.coneStroke;
+      const ew = coneEdgeWidth(el);
       return (
         <g opacity={op}>
           {ring(2.4 * k)}
           {el.shape === "flat" ? (
             <>
               <Shadow amount={sd} v={lightVec(0, 0.22 * k)} halo={0.3}>{(g) => <circle cx={c.x} cy={c.y} r={0.9 * k + g / 2} fill="#000" />}</Shadow>
-              <circle cx={c.x} cy={c.y} r={0.9 * k} fill={col} stroke={s.coneStroke} strokeWidth={0.3} />
+              <circle cx={c.x} cy={c.y} r={0.9 * k} fill={col} stroke={ew > 0 ? edgeCol : "none"} strokeWidth={ew} />
               {!bn && <circle cx={c.x} cy={c.y} r={0.9 * k} fill="url(#chip-shade)" />}
             </>
           ) : (
             <>
               <Shadow amount={sd} v={lightVec(0, 0.42 * k)}>{(g) => <polygon points={tri} fill="#000" stroke="#000" strokeWidth={g} strokeLinejoin="round" />}</Shadow>
-              <polygon points={tri} fill={col} stroke={s.coneStroke} strokeWidth={0.3} strokeLinejoin="round" />
+              <polygon points={tri} fill={col} stroke={ew > 0 ? edgeCol : "none"} strokeWidth={ew} strokeLinejoin="round" />
               {!bn && <polygon points={tri} fill="url(#cone-shade)" />}
             </>
           )}

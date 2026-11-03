@@ -1627,7 +1627,7 @@ export const SAME_KEYS = {
   arrow: ["style", "dash", "wavy", "pointer", "width", "border", "borderColor", "color", "alpha"],
   token: ["size"],
   ball: ["size", "pattern", "color", "color2", "stroke"],
-  cone: ["size", "shape", "color"],
+  cone: ["size", "shape", "color", "stroke", "edge"],
   goal: ["w", "color"],
   pole: ["size", "color"],
   hurdle: ["size", "color"],
@@ -1636,6 +1636,14 @@ export const SAME_KEYS = {
   text: ["size", "font", "color", "bold", "bg", "bgOpacity"],
   zone: ["fill", "fillOpacity", "border", "stroke", "dash", "strokeWidth"],
 };
+// Grosor del borde de un cono en metros: va con su tamaño; `edge` = multiplicador elegido (0 = sin borde, 1 = el de siempre).
+// El plano lleva por defecto un borde más fino que antes (era 0,3 m fijo y en conos pequeños se comía el color).
+export const CONE_EDGE = { flat: 0.14, tri: 0.22 };
+export function coneEdgeWidth(el) {
+  const k = Number(el?.size) || 1;
+  const m = el?.edge == null || !Number.isFinite(Number(el.edge)) ? 1 : Math.max(0, Math.min(4, Number(el.edge)));
+  return (el?.shape === "flat" ? CONE_EDGE.flat : CONE_EDGE.tri) * k * m;
+}
 // Cambia `patch` en todas las cosas elegidas del tipo `kind` (en todos los fotogramas donde están: es aspecto, no posición).
 export function styleElements(board, index, ids, kind, patch) {
   const keys = SAME_KEYS[kind] || [];

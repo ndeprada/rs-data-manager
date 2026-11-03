@@ -176,6 +176,8 @@ function SameBlock({ els, onStyle, onMatch }) {
             <Row>
               <Slider label={sz.label} value={val ?? sz.get(list[0])} min={sz.min} max={sz.max} step={sz.step} onChange={(v) => onStyle(k, { [sz.key]: v }, `size-${k}`)} fmt={(v) => (val == null ? "varios" : sz.fmt(v))} />
               {k === "cone" && <Seg label="Forma" value={same(list, (e) => e.shape || "tri")} options={[{ id: "tri", label: "Triángulo" }, { id: "flat", label: "Plano" }]} onChange={(v) => onStyle(k, { shape: v })} />}
+              {k === "cone" && <ColorPick value={same(list, (e) => e.stroke || "") || ""} onChange={(c) => onStyle(k, { stroke: c || undefined })} label="Color del borde" auto="Blanco" autoSwatch="#ffffff" />}
+              {k === "cone" && (() => { const ev = same(list, (e) => (e.edge == null ? 1 : Number(e.edge))); return <Slider label="Grosor del borde" value={ev ?? 1} min={0} max={3} step={0.1} onChange={(v) => onStyle(k, { edge: v }, "edge-cone")} fmt={(v) => (ev == null ? "varios" : v === 0 ? "sin borde" : `${Math.round(v * 100)} %`)} />; })()}
             </Row>
           </div>
         );

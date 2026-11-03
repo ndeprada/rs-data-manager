@@ -17,6 +17,7 @@ import BoardDownloads, { downloadFramePng } from "./BoardDownloads";
 import ChipQuickEdit from "./BoardChipEdit";
 import MultiPanel, { LayerButtons, LayerList } from "./BoardMulti";
 import { useAuthOptional } from "@/lib/AuthContext";
+import { freeMove, snapAnchors, snapPoint } from "@/lib/boardSnap";
 import { base44 } from "@/api/base44Client";
 import { applyBoardDefaults, brushWithDefaults, cleanDefaults, describeDefaults, readLocalDefaults, withElementDefault, writeLocalDefaults } from "@/lib/boardDefaults";
 
@@ -81,6 +82,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const [multiMode, setMultiMode] = useState(false); // «Varios»: tocar suma o quita de lo elegido
   const [layersOpen, setLayersOpen] = useState(false); // lista de capas del fotograma
   const [draft, setDraft] = useState(null);
+  const [guide, setGuide] = useState(null); // guía del imán (línea recta o punto al que se ha pegado)
   const [pick, setPick] = useState([]);
   // Predeterminados de la persona (tamaños, colores, transparencias): perfil + copia en el navegador
   const auth = useAuthOptional();
@@ -421,6 +423,16 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const mPerPx = Math.max(vb.width / svg.clientWidth, vb.height / svg.clientHeight);
     return mPerPx * (coarse ? 12 : 6);
   };
+  // Imán al dibujar flechas y zonas (como en PowerPoint): se pega a esquinas, mitades y extremos y se endereza en
+  // horizontal/vertical; con Control (o Alt / Cmd) se mueve libre. Margen ≈ 10 px de pantalla (16 con el dedo).
+  const magnet = (e, p, { skip = null, from = null } = {}) => {
+    if (!p || freeMove(e)) { setGuide(null); return p; }
+    const t = hitTol();
+    const tol = t ? (t / (coarse ? 12 : 6)) * (coarse ? 16 : 10) : 0.8;
+    const r = snapPoint(p, { anchors: snapAnchors(live.current.frames[idx]?.els || [], skip), from, tol });
+    setGuide(r.guide);
+    return { x: r.x, y: r.y };
+  };
   const hitAt = (list, e, p) => {
     if (in3d) {
       const api = v3.current;
@@ -632,8 +644,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (tool === "cone") return add({ id: newId(), k: "cone", x: p.x, y: p.y, ...brush.cone });
     if (tool === "goal") return add({ id: newId(), k: "goal", x: p.x, y: p.y, rot: 0, ...brush.goal });
     if (tool === "text") return add({ id: newId(), k: "text", x: p.x, y: p.y, text: "Texto", ...brush.text });
-    if (ARROW_TOOLS.includes(tool)) { setDraft({ k: "arrow", ...brush[tool], x1: p.x, y1: p.y, x2: p.x, y2: p.y }); drag.current = { mode: "draw" }; return; }
-    if (tool === "zone" || tool === "quad") { setDraft({ k: "zone", ...brush[tool], x: p.x, y: p.y, w: 0, h: 0 }); drag.current = { mode: "draw" }; }
+    if (ARROW_TOOLS.includes(tool)) { const a = magnet(e, p); setGuide(null); setDraft({ k: "arrow", ...brush[tool], x1: a.x, y1: a.y, x2: a.x, y2: a.y }); drag.current = { mode: "draw", kind: "arrow", start: a }; return; }
+    if (tool === "zone" || tool === "quad") { const a = magnet(e, p); setGuide(null); setDraft({ k: "zone", ...brush[tool], x: a.x, y: a.y, w: 0, h: 0 }); drag.current = { mode: "draw", kind: "zone", start: a }; }
   };
 
   // Doble clic (también el del navegador) o clic derecho / mantener pulsado sobre una ficha: su edición rápida.
@@ -658,7 +670,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const onDoubleClick = (e) => {
     if (openQuickAt(e)) e.preventDefault();
   };
-  const onContextMenu = (e) => { if (openQuickAt(e)) e.preventDefault(); };
+  // mientras se dibuja (Control + clic en el Mac = clic derecho) no se abre nada: Control solo suelta el imán
+  const onContextMenu = (e) => { if (drag.current?.mode === "draw" || drag.current?.mode === "handle") { e.preventDefault(); return; } if (openQuickAt(e)) e.preventDefault(); };
 
   const onMove = (e) => {
     if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -689,7 +702,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       return;
     }
     if (d.mode === "draw" || d.mode === "box" || d.mode === "marquee") {
-      const p = point(e);
+      let p = point(e);
+      if (d.mode === "draw" && d.start) p = magnet(e, p, { from: d.kind === "arrow" ? d.start : null });
       setDraft((c) => (c ? (c.k === "arrow" ? { ...c, x2: p.x, y2: p.y } : { ...c, w: round(p.x - c.x), h: round(p.y - c.y) }) : c));
       return;
     }
@@ -727,11 +741,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         const a = faceToward(d.el, toField(e));
         patch = d.h === "f" ? { face: a } : { rot: a };
       } else if (/^v\d+$/.test(d.h)) {
-        const p = point(e), i = Number(d.h.slice(1));
+        const i = Number(d.h.slice(1));
+        const chain = [{ x: d.el.x1, y: d.el.y1 }, ...d.el.via, { x: d.el.x2, y: d.el.y2 }];
+        const p = magnet(e, point(e), { skip: d.id, from: [chain[i], chain[i + 2]] });
         patch = { via: d.el.via.map((q, j) => (j === i ? { x: p.x, y: p.y } : q)) };
       } else if (/^z[ce][0-3]$/.test(d.h)) {
         // zona rectangular o elíptica: la esquina (o el lado) contraria se queda quieta; con Mayús, la esquina conserva la proporción
-        const p = point(e), i = Number(d.h[2]);
+        const p = magnet(e, point(e), { skip: d.id }), i = Number(d.h[2]);
         const b = zoneBox(d.el);
         let { x0, y0, x1, y1 } = b;
         const MIN = 1;
@@ -748,10 +764,17 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         const r1 = (n) => Math.round(n * 10) / 10;
         patch = { x: r1(x0), y: r1(y0), w: r1(x1 - x0), h: r1(y1 - y0) };
       } else if (/^q[0-3]$/.test(d.h)) {
-        const p = point(e), i = Number(d.h[1]);
+        const i = Number(d.h[1]);
+        const p = magnet(e, point(e), { skip: d.id, from: [d.el.pts[(i + 3) % 4], d.el.pts[(i + 1) % 4]] });
         patch = { pts: d.el.pts.map((q, j) => (j === i ? { x: p.x, y: p.y } : q)) };
       } else {
-        const p = point(e);
+        let p = point(e);
+        // extremo de una flecha: se endereza respecto al punto vecino (el otro extremo o el quiebro más cercano)
+        if (d.h === "p1" || d.h === "p2") {
+          const via = Array.isArray(d.el.via) ? d.el.via : [];
+          const other = d.h === "p1" ? (via[0] || { x: d.el.x2, y: d.el.y2 }) : (via[via.length - 1] || { x: d.el.x1, y: d.el.y1 });
+          p = magnet(e, p, { skip: d.id, from: d.el.cx != null && !via.length ? null : other });
+        }
         patch = d.h === "p1" ? { x1: p.x, y1: p.y } : d.h === "p2" ? { x2: p.x, y2: p.y } : { cx: p.x, cy: p.y };
       }
       onChange(patchElement(d.snapshot, idx, d.id, patch));
@@ -779,6 +802,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const d = drag.current;
     if (d?.mode === "pinch" || d?.mode === "pinch3d") { if (pointers.current.size === 0) drag.current = null; return; }
     drag.current = null;
+    setGuide(null);
     if (!d) return;
     if ((d.mode === "move" || d.mode === "handle" || d.mode === "cam") && d.moved) {
       pushHistory(d.base || d.snapshot);
@@ -1571,7 +1595,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         camera={camTool ? null : showCam ? frameCam(board, idx) : null}
         viewOverride={camView}
         aspect={camTool || showCam ? null : stageAR}
-        overlay={snap && !camTool && !persp && !playing ? <GridOverlay field={field} orient={orient} /> : camTool && !playing ? <CameraOverlay rect={camR} view={camView} frame={idx} own={ownCam} has={Boolean(curCam)} inheritedFrom={!ownCam && curCam ? board.frames.slice(0, idx).map((f, i) => (f.cam ? i : -1)).filter((i) => i >= 0).pop() : null} /> : null}
+        overlay={<>{snap && !camTool && !persp && !playing ? <GridOverlay field={field} orient={orient} /> : camTool && !playing ? <CameraOverlay rect={camR} view={camView} frame={idx} own={ownCam} has={Boolean(curCam)} inheritedFrom={!ownCam && curCam ? board.frames.slice(0, idx).map((f, i) => (f.cam ? i : -1)).filter((i) => i >= 0).pop() : null} /> : null}{guide && !playing ? <SnapGuide guide={guide} field={field} orient={orient} persp={persp} mpp={(hitTol() || 0.6) / (coarse ? 12 : 6)} /> : null}</>}
         className={`w-full h-full select-none${show3d ? " hidden" : ""}`}
         style={{ touchAction: "none", cursor, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
         label="Pizarra"
@@ -1744,6 +1768,23 @@ function FlagButtons({ locked, hl, canReset, onLock, onHl, onReset }) {
       <Button type="button" size="sm" variant="outline" className={cls(hl)} aria-pressed={hl} onClick={onHl} data-testid="flag-hl" title="Resaltar (H): halo amarillo, también en la imagen y el vídeo"><span aria-hidden className="w-3 h-3 rounded-full" style={{ background: "#facc15", boxShadow: "0 0 0 3px rgba(250,204,21,.35)" }} /> {hl ? "Resaltado" : "Resaltar"}</Button>
       {canReset && <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={onReset} data-testid="flag-reset" title="Volver a donde estaba en el fotograma anterior (R)">Como en el anterior</Button>}
     </div>
+  );
+}
+
+// Guía del imán: línea discontinua naranja por donde se ha enderezado y un aro en el punto al que se ha pegado
+function SnapGuide({ guide, field, orient, persp, mpp }) {
+  const V = (q) => { const v = toView(field, orient, q); return persp ? persp.P(v) : v; };
+  const px = mpp || 0.1;
+  const ring = (at) => { const c = V(at); return <circle cx={c.x} cy={c.y} r={6 * px} fill="none" stroke="#FF6E00" strokeWidth={2 * px} />; };
+  return (
+    <g pointerEvents="none" data-testid="snap-guide" data-kind={guide.kind}>
+      {(guide.lines || []).map(([a, b], i) => {
+        const p = V(a), q = V(b);
+        return <line key={i} x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke="#FF6E00" strokeWidth={1.4 * px} strokeDasharray={`${5 * px} ${4 * px}`} />;
+      })}
+      {guide.kind === "point" && guide.at && ring(guide.at)}
+      {guide.kind === "axis" && guide.at && ring(guide.at)}
+    </g>
   );
 }
 

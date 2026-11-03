@@ -278,6 +278,8 @@ export default function BoardProps({ el, brush = false, board, look, patch, onTy
           <Seg label="Forma del cono" value={el.shape || "tri"} options={[{ id: "tri", label: "Triángulo" }, { id: "flat", label: "Plano" }]} onChange={(v) => patch({ shape: v })} />
           <ColorPick value={el.color || ""} onChange={(c) => patch({ color: c || undefined })} label="Color" auto="Naranja" autoSwatch={s.cone} wide />
           <Slider label="Tamaño" value={Number(el.size) || 1} min={0.25} max={2.2} step={0.05} onChange={(v) => patch({ size: v }, "size")} fmt={pct} />
+          <ColorPick value={el.stroke || ""} onChange={(c) => patch({ stroke: c || undefined })} label="Color del borde" auto="Blanco" autoSwatch={s.coneStroke} />
+          <Slider label="Grosor del borde" value={el.edge == null ? 1 : Number(el.edge)} min={0} max={3} step={0.1} onChange={(v) => patch({ edge: v }, "edge")} fmt={(v) => (v === 0 ? "sin borde" : pct(v))} />
         </Row>
       );
     case "goal":
