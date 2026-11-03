@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import GuestPlayerSelector from "@/components/common/GuestPlayerSelector";
 import { playerFullName } from "@/lib/playerName";
 import { useT, msg } from "@/i18n";
+import { absenceReasonFor } from "@/lib/attendanceDefaults";
 
 const STATUS_CONFIG = {
   present: { label: msg("Presente"),  icon: CheckCircle, iconClass: "text-green-500",  activeBorder: "border-green-400 bg-green-50" },
@@ -43,6 +44,12 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
     queryKey: ["players"],
     queryFn: () => base44.entities.Player.list(),
     enabled: !!event,
+  });
+
+  const { data: injuries = [] } = useQuery({
+    queryKey: ["injuries_open"],
+    queryFn: () => base44.entities.Injury.list(),
+    enabled: !!event && open,
   });
 
   const { data: attendanceRecords = [] } = useQuery({
@@ -110,7 +117,10 @@ export default function EventAttendanceDialog({ event, open, onOpenChange }) {
 
   const handleStatusClick = (playerId, st) => {
     if (st === "absent") {
-      upsertMutation.mutate({ playerId, status: "absent", absence_reason: pendingReason[playerId] || null });
+      // con una lesión activa, el motivo sale ya como «Lesión» (se puede cambiar)
+      const reason = absenceReasonFor(players.find((p) => p.id === playerId), { current: pendingReason[playerId] || getRecord(playerId)?.absence_reason, injuries });
+      if (reason) setPendingReason((prev) => ({ ...prev, [playerId]: reason }));
+      upsertMutation.mutate({ playerId, status: "absent", absence_reason: reason });
     } else {
       setPendingReason((prev) => { const n = { ...prev }; delete n[playerId]; return n; });
       upsertMutation.mutate({ playerId, status: st });

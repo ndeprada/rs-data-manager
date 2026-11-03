@@ -21,6 +21,7 @@ import CancelEventDialog from "@/components/myteam/CancelEventDialog";
 import BulkCancelButton from "@/components/myteam/BulkCancelButton";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
 import { useT, useDateLocale, msg } from "@/i18n";
+import { absenceReasonFor } from "@/lib/attendanceDefaults";
 
 const STATUS_CONFIG = {
   present: { label: msg("Asiste"), short: msg("Asiste"), cls: "bg-green-600 text-white border-green-600" },
@@ -129,6 +130,11 @@ export default function TeamAttendance() {
   const setStatus = (pid, status) => {
     const patch = { status };
     if (status !== "absent") patch.absence_reason = null;
+    else {
+      // con una lesión activa, el motivo sale ya como «Lesión» (se puede cambiar)
+      const reason = absenceReasonFor(players.find(p => p.id === pid), { current: recFor(pid).absence_reason, injuries });
+      if (reason) patch.absence_reason = reason;
+    }
     save(pid, patch);
   };
 

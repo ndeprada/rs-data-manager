@@ -9,6 +9,7 @@ import { playerFullName } from "@/lib/playerName";
 
 import { PageTitle } from "@/components/common/PageHeader";
 import { useT, msg } from "@/i18n";
+import { absenceReasonFor } from "@/lib/attendanceDefaults";
 const STATUS_CONFIG = {
   present: { label: msg("Asistió"), color: "green", icon: CheckCircle2 },
   apart: { label: msg("Trabajo aparté"), color: "blue", icon: AlertCircle },
@@ -49,6 +50,11 @@ export default function Attendance() {
     queryFn: () => base44.entities.Player.list(),
   });
 
+  const { data: injuries = [] } = useQuery({
+    queryKey: ["injuries_open"],
+    queryFn: () => base44.entities.Injury.list(),
+  });
+
   const { data: attendance = [] } = useQuery({
     queryKey: ["attendance"],
     queryFn: () => base44.entities.TrainingAttendance.list(),
@@ -84,6 +90,12 @@ export default function Attendance() {
       ...attendanceData,
       [playerId]: newStatus,
     });
+    // con una lesión activa, el motivo sale ya como «Lesión» (se puede cambiar)
+    if (newStatus === "absent") {
+      const existing = attendanceForDate.find((a) => a.player_id === playerId);
+      const reason = absenceReasonFor(players.find((p) => p.id === playerId), { current: absenceReasons[playerId] || existing?.absence_reason, injuries });
+      if (reason && !absenceReasons[playerId]) setAbsenceReasons({ ...absenceReasons, [playerId]: reason });
+    }
   };
 
   const handleReasonChange = (playerId, reason) => {
