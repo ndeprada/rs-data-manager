@@ -225,7 +225,14 @@ export function chipStyle(board, el) {
     pattern: el.pattern || t.pattern || "solid", color, color2, stroke: el.stroke || t.stroke || null,
     kit: (el.kit || t.kit) === "camiseta" ? "camiseta" : "boton",
     trim: el.trim || t.trim || color2,
+    edge: chipEdge(el.edge ?? t.edge),
   };
+}
+// Grosor del borde de una ficha (03/11/2026, Nacho: «poder editar el borde de la camiseta de un jugador… incluso su grosor»):
+// multiplicador del borde normal (0 = sin borde, 1 = el de siempre, hasta 3); de la ficha o, si no, de su equipo
+export function chipEdge(v) {
+  const n = Number(v);
+  return v == null || v === "" || !Number.isFinite(n) ? 1 : Math.max(0, Math.min(3, n));
 }
 
 // Fondo de los nombres de una ficha: el elegido en la ficha; «chip» = el color de la ficha; «none» = sin fondo.
@@ -1625,7 +1632,7 @@ export function resizeElements(board, index, ids, factor) {
 // dibujada: extremos, curva, quiebros, giro…).
 export const SAME_KEYS = {
   arrow: ["style", "dash", "wavy", "pointer", "width", "border", "borderColor", "color", "alpha"],
-  token: ["size"],
+  token: ["size", "stroke", "edge"],
   ball: ["size", "pattern", "color", "color2", "stroke"],
   cone: ["size", "shape", "color", "stroke", "edge"],
   goal: ["w", "color"],

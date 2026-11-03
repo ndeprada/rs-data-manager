@@ -2,7 +2,7 @@ import React from "react";
 import { Copy, Trash2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DEFAULT_CHIP, chipOf, chipStyle, labelBgOf, teamsOf } from "@/lib/board";
-import { ChipGlyph } from "./BoardSvg";
+import { ChipGlyph, chipPaint } from "./BoardSvg";
 import { ColorPick, NO_FILL, Row, Slider, Toggle } from "./BoardControls";
 
 // Edición rápida de una ficha (doble clic o doble toque sobre ella, como en FM Studio): sus textos de arriba, dentro y abajo,
@@ -61,6 +61,10 @@ export default function ChipQuickEdit({ el, board, look, patch, onClose, onDup, 
           <Toggle on={!!labelBgOf(board, el) && labelBgOf(board, el) === chipStyle(board, el).color} onChange={(v) => patch({ labelBg: v ? "chip" : board.labelChip ? "none" : undefined })} title="El nombre con el color de la ficha">Nombre del color de la ficha</Toggle>
         </Row>
       )}
+      <Row>
+        {!bn && <ColorPick value={el.stroke || ""} onChange={(c) => patch({ stroke: c || undefined })} label="Borde" auto="El del equipo" autoSwatch={chipPaint(board, { team: el.team }, look).stroke} wide />}
+        <Slider label="Grosor del borde" value={chipStyle(board, el).edge} min={0} max={3} step={0.1} onChange={(v) => patch({ edge: v }, "edge")} fmt={(v) => (v === 0 ? "sin borde" : `${Math.round(v * 100)}%`)} width="w-20" />
+      </Row>
       <Row>
         <Toggle on={!!el.feet} onChange={(v) => patch({ feet: v || undefined })} title="Pies: marcan hacia dónde mira">Pies</Toggle>
         <Slider label="Tamaño" value={pctOne} min={20} max={250} step={5} onChange={(v) => patch({ size: Math.round(((v / 100) * DEFAULT_CHIP / base) * 100) / 100 }, "size")} fmt={(v) => `${v}%`} width="w-20" />

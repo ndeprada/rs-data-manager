@@ -236,15 +236,19 @@ test("equipos nuevos: se crean con color distinto, se limitan y solo se quitan l
 
 test("diseño de ficha: lo del equipo, y lo propio de la ficha manda; el texto contrasta con el relleno", () => {
   const b = { teams: [{ id: "a", name: "A", color: "#73000A", pattern: "sash", color2: "#ffffff", stroke: "#facc15" }] };
-  assert.deepEqual(chipStyle(b, { team: "a" }), { pattern: "sash", color: "#73000A", color2: "#ffffff", stroke: "#facc15", kit: "boton", trim: "#ffffff" });
+  assert.deepEqual(chipStyle(b, { team: "a" }), { pattern: "sash", color: "#73000A", color2: "#ffffff", stroke: "#facc15", kit: "boton", trim: "#ffffff", edge: 1 });
   const own = chipStyle(b, { team: "a", pattern: "v", color: "#2563eb", color2: "#000000", stroke: "#ffffff" });
-  assert.deepEqual(own, { pattern: "v", color: "#2563eb", color2: "#000000", stroke: "#ffffff", kit: "boton", trim: "#000000" });
+  assert.deepEqual(own, { pattern: "v", color: "#2563eb", color2: "#000000", stroke: "#ffffff", kit: "boton", trim: "#000000", edge: 1 });
   const shirt = chipStyle({ teams: [{ id: "a", color: "#ffffff", kit: "camiseta", trim: "#73000A" }] }, { team: "a" });
   assert.equal(shirt.kit, "camiseta");
   assert.equal(shirt.trim, "#73000A");
   const plain = chipStyle({}, { team: "b" });
   assert.equal(plain.pattern, "solid");
   assert.equal(plain.stroke, null, "sin borde propio se usa el del modo visual");
+  // grosor del borde (03/11/2026): de la ficha, o del equipo; 0 = sin borde; entre 0 y 3
+  assert.equal(chipStyle({ teams: [{ id: "a", edge: 2 }] }, { team: "a" }).edge, 2);
+  assert.equal(chipStyle({ teams: [{ id: "a", edge: 2 }] }, { team: "a", edge: 0 }).edge, 0);
+  assert.equal(chipStyle({}, { team: "a", edge: 9 }).edge, 3);
   assert.equal(contrastColor("#73000A"), "#ffffff");
   assert.equal(contrastColor("#fde047"), "#111827");
   assert.equal(contrastColor("no-es-un-color"), "#111827");

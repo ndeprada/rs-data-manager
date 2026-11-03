@@ -102,7 +102,7 @@ export function chipPaint(board, el, look) {
     const i = Math.max(0, teamsOf(board).findIndex((t) => t.id === el.team));
     const color = BN_FILLS[i % BN_FILLS.length];
     const dark = BN_DARK.has(color);
-    return { pattern: "solid", color, color2: color, stroke: "#111111", text: dark ? "#ffffff" : "#111111", halo: dark ? "#111111" : "#ffffff" };
+    return { pattern: "solid", color, color2: color, stroke: "#111111", edge: chipStyle(board, el).edge, text: dark ? "#ffffff" : "#111111", halo: dark ? "#111111" : "#ffffff" };
   }
   const st = chipStyle(board, el);
   const text = contrastColor(st.color);
@@ -814,7 +814,7 @@ function ShirtFace({ pattern, color, color2, trim }) {
 
 // Cuerpo de una ficha en espacio unitario (radio 1): disco liso, con dibujo o camiseta
 function ChipBody({ paint, bn, sw = 0.18 }) {
-  if (bn) return <circle r={1} fill={paint.color} stroke={paint.stroke} strokeWidth={sw} />;
+  if (bn) return <circle r={1} fill={paint.color} stroke={sw > 0 ? paint.stroke : "none"} strokeWidth={sw} />;
   if (paint.kit === "camiseta") return <ShirtFace pattern={paint.pattern} color={paint.color} color2={paint.color2} trim={paint.trim} />;
   if (paint.pattern === "solid") return <circle r={1} fill={paint.color} />;
   return <ChipFill pattern={paint.pattern} color={paint.color} color2={paint.color2} />;
@@ -947,7 +947,8 @@ function Chip({ el, ctx, c, r, ghost = false, puck = 0 }) {
   const s = styleOf(look);
   const paint = chipPaint(board, el, look);
   const bn = lookOf(look) === "bn";
-  const sw = Math.max(0.2, r * 0.13);
+  // grosor del borde: el normal × lo elegido en la ficha o en su equipo (0 = sin borde)
+  const sw = Math.max(0.2, r * 0.13) * (paint.edge ?? 1);
   const ang = faceOf(el) + orientAngle(orient);
   const inner = (el.inner || "").toString().slice(0, 3);
   const fs = r * (inner.length > 2 ? 0.95 : inner.length > 1 ? 1.2 : 1.5);
@@ -961,7 +962,7 @@ function Chip({ el, ctx, c, r, ghost = false, puck = 0 }) {
       {el.feet && <g transform={`translate(${c.x} ${gy}) rotate(${ang}) scale(${r})`}><Feet foot={s.foot} flat={bn} shadow={shadow} ang={ang} /></g>}
       {puck > 0 && (
         <g>
-          <path d={`M ${c.x - r} ${c.y} L ${c.x - r} ${gy} A ${r} ${r} 0 0 0 ${c.x + r} ${gy} L ${c.x + r} ${c.y} Z`} fill={bn ? "#ffffff" : darken(paint.color)} stroke={bn ? "#111111" : paint.stroke} strokeWidth={sw} strokeLinejoin="round" />
+          <path d={`M ${c.x - r} ${c.y} L ${c.x - r} ${gy} A ${r} ${r} 0 0 0 ${c.x + r} ${gy} L ${c.x + r} ${c.y} Z`} fill={bn ? "#ffffff" : darken(paint.color)} stroke={sw > 0 ? (bn ? "#111111" : paint.stroke) : "none"} strokeWidth={sw} strokeLinejoin="round" />
           {!bn && <path d={`M ${c.x - r} ${c.y} L ${c.x - r} ${gy} A ${r} ${r} 0 0 0 ${c.x + r} ${gy} L ${c.x + r} ${c.y} Z`} fill="url(#puck-side)" />}
         </g>
       )}
@@ -969,7 +970,7 @@ function Chip({ el, ctx, c, r, ghost = false, puck = 0 }) {
       {el.bib && <g transform={`translate(${c.x} ${c.y}) rotate(${ang}) scale(${r})`}><Bib color={el.bib} bn={bn} /></g>}
       {!bn && <circle cx={c.x} cy={c.y} r={r} fill="url(#chip-shade)" />}
       {!bn && <ellipse cx={c.x - r * 0.3} cy={c.y - r * 0.42} rx={r * 0.5} ry={r * 0.32} fill="url(#chip-gloss)" />}
-      {!bn && <circle cx={c.x} cy={c.y} r={r} fill="none" stroke={paint.stroke} strokeWidth={sw} />}
+      {!bn && sw > 0 && <circle cx={c.x} cy={c.y} r={r} fill="none" stroke={paint.stroke} strokeWidth={sw} />}
       {inner && !ghost && (
         <text x={c.x} y={c.y + fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight={800} fill={bib ? bib.text : paint.text} stroke={bib ? bib.halo : paint.halo} strokeWidth={Math.max(0.12, fs * (paint.pattern === "solid" || bn ? 0.09 : 0.16))} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{inner}</text>
       )}
@@ -990,11 +991,11 @@ export function ChipGlyph({ board, el, look = "blanco", size = 18 }) {
         <pattern id="bn-dots" width="1.4" height="1.4" patternUnits="userSpaceOnUse"><rect width="1.4" height="1.4" fill="#fff" /><circle cx="0.7" cy="0.7" r="0.3" fill="#111" /></pattern>
         <ChipDefs />
       </defs>
-      <ChipBody paint={paint} bn={bn} />
+      <ChipBody paint={paint} bn={bn} sw={0.18 * (paint.edge ?? 1)} />
       {el.bib && <Bib color={el.bib} bn={bn} />}
       {!bn && <circle r={1} fill="url(#chip-shade)" />}
       {!bn && <ellipse cx={-0.3} cy={-0.42} rx={0.5} ry={0.32} fill="url(#chip-gloss)" />}
-      {!bn && <circle r={1} fill="none" stroke={paint.stroke} strokeWidth={0.18} />}
+      {!bn && (paint.edge ?? 1) > 0 && <circle r={1} fill="none" stroke={paint.stroke} strokeWidth={0.18 * (paint.edge ?? 1)} />}
     </svg>
   );
 }
@@ -1702,10 +1703,10 @@ export function ChipTopSvg({ board, el, look, ang = 0 }) {
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 2 2">
       <defs>{SVG_DEFS}</defs>
       <rect x="-1" y="-1" width="2" height="2" fill={bn ? "#ffffff" : darken(paint.color)} />
-      <ChipBody paint={paint} bn={bn} sw={0.12} />
+      <ChipBody paint={paint} bn={bn} sw={0.12 * (paint.edge ?? 1)} />
       {el.bib && <g transform={`rotate(${ang})`}><Bib color={el.bib} bn={bn} /></g>}
       {!bn && <ellipse cx={-0.3} cy={-0.42} rx={0.5} ry={0.32} fill="url(#chip-gloss)" opacity={0.6} />}
-      <circle r={0.96} fill="none" stroke={paint.stroke} strokeWidth={0.1} />
+      {(paint.edge ?? 1) > 0 && <circle r={1 - 0.05 * (paint.edge ?? 1)} fill="none" stroke={paint.stroke} strokeWidth={0.1 * (paint.edge ?? 1)} />}
       {inner && <text x={0} y={fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight={800} fill={bib ? bib.text : paint.text} stroke={bib ? bib.halo : paint.halo} strokeWidth={Math.max(0.12, fs * (paint.pattern === "solid" || bn ? 0.09 : 0.16))} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{inner}</text>}
     </svg>
   );

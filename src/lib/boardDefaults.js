@@ -6,7 +6,7 @@ import { teamsOf } from "./board.js";
 // Se guarda en el perfil de la persona (User.board_defaults) y una copia en este navegador.
 
 export const DEFAULT_KEYS = ["bends", "curved", "shape", "color", "color2", "pattern", "size", "w", "rungs", "width", "dash", "wavy", "border", "borderColor", "pointer", "fill", "fillOpacity", "stroke", "strokeWidth", "font", "bold", "lift", "bg", "bgOpacity", "alpha", "edge"];
-export const TEAM_KEYS = ["color", "pattern", "color2", "stroke", "kit", "trim"];
+export const TEAM_KEYS = ["color", "pattern", "color2", "stroke", "kit", "trim", "edge"];
 const TOOLS = new Set(["ball", "cone", "goal", "pole", "hurdle", "ladder", "dummy", "text", "zone", "quad", "move", "pass", "air", "dribble"]);
 
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);

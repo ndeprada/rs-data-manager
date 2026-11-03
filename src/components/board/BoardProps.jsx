@@ -84,6 +84,7 @@ function TeamBlock({ el, brush, board, look, patch, patchTeam, setChip, setFeet,
           <Seg label="Forma" value={shown.kit} options={CHIP_KINDS} onChange={(v) => write({ kit: v, ...(v === "camiseta" && !team.trim ? { trim: shown.color2 } : {}) })} />
           {shown.kit === "camiseta" && <ColorPick value={shown.trim} onChange={(c) => write({ trim: c })} label="Cuello y puños" wide />}
           <ColorPick value={team.stroke || ""} onChange={(c) => write({ stroke: c || undefined })} label="Borde" auto="Por defecto" autoSwatch={styleOf(look).chipStroke} wide />
+          <Slider label="Grosor del borde" value={team.edge == null ? 1 : Number(team.edge)} min={0} max={3} step={0.1} onChange={(v) => write({ edge: v }, "edge")} fmt={(v) => (v === 0 ? "sin borde" : pct(v))} />
         </Row>
       )}
       <Row>
