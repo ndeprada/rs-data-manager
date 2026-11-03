@@ -526,33 +526,46 @@ function Stadium({ field, s, board, orient, T, textAt }) {
 
 // Tiradores de la trayectoria de una ficha o del balón elegido (desde el fotograma anterior): «+» en cada tramo para
 // añadir un cambio de dirección, quiebros que se arrastran (doble clic lo quita) y el punto de control de la curva.
-function PathHandles({ g, V }) {
+function PathHandles({ g, V, u = 0.12 }) {
   const mode = pathMode(g);
   const corners = [g.from, ...(mode === "poly" ? g.path.via : []), g.to];
   const ctrl = mode === "curve" ? { x: g.path.cx, y: g.path.cy } : null;
   const C = ctrl && V(ctrl), A = V(g.from), B = V(g.to);
+  const guide = { stroke: "#f59e0b", strokeWidth: u, strokeDasharray: `${3 * u} ${2 * u}`, pointerEvents: "none" };
   return (
     <g data-testid="path-handles">
-      {C && <line x1={A.x} y1={A.y} x2={C.x} y2={C.y} stroke="#f59e0b" strokeWidth={0.2} strokeDasharray="0.8 0.6" pointerEvents="none" />}
-      {C && <line x1={B.x} y1={B.y} x2={C.x} y2={C.y} stroke="#f59e0b" strokeWidth={0.2} strokeDasharray="0.8 0.6" pointerEvents="none" />}
-      {C && <circle cx={C.x} cy={C.y} r={1.3} fill="#f59e0b" stroke="#fff" strokeWidth={0.4} pointerEvents="none" />}
-      {C && <circle data-h="tc" cx={C.x} cy={C.y} r={3} fill="transparent" />}
+      {C && <line x1={A.x} y1={A.y} x2={C.x} y2={C.y} {...guide} />}
+      {C && <line x1={B.x} y1={B.y} x2={C.x} y2={C.y} {...guide} />}
+      {C && <HandleDot x={C.x} y={C.y} u={u} fill="#f59e0b" />}
+      {C && <circle data-h="tc" cx={C.x} cy={C.y} r={HIT * u} fill="transparent" />}
       {!ctrl && corners.slice(0, -1).map((c, i) => {
         const m = V({ x: (c.x + corners[i + 1].x) / 2, y: (c.y + corners[i + 1].y) / 2 });
-        return (
-          <g key={`tm${i}`}>
-            <circle cx={m.x} cy={m.y} r={0.95} fill="#fff" stroke="#f59e0b" strokeWidth={0.3} strokeDasharray="0.5 0.35" pointerEvents="none" />
-            <path d={`M ${m.x - 0.5} ${m.y} H ${m.x + 0.5} M ${m.x} ${m.y - 0.5} V ${m.y + 0.5}`} stroke="#f59e0b" strokeWidth={0.28} pointerEvents="none" />
-            <circle data-h={`tm${i}`} cx={m.x} cy={m.y} r={2.2} fill="transparent" />
-          </g>
-        );
+        return <PlusHandle key={`tm${i}`} h={`tm${i}`} x={m.x} y={m.y} u={u} />;
       })}
       {corners.slice(1, -1).map((c, i) => { const q = V(c); return (
         <g key={`tv${i}`}>
-          <circle cx={q.x} cy={q.y} r={1.15} fill="#f59e0b" stroke="#fff" strokeWidth={0.4} pointerEvents="none" />
-          <circle data-h={`tv${i}`} cx={q.x} cy={q.y} r={2.8} fill="transparent" />
+          <HandleDot x={q.x} y={q.y} u={u} r={3.5} fill="#f59e0b" />
+          <circle data-h={`tv${i}`} cx={q.x} cy={q.y} r={HIT * u} fill="transparent" />
         </g>
       ); })}
+    </g>
+  );
+}
+
+// Tiradores del editor (03/11/2026, Nacho: «botoncitos más sutiles y más pequeños»): se dibujan en píxeles de pantalla
+// (u = metros por píxel, lo calcula Board), así miden lo mismo con zoom o sin él. La zona de toque es mayor que lo que se ve.
+// en pantallas táctiles la zona de toque es mayor (el dedo tapa más que el ratón)
+const HIT = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)")?.matches ? 18 : 11;
+function HandleDot({ x, y, u, r = 4, fill = "#fff", stroke }) {
+  return <circle cx={x} cy={y} r={r * u} fill={fill} stroke={stroke || (fill === "#fff" ? "#f59e0b" : "#fff")} strokeWidth={1.3 * u} pointerEvents="none" />;
+}
+function PlusHandle({ h, x, y, u }) {
+  const a = 2.2 * u;
+  return (
+    <g>
+      <circle cx={x} cy={y} r={4.2 * u} fill="#fff" stroke="#f59e0b" strokeWidth={u} strokeDasharray={`${1.6 * u} ${1.1 * u}`} pointerEvents="none" />
+      <path d={`M ${x - a} ${y} H ${x + a} M ${x} ${y - a} V ${y + a}`} stroke="#f59e0b" strokeWidth={1.1 * u} pointerEvents="none" />
+      <circle data-h={h} cx={x} cy={y} r={(HIT - 2) * u} fill="transparent" />
     </g>
   );
 }
@@ -729,6 +742,7 @@ const pathOf = (pts) => pts.map((p, i) => `${i ? "L" : "M"} ${p.x.toFixed(2)} ${
 
 function Arrow({ el, ctx, selected, handles }) {
   const { orient, look } = ctx;
+  const u = ctx.px || 0.12;
   const s = styleOf(look);
   const ap = arrowProps(el);
   const col = look === "bn" ? s.arrows.move : el.color || s.arrows[el.style] || s.arrows.move;
@@ -740,15 +754,19 @@ function Arrow({ el, ctx, selected, handles }) {
   const dx = flight[n].x - flight[n - 1].x, dy = flight[n].y - flight[n - 1].y;
   const dl = Math.hypot(dx, dy) || 1;
   const ux = dx / dl, uy = dy / dl;
-  const headLen = 1.4 + 1.9 * w;
-  const trim = ap.pointer === "none" || ap.pointer === "dot" ? 0 : ap.pointer === "bar" ? 0.4 : headLen * 0.7;
+  // Punta estilizada (03/11/2026, Nacho: «la punta más estrechita»): más corta y estrecha que antes (1,4 + 1,9·w de largo y
+  // tan ancha como larga), con la base algo hundida; la línea termina dentro de la punta.
+  const headLen = 1.0 + 1.5 * w;
+  const trim = ap.pointer === "none" || ap.pointer === "dot" ? 0 : ap.pointer === "bar" ? 0.4 : headLen * 0.72;
   const line = flight.map((p, i) => (i === n ? { x: p.x - ux * trim, y: p.y - uy * trim } : p));
   const d = pathOf(ap.wavy ? wavyPoints(line, 0.3 + w * 0.45, 2.4 + w * 0.6) : line);
   const end = flight[n];
   const hx = end.x, hy = end.y;
-  const half = headLen * 0.5;
-  const headPts = `${hx},${hy} ${hx - ux * headLen - uy * half},${hy - uy * headLen + ux * half} ${hx - ux * headLen + uy * half},${hy - uy * headLen - ux * half}`;
-  const barPts = `${hx - uy * (1 + w * 1.5)},${hy + ux * (1 + w * 1.5)} ${hx + uy * (1 + w * 1.5)},${hy - ux * (1 + w * 1.5)}`;
+  const half = Math.max(w * 0.95, headLen * 0.36);
+  const notch = headLen * 0.8;
+  const headPts = `${hx},${hy} ${hx - ux * headLen - uy * half},${hy - uy * headLen + ux * half} ${hx - ux * notch},${hy - uy * notch} ${hx - ux * headLen + uy * half},${hy - uy * headLen - ux * half}`;
+  const barHalf = 0.7 + w * 1.2;
+  const barPts = `${hx - uy * barHalf},${hy + ux * barHalf} ${hx + uy * barHalf},${hy - ux * barHalf}`;
   const dash = dashArray(ap.dash, w);
   const cap = "round";
   const borderCol = look === "bn" ? "#111111" : el.borderColor || "#111827";
@@ -761,7 +779,7 @@ function Arrow({ el, ctx, selected, handles }) {
     <g opacity={(el.opacity ?? 1) * ap.alpha}>
       {/* sombra del balón en el suelo: pequeña y muy sutil (sin línea hasta el punto más alto) */}
       {ground && <path d={pathOf(ground)} fill="none" stroke="#000" strokeOpacity={0.13} strokeWidth={Math.max(0.5, w * 1.1)} strokeLinecap="round" strokeLinejoin="round" />}
-      {selected && <path d={d} fill="none" stroke="#f59e0b" strokeWidth={w + 1.6} opacity={0.5} strokeLinecap="round" strokeLinejoin="round" />}
+      {selected && <path d={d} fill="none" stroke="#f59e0b" strokeWidth={w + Math.max(0.5, 5 * u)} opacity={0.45} strokeLinecap="round" strokeLinejoin="round" />}
       {ap.border && <path d={d} fill="none" stroke={borderCol} strokeWidth={w + 0.7} strokeDasharray={dash} strokeLinecap={cap} strokeLinejoin="round" />}
       <path d={d} fill="none" stroke={col} strokeWidth={w} strokeDasharray={dash} strokeLinecap={cap} strokeLinejoin="round" />
       {ap.pointer === "none" ? null : ap.pointer === "dot" ? (
@@ -776,34 +794,28 @@ function Arrow({ el, ctx, selected, handles }) {
       )}
       {selected && handles && (
         <g>
-          {ctrl && <line x1={start.x} y1={start.y} x2={ctrl.x} y2={ctrl.y} stroke="#f59e0b" strokeWidth={0.2} strokeDasharray="0.8 0.6" />}
-          {ctrl && <line x1={end.x} y1={end.y} x2={ctrl.x} y2={ctrl.y} stroke="#f59e0b" strokeWidth={0.2} strokeDasharray="0.8 0.6" />}
-          <circle cx={start.x} cy={start.y} r={1.3} fill="#fff" stroke="#f59e0b" strokeWidth={0.5} pointerEvents="none" />
-          <circle cx={end.x} cy={end.y} r={1.3} fill="#fff" stroke="#f59e0b" strokeWidth={0.5} pointerEvents="none" />
-          {ctrl && <circle cx={ctrl.x} cy={ctrl.y} r={1.3} fill="#f59e0b" stroke="#fff" strokeWidth={0.4} pointerEvents="none" />}
-          {apex && <circle cx={apex.x} cy={apex.y} r={1.3} fill="#2563eb" stroke="#fff" strokeWidth={0.4} pointerEvents="none" />}
+          {ctrl && <line x1={start.x} y1={start.y} x2={ctrl.x} y2={ctrl.y} stroke="#f59e0b" strokeWidth={u} strokeDasharray={`${3 * u} ${2 * u}`} />}
+          {ctrl && <line x1={end.x} y1={end.y} x2={ctrl.x} y2={ctrl.y} stroke="#f59e0b" strokeWidth={u} strokeDasharray={`${3 * u} ${2 * u}`} />}
+          <HandleDot x={start.x} y={start.y} u={u} />
+          <HandleDot x={end.x} y={end.y} u={u} />
+          {ctrl && <HandleDot x={ctrl.x} y={ctrl.y} u={u} fill="#f59e0b" />}
+          {apex && <HandleDot x={apex.x} y={apex.y} u={u} fill="#2563eb" />}
           {/* zonas de toque más grandes que lo que se ve, para poder agarrarlas con el dedo */}
-          <circle data-h="p1" cx={start.x} cy={start.y} r={3.2} fill="transparent" />
-          <circle data-h="p2" cx={end.x} cy={end.y} r={3.2} fill="transparent" />
-          {ctrl && <circle data-h="c" cx={ctrl.x} cy={ctrl.y} r={3.2} fill="transparent" />}
+          <circle data-h="p1" cx={start.x} cy={start.y} r={HIT * u} fill="transparent" />
+          <circle data-h="p2" cx={end.x} cy={end.y} r={HIT * u} fill="transparent" />
+          {ctrl && <circle data-h="c" cx={ctrl.x} cy={ctrl.y} r={HIT * u} fill="transparent" />}
           {/* flecha con quiebros: cada quiebro se arrastra (doble clic lo quita) y el «+» de cada tramo añade otro */}
           {!el.air && !ctrl && corners.slice(0, -1).map((c, i) => {
             const m = { x: (c.x + corners[i + 1].x) / 2, y: (c.y + corners[i + 1].y) / 2 };
-            return (
-              <g key={`m${i}`}>
-                <circle cx={m.x} cy={m.y} r={0.95} fill="#fff" stroke="#f59e0b" strokeWidth={0.3} strokeDasharray="0.5 0.35" pointerEvents="none" />
-                <path d={`M ${m.x - 0.5} ${m.y} H ${m.x + 0.5} M ${m.x} ${m.y - 0.5} V ${m.y + 0.5}`} stroke="#f59e0b" strokeWidth={0.28} pointerEvents="none" />
-                <circle data-h={`m${i}`} cx={m.x} cy={m.y} r={2.2} fill="transparent" />
-              </g>
-            );
+            return <PlusHandle key={`m${i}`} h={`m${i}`} x={m.x} y={m.y} u={u} />;
           })}
           {corners.slice(1, -1).map((c, i) => (
             <g key={`v${i}`}>
-              <circle cx={c.x} cy={c.y} r={1.15} fill="#f59e0b" stroke="#fff" strokeWidth={0.4} pointerEvents="none" />
-              <circle data-h={`v${i}`} cx={c.x} cy={c.y} r={2.8} fill="transparent" />
+              <HandleDot x={c.x} y={c.y} u={u} r={3.5} fill="#f59e0b" />
+              <circle data-h={`v${i}`} cx={c.x} cy={c.y} r={HIT * u} fill="transparent" />
             </g>
           ))}
-          {apex && <circle data-h="l" cx={apex.x} cy={apex.y} r={3.2} fill="transparent" />}
+          {apex && <circle data-h="l" cx={apex.x} cy={apex.y} r={HIT * u} fill="transparent" />}
         </g>
       )}
     </g>
@@ -1228,14 +1240,14 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
   const s = styleOf(look);
   const c = toView(field, orient, el);
   const op = (el.opacity ?? 1) * (ghost ? 0.3 : 1);
-  const ring = (r) => selected && !ghost && <circle cx={c.x} cy={c.y} r={r} fill="none" stroke="#f59e0b" strokeWidth={0.5} strokeDasharray="1 0.8" />;
+  const ring = (r) => selected && !ghost && <circle cx={c.x} cy={c.y} r={r} fill="none" stroke="#f59e0b" strokeWidth={1.4 * (ctx.px || 0.12)} strokeDasharray={`${3.5 * (ctx.px || 0.12)} ${2.5 * (ctx.px || 0.12)}`} />;
   const mat = materialOf(el.k);
   if (mat) {
     const k = Number(el.size) || 1;
     const rot = (el.rot || 0) + orientAngle(orient);
     return (
       <g opacity={op} transform={`translate(${c.x} ${c.y}) rotate(${rot})`}>
-        {selected && !ghost && <rect x={-mat.hw * k - 0.9} y={-mat.hh * k - 0.9} width={2 * mat.hw * k + 1.8} height={2 * mat.hh * k + 1.8} fill="none" stroke="#f59e0b" strokeWidth={0.5} strokeDasharray="1 0.8" />}
+        {selected && !ghost && <rect x={-mat.hw * k - 0.9} y={-mat.hh * k - 0.9} width={2 * mat.hw * k + 1.8} height={2 * mat.hh * k + 1.8} fill="none" stroke="#f59e0b" strokeWidth={1.4 * (ctx.px || 0.12)} strokeDasharray={`${3.5 * (ctx.px || 0.12)} ${2.5 * (ctx.px || 0.12)}`} />}
         <MaterialBody el={el} look={look} rot={rot} shadow={ghost ? 0 : s.shadow || 0} />
       </g>
     );
@@ -1326,7 +1338,7 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
       // Vista desde arriba: la boca (postes y larguero) en el borde de abajo del recuadro y la red hacia atrás
       return (
         <g opacity={op} transform={`translate(${c.x} ${c.y}) rotate(${rot})`}>
-          {selected && !ghost && <rect x={-gw / 2 - 1.2} y={-gd / 2 - 1.1} width={gw + 2.4} height={gd + 2.2} fill="none" stroke="#f59e0b" strokeWidth={0.5} strokeDasharray="1 0.8" />}
+          {selected && !ghost && <rect x={-gw / 2 - 1.2} y={-gd / 2 - 1.1} width={gw + 2.4} height={gd + 2.2} fill="none" stroke="#f59e0b" strokeWidth={1.4 * (ctx.px || 0.12)} strokeDasharray={`${3.5 * (ctx.px || 0.12)} ${2.5 * (ctx.px || 0.12)}`} />}
           <GoalShape gw={gw} gd={gd} h={h} frame={col} net={goalNet(s)} proj={(px, py) => ({ x: px, y: py + gd / 2 })} shadow={ghost ? 0 : s.shadow || 0} sv={lightVec(rot, h * 0.3)} />
         </g>
       );
@@ -1355,13 +1367,16 @@ function Zone({ el, ctx, selected }) {
     strokeDasharray: dash,
     opacity: el.opacity ?? 1,
   };
-  const mark = { fill: "none", stroke: "#f59e0b", strokeWidth: 0.4, strokeDasharray: "1.6 1.2" };
+  // marca de elegida fina (1,2 px) y pegada a la zona, con los tiradores encima (03/11/2026: antes era un marco grueso por fuera)
+  const u = ctx.px || 0.12;
+  const mark = { fill: "none", stroke: "#f59e0b", strokeWidth: 1.2 * u, strokeDasharray: `${4 * u} ${3 * u}` };
+  const halo = { fill: "none", stroke: "#f59e0b", strokeWidth: sw + 5 * u, strokeLinejoin: "round", opacity: 0.45 };
   if (quad) {
     const pts = el.pts.map(toV).map((q) => `${q.x},${q.y}`).join(" ");
     return (
       <g>
         {/* la marca de selección va por detrás (como la de las flechas) para no tapar el color del borde elegido */}
-        {selected && <polygon points={pts} fill="none" stroke="#f59e0b" strokeWidth={sw + 1.6} strokeLinejoin="round" opacity={0.5} />}
+        {selected && <polygon points={pts} {...halo} />}
         <polygon points={pts} strokeLinejoin="round" {...common} />
       </g>
     );
@@ -1375,14 +1390,14 @@ function Zone({ el, ctx, selected }) {
     const pts = ring.map(toV).map((q) => `${q.x.toFixed(2)},${q.y.toFixed(2)}`).join(" ");
     return (
       <g>
-        {selected && <polygon points={pts} fill="none" stroke="#f59e0b" strokeWidth={sw + 1.6} strokeLinejoin="round" opacity={0.5} />}
+        {selected && <polygon points={pts} {...halo} />}
         <polygon points={pts} strokeLinejoin="round" {...common} />
       </g>
     );
   }
   const a = toV({ x: x0, y: y0 }), b = toV({ x: x1, y: y1 });
   const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(a.x - b.x), h = Math.abs(a.y - b.y);
-  const pad = 0.9 + (border ? sw / 2 : 0);
+  const pad = (border ? sw / 2 : 0) + 1.5 * u;
   return (
     <g>
       {el.shape === "ellipse" ? <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...common} /> : <rect x={x} y={y} width={w} height={h} {...common} />}
@@ -1439,27 +1454,31 @@ function Link({ el, ctx, els, selected }) {
 // Esquinas de una zona libre para arrastrarlas (van en la capa de encima, para que ninguna ficha las tape)
 function QuadHandles({ el, ctx }) {
   const toV = ctx.V;
+  const u = ctx.px || 0.12;
   return (
     <g>
-      {el.pts.map((q, i) => { const c = toV(q); return <circle key={`v${i}`} cx={c.x} cy={c.y} r={1.3} fill="#fff" stroke="#f59e0b" strokeWidth={0.5} pointerEvents="none" />; })}
-      {el.pts.map((q, i) => { const c = toV(q); return <circle key={`h${i}`} data-h={`q${i}`} cx={c.x} cy={c.y} r={3.2} fill="transparent" />; })}
+      {el.pts.map((q, i) => { const c = toV(q); return <HandleDot key={`v${i}`} x={c.x} y={c.y} u={u} />; })}
+      {el.pts.map((q, i) => { const c = toV(q); return <circle key={`h${i}`} data-h={`q${i}`} cx={c.x} cy={c.y} r={HIT * u} fill="transparent" />; })}
     </g>
   );
 }
 
 // Tiradores de una zona rectangular o elíptica: en las esquinas cambian ancho y alto a la vez (la esquina contraria se queda
 // quieta) y en los lados solo el ancho o solo el alto; la figura sigue siendo un rectángulo o una elipse (no se deforma).
+// Cuadraditos pequeños (7 px las esquinas, 6 px los lados) que miden lo mismo con cualquier zoom.
 function ZoneHandles({ el, ctx }) {
   const toV = ctx.V;
+  const u = ctx.px || 0.12;
   const { x0, y0, x1, y1 } = zoneBox(el);
   const corners = [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
   const edges = [{ x: (x0 + x1) / 2, y: y0 }, { x: x1, y: (y0 + y1) / 2 }, { x: (x0 + x1) / 2, y: y1 }, { x: x0, y: (y0 + y1) / 2 }];
+  const sq = (c, half, fill, key) => <rect key={key} x={c.x - half * u} y={c.y - half * u} width={2 * half * u} height={2 * half * u} rx={1.2 * u} fill={fill} stroke={fill === "#fff" ? "#f59e0b" : "#fff"} strokeWidth={1.2 * u} pointerEvents="none" />;
   return (
     <g data-testid="zone-handles">
-      {edges.map((q, i) => { const c = toV(q); return <rect key={`ev${i}`} x={c.x - 0.8} y={c.y - 0.8} width={1.6} height={1.6} rx={0.4} fill="#fff" stroke="#f59e0b" strokeWidth={0.4} pointerEvents="none" />; })}
-      {corners.map((q, i) => { const c = toV(q); return <rect key={`cv${i}`} x={c.x - 1.05} y={c.y - 1.05} width={2.1} height={2.1} rx={0.3} fill="#f59e0b" stroke="#fff" strokeWidth={0.4} pointerEvents="none" />; })}
-      {edges.map((q, i) => { const c = toV(q); return <circle key={`eh${i}`} data-h={`ze${i}`} cx={c.x} cy={c.y} r={2.6} fill="transparent" />; })}
-      {corners.map((q, i) => { const c = toV(q); return <circle key={`ch${i}`} data-h={`zc${i}`} cx={c.x} cy={c.y} r={3} fill="transparent" />; })}
+      {edges.map((q, i) => sq(toV(q), 3, "#fff", `ev${i}`))}
+      {corners.map((q, i) => sq(toV(q), 3.5, "#f59e0b", `cv${i}`))}
+      {edges.map((q, i) => { const c = toV(q); return <circle key={`eh${i}`} data-h={`ze${i}`} cx={c.x} cy={c.y} r={(HIT - 1) * u} fill="transparent" />; })}
+      {corners.map((q, i) => { const c = toV(q); return <circle key={`ch${i}`} data-h={`zc${i}`} cx={c.x} cy={c.y} r={HIT * u} fill="transparent" />; })}
     </g>
   );
 }
@@ -1486,7 +1505,7 @@ function Text({ el, ctx, selected }) {
     <g opacity={el.opacity ?? 1}>
       <TextBg x={c.x} y={c.y} text={el.text} fs={fs} bold={bold} bg={bg} alpha={el.bgOpacity} look={look} />
       <text x={c.x} y={c.y} fontSize={fs} fontWeight={bold ? 700 : 400} fill={fill} stroke={bg ? "none" : s.textStroke} strokeWidth={bg ? 0 : Math.max(0.4, fs * 0.16)} paintOrder="stroke" textAnchor="middle" style={{ fontFamily: fontOf(el.font) }}>{el.text}</text>
-      {selected && <rect x={c.x - Math.max(4, (el.text || "").length * fs * 0.3)} y={c.y - fs} width={Math.max(8, (el.text || "").length * fs * 0.6)} height={fs * 1.4} fill="none" stroke="#f59e0b" strokeWidth={0.4} strokeDasharray="1 0.8" />}
+      {selected && <rect x={c.x - Math.max(4, (el.text || "").length * fs * 0.3)} y={c.y - fs} width={Math.max(8, (el.text || "").length * fs * 0.6)} height={fs * 1.4} fill="none" stroke="#f59e0b" strokeWidth={1.4 * (ctx.px || 0.12)} strokeDasharray={`${3.5 * (ctx.px || 0.12)} ${2.5 * (ctx.px || 0.12)}`} />}
     </g>
   );
 }
@@ -1497,13 +1516,14 @@ function TurnHandle({ el, ctx }) {
   const mat = materialOf(el.k);
   const base = mat ? mat.hh * (Number(el.size) || 1) + 0.6 : tokenR(ctx.chip, el) * 1.5;
   const a = (((mat ? el.rot || 0 : faceOf(el)) + orientAngle(ctx.orient)) * Math.PI) / 180;
-  const R = base + 2.1;
+  const u = ctx.px || 0.12;
+  const R = base + Math.max(1.2, 16 * u);
   const hx = c.x + Math.sin(a) * R, hy = c.y - Math.cos(a) * R;
   return (
     <g>
-      <line x1={c.x + Math.sin(a) * base} y1={c.y - Math.cos(a) * base} x2={hx} y2={hy} stroke="#f59e0b" strokeWidth={0.3} />
-      <circle cx={hx} cy={hy} r={1.15} fill="#f59e0b" stroke="#fff" strokeWidth={0.4} pointerEvents="none" />
-      <circle data-h={mat ? "r" : "f"} cx={hx} cy={hy} r={3.4} fill="transparent" />
+      <line x1={c.x + Math.sin(a) * base} y1={c.y - Math.cos(a) * base} x2={hx} y2={hy} stroke="#f59e0b" strokeWidth={1.2 * u} />
+      <HandleDot x={hx} y={hy} u={u} fill="#f59e0b" />
+      <circle data-h={mat ? "r" : "f"} cx={hx} cy={hy} r={HIT * u} fill="transparent" />
     </g>
   );
 }
@@ -1539,11 +1559,11 @@ function GroupBox({ ids, els, ctx }) {
     const pts = [{ x: b.x0, y: b.y0 }, { x: b.x1, y: b.y0 }, { x: b.x1, y: b.y1 }, { x: b.x0, y: b.y1 }].map(ctx.V);
     const xs = pts.map((q) => q.x), ys = pts.map((q) => q.y);
     const lo = { x: Math.min(...xs) - 1.2, y: Math.min(...ys) - 3 }, hi = { x: Math.max(...xs) + 1.2, y: Math.max(...ys) + 1.2 };
-    return <rect x={lo.x} y={lo.y} width={hi.x - lo.x} height={hi.y - lo.y} fill="none" stroke="#f59e0b" strokeWidth={0.35} strokeDasharray="2 1.2" opacity={0.9} pointerEvents="none" />;
+    return <rect x={lo.x} y={lo.y} width={hi.x - lo.x} height={hi.y - lo.y} fill="none" stroke="#f59e0b" strokeWidth={1.2 * (ctx.px || 0.12)} strokeDasharray={`${5 * (ctx.px || 0.12)} ${3 * (ctx.px || 0.12)}`} opacity={0.9} pointerEvents="none" />;
   }
   const a = toView(ctx.field, ctx.orient, { x: b.x0, y: b.y0 }), c = toView(ctx.field, ctx.orient, { x: b.x1, y: b.y1 });
   const pad = 1.2;
-  return <rect x={Math.min(a.x, c.x) - pad} y={Math.min(a.y, c.y) - pad} width={Math.abs(a.x - c.x) + 2 * pad} height={Math.abs(a.y - c.y) + 2 * pad} fill="none" stroke="#f59e0b" strokeWidth={0.35} strokeDasharray="2 1.2" opacity={0.9} pointerEvents="none" />;
+  return <rect x={Math.min(a.x, c.x) - pad} y={Math.min(a.y, c.y) - pad} width={Math.abs(a.x - c.x) + 2 * pad} height={Math.abs(a.y - c.y) + 2 * pad} fill="none" stroke="#f59e0b" strokeWidth={1.2 * (ctx.px || 0.12)} strokeDasharray={`${5 * (ctx.px || 0.12)} ${3 * (ctx.px || 0.12)}`} opacity={0.9} pointerEvents="none" />;
 }
 function BoxMark({ box, ctx }) {
   if (ctx.persp) {
@@ -1590,7 +1610,7 @@ function PerspGoal({ el, ctx, selected }) {
   const box = [[-gw / 2 - 1.2, -gd / 2 - 1.1], [gw / 2 + 1.2, -gd / 2 - 1.1], [gw / 2 + 1.2, gd / 2 + 1.1], [-gw / 2 - 1.2, gd / 2 + 1.1]].map(([x, y]) => lift(x, y));
   return (
     <g opacity={el.opacity ?? 1}>
-      {selected && <polygon points={box.map((q) => `${q.x},${q.y}`).join(" ")} fill="none" stroke="#f59e0b" strokeWidth={0.5 * ctx.persp.scaleAt(c)} strokeDasharray="1 0.8" />}
+      {selected && <polygon points={box.map((q) => `${q.x},${q.y}`).join(" ")} fill="none" stroke="#f59e0b" strokeWidth={1.4 * (ctx.px || 0.12)} strokeDasharray={`${3.5 * (ctx.px || 0.12)} ${2.5 * (ctx.px || 0.12)}`} />}
       <GoalShape gw={gw} gd={gd} h={h} frame={col} net={goalNet(s)} flat={false} k={ctx.persp.scaleAt(c)} proj={(px, py, pz) => lift(px, py + gd / 2, pz)} />
     </g>
   );
@@ -1647,14 +1667,28 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
   const { field, orient, look, persp, fullVb, vb } = boardView(board, { camera, frame, aspect, fullView, viewOverride });
   const clipVb = `vbclip-${React.useId().replace(/:/g, "")}`;
   const V = persp ? (p) => persp.P(toView(field, orient, p)) : (p) => toView(field, orient, p);
-  const ctx = { board, field, orient, look, chip: chipOf(board), persp, V };
+  // Metros por píxel de pantalla (para que los tiradores midan siempre lo mismo en pantalla): solo con tiradores
+  const svgEl = React.useRef(null);
+  const setSvg = React.useCallback((n) => { svgEl.current = n; if (typeof ref === "function") ref(n); else if (ref) ref.current = n; }, [ref]);
+  const [box, setBox] = React.useState(null);
+  React.useLayoutEffect(() => {
+    const n = svgEl.current;
+    if (!handles || !n || typeof ResizeObserver === "undefined") return undefined;
+    const m = () => setBox((b) => (b && b[0] === n.clientWidth && b[1] === n.clientHeight ? b : [n.clientWidth, n.clientHeight]));
+    m();
+    const ro = new ResizeObserver(m);
+    ro.observe(n);
+    return () => ro.disconnect();
+  }, [handles]);
+  const px = box && box[0] > 0 && box[1] > 0 ? Math.max(vb[2] / box[0], vb[3] / box[1]) : Math.max(vb[2], vb[3]) / 900;
+  const ctx = { board, field, orient, look, chip: chipOf(board), persp, V, px };
   // En perspectiva, sin capas elegidas a mano, lo de atrás se pinta antes que lo de delante (dentro de cada tipo)
   const order = paintOrder(els, field, orient, persp);
   // Una sola cosa elegida (selId) o varias (selIds): con varias no hay tiradores, solo la marca de cada una y la caja del grupo
   const sel = selIds || (selId ? [selId] : []);
   const selEl = sel.length === 1 ? els.find((e) => e.id === sel[0]) : null;
   return (
-    <svg ref={ref} xmlns="http://www.w3.org/2000/svg" viewBox={vb.join(" ")} className={className} style={style} preserveAspectRatio="xMidYMid meet" role="img" aria-label={label} {...rest}>
+    <svg ref={setSvg} xmlns="http://www.w3.org/2000/svg" viewBox={vb.join(" ")} className={className} style={style} preserveAspectRatio="xMidYMid meet" role="img" aria-label={label} {...rest}>
       <defs>
         <pattern id="bn-hatch" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="1.6" stroke="#111" strokeWidth="0.3" /></pattern>
         <pattern id="bn-stripes" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.6" height="1.6" fill="#fff" /><rect width="0.8" height="1.6" fill="#111" /></pattern>
@@ -1679,7 +1713,7 @@ const Board = React.forwardRef(function Board({ board, els, selId = null, selIds
         );
       })}
       {order.map((el) => <Item key={el.id} el={el} els={els} ctx={ctx} selected={sel.includes(el.id) || (el.k !== "link" && marks.includes(el.id))} handles={handles} />)}
-      {handles && sel.length === 1 && ghosts.filter((g) => g.id === sel[0]).map((g) => <PathHandles key={`ph${g.id}`} g={g} V={V} />)}
+      {handles && sel.length === 1 && ghosts.filter((g) => g.id === sel[0]).map((g) => <PathHandles key={`ph${g.id}`} g={g} V={V} u={px} />)}
       {handles && sel.length > 1 && <GroupBox ids={sel} els={els} ctx={ctx} />}
       {markNumbers && marks.length > 0 && <MarkNumbers ids={marks} els={els} ctx={ctx} />}
       {handles && selEl && isQuad(selEl) && <QuadHandles el={selEl} ctx={ctx} />}

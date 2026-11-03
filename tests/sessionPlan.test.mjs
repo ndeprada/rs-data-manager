@@ -195,3 +195,22 @@ assert.equal(registerSession(e).total, 0);
   assert.equal(sp.staffRolesText([{ role: '1e', name: 'Nacho', aspect: 'perfil' }, { role: 'porteros', name: '', aspect: '' }, { role: 'pf', name: 'Joan', aspect: '' }]), '1E Nacho: perfil\nPF Joan');
   assert.equal(sp.fmtPct(0.4), '<1%');
 }
+
+// Tareas simultáneas (03/11/2026): el reloj cuenta cada grupo una vez (la más larga); los contenidos cuentan entera cada tarea
+{
+  const { taskGroups, partClock, sessionClock, simulWith, registerSession: reg } = await import('../src/lib/sessionPlan.js');
+  const t = (min, extra = {}) => ({ id: Math.random().toString(36).slice(2), series: 1, serie_min: min, rec_min: 0, ...extra });
+  const main = [t(20, { principal: ['oc_of.desmarque_apoyo'] }), t(15, { simul: true, principal: ['oc_of.desmarque_apoyo'] }), t(12, { simul: true }), t(25)];
+  assert.deepEqual(taskGroups(main), [[0, 1, 2], [3]]);
+  assert.equal(partClock(main), 45);
+  assert.equal(simulWith(main, 1), 1);
+  assert.equal(simulWith(main, 2), 1);
+  assert.equal(simulWith(main, 3), null);
+  // la primera de una parte nunca es simultánea
+  assert.deepEqual(taskGroups([t(10, { simul: true }), t(5)]), [[0], [1]]);
+  const ses = { initial: { tasks: [t(10)] }, main: { tasks: main } };
+  assert.equal(sessionClock(ses), 55);
+  const r = reg(ses);
+  assert.equal(r.total, 82, 'trabajado: todas las tareas enteras');
+  assert.equal(r.clock, 55, 'reloj: cada grupo una vez');
+}

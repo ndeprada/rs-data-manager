@@ -4,9 +4,9 @@ import {
   ArrowUp, BringToFront, ChevronDown, ChevronUp, Circle, Copy, GripVertical, Minus, MoveUpRight, Plus, RotateCcw, RotateCw, SendToBack, Square, Trash2, Triangle, Type, Waypoints, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { drawOrder, elementBounds, isCarried, teamOf, teamsOf } from "@/lib/board";
+import { DASHES, arrowProps, drawOrder, elementBounds, isCarried, teamOf, teamsOf } from "@/lib/board";
 import { ChipGlyph } from "./BoardSvg";
-import { ColorPick, NO_FILL, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon, Row, Toggle } from "./BoardControls";
+import { ColorPick, NO_FILL, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon, Row, Seg, Slider, Toggle } from "./BoardControls";
 import { typeOfArrow } from "./BoardProps";
 
 // Panel de varios elementos a la vez (selección múltiple), botones de capas (orden de dibujo, también con uno solo) y la lista de
@@ -118,7 +118,73 @@ function TurnBar({ onTurn, noFeet }) {
   );
 }
 
-export default function MultiPanel({ els, board, look, frames, onTeam, onColor, onFeet, onBib, onTurn, onResize, onSpread, onAlign, onDistribute, onLayer, onDup, onDel, onClear, flags = null }) {
+// Igualar las cosas del mismo tipo (03/11/2026, Nacho): de cada tipo con dos o más elegidas, sus controles para cambiarlas todas
+// a la vez y «Igualar a la primera» (copia el aspecto de la primera elegida de ese tipo a las demás).
+const SIZE_OF = {
+  token: { label: "Tamaño", min: 0.4, max: 3, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  ball: { label: "Tamaño", min: 0.6, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  cone: { label: "Tamaño", min: 0.6, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  pole: { label: "Tamaño", min: 0.6, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  hurdle: { label: "Tamaño", min: 0.6, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  ladder: { label: "Tamaño", min: 0.6, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  dummy: { label: "Tamaño", min: 0.6, max: 2.2, step: 0.05, get: (e) => Number(e.size) || 1, key: "size", fmt: (v) => `${Math.round(v * 100)}%` },
+  goal: { label: "Ancho", min: 1, max: 12, step: 0.1, get: (e) => Number(e.w) || 7.32, key: "w", fmt: (v) => `${v.toFixed(1)} m` },
+  text: { label: "Tamaño", min: 1.5, max: 10, step: 0.1, get: (e) => Number(e.size) || 3, key: "size", fmt: (v) => v.toFixed(1) },
+};
+const ARROW_KINDS = [{ id: "move", label: "Desplaz." }, { id: "pass", label: "Pase" }, { id: "dribble", label: "Conducción" }];
+const ARROW_KIND_PATCH = { move: { style: "move", dash: "solid", wavy: false }, pass: { style: "pass", dash: "dashed", wavy: false }, dribble: { style: "dribble", dash: "solid", wavy: true } };
+const same = (list, f) => (list.every((e) => f(e) === f(list[0])) ? f(list[0]) : null);
+
+function SameBlock({ els, onStyle, onMatch }) {
+  const groups = Object.entries(els.reduce((m, e) => { (m[e.k] = m[e.k] || []).push(e); return m; }, {}))
+    .filter(([k, list]) => list.length > 1 && (k === "arrow" || SIZE_OF[k] || k === "zone"));
+  if (!groups.length) return null;
+  return (
+    <div className="space-y-1.5 rounded-md border border-amber-200 bg-white px-2 py-1.5" data-testid="multi-same">
+      {groups.map(([k, list]) => {
+        const name = `${list.length} ${(PLURAL[k] || [k, k])[1]}`;
+        const sz = SIZE_OF[k];
+        const head = (
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-gray-700 flex-1">{name.charAt(0).toUpperCase() + name.slice(1)} · iguales</span>
+            <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => onMatch(k)} data-testid={`same-${k}`} title="Copiar el tamaño y el aspecto de la primera elegida a las demás">Igualar a la primera</Button>
+          </div>
+        );
+        if (k === "arrow") {
+          const aps = list.map(arrowProps);
+          const width = same(aps, (a) => a.width);
+          const kind = same(list, (e) => (e.air ? "air" : e.style || "move"));
+          return (
+            <div key={k} className="space-y-1" data-testid="same-arrows">
+              {head}
+              <Row>
+                <Seg label="Tipo de flecha" value={kind} options={ARROW_KINDS} onChange={(v) => onStyle(k, ARROW_KIND_PATCH[v])} />
+                <Seg label="Punta" value={same(aps, (a) => a.pointer)} options={[{ id: "arrow", label: "Flecha" }, { id: "bar", label: "Barra" }, { id: "dot", label: "Punto" }, { id: "none", label: "Sin" }]} onChange={(v) => onStyle(k, { pointer: v })} />
+              </Row>
+              <Row>
+                <Seg label="Trazo" value={same(aps, (a) => a.dash)} options={DASHES.map((d) => ({ id: d.id, label: d.label }))} onChange={(v) => onStyle(k, { dash: v })} />
+                <Slider label="Grosor" value={width ?? aps[0].width} min={0.2} max={2} step={0.05} onChange={(v) => onStyle(k, { width: v }, "width")} fmt={(v) => (width == null ? "varios" : v.toFixed(2))} />
+              </Row>
+            </div>
+          );
+        }
+        if (k === "zone") return <div key={k}>{head}</div>;
+        const val = same(list, sz.get);
+        return (
+          <div key={k} className="space-y-1" data-testid={`same-group-${k}`}>
+            {head}
+            <Row>
+              <Slider label={sz.label} value={val ?? sz.get(list[0])} min={sz.min} max={sz.max} step={sz.step} onChange={(v) => onStyle(k, { [sz.key]: v }, `size-${k}`)} fmt={(v) => (val == null ? "varios" : sz.fmt(v))} />
+              {k === "cone" && <Seg label="Forma" value={same(list, (e) => e.shape || "tri")} options={[{ id: "tri", label: "Triángulo" }, { id: "flat", label: "Plano" }]} onChange={(v) => onStyle(k, { shape: v })} />}
+            </Row>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export default function MultiPanel({ els, board, look, frames, onStyle, onMatch, onTeam, onColor, onFeet, onBib, onTurn, onResize, onSpread, onAlign, onDistribute, onLayer, onDup, onDel, onClear, flags = null }) {
   const tokens = els.filter((e) => e.k === "token");
   const teams = teamsOf(board);
   const teamOfAll = tokens.length && tokens.every((t) => t.team === tokens[0].team) ? tokens[0].team : null;
@@ -161,6 +227,7 @@ export default function MultiPanel({ els, board, look, frames, onTeam, onColor, 
           {tokens.length > 0 && <ColorPick value={bibOfAll} onChange={onBib} label="Peto" auto="Sin peto" autoSwatch={NO_FILL} wide />}
         </Row>
       )}
+      {onStyle && <SameBlock els={els} onStyle={onStyle} onMatch={onMatch} />}
       {turnable && <TurnBar onTurn={onTurn} noFeet={tokens.length > 0 && !tokens.some((t) => t.feet)} />}
       <Row>
         {sizable && <Step label="Tamaño" onLess={() => onResize(1 / 1.15)} onMore={() => onResize(1.15)} lessTitle="Más pequeño" moreTitle="Más grande" />}

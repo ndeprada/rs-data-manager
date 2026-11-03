@@ -5,7 +5,7 @@ import { PitchView, hasBoard } from "./PitchBoard";
 import {
   allTasks, blockInfo, contentBlock, contentName, fmtMin, hasText, isBlankTask, phasesLabel, seriesLabel, sessionTypeInfo, sessionTypeName,
   staffRolesText, stageInfo, taskMinutes,
-  recText,
+  recText, partClock, simulWith,
 } from "@/lib/sessionPlan";
 import { fullDate, playerFullName, posShort, sortRoster } from "./sessionHelpers";
 import { areaFor, attendanceOf } from "./sessionAttendance";
@@ -65,7 +65,7 @@ function Drawing({ task, maxH }) {
 }
 
 // Una tarea: texto a la izquierda y dibujo a la derecha (como en la maqueta)
-function TaskCard({ task, n }) {
+function TaskCard({ task, n, simul = null }) {
   const draw = hasDrawing(task);
   const phases = phasesLabel(task.phases);
   const staff = [...lines(staffRolesText(task.staff_roles || [])), ...lines(task.staff_corrections)];
@@ -73,7 +73,8 @@ function TaskCard({ task, n }) {
   const meta = taskMeta(task);
   const p = task.principal || [], s = task.secondary || [];
   return (
-    <div style={{ border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden" }}>
+    <div style={{ border: `1px solid ${LINE}`, borderLeft: simul ? `3px solid ${GRANATE}` : `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden" }}>
+      {simul && <div style={{ background: "#FBEDEE", color: GRANATE, fontWeight: 700, fontSize: 9, padding: "2px 8px", textTransform: "uppercase", letterSpacing: ".04em" }}>A la vez que la tarea {simul} (simultánea)</div>}
       <div style={{ display: "grid", gridTemplateColumns: draw ? "minmax(0,1fr) 300px" : "minmax(0,1fr)", gap: 10, padding: 8 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ ...d, fontSize: 13, fontWeight: 800, color: GRANATE, lineHeight: 1.15 }}>{n} · {task.title || "Tarea"}{m ? <span style={{ color: SOFT, fontWeight: 700 }}> · {fmtMin(m)}</span> : null}</div>
@@ -125,14 +126,13 @@ export function sheetBlocks({ session, team, players = [], matchRef, pdiGoals = 
   const type = sessionTypeInfo(session.session_type);
   const initial = (session.initial?.tasks || []).filter((t) => !isBlankTask(t));
   const main = (session.main?.tasks || []).filter((t) => !isBlankTask(t));
-  const sum = (ts) => ts.reduce((s, t) => s + taskMinutes(t), 0);
   const roster = sortRoster(players);
   const att = session.attendance || {};
   const match = session.match_ref || matchRef || "";
   const stage = stageInfo(session.stage);
   const eff = roster.map((p) => attendanceOf(p, att[p.id]));
   const available = eff.filter((a) => a.st !== "no").length;
-  const total = sum(initial) + sum(main);
+  const total = partClock(initial) + partClock(main);
   const when = [cap(fullDate(session.date)), session.time_place].filter(hasText).join(" · ");
   const blocks = [];
 
@@ -195,12 +195,12 @@ export function sheetBlocks({ session, team, players = [], matchRef, pdiGoals = 
   }
 
   if (initial.length) {
-    blocks.push({ key: "band-i", stick: true, el: <Band title="Parte inicial" minutes={fmtMin(sum(initial))} />, tight: true });
-    initial.forEach((t, i) => blocks.push({ key: `i-${t.id}`, el: <TaskCard task={t} n={i + 1} /> }));
+    blocks.push({ key: "band-i", stick: true, el: <Band title="Parte inicial" minutes={fmtMin(partClock(initial))} />, tight: true });
+    initial.forEach((t, i) => blocks.push({ key: `i-${t.id}`, el: <TaskCard task={t} n={i + 1} simul={simulWith(initial, i)} /> }));
   }
   if (main.length) {
-    blocks.push({ key: "band-m", stick: true, el: <Band title="Parte principal" minutes={fmtMin(sum(main))} />, tight: true });
-    main.forEach((t, i) => blocks.push({ key: `m-${t.id}`, el: <TaskCard task={t} n={i + 1} /> }));
+    blocks.push({ key: "band-m", stick: true, el: <Band title="Parte principal" minutes={fmtMin(partClock(main))} />, tight: true });
+    main.forEach((t, i) => blocks.push({ key: `m-${t.id}`, el: <TaskCard task={t} n={i + 1} simul={simulWith(main, i)} /> }));
   }
   if (hasText(session.notes)) blocks.push({ key: "notes", el: (
     <div style={{ border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px" }}>

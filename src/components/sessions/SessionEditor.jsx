@@ -23,7 +23,7 @@ import CopySessionDialog from "./CopySessionDialog";
 import { ATT_REASONS, pdiAreaOf, attendanceOf } from "./sessionAttendance";
 import {
   BLOCKS, SESSION_TYPES, STAGES, compareWithStage, contentBlock, contentName, duplicateSessionContent, emptySession, emptyTask, fmtMin, fmtPct, isBlankTask,
-  moveTaskToPart, normalizeSessionType, pctOf, registerSession, sessionTypeInfo, sessionTypeName, stageOfTeamName, taskMinutes,
+  moveTaskToPart, normalizeSessionType, partClock, pctOf, registerSession, simulWith, sessionTypeInfo, sessionTypeName, stageOfTeamName,
 } from "@/lib/sessionPlan";
 import { MATCH_TYPES } from "@/lib/matchStatus";
 import { isCancelled } from "@/lib/eventCancel";
@@ -63,7 +63,9 @@ function LiveSummary({ session, stage }) {
   const contents = Object.values(reg.contents);
   const principals = contents.filter((c) => c.principal > 0).sort((a, b) => b.principal - a.principal);
   const seconds = contents.filter((c) => c.secondary > 0).sort((a, b) => b.secondary - a.secondary);
-  const planned = reg.total;
+  // reloj de la sesión (las tareas simultáneas cuentan una vez) y tiempo trabajado (cada tarea, entera)
+  const planned = reg.clock ?? reg.total;
+  const worked = reg.total;
   const dur = Number(session.duration) || 0;
   const diff = dur ? Math.round((dur - planned) * 10) / 10 : 0;
   return (
@@ -77,6 +79,7 @@ function LiveSummary({ session, stage }) {
             : <span className="text-[13px]" style={{ color: C.muted }} data-testid="live-left">de {dur || "—"}’ previstos{dur > 0 && planned > 0 ? (diff > 0 ? ` · quedan ${fmtMin(diff)}` : " · justo") : ""}</span>}
         </div>
         {dur > 0 && <div className="h-2 rounded-full overflow-hidden" style={{ background: "#F0EAEA" }}><div className="h-full" style={{ width: `${Math.min(100, (planned / dur) * 100)}%`, background: diff < 0 ? "#d97706" : C.granate }} /></div>}
+        {worked > planned && <p className="text-[11px] m-0" style={{ color: C.muted }} data-testid="live-simul">Con tareas a la vez: {fmtMin(worked)} de trabajo en {fmtMin(planned)} de sesión.</p>}
         {(reg.unclassified > 0 || reg.noCurriculum > 0) && (
           <p className="text-[11px] m-0" style={{ color: C.muted }}>
             {reg.unclassified > 0 && <span className="text-amber-700 font-semibold">Sin contenido principal: {fmtMin(reg.unclassified)}{reg.noCurriculum > 0 ? " · " : ""}</span>}
@@ -87,9 +90,9 @@ function LiveSummary({ session, stage }) {
           <p className="text-xs m-0" style={{ color: C.muted }}>Cuando elijas contenidos en las tareas, aquí verás cuánto tiempo va a cada uno.</p>
         ) : (
           <>
-            {principals.length > 0 && <><Lab style={{ marginTop: 4 }}>Contenidos principales</Lab><ContentLines list={principals} total={planned} kind="principal" custom={reg.custom} /></>}
-            {seconds.length > 0 && <><Lab style={{ marginTop: 4 }}>Contenidos secundarios</Lab><ContentLines list={seconds} total={planned} kind="secondary" custom={reg.custom} /></>}
-            <p className="text-[11px] m-0 leading-[1.45]" style={{ color: C.muted }}>% sobre los {fmtMin(planned)} de la sesión. Una tarea con dos principales suma su tiempo a los dos, por eso los % pueden sumar más de 100.</p>
+            {principals.length > 0 && <><Lab style={{ marginTop: 4 }}>Contenidos principales</Lab><ContentLines list={principals} total={worked} kind="principal" custom={reg.custom} /></>}
+            {seconds.length > 0 && <><Lab style={{ marginTop: 4 }}>Contenidos secundarios</Lab><ContentLines list={seconds} total={worked} kind="secondary" custom={reg.custom} /></>}
+            <p className="text-[11px] m-0 leading-[1.45]" style={{ color: C.muted }}>% sobre los {fmtMin(worked)} {worked > planned ? "trabajados (las tareas simultáneas cuentan las dos)" : "de la sesión"}. Una tarea con dos principales suma su tiempo a los dos, por eso los % pueden sumar más de 100.</p>
           </>
         )}
       </SCard>
@@ -357,14 +360,14 @@ export default function SessionEditor({ session, draft, teams, sessions = [], on
   const allList = [...initialTasks, ...mainTasks];
 
   const renderTasks = (part, list, label) => list.map((t, i) => (
-    <TaskEditor key={t.id} task={t} index={i} label={label} stage={stage} roster={roster} part={part}
+    <TaskEditor key={t.id} task={t} index={i} label={label} stage={stage} roster={roster} part={part} simulNo={simulWith(list, i)}
       onChangePart={(to) => changePart(t.id, to)} staffNames={staffNames} prevStaff={prevStaffOf(allList, allList.indexOf(t))}
       onChange={(patch) => patchTask(part, t.id, patch)} onRemove={() => removeTask(part, t)}
       onMove={(d) => moveTask(part, i, d)} onDuplicate={() => duplicateTask(part, i)}
       canMoveUp={i > 0} canMoveDown={i < list.length - 1} defaultOpen={(i === 0 && isBlankTask(t)) || t.id === justLoaded} />
   ));
 
-  const partMin = (list) => fmtMin(list.reduce((sum, t) => sum + taskMinutes(t), 0));
+  const partMin = (list) => fmtMin(partClock(list));
   const PartCard = ({ part, list, label, title }) => (
     <SCard className="overflow-hidden" data-testid={`part-${part}`}>
       <Band title={title} minutes={partMin(list)} />

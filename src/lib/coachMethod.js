@@ -6,7 +6,7 @@
 // Sin importaciones de la app (salvo traducción y sessionPlan): se usa también en los tests.
 import { msg } from "../i18n/translate.js";
 import {
-  stageContents, contentInfo, contentBlock, aggregateSessions, compareWithStage, hierarchyIssues, taskMinutes, hasText,
+  stageContents, contentInfo, contentBlock, aggregateSessions, compareWithStage, hierarchyIssues, taskMinutes, hasText, sessionClock,
 } from "./sessionPlan.js";
 
 // ── Escala (TFM 4.8.11) ──────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ export function coachIndicators({ sessions = [], trainings = [], stage = null })
   let initialSessions = 0;
   let initialOk = 0;
   for (const s of sessions) {
-    const total = [...(s.initial?.tasks || []), ...(s.main?.tasks || [])].filter(worked).reduce((a, t) => a + taskMinutes(t), 0);
+    const total = sessionClock(s);
     const fin = finalGameOf(s);
     if (total) {
       out.finalGame.sessions += 1;

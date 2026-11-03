@@ -1,7 +1,7 @@
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { allTasks, fmtMin, isBlankTask, sessionTypeInfo, sessionTypeName, taskMinutes } from "@/lib/sessionPlan";
+import { allTasks, fmtMin, isBlankTask, sessionClock, sessionTypeInfo, sessionTypeName } from "@/lib/sessionPlan";
 import { longDate } from "./sessionHelpers";
 
 /** Elegir una sesión anterior para copiar sus tareas, tipo, objetivos y notas en la actual (nunca la asistencia). */
@@ -18,7 +18,7 @@ export default function CopySessionDialog({ open, onOpenChange, sessions = [], t
           {sessions.length === 0 && <p className="text-sm text-gray-400 p-4 text-center">No hay sesiones anteriores.</p>}
           {sessions.map((s) => {
             const tasks = allTasks(s).filter((t) => !isBlankTask(t));
-            const mins = tasks.reduce((a, t) => a + taskMinutes(t), 0);
+            const mins = sessionClock(s);
             const type = sessionTypeInfo(s.session_type);
             return (
               <div key={s.id} className="flex items-center gap-3 px-3 py-2" data-testid={`copy-from-${s.id}`}>

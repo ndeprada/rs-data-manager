@@ -326,8 +326,8 @@ test("el vuelo se curva hacia arriba en pantalla cuando el pase va de lado, tamb
   assert.deepEqual(liftNormal({ x1: 5, y1: 5, x2: 5, y2: 5 }, "v"), { x: 0, y: -1 }, "sin recorrido, hacia arriba");
 });
 
-test("los valores por defecto de las flechas antiguas se mantienen y los nuevos se respetan", () => {
-  assert.deepEqual(arrowProps({ style: "pass" }), { width: 0.55, dash: "dashed", wavy: false, pointer: "arrow", border: false, alpha: 1 });
+test("los valores por defecto de las flechas (grosor 0,4 desde el 03/11/2026) y los nuevos se respetan", () => {
+  assert.deepEqual(arrowProps({ style: "pass" }), { width: 0.4, dash: "dashed", wavy: false, pointer: "arrow", border: false, alpha: 1 });
   assert.equal(arrowProps({ style: "dribble" }).wavy, true);
   assert.equal(arrowProps({ style: "move" }).dash, "solid");
   const custom = arrowProps({ style: "pass", dash: "dotted", width: 1.2, border: true, pointer: "bar", wavy: true });
@@ -1320,3 +1320,37 @@ test("bloquear y resaltar en todos los fotogramas; lo bloqueado no se mueve", as
   assert.equal(L.isHighlighted(b.frames[1].els[0]), true);
   assert.equal(L.snapTo(10.4), 10);
 });
+
+// Igualar varias cosas del mismo tipo (03/11/2026)
+{
+  const { styleElements, matchElements, arrowProps, ARROW_W } = await import('../src/lib/board.js');
+  const b = { v: 2, field: 'full', frames: [
+    { id: 'f1', els: [
+      { id: 'a1', k: 'arrow', x1: 0, y1: 0, x2: 5, y2: 5, width: 1.2, dash: 'dotted', pointer: 'bar' },
+      { id: 'a2', k: 'arrow', x1: 1, y1: 0, x2: 6, y2: 5 },
+      { id: 'c1', k: 'cone', x: 3, y: 3, size: 1.6, shape: 'flat' },
+      { id: 'c2', k: 'cone', x: 4, y: 3 },
+      { id: 'c3', k: 'cone', x: 5, y: 3, size: 0.7 },
+    ] },
+    { id: 'f2', els: [{ id: 'a2', k: 'arrow', x1: 1, y1: 0, x2: 6, y2: 9 }, { id: 'c2', k: 'cone', x: 9, y: 3 }] },
+  ] };
+  assert.equal(arrowProps({}).width, ARROW_W);
+  const ids = ['a1', 'a2', 'c1', 'c2', 'c3'];
+  // todas las flechas con el mismo grosor, en todos los fotogramas; los conos no cambian
+  const w = styleElements(b, 0, ids, 'arrow', { width: 0.8, x2: 99 });
+  assert.equal(w.frames[0].els[0].width, 0.8);
+  assert.equal(w.frames[1].els[0].width, 0.8);
+  assert.equal(w.frames[1].els[0].x2, 6, 'no toca la posición');
+  assert.equal(w.frames[0].els[2].size, 1.6);
+  // igualar los conos a la primera: tamaño y forma; la posición no cambia
+  const m = matchElements(b, 0, ids, 'cone');
+  assert.deepEqual(m.frames[0].els.slice(2).map((e) => [e.size, e.shape, e.x]), [[1.6, 'flat', 3], [1.6, 'flat', 4], [1.6, 'flat', 5]]);
+  assert.equal(m.frames[1].els[1].size, 1.6);
+  // igualar flechas a la primera: lo que la primera no tiene se quita (vuelve al valor por defecto)
+  const b2 = { ...b, frames: [{ id: 'f1', els: [{ id: 'a2', k: 'arrow', x1: 0, y1: 0, x2: 1, y2: 1 }, { id: 'a1', k: 'arrow', x1: 0, y1: 0, x2: 5, y2: 5, width: 1.2, dash: 'dotted' }] }] };
+  const m2 = matchElements(b2, 0, ['a2', 'a1'], 'arrow');
+  assert.equal(m2.frames[0].els[1].width, undefined);
+  assert.equal(m2.frames[0].els[1].dash, undefined);
+  // con una sola de ese tipo no cambia nada
+  assert.equal(matchElements(b, 0, ['a1', 'c1'], 'cone'), b);
+}

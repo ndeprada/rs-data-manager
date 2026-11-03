@@ -1214,10 +1214,12 @@ export function arrowHeading(a, orient = "v") {
 }
 
 // Grosor, punta y trazo con sus valores por defecto (los dibujos antiguos no traen estos campos).
+// Grosor por defecto: 0,4 m (03/11/2026, Nacho: «las flechas aparecen demasiado grandes»; antes 0,55).
+export const ARROW_W = 0.4;
 export const DASHES = [{ id: "solid", label: "Continua" }, { id: "dashed", label: "Discontinua" }, { id: "dotted", label: "Punteada" }];
 export function arrowProps(a) {
   return {
-    width: a.width ?? 0.55,
+    width: a.width ?? ARROW_W,
     dash: a.dash ?? (a.style === "pass" ? "dashed" : "solid"),
     wavy: a.wavy ?? a.style === "dribble",
     pointer: a.pointer || "arrow",
@@ -1586,6 +1588,45 @@ export function resizeElements(board, index, ids, factor) {
     if (e.k === "arrow") return { ...e, width: clampTo(Math.round(arrowProps(e).width * factor * 20) / 20, 0.2, 2) };
     return e;
   });
+}
+
+// Igualar varias cosas del mismo tipo (03/11/2026, Nacho: «que todas las flechas pasen a tener el mismo grosor y la misma forma
+// a la vez… seleccionar los 4 o 6 conos y unificar tamaño»). Lo que define el aspecto de cada tipo (nunca la posición ni la forma
+// dibujada: extremos, curva, quiebros, giro…).
+export const SAME_KEYS = {
+  arrow: ["style", "dash", "wavy", "pointer", "width", "border", "borderColor", "color", "alpha"],
+  token: ["size"],
+  ball: ["size", "pattern", "color", "color2", "stroke"],
+  cone: ["size", "shape", "color"],
+  goal: ["w", "color"],
+  pole: ["size", "color"],
+  hurdle: ["size", "color"],
+  ladder: ["size", "color", "rungs"],
+  dummy: ["size", "color"],
+  text: ["size", "font", "color", "bold", "bg", "bgOpacity"],
+  zone: ["fill", "fillOpacity", "border", "stroke", "dash", "strokeWidth"],
+};
+// Cambia `patch` en todas las cosas elegidas del tipo `kind` (en todos los fotogramas donde están: es aspecto, no posición).
+export function styleElements(board, index, ids, kind, patch) {
+  const keys = SAME_KEYS[kind] || [];
+  const clean = Object.fromEntries(Object.entries(patch).filter(([k]) => keys.includes(k)));
+  if (!Object.keys(clean).length) return board;
+  const of = new Set(ids.filter((id) => board.frames[index]?.els.some((e) => e.id === id && e.k === kind)));
+  return mapElements(board, index, [...of], (e) => {
+    const out = { ...e };
+    for (const [k, v] of Object.entries(clean)) { if (v === undefined || v === null) delete out[k]; else out[k] = v; }
+    return out;
+  });
+}
+// Copia el aspecto de la primera cosa elegida de ese tipo a las demás de su tipo (lo que la primera no tiene, se quita: valor por
+// defecto). Devuelve el mismo board si no hay al menos dos.
+export function matchElements(board, index, ids, kind) {
+  const els = board.frames[index]?.els || [];
+  const mine = ids.map((id) => els.find((e) => e.id === id)).filter((e) => e && e.k === kind);
+  if (mine.length < 2) return board;
+  const src = mine[0];
+  const patch = Object.fromEntries((SAME_KEYS[kind] || []).map((k) => [k, src[k] ?? null]));
+  return styleElements(board, index, mine.slice(1).map((e) => e.id), kind, patch);
 }
 
 // Separa o junta lo elegido respecto a su centro (factor > 1 separa): cambia las posiciones, no el tamaño de cada cosa.

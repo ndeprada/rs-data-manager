@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
   boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
-  is3D, handleSpec, PERSP, toggleFlag, movableIds, snapTo, isLocked, isHighlighted, resetToPrevious, resizeElements as resizeEls, VIEW_MODES, viewModeOf, setViewMode, orbitOf, orbitBetween, orbitPreset, ORBIT_PRESETS, setOrbit, clearFrameOrbit, clearOrbits, hasFrameOrbits, validOrbit, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
+  is3D, handleSpec, PERSP, toggleFlag, movableIds, snapTo, isLocked, isHighlighted, resetToPrevious, resizeElements as resizeEls, styleElements, matchElements, VIEW_MODES, viewModeOf, setViewMode, orbitOf, orbitBetween, orbitPreset, ORBIT_PRESETS, setOrbit, clearFrameOrbit, clearOrbits, hasFrameOrbits, validOrbit, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
 import Board3DView from "./Board3D";
@@ -850,6 +850,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     setSel(ids);
   };
   const resizeMany = (f) => commit(resizeElements(live.current, idx, sel, f));
+  // Igualar las elegidas del mismo tipo: cambiar todas a la vez o copiar el aspecto de la primera
+  const styleMany = (kind, patch, key = null) => commitIfChanged(styleElements(live.current, idx, sel, kind, patch), key ? { key: `same-${key}` } : undefined);
+  const matchMany = (kind) => commitIfChanged(matchElements(live.current, idx, sel, kind));
   const spreadMany = (f) => commit(spreadElements(live.current, idx, movableIds(live.current, idx, sel), f));
   const colorMany = (c) => commit(recolorElements(live.current, idx, sel, c));
   const teamMany = (t) => commit(setTeamOf(live.current, idx, sel, t));
@@ -857,7 +860,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const bibMany = (color) => commit(setBibOf(live.current, idx, sel, color));
   const turnMany = (how) => commitIfChanged(turnElements(live.current, idx, sel, how));
   // Capas: lo elegido (una o varias cosas) sube o baja en el orden de dibujo de este fotograma
-  const commitIfChanged = (next) => { if (next !== live.current) commit(next); };
+  const commitIfChanged = (next, opts) => { if (next !== live.current) commit(next, opts); };
   const layer = (where) => commitIfChanged(moveLayer(live.current, idx, sel, where, chip));
   const alignMany = (where) => commitIfChanged(alignElements(live.current, idx, movableIds(live.current, idx, sel), where));
   const distributeMany = (axis) => commitIfChanged(distributeElements(live.current, idx, movableIds(live.current, idx, sel), axis));
@@ -1356,7 +1359,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       : selected ? KIND_LABEL[selected.k] : panelEl ? (isTeamTool(tool) ? `Fichas · ${teams.find((t) => t.id === tool)?.name || ""}` : curGroup ? curGroup.label : KIND_LABEL[panelEl.k]) : layersOpen ? "Capas" : "";
   const panelBody = playing ? null : camTool && !side ? camBody : side === "settings" ? settingsBody : side === "roster" ? rosterBody : (
     linkBody || (multi ? (
-      <MultiPanel els={selEls} board={board} look={look} frames={board.frames.length} onTeam={teamMany} onColor={colorMany} onFeet={feetMany} onBib={bibMany} onTurn={turnMany} onResize={resizeMany} onSpread={spreadMany} onAlign={alignMany} onDistribute={distributeMany} onLayer={layer} onDup={dupMany} onDel={delMany} onClear={() => setSel([])}
+      <MultiPanel els={selEls} board={board} look={look} frames={board.frames.length} onStyle={styleMany} onMatch={matchMany} onTeam={teamMany} onColor={colorMany} onFeet={feetMany} onBib={bibMany} onTurn={turnMany} onResize={resizeMany} onSpread={spreadMany} onAlign={alignMany} onDistribute={distributeMany} onLayer={layer} onDup={dupMany} onDel={delMany} onClear={() => setSel([])}
         flags={<FlagButtons locked={selEls.length > 0 && selEls.every(isLocked)} hl={selEls.length > 0 && selEls.every(isHighlighted)} canReset={idx > 0} onLock={lockSel} onHl={hlSel} onReset={resetSel} />} />
     ) : propsBody)
   );
@@ -1478,23 +1481,23 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 3, overflow: "visible", pointerEvents: "none", touchAction: "none" }} data-testid="handles-3d"
           onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
           {h3.lines.map(([a, b, k], i) => a && b && (
-            <line key={`l${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#f59e0b" strokeWidth={k === "trail" ? 3 : 1.5} strokeDasharray={k === "trail" ? "7 5" : "4 3"} strokeLinecap="round" opacity={k === "trail" ? 0.85 : 1} />
+            <line key={`l${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#f59e0b" strokeWidth={k === "trail" ? 2.4 : 1.2} strokeDasharray={k === "trail" ? "6 4" : "3 2"} strokeLinecap="round" opacity={k === "trail" ? 0.85 : 1} />
           ))}
           {h3.pts.map((p) => p.s && (
             <g key={p.h}>
               {p.kind === "mid" ? (
                 <>
-                  <circle cx={p.s.x} cy={p.s.y} r={8} fill="#fff" stroke="#f59e0b" strokeWidth={2} strokeDasharray="3 2" />
-                  <path d={`M ${p.s.x - 4} ${p.s.y} H ${p.s.x + 4} M ${p.s.x} ${p.s.y - 4} V ${p.s.y + 4}`} stroke="#f59e0b" strokeWidth={2} />
+                  <circle cx={p.s.x} cy={p.s.y} r={4.2} fill="#fff" stroke="#f59e0b" strokeWidth={1} strokeDasharray="1.6 1.1" />
+                  <path d={`M ${p.s.x - 2.2} ${p.s.y} H ${p.s.x + 2.2} M ${p.s.x} ${p.s.y - 2.2} V ${p.s.y + 2.2}`} stroke="#f59e0b" strokeWidth={1.1} />
                 </>
               ) : p.kind === "corner" ? (
-                <rect x={p.s.x - 7} y={p.s.y - 7} width={14} height={14} rx={2} fill="#f59e0b" stroke="#fff" strokeWidth={2} />
+                <rect x={p.s.x - 3.5} y={p.s.y - 3.5} width={7} height={7} rx={1.2} fill="#f59e0b" stroke="#fff" strokeWidth={1.2} />
               ) : p.kind === "edge" ? (
-                <rect x={p.s.x - 6} y={p.s.y - 6} width={12} height={12} rx={3} fill="#fff" stroke="#f59e0b" strokeWidth={2} />
+                <rect x={p.s.x - 3} y={p.s.y - 3} width={6} height={6} rx={1.2} fill="#fff" stroke="#f59e0b" strokeWidth={1.2} />
               ) : (
-                <circle cx={p.s.x} cy={p.s.y} r={p.kind === "end" ? 8 : 7} fill={p.kind === "end" ? "#fff" : p.kind === "lift" ? "#2563eb" : "#f59e0b"} stroke={p.kind === "end" ? "#f59e0b" : "#fff"} strokeWidth={2.5} />
+                <circle cx={p.s.x} cy={p.s.y} r={p.kind === "end" ? 4 : 3.8} fill={p.kind === "end" ? "#fff" : p.kind === "lift" ? "#2563eb" : "#f59e0b"} stroke={p.kind === "end" ? "#f59e0b" : "#fff"} strokeWidth={1.3} />
               )}
-              <circle data-h={p.h} data-testid={`h3-${p.h}`} cx={p.s.x} cy={p.s.y} r={18} fill="transparent" style={{ pointerEvents: "all", cursor: "grab" }} />
+              <circle data-h={p.h} data-testid={`h3-${p.h}`} cx={p.s.x} cy={p.s.y} r={coarse ? 18 : 12} fill="transparent" style={{ pointerEvents: "all", cursor: "grab" }} />
             </g>
           ))}
         </svg>
@@ -1632,6 +1635,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
 }
 
 // ── Barras de la pantalla completa ─────────────────────────────────────────────────────────────────────────────────
+const coarse = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)")?.matches;
 const RAIL = { bg: "#24000a", btn: "rgba(42,0,9,0.94)", line: "#a84a2a", ink: "#FF9B4A", on: "#FF6E00", onInk: "#2a0009", text: "#F7E9E4", sub: "#E2C3BA", border: "#7a2a2f" };
 const zoomBtnDark = "h-8 w-8 rounded-md flex items-center justify-center hover:bg-white/10 disabled:opacity-30";
 function RailBtn({ label, title, on, disabled, onClick, children, narrow = false, dashed = false, testid }) {

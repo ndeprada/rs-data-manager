@@ -303,6 +303,28 @@ export function seriesLabel(task) {
 export const hasText = (s) => String(s ?? "").trim().length > 0;
 export const allTasks = (session) => [...(session?.initial?.tasks || []), ...(session?.main?.tasks || [])];
 
+// ── Tareas simultáneas (03/11/2026, Nacho: «una tarea para los delanteros y otra para los medios a la vez») ──────────────
+// `task.simul = true` = se hace a la vez que la tarea anterior de su parte (se encadenan: 2 o 3 tareas a la vez). La primera
+// tarea de una parte nunca es simultánea. Los contenidos de cada tarea cuentan sus minutos enteros (registerSession: «computa
+// el tiempo trabajado de ambas»), pero el reloj de la sesión cuenta cada grupo una sola vez, con la tarea más larga.
+export const isSimul = (tasks, i) => i > 0 && Boolean(tasks?.[i]?.simul);
+// Grupos de tareas que van a la vez (cada grupo, una lista de índices)
+export function taskGroups(tasks = []) {
+  const out = [];
+  tasks.forEach((t, i) => { if (isSimul(tasks, i) && out.length) out[out.length - 1].push(i); else out.push([i]); });
+  return out;
+}
+// Número (1, 2…) de la primera tarea del grupo con la que va a la vez la tarea i (null si no es simultánea)
+export function simulWith(tasks, i) {
+  if (!isSimul(tasks, i)) return null;
+  let k = i;
+  while (isSimul(tasks, k)) k -= 1;
+  return k + 1;
+}
+// Minutos de reloj de una parte: cada grupo de tareas simultáneas cuenta la más larga
+export const partClock = (tasks = []) => round1(taskGroups(tasks).reduce((sum, g) => sum + Math.max(0, ...g.map((i) => taskMinutes(tasks[i]))), 0));
+export const sessionClock = (session) => round1(partClock(session?.initial?.tasks || []) + partClock(session?.main?.tasks || []));
+
 // ── Registro de lo trabajado (TFM 4.8.5) ─────────────────────────────────────
 //  · Los minutos de la tarea se cuentan UNA sola vez en el bloque principal (el del primer contenido principal).
 //  · Los contenidos principales (1 o 2) registran toda la duración, aunque sean dos a la vez.
@@ -334,6 +356,8 @@ export function registerSession(session) {
     }
   }
   out.total = round1(out.total);
+  // reloj de la sesión: con tareas simultáneas, menos que la suma de las tareas (total)
+  out.clock = sessionClock(session);
   out.withBlock = round1(out.withBlock);
   out.noCurriculum = round1(out.noCurriculum);
   out.unclassified = round1(out.unclassified);
@@ -479,6 +503,6 @@ export function moveTaskToPart(session, taskId, toPart) {
   return {
     ...session,
     [from]: { ...session[from], tasks: session[from].tasks.filter((x) => x.id !== taskId) },
-    [toPart]: { ...(session[toPart] || {}), tasks: [...(session[toPart]?.tasks || []), { ...t, part: toPart === "initial" ? "inicial" : "principal" }] },
+    [toPart]: { ...(session[toPart] || {}), tasks: [...(session[toPart]?.tasks || []), { ...t, simul: false, part: toPart === "initial" ? "inicial" : "principal" }] },
   };
 }

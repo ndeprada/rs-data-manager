@@ -19,7 +19,7 @@ import { libraryToSessionTask, sessionTaskToLibrary } from "@/lib/taskLibrary";
 const GROUPS = ["Individual", "Colectiva", "Otras"];
 const GROUP_LABEL = { Individual: "Orientación individual", Colectiva: "Orientación colectiva", Otras: "Otras" };
 
-export default function TaskEditor({ task, index, label, stage, roster, onChange, onRemove, onMove, onDuplicate, canMoveUp, canMoveDown, defaultOpen = false, part, onChangePart, staffNames = [], prevStaff = null }) {
+export default function TaskEditor({ task, index, label, stage, roster, onChange, onRemove, onMove, onDuplicate, canMoveUp, canMoveDown, defaultOpen = false, part, onChangePart, staffNames = [], prevStaff = null, simulNo = null }) {
   const [open, setOpen] = useState(!!defaultOpen);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [libOpen, setLibOpen] = useState(false);
@@ -69,12 +69,13 @@ export default function TaskEditor({ task, index, label, stage, roster, onChange
   const P = task.principal || [], S = task.secondary || [];
 
   return (
-    <div style={{ borderTop: index ? `1px solid ${C.paleLine}` : 0 }} data-testid={`task-${task.id}`}>
+    <div style={{ borderTop: index ? `1px solid ${C.paleLine}` : 0, borderLeft: simulNo ? `3px solid ${C.granate}` : "3px solid transparent", background: simulNo ? "#FFFCFC" : undefined }} data-testid={`task-${task.id}`}>
       {/* Fila de la tarea (cerrada: así se ve en la maqueta) */}
       <div className="flex items-start gap-3 px-4 sm:px-5 py-3 cursor-pointer hover:bg-[#FBF8F8]" onClick={() => setOpen((o) => !o)}>
         {open ? <ChevronDown className="w-4 h-4 shrink-0 mt-1" style={{ color: C.muted }} /> : <ChevronRight className="w-4 h-4 shrink-0 mt-1" style={{ color: C.muted }} />}
         <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <D size={open ? 20 : 16} className="min-w-0" style={open ? { flex: 1 } : undefined}>{index + 1} · {task.title || (open ? label : "Sin título")}</D>
+          {simulNo && <span className="text-[11px] font-bold rounded-full px-2 py-[2px] whitespace-nowrap" style={{ background: "#FBEDEE", color: C.granate }} data-testid="task-simul-tag">⇉ A la vez que la {simulNo}</span>}
           {!open && seriesText && <span className="text-xs whitespace-nowrap" style={{ color: C.muted }}>{seriesText}</span>}
           {!open && task.no_curriculum && <span className="text-[11px] rounded px-1.5" style={{ background: "#F3F0F0", color: C.muted }}>Sin contenidos</span>}
           {!open && P.map((id) => <ContentChip key={id} id={id} stage={stage} kind="principal" task={task} />)}
@@ -94,6 +95,11 @@ export default function TaskEditor({ task, index, label, stage, roster, onChange
                     className="px-2.5 py-1.5" style={k === part ? { background: C.granate, color: "#fff" } : { background: "#fff", color: C.muted }}>{l}</button>
                 ))}
               </div>
+            )}
+            {index > 0 && (
+              <Pill on={!!task.simul} onClick={() => set({ simul: !task.simul })} data-testid="task-simul" title="Se hace a la vez que la tarea anterior (p. ej. delanteros por un lado y medios por otro): sus contenidos cuentan entera, pero el tiempo de la sesión cuenta solo la más larga">
+                ⇉ A la vez que la tarea anterior
+              </Pill>
             )}
             <span className="flex-1" />
             <SBtn small onClick={() => setLibOpen(true)}><Library className="w-3.5 h-3.5" /> Cargar de la biblioteca</SBtn>
