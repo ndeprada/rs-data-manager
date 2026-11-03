@@ -12,7 +12,8 @@ import {
 } from "@/lib/sessionPlan";
 
 const MAX_PRINCIPAL = 2;
-const MAX_SECONDARY = 2;
+// Secundarios sin límite (03/11/2026, Nacho: «hay contenidos que se trabajan a la vez… no limitemos los secundarios»)
+const MAX_SECONDARY = Infinity;
 const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 // Chip de un contenido ya elegido (en la tarea y en la ficha)
@@ -39,7 +40,7 @@ const stageShort = (ids) => ids.map((s) => stageInfo(s)?.label).filter(Boolean).
 
 /**
  * Elegir los contenidos de una tarea (02/11/2026, rediseño pedido por Nacho: como el control de contenidos).
- * Cada área se despliega con sus contenidos en el orden del currículum; en cada uno se toca P (principal, máx. 2) o S (secundario, máx. 2).
+ * Cada área se despliega con sus contenidos en el orden del currículum; en cada uno se toca P (principal, máx. 2) o S (secundario, sin límite).
  * Se pueden sumar contenidos de otras etapas y los de la paleta del club (SessionContent), y proponer contenidos nuevos.
  */
 export default function ContentPicker({ open, onOpenChange, stage, principal = [], secondary = [], custom = {}, onChange }) {
@@ -145,7 +146,7 @@ export default function ContentPicker({ open, onOpenChange, stage, principal = [
                 className={`px-2.5 py-2 border-l border-gray-200 ${showPalette ? "bg-[var(--granate)] text-white" : "text-gray-600 hover:bg-gray-50"}`}>+ paleta del club</button>
             </div>
           </div>
-          <p className="text-[11px] text-gray-600">Elegidos: <b className="text-[var(--granate)]">principales {principal.length}/{MAX_PRINCIPAL}</b> · <b>secundarios {secondary.length}/{MAX_SECONDARY}</b>. El bloque del primer principal es donde cuenta el tiempo de la tarea.</p>
+          <p className="text-[11px] text-gray-600">Elegidos: <b className="text-[var(--granate)]">principales {principal.length}/{MAX_PRINCIPAL}</b> · <b>secundarios {secondary.length}</b> (sin límite). El bloque del primer principal es donde cuenta el tiempo de la tarea.</p>
         </div>
 
         <div className="flex-1 overflow-y-auto">

@@ -214,3 +214,13 @@ assert.equal(registerSession(e).total, 0);
   assert.equal(r.total, 82, 'trabajado: todas las tareas enteras');
   assert.equal(r.clock, 55, 'reloj: cada grupo una vez');
 }
+
+// Contenidos secundarios sin límite (03/11/2026): todos cuentan el tiempo de la tarea como secundarios
+{
+  const { registerSession: reg, stageContents: sc, STAGES: st } = await import('../src/lib/sessionPlan.js');
+  const ids = sc(st[3].id).slice(0, 6).map((c) => c.id);
+  assert.equal(ids.length, 6);
+  const task = { id: 'x', series: 1, serie_min: 10, rec_min: 0, principal: [], secondary: ids };
+  const r = reg({ initial: { tasks: [] }, main: { tasks: [task] } });
+  assert.equal(ids.filter((id) => r.contents[id]?.secondary === 10).length, 6, 'los seis secundarios cuentan');
+}

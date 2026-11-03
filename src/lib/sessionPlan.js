@@ -351,7 +351,8 @@ export function registerSession(session) {
       out.blocks[block] = round1((out.blocks[block] || 0) + m);
       for (const id of principals) { const c = content(id, t); c.principal = round1(c.principal + m); c.tasks += 1; }
     }
-    for (const id of (t.secondary || []).filter((x) => knownContent(x, t) && !principals.includes(x)).slice(0, 2)) {
+    // los secundarios no tienen límite (03/11/2026): cada uno cuenta el tiempo de la tarea como secundario
+    for (const id of (t.secondary || []).filter((x) => knownContent(x, t) && !principals.includes(x))) {
       const c = content(id, t); c.secondary = round1(c.secondary + m); c.secTasks += 1;
     }
   }
