@@ -19,3 +19,14 @@ export function pdiAreaOf(playerId, goals = []) {
 
 // Texto del área para la ficha: lo escrito en la sesión o, si no hay nada, el del PDI
 export const areaFor = (player, a, goals) => (a?.areas && String(a.areas).trim()) || pdiAreaOf(player.id, goals);
+
+// Disponibilidad abreviada en la hoja impresa (03/11/2026, Nacho: «lesión una L, enfermo una E… para que no ocupe tanto
+// ancho»). Sin motivo: «Sí» / «No» / «AM» (al margen); con motivo, su letra («AM·C» = al margen por cargas).
+export const REASON_CODE = { "lesión": "L", enfermo: "E", estudios: "Es", viaje: "V", "sanción": "S", cargas: "C", otro: "O" };
+export function attCode(a) {
+  if (!a?.st) return "";
+  if (a.st === "si") return "Sí";
+  const r = REASON_CODE[String(a.obs || "").trim().toLowerCase()] || "";
+  if (a.st === "ad") return r ? `AM·${r}` : "AM";
+  return r || "No";
+}

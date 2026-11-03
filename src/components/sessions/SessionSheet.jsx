@@ -8,7 +8,7 @@ import {
   recText, partClock, simulWith,
 } from "@/lib/sessionPlan";
 import { fullDate, playerFullName, posShort, sortRoster } from "./sessionHelpers";
-import { areaFor, attendanceOf } from "./sessionAttendance";
+import { REASON_CODE, areaFor, attCode, attendanceOf } from "./sessionAttendance";
 import { packPages } from "./sessionPdf";
 
 // Hoja de la sesión en hojas A4 (rediseño del 02/11/2026, igual que la maqueta aprobada por Nacho).
@@ -17,9 +17,9 @@ import { packPages } from "./sessionPdf";
 // (vectorial) y se pasa a PDF. Solo estilos en línea (también se copia a la maqueta). Siempre en español.
 
 export const PAGE_W = 794, PAGE_H = 1123;
-const PAD = { t: 30, x: 34, b: 22 };
+const PAD = { t: 24, x: 30, b: 18 };
 const FOOT = 20; // pie de página
-const GAP = 10;
+const GAP = 6;
 export const CONTENT_W = PAGE_W - 2 * PAD.x;
 export const CONTENT_H = PAGE_H - PAD.t - PAD.b - FOOT;
 
@@ -30,22 +30,25 @@ const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const lines = (s) => String(s || "").split("\n").map((x) => x.replace(/^\s*[•\-*]\s*/, "").trim()).filter(Boolean);
 
 const d = { fontFamily: DISPLAY, textTransform: "uppercase", letterSpacing: ".02em" };
-const k = { fontFamily: DISPLAY, fontWeight: 800, textTransform: "uppercase", color: GRANATE, fontSize: 11, letterSpacing: ".04em" };
-const sec = { fontFamily: DISPLAY, fontWeight: 800, textTransform: "uppercase", fontSize: 9.5, color: GRANATE, marginTop: 5, letterSpacing: ".04em" };
+// Tamaños compactos (03/11/2026, Nacho: «ocupa demasiado espacio… todo para que quepa en menos»)
+const BASE = 8.5;
+const k = { fontFamily: DISPLAY, fontWeight: 800, textTransform: "uppercase", color: GRANATE, fontSize: 9, letterSpacing: ".04em" };
+const sec = { fontFamily: DISPLAY, fontWeight: 800, textTransform: "uppercase", fontSize: 8, color: GRANATE, marginTop: 3, letterSpacing: ".04em" };
 
+const kk = { ...k, fontSize: 7.5 };
 const Sec = ({ children }) => <div style={sec}>{children}</div>;
 function Bullets({ text }) {
   const rows = lines(text);
   if (!rows.length) return null;
-  return <div style={{ lineHeight: 1.35, marginTop: 3 }}>{rows.map((r, i) => <div key={i}>• {r}</div>)}</div>;
+  return <div style={{ lineHeight: 1.28, marginTop: 1 }}>{rows.map((r, i) => <div key={i}>• {r}</div>)}</div>;
 }
 
 function Chip({ id, task, kind }) {
   const b = blockInfo(contentBlock(id, task));
   const p = kind === "P";
   return (
-    <span style={{ display: "inline-block", borderRadius: 999, padding: "1px 6px", fontSize: 9, fontWeight: 600, margin: "0 3px 3px 0", background: p ? "#FBEDEE" : "#F3F0F0", color: p ? GRANATE : SOFT }}>
-      <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: 999, background: b?.color || "#999", marginRight: 4, verticalAlign: 0 }} />
+    <span style={{ display: "inline-block", borderRadius: 999, padding: "0 5px", fontSize: 7.5, fontWeight: 600, margin: "0 3px 2px 0", background: p ? "#FBEDEE" : "#F3F0F0", color: p ? GRANATE : SOFT }}>
+      <span style={{ display: "inline-block", width: 5, height: 5, borderRadius: 999, background: b?.color || "#999", marginRight: 3, verticalAlign: 0 }} />
       {contentName(id, task)} ({kind})
     </span>
   );
@@ -74,38 +77,38 @@ function TaskCard({ task, n, simul = null }) {
   const p = task.principal || [], s = task.secondary || [];
   return (
     <div style={{ border: `1px solid ${LINE}`, borderLeft: simul ? `3px solid ${GRANATE}` : `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden" }}>
-      {simul && <div style={{ background: "#FBEDEE", color: GRANATE, fontWeight: 700, fontSize: 9, padding: "2px 8px", textTransform: "uppercase", letterSpacing: ".04em" }}>A la vez que la tarea {simul} (simultánea)</div>}
-      <div style={{ display: "grid", gridTemplateColumns: draw ? "minmax(0,1fr) 300px" : "minmax(0,1fr)", gap: 10, padding: 8 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ ...d, fontSize: 13, fontWeight: 800, color: GRANATE, lineHeight: 1.15 }}>{n} · {task.title || "Tarea"}{m ? <span style={{ color: SOFT, fontWeight: 700 }}> · {fmtMin(m)}</span> : null}</div>
+      {simul && <div style={{ background: "#FBEDEE", color: GRANATE, fontWeight: 700, fontSize: 7.5, padding: "1px 7px", textTransform: "uppercase", letterSpacing: ".04em" }}>A la vez que la tarea {simul} (simultánea)</div>}
+      <div style={{ display: "grid", gridTemplateColumns: draw ? "minmax(0,1fr) 250px" : "minmax(0,1fr)", gap: 8, padding: "5px 7px" }}>
+        <div style={{ minWidth: 0, lineHeight: 1.28 }}>
+          <div style={{ ...d, fontSize: 11, fontWeight: 800, color: GRANATE, lineHeight: 1.1 }}>{n} · {task.title || "Tarea"}{m ? <span style={{ color: SOFT, fontWeight: 700 }}> · {fmtMin(m)}</span> : null}</div>
           {meta && <div style={{ fontWeight: 600, marginTop: 1 }}>{meta}</div>}
-          {hasText(task.description) && <div style={{ lineHeight: 1.35, marginTop: 4 }}>{lines(task.description).map((r, i) => <div key={i}>• {r}</div>)}</div>}
+          {hasText(task.description) && <div style={{ marginTop: 2 }}>{lines(task.description).map((r, i) => <div key={i}>• {r}</div>)}</div>}
           {(hasText(task.objective) || phases) && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: "4px 10px", marginTop: 2 }}>
-              {hasText(task.objective) && <div><Sec>Objetivo</Sec><div style={{ lineHeight: 1.35 }}>{task.objective}</div></div>}
-              {phases && <div><Sec>Fase del juego</Sec><div style={{ lineHeight: 1.35 }}>{phases}</div></div>}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: "2px 8px", marginTop: 1 }}>
+              {hasText(task.objective) && <div><Sec>Objetivo</Sec><div>{task.objective}</div></div>}
+              {phases && <div><Sec>Fase del juego</Sec><div>{phases}</div></div>}
             </div>
           )}
           {(p.length > 0 || s.length > 0) && (
             <>
               <Sec>Contenidos</Sec>
-              <div style={{ marginTop: 2 }}>{p.map((id) => <Chip key={id} id={id} task={task} kind="P" />)}{s.map((id) => <Chip key={id} id={id} task={task} kind="S" />)}</div>
+              <div style={{ marginTop: 1 }}>{p.map((id) => <Chip key={id} id={id} task={task} kind="P" />)}{s.map((id) => <Chip key={id} id={id} task={task} kind="S" />)}</div>
             </>
           )}
           {hasText(task.corrections) && (<><Sec>Correcciones</Sec><Bullets text={task.corrections} /></>)}
           {staff.length > 0 && (
             <>
               <Sec>Cuerpo técnico</Sec>
-              <div style={{ lineHeight: 1.35 }}>{staff.map((r, i) => { const c = r.indexOf(":"); return <span key={i}>{i ? " · " : ""}{c > 0 && c < 40 ? <><b>{r.slice(0, c + 1)}</b>{r.slice(c + 1)}</> : r}</span>; })}</div>
+              <div>{staff.map((r, i) => { const c = r.indexOf(":"); return <span key={i}>{i ? " · " : ""}{c > 0 && c < 40 ? <><b>{r.slice(0, c + 1)}</b>{r.slice(c + 1)}</> : r}</span>; })}</div>
             </>
           )}
-          {hasText(task.scoring) && (<><Sec>Puntuación</Sec><div style={{ lineHeight: 1.35, color: "#B91C1C" }}>{lines(task.scoring).join(" · ")}</div></>)}
-          {!draw && hasText(task.teams_text) && <div style={{ marginTop: 4, lineHeight: 1.35 }}><b>Equipos:</b> {lines(task.teams_text).join(" · ")}</div>}
+          {hasText(task.scoring) && (<><Sec>Puntuación</Sec><div style={{ color: "#B91C1C" }}>{lines(task.scoring).join(" · ")}</div></>)}
+          {!draw && hasText(task.teams_text) && <div style={{ marginTop: 2 }}><b>Equipos:</b> {lines(task.teams_text).join(" · ")}</div>}
         </div>
         {draw && (
           <div style={{ minWidth: 0 }}>
-            <div style={{ borderRadius: 6, overflow: "hidden", background: "#EEF3EE" }}><Drawing task={task} maxH={330} /></div>
-            {hasText(task.teams_text) && <div style={{ marginTop: 4, lineHeight: 1.35 }}><b>Equipos:</b> {lines(task.teams_text).join(" · ")}</div>}
+            <div style={{ borderRadius: 6, overflow: "hidden", background: "#EEF3EE" }}><Drawing task={task} maxH={280} /></div>
+            {hasText(task.teams_text) && <div style={{ marginTop: 2, lineHeight: 1.28 }}><b>Equipos:</b> {lines(task.teams_text).join(" · ")}</div>}
           </div>
         )}
       </div>
@@ -114,13 +117,12 @@ function TaskCard({ task, n, simul = null }) {
 }
 
 const Band = ({ title, minutes }) => (
-  <div style={{ background: DARK, color: "#fff", display: "flex", padding: "4px 8px", borderRadius: 6, ...d }}>
-    <span style={{ flex: 1, fontWeight: 800, fontSize: 12 }}>{title}</span><span style={{ fontWeight: 800, fontSize: 12 }}>{minutes}</span>
+  <div style={{ background: DARK, color: "#fff", display: "flex", padding: "2px 8px", borderRadius: 5, ...d }}>
+    <span style={{ flex: 1, fontWeight: 800, fontSize: 10 }}>{title}</span><span style={{ fontWeight: 800, fontSize: 10 }}>{minutes}</span>
   </div>
 );
 
 const ST_TEXT = { si: ["Sí", "#15803D"], ad: ["Al margen", "#B45309"], no: ["No", "#C81E1E"] };
-
 // Bloques de la hoja, en orden: cada uno se mide y se coloca entero en una hoja
 export function sheetBlocks({ session, team, players = [], matchRef, pdiGoals = [], ownerName = "" }) {
   const type = sessionTypeInfo(session.session_type);
@@ -137,21 +139,21 @@ export function sheetBlocks({ session, team, players = [], matchRef, pdiGoals = 
   const blocks = [];
 
   blocks.push({ key: "head", el: (
-    <div style={{ display: "flex", alignItems: "stretch", gap: 12 }}>
-      <div style={{ width: 58, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <img src={CLUB_LOGO_URL} alt="" crossOrigin="anonymous" style={{ width: 54, height: "auto" }} />
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ width: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <img src={CLUB_LOGO_URL} alt="" crossOrigin="anonymous" style={{ width: 30, height: "auto" }} />
       </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 3, minWidth: 0 }}>
-        <div style={{ ...d, fontSize: 12, fontWeight: 700, color: MUTED }}>Racing Sarrià · Sesión de entrenamiento</div>
-        <div style={{ ...d, fontSize: 26, fontWeight: 800, color: GRANATE, lineHeight: 1 }}>{team?.name || "Equipo"}</div>
-        <div style={{ fontSize: 10, color: SOFT }}>{[ownerName && `Entrenador: ${ownerName}`, stage?.label].filter(Boolean).join(" · ")}</div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 1, minWidth: 0 }}>
+        <div style={{ ...d, fontSize: 8, fontWeight: 700, color: MUTED }}>Racing Sarrià · Sesión de entrenamiento</div>
+        <div style={{ ...d, fontSize: 16, fontWeight: 800, color: GRANATE, lineHeight: 1 }}>{team?.name || "Equipo"}</div>
+        <div style={{ fontSize: 7.5, color: SOFT }}>{[ownerName && `Entrenador: ${ownerName}`, stage?.label].filter(Boolean).join(" · ")}</div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "3px 10px", alignContent: "center", background: "#F7F3F3", borderRadius: 8, padding: "8px 12px", maxWidth: 360 }}>
-        <span style={k}>Fecha</span><span style={{ fontWeight: 600 }}>{when || "—"}</span>
-        <span style={k}>Tipo</span>
-        <span>{type ? <span style={{ background: type.color, color: "#fff", borderRadius: 4, padding: "1px 6px", fontWeight: 700, fontSize: 9.5, textTransform: "uppercase" }}>{sessionTypeName(type)}</span> : "—"}</span>
-        <span style={k}>Duración</span><span style={{ fontWeight: 600 }}>{session.duration || 90}'{total ? ` (${fmtMin(total)} de tareas)` : ""}</span>
-        {hasText(match) && <><span style={k}>Partido</span><span style={{ fontWeight: 600 }}>{match}</span></>}
+      <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "0 8px", alignContent: "center", alignItems: "center", background: "#F7F3F3", borderRadius: 6, padding: "4px 9px", maxWidth: 340, fontSize: 8, lineHeight: 1.3 }}>
+        <span style={kk}>Fecha</span><span style={{ fontWeight: 600 }}>{when || "—"}</span>
+        <span style={kk}>Tipo</span>
+        <span>{type ? <span style={{ background: type.color, color: "#fff", borderRadius: 3, padding: "0 5px", fontWeight: 700, fontSize: 7.5, textTransform: "uppercase" }}>{sessionTypeName(type)}</span> : "—"}</span>
+        <span style={kk}>Duración</span><span style={{ fontWeight: 600 }}>{session.duration || 90}'{total ? ` (${fmtMin(total)} de tareas)` : ""}</span>
+        {hasText(match) && <><span style={kk}>Partido</span><span style={{ fontWeight: 600 }}>{match}</span></>}
       </div>
     </div>
   ) });
@@ -159,21 +161,24 @@ export function sheetBlocks({ session, team, players = [], matchRef, pdiGoals = 
   if (hasText(session.obj_atk) || hasText(session.obj_def)) blocks.push({ key: "obj", el: (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 8 }}>
       {[["Objetivos ofensivos", session.obj_atk], ["Objetivos defensivos", session.obj_def]].map(([t, v]) => (
-        <div key={t} style={{ border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px" }}>
-          <div style={k}>{t}</div>
-          <div style={{ lineHeight: 1.35, marginTop: 2, whiteSpace: "pre-line" }}>{v || "—"}</div>
+        <div key={t} style={{ border: `1px solid ${LINE}`, borderRadius: 5, padding: "3px 7px" }}>
+          <div style={kk}>{t}</div>
+          <div style={{ lineHeight: 1.28, whiteSpace: "pre-line" }}>{v || "—"}</div>
         </div>
       ))}
     </div>
   ) });
 
   if (roster.length && session.show_attendance !== false) {
-    const th = { background: DARK, color: "#fff", fontFamily: DISPLAY, fontWeight: 700, textTransform: "uppercase", fontSize: 10, letterSpacing: ".04em", padding: "3px 6px", textAlign: "left" };
-    const td = { borderBottom: "1px solid #EFE6E6", padding: "2.5px 6px", textAlign: "left", fontSize: 9.5, lineHeight: 1.25, verticalAlign: "top" };
+    const th = { background: DARK, color: "#fff", fontFamily: DISPLAY, fontWeight: 700, textTransform: "uppercase", fontSize: 7.5, letterSpacing: ".04em", padding: "1px 4px", textAlign: "left", whiteSpace: "nowrap" };
+    const td = { borderBottom: "1px solid #EFE6E6", padding: "0.5px 4px", textAlign: "left", fontSize: 8, lineHeight: 1.2, verticalAlign: "top", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+    const codes = eff.map(attCode);
+    const used = Object.entries(REASON_CODE).filter(([, c]) => codes.some((x) => x === c || x.endsWith(`·${c}`)));
+    const legend = [codes.some((x) => x.startsWith("AM")) && "AM al margen", ...used.map(([r, c]) => `${c} ${r}`)].filter(Boolean).join(" · ");
     blocks.push({ key: "players", el: (
       <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "fixed" }}>
-        <colgroup><col style={{ width: 34 }} /><col style={{ width: 24 }} /><col style={{ width: 190 }} /><col style={{ width: 120 }} /><col /></colgroup>
-        <thead><tr><th style={th}>Pos</th><th style={th}>Nº</th><th style={th}>Jugador</th><th style={th}>Disponible</th><th style={th}>Área del PDI que trabaja</th></tr></thead>
+        <colgroup><col style={{ width: 26 }} /><col style={{ width: 18 }} /><col style={{ width: 132 }} /><col style={{ width: 36 }} /><col /></colgroup>
+        <thead><tr><th style={th}>Pos</th><th style={th}>Nº</th><th style={th}>Jugador</th><th style={th}>Disp.</th><th style={th}>Área del PDI que trabaja</th></tr></thead>
         <tbody>
           {roster.map((p, i) => {
             const a = eff[i];
@@ -183,12 +188,12 @@ export function sheetBlocks({ session, team, players = [], matchRef, pdiGoals = 
                 <td style={td}><b style={{ color: GRANATE }}>{posShort(p.position)}</b></td>
                 <td style={td}>{p.jersey_number ?? ""}</td>
                 <td style={td}>{playerFullName(p)}</td>
-                <td style={{ ...td, color: st?.[1] || "#9A8C8E", fontWeight: a.st && a.st !== "si" ? 600 : 400 }}>{st ? `${st[0]}${a.st !== "si" && a.obs ? ` · ${a.obs}` : ""}` : ""}</td>
-                <td style={td}>{a.st === "no" ? "—" : areaFor(p, att[p.id], pdiGoals)}</td>
+                <td style={{ ...td, color: st?.[1] || "#9A8C8E", fontWeight: a.st && a.st !== "si" ? 700 : 400 }} title={st ? `${st[0]}${a.obs ? ` · ${a.obs}` : ""}` : ""}>{codes[i]}</td>
+                <td style={{ ...td, fontSize: 7.5, color: SOFT }}>{a.st === "no" ? "—" : areaFor(p, att[p.id], pdiGoals)}</td>
               </tr>
             );
           })}
-          <tr><td colSpan={5} style={{ ...td, color: MUTED, borderBottom: 0 }}>{hasText(session.attendance_others) ? `Otros / a prueba: ${session.attendance_others} · ` : ""}Disponibles {available} de {roster.length}</td></tr>
+          <tr><td colSpan={5} style={{ ...td, fontSize: 7, color: MUTED, borderBottom: 0, whiteSpace: "normal" }}>{hasText(session.attendance_others) ? `Otros / a prueba: ${session.attendance_others} · ` : ""}Disponibles {available} de {roster.length}{legend ? ` · ${legend}` : ""}</td></tr>
         </tbody>
       </table>
     ) });
@@ -203,8 +208,8 @@ export function sheetBlocks({ session, team, players = [], matchRef, pdiGoals = 
     main.forEach((t, i) => blocks.push({ key: `m-${t.id}`, el: <TaskCard task={t} n={i + 1} simul={simulWith(main, i)} /> }));
   }
   if (hasText(session.notes)) blocks.push({ key: "notes", el: (
-    <div style={{ border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px" }}>
-      <span style={k}>Notas </span><span style={{ whiteSpace: "pre-line", lineHeight: 1.35 }}>{session.notes}</span>
+    <div style={{ border: `1px solid ${LINE}`, borderRadius: 5, padding: "3px 7px" }}>
+      <span style={kk}>Notas </span><span style={{ whiteSpace: "pre-line", lineHeight: 1.28 }}>{session.notes}</span>
     </div>
   ) });
   return blocks;
@@ -212,7 +217,7 @@ export function sheetBlocks({ session, team, players = [], matchRef, pdiGoals = 
 
 export function Page({ children, n, of }) {
   return (
-    <div className="session-page" style={{ width: PAGE_W, height: PAGE_H, boxSizing: "border-box", padding: `${PAD.t}px ${PAD.x}px ${PAD.b}px`, background: "#fff", fontFamily: BODY, color: INK, fontSize: 10, display: "flex", flexDirection: "column", overflow: "hidden", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
+    <div className="session-page" style={{ width: PAGE_W, height: PAGE_H, boxSizing: "border-box", padding: `${PAD.t}px ${PAD.x}px ${PAD.b}px`, background: "#fff", fontFamily: BODY, color: INK, fontSize: BASE, display: "flex", flexDirection: "column", overflow: "hidden", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
       <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
       <div style={{ height: FOOT, display: "flex", alignItems: "flex-end", justifyContent: "space-between", fontSize: 8.5, color: "#9A8C8E", borderTop: "1px solid #EFE6E6", paddingTop: 4, boxSizing: "border-box" }}>
         <span>Racing Sarrià · RS Manager</span><span>Página {n} de {of}</span>
@@ -221,7 +226,7 @@ export function Page({ children, n, of }) {
   );
 }
 
-const gapAfter = (b) => (b.tight ? 6 : GAP);
+const gapAfter = (b) => (b.tight ? 4 : GAP);
 
 /**
  * La hoja repartida en páginas A4. Primero mide cada bloque (fuera de la vista) y luego los coloca.
@@ -252,7 +257,7 @@ export default function SessionSheet({ onPages, ...props }) {
 
   return (
     <>
-      <div ref={measure} aria-hidden="true" className="session-measure" style={{ position: "absolute", left: -20000, top: 0, width: CONTENT_W, fontFamily: BODY, fontSize: 10, color: INK, visibility: "hidden" }}>
+      <div ref={measure} aria-hidden="true" className="session-measure" style={{ position: "absolute", left: -20000, top: 0, width: CONTENT_W, fontFamily: BODY, fontSize: BASE, color: INK, visibility: "hidden" }}>
         {blocks.map((b) => <div key={b.key} style={{ display: "flow-root" }}>{b.el}</div>)}
       </div>
       {(pages || [blocks.map((_, i) => i)]).map((idxs, p, all) => (
