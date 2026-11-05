@@ -16,8 +16,9 @@ export const ARROW_TYPES = [
 ];
 // Lo que define cada tipo de flecha (el resto de propiedades —grosor, color, borde…— se conserva al cambiar de tipo)
 export const ARROW_PRESETS = {
-  move: { style: "move", dash: "solid", wavy: false, air: false },
-  pass: { style: "pass", dash: "dashed", wavy: false, air: false },
+  // desplazamiento = discontinua y pase = continua (05/11/2026, Nacho: estaban al revés)
+  move: { style: "move", dash: "dashed", wavy: false, air: false },
+  pass: { style: "pass", dash: "solid", wavy: false, air: false },
   air: { style: "pass", dash: "solid", wavy: false, air: true, lift: 6 },
   dribble: { style: "dribble", dash: "solid", wavy: true, air: false },
 };

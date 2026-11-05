@@ -1235,7 +1235,7 @@ export const DASHES = [{ id: "solid", label: "Continua" }, { id: "dashed", label
 export function arrowProps(a) {
   return {
     width: a.width ?? ARROW_W,
-    dash: a.dash ?? (a.style === "pass" ? "dashed" : "solid"),
+    dash: a.dash ?? (a.style === "move" ? "dashed" : "solid"),
     wavy: a.wavy ?? a.style === "dribble",
     pointer: a.pointer || "arrow",
     border: !!a.border,

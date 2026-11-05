@@ -132,7 +132,7 @@ const SIZE_OF = {
   text: { label: "Tamaño", min: 0.8, max: 10, step: 0.1, get: (e) => Number(e.size) || 3, key: "size", fmt: (v) => v.toFixed(1) },
 };
 const ARROW_KINDS = [{ id: "move", label: "Desplaz." }, { id: "pass", label: "Pase" }, { id: "dribble", label: "Conducción" }];
-const ARROW_KIND_PATCH = { move: { style: "move", dash: "solid", wavy: false }, pass: { style: "pass", dash: "dashed", wavy: false }, dribble: { style: "dribble", dash: "solid", wavy: true } };
+const ARROW_KIND_PATCH = { move: { style: "move", dash: "dashed", wavy: false }, pass: { style: "pass", dash: "solid", wavy: false }, dribble: { style: "dribble", dash: "solid", wavy: true } };
 const same = (list, f) => (list.every((e) => f(e) === f(list[0])) ? f(list[0]) : null);
 
 function SameBlock({ els, onStyle, onMatch }) {

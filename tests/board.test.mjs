@@ -331,9 +331,9 @@ test("el vuelo se curva hacia arriba en pantalla cuando el pase va de lado, tamb
 });
 
 test("los valores por defecto de las flechas (grosor 0,4 desde el 03/11/2026) y los nuevos se respetan", () => {
-  assert.deepEqual(arrowProps({ style: "pass" }), { width: 0.4, dash: "dashed", wavy: false, pointer: "arrow", border: false, alpha: 1 });
+  assert.deepEqual(arrowProps({ style: "pass" }), { width: 0.4, dash: "solid", wavy: false, pointer: "arrow", border: false, alpha: 1 });
   assert.equal(arrowProps({ style: "dribble" }).wavy, true);
-  assert.equal(arrowProps({ style: "move" }).dash, "solid");
+  assert.equal(arrowProps({ style: "move" }).dash, "dashed");
   const custom = arrowProps({ style: "pass", dash: "dotted", width: 1.2, border: true, pointer: "bar", wavy: true });
   assert.deepEqual(custom, { width: 1.2, dash: "dotted", wavy: true, pointer: "bar", border: true, alpha: 1 });
   assert.equal(dashArray("solid", 1), undefined);

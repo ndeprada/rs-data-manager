@@ -11,8 +11,8 @@ import { PALETTE } from "./BoardControls";
 const D = { bg: "#24000a", tile: "#fbf7f6", tileOn: "#FF6E00", line: "#7a2a2f", text: "#F7E9E4", sub: "#E2C3BA", on: "#FF6E00", onInk: "#2a0009", btn: "rgba(42,0,9,0.94)" };
 
 const ARROW_SAMPLES = {
-  move: { label: "Desplazamiento", dash: null, wavy: false, air: false },
-  pass: { label: "Pase", dash: "3 2.2", wavy: false, air: false },
+  move: { label: "Desplazamiento", dash: "3 2.2", wavy: false, air: false },
+  pass: { label: "Pase", dash: null, wavy: false, air: false },
   air: { label: "Pase aéreo", dash: null, wavy: false, air: true },
   dribble: { label: "Conducción", dash: null, wavy: true, air: false },
 };
@@ -210,7 +210,7 @@ export default function BoardDock({ kind, el, look, selected, variants, active, 
             <DockColor label="Color" value={el.color} auto={s.arrows?.[el.style] || "#111827"} onChange={(c) => patch({ color: c }, "color")} testid="dock-color" />
             <Pick label="Grosor" testid="dock-width" value={[0.25, 0.4, 0.6, 0.9].reduce((a, b) => (Math.abs(b - (el.width ?? ARROW_W)) < Math.abs(a - (el.width ?? ARROW_W)) ? b : a))}
               options={[0.25, 0.4, 0.6, 0.9].map((w) => ({ value: w, label: `${w}`, draw: line(w * 4, null) }))} onChange={(w) => patch({ width: w }, "width")} />
-            <Pick label="Trazo" testid="dock-dash" value={el.dash || (el.style === "pass" && !el.air ? "dashed" : "solid")}
+            <Pick label="Trazo" testid="dock-dash" value={el.dash || (el.style === "move" ? "dashed" : "solid")}
               options={[{ value: "solid", label: "Continua", draw: line(1.8) }, { value: "dashed", label: "Discontinua", draw: line(1.8, "5 3") }, { value: "dotted", label: "Punteada", draw: line(2, "0.1 3.5") }]} onChange={(d) => patch({ dash: d }, "dash")} />
             <Toggle label={el.border ? "Con borde" : "Sin borde"} on={!!el.border} onChange={(v) => patch({ border: v || undefined }, "border")} testid="dock-border" />
             {el.border && <DockColor label="Borde" value={el.borderColor} auto="#ffffff" onChange={(c) => patch({ borderColor: c }, "borderColor")} testid="dock-border-color" />}
