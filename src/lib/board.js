@@ -381,7 +381,7 @@ export function normalizeBoard(value) {
       ...(value.camRatio === "port" ? { camRatio: "port" } : {}),
       ...(value.view3d === true ? { view3d: true } : {}),
       ...(validOrbit(value.orbit) ? { orbit: validOrbit(value.orbit) } : {}),
-      frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [], ...(validCam(f.cam) ? { cam: validCam(f.cam) } : {}), ...(validOrbit(f.orbit) ? { orbit: validOrbit(f.orbit) } : {}) })),
+      frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [], ...(validCam(f.cam) ? { cam: validCam(f.cam) } : {}), ...(validOrbit(f.orbit) ? { orbit: validOrbit(f.orbit) } : {}), ...(typeof f.note === "string" && f.note.trim() ? { note: f.note.slice(0, 200) } : {}) })),
     };
   }
   return {

@@ -67,7 +67,11 @@ const selectCls = "h-8 rounded-md border border-gray-200 bg-white px-2 text-xs";
  * fields    ids de campo permitidos (por defecto todos)
  * modes     true: se puede elegir entre Imagen (un solo fotograma) y Animación (varios fotogramas)
  */
-export default function BoardEditor({ value, onChange, roster = [], fields = null, filename = "pizarra", modes = false }) {
+// `embedded`: en ordenador la pizarra se ve y se edita dentro de la página (alto `embedHeight`), con la barra de fotogramas
+// debajo; botón para pasar a pantalla completa. `paint` = { teams, patch(ficha) }: tocar una ficha de esos equipos le aplica el
+// cambio (funciones del balón parado). `stamp` = { make(punto, newId) }: el próximo toque en un sitio vacío coloca ese elemento.
+// `overlayTitle`: título que se ve encima del campo (no se guarda en el dibujo).
+export default function BoardEditor({ value, onChange, roster = [], fields = null, filename = "pizarra", modes = false, embedded = false, embedHeight = 620, paint = null, stamp = null, onStampDone = null, overlayTitle = null }) {
   const board = useMemo(() => normalizeBoard(value), [value]);
   const field = fieldOf(board.field);
   const orient = board.orient;
@@ -609,6 +613,19 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const additive = tool === "select" && (multiMode || e.shiftKey || e.ctrlKey || e.metaKey);
     const target = hitAt(tool === "select" ? sorted : sorted.filter((el) => el.k !== "zone" && el.k !== "link"), e, p);
     const drawing = tool === "zone" || tool === "quad" || ARROW_TOOLS.includes(tool);
+    // balón parado: con una función elegida, tocar una ficha se la da; con una etiqueta elegida, tocar un sitio vacío la coloca
+    if (tool === "select" && !additive && paint && target?.k === "token" && (!paint.teams || paint.teams.includes(target.team))) {
+      commit(patchElement(live.current, idx, target.id, paint.patch(target)));
+      setSel([target.id]); setQuietId(target.id); drag.current = null;
+      return;
+    }
+    if (tool === "select" && !additive && stamp && !target) {
+      const el = stamp.make(p, newId);
+      commit(addElement(live.current, idx, el));
+      setSel([el.id]); setQuietId(el.id); drag.current = null;
+      onStampDone?.();
+      return;
+    }
     if (tool === "select" || (target && !drawing)) {
       if (target) {
         // «Varios» o Mayús/Ctrl: suma o quita esa cosa de lo elegido, sin arrastrar
@@ -1087,7 +1104,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const curGroup = groupOf(tool);
   const toggleSide = (id) => { setSide((s) => (s === id ? null : id)); setPanelHidden(false); };
 
-  if (!full) {
+  const inline = embedded && !narrow && !full;
+  if (!full && !inline) {
     const first = board.frames[0];
     return (
       <div className="space-y-1.5" data-testid="board-preview">
@@ -1145,7 +1163,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   );
   // Barra izquierda del ordenador: botones que caben en la altura de la pantalla sin bajar (entre 26 y 38 px)
   const railCount = 3 + teams.length + (teams.length < MAX_TEAMS ? 1 : 0) + (roster.length > 0 ? 1 : 0) + 1 + TOOL_GROUPS.length + 3 + 2;
-  const railSize = `clamp(26px, calc((100vh - 60px) / ${railCount} - 3px), 38px)`;
+  const railSize = inline ? `clamp(24px, calc(${embedHeight - 24}px / ${railCount} - 3px), 34px)` : `clamp(26px, calc((100vh - 60px) / ${railCount} - 3px), 38px)`;
   const toolButtons = (
     <>
       {railTool({ id: "select", label: "Mover", title: "Mover y elegir (V)", icon: MousePointer2 })}
@@ -1537,7 +1555,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     </div>
   );
   const stage = (
-    <div ref={setWrap} className={narrow ? "relative flex-1 min-h-0 flex items-center justify-center p-1" : "absolute inset-y-0 left-[54px] right-[80px] flex items-center justify-center p-3"}>
+    <div ref={setWrap} className={narrow ? "relative flex-1 min-h-0 flex items-center justify-center p-1" : inline ? "absolute inset-y-0 left-[50px] right-0 flex items-center justify-center p-2" : "absolute inset-y-0 left-[54px] right-[80px] flex items-center justify-center p-3"}>
       {show3d && (
         <Board3DView
           ref={v3}
@@ -1670,7 +1688,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       </nav>
     </div>
   ) : (
-    <div className="fixed inset-0" style={{ background: styleOf(look).surround || "#0d2a1f", color: RAIL.text, zIndex: 50 }} onKeyDown={onKey} tabIndex={-1} data-testid="board-studio">
+    <div className={inline ? "relative w-full rounded-xl overflow-hidden outline-none" : "fixed inset-0"} style={{ background: styleOf(look).surround || "#0d2a1f", color: RAIL.text, zIndex: inline ? 0 : 50, ...(inline ? { height: embedHeight } : {}) }} onKeyDown={onKey} tabIndex={-1} data-testid={inline ? "board-inline" : "board-studio"}>
       {stage}
       <nav aria-label="Herramientas" className="absolute left-2.5 top-2.5 bottom-2.5 flex flex-col gap-[3px] overflow-y-auto overflow-x-hidden no-scrollbar [&_.w-5]:w-[18px] [&_.w-5]:h-[18px]" style={{ zIndex: 6, "--rb": railSize }}>
         {toolButtons}
@@ -1678,6 +1696,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         <RailBtn label="Deshacer" title="Deshacer (Ctrl + Z)" disabled={!history.length} onClick={undo}><Undo2 className="w-5 h-5" /></RailBtn>
         <RailBtn label="Rehacer" title="Rehacer (Ctrl + Mayús + Z)" disabled={!future.length} onClick={redo}><Redo2 className="w-5 h-5" /></RailBtn>
       </nav>
+      {inline ? (
+        <div className="absolute right-2 top-2 flex items-center gap-1" style={{ zIndex: 6 }}>
+          <RailBtn label="Campo y ajustes" title="Campo, modo visual, animación y descargas" on={side === "settings"} onClick={() => toggleSide("settings")} testid="rail-settings"><Settings2 className="w-5 h-5" /></RailBtn>
+          {helpBtn}
+          <RailBtn label="Pantalla completa" title="Abrir la pizarra a pantalla completa" onClick={openStudio} testid="board-expand"><Maximize2 className="w-5 h-5" /></RailBtn>
+        </div>
+      ) : (
       <nav aria-label="Fotogramas y archivo" className="absolute right-3 top-3 bottom-3 flex flex-col items-center gap-1.5 overflow-y-auto overflow-x-hidden no-scrollbar" style={{ zIndex: 6 }}>
         <RailBtn label="Salir de la pizarra" title="Salir (Esc)" onClick={closeStudio} testid="board-close"><LogOut className="w-5 h-5 rotate-180" /></RailBtn>
         {!imageMode && playBtn}
@@ -1691,10 +1716,22 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         <RailBtn label="Campo y ajustes" title="Campo, modo visual, animación y descargas" on={side === "settings"} onClick={() => toggleSide("settings")} testid="rail-settings"><Settings2 className="w-5 h-5" /></RailBtn>
         {helpBtn}
       </nav>
+      )}
       {panel}
-      <div className="absolute left-1/2 -translate-x-1/2 top-3 max-w-[50%] pointer-events-none rounded-full px-4 py-1.5 text-sm font-bold truncate" style={{ background: "rgba(36,0,10,0.9)", border: `1px solid ${RAIL.border}`, zIndex: 3 }}>
-        <DialogPrimitive.Title className="truncate">{title}</DialogPrimitive.Title>
-      </div>
+      {inline ? null : overlayTitle ? null : (
+        <div className="absolute left-1/2 -translate-x-1/2 top-3 max-w-[50%] pointer-events-none rounded-full px-4 py-1.5 text-sm font-bold truncate" style={{ background: "rgba(36,0,10,0.9)", border: `1px solid ${RAIL.border}`, zIndex: 3 }}>
+          <DialogPrimitive.Title className="truncate">{title}</DialogPrimitive.Title>
+        </div>
+      )}
+      {!inline && overlayTitle ? <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title> : null}
+      {overlayTitle && !playing ? (
+        <div className="absolute pointer-events-none" style={{ left: inline ? 64 : 70, top: 48, zIndex: 3, maxWidth: "60%" }} data-testid="board-overlay-title">{overlayTitle}</div>
+      ) : overlayTitle ? (
+        <div className="absolute pointer-events-none" style={{ left: inline ? 64 : 70, top: 12, zIndex: 3, maxWidth: "60%" }}>{overlayTitle}</div>
+      ) : null}
+      {cur.note ? (
+        <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none rounded-lg px-4 py-1.5 text-sm font-semibold text-center" style={{ bottom: 52, maxWidth: "70%", background: "rgba(54,0,13,0.9)", color: "#fff", zIndex: 3 }} data-testid="frame-note-caption">{cur.note}</div>
+      ) : null}
       <div className="absolute left-1/2 -translate-x-1/2 bottom-3 max-w-[60%] pointer-events-none rounded-full px-4 py-1.5 text-xs flex gap-3 items-center" style={{ background: "rgba(36,0,10,0.9)", border: `1px solid ${RAIL.border}`, zIndex: 3 }} role="status">
         {!imageMode && board.frames.length > 1 && <span className="font-bold whitespace-nowrap">Fotograma {idx + 1} de {board.frames.length}</span>}
         <span className="truncate" style={{ color: error ? "#fca5a5" : RAIL.sub }}>{hint}</span>
@@ -1702,6 +1739,54 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       </div>
     </div>
   );
+
+  if (inline) {
+    const speeds = [[2600, "0,5×"], [1500, "1×"], [800, "2×"]];
+    const segBtn = (on) => ({ height: 32, padding: "0 12px", borderRadius: 8, fontSize: 13, fontWeight: on ? 600 : 400, background: on ? "#73000A" : "#F5F2F1", color: on ? "#fff" : "#4A3D3F" });
+    const outBtn = { height: 34, padding: "0 12px", borderRadius: 8, fontSize: 13, background: "#fff", color: "#4A3D3F", border: "1px solid #D9CFCE" };
+    return (
+      <div className="space-y-2" data-testid="board-embedded">
+        {studio}
+        {!imageMode && (
+          <section aria-label="Fotogramas" className="rounded-xl bg-white p-2.5 flex flex-col gap-2" style={{ border: "1px solid #E6DEDD", color: "#1E1416" }} data-testid="board-timeline">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button type="button" aria-label="Primer fotograma" title="Primer fotograma" onClick={() => goFrame(0)} className="inline-flex items-center justify-center" style={{ ...outBtn, width: 34, padding: 0 }}><ChevronLeft className="w-4 h-4" /></button>
+              <button type="button" aria-label={playing ? "Parar" : "Reproducir"} title={board.frames.length < 2 ? "Añade otro fotograma para animar" : playing ? "Parar" : "Reproducir"} disabled={board.frames.length < 2} onClick={() => (playing ? stop() : setPlaying(true))} data-testid="tl-play"
+                className="inline-flex items-center justify-center rounded-full disabled:opacity-40" style={{ width: 40, height: 40, background: "#73000A", color: "#fff" }}>
+                {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              </button>
+              <button type="button" aria-label="Último fotograma" title="Último fotograma" onClick={() => goFrame(board.frames.length - 1)} className="inline-flex items-center justify-center" style={{ ...outBtn, width: 34, padding: 0 }}><ChevronRight className="w-4 h-4" /></button>
+              <span aria-hidden className="w-px h-6 mx-1" style={{ background: "#E6DEDD" }} />
+              <div role="tablist" aria-label="Fotogramas" className="flex flex-wrap gap-1">
+                {board.frames.map((f, i) => (
+                  <button key={f.id} type="button" role="tab" aria-selected={i === idx} onClick={() => goFrame(i)} data-testid={`frame-${i + 1}`}
+                    className="tabular-nums" style={{ minWidth: 40, height: 32, borderRadius: 8, fontSize: 14, fontWeight: 700, background: i === idx ? "#73000A" : "#F5F2F1", color: i === idx ? "#fff" : "#4A3D3F" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </button>
+                ))}
+              </div>
+              <button type="button" disabled={board.frames.length >= MAX_FRAMES} onClick={() => frameOp((b, i) => addFrame(b, i))} data-testid="rail-add-frame"
+                className="disabled:opacity-40" style={{ ...outBtn, border: "1px dashed #73000A", color: "#73000A", fontWeight: 600 }}>+ Fotograma</button>
+              <span className="flex-1" />
+              <div role="group" aria-label="Velocidad" className="flex gap-1">
+                {speeds.map(([v, l]) => <button key={v} type="button" aria-pressed={speed === v} onClick={() => commit({ ...live.current, speed: v }, { record: false })} style={segBtn(speed === v)}>{l}</button>)}
+              </div>
+              <label className="flex items-center gap-1.5 text-[13px]" style={{ color: "#4A3D3F" }}><input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} style={{ accentColor: "#73000A", width: 15, height: 15 }} /> Repetir</label>
+              <label className="flex items-center gap-1.5 text-[13px]" style={{ color: "#4A3D3F" }}><input type="checkbox" checked={trails} onChange={(e) => setTrails(e.target.checked)} style={{ accentColor: "#73000A", width: 15, height: 15 }} /> Rastro</label>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <input value={cur.note || ""} maxLength={200} placeholder={`Nota del fotograma ${idx + 1} (sale como leyenda en el campo)`} aria-label={`Nota del fotograma ${idx + 1}`} data-testid="frame-note"
+                onChange={(e) => { const v = e.target.value; const nb = { ...live.current, frames: live.current.frames.map((f, i) => (i === idx ? (v ? { ...f, note: v } : (({ note: _n, ...r }) => r)(f)) : f)) }; commit(nb, { key: `note-${idx}` }); }}
+                className="flex-1 min-w-[220px] outline-none" style={{ height: 34, borderRadius: 8, border: "1px solid #D9CFCE", padding: "0 12px", fontSize: 13.5, color: "#1E1416", background: "#fff" }} />
+              <button type="button" disabled={board.frames.length >= MAX_FRAMES} onClick={() => frameOp((b, i) => duplicateFrame(b, i))} className="disabled:opacity-40" style={outBtn}>Duplicar fotograma</button>
+              <button type="button" disabled={board.frames.length < 2} onClick={() => frameOp((b, i) => removeFrame(b, i))} className="disabled:opacity-40" style={outBtn}>Quitar fotograma</button>
+              {hasEls && <BoardDownloads board={board} frame={idx} filename={filename} compact />}
+            </div>
+          </section>
+        )}
+      </div>
+    );
+  }
 
   return (
     <DialogPrimitive.Root open onOpenChange={(o) => { if (!o) closeStudio(); }}>
