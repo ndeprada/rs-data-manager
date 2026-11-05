@@ -11,7 +11,7 @@ import Board, { ChipGlyph, styleOf } from "./BoardSvg";
 import Board3DView from "./Board3D";
 import { boardKeyAction } from "@/lib/boardKeys";
 import BoardHelp from "./BoardHelp";
-import { BallIcon, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon } from "./BoardControls";
+import { BallIcon, ColorPick, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon } from "./BoardControls";
 import BoardProps, { ARROW_PRESETS, KIND_LABEL, typeOfArrow } from "./BoardProps";
 import BoardDownloads, { downloadFramePng } from "./BoardDownloads";
 import ChipQuickEdit from "./BoardChipEdit";
@@ -1230,6 +1230,12 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
             <optgroup label="Estadio (con gradas)">{LOOKS.filter((l) => isStadium(l.id)).map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}</optgroup>
           </select>
         </label>
+        {field.id !== "free" && (
+          <div className="space-y-0.5" data-testid="board-line-color">
+            <span className="text-[11px] font-semibold text-gray-600">Color de las líneas</span>
+            <ColorPick value={board.lineColor || ""} onChange={(c) => { const { lineColor: _l, ...rest } = board; commit(c ? { ...rest, lineColor: c } : rest); }} label="Líneas" auto="Las del modo visual" autoSwatch={styleOf(look).line} wide />
+          </div>
+        )}
         {field.id !== "free" && look !== "bn" && (
           <label className="text-[11px] font-semibold text-gray-600 space-y-0.5">Césped
             <select value={grassOf(board)} onChange={(e) => { const { grass: _g, ...rest } = board; commit(e.target.value === "auto" ? rest : { ...rest, grass: e.target.value }); }} className={`${selectCls} w-full`} aria-label="Césped" data-testid="board-grass">
@@ -1688,7 +1694,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       </nav>
     </div>
   ) : (
-    <div className={inline ? "relative w-full rounded-xl overflow-hidden outline-none" : "fixed inset-0"} style={{ background: styleOf(look).surround || "#0d2a1f", color: RAIL.text, zIndex: inline ? 0 : 50, ...(inline ? { height: embedHeight } : {}) }} onKeyDown={onKey} tabIndex={-1} data-testid={inline ? "board-inline" : "board-studio"}>
+    <div className={inline ? "relative w-full rounded-xl overflow-hidden outline-none" : "fixed inset-0"} style={{ background: styleOf(look).surround || (inline ? "#E9E4E3" : "#0d2a1f"), color: RAIL.text, zIndex: inline ? 0 : 50, ...(inline ? { height: embedHeight } : {}) }} onKeyDown={onKey} tabIndex={-1} data-testid={inline ? "board-inline" : "board-studio"}>
       {stage}
       <nav aria-label="Herramientas" className="absolute left-2.5 top-2.5 bottom-2.5 flex flex-col gap-[3px] overflow-y-auto overflow-x-hidden no-scrollbar [&_.w-5]:w-[18px] [&_.w-5]:h-[18px]" style={{ zIndex: 6, "--rb": railSize }}>
         {toolButtons}
@@ -1724,10 +1730,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         </div>
       )}
       {!inline && overlayTitle ? <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title> : null}
-      {overlayTitle && !playing ? (
-        <div className="absolute pointer-events-none" style={{ left: inline ? 64 : 70, top: 48, zIndex: 3, maxWidth: "60%" }} data-testid="board-overlay-title">{overlayTitle}</div>
-      ) : overlayTitle ? (
-        <div className="absolute pointer-events-none" style={{ left: inline ? 64 : 70, top: 12, zIndex: 3, maxWidth: "60%" }}>{overlayTitle}</div>
+      {overlayTitle && !inline ? (
+        <div className="absolute pointer-events-none" style={{ left: 70, top: playing ? 12 : 48, zIndex: 3, maxWidth: "60%" }} data-testid="board-overlay-title">{overlayTitle}</div>
       ) : null}
       {cur.note ? (
         <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none rounded-lg px-4 py-1.5 text-sm font-semibold text-center" style={{ bottom: 52, maxWidth: "70%", background: "rgba(54,0,13,0.9)", color: "#fff", zIndex: 3 }} data-testid="frame-note-caption">{cur.note}</div>
@@ -1746,6 +1750,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const outBtn = { height: 34, padding: "0 12px", borderRadius: 8, fontSize: 13, background: "#fff", color: "#4A3D3F", border: "1px solid #D9CFCE" };
     return (
       <div className="space-y-2" data-testid="board-embedded">
+        {overlayTitle ? <div data-testid="board-overlay-title">{overlayTitle}</div> : null}
         {studio}
         {!imageMode && (
           <section aria-label="Fotogramas" className="rounded-xl bg-white p-2.5 flex flex-col gap-2" style={{ border: "1px solid #E6DEDD", color: "#1E1416" }} data-testid="board-timeline">

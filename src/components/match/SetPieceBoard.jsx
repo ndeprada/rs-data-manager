@@ -62,6 +62,21 @@ const FN_LABEL = {
   lanzador: msg("Lanzador"), rematador: msg("Rematador"), bloqueo: msg("Bloqueo"), cierra: msg("Cierra"), portero: msg("Portero"),
 };
 const KIND_LABEL = { corner: msg("Córner"), falta_lateral: msg("F. lateral"), falta_frontal: msg("F. frontal"), banda: msg("Banda") };
+const FIELD_LOOKS = [
+  { id: "estadio", label: msg("Estadio"), swatch: "#2f7a43" },
+  { id: "color", label: msg("Verde"), swatch: "#3f8a4a" },
+  { id: "blanco-liso", label: msg("Blanco"), swatch: "#ffffff" },
+  { id: "blanco", label: msg("Blanco y gris"), swatch: "repeating-linear-gradient(180deg, #ffffff 0 3px, #d9dde3 3px 6px)" },
+  { id: "bn", label: msg("Blanco y negro"), swatch: "linear-gradient(135deg, #ffffff 50%, #111111 50%)" },
+];
+const LINE_COLORS = [
+  { value: "", label: msg("Las del modo visual") },
+  { value: "#c4cad3", label: msg("Gris claro") },
+  { value: "#6b7280", label: msg("Gris") },
+  { value: "#111111", label: msg("Negro") },
+  { value: "#73000a", label: msg("Granate") },
+  { value: "#ffffff", label: msg("Blanco") },
+];
 const DEF_TAGS = [msg("1er palo"), msg("2º palo"), msg("Ataque al balón"), msg("Línea sube"), msg("Segunda jugada"), msg("Salida rápida"), msg("Portero sale"), msg("Presión a la corta")];
 const ATT_TAGS = [msg("1er palo"), msg("2º palo"), msg("Punto de penalti"), msg("Bloqueo"), msg("Desmarque"), msg("Rechace"), msg("Vigilancia"), msg("Jugada en corto")];
 
@@ -130,7 +145,7 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
   const order = (c) => (c.fn === "portero" ? -1 : funcs.findIndex((f) => f.id === c.fn) === -1 ? 99 : funcs.findIndex((f) => f.id === c.fn));
   const sortedChips = [...chips].sort((a, b) => order(a) - order(b));
   const overlay = title || subtitle ? (
-    <div style={{ background: "rgba(36,0,10,.82)", borderRadius: 10, padding: "8px 12px" }}>
+    <div style={{ background: RS.dark, borderRadius: 12, padding: "9px 14px" }}>
       {title && <p style={{ margin: 0, fontFamily: DISPLAY, fontSize: 22, lineHeight: 1, color: "#fff" }} data-testid="sp-auto-title">{title}</p>}
       {subtitle && <p style={{ margin: "4px 0 0", fontSize: 12, fontWeight: 600, letterSpacing: ".12em", color: "#E3EEE6" }} data-testid="sp-auto-subtitle">{subtitle}</p>}
     </div>
@@ -157,6 +172,36 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
           <Seg label={t("A favor o en contra")} value={setup.attack} onChange={(v) => setSetup({ attack: v })} options={[{ value: true, label: t("A favor"), testId: "sp-attack" }, { value: false, label: t("En contra"), testId: "sp-defense" }]} />
           <Seg label={t("Lado")} value={setup.side} onChange={(v) => setSetup({ side: v })} options={[{ value: "l", label: t("Lado izquierdo"), testId: "sp-side-l" }, { value: "r", label: t("Lado derecho"), testId: "sp-side-r" }]} />
           <p style={{ margin: 0, fontSize: 12, color: RS.muted }}>{t("Cambiar de lado da la vuelta a toda la jugada.")}</p>
+        </Card>
+
+        <Card testId="sp-field">
+          <Lab>{t("Campo")}</Lab>
+          <div className="flex flex-wrap" style={{ gap: 6 }}>
+            {FIELD_LOOKS.map((l) => {
+              const on = (board.look || "estadio") === l.id;
+              return (
+                <button key={l.id} type="button" aria-pressed={on} onClick={() => setBoard({ ...board, look: l.id })} style={{ ...pill(on), display: "inline-flex", alignItems: "center", gap: 6 }} data-testid={`sp-look-${l.id}`}>
+                  <span aria-hidden style={{ width: 14, height: 14, borderRadius: 4, border: "1px solid #9A8C8E", background: l.swatch }} />{t(l.label)}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center" style={{ gap: 6 }} role="group" aria-label={t("Color de las líneas")}>
+            <span style={{ fontSize: 12, color: RS.muted, marginRight: 2 }}>{t("Líneas")}</span>
+            {LINE_COLORS.map((c) => {
+              const on = (board.lineColor || "") === c.value;
+              return (
+                <button key={c.value || "auto"} type="button" aria-pressed={on} title={t(c.label)} aria-label={t(c.label)} onClick={() => { const { lineColor: _l, ...rest } = board; setBoard(c.value ? { ...rest, lineColor: c.value } : rest); }} data-testid={`sp-line-${c.value || "auto"}`}
+                  style={{ height: 28, minWidth: 28, padding: c.value ? 0 : "0 10px", borderRadius: 999, fontSize: 12, border: `2px solid ${on ? RS.granate : RS.input}`, background: c.value || "#fff", color: RS.ink2 }}>
+                  {c.value ? "" : t("Auto")}
+                </button>
+              );
+            })}
+            <label className="inline-flex items-center" style={{ gap: 4, fontSize: 12, color: RS.muted }} title={t("Otro color")}>
+              <input type="color" value={board.lineColor || "#9ca3af"} onChange={(e) => setBoard({ ...board, lineColor: e.target.value })} aria-label={t("Otro color")} style={{ width: 28, height: 28, padding: 0, border: "none", background: "none" }} />
+            </label>
+          </div>
+          <p style={{ margin: 0, fontSize: 12, color: RS.muted }}>{t("Para imprimir gastando poca tinta: blanco liso o blanco y gris, con las líneas en gris.")}</p>
         </Card>
 
         <Card testId="sp-structures">

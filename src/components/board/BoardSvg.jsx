@@ -91,6 +91,8 @@ const STYLE = {
   },
 };
 export const styleOf = (look) => STYLE[lookOf(look)];
+// Estilo del campo con el color de líneas que haya elegido la persona (`board.lineColor`; 05/11/2026, Nacho, para imprimir)
+export const fieldStyle = (look, board) => (board?.lineColor ? { ...styleOf(look), line: board.lineColor } : styleOf(look));
 
 // En blanco y negro cada equipo tiene su relleno (en el orden de los equipos): negro, blanco, gris, rayas, y luego más.
 const BN_FILLS = ["#111111", "#ffffff", "#9ca3af", "url(#bn-stripes)", "#e5e7eb", "url(#bn-hatch)", "#4b5563", "url(#bn-dots)"];
@@ -526,7 +528,7 @@ const unionVb = (a, b) => { const x = Math.min(a[0], b[0]), y = Math.min(a[1], b
 // Medio campo y 3/4 son un encuadre del campo completo (como un zoom): se pinta el campo entero y el recuadro lo corta
 const drawFieldOf = (field) => (isCutField(field.id) ? { ...field, id: "full", h: FULL_H } : field);
 function Field({ field: shown, orient, look, vb, board }) {
-  const s = styleOf(look);
+  const s = fieldStyle(look, board);
   const field = drawFieldOf(shown);
   const free = field.id === "free";
   const grass = grassGroups(field, look, board);
@@ -609,7 +611,7 @@ export function fieldShapes(field) {
   return out;
 }
 function FieldPersp({ field: shown, orient, look, vb, persp, board }) {
-  const s = styleOf(look);
+  const s = fieldStyle(look, board);
   const field = drawFieldOf(shown);
   const free = field.id === "free";
   const T = (p) => persp.P(toView(shown, orient, p));

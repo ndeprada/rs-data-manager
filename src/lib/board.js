@@ -375,6 +375,7 @@ export function normalizeBoard(value) {
       ...(value.stands === false ? { stands: false } : {}),
       ...(value.ads === false ? { ads: false } : {}),
       ...(value.labelChip === true ? { labelChip: true } : {}),
+      ...(typeof value.lineColor === "string" && /^#[0-9a-f]{6}$/i.test(value.lineColor) ? { lineColor: value.lineColor } : {}),
       ...(grassOf(value) !== "auto" ? { grass: grassOf(value) } : {}),
       ...(marksOf(value) !== "none" ? { marks: marksOf(value) } : {}),
       ...(camOf(value).z > 1 ? { cam: camOf(value) } : {}),
