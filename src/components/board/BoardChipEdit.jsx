@@ -1,13 +1,36 @@
 import React from "react";
 import { Copy, Trash2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { DEFAULT_CHIP, chipOf, chipStyle, labelBgOf, teamsOf } from "@/lib/board";
+import { DEFAULT_CHIP, FONTS, chipOf, chipStyle, labelBgOf, teamsOf } from "@/lib/board";
 import { ChipGlyph, chipPaint } from "./BoardSvg";
 import { ColorPick, NO_FILL, Row, Slider, TextSizePick, Toggle } from "./BoardControls";
 
 // Edición rápida de una ficha (doble clic o doble toque sobre ella, como en FM Studio): sus textos de arriba, dentro y abajo,
 // equipo, color propio, peto, fondo de los textos, pies y tamaño. El panel de abajo queda para el equipo y todas las fichas.
 const btn = "h-7 px-2 rounded-md border text-[11px] font-semibold bg-white text-gray-600 border-gray-200 hover:bg-gray-50 flex items-center gap-1";
+
+// Letra de un texto de la ficha: tipografía, negrita, color y borde (auto, sin borde o de un color)
+function LetterRow({ label, prefix, el, patch, bn, testid }) {
+  const f = el[`${prefix}Font`] || "sans";
+  const bold = el[`${prefix}Bold`] !== false;
+  const halo = el[`${prefix}Halo`];
+  const k = (s) => `${prefix}${s}`;
+  return (
+    <div className="flex flex-wrap items-center gap-1" data-testid={testid} role="group" aria-label={label}>
+      <span className="w-full text-[10px] font-semibold text-gray-500">{label}</span>
+      <select value={f} onChange={(e) => patch({ [k("Font")]: e.target.value === "sans" ? undefined : e.target.value }, k("Font"))} aria-label={`${label}: tipografía`}
+        className="h-7 rounded-md border border-gray-200 bg-white px-1 text-xs text-gray-900 flex-1 min-w-[96px]" style={{ fontFamily: FONTS.find((x) => x.id === f)?.css }}>
+        {FONTS.map((x) => <option key={x.id} value={x.id} style={{ fontFamily: x.css }}>{x.label}</option>)}
+      </select>
+      <button type="button" aria-pressed={bold} onClick={() => patch({ [k("Bold")]: bold ? false : undefined }, k("Bold"))} title="Negrita" aria-label={`${label}: negrita`}
+        className={`h-7 w-7 rounded-md border text-xs font-black ${bold ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200"}`}>B</button>
+      {!bn && <ColorPick value={el[`${prefix}Color`] || ""} onChange={(c) => patch({ [k("Color")]: c || undefined }, k("Color"))} label="Color de la letra" auto="Automático" autoSwatch="#111827" />}
+      <button type="button" aria-pressed={halo === "none"} onClick={() => patch({ [k("Halo")]: halo === "none" ? undefined : "none" }, k("Halo"))} title="Letra sin borde" aria-label={`${label}: sin borde`}
+        className={`h-7 px-1.5 rounded-md border text-[10.5px] font-semibold ${halo === "none" ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200"}`}>Sin borde</button>
+      {!bn && halo !== "none" && <ColorPick value={halo || ""} onChange={(c) => patch({ [k("Halo")]: c || undefined }, k("Halo"))} label="Color del borde de la letra" auto="Automático" autoSwatch="#ffffff" />}
+    </div>
+  );
+}
 
 export default function ChipQuickEdit({ el, board, look, patch, onClose, onDup, onDel, canDelHere = false, style }) {
   const teams = teamsOf(board);
@@ -41,6 +64,8 @@ export default function ChipQuickEdit({ el, board, look, patch, onClose, onDup, 
         <TextSizePick label="Letra Nº" value={el.innerFs} onChange={(v) => patch({ innerFs: v }, "innerFs")} testid="fs-inner" />
         <TextSizePick label="Letra nombre" value={el.labelFs} onChange={(v) => patch({ labelFs: v }, "labelFs")} testid="fs-label" />
       </div>
+      <LetterRow label="Letra del dorsal" prefix="inner" el={el} patch={patch} bn={bn} testid="chip-font-inner" />
+      <LetterRow label="Letra de los textos (arriba y abajo)" prefix="label" el={el} patch={patch} bn={bn} testid="chip-font-label" />
       <div className="flex flex-wrap gap-1 items-center" role="group" aria-label="Equipo de esta ficha">
         {teams.map((t) => (
           <button

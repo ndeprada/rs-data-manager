@@ -1396,3 +1396,13 @@ test("tamaño de letra de los textos de una ficha: 10 = normal, se limita entre 
   // volver al normal quita el dato
   assert.equal(st(s, 0, ["t1"], "token", { innerFs: undefined }).frames[0].els[0].innerFs, undefined);
 });
+
+test("letra de los textos de una ficha: tipografía, negrita, color y borde", async () => {
+  const { chipTextLook, fontOf } = await import("../src/lib/board.js");
+  assert.deepEqual(chipTextLook({}, "inner"), { font: fontOf("sans"), bold: true, color: null, halo: null });
+  const el = { innerFont: "club", innerBold: false, innerColor: "#ff0000", innerHalo: "none", labelHalo: "#73000a", labelFont: "serif" };
+  assert.deepEqual(chipTextLook(el, "inner"), { font: fontOf("club"), bold: false, color: "#ff0000", halo: "none" });
+  assert.equal(chipTextLook(el, "label").halo, "#73000a");
+  assert.equal(chipTextLook(el, "label").font, fontOf("serif"));
+  assert.equal(chipTextLook({ labelHalo: "rojo" }, "label").halo, null);
+});

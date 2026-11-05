@@ -15,7 +15,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   ballR, boardView, chipOf, labelBgOf, fieldKind, contrastColor, faceOf, fieldOf, fromView, groundRegion, hasAds, hasStands, isCutField, isGroundEl, isPersp,
-  isStadium, lookOf, materialOf, PERSP, orientAngle, orientOf, tokenR, chipTextScale, ballStyle,
+  isStadium, lookOf, materialOf, PERSP, orientAngle, orientOf, tokenR, chipTextScale, chipTextLook, ballStyle,
 } from "@/lib/board";
 import { AD_LOGOS } from "@/lib/adLogos";
 import { ChipTopSvg, GroundMarksSvg, GroundSvg, STAND, chipPaint, darken, standHeight, stadiumParts, styleOf } from "@/components/board/BoardSvg";
@@ -613,7 +613,7 @@ function buildToken(board, el, look, chip, scr, pending) {
   side.castShadow = true;
   group.add(side);
   const ang = faceOf(el) + scr.angle;
-  const topKey = `chip:${JSON.stringify([paint, el.inner || "", el.innerFs || 10, el.bib || "", el.bib ? Math.round(ang) : 0, bn])}`;
+  const topKey = `chip:${JSON.stringify([paint, el.inner || "", el.innerFs || 10, chipTextLook(el, "inner"), el.bib || "", el.bib ? Math.round(ang) : 0, bn])}`;
   const tex = asyncTexture(topKey, () => svgCanvas(React.createElement(ChipTopSvg, { board, el, look, ang }), 256), pending);
   const top = new THREE.Mesh(geo("chipTop", () => new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2)), tex ? new THREE.MeshLambertMaterial({ map: tex }) : lambert(hexOf(paint.color, "#73000a")));
   top.scale.set(r, 1, r);
@@ -638,7 +638,10 @@ function buildToken(board, el, look, chip, scr, pending) {
   const fs = Math.max(1.8, r * 1.25) * 1.05;
   const lab = (text, below, k = 1) => {
     const bg = labelBgOf(board, el);
-    const opts = bg ? { bg, bgAlpha: el.labelBgOpacity ?? 1, fill: bn ? "#111111" : contrastColor(bg), stroke: null } : { fill: s.label.fill, stroke: s.label.stroke };
+    const lk = chipTextLook(el, "label");
+    const look2 = { font: lk.font, bold: lk.bold };
+    const opts = bg ? { bg, bgAlpha: el.labelBgOpacity ?? 1, fill: bn ? "#111111" : lk.color || contrastColor(bg), stroke: null, ...look2 }
+      : { fill: !bn && lk.color ? lk.color : s.label.fill, stroke: lk.halo === "none" ? null : !bn && lk.halo ? lk.halo : s.label.stroke, ...look2 };
     const sp = labelSprite(`lab:${text}:${JSON.stringify(opts)}`, text, opts, fs * 1.35 * k);
     sp.position.set(0, hgt, 0);
     const gap = (r * 1.15) / sp.scale.y;

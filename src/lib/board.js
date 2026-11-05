@@ -279,6 +279,21 @@ export const FONTS = [
   { id: "club", label: "Racing Sarrià", css: "'Racing Sarria', Impact, sans-serif" },
 ];
 export const fontOf = (id) => FONTS.find((f) => f.id === id)?.css || FONTS[0].css;
+// Letra de los textos de una ficha (05/11/2026, Nacho: «editar la tipografía de los dorsales y textos, también si la letra tiene
+// borde o no»): `inner*` = el dorsal, `label*` = los textos de arriba y de abajo. Font = tipografía (FONTS), Bold = false para
+// letra normal, Color = color de la letra (sin dato = el automático), Halo = borde de la letra (sin dato = automático,
+// "none" = sin borde, o un color).
+export const CHIP_TEXT_STYLE_KEYS = ["innerFont", "innerBold", "innerColor", "innerHalo", "labelFont", "labelBold", "labelColor", "labelHalo"];
+export function chipTextLook(el, which) {
+  const p = which === "inner" ? "inner" : "label";
+  const halo = el?.[`${p}Halo`];
+  return {
+    font: fontOf(el?.[`${p}Font`]),
+    bold: el?.[`${p}Bold`] !== false,
+    color: typeof el?.[`${p}Color`] === "string" && el[`${p}Color`] ? el[`${p}Color`] : null,
+    halo: halo === "none" ? "none" : typeof halo === "string" && /^#[0-9a-f]{6}$/i.test(halo) ? halo : null,
+  };
+}
 
 // Fondo opcional detrás de un texto o del nombre de una ficha (sin fondo = invisible, como siempre).
 // Ancho estimado del texto (en las mismas unidades que el tamaño de letra): no hay DOM al exportar PNG/vídeo.
@@ -1640,7 +1655,7 @@ export function resizeElements(board, index, ids, factor) {
 // dibujada: extremos, curva, quiebros, giro…).
 export const SAME_KEYS = {
   arrow: ["style", "dash", "wavy", "pointer", "width", "border", "borderColor", "color", "alpha"],
-  token: ["size", "stroke", "edge", "innerFs", "topFs", "labelFs"],
+  token: ["size", "stroke", "edge", "innerFs", "topFs", "labelFs", "innerFont", "innerBold", "innerColor", "innerHalo", "labelFont", "labelBold", "labelColor", "labelHalo"],
   ball: ["size", "pattern", "color", "color2", "stroke"],
   cone: ["size", "shape", "color", "stroke", "edge"],
   goal: ["w", "color"],

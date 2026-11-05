@@ -3,7 +3,7 @@ import { BIG_STAND, BS, cornerR, roundRect, rowSeats, seatHash, stairQuads, stan
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, chipTextScale, viewBox, wavyPoints, zoneBox, labelBgOf, coneEdgeWidth,
+  ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, chipTextScale, chipTextLook, viewBox, wavyPoints, zoneBox, labelBgOf, coneEdgeWidth,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -974,7 +974,11 @@ function Chip({ el, ctx, c, r, ghost = false, puck = 0 }) {
       {!bn && <ellipse cx={c.x - r * 0.3} cy={c.y - r * 0.42} rx={r * 0.5} ry={r * 0.32} fill="url(#chip-gloss)" />}
       {!bn && sw > 0 && <circle cx={c.x} cy={c.y} r={r} fill="none" stroke={paint.stroke} strokeWidth={sw} />}
       {inner && !ghost && (
-        <text x={c.x} y={c.y + fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight={800} fill={bib ? bib.text : paint.text} stroke={bib ? bib.halo : paint.halo} strokeWidth={Math.max(0.12, fs * (paint.pattern === "solid" || bn ? 0.09 : 0.16))} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{inner}</text>
+        (() => {
+          const lk = chipTextLook(el, "inner");
+          const halo = lk.halo === "none" ? "none" : !bn && lk.halo ? lk.halo : bib ? bib.halo : paint.halo;
+          return <text x={c.x} y={c.y + fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight={lk.bold ? 800 : 500} fill={!bn && lk.color ? lk.color : bib ? bib.text : paint.text} stroke={halo} strokeWidth={halo === "none" ? 0 : Math.max(0.12, fs * (paint.pattern === "solid" || bn ? 0.09 : 0.16) * (lk.halo && lk.halo !== "none" ? 1.6 : 1))} paintOrder="stroke" style={{ fontFamily: lk.font }}>{inner}</text>;
+        })()
       )}
     </>
   );
@@ -1209,10 +1213,13 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
       }
       const lbg = labelBgOf(board, el);
       const fsTop = fs * chipTextScale(el, "top"), fsBot = fs * chipTextScale(el, "label");
+      const lk = chipTextLook(el, "label");
+      const bnL = lookOf(look) === "bn";
+      const lHalo = lbg || lk.halo === "none" ? "none" : !bnL && lk.halo ? lk.halo : s.label.stroke;
       const tag = (text, y, key, fs) => (
         <React.Fragment key={key}>
-          <TextBg x={c.x} y={y} text={text} fs={fs} bold bg={lbg} alpha={el.labelBgOpacity} look={look} />
-          <text x={c.x} y={y} textAnchor="middle" fontSize={fs} fontWeight={700} fill={lbg ? inkOnBg(lbg, null, look) : s.label.fill} stroke={lbg ? "none" : s.label.stroke} strokeWidth={lbg ? 0 : 0.55} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{text}</text>
+          <TextBg x={c.x} y={y} text={text} fs={fs} bold={lk.bold} bg={lbg} alpha={el.labelBgOpacity} look={look} />
+          <text x={c.x} y={y} textAnchor="middle" fontSize={fs} fontWeight={lk.bold ? 700 : 400} fill={lbg ? inkOnBg(lbg, bnL ? null : lk.color, look) : !bnL && lk.color ? lk.color : s.label.fill} stroke={lHalo} strokeWidth={lHalo === "none" ? 0 : lk.halo ? Math.max(0.55, fs * 0.2) : 0.55} paintOrder="stroke" style={{ fontFamily: lk.font }}>{text}</text>
         </React.Fragment>
       );
       if (part === "labels") {
@@ -1710,7 +1717,11 @@ export function ChipTopSvg({ board, el, look, ang = 0 }) {
       {el.bib && <g transform={`rotate(${ang})`}><Bib color={el.bib} bn={bn} /></g>}
       {!bn && <ellipse cx={-0.3} cy={-0.42} rx={0.5} ry={0.32} fill="url(#chip-gloss)" opacity={0.6} />}
       {(paint.edge ?? 1) > 0 && <circle r={1 - 0.05 * (paint.edge ?? 1)} fill="none" stroke={paint.stroke} strokeWidth={0.1 * (paint.edge ?? 1)} />}
-      {inner && <text x={0} y={fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight={800} fill={bib ? bib.text : paint.text} stroke={bib ? bib.halo : paint.halo} strokeWidth={Math.max(0.12, fs * (paint.pattern === "solid" || bn ? 0.09 : 0.16))} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{inner}</text>}
+      {inner && (() => {
+        const lk = chipTextLook(el, "inner");
+        const halo = lk.halo === "none" ? "none" : !bn && lk.halo ? lk.halo : bib ? bib.halo : paint.halo;
+        return <text x={0} y={fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight={lk.bold ? 800 : 500} fill={!bn && lk.color ? lk.color : bib ? bib.text : paint.text} stroke={halo} strokeWidth={halo === "none" ? 0 : Math.max(0.12, fs * (paint.pattern === "solid" || bn ? 0.09 : 0.16) * (lk.halo && lk.halo !== "none" ? 1.6 : 1))} paintOrder="stroke" style={{ fontFamily: lk.font }}>{inner}</text>;
+      })()}
     </svg>
   );
 }
