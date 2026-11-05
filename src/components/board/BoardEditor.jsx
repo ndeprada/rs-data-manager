@@ -14,7 +14,8 @@ import BoardHelp from "./BoardHelp";
 import { BallIcon, ColorPick, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon } from "./BoardControls";
 import BoardProps, { ARROW_PRESETS, KIND_LABEL, typeOfArrow } from "./BoardProps";
 import BoardDownloads, { downloadFramePng } from "./BoardDownloads";
-import ChipQuickEdit from "./BoardChipEdit";
+import ChipCard from "./BoardChipCard";
+import { cleanVariant, keyAllowed, railOf, tacticPlayerPatch } from "@/lib/boardVariant";
 import BoardDock, { MATERIAL_VARIANTS, TEXT_VARIANTS, materialVariantOf, textVariantOf } from "./BoardDock";
 import MultiPanel, { LayerButtons, LayerList } from "./BoardMulti";
 import { useAuthOptional } from "@/lib/AuthContext";
@@ -72,7 +73,12 @@ const selectCls = "h-8 rounded-md border border-gray-200 bg-white px-2 text-xs";
 // debajo; botón para pasar a pantalla completa. `paint` = { teams, patch(ficha) }: tocar una ficha de esos equipos le aplica el
 // cambio (funciones del balón parado). `stamp` = { make(punto, newId) }: el próximo toque en un sitio vacío coloca ese elemento.
 // `overlayTitle`: título que se ve encima del campo (no se guarda en el dibujo).
-export default function BoardEditor({ value, onChange, roster = [], fields = null, filename = "pizarra", modes = false, embedded = false, embedHeight = 620, paint = null, stamp = null, onStampDone = null, overlayTitle = null }) {
+// `variant`: versión de la pizarra (tareas · tactica · abp; ver src/lib/boardVariant.js): cambia la barra de dibujo y la pestaña
+// «Jugador» de la tarjeta de la ficha; «Campo y ajustes» es igual en las tres. `chipPlayer(ficha, patch)`: la página pone su propia
+// pestaña «Jugador» (balón parado: jugador y función; null = la de siempre). `chipDescribe(ficha)`: texto bajo el nombre en la tarjeta.
+export default function BoardEditor({ value, onChange, roster = [], fields = null, filename = "pizarra", modes = false, embedded = false, embedHeight = 620, paint = null, stamp = null, onStampDone = null, overlayTitle = null, variant: variantIn = "tareas", chipPlayer = null, chipDescribe = null }) {
+  const variant = cleanVariant(variantIn);
+  const rail = railOf(variant);
   const board = useMemo(() => normalizeBoard(value), [value]);
   const field = fieldOf(board.field);
   const orient = board.orient;
@@ -114,6 +120,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const [error, setError] = useState("");
   const [quick, setQuick] = useState(null); // ficha abierta con doble clic (su id)
   const [quickPos, setQuickPos] = useState(null);
+  const [quickOff, setQuickOff] = useState({ x: 0, y: 0 }); // la tarjeta se puede arrastrar por su cabecera
+  const [teamEdit, setTeamEdit] = useState(null); // «Cambiar para todo el equipo»: id del equipo cuyo panel está abierto
   const [full, setFull] = useState(false); // editor a pantalla completa (fuera de él, solo la vista previa)
   const [side, setSide] = useState(null); // panel de «Campo y ajustes» o «Plantilla»
   const [panelHidden, setPanelHidden] = useState(false);
@@ -179,6 +187,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   useEffect(() => { if (fi > last) setFi(last); }, [fi, last]);
   const quickEl = quick && !playing && selId === quick ? cur.els.find((e) => e.id === quick && e.k === "token") || null : null;
   useEffect(() => { if (quick && !quickEl) setQuick(null); }, [quick, quickEl]);
+  useEffect(() => { setQuickOff({ x: 0, y: 0 }); }, [quick]);
+  useEffect(() => { if (teamEdit && !teamIds.includes(teamEdit)) setTeamEdit(null); }, [teamEdit, teamIds]);
+  useEffect(() => { setTeamEdit((t) => (t && (tool !== "select" || multi) ? null : t)); }, [tool, multi]);
 
   // Los cambios seguidos de un mismo control (deslizador, selector de color) cuentan como uno solo al deshacer.
   const pushHistory = (snap) => { setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), snap]); setFuture([]); };
@@ -472,37 +483,47 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     return Math.max(1, m);
   };
 
-  // Dónde se abre la edición rápida: junto a la ficha (debajo si cabe, si no encima), sin salirse del recuadro de la pizarra
+  // Dónde se abre la tarjeta de la ficha: a su lado (a la derecha si cabe, si no a la izquierda), a la altura de la ficha y sin
+  // salirse del recuadro de la pizarra; en el móvil sube desde abajo. Se puede arrastrar por la cabecera (`quickOff`).
   useLayoutEffect(() => {
     if (!quickEl || !wrapRef.current || (!svgRef.current && !in3d)) { setQuickPos(null); return; }
+    const box = wrapRef.current.getBoundingClientRect();
+    let mx, my, rs;
     if (in3d) {
       const m = v3.current?.toScreen(quickEl.x, quickEl.y, 0.3);
       if (!m) { setQuickPos(null); return; }
-      const box = wrapRef.current.getBoundingClientRect();
-      const W = Math.min(300, box.width - 8);
-      const left = Math.max(4, Math.min(m.x - box.left - W / 2, box.width - W - 4));
-      setQuickPos({ left, top: m.y - box.top + 34, up: m.y - box.top > box.height / 2, mid: m.y - box.top - 30 });
-      return;
+      mx = m.x; my = m.y; rs = 22;
+    } else {
+      const svg = svgRef.current;
+      const v = toView(field, orient, quickEl);
+      const c = persp ? persp.P(v) : v;
+      const r = tokenR(chip, quickEl) * (persp ? persp.scaleAt(v) * perspBoost(quickEl) : 1);
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return;
+      const pt = svg.createSVGPoint();
+      pt.x = c.x; pt.y = c.y;
+      const mid = pt.matrixTransform(ctm);
+      pt.x = c.x + r; const edge = pt.matrixTransform(ctm);
+      mx = mid.x; my = mid.y; rs = Math.max(10, Math.hypot(edge.x - mid.x, edge.y - mid.y) * 1.6);
     }
-    const svg = svgRef.current;
-    const v = toView(field, orient, quickEl);
-    const c = persp ? persp.P(v) : v;
-    const r = tokenR(chip, quickEl) * (persp ? persp.scaleAt(v) * perspBoost(quickEl) : 1);
-    const ctm = svg.getScreenCTM();
-    if (!ctm) return;
-    const pt = svg.createSVGPoint();
-    pt.x = c.x; pt.y = c.y;
-    const mid = pt.matrixTransform(ctm);
-    pt.y = c.y + r * 2.2;
-    const below = pt.matrixTransform(ctm);
-    const box = wrapRef.current.getBoundingClientRect();
     const W = Math.min(300, box.width - 8);
-    const left = Math.max(4, Math.min(mid.x - box.left - W / 2, box.width - W - 4));
-    const top = below.y - box.top + 4;
-    // en la mitad de abajo de la pizarra se abre por encima de la ficha
-    const rs = Math.abs(below.y - mid.y) / 2.2;
-    setQuickPos({ left, top, up: mid.y - box.top > box.height / 2, mid: mid.y - box.top - rs - 6 });
+    const H = Math.min(440, box.height - 8);
+    const x = mx - box.left, y = my - box.top;
+    const right = x + rs + 14;
+    const left = right + W <= box.width - 4 ? right : Math.max(4, x - rs - 14 - W);
+    const top = Math.max(4, Math.min(y - 110, box.height - H - 4));
+    // en el móvil la tarjeta sube desde abajo, o baja desde arriba si la ficha está en la parte de abajo, para que se vea
+    setQuickPos({ left, top, maxH: box.height - 8, low: y > box.height * 0.5 });
   }, [quickEl, board, orient, field, in3d]);
+  const grabCard = (e) => {
+    if (e.button !== 0 || narrow) return;
+    e.stopPropagation();
+    const start = { x: e.clientX, y: e.clientY, off: quickOff };
+    const move = (ev) => setQuickOff({ x: start.off.x + ev.clientX - start.x, y: start.off.y + ev.clientY - start.y });
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
 
   const setEls = (els, opts) => commit({ ...live.current, frames: live.current.frames.map((f, i) => (i === idx ? { ...f, els } : f)) }, opts);
   const add = (el) => { commit(addElement(live.current, idx, el)); setSelId(el.id); };
@@ -648,7 +669,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         if (quick && quick !== target.id) setQuick(null);
         // tocar (sin arrastrar) una ficha que ya estaba elegida abre su cuadro para escribir el nombre (02/11/2026, Nacho)
         const shown = !panelHidden && sel.length === 1 && sel[0] === target.id && quietId !== target.id;
-        const reTap = target.k === "token" && shown && quick !== target.id;
+        // tocar (sin arrastrar) una ficha abre su tarjeta (05/11/2026); arrastrarla solo la mueve
+        const reTap = target.k === "token" && quick !== target.id ? target.id : null;
         // arrastrar una de varias elegidas las mueve todas; tocarla sin arrastrar deja solo esa
         const inGroup = sel.length > 1 && sel.includes(target.id);
         if (!inGroup) setSel([target.id]);
@@ -656,7 +678,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         // un conector no se arrastra: su forma sale de las fichas que une
         // (lo bloqueado se elige pero no se mueve)
         const ids = movableIds(live.current, idx, inGroup ? sel : [target.id]);
-        drag.current = (target.k === "link" && !inGroup) || !ids.length ? (reTap ? { mode: "tap", reTap: target.id, at: now } : null) : { mode: "move", ids, only: inGroup ? target.id : null, anchor: target.id, from: p, moved: false, snapshot: live.current, reTap: reTap ? target.id : null, at: now };
+        drag.current = (target.k === "link" && !inGroup) || !ids.length ? (reTap && !inGroup ? { mode: "tap", reTap, at: now } : null) : { mode: "move", ids, only: inGroup ? target.id : null, anchor: target.id, from: p, moved: false, snapshot: live.current, reTap: inGroup ? null : reTap, at: now };
         setQuietId(drag.current?.mode === "move" && !inGroup && !shown ? target.id : null);
       } else {
         // espacio vacío: recuadro para elegir varias cosas a la vez
@@ -988,7 +1010,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       if (e.code === "KeyR" || e.code === "Backspace" || e.code === "Delete") { e.preventDefault(); if (ownCam) setFrameCam(null); return; }
     }
     const action = boardKeyAction(e, { hasSel: sel.length > 0 });
-    if (!action) return;
+    if (!action || !keyAllowed(variant, action)) return;
     if (playing && action !== "play") return;
     e.preventDefault();
     const nudge = { nudgeLeft: [-1, 0], nudgeRight: [1, 0], nudgeUp: [0, -1], nudgeDown: [0, 1] }[action];
@@ -1053,7 +1075,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const addPlayer = (p) => {
     const team = isTeamTool(tool) ? tool : "a";
     const n = cur.els.filter((e) => e.k === "token").length;
-    add({ id: newId(), k: "token", x: round(Math.min(8 + (n % 6) * 10, field.w - 4)), y: round(6 + Math.floor(n / 6) * 7), team, label: p.label });
+    const who = variant === "tactica" ? tacticPlayerPatch({}, p) : { label: p.label };
+    add({ id: newId(), k: "token", x: round(Math.min(8 + (n % 6) * 10, field.w - 4)), y: round(6 + Math.floor(n / 6) * 7), team, label: p.label, ...who });
   };
 
   const pickTool = (id) => {
@@ -1166,7 +1189,10 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     </RailBtn>
   );
   // Barra izquierda del ordenador: botones que caben en la altura de la pantalla sin bajar (entre 26 y 38 px)
-  const railCount = 3 + teams.length + (teams.length < MAX_TEAMS ? 1 : 0) + (roster.length > 0 ? 1 : 0) + 1 + TOOL_GROUPS.length + 3 + 2;
+  // Versión de la pizarra: Táctica sin material; balón parado sin material, sin unir fichas, sin cámara y sin equipos nuevos
+  const railGroups = TOOL_GROUPS.filter((g) => g.id !== "material" || rail.material);
+  const canNewTeam = rail.newTeam && teams.length < MAX_TEAMS;
+  const railCount = 3 + teams.length + (canNewTeam ? 1 : 0) + (roster.length > 0 ? 1 : 0) + 1 + railGroups.length + 1 + (rail.link ? 1 : 0) + (rail.camera ? 1 : 0) + 2;
   const railSize = inline ? `clamp(24px, calc(${embedHeight - 24}px / ${railCount} - 3px), 34px)` : `clamp(26px, calc((100vh - 60px) / ${railCount} - 3px), 38px)`;
   const toolButtons = (
     <>
@@ -1179,7 +1205,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       </RailBtn>
       <RailSep narrow={narrow} />
       {teams.map(teamBtn)}
-      {teams.length < MAX_TEAMS && (
+      {canNewTeam && (
         <RailBtn label="Nuevo equipo" title="Nuevo equipo (otro color de fichas)" onClick={newTeam} dashed narrow={narrow}>
           <Plus className="w-5 h-5" />{narrow && <RailLabel>Equipo</RailLabel>}
         </RailBtn>
@@ -1191,10 +1217,10 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       )}
       <RailSep narrow={narrow} />
       {railTool({ id: "ball", label: "Balón", title: "Balón (0)", icon: BallIcon })}
-      {TOOL_GROUPS.map(groupBtn)}
-      {railTool({ id: "link", label: "Unir fichas", title: "Unir fichas (L)", icon: Waypoints, short: "Unir" })}
+      {railGroups.map(groupBtn)}
+      {rail.link && railTool({ id: "link", label: "Unir fichas", title: "Unir fichas (L)", icon: Waypoints, short: "Unir" })}
       {railTool({ id: "text", label: "Texto", title: "Texto (E)", icon: Type })}
-      {railTool({ id: "camera", label: "Cámara", title: "Cámara: lo que se exporta (C)", icon: Video })}
+      {rail.camera && railTool({ id: "camera", label: "Cámara", title: "Cámara: lo que se exporta (C)", icon: Video })}
     </>
   );
 
@@ -1380,7 +1406,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const p = prev.els.find((x) => x.id === selected.id);
     return p && Math.hypot(p.x - selected.x, p.y - selected.y) > 0.8 ? p : null;
   })();
-  const propsBody = panelEl && !multi ? (
+  // una ficha elegida se edita con su tarjeta (no con este panel)
+  const propsBody = panelEl && !multi && selected?.k !== "token" ? (
     <div className="space-y-1.5" data-testid="board-props">
       {variants}
       {selected && <p className="text-[11px] text-amber-800">{selected.k === "arrow" ? "Arrastra la flecha o sus puntos" : selected.k === "token" && selected.feet ? "Arrastra la ficha; el punto naranja gira hacia dónde mira" : materialOf(selected.k) ? "Arrastra el material; el punto naranja lo gira" : selected.k === "link" ? "Sigue a sus fichas: mueve las fichas para cambiar la figura" : isQuad(selected) ? "Arrastra la zona o sus esquinas" : isMovable(selected) && board.frames.length > 1 ? "Arrástrala en cada fotograma" : "Arrastra para moverla"}</p>}
@@ -1437,6 +1464,32 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     </div>
   ) : null;
 
+  const editTeam = teamEdit ? teams.find((t) => t.id === teamEdit) : null;
+  const teamBody = editTeam && !playing ? (
+    <div className="space-y-1.5" data-testid="board-team-panel">
+      <BoardProps
+        key={`team-${editTeam.id}`}
+        el={{ k: "token", team: editTeam.id }}
+        brush={false}
+        board={board}
+        look={look}
+        patch={() => {}}
+        patchTeam={patchTeam}
+        setChip={setChip}
+        setFeet={setFeet}
+        canRemoveTeam={!["a", "b", "c", "gk"].includes(editTeam.id) && !teamInUse(board, editTeam.id)}
+        onRemoveTeam={(id) => { dropTeam(id); setTeamEdit(null); }}
+        onQuick={null}
+      />
+      <div className="flex flex-wrap items-center gap-1.5 rounded-md bg-gray-50 border border-gray-200 px-2 py-1" data-testid="board-default">
+        <span className="text-[11px] text-gray-600 flex-1 min-w-[150px]">Tamaño de las fichas y colores de este equipo para lo que dibujes a partir de ahora</span>
+        <button type="button" className="h-7 px-2 rounded-md border text-[11px] font-semibold bg-white text-gray-700 border-gray-200 hover:bg-gray-100" data-testid="board-default-save"
+          onClick={() => saveDefs(withElementDefault(defs, { k: "token", team: editTeam.id }, { chipSize: chip, team: editTeam }))}
+          title="Las tareas y pizarras nuevas empezarán así">★ Usar como predeterminado</button>
+      </div>
+    </div>
+  ) : null;
+
   const camBody = camTool && !playing ? (
     <div className="space-y-2.5" data-testid="camera-panel">
       <p className="text-[11px] text-gray-600 leading-snug">La cámara marca lo que sale en la imagen, en el vídeo y en las vistas previas. Cada fotograma puede tener su encuadre y, al reproducir, la cámara se mueve de uno a otro.</p>
@@ -1468,10 +1521,10 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     </div>
   ) : null;
 
-  const panelTitle = camTool ? "Cámara" : side === "settings" ? "Campo y ajustes" : side === "roster" ? "Plantilla"
+  const panelTitle = camTool ? "Cámara" : side === "settings" ? "Campo y ajustes" : side === "roster" ? "Plantilla" : editTeam ? `Todo el equipo · ${editTeam.name}`
     : tool === "link" ? "Unir fichas" : multi ? `${selEls.length} elegidos`
       : selected ? KIND_LABEL[selected.k] : panelEl ? (isTeamTool(tool) ? `Fichas · ${teams.find((t) => t.id === tool)?.name || ""}` : curGroup ? curGroup.label : KIND_LABEL[panelEl.k]) : layersOpen ? "Capas" : "";
-  const panelBody = playing ? null : camTool && !side ? camBody : side === "settings" ? settingsBody : side === "roster" ? rosterBody : (
+  const panelBody = playing ? null : camTool && !side ? camBody : side === "settings" ? settingsBody : side === "roster" ? rosterBody : editTeam ? teamBody : (
     linkBody || (multi ? (
       <MultiPanel els={selEls} board={board} look={look} frames={board.frames.length} onStyle={styleMany} onMatch={matchMany} onTeam={teamMany} onColor={colorMany} onFeet={feetMany} onBib={bibMany} onTurn={turnMany} onResize={resizeMany} onSpread={spreadMany} onAlign={alignMany} onDistribute={distributeMany} onLayer={layer} onDup={dupMany} onDel={delMany} onClear={() => setSel([])}
         flags={<FlagButtons locked={selEls.length > 0 && selEls.every(isLocked)} hl={selEls.length > 0 && selEls.every(isHighlighted)} canReset={idx > 0} onLock={lockSel} onHl={hlSel} onReset={resetSel} />} />
@@ -1517,7 +1570,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       onMore={() => { setMoreOpen((m) => !m); setPanelHidden(false); }} onDelete={() => delSel(false)}
       linkPick={dockKind === "link" && !selected ? { count: pick.length, onClear: () => setPick([]) } : null} />
   ) : null;
-  const showPanel = !panelHidden && !(quietId && selId === quietId && !side && !layersOpen) && !(dockKind && !moreOpen) && (panelBody || layersBody);
+  const showPanel = !panelHidden && (editTeam || !(quietId && selId === quietId && !side && !layersOpen)) && !(dockKind && !moreOpen) && (panelBody || layersBody);
   const panel = showPanel ? (
     <section
       aria-label={panelTitle || "Panel"}
@@ -1527,7 +1580,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     >
       <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b" style={{ background: RAIL.bg, color: RAIL.text, borderColor: RAIL.border }}>
         <h2 className="text-sm font-bold flex-1 truncate">{panelTitle || "Capas"}</h2>
-        <button type="button" onClick={() => { setPanelHidden(true); setSide(null); }} aria-label="Cerrar panel" className="h-7 w-7 rounded-md flex items-center justify-center hover:bg-white/10"><X className="w-4 h-4" /></button>
+        <button type="button" onClick={() => { setPanelHidden(true); setSide(null); setTeamEdit(null); }} aria-label="Cerrar panel" className="h-7 w-7 rounded-md flex items-center justify-center hover:bg-white/10"><X className="w-4 h-4" /></button>
       </div>
       <div className="p-3 space-y-3 text-gray-800">
         {panelBody}
@@ -1691,16 +1744,30 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       {!show3d && zoomBox}
       {show3d && orbitBox}
       {quickEl && quickPos && (
-        <ChipQuickEdit
+        <ChipCard
           el={quickEl}
           board={board}
           look={look}
+          roster={roster}
+          variant={variant}
+          playerSlot={chipPlayer}
+          describe={chipDescribe}
           patch={patchSel}
           onClose={() => setQuick(null)}
           onDup={() => { setQuick(null); dupSel(); }}
           onDel={(onlyHere) => { setQuick(null); delSel(onlyHere); }}
           canDelHere={isCarried(quickEl) && board.frames.length > 1}
-          style={{ position: "absolute", left: quickPos.left, zIndex: 6, ...(quickPos.up ? { bottom: `calc(100% - ${quickPos.mid}px)` } : { top: quickPos.top }) }}
+          locked={isLocked(quickEl)}
+          hl={isHighlighted(quickEl)}
+          onLock={lockSel}
+          onHl={hlSel}
+          onLayer={layer}
+          onTeamPanel={(id) => { setQuick(null); setTeamEdit(id); setPanelHidden(false); setSide(null); setLayersOpen(false); }}
+          sheet={narrow}
+          onGrab={narrow ? null : grabCard}
+          style={narrow
+            ? { position: "absolute", left: 0, right: 0, maxHeight: "44%", zIndex: 6, ...(quickPos.low ? { top: 0, borderRadius: "0 0 16px 16px" } : { bottom: 0 }) }
+            : { position: "absolute", left: quickPos.left + quickOff.x, top: quickPos.top + quickOff.y, maxHeight: quickPos.maxH, zIndex: 6 }}
         />
       )}
       {narrow && panel}

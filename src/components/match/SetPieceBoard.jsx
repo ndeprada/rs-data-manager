@@ -12,10 +12,12 @@ import BoardEditor from "@/components/board/BoardEditor";
 import Board from "@/components/board/BoardSvg";
 import { boardSvgMarkup } from "@/components/board/exportPng";
 import { boardFramePng } from "@/components/board/BoardDownloads";
-import { is3D, isStadium, normalizeBoard } from "@/lib/board";
+import { is3D, isStadium, normalizeBoard, teamsOf } from "@/lib/board";
+import { TopChoice, lab as cardLab, inputCls as cardInput, pillCls as cardPill } from "@/components/board/BoardChipCard";
+import { topModeOf, topPatch } from "@/lib/boardVariant";
 import {
   assignPlayer, copyPiece, fillWithSquad, flipBoard, ownChips, pieceBoard, previousMatchPieces, legacyToBoard,
-  SP_KINDS, typeOf, pieceSetup, printBoard, funcsFor, funcOf, fnPatch, setFunction, functionCounts, autoTitle, structuresFor, applyStructure, GK_COLOR,
+  SP_KINDS, typeOf, pieceSetup, printBoard, playerPatch, funcsFor, funcOf, fnPatch, setFunction, functionCounts, autoTitle, structuresFor, applyStructure, GK_COLOR,
 } from "@/lib/setPieceBoard";
 // Jugadas a balón parado con la pizarra común (la misma de tareas y tácticas). Rediseño del 05/11/2026 (maqueta aprobada por
 // Nacho, con el aspecto de RS Manager): banda con las jugadas del partido; a la izquierda la jugada (tipo, a favor / en contra,
@@ -107,6 +109,46 @@ const btnOut = { height: 34, padding: "0 14px", borderRadius: 8, fontSize: 13, b
 const inputCls = "w-full outline-none focus:ring-1 focus:ring-[#73000A]";
 const inputStyle = { height: 36, borderRadius: 8, border: `1px solid ${RS.input}`, padding: "0 12px", fontSize: 13.5, background: "#fff", color: RS.ink };
 const dot = (f) => ({ width: 14, height: 14, borderRadius: 999, flex: "0 0 auto", background: f ? f.color : "transparent", border: `2px solid ${f ? f.stroke || f.color : "#9A8C8E"}` });
+
+// Pestaña «Jugador» de la tarjeta de una ficha del Racing (05/11/2026): jugador de los convocados, función y qué va encima
+function AbpChipPlayer({ el, patch, candidates, byId, attack }) {
+  const t = useT();
+  const funcs = [...(attack ? [] : [{ id: "portero", color: GK_COLOR }]), ...funcsFor(attack)];
+  const pl = el.player_id ? byId.get(el.player_id) : null;
+  const fnName = (id) => (id && FN_LABEL[id] ? t(FN_LABEL[id]) : "");
+  const setFn = (f) => {
+    const p = fnPatch(f);
+    if (topModeOf(el, "none") === "fn") Object.assign(p, topPatch("fn", el, { fn: f ? fnName(f.id) : "" }));
+    patch(p, "fn");
+  };
+  return (
+    <>
+      <label className="block space-y-1"><span className={cardLab}>{t("Jugador")}</span>
+        <select value={el.player_id || ""} onChange={(e) => patch(playerPatch(byId.get(e.target.value) || null), "player")} className={cardInput} data-testid="card-player">
+          <option value="">{el.missing ? t("Elegir jugador…") : t("Sin asignar")}</option>
+          {pl && !candidates.some((p) => p.id === pl.id) && <option value={pl.id}>{pl.jersey_number || "–"} · {shortName(pl)}</option>}
+          {candidates.map((p) => <option key={p.id} value={p.id}>{p.jersey_number || "–"} · {shortName(p)}</option>)}
+        </select>
+      </label>
+      {el.missing && <p className="text-[11.5px] font-semibold text-amber-700">{t("El jugador de esta ficha no está disponible: elige otro")}</p>}
+      <div className="space-y-1.5">
+        <span className={cardLab}>{t("Función")}</span>
+        <div className="flex flex-wrap gap-1" role="group" aria-label={t("Función")} data-testid="card-fn">
+          {funcs.map((f) => {
+            const on = el.fn === f.id;
+            return (
+              <button key={f.id} type="button" aria-pressed={on} onClick={() => setFn(on ? null : f)} className={`${cardPill(on)} inline-flex items-center gap-1.5`} data-testid={`card-fn-${f.id}`}>
+                <span aria-hidden style={dot(f)} />{fnName(f.id)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <TopChoice el={el} patch={patch} names={{ fn: fnName(el.fn) }} options={[{ id: "fn", label: t("Función") }, { id: "text", label: t("Otro texto") }, { id: "none", label: t("Nada") }]} />
+      <p className="text-[11.5px] text-gray-500">{t("El dorsal y el nombre salen de su ficha.")}</p>
+    </>
+  );
+}
 
 // Una jugada: columna izquierda (la jugada y sus atajos), pizarra en el centro y jugadores e instrucciones a la derecha
 function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDuplicate, onRemove, libLinked }) {
@@ -259,7 +301,10 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
       {/* Centro: la pizarra */}
       <div className="min-w-0" style={{ flex: "999 1 560px" }} data-testid="sp-board">
         <BoardEditor value={board} onChange={setBoard} fields={["half", "tq", "full", "free"]} filename={piece.name || t("Jugada")}
-          embedded embedHeight={660} paint={paint} stamp={stamp} onStampDone={() => setTag(null)} overlayTitle={overlay} />
+          embedded embedHeight={660} paint={paint} stamp={stamp} onStampDone={() => setTag(null)} overlayTitle={overlay}
+          variant="abp"
+          chipPlayer={(el, patch) => (el.team === "a" ? <AbpChipPlayer el={el} patch={patch} candidates={candidates} byId={byId} attack={setup.attack} /> : null)}
+          chipDescribe={(el) => (el.team === "a" && el.fn && FN_LABEL[el.fn] ? `${teamsOf(board).find((x) => x.id === "a")?.name || "Racing"} · ${t(FN_LABEL[el.fn])}` : null)} />
       </div>
 
       {/* Derecha: quién es quién */}

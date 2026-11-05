@@ -33,7 +33,7 @@ const pct = (v) => `${Math.round(v * 100)}%`;
 const plainBtn = "h-7 px-2 rounded-md border text-[11px] font-semibold bg-white text-gray-600 border-gray-200 hover:bg-gray-50";
 
 // Ficha: con una ficha elegida, el diseño de SU EQUIPO y lo que vale para todas (lo de cada ficha —textos, peto, color propio,
-// tamaño— se edita con doble clic sobre ella, en `ChipQuickEdit`); sin elegir, cómo saldrán las fichas nuevas de esa herramienta.
+// tamaño— se edita en su tarjeta, `ChipCard` de BoardChipCard.jsx); sin elegir, cómo saldrán las fichas nuevas de esa herramienta.
 function TeamBlock({ el, brush, board, look, patch, patchTeam, setChip, setFeet, canRemoveTeam, onRemoveTeam, onQuick }) {
   const teams = teamsOf(board);
   const team = teams.find((t) => t.id === el.team) || teams[0];
@@ -46,7 +46,7 @@ function TeamBlock({ el, brush, board, look, patch, patchTeam, setChip, setFeet,
   const [kits, setKits] = React.useState(false);
   return (
     <>
-      {!brush && (
+      {!brush && onQuick && (
         <Row>
           <button type="button" className="h-7 px-2 rounded-md border text-[11px] font-semibold bg-gray-900 text-white border-gray-900 hover:bg-gray-800" onClick={onQuick} data-testid="chip-quick-open">Editar esta ficha</button>
           <span className="text-[11px] text-gray-500">o doble clic (o clic derecho) sobre ella: nombre, dorsal, texto de arriba, peto, color…</span>

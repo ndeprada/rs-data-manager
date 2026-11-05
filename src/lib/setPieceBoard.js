@@ -115,6 +115,12 @@ export function assignPlayer(board, id, player) {
   });
 }
 
+// Lo que cambia en una ficha al ponerle un jugador (o quitárselo con null) desde su tarjeta: dorsal y nombre de su ficha
+export function playerPatch(player) {
+  if (!player) return { player_id: undefined, label: undefined, inner: "", missing: undefined };
+  return { player_id: player.id, inner: dorsalOf(player).slice(0, 3), label: shortName(player), missing: undefined };
+}
+
 // Rol de la ficha (texto de arriba) en todos los fotogramas
 export const setRole = (board, id, role) => mapTokens(normalizeBoard(board), (e) => (e.id === id ? { ...e, labelTop: role || undefined } : e));
 

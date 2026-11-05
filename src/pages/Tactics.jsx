@@ -128,7 +128,7 @@ export default function Tactics() {
     [legacyKey, savedBoard],
   );
   const boardValue = draft && activeBoard && draft.id === activeBoard.id ? draft.value : startBoard;
-  const roster = sortRoster(boardPlayers.filter((p) => p.status !== "baja")).map((p) => ({ id: p.id, label: tokenLabel(p) }));
+  const roster = sortRoster(boardPlayers.filter((p) => p.status !== "baja")).map((p) => ({ id: p.id, label: tokenLabel(p), number: p.jersey_number ?? "", position: p.position || "" }));
 
   const filteredBoards = selectedTeam === "all"
     ? boards
@@ -365,6 +365,7 @@ export default function Tactics() {
                     fields={fieldsFor(isF7, boardValue?.field)}
                     filename={activeBoard.name || t("Pizarra Táctica")}
                     modes
+                    variant="tactica"
                   />
                 </div>
               </TabsContent>

@@ -576,4 +576,7 @@ export default [
   ["Orientación","Orientation","Orientation","Orientació"],
   ["Vertical","Vertical","Verticale","Vertical"],
   ["Horizontal","Horizontal","Horizontale","Horitzontal"],
+  ["Otro texto","Other text","Autre texte","Un altre text"],
+  ["Nada","Nothing","Rien","Res"],
+  ["El dorsal y el nombre salen de su ficha.","The number and name come from the player's profile.","Le numéro et le nom viennent de sa fiche.","El dorsal i el nom surten de la seva fitxa."],
 ];

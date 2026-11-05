@@ -81,3 +81,10 @@ test("imprimir: vista y orientación elegidas", async () => {
   const d3 = printBoard(b, { view: "3d", orient: "h" });
   assert.equal(d3.view3d, true); assert.equal(d3.view, "persp"); assert.equal(d3.orient, "hi");
 });
+
+test("tarjeta de la ficha: poner o quitar jugador", async () => {
+  const { playerPatch } = await import("../src/lib/setPieceBoard.js");
+  const p = playerPatch({ id: "p1", first_name: "Leo", last_name: "Soler Puig", jersey_number: 10 });
+  assert.equal(p.player_id, "p1"); assert.equal(p.inner, "10"); assert.ok(p.label.startsWith("Leo")); assert.equal(p.missing, undefined);
+  assert.deepEqual(playerPatch(null), { player_id: undefined, label: undefined, inner: "", missing: undefined });
+});
