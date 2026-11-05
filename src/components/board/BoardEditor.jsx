@@ -112,6 +112,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const [full, setFull] = useState(false); // editor a pantalla completa (fuera de él, solo la vista previa)
   const [side, setSide] = useState(null); // panel de «Campo y ajustes» o «Plantilla»
   const [panelHidden, setPanelHidden] = useState(false);
+  // ficha (u otra cosa) elegida al arrastrarla: su panel no se abre hasta que se toque sin arrastrar (05/11/2026, Nacho: «cuando la
+  // muevo con tres dedos… simplemente desplace la ficha»)
+  const [quietId, setQuietId] = useState(null);
   // Rejilla (tecla G): lo que se coloca, se dibuja o se arrastra cae en metros enteros
   const [snap, setSnap] = useState(false);
   const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia?.("(max-width: 767px)").matches);
@@ -623,7 +626,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         if (twice) { setSel([target.id]); setQuick(target.id); drag.current = null; return; }
         if (quick && quick !== target.id) setQuick(null);
         // tocar (sin arrastrar) una ficha que ya estaba elegida abre su cuadro para escribir el nombre (02/11/2026, Nacho)
-        const reTap = target.k === "token" && sel.length === 1 && sel[0] === target.id && quick !== target.id;
+        const shown = !panelHidden && sel.length === 1 && sel[0] === target.id && quietId !== target.id;
+        const reTap = target.k === "token" && shown && quick !== target.id;
         // arrastrar una de varias elegidas las mueve todas; tocarla sin arrastrar deja solo esa
         const inGroup = sel.length > 1 && sel.includes(target.id);
         if (!inGroup) setSel([target.id]);
@@ -632,6 +636,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         // (lo bloqueado se elige pero no se mueve)
         const ids = movableIds(live.current, idx, inGroup ? sel : [target.id]);
         drag.current = (target.k === "link" && !inGroup) || !ids.length ? (reTap ? { mode: "tap", reTap: target.id, at: now } : null) : { mode: "move", ids, only: inGroup ? target.id : null, anchor: target.id, from: p, moved: false, snapshot: live.current, reTap: reTap ? target.id : null, at: now };
+        setQuietId(drag.current?.mode === "move" && !inGroup && !shown ? target.id : null);
       } else {
         // espacio vacío: recuadro para elegir varias cosas a la vez
         lastTap.current = { id: null, at: 0 };
@@ -665,6 +670,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     setDraft(null);
     setSel([hit.id]);
     setSide(null);
+    setQuietId(null);
     setPanelHidden(false);
     if (hit.k === "token") setQuick(hit.id);
     else setQuick(null);
@@ -809,6 +815,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     drag.current = null;
     setGuide(null);
     if (!d) return;
+    if ((d.mode === "move" || d.mode === "tap") && !d.moved) setQuietId(null);
     if ((d.mode === "move" || d.mode === "handle" || d.mode === "cam") && d.moved) {
       lastDragAt.current = Date.now();
       pushHistory(d.base || d.snapshot);
@@ -1443,7 +1450,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     ) : propsBody)
   );
   const layersBody = layersOpen && !playing && !side ? <LayerList els={cur.els} board={board} look={look} sel={sel} onPick={pickLayer} onStep={stepOne} onMoveTo={moveRow} /> : null;
-  const showPanel = !panelHidden && (panelBody || layersBody);
+  const showPanel = !panelHidden && !(quietId && selId === quietId && !side && !layersOpen) && (panelBody || layersBody);
   const panel = showPanel ? (
     <section
       aria-label={panelTitle || "Panel"}
