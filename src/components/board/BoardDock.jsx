@@ -61,6 +61,18 @@ function MaterialSample({ id, color }) {
     }
   }
 }
+function LinkSample({ mode, color }) {
+  const pts = [[10, 20], [26, 8], [40, 18], [54, 9]];
+  const c = color;
+  return (
+    <svg viewBox="0 0 64 28" width="64" height="28" aria-hidden="true">
+      {mode === "zone" && <path d="M10 20 L26 8 L54 9 L40 18 Z" fill={c} fillOpacity={0.25} stroke={c} strokeWidth={1.6} />}
+      {mode === "line" && <path d={`M${pts.map((p) => p.join(" ")).join(" L")}`} fill="none" stroke={c} strokeWidth={2} />}
+      {mode === "mesh" && pts.flatMap((a, i) => pts.slice(i + 1).map((b, j) => <path key={`${i}-${j}`} d={`M${a[0]} ${a[1]} L${b[0]} ${b[1]}`} stroke={c} strokeWidth={1.1} />))}
+      {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={3.6} fill="#73000A" stroke="#fff" strokeWidth={1} />)}
+    </svg>
+  );
+}
 function TextSample({ v }) {
   return (
     <svg viewBox="0 0 64 26" width="64" height="26" aria-hidden="true">
@@ -175,15 +187,16 @@ const r2 = (v) => Math.round(v * 100) / 100;
  * active = id de la variante actual, onVariant(id), patch(cambio, clave), onDefault (★), onMore (panel completo),
  * onDelete (solo con algo elegido).
  */
-export default function BoardDock({ kind, el, look, selected, variants, active, onVariant, patch, onDefault, onMore, onDelete, saved = false }) {
+export default function BoardDock({ kind, el, look, selected, variants, active, onVariant, patch, onDefault, onMore, onDelete, saved = false, linkPick = null }) {
   const s = styleOf(look);
-  const title = { arrow: "Flechas", zone: "Zonas", ball: "Balón", material: "Material", text: "Texto" }[kind];
+  const title = { arrow: "Flechas", zone: "Zonas", ball: "Balón", material: "Material", text: "Texto", link: "Unir fichas" }[kind];
   const sample = (v) => {
     if (kind === "arrow") return <ArrowSample v={ARROW_SAMPLES[v.id]} color={el.color || s.arrows?.[ARROW_SAMPLES[v.id]?.air ? "pass" : v.id] || "#111827"} width={el.width ?? ARROW_W} />;
     if (kind === "zone") return <ZoneSample shape={v.id} fill={el.fill || "#73000A"} stroke={el.stroke || "#73000A"} />;
     if (kind === "ball") { const bs = ballStyle(el); return <BallGlyph pattern={v.id} color={bs.color} color2={el.color2 || "#111827"} size={26} />; }
     if (kind === "material") return <MaterialSample id={v.id} color={el.color} />;
     if (kind === "text") return <TextSample v={v} />;
+    if (kind === "link") return <LinkSample mode={v.id} color={el.color || (s.link === "#ffffff" ? "#374151" : s.link) || "#374151"} />;
     return null;
   };
   const sizeOf = Number(el.size) || 1;
@@ -192,12 +205,18 @@ export default function BoardDock({ kind, el, look, selected, variants, active, 
       className="absolute top-2.5 bottom-2.5 left-[54px] w-[112px] rounded-xl flex flex-col overflow-y-auto overflow-x-visible no-scrollbar"
       style={{ background: "rgba(36,0,10,0.96)", border: `1px solid ${D.line}`, zIndex: 6, color: D.text }}>
       <p className="px-2 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wider" style={{ color: D.sub }}>{title}</p>
+      {linkPick && (
+        <div className="px-2 pb-1.5 text-[10.5px] leading-snug" style={{ color: D.sub }} data-testid="dock-link-hint">
+          {linkPick.count ? `${linkPick.count} ${linkPick.count === 1 ? "elegida" : "elegidas"}: elige cómo unirlas` : "Toca las fichas que quieras unir o arrastra un recuadro sobre ellas"}
+          {linkPick.count > 0 && <button type="button" onClick={linkPick.onClear} className="block mt-1 underline" style={{ color: D.text }}>Borrar elección</button>}
+        </div>
+      )}
       <div className="px-1.5 flex flex-col gap-1" role="group" aria-label={`Tipos de ${title.toLowerCase()}`}>
         {variants.map((v) => {
           const on = v.id === active;
           return (
-            <button key={v.id} type="button" aria-pressed={on} onClick={() => onVariant(v.id)} title={v.label} data-testid={`dock-v-${v.id}`}
-              className="rounded-lg flex flex-col items-center pt-1 pb-0.5" style={{ background: D.tile, border: `2px solid ${on ? D.tileOn : "transparent"}` }}>
+            <button key={v.id} type="button" aria-pressed={on} onClick={() => onVariant(v.id)} title={v.label} data-testid={`dock-v-${v.id}`} disabled={v.disabled}
+              className="rounded-lg flex flex-col items-center pt-1 pb-0.5 disabled:opacity-40" style={{ background: D.tile, border: `2px solid ${on ? D.tileOn : "transparent"}` }}>
               {sample(v)}
               <span className="text-[10px] font-semibold leading-tight text-center px-0.5" style={{ color: "#4A3D3F" }}>{v.label}</span>
             </button>
@@ -243,6 +262,19 @@ export default function BoardDock({ kind, el, look, selected, variants, active, 
                 <DockColor label="Borde" value={el.stroke} auto="#ffffff" onChange={(c) => patch({ stroke: c }, "stroke")} testid="dock-stroke" />
                 <Pick label="Grosor del borde" testid="dock-edge" value={el.edge ?? 1} options={[0, 0.5, 1, 2].map((e) => ({ value: e, label: e === 0 ? "Sin borde" : `${e * 100} %`, draw: e === 0 ? <span className="text-[10px] font-semibold text-gray-600">Sin</span> : line(e * 2.4) }))} onChange={(e) => patch({ edge: e }, "edge")} />
               </>
+            )}
+          </>
+        )}
+        {kind === "link" && (
+          <>
+            <DockColor label="Color" value={el.color} auto={s.link || "#374151"} onChange={(c) => patch({ color: c }, "color")} testid="dock-color" />
+            <Pick label="Grosor" testid="dock-width" value={[0.22, 0.35, 0.5, 0.8].reduce((a, b) => (Math.abs(b - (el.width ?? 0.45)) < Math.abs(a - (el.width ?? 0.45)) ? b : a))}
+              options={[0.22, 0.35, 0.5, 0.8].map((w) => ({ value: w, label: `${w}`, draw: line(w * 4, null) }))} onChange={(w) => patch({ width: w }, "width")} />
+            <Pick label="Trazo" testid="dock-dash" value={el.dash || "solid"}
+              options={[{ value: "solid", label: "Continua", draw: line(1.8) }, { value: "dashed", label: "Discontinua", draw: line(1.8, "5 3") }, { value: "dotted", label: "Punteada", draw: line(2, "0.1 3.5") }]} onChange={(d) => patch({ dash: d }, "dash")} />
+            {(el.mode === "zone" || (!selected && active === "zone")) && (
+              <Pick label="Transparencia" testid="dock-alpha" value={[0.1, 0.18, 0.35, 0.6].reduce((a, b) => (Math.abs(b - (el.fillOpacity ?? 0.18)) < Math.abs(a - (el.fillOpacity ?? 0.18)) ? b : a))}
+                options={[0.1, 0.18, 0.35, 0.6].map((a) => ({ value: a, label: `${Math.round(a * 100)} %`, draw: swatchAlpha(a) }))} onChange={(a) => patch({ fillOpacity: a }, "fillOpacity")} />
             )}
           </>
         )}

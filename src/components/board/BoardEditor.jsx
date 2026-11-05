@@ -3,7 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X, RotateCcw, RotateCw, ChevronUp, ChevronDown, Lock, Grid3x3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  AIR_MAX, BALL_PATTERNS, ballStyle, zoneShapePatch, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
+  AIR_MAX, BALL_PATTERNS, ballStyle, linkProps, zoneShapePatch, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
   boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
   is3D, handleSpec, PERSP, toggleFlag, movableIds, snapTo, isLocked, isHighlighted, resetToPrevious, resizeElements as resizeEls, styleElements, matchElements, VIEW_MODES, viewModeOf, setViewMode, orbitOf, orbitBetween, orbitPreset, ORBIT_PRESETS, setOrbit, clearFrameOrbit, clearOrbits, hasFrameOrbits, validOrbit, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
@@ -55,7 +55,7 @@ const SPEEDS = [{ id: 2600, label: "Lenta" }, { id: 1500, label: "Normal" }, { i
 const MAX_HISTORY = 30;
 
 // Lo último que se eligió para cada herramienta se recuerda para lo siguiente que se dibuje
-const BRUSH0 = { ...ARROW_PRESETS, token: {}, ball: { pattern: "classic" }, cone: { shape: "tri" }, goal: { w: 7.32 }, pole: {}, hurdle: {}, ladder: {}, dummy: {}, zone: {}, quad: { shape: "quad" }, text: { size: 3 } };
+const BRUSH0 = { ...ARROW_PRESETS, token: {}, ball: { pattern: "classic" }, cone: { shape: "tri" }, goal: { w: 7.32 }, pole: {}, hurdle: {}, ladder: {}, dummy: {}, zone: {}, quad: { shape: "quad" }, text: { size: 3 }, link: {} };
 const BRUSH_KEYS = ["bends", "shape", "color", "color2", "pattern", "size", "w", "rungs", "width", "dash", "border", "borderColor", "pointer", "fill", "fillOpacity", "stroke", "strokeWidth", "font", "bold", "lift"];
 const toolOfEl = (el) => (el.k === "arrow" ? typeOfArrow(el) : el.k === "zone" ? (isQuad(el) ? "quad" : "zone") : ["ball", "cone", "goal", "text", ...MATERIAL_IDS].includes(el.k) ? el.k : null);
 
@@ -1068,7 +1068,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const items = pick.map((id) => cur.els.find((e) => e.id === id)).filter(Boolean);
     if (items.length < (mode === "zone" ? 3 : 2)) return;
     // la línea sigue el orden en que se han ido tocando las fichas
-    const link = { id: newId(), k: "link", mode, ids: items.map((e) => e.id) };
+    const link = { id: newId(), k: "link", mode, ids: items.map((e) => e.id), ...(brush.link || {}) };
     commit(addElement(live.current, idx, link));
     setPick([]);
     setTool("select");
@@ -1479,19 +1479,22 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   );
   const layersBody = layersOpen && !playing && !side ? <LayerList els={cur.els} board={board} look={look} sel={sel} onPick={pickLayer} onStep={stepOne} onMoveTo={moveRow} /> : null;
   // Segunda columna (tipos dibujados + lo básico) para flechas, zonas, balón, material y texto, elegidos o como herramienta
-  const dockEl = !playing && !narrow && !multi && !side && !camTool && !layersOpen && tool !== "link" && !(quietId && selId === quietId) ? panelEl : null;
-  const dockKind = !dockEl ? null : dockEl.k === "arrow" ? "arrow" : dockEl.k === "zone" ? "zone" : dockEl.k === "ball" ? "ball" : dockEl.k === "text" ? "text" : (dockEl.k === "cone" || dockEl.k === "goal" || materialOf(dockEl.k)) ? "material" : null;
+  const dockEl = !playing && !narrow && !multi && !side && !camTool && !layersOpen && !(quietId && selId === quietId) ? (tool === "link" && !selected ? { k: "link", ...brush.link } : panelEl) : null;
+  const dockKind = !dockEl ? null : dockEl.k === "link" ? "link" : dockEl.k === "arrow" ? "arrow" : dockEl.k === "zone" ? "zone" : dockEl.k === "ball" ? "ball" : dockEl.k === "text" ? "text" : (dockEl.k === "cone" || dockEl.k === "goal" || materialOf(dockEl.k)) ? "material" : null;
   const dockPatch = (p, key) => (selected ? patchSel(p, key) : patchBrush(p));
   const dockVariants = dockKind === "arrow" ? ARROW_TOOLS.map((id) => ({ id, label: (TOOL_INFO[id]?.label || id).replace(/ \(.*\)/, "") }))
     : dockKind === "zone" ? [{ id: "rect", label: "Rectángulo" }, { id: "ellipse", label: "Elipse" }, { id: "quad", label: "4 esquinas" }]
       : dockKind === "ball" ? BALL_PATTERNS.map((b) => ({ id: b.id, label: b.label }))
         : dockKind === "material" ? MATERIAL_VARIANTS.filter((v) => !selected || v.k === selected.k)
-          : dockKind === "text" ? TEXT_VARIANTS : [];
+          : dockKind === "text" ? TEXT_VARIANTS
+            : dockKind === "link" ? [{ id: "line", label: "Línea", disabled: !selected && pick.length < 2 }, { id: "zone", label: "Zona", disabled: !selected && pick.length < 3 }, { id: "mesh", label: "Red", disabled: !selected && pick.length < 2 }] : [];
   const dockActive = !dockEl ? null : dockKind === "arrow" ? (selected ? typeOfArrow(selected) : tool)
     : dockKind === "zone" ? (isQuad(dockEl) || tool === "quad" ? "quad" : dockEl.shape || "rect")
+      : dockKind === "link" ? (selected ? linkProps(selected).mode : null)
       : dockKind === "ball" ? ballStyle(dockEl).pattern : dockKind === "material" ? materialVariantOf(dockEl) : dockKind === "text" ? textVariantOf(dockEl) : null;
   const onDockVariant = (id) => {
     if (dockKind === "arrow") return setArrowType(id);
+    if (dockKind === "link") return selected ? patchSel({ mode: id }, "mode") : makeLink(id);
     if (dockKind === "zone") {
       if (selected) return patchSel(zoneShapePatch(selected, id), "shape");
       if (id === "quad") return pickTool("quad");
@@ -1511,7 +1514,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const dock = dockKind ? (
     <BoardDock kind={dockKind} el={dockEl} look={look} selected={!!selected} variants={dockVariants} active={dockActive} onVariant={onDockVariant} patch={dockPatch}
       saved={dockSaved} onDefault={() => { saveDefs(withElementDefault(defs, dockEl, { chipSize: chip, team: null })); setDockSaved(true); setTimeout(() => setDockSaved(false), 1600); }}
-      onMore={() => { setMoreOpen((m) => !m); setPanelHidden(false); }} onDelete={() => delSel(false)} />
+      onMore={() => { setMoreOpen((m) => !m); setPanelHidden(false); }} onDelete={() => delSel(false)}
+      linkPick={dockKind === "link" && !selected ? { count: pick.length, onClear: () => setPick([]) } : null} />
   ) : null;
   const showPanel = !panelHidden && !(quietId && selId === quietId && !side && !layersOpen) && !(dockKind && !moreOpen) && (panelBody || layersBody);
   const panel = showPanel ? (

@@ -7,7 +7,7 @@ import { teamsOf } from "./board.js";
 
 export const DEFAULT_KEYS = ["bends", "curved", "shape", "color", "color2", "pattern", "size", "w", "rungs", "width", "dash", "wavy", "border", "borderColor", "pointer", "fill", "fillOpacity", "stroke", "strokeWidth", "font", "bold", "lift", "bg", "bgOpacity", "alpha", "edge", "innerFs", "topFs", "labelFs"];
 export const TEAM_KEYS = ["color", "pattern", "color2", "stroke", "kit", "trim", "edge"];
-const TOOLS = new Set(["ball", "cone", "goal", "pole", "hurdle", "ladder", "dummy", "text", "zone", "quad", "move", "pass", "air", "dribble"]);
+const TOOLS = new Set(["ball", "cone", "goal", "pole", "hurdle", "ladder", "dummy", "text", "zone", "quad", "move", "pass", "air", "dribble", "link"]);
 
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 const pick = (o, keys) => Object.fromEntries(Object.entries(o || {}).filter(([k, v]) => keys.includes(k) && v !== undefined && v !== null && (typeof v !== "object")));
@@ -77,7 +77,7 @@ export function applyBoardDefaults(board, defs) {
 // Resumen corto para «Campo y ajustes»
 export function describeDefaults(defs) {
   const d = cleanDefaults(defs);
-  const names = { ball: "balón", cone: "cono", goal: "portería", pole: "pica", hurdle: "valla", ladder: "escalera", dummy: "maniquí", text: "texto", zone: "zona", quad: "zona libre", move: "desplazamiento", pass: "pase", air: "pase aéreo", dribble: "conducción" };
+  const names = { ball: "balón", cone: "cono", goal: "portería", pole: "pica", hurdle: "valla", ladder: "escalera", dummy: "maniquí", text: "texto", zone: "zona", quad: "zona libre", move: "desplazamiento", pass: "pase", air: "pase aéreo", dribble: "conducción", link: "unir fichas" };
   const out = [];
   if (d.chipSize) out.push(`fichas al ${Math.round((d.chipSize / 1.5) * 100)} %`);
   if (d.teams) out.push(`colores de ${Object.keys(d.teams).length === 1 ? "1 equipo" : `${Object.keys(d.teams).length} equipos`}`);
