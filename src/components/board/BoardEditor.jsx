@@ -123,6 +123,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     return () => mq.removeEventListener?.("change", on);
   }, []);
   const lastTap = useRef({ id: null, at: 0 });
+  // Cuándo se movió algo arrastrando por última vez: el arrastre con tres dedos del Mac son pulsaciones seguidas de ratón y el
+  // navegador las toma por doble clic; justo después de arrastrar no se abre la edición (05/11/2026, Nacho)
+  const lastDragAt = useRef(0);
   const wrapRef = useRef(null);
   // el contenedor del campo aparece cuando se abre la pantalla completa: se guarda también en estado para enganchar el zoom
   const [hostEl, setHostEl] = useState(null);
@@ -615,7 +618,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         }
         // doble clic o doble toque sobre una ficha: se abre su edición rápida
         const now = Date.now();
-        const twice = target.k === "token" && lastTap.current.id === target.id && now - lastTap.current.at < 420;
+        const twice = target.k === "token" && lastTap.current.id === target.id && now - lastTap.current.at < 420 && now - lastDragAt.current > 900;
         lastTap.current = { id: target.id, at: twice ? 0 : now };
         if (twice) { setSel([target.id]); setQuick(target.id); drag.current = null; return; }
         if (quick && quick !== target.id) setQuick(null);
@@ -628,7 +631,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         // un conector no se arrastra: su forma sale de las fichas que une
         // (lo bloqueado se elige pero no se mueve)
         const ids = movableIds(live.current, idx, inGroup ? sel : [target.id]);
-        drag.current = (target.k === "link" && !inGroup) || !ids.length ? (reTap ? { mode: "tap", reTap: target.id } : null) : { mode: "move", ids, only: inGroup ? target.id : null, anchor: target.id, from: p, moved: false, snapshot: live.current, reTap: reTap ? target.id : null };
+        drag.current = (target.k === "link" && !inGroup) || !ids.length ? (reTap ? { mode: "tap", reTap: target.id, at: now } : null) : { mode: "move", ids, only: inGroup ? target.id : null, anchor: target.id, from: p, moved: false, snapshot: live.current, reTap: reTap ? target.id : null, at: now };
       } else {
         // espacio vacío: recuadro para elegir varias cosas a la vez
         lastTap.current = { id: null, at: 0 };
@@ -668,6 +671,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     return true;
   };
   const onDoubleClick = (e) => {
+    if (Date.now() - lastDragAt.current < 900) { e.preventDefault(); return; }
     if (openQuickAt(e)) e.preventDefault();
   };
   // mientras se dibuja (Control + clic en el Mac = clic derecho) no se abre nada: Control solo suelta el imán
@@ -792,6 +796,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       if (!d.moved && Math.hypot(dx, dy) < 0.6) return;
       d.moved = true;
       lastTap.current = { id: null, at: 0 };
+      lastDragAt.current = Date.now();
       const els = d.snapshot.frames[idx].els.map((el) => (d.ids.includes(el.id) ? shiftElement(el, dx, dy) : el));
       onChange({ ...d.snapshot, frames: d.snapshot.frames.map((f, i) => (i === idx ? { ...f, els } : f)) });
     }
@@ -805,11 +810,13 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     setGuide(null);
     if (!d) return;
     if ((d.mode === "move" || d.mode === "handle" || d.mode === "cam") && d.moved) {
+      lastDragAt.current = Date.now();
       pushHistory(d.base || d.snapshot);
       coalesce.current = { key: null, at: 0 };
     }
     if (d.mode === "move" && !d.moved && d.only) setSel([d.only]);
-    if ((d.mode === "move" || d.mode === "tap") && !d.moved && d.reTap) setQuick(d.reTap);
+    // un toque corto (no una pulsación larga ni el final de un arrastre) sobre la ficha ya elegida abre su cuadro
+    if ((d.mode === "move" || d.mode === "tap") && !d.moved && d.reTap && Date.now() - (d.at || 0) < 500 && Date.now() - lastDragAt.current > 900) setQuick(d.reTap);
     if (d.mode === "marquee") {
       if (draft && Math.abs(draft.w) > 1 && Math.abs(draft.h) > 1) {
         const ids = elementsInBox(cur.els, draft);

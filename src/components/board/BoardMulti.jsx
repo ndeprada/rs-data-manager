@@ -6,7 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DASHES, arrowProps, drawOrder, elementBounds, isCarried, teamOf, teamsOf } from "@/lib/board";
 import { ChipGlyph } from "./BoardSvg";
-import { ColorPick, NO_FILL, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon, Row, Seg, Slider, Toggle } from "./BoardControls";
+import { ColorPick, NO_FILL, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleIcon, Row, Seg, Slider, TextSizePick, Toggle } from "./BoardControls";
 import { typeOfArrow } from "./BoardProps";
 
 // Panel de varios elementos a la vez (selección múltiple), botones de capas (orden de dibujo, también con uno solo) y la lista de
@@ -178,6 +178,16 @@ function SameBlock({ els, onStyle, onMatch }) {
               {k === "cone" && <Seg label="Forma" value={same(list, (e) => e.shape || "tri")} options={[{ id: "tri", label: "Triángulo" }, { id: "flat", label: "Plano" }]} onChange={(v) => onStyle(k, { shape: v })} />}
               {k === "token" && <ColorPick value={same(list, (e) => e.stroke || "") || ""} onChange={(c) => onStyle(k, { stroke: c || undefined })} label="Color del borde" auto="El del equipo" autoSwatch="#ffffff" />}
               {k === "token" && (() => { const ev = same(list, (e) => (e.edge == null ? 1 : Number(e.edge))); return <Slider label="Grosor del borde" value={ev ?? 1} min={0} max={3} step={0.1} onChange={(v) => onStyle(k, { edge: v }, "edge-token")} fmt={(v) => (ev == null ? "varios" : v === 0 ? "sin borde" : `${Math.round(v * 100)} %`)} />; })()}
+            </Row>
+            {k === "token" && (
+              <div className="grid grid-cols-3 gap-1 items-start" data-testid="same-token-fs">
+                {[["topFs", "Letra arriba"], ["innerFs", "Letra Nº"], ["labelFs", "Letra nombre"]].map(([key, lab]) => {
+                  const v = same(list, (e) => e[key] ?? 10);
+                  return <TextSizePick key={key} label={lab} value={v ?? 10} mixed={v == null} onChange={(n) => onStyle(k, { [key]: n }, `fs-${key}`)} testid={`same-${key}`} />;
+                })}
+              </div>
+            )}
+            <Row>
               {k === "cone" && <ColorPick value={same(list, (e) => e.stroke || "") || ""} onChange={(c) => onStyle(k, { stroke: c || undefined })} label="Color del borde" auto="Blanco" autoSwatch="#ffffff" />}
               {k === "cone" && (() => { const ev = same(list, (e) => (e.edge == null ? 1 : Number(e.edge))); return <Slider label="Grosor del borde" value={ev ?? 1} min={0} max={3} step={0.1} onChange={(v) => onStyle(k, { edge: v }, "edge-cone")} fmt={(v) => (ev == null ? "varios" : v === 0 ? "sin borde" : `${Math.round(v * 100)} %`)} />; })()}
             </Row>

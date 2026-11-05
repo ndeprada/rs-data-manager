@@ -15,7 +15,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   ballR, boardView, chipOf, labelBgOf, fieldKind, contrastColor, faceOf, fieldOf, fromView, groundRegion, hasAds, hasStands, isCutField, isGroundEl, isPersp,
-  isStadium, lookOf, materialOf, PERSP, orientAngle, orientOf, tokenR, ballStyle,
+  isStadium, lookOf, materialOf, PERSP, orientAngle, orientOf, tokenR, chipTextScale, ballStyle,
 } from "@/lib/board";
 import { AD_LOGOS } from "@/lib/adLogos";
 import { ChipTopSvg, GroundMarksSvg, GroundSvg, STAND, chipPaint, darken, standHeight, stadiumParts, styleOf } from "@/components/board/BoardSvg";
@@ -613,7 +613,7 @@ function buildToken(board, el, look, chip, scr, pending) {
   side.castShadow = true;
   group.add(side);
   const ang = faceOf(el) + scr.angle;
-  const topKey = `chip:${JSON.stringify([paint, el.inner || "", el.bib || "", el.bib ? Math.round(ang) : 0, bn])}`;
+  const topKey = `chip:${JSON.stringify([paint, el.inner || "", el.innerFs || 10, el.bib || "", el.bib ? Math.round(ang) : 0, bn])}`;
   const tex = asyncTexture(topKey, () => svgCanvas(React.createElement(ChipTopSvg, { board, el, look, ang }), 256), pending);
   const top = new THREE.Mesh(geo("chipTop", () => new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2)), tex ? new THREE.MeshLambertMaterial({ map: tex }) : lambert(hexOf(paint.color, "#73000a")));
   top.scale.set(r, 1, r);
@@ -636,17 +636,17 @@ function buildToken(board, el, look, chip, scr, pending) {
   }
   const s = styleOf(look);
   const fs = Math.max(1.8, r * 1.25) * 1.05;
-  const lab = (text, below) => {
+  const lab = (text, below, k = 1) => {
     const bg = labelBgOf(board, el);
     const opts = bg ? { bg, bgAlpha: el.labelBgOpacity ?? 1, fill: bn ? "#111111" : contrastColor(bg), stroke: null } : { fill: s.label.fill, stroke: s.label.stroke };
-    const sp = labelSprite(`lab:${text}:${JSON.stringify(opts)}`, text, opts, fs * 1.35);
+    const sp = labelSprite(`lab:${text}:${JSON.stringify(opts)}`, text, opts, fs * 1.35 * k);
     sp.position.set(0, hgt, 0);
     const gap = (r * 1.15) / sp.scale.y;
     sp.center.set(0.5, below ? 1 + gap : -gap * 0.55);
     group.add(sp);
   };
-  if (el.label) lab(String(el.label), true);
-  if (el.labelTop) lab(String(el.labelTop), false);
+  if (el.label) lab(String(el.label), true, chipTextScale(el, "label"));
+  if (el.labelTop) lab(String(el.labelTop), false, chipTextScale(el, "top"));
   group.position.set(el.x, 0, el.y);
   return group;
 }

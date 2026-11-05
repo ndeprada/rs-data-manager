@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
+import { CHIP_TEXT_SIZES, cleanTextSize } from "@/lib/board";
 
 // Controles pequeños para los paneles de la pizarra: color (paleta + cualquier color), deslizador, botones de opción e
 // interruptor. Pensados para móvil: alto mínimo de 28 px y sin ventanas flotantes (la paleta se despliega en línea).
@@ -91,6 +92,45 @@ export function Slider({ label, value, min, max, step = 0.1, onChange, fmt = (v)
       />
       <span className="tabular-nums w-9 text-gray-500">{fmt(value)}</span>
     </label>
+  );
+}
+
+/** Tamaño de letra de un texto de ficha: casilla para escribir cualquier tamaño (3–30; 10 = el normal) y ▾ con los tamaños
+ * típicos (5, 6, 8, 10, 12, 14), que se despliegan en línea. `mixed` = varias fichas con tamaños distintos. */
+export function TextSizePick({ label, value, mixed = false, onChange, testid }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(null);
+  const cur = cleanTextSize(value) ?? 10;
+  const shown = draft ?? (mixed ? "" : String(cur).replace(".", ","));
+  const set = (n) => onChange(n == null || n === 10 ? undefined : n);
+  return (
+    <div className="min-w-0" data-testid={testid}>
+      <span className="block text-[10px] font-semibold text-gray-500 truncate">{label}</span>
+      <div className="flex items-center gap-0.5">
+        <input
+          type="text"
+          inputMode="decimal"
+          value={shown}
+          placeholder={mixed ? "varios" : "10"}
+          aria-label={`Tamaño de letra: ${label}`}
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => { const t = e.target.value; setDraft(t); const n = cleanTextSize(t.replace(",", ".")); if (n != null && Number(t.replace(",", ".")) >= 3) set(n); }}
+          onBlur={() => setDraft(null)}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          className="h-7 w-full min-w-0 rounded-md border border-gray-200 px-1.5 text-xs text-center tabular-nums"
+        />
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={`Tamaños de letra: ${label}`} title="Tamaños típicos" className="h-7 w-6 shrink-0 rounded-md border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50">
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+      </div>
+      {open && (
+        <div className="mt-1 grid grid-cols-3 gap-0.5" role="group" aria-label={`Tamaños típicos: ${label}`}>
+          {CHIP_TEXT_SIZES.map((n) => (
+            <button key={n} type="button" onClick={() => { set(n); setDraft(null); setOpen(false); }} aria-pressed={!mixed && cur === n} className={`h-6 rounded text-[11px] font-semibold tabular-nums border ${!mixed && cur === n ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"}`}>{n}</button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

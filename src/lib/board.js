@@ -251,6 +251,13 @@ export const CHIP_RANGE = [0.3, 3.2];
 export const ballR = (chip) => Math.max(0.7 * Math.min(1, chip / 0.8), chip * 0.55);
 export const chipOf = (board) => Math.min(CHIP_RANGE[1], Math.max(CHIP_RANGE[0], Number(board?.chipSize) || DEFAULT_CHIP));
 export const tokenR = (base, el) => base * (Number(el?.size) || 1);
+// Tamaño de los textos de una ficha (05/11/2026, Nacho: «tamaño 5, 6, 8, 10, 12, 14… pero también quiero poder editarlo»):
+// `innerFs` (dentro: dorsal), `topFs` (arriba) y `labelFs` (abajo, el nombre). 10 = el tamaño de siempre; 5 = la mitad, 14 = un 40 % más.
+export const CHIP_TEXT_KEYS = { inner: "innerFs", top: "topFs", label: "labelFs" };
+export const CHIP_TEXT_SIZES = [5, 6, 8, 10, 12, 14];
+export const CHIP_TEXT_RANGE = [3, 30];
+export const cleanTextSize = (v) => { const n = Number(v); if (!Number.isFinite(n) || n <= 0) return null; return Math.round(Math.min(CHIP_TEXT_RANGE[1], Math.max(CHIP_TEXT_RANGE[0], n)) * 10) / 10; };
+export const chipTextScale = (el, which) => (cleanTextSize(el?.[CHIP_TEXT_KEYS[which]]) ?? 10) / 10;
 
 // Mismo tamaño para todas las fichas: fija el tamaño base y quita los tamaños sueltos de cada ficha (en todos los fotogramas).
 export function setAllChips(board, radius) {
@@ -1632,7 +1639,7 @@ export function resizeElements(board, index, ids, factor) {
 // dibujada: extremos, curva, quiebros, giro…).
 export const SAME_KEYS = {
   arrow: ["style", "dash", "wavy", "pointer", "width", "border", "borderColor", "color", "alpha"],
-  token: ["size", "stroke", "edge"],
+  token: ["size", "stroke", "edge", "innerFs", "topFs", "labelFs"],
   ball: ["size", "pattern", "color", "color2", "stroke"],
   cone: ["size", "shape", "color", "stroke", "edge"],
   goal: ["w", "color"],

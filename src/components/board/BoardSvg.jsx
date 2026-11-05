@@ -3,7 +3,7 @@ import { BIG_STAND, BS, cornerR, roundRect, rowSeats, seatHash, stairQuads, stan
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, viewBox, wavyPoints, zoneBox, labelBgOf, coneEdgeWidth,
+  ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, chipTextScale, viewBox, wavyPoints, zoneBox, labelBgOf, coneEdgeWidth,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -951,7 +951,7 @@ function Chip({ el, ctx, c, r, ghost = false, puck = 0 }) {
   const sw = Math.max(0.2, r * 0.13) * (paint.edge ?? 1);
   const ang = faceOf(el) + orientAngle(orient);
   const inner = (el.inner || "").toString().slice(0, 3);
-  const fs = r * (inner.length > 2 ? 0.95 : inner.length > 1 ? 1.2 : 1.5);
+  const fs = r * (inner.length > 2 ? 0.95 : inner.length > 1 ? 1.2 : 1.5) * chipTextScale(el, "inner");
   const shadow = ghost ? 0 : s.shadow || 0;
   // con peto, el dorsal se lee sobre el color del peto
   const bib = el.bib ? (bn ? { text: "#111111", halo: "#ffffff" } : { text: contrastColor(el.bib), halo: contrastColor(el.bib) === "#ffffff" ? "#111827" : "#ffffff" }) : null;
@@ -1206,7 +1206,8 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
         );
       }
       const lbg = labelBgOf(board, el);
-      const tag = (text, y, key) => (
+      const fsTop = fs * chipTextScale(el, "top"), fsBot = fs * chipTextScale(el, "label");
+      const tag = (text, y, key, fs) => (
         <React.Fragment key={key}>
           <TextBg x={c.x} y={y} text={text} fs={fs} bold bg={lbg} alpha={el.labelBgOpacity} look={look} />
           <text x={c.x} y={y} textAnchor="middle" fontSize={fs} fontWeight={700} fill={lbg ? inkOnBg(lbg, null, look) : s.label.fill} stroke={lbg ? "none" : s.label.stroke} strokeWidth={lbg ? 0 : 0.55} paintOrder="stroke" style={{ fontFamily: "Arial, sans-serif" }}>{text}</text>
@@ -1216,8 +1217,8 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
         // de pie, en la escala de la ficha: el disco mide r·pq de alto y su canto 0,42·r
         return (
           <g opacity={op}>
-            {el.labelTop && !ghost ? tag(el.labelTop, c.y - (r + up) * pq - fs * 0.5, "top") : null}
-            {el.label && !ghost ? tag(el.label, c.y + (r + down) * pq + r * 0.42 + fs * 1.05, "bottom") : null}
+            {el.labelTop && !ghost ? tag(el.labelTop, c.y - (r + up) * pq - fsTop * 0.5, "top", fsTop) : null}
+            {el.label && !ghost ? tag(el.label, c.y + (r + down) * pq + r * 0.42 + fsBot * 1.05, "bottom", fsBot) : null}
           </g>
         );
       }
@@ -1225,8 +1226,8 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
         <g opacity={op}>
           {ring(r * (el.feet ? 1.5 : 1) + 1.3)}
           <Chip el={el} ctx={ctx} c={c} r={r} ghost={ghost} />
-          {el.labelTop && !ghost ? tag(el.labelTop, c.y - r - up - fs * 0.5, "top") : null}
-          {el.label && !ghost ? tag(el.label, c.y + r + down + fs * 1.05, "bottom") : null}
+          {el.labelTop && !ghost ? tag(el.labelTop, c.y - r - up - fsTop * 0.5, "top", fsTop) : null}
+          {el.label && !ghost ? tag(el.label, c.y + r + down + fsBot * 1.05, "bottom", fsBot) : null}
         </g>
       );
     }
@@ -1697,7 +1698,7 @@ export function ChipTopSvg({ board, el, look, ang = 0 }) {
   const paint = chipPaint(board, el, look);
   const bn = lookOf(look) === "bn";
   const inner = (el.inner || "").toString().slice(0, 3);
-  const fs = inner.length > 2 ? 0.95 : inner.length > 1 ? 1.2 : 1.5;
+  const fs = (inner.length > 2 ? 0.95 : inner.length > 1 ? 1.2 : 1.5) * chipTextScale(el, "inner");
   const bib = el.bib ? (bn ? { text: "#111111", halo: "#ffffff" } : { text: contrastColor(el.bib), halo: contrastColor(el.bib) === "#ffffff" ? "#111827" : "#ffffff" }) : null;
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 2 2">

@@ -1372,3 +1372,27 @@ test("seleccionar: lo que está debajo del puntero gana; si no, lo más cercano 
   // más lejos que el margen: nada (antes una ficha se cogía a más de 2 m)
   assert.equal(hitTest(order, { x: 10, y: 13 }, { tol: 0.6 }), null);
 });
+
+test("tamaño de letra de los textos de una ficha: 10 = normal, se limita entre 3 y 30 y se iguala con varias", async () => {
+  const { chipTextScale, cleanTextSize, CHIP_TEXT_SIZES, styleElements: st, matchElements: me } = await import("../src/lib/board.js");
+  assert.deepEqual(CHIP_TEXT_SIZES, [5, 6, 8, 10, 12, 14]);
+  assert.equal(chipTextScale({}, "inner"), 1);
+  assert.equal(chipTextScale({ innerFs: 5 }, "inner"), 0.5);
+  assert.equal(chipTextScale({ labelFs: 14 }, "label"), 1.4);
+  assert.equal(chipTextScale({ topFs: 8 }, "label"), 1);
+  assert.equal(cleanTextSize(1), 3);
+  assert.equal(cleanTextSize(99), 30);
+  assert.equal(cleanTextSize("7.25"), 7.3);
+  assert.equal(cleanTextSize(""), null);
+  assert.equal(cleanTextSize("abc"), null);
+  const b = { v: 2, frames: [
+    { id: "f1", els: [{ id: "t1", k: "token", team: "a", x: 1, y: 1, labelFs: 12 }, { id: "t2", k: "token", team: "a", x: 2, y: 2 }] },
+    { id: "f2", els: [{ id: "t1", k: "token", team: "a", x: 1, y: 3, labelFs: 12 }, { id: "t2", k: "token", team: "a", x: 2, y: 4 }] },
+  ] };
+  const s = st(b, 0, ["t1", "t2"], "token", { innerFs: 6 });
+  assert.deepEqual(s.frames[1].els.map((e) => e.innerFs), [6, 6]);
+  const m = me(b, 0, ["t1", "t2"], "token");
+  assert.equal(m.frames[0].els[1].labelFs, 12);
+  // volver al normal quita el dato
+  assert.equal(st(s, 0, ["t1"], "token", { innerFs: undefined }).frames[0].els[0].innerFs, undefined);
+});

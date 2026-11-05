@@ -3,7 +3,7 @@ import { Copy, Trash2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DEFAULT_CHIP, chipOf, chipStyle, labelBgOf, teamsOf } from "@/lib/board";
 import { ChipGlyph, chipPaint } from "./BoardSvg";
-import { ColorPick, NO_FILL, Row, Slider, Toggle } from "./BoardControls";
+import { ColorPick, NO_FILL, Row, Slider, TextSizePick, Toggle } from "./BoardControls";
 
 // Edición rápida de una ficha (doble clic o doble toque sobre ella, como en FM Studio): sus textos de arriba, dentro y abajo,
 // equipo, color propio, peto, fondo de los textos, pies y tamaño. El panel de abajo queda para el equipo y todas las fichas.
@@ -35,6 +35,11 @@ export default function ChipQuickEdit({ el, board, look, patch, onClose, onDup, 
         <Input value={el.labelTop || ""} onChange={(e) => patch({ labelTop: e.target.value || undefined }, "labelTop")} placeholder="Texto arriba" className="h-7 text-xs" aria-label="Texto por arriba de la ficha" />
         <Input value={el.inner || ""} maxLength={3} onChange={(e) => patch({ inner: e.target.value || undefined }, "inner")} placeholder="Nº" className="h-7 text-xs text-center" aria-label="Texto dentro de la ficha" title="Dorsal o letra (hasta 3)" />
         <Input ref={nameRef} value={el.label || ""} onChange={(e) => patch({ label: e.target.value }, "label")} placeholder="Nombre (abajo)" className="h-7 text-xs col-span-2" aria-label="Nombre de la ficha" onKeyDown={(e) => { if (e.key === "Enter") onClose(); }} />
+      </div>
+      <div className="grid grid-cols-3 gap-1 items-start" role="group" aria-label="Tamaño de letra" data-testid="chip-text-sizes">
+        <TextSizePick label="Letra arriba" value={el.topFs} onChange={(v) => patch({ topFs: v }, "topFs")} testid="fs-top" />
+        <TextSizePick label="Letra Nº" value={el.innerFs} onChange={(v) => patch({ innerFs: v }, "innerFs")} testid="fs-inner" />
+        <TextSizePick label="Letra nombre" value={el.labelFs} onChange={(v) => patch({ labelFs: v }, "labelFs")} testid="fs-label" />
       </div>
       <div className="flex flex-wrap gap-1 items-center" role="group" aria-label="Equipo de esta ficha">
         {teams.map((t) => (
