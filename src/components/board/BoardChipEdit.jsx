@@ -19,7 +19,7 @@ export default function ChipQuickEdit({ el, board, look, patch, onClose, onDup, 
   React.useEffect(() => { nameRef.current?.focus(); nameRef.current?.select?.(); }, [el.id]);
   return (
     <div
-      className="z-20 w-[300px] max-w-[calc(100%-8px)] rounded-xl border border-gray-200 bg-white shadow-xl p-2 space-y-1.5"
+      className="z-20 w-[300px] max-w-[calc(100%-8px)] rounded-xl border border-gray-200 bg-white text-gray-900 shadow-xl p-2 space-y-1.5"
       style={style}
       data-testid="chip-quick"
       role="dialog"

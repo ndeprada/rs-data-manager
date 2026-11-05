@@ -1455,7 +1455,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     <section
       aria-label={panelTitle || "Panel"}
       data-testid="board-panel"
-      className={narrow ? "absolute left-2 right-2 bottom-2 max-h-[48%] overflow-y-auto rounded-xl bg-white shadow-2xl border border-gray-200" : "absolute left-[58px] top-3 w-[372px] max-h-[calc(100%-24px)] overflow-y-auto rounded-xl bg-white shadow-2xl border border-gray-200"}
+      className={narrow ? "absolute left-2 right-2 bottom-2 max-h-[48%] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-2xl border border-gray-200" : "absolute left-[58px] top-3 w-[372px] max-h-[calc(100%-24px)] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-2xl border border-gray-200"}
       style={{ zIndex: 5 }}
     >
       <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b" style={{ background: RAIL.bg, color: RAIL.text, borderColor: RAIL.border }}>
