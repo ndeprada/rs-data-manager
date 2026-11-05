@@ -3,7 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X, RotateCcw, RotateCw, ChevronUp, ChevronDown, Lock, Grid3x3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  AIR_MAX, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
+  AIR_MAX, BALL_PATTERNS, ballStyle, zoneShapePatch, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
   boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
   is3D, handleSpec, PERSP, toggleFlag, movableIds, snapTo, isLocked, isHighlighted, resetToPrevious, resizeElements as resizeEls, styleElements, matchElements, VIEW_MODES, viewModeOf, setViewMode, orbitOf, orbitBetween, orbitPreset, ORBIT_PRESETS, setOrbit, clearFrameOrbit, clearOrbits, hasFrameOrbits, validOrbit, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
 } from "@/lib/board";
@@ -15,6 +15,7 @@ import { BallIcon, ColorPick, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleI
 import BoardProps, { ARROW_PRESETS, KIND_LABEL, typeOfArrow } from "./BoardProps";
 import BoardDownloads, { downloadFramePng } from "./BoardDownloads";
 import ChipQuickEdit from "./BoardChipEdit";
+import BoardDock, { MATERIAL_VARIANTS, TEXT_VARIANTS, materialVariantOf, textVariantOf } from "./BoardDock";
 import MultiPanel, { LayerButtons, LayerList } from "./BoardMulti";
 import { useAuthOptional } from "@/lib/AuthContext";
 import { freeMove, snapAnchors, snapPoint } from "@/lib/boardSnap";
@@ -119,6 +120,9 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   // ficha (u otra cosa) elegida al arrastrarla: su panel no se abre hasta que se toque sin arrastrar (05/11/2026, Nacho: «cuando la
   // muevo con tres dedos… simplemente desplace la ficha»)
   const [quietId, setQuietId] = useState(null);
+  // «Más opciones» de la segunda columna: abre el panel completo de siempre
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [dockSaved, setDockSaved] = useState(false);
   // Rejilla (tecla G): lo que se coloca, se dibuja o se arrastra cae en metros enteros
   const [snap, setSnap] = useState(false);
   const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia?.("(max-width: 767px)").matches);
@@ -166,7 +170,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const selEls = sel.map((id) => cur.els.find((e) => e.id === id)).filter(Boolean);
   const multi = sel.length > 1 && selEls.length > 1;
   // el panel flotante vuelve a salir al elegir otra cosa u otra herramienta
-  useEffect(() => { setPanelHidden(false); }, [selId, tool, multi]);
+  useEffect(() => { setPanelHidden(false); setMoreOpen(false); }, [selId, tool, multi]);
   useEffect(() => {
     if (playing || !sel.length) return;
     const alive = sel.filter((id) => cur.els.some((e) => e.id === id));
@@ -1474,12 +1478,47 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     ) : propsBody)
   );
   const layersBody = layersOpen && !playing && !side ? <LayerList els={cur.els} board={board} look={look} sel={sel} onPick={pickLayer} onStep={stepOne} onMoveTo={moveRow} /> : null;
-  const showPanel = !panelHidden && !(quietId && selId === quietId && !side && !layersOpen) && (panelBody || layersBody);
+  // Segunda columna (tipos dibujados + lo básico) para flechas, zonas, balón, material y texto, elegidos o como herramienta
+  const dockEl = !playing && !narrow && !multi && !side && !camTool && !layersOpen && tool !== "link" && !(quietId && selId === quietId) ? panelEl : null;
+  const dockKind = !dockEl ? null : dockEl.k === "arrow" ? "arrow" : dockEl.k === "zone" ? "zone" : dockEl.k === "ball" ? "ball" : dockEl.k === "text" ? "text" : (dockEl.k === "cone" || dockEl.k === "goal" || materialOf(dockEl.k)) ? "material" : null;
+  const dockPatch = (p, key) => (selected ? patchSel(p, key) : patchBrush(p));
+  const dockVariants = dockKind === "arrow" ? ARROW_TOOLS.map((id) => ({ id, label: (TOOL_INFO[id]?.label || id).replace(/ \(.*\)/, "") }))
+    : dockKind === "zone" ? [{ id: "rect", label: "Rectángulo" }, { id: "ellipse", label: "Elipse" }, { id: "quad", label: "4 esquinas" }]
+      : dockKind === "ball" ? BALL_PATTERNS.map((b) => ({ id: b.id, label: b.label }))
+        : dockKind === "material" ? MATERIAL_VARIANTS.filter((v) => !selected || v.k === selected.k)
+          : dockKind === "text" ? TEXT_VARIANTS : [];
+  const dockActive = !dockEl ? null : dockKind === "arrow" ? (selected ? typeOfArrow(selected) : tool)
+    : dockKind === "zone" ? (isQuad(dockEl) || tool === "quad" ? "quad" : dockEl.shape || "rect")
+      : dockKind === "ball" ? ballStyle(dockEl).pattern : dockKind === "material" ? materialVariantOf(dockEl) : dockKind === "text" ? textVariantOf(dockEl) : null;
+  const onDockVariant = (id) => {
+    if (dockKind === "arrow") return setArrowType(id);
+    if (dockKind === "zone") {
+      if (selected) return patchSel(zoneShapePatch(selected, id), "shape");
+      if (id === "quad") return pickTool("quad");
+      pickTool("zone");
+      return setBrush((b) => ({ ...b, zone: { ...b.zone, shape: id } }));
+    }
+    if (dockKind === "ball") return dockPatch({ pattern: id }, "pattern");
+    if (dockKind === "text") { const v = TEXT_VARIANTS.find((x) => x.id === id); return dockPatch(v.patch, "textvar"); }
+    if (dockKind === "material") {
+      const v = MATERIAL_VARIANTS.find((x) => x.id === id);
+      if (selected) return Object.keys(v.patch).length ? patchSel(v.patch, "matvar") : undefined;
+      pickTool(v.k);
+      return setBrush((b) => ({ ...b, [v.k]: { ...b[v.k], ...v.patch } }));
+    }
+    return undefined;
+  };
+  const dock = dockKind ? (
+    <BoardDock kind={dockKind} el={dockEl} look={look} selected={!!selected} variants={dockVariants} active={dockActive} onVariant={onDockVariant} patch={dockPatch}
+      saved={dockSaved} onDefault={() => { saveDefs(withElementDefault(defs, dockEl, { chipSize: chip, team: null })); setDockSaved(true); setTimeout(() => setDockSaved(false), 1600); }}
+      onMore={() => { setMoreOpen((m) => !m); setPanelHidden(false); }} onDelete={() => delSel(false)} />
+  ) : null;
+  const showPanel = !panelHidden && !(quietId && selId === quietId && !side && !layersOpen) && !(dockKind && !moreOpen) && (panelBody || layersBody);
   const panel = showPanel ? (
     <section
       aria-label={panelTitle || "Panel"}
       data-testid="board-panel"
-      className={narrow ? "absolute left-2 right-2 bottom-2 max-h-[48%] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-2xl border border-gray-200" : "absolute left-[58px] top-3 w-[372px] max-h-[calc(100%-24px)] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-2xl border border-gray-200"}
+      className={narrow ? "absolute left-2 right-2 bottom-2 max-h-[48%] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-2xl border border-gray-200" : `absolute ${dockKind ? "left-[172px]" : "left-[58px]"} top-3 w-[372px] max-h-[calc(100%-24px)] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-2xl border border-gray-200`}
       style={{ zIndex: 5 }}
     >
       <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b" style={{ background: RAIL.bg, color: RAIL.text, borderColor: RAIL.border }}>
@@ -1613,7 +1652,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         </svg>
       )}
       {!playing && (
-        <div className="absolute top-2 left-2 flex items-center gap-0.5 rounded-lg p-0.5 text-[11px] font-semibold" style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} role="group" aria-label="Vista del campo" title="Vista del campo" data-testid="board-view-mode">
+        <div className={`absolute top-2 ${dockKind ? "left-[122px]" : "left-2"} flex items-center gap-0.5 rounded-lg p-0.5 text-[11px] font-semibold`} style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} role="group" aria-label="Vista del campo" title="Vista del campo" data-testid="board-view-mode">
           {VIEW_MODES.map((m) => (
             <button key={m.id} type="button" aria-pressed={viewMode === m.id} onClick={() => pickViewMode(m.id)} data-testid={`view-${m.id}`}
               className="h-7 px-2 rounded-md" style={viewMode === m.id ? { background: RAIL.on, color: RAIL.onInk } : undefined}>{m.label}</button>
@@ -1702,6 +1741,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         <RailBtn label="Deshacer" title="Deshacer (Ctrl + Z)" disabled={!history.length} onClick={undo}><Undo2 className="w-5 h-5" /></RailBtn>
         <RailBtn label="Rehacer" title="Rehacer (Ctrl + Mayús + Z)" disabled={!future.length} onClick={redo}><Redo2 className="w-5 h-5" /></RailBtn>
       </nav>
+      {dock}
       {inline ? (
         <div className="absolute right-2 top-2 flex items-center gap-1" style={{ zIndex: 6 }}>
           <RailBtn label="Campo y ajustes" title="Campo, modo visual, animación y descargas" on={side === "settings"} onClick={() => toggleSide("settings")} testid="rail-settings"><Settings2 className="w-5 h-5" /></RailBtn>
