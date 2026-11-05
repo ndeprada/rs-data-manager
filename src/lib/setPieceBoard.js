@@ -2,7 +2,7 @@
 //  · Las jugadas antiguas (fichas y flechas en un dibujo de 300 × 240 de medio campo) se ven convertidas al vuelo, con los
 //    mismos ids, hasta que alguien las toca; entonces se guarda `piece.board` (las fichas y flechas antiguas se quedan de copia).
 //  · Cada ficha nuestra puede llevar `player_id`: dentro va el dorsal, debajo el nombre y encima el rol de la jugada.
-import { NEW_BOARD_LOOK, fieldOf, isQuad, normalizeBoard, pruneLinks } from "./board.js";
+import { NEW_BOARD_LOOK, fieldOf, isQuad, normalizeBoard, pruneLinks, setViewMode } from "./board.js";
 
 export const SP_FIELD = "half";
 export const SP_TEAMS = [
@@ -303,4 +303,23 @@ export function applyStructure(board, structure, { side = "r", newId }) {
   // fichas algo más pequeñas que en el resto de jugadas, para que quepan en el área sin pisarse
   b = pruneLinks({ ...b, chipSize: Math.min(Number(b.chipSize) || SP_CHIP, SP_CHIP_STRUCT), frames });
   return b;
+}
+
+// ── Impresión: vista y orientación elegidas al imprimir (05/11/2026, Nacho) ─────────────────────────────────────────────
+// `view` = "board" (como está en la pizarra) | "flat" | "persp" | "3d"; `orient` = "board" | "v" | "h". Al cambiar algo se
+// quitan la cámara, el zoom y la cámara libre guardados (estaban pensados para la vista de la pizarra). En horizontal se gira
+// un cuarto de vuelta: lo que ataca arriba pasa a atacar a la derecha (y lo que ataca abajo, a la izquierda), y al revés.
+export const PRINT_VIEWS = ["board", "flat", "persp", "3d"];
+export const PRINT_ORIENTS = ["board", "v", "h"];
+const TO_H = { v: "hi", vi: "h" }, TO_V = { hi: "v", h: "vi" };
+export function printBoard(board, { view = "board", orient = "board" } = {}) {
+  const b = normalizeBoard(board);
+  const o = b.orient || "v";
+  const nextOrient = orient === "h" ? (o[0] === "h" ? o : TO_H[o]) : orient === "v" ? (o[0] === "v" ? o : TO_V[o]) : o;
+  const changeView = PRINT_VIEWS.includes(view) && view !== "board";
+  if (!changeView && nextOrient === o) return b;
+  let out = { ...b, orient: nextOrient };
+  if (changeView) out = setViewMode(out, view);
+  const { cam: _c, orbit: _o, ...rest } = out;
+  return { ...rest, frames: rest.frames.map(({ cam: _fc, orbit: _fo, ...f }) => f) };
 }

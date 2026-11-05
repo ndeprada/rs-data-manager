@@ -65,3 +65,19 @@ test("dar y quitar una función a una ficha", () => {
   assert.equal(counts.find((c) => c.id === null).n, 1);
   assert.equal(autoTitle(b0, { kind: "corner", attack: true, side: "r" }).title, "1 LANZADOR · 4 REMATADORES · 1 BLOQUEO · 2 RECHACES · 2 CIERRAN");
 });
+
+test("imprimir: vista y orientación elegidas", async () => {
+  const { printBoard } = await import("../src/lib/setPieceBoard.js");
+  const b = { v: 2, field: "half", orient: "v", view: "persp", cam: { z: 2, x: 0.5, y: 0.5 }, frames: [{ id: "f1", els: [], cam: { x: 0.5, y: 0.5, w: 0.5 } }] };
+  const same = printBoard(b);
+  assert.equal(same.orient, "v"); assert.equal(same.view, "persp"); assert.ok(same.cam);
+  const h = printBoard(b, { orient: "h" });
+  assert.equal(h.orient, "hi"); assert.equal(h.view, "persp"); assert.equal(h.cam, undefined); assert.equal(h.frames[0].cam, undefined);
+  assert.equal(printBoard({ ...b, orient: "vi" }, { orient: "h" }).orient, "h");
+  assert.equal(printBoard({ ...b, orient: "hi" }, { orient: "v" }).orient, "v");
+  assert.equal(printBoard(b, { orient: "v" }).orient, "v");
+  const flat = printBoard(b, { view: "flat" });
+  assert.equal(flat.view, undefined); assert.equal(flat.view3d, undefined);
+  const d3 = printBoard(b, { view: "3d", orient: "h" });
+  assert.equal(d3.view3d, true); assert.equal(d3.view, "persp"); assert.equal(d3.orient, "hi");
+});

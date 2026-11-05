@@ -11,10 +11,11 @@ import { useT, msg } from "@/i18n";
 import BoardEditor from "@/components/board/BoardEditor";
 import Board from "@/components/board/BoardSvg";
 import { boardSvgMarkup } from "@/components/board/exportPng";
-import { isStadium, normalizeBoard } from "@/lib/board";
+import { boardFramePng } from "@/components/board/BoardDownloads";
+import { is3D, isStadium, normalizeBoard } from "@/lib/board";
 import {
   assignPlayer, copyPiece, fillWithSquad, flipBoard, ownChips, pieceBoard, previousMatchPieces, legacyToBoard,
-  SP_KINDS, typeOf, pieceSetup, funcsFor, funcOf, fnPatch, setFunction, functionCounts, autoTitle, structuresFor, applyStructure, GK_COLOR,
+  SP_KINDS, typeOf, pieceSetup, printBoard, funcsFor, funcOf, fnPatch, setFunction, functionCounts, autoTitle, structuresFor, applyStructure, GK_COLOR,
 } from "@/lib/setPieceBoard";
 // Jugadas a balón parado con la pizarra común (la misma de tareas y tácticas). Rediseño del 05/11/2026 (maqueta aprobada por
 // Nacho, con el aspecto de RS Manager): banda con las jugadas del partido; a la izquierda la jugada (tipo, a favor / en contra,
@@ -324,20 +325,26 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-// Dibujo (SVG como texto) de una jugada para imprimir: el primer fotograma de su pizarra; el estadio sale en blanco (poca tinta)
-async function pieceSvg(piece, players) {
-  const b = pieceBoard(piece, players);
+// Dibujo de una jugada para imprimir: el primer fotograma de su pizarra, con la vista y la orientación elegidas en el panel
+// «Imprimir» (`printBoard`); el estadio sale en blanco (poca tinta). En 3D se hace una imagen (PNG); en plano y perspectiva, SVG.
+const blobToDataUrl = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+async function pieceSvg(piece, players, opts = {}) {
+  const b = printBoard(pieceBoard(piece, players), opts);
   const printable = isStadium(b.look) ? { ...b, look: "blanco" } : b;
-  const { svg } = await boardSvgMarkup(<Board board={printable} els={printable.frames[0].els} />, 1200);
+  if (is3D(printable)) {
+    const url = await blobToDataUrl(await boardFramePng(printable, 0));
+    return `<img src="${url}" alt="" style="width:100%;height:auto;display:block">`;
+  }
+  const { svg } = await boardSvgMarkup(<Board board={printable} els={printable.frames[0].els} frame={0} />, 1200);
   return svg.replace(/ width="\d+" height="\d+"/, ' style="width:100%;height:auto;display:block"');
 }
 
-async function printPieces(list, players, perPage, teamName, book = false) {
+async function printPieces(list, players, perPage, teamName, book = false, look = {}) {
   const now = new Date(), y = now.getFullYear();
   const season = now.getMonth() >= 6 ? `${y}-${String(y + 1).slice(2)}` : `${y - 1}-${String(y).slice(2)}`;
   const cover = book ? `<div class="cover"><img src="${CLUB_LOGO_URL}" alt=""><h1>ESTRATEGIA<br>A BALÓN PARADO</h1><h3>${esc(teamName || "")}</h3><p>TEMPORADA ${season}</p></div>` : "";
   const typeLabel = (v) => TYPES.find((ty) => ty.value === v)?.label || v;
-  const svgs = await Promise.all(list.map((p) => pieceSvg(p, players)));
+  const svgs = await Promise.all(list.map((p) => pieceSvg(p, players, look)));
   const titles = list.map((p) => autoTitle(pieceBoard(p, players), pieceSetup(p)).title);
   const cards = list.map((p, i) => `<section class="card">
     <header><div class="club"><img src="${CLUB_LOGO_URL}" alt=""><div><b>RACING SARRIÀ</b><span>${esc(teamName || "")}</span></div></div>
@@ -393,6 +400,9 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
   const [order, setOrder] = useState([]);
   const [off, setOff] = useState([]);
   const [perPage, setPerPage] = useState(1);
+  // Vista y orientación al imprimir (se recuerdan en este navegador)
+  const [printLook, setPrintLook] = useState(() => { try { return { view: "board", orient: "board", ...JSON.parse(localStorage.getItem("rs_sp_print") || "{}") }; } catch { return { view: "board", orient: "board" }; } });
+  const setLook = (patch) => setPrintLook((o) => { const n = { ...o, ...patch }; try { localStorage.setItem("rs_sp_print", JSON.stringify(n)); } catch { /* sin almacenamiento */ } return n; });
   const printList = [...order.filter((id) => pieces.some((p) => p.id === id)), ...pieces.map((p) => p.id).filter((id) => !order.includes(id))];
   const moveP = (id, dir) => { const i = printList.indexOf(id), j = i + dir; if (j < 0 || j >= printList.length) return; const n = [...printList]; [n[i], n[j]] = [n[j], n[i]]; setOrder(n); };
   const flash = (m) => { setNote(m); setTimeout(() => setNote(""), 2800); };
@@ -401,7 +411,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
   const doPrint = async () => {
     const list = printList.filter((id) => !off.includes(id)).map((id) => pieces.find((p) => p.id === id));
     if (!list.length) return flash(t("Marca al menos una jugada"));
-    try { await printPieces(list, lookup, perPage, teamName); } catch (e) { flash(t("No se pudo imprimir: {error}", { error: e?.message || t("error") })); }
+    try { await printPieces(list, lookup, perPage, teamName, false, printLook); } catch (e) { flash(t("No se pudo imprimir: {error}", { error: e?.message || t("error") })); }
   };
   const active = pieces.find((p) => p.id === activeId) || pieces[0] || null;
 
@@ -427,7 +437,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
     if (!library.length) return flash(t("La biblioteca está vacía"));
     const ord = TYPES.map((ty) => ty.value);
     const list = [...library].sort((a, b) => (ord.indexOf(a.type) - ord.indexOf(b.type)) || (a.name || "").localeCompare(b.name || ""));
-    try { await printPieces(list, lookup, perPage, teamName, true); } catch (e) { flash(t("No se pudo imprimir: {error}", { error: e?.message || t("error") })); }
+    try { await printPieces(list, lookup, perPage, teamName, true, printLook); } catch (e) { flash(t("No se pudo imprimir: {error}", { error: e?.message || t("error") })); }
   };
   const update = (p) => onChange(pieces.map((x) => (x.id === p.id ? p : x)));
   const remove = (id) => { onChange(pieces.filter((x) => x.id !== id)); setActiveId(null); };
@@ -559,6 +569,18 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
                 <button type="button" onClick={() => moveP(id, -1)} className="p-1" style={{ color: RS.muted }} aria-label={t("Subir")}><ArrowUp className="w-3.5 h-3.5" /></button>
                 <button type="button" onClick={() => moveP(id, 1)} className="p-1" style={{ color: RS.muted }} aria-label={t("Bajar")}><ArrowDown className="w-3.5 h-3.5" /></button>
               </div>); })}
+          </div>
+          <div className="flex flex-wrap items-center gap-2" data-testid="sp-print-view">
+            <span className="text-[12px] w-[86px]" style={{ color: RS.muted }}>{t("Vista")}</span>
+            {[["board", msg("Como en la pizarra")], ["flat", msg("Plana (desde arriba)")], ["persp", msg("Perspectiva")], ["3d", msg("3D")]].map(([v, l]) => (
+              <button key={v} type="button" data-testid={`sp-print-view-${v}`} onClick={() => setLook({ view: v })} style={pill(printLook.view === v)}>{t(l)}</button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2" data-testid="sp-print-orient">
+            <span className="text-[12px] w-[86px]" style={{ color: RS.muted }}>{t("Orientación")}</span>
+            {[["board", msg("Como en la pizarra")], ["v", msg("Vertical")], ["h", msg("Horizontal")]].map(([v, l]) => (
+              <button key={v} type="button" data-testid={`sp-print-orient-${v}`} onClick={() => setLook({ orient: v })} style={pill(printLook.orient === v)}>{t(l)}</button>
+            ))}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {[[1, msg("1 por página")], [2, msg("2 por página")]].map(([v, l]) => (

@@ -569,4 +569,11 @@ export default [
   ["Auto","Auto","Auto","Auto"],
   ["Otro color","Other colour","Autre couleur","Un altre color"],
   ["Para imprimir gastando poca tinta: blanco liso o blanco y gris, con las líneas en gris.","To print using little ink: plain white or white and grey, with grey lines.","Pour imprimer avec peu d'encre : blanc uni ou blanc et gris, avec des lignes grises.","Per imprimir gastant poca tinta: blanc llis o blanc i gris, amb les línies en gris."],
+  ["Vista","View","Vue","Vista"],
+  ["Como en la pizarra","As on the board","Comme sur le tableau","Com a la pissarra"],
+  ["Plana (desde arriba)","Flat (from above)","Plate (vue de dessus)","Plana (des de dalt)"],
+  ["3D","3D","3D","3D"],
+  ["Orientación","Orientation","Orientation","Orientació"],
+  ["Vertical","Vertical","Verticale","Vertical"],
+  ["Horizontal","Horizontal","Horizontale","Horitzontal"],
 ];

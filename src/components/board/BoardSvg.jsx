@@ -1227,7 +1227,7 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
         return (
           <g opacity={op}>
             {el.labelTop && !ghost ? tag(el.labelTop, c.y - (r + up) * pq - fsTop * 0.5, "top", fsTop) : null}
-            {el.label && !ghost ? tag(el.label, c.y + (r + down) * pq + r * 0.42 + fsBot * 1.05, "bottom", fsBot) : null}
+            {el.label && !ghost ? tag(el.label, c.y + (r + down) * pq + r * 0.42 + fsBot * 0.9, "bottom", fsBot) : null}
           </g>
         );
       }
@@ -1236,7 +1236,7 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
           {ring(r * (el.feet ? 1.5 : 1) + 1.3)}
           <Chip el={el} ctx={ctx} c={c} r={r} ghost={ghost} />
           {el.labelTop && !ghost ? tag(el.labelTop, c.y - r - up - fsTop * 0.5, "top", fsTop) : null}
-          {el.label && !ghost ? tag(el.label, c.y + r + down + fsBot * 1.05, "bottom", fsBot) : null}
+          {el.label && !ghost ? tag(el.label, c.y + r + down + fsBot * 0.9, "bottom", fsBot) : null}
         </g>
       );
     }

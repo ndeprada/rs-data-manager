@@ -645,7 +645,7 @@ function buildToken(board, el, look, chip, scr, pending) {
     const sp = labelSprite(`lab:${text}:${JSON.stringify(opts)}`, text, opts, fs * 1.35 * k);
     sp.position.set(0, hgt, 0);
     const gap = (r * 1.15) / sp.scale.y;
-    sp.center.set(0.5, below ? 1 + gap : -gap * 0.55);
+    sp.center.set(0.5, below ? 1 + gap * 0.62 : -gap * 0.55);
     group.add(sp);
   };
   if (el.label) lab(String(el.label), true, chipTextScale(el, "label"));
