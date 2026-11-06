@@ -81,3 +81,25 @@ export function edgeStepOf(edge) {
   const v = edge == null ? 1 : Number(edge);
   return EDGE_STEPS.reduce((best, s) => (Math.abs(s.value - v) < Math.abs(best.value - v) ? s : best), EDGE_STEPS[2]).id;
 }
+
+// Dónde poner la tarjeta de una ficha para tapar lo menos posible (06/11/2026, «sigue» de Nacho a mi propuesta: «que se
+// coloque sola en el hueco más libre»). Se prueban varios sitios alrededor de la ficha (a la derecha y a la izquierda, a tres
+// alturas, y encima y debajo), se meten dentro del recuadro y se elige el que tapa menos cosas (`points` = centros en pantalla de
+// lo demás del fotograma); nunca uno que tape la propia ficha. A igualdad, el orden de la lista (derecha primero).
+export function placeCard({ x, y, rs, W, H, boxW, boxH, points = [], pad = 4, gap = 14 }) {
+  const clampL = (l) => Math.max(pad, Math.min(l, boxW - W - pad));
+  const clampT = (t) => Math.max(pad, Math.min(t, boxH - H - pad));
+  const cands = [
+    [x + rs + gap, y - 110], [x + rs + gap, y - H + 60], [x + rs + gap, y - 40],
+    [x - rs - gap - W, y - 110], [x - rs - gap - W, y - H + 60], [x - rs - gap - W, y - 40],
+    [x - W / 2, y + rs + gap], [x - W / 2, y - rs - gap - H],
+  ].map(([l, t]) => ({ left: clampL(l), top: clampT(t) }));
+  const covers = (c, p, m = 0) => p.x >= c.left - m && p.x <= c.left + W + m && p.y >= c.top - m && p.y <= c.top + H + m;
+  let best = null;
+  for (const c of cands) {
+    if (covers(c, { x, y }, rs * 0.6)) continue;
+    const n = points.reduce((s, p) => s + (covers(c, p, 10) ? 1 : 0), 0);
+    if (!best || n < best.n) best = { ...c, n };
+  }
+  return best ? { left: best.left, top: best.top, covered: best.n } : { ...cands[0], covered: 0 };
+}

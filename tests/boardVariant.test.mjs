@@ -57,3 +57,20 @@ test("borde en cuatro pasos y pestaña de la tarjeta", () => {
   assert.equal(cleanCardTab("letra"), "letra");
   assert.equal(cleanCardTab("x"), "jugador");
 });
+
+test("la tarjeta se coloca en el hueco más libre", async () => {
+  const { placeCard } = await import("../src/lib/boardVariant.js");
+  const base = { x: 500, y: 400, rs: 20, W: 300, H: 380, boxW: 1200, boxH: 800 };
+  // sin nada alrededor: a la derecha
+  const a = placeCard(base);
+  assert.equal(a.left, 534);
+  // muchas fichas a la derecha: se va a la izquierda
+  const right = Array.from({ length: 8 }, (_, i) => ({ x: 600 + i * 20, y: 380 + i * 10 }));
+  const b = placeCard({ ...base, points: right });
+  assert.ok(b.left + 300 <= 500);
+  assert.equal(b.covered, 0);
+  // pegada al borde derecho: nunca tapa la propia ficha y no se sale
+  const c = placeCard({ ...base, x: 1180 });
+  assert.ok(c.left + 300 <= 1200 - 4);
+  assert.ok(!(1180 >= c.left && 1180 <= c.left + 300 && 400 >= c.top && 400 <= c.top + 380));
+});

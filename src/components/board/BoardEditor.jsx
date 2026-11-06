@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X, RotateCcw, RotateCw, ChevronUp, ChevronDown, Lock, Grid3x3 } from "lucide-react";
+import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X, RotateCcw, RotateCw, ChevronUp, ChevronDown, Lock, Grid3x3, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, BALL_PATTERNS, ballStyle, linkProps, zoneShapePatch, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
@@ -15,7 +15,7 @@ import { BallIcon, ColorPick, DummyIcon, GoalIcon, HurdleIcon, LadderIcon, PoleI
 import BoardProps, { ARROW_PRESETS, KIND_LABEL, typeOfArrow } from "./BoardProps";
 import BoardDownloads, { downloadFramePng } from "./BoardDownloads";
 import ChipCard from "./BoardChipCard";
-import { cleanVariant, keyAllowed, railOf, tacticPlayerPatch } from "@/lib/boardVariant";
+import { cleanVariant, keyAllowed, placeCard, railOf, tacticPlayerPatch } from "@/lib/boardVariant";
 import BoardDock, { MATERIAL_VARIANTS, TEXT_VARIANTS, materialVariantOf, textVariantOf } from "./BoardDock";
 import MultiPanel, { LayerButtons, LayerList } from "./BoardMulti";
 import { useAuthOptional } from "@/lib/AuthContext";
@@ -76,7 +76,8 @@ const selectCls = "h-8 rounded-md border border-gray-200 bg-white px-2 text-xs";
 // `variant`: versión de la pizarra (tareas · tactica · abp; ver src/lib/boardVariant.js): cambia la barra de dibujo y la pestaña
 // «Jugador» de la tarjeta de la ficha; «Campo y ajustes» es igual en las tres. `chipPlayer(ficha, patch)`: la página pone su propia
 // pestaña «Jugador» (balón parado: jugador y función; null = la de siempre). `chipDescribe(ficha)`: texto bajo el nombre en la tarjeta.
-export default function BoardEditor({ value, onChange, roster = [], fields = null, filename = "pizarra", modes = false, embedded = false, embedHeight = 620, paint = null, stamp = null, onStampDone = null, overlayTitle = null, variant: variantIn = "tareas", chipPlayer = null, chipDescribe = null }) {
+// `stamps` = { list: [{id, label}], active, pick(id|null) }: etiquetas rápidas en la barra (balón parado), que se ponen con `stamp`.
+export default function BoardEditor({ value, onChange, roster = [], fields = null, filename = "pizarra", modes = false, embedded = false, embedHeight = 620, paint = null, stamp = null, onStampDone = null, overlayTitle = null, variant: variantIn = "tareas", chipPlayer = null, chipDescribe = null, stamps = null }) {
   const variant = cleanVariant(variantIn);
   const rail = railOf(variant);
   const board = useMemo(() => normalizeBoard(value), [value]);
@@ -483,37 +484,45 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     return Math.max(1, m);
   };
 
-  // Dónde se abre la tarjeta de la ficha: a su lado (a la derecha si cabe, si no a la izquierda), a la altura de la ficha y sin
-  // salirse del recuadro de la pizarra; en el móvil sube desde abajo. Se puede arrastrar por la cabecera (`quickOff`).
+  // Dónde se abre la tarjeta de la ficha: al lado de la ficha, en el hueco que tape menos cosas del fotograma (`placeCard`:
+  // derecha, izquierda, encima o debajo), sin salirse del recuadro de la pizarra; en el móvil sube desde abajo. Se puede
+  // arrastrar por la cabecera (`quickOff`).
   useLayoutEffect(() => {
     if (!quickEl || !wrapRef.current || (!svgRef.current && !in3d)) { setQuickPos(null); return; }
     const box = wrapRef.current.getBoundingClientRect();
-    let mx, my, rs;
+    let screen, rs;
     if (in3d) {
-      const m = v3.current?.toScreen(quickEl.x, quickEl.y, 0.3);
-      if (!m) { setQuickPos(null); return; }
-      mx = m.x; my = m.y; rs = 22;
+      screen = (px, py) => v3.current?.toScreen(px, py, 0.3) || null;
+      rs = 22;
     } else {
       const svg = svgRef.current;
-      const v = toView(field, orient, quickEl);
-      const c = persp ? persp.P(v) : v;
-      const r = tokenR(chip, quickEl) * (persp ? persp.scaleAt(v) * perspBoost(quickEl) : 1);
       const ctm = svg.getScreenCTM();
       if (!ctm) return;
       const pt = svg.createSVGPoint();
-      pt.x = c.x; pt.y = c.y;
-      const mid = pt.matrixTransform(ctm);
-      pt.x = c.x + r; const edge = pt.matrixTransform(ctm);
-      mx = mid.x; my = mid.y; rs = Math.max(10, Math.hypot(edge.x - mid.x, edge.y - mid.y) * 1.6);
+      const at = (c) => { pt.x = c.x; pt.y = c.y; return pt.matrixTransform(ctm); };
+      screen = (px, py) => { const v = toView(field, orient, { x: px, y: py }); return at(persp ? persp.P(v) : v); };
+      const v = toView(field, orient, quickEl);
+      const c = persp ? persp.P(v) : v;
+      const r = tokenR(chip, quickEl) * (persp ? persp.scaleAt(v) * perspBoost(quickEl) : 1);
+      const mid = at(c), edge = at({ x: c.x + r, y: c.y });
+      rs = Math.max(10, Math.hypot(edge.x - mid.x, edge.y - mid.y) * 1.6);
+    }
+    const m = screen(quickEl.x, quickEl.y);
+    if (!m) { setQuickPos(null); return; }
+    const x = m.x - box.left, y = m.y - box.top;
+    // lo demás del fotograma, en pantalla: fichas, balón, material y textos por su centro; flechas por sus extremos y su mitad
+    const points = [];
+    const add = (px, py) => { const q = Number.isFinite(px) && Number.isFinite(py) ? screen(px, py) : null; if (q) points.push({ x: q.x - box.left, y: q.y - box.top }); };
+    for (const e of cur.els) {
+      if (e.id === quickEl.id) continue;
+      if (e.k === "arrow") { add(e.x1, e.y1); add(e.x2, e.y2); add((e.x1 + e.x2) / 2, (e.y1 + e.y2) / 2); }
+      else if (e.k !== "zone" && e.k !== "link") add(e.x, e.y);
     }
     const W = Math.min(300, box.width - 8);
-    const H = Math.min(440, box.height - 8);
-    const x = mx - box.left, y = my - box.top;
-    const right = x + rs + 14;
-    const left = right + W <= box.width - 4 ? right : Math.max(4, x - rs - 14 - W);
-    const top = Math.max(4, Math.min(y - 110, box.height - H - 4));
+    const H = Math.min(400, box.height - 8);
+    const pos = placeCard({ x, y, rs, W, H, boxW: box.width, boxH: box.height, points });
     // en el móvil la tarjeta sube desde abajo, o baja desde arriba si la ficha está en la parte de abajo, para que se vea
-    setQuickPos({ left, top, maxH: box.height - 8, low: y > box.height * 0.5 });
+    setQuickPos({ left: pos.left, top: pos.top, maxH: box.height - 8, low: y > box.height * 0.5 });
   }, [quickEl, board, orient, field, in3d]);
   const grabCard = (e) => {
     if (e.button !== 0 || narrow) return;
@@ -1192,7 +1201,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   // Versión de la pizarra: Táctica sin material; balón parado sin material, sin unir fichas, sin cámara y sin equipos nuevos
   const railGroups = TOOL_GROUPS.filter((g) => g.id !== "material" || rail.material);
   const canNewTeam = rail.newTeam && teams.length < MAX_TEAMS;
-  const railCount = 3 + teams.length + (canNewTeam ? 1 : 0) + (roster.length > 0 ? 1 : 0) + 1 + railGroups.length + 1 + (rail.link ? 1 : 0) + (rail.camera ? 1 : 0) + 2;
+  const hasStamps = Boolean(stamps?.list?.length);
+  const railCount = 3 + teams.length + (canNewTeam ? 1 : 0) + (roster.length > 0 ? 1 : 0) + 1 + railGroups.length + 1 + (rail.link ? 1 : 0) + (rail.camera ? 1 : 0) + (hasStamps ? 1 : 0) + 2;
   const railSize = inline ? `clamp(24px, calc(${embedHeight - 24}px / ${railCount} - 3px), 34px)` : `clamp(26px, calc((100vh - 60px) / ${railCount} - 3px), 38px)`;
   const toolButtons = (
     <>
@@ -1221,6 +1231,11 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       {rail.link && railTool({ id: "link", label: "Unir fichas", title: "Unir fichas (L)", icon: Waypoints, short: "Unir" })}
       {railTool({ id: "text", label: "Texto", title: "Texto (E)", icon: Type })}
       {rail.camera && railTool({ id: "camera", label: "Cámara", title: "Cámara: lo que se exporta (C)", icon: Video })}
+      {hasStamps && (
+        <RailBtn label="Etiquetas" title="Etiquetas rápidas: eliges una y tocas el sitio del campo" on={side === "stamps" || Boolean(stamps.active)} onClick={() => toggleSide("stamps")} narrow={narrow} testid="rail-stamps">
+          <Tag className="w-5 h-5" />{narrow && <RailLabel>Etiquetas</RailLabel>}
+        </RailBtn>
+      )}
     </>
   );
 
@@ -1372,6 +1387,21 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     </div>
   );
 
+  const stampsBody = hasStamps ? (
+    <div className="space-y-1.5" data-testid="board-stamps">
+      <div className="flex flex-wrap gap-1">
+        {stamps.list.map((g) => {
+          const on = stamps.active === g.id;
+          return (
+            <button key={g.id} type="button" aria-pressed={on} onClick={() => { stamps.pick(on ? null : g.id); setTool("select"); }} data-testid="stamp-pick"
+              className={`h-7 px-2.5 rounded-full border text-[12px] font-semibold ${on ? "bg-[#FF6E00] text-[#24000a] border-[#FF6E00]" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}`}>{g.label}</button>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-gray-500">{stamps.active ? `Toca el sitio del campo donde va «${stamps.list.find((g) => g.id === stamps.active)?.label || ""}».` : "Eliges una y luego tocas el sitio del campo donde va."}</p>
+    </div>
+  ) : null;
+
   const rosterBody = (
     <div className="space-y-1.5" data-testid="board-roster">
       <p className="text-[11px] text-gray-500">Toca un nombre para añadir su ficha con el equipo elegido en la barra ({teams.find((t) => t.id === (isTeamTool(tool) ? tool : "a"))?.name}).</p>
@@ -1521,10 +1551,10 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     </div>
   ) : null;
 
-  const panelTitle = camTool ? "Cámara" : side === "settings" ? "Campo y ajustes" : side === "roster" ? "Plantilla" : editTeam ? `Todo el equipo · ${editTeam.name}`
+  const panelTitle = camTool ? "Cámara" : side === "settings" ? "Campo y ajustes" : side === "roster" ? "Plantilla" : side === "stamps" ? "Etiquetas rápidas" : editTeam ? `Todo el equipo · ${editTeam.name}`
     : tool === "link" ? "Unir fichas" : multi ? `${selEls.length} elegidos`
       : selected ? KIND_LABEL[selected.k] : panelEl ? (isTeamTool(tool) ? `Fichas · ${teams.find((t) => t.id === tool)?.name || ""}` : curGroup ? curGroup.label : KIND_LABEL[panelEl.k]) : layersOpen ? "Capas" : "";
-  const panelBody = playing ? null : camTool && !side ? camBody : side === "settings" ? settingsBody : side === "roster" ? rosterBody : editTeam ? teamBody : (
+  const panelBody = playing ? null : camTool && !side ? camBody : side === "settings" ? settingsBody : side === "roster" ? rosterBody : side === "stamps" ? stampsBody : editTeam ? teamBody : (
     linkBody || (multi ? (
       <MultiPanel els={selEls} board={board} look={look} frames={board.frames.length} onStyle={styleMany} onMatch={matchMany} onTeam={teamMany} onColor={colorMany} onFeet={feetMany} onBib={bibMany} onTurn={turnMany} onResize={resizeMany} onSpread={spreadMany} onAlign={alignMany} onDistribute={distributeMany} onLayer={layer} onDup={dupMany} onDel={delMany} onClear={() => setSel([])}
         flags={<FlagButtons locked={selEls.length > 0 && selEls.every(isLocked)} hl={selEls.length > 0 && selEls.every(isHighlighted)} canReset={idx > 0} onLock={lockSel} onHl={hlSel} onReset={resetSel} />} />

@@ -303,6 +303,7 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
         <BoardEditor value={board} onChange={setBoard} fields={["half", "tq", "full", "free"]} filename={piece.name || t("Jugada")}
           embedded embedHeight={660} paint={paint} stamp={stamp} onStampDone={() => setTag(null)} overlayTitle={overlay}
           variant="abp"
+          stamps={{ list: tags.map((g) => ({ id: g, label: t(g) })), active: tag, pick: (g) => { setFnTool(undefined); setTag(g); } }}
           chipPlayer={(el, patch) => (el.team === "a" ? <AbpChipPlayer el={el} patch={patch} candidates={candidates} byId={byId} attack={setup.attack} /> : null)}
           chipDescribe={(el) => (el.team === "a" && el.fn && FN_LABEL[el.fn] ? `${teamsOf(board).find((x) => x.id === "a")?.name || "Racing"} · ${t(FN_LABEL[el.fn])}` : null)} />
       </div>
