@@ -70,7 +70,7 @@ export function legacyToBoard(piece, players = []) {
 }
 
 // Pizarra de una jugada: la guardada o la antigua convertida
-export const pieceBoard = (piece, players = []) => (piece?.board ? normalizeBoard(piece.board) : legacyToBoard(piece, players));
+export const pieceBoard = (piece, players = []) => (piece?.board ? upgradeFunctions(normalizeBoard(piece.board)) : legacyToBoard(piece, players));
 export const emptyPieceBoard = () => legacyToBoard({ id: "nueva", tokens: [], arrows: [] });
 
 // Voltear izquierda ↔ derecha (p. ej. un córner del otro lado): todo se refleja respecto al centro del campo, en todos los fotogramas
@@ -204,15 +204,48 @@ export const ATT_FUNCS = [
   { id: "cierra", label: "Cierra", color: "#FFFFFF", stroke: "#73000A", title: ["CIERRA", "CIERRAN"] },
 ];
 export const GK_COLOR = "#16A34A";
+export const GK_FN = { id: "portero", label: "Portero", color: GK_COLOR, title: ["PORTERO", "PORTEROS"] };
 export const funcsFor = (attack) => (attack ? ATT_FUNCS : DEF_FUNCS);
-export const funcOf = (attack, id) => funcsFor(attack).find((f) => f.id === id) || null;
-// Lo que se cambia en una ficha al darle una función (o quitársela con null)
-export function fnPatch(f) {
-  if (!f) return { fn: undefined, color: undefined, stroke: undefined, pattern: undefined, color2: undefined };
-  return { fn: f.id, color: f.color, stroke: f.stroke, pattern: undefined, color2: undefined };
+export const funcOf = (attack, id) => (id === "portero" ? GK_FN : funcsFor(attack).find((f) => f.id === id) || null);
+const anyFunc = (id) => (id === "portero" ? GK_FN : DEF_FUNCS.find((f) => f.id === id) || ATT_FUNCS.find((f) => f.id === id) || null);
+const sameColor = (a, b) => typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();
+// Texto de la función que se escribe junto a la ficha (la pizarra sigue en español, como las hojas impresas)
+export const fnTextOf = (f) => String(f?.label || (f?.id === "portero" ? "Portero" : f?.id || "")).toUpperCase();
+// Lo que se cambia en una ficha al darle una función (o quitársela con null). Desde el 06/11/2026 (Nacho: «no quiero que esto
+// implique un cambio de color de la ficha») la función se escribe junto a la ficha (`fnText`) y la ficha no cambia de color; solo
+// el portero sigue en verde. `el` = la ficha antes del cambio (para quitarle el verde si deja de ser portero).
+export function fnPatch(f, el = null) {
+  const wasGk = el?.fn === "portero" || sameColor(el?.color, GK_COLOR);
+  if (!f) return { fn: undefined, fnText: undefined, ...(wasGk ? { color: undefined } : {}) };
+  if (f.id === "portero") return { fn: "portero", fnText: fnTextOf(GK_FN), color: GK_COLOR, stroke: undefined, pattern: undefined, color2: undefined };
+  return { fn: f.id, fnText: fnTextOf(f), ...(wasGk ? { color: undefined } : {}) };
+}
+// Fichas guardadas con la versión de ayer (color de su función, función escrita encima con «Encima: Función»): se les quita el
+// color de la función y la función pasa a su línea propia (encima, como la tenían). Devuelve el mismo dibujo si no hay nada que cambiar.
+export function upgradeFunctions(board) {
+  let changed = false;
+  const frames = board.frames.map((f) => ({
+    ...f,
+    els: f.els.map((e) => {
+      if (e.k !== "token" || !e.fn) return e;
+      const fx = anyFunc(e.fn);
+      if (!fx) return e;
+      const o = { ...e };
+      if (!o.fnText) o.fnText = fnTextOf(fx);
+      if (fx.id !== "portero" && sameColor(o.color, fx.color)) {
+        delete o.color;
+        if (fx.stroke && sameColor(o.stroke, fx.stroke)) delete o.stroke;
+      }
+      if (o.topMode === "fn") { delete o.topMode; delete o.labelTop; if (!o.fnPos) o.fnPos = "top"; }
+      if (Object.keys(o).length !== Object.keys(e).length || Object.keys(o).some((k) => o[k] !== e[k])) { changed = true; return o; }
+      return e;
+    }),
+  }));
+  return changed ? { ...board, frames } : board;
 }
 export function setFunction(board, id, f) {
-  const patch = fnPatch(f);
+  const cur = normalizeBoard(board).frames.flatMap((fr) => fr.els).find((e) => e.id === id) || null;
+  const patch = fnPatch(f, cur);
   return mapTokens(normalizeBoard(board), (e) => {
     if (e.id !== id) return e;
     const o = { ...e };
@@ -289,10 +322,15 @@ export function applyStructure(board, structure, { side = "r", newId }) {
   });
   const drop = new Set(chips.filter((c) => !used.has(c.id)).map((c) => c.id));
   const look = (s) => {
-    const f = s.fn === "portero" ? { id: "portero", color: GK_COLOR } : funcOf(attack, s.fn);
-    return { fn: f.id, color: f.color, ...(f.stroke ? { stroke: f.stroke } : {}) };
+    const f = funcOf(attack, s.fn);
+    return { fn: f.id, fnText: fnTextOf(f), ...(f.id === "portero" ? { color: GK_COLOR } : {}) };
   };
-  const strip = (e) => { const { fn: _f, color: _c, stroke: _s, pattern: _p, color2: _c2, ...rest } = e; return rest; };
+  // se quita la función de antes (y el verde de portero); los colores que haya elegido el usuario se quedan
+  const strip = (e) => {
+    const { fn: _f, fnText: _t, ...rest } = e;
+    if (e.fn === "portero" || sameColor(e.color, GK_COLOR)) delete rest.color;
+    return rest;
+  };
   const hasRivals = b.frames[0].els.some((e) => e.k === "token" && e.team === "b");
   const rivals = hasRivals ? [] : (attack ? RIVAL_ATT : RIVAL_DEF).map(([x, y], i) => ({ id: newId(), k: "token", team: "b", x: mx(x), y, inner: attack && i === 0 ? "P" : "" }));
   const ball = b.frames[0].els.some((e) => e.k === "ball") ? [] : [{ id: newId(), k: "ball", x: mx(67.7), y: 0.5, pattern: "classic" }];

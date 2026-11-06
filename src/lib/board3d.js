@@ -15,7 +15,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   ballR, boardView, chipOf, labelBgOf, fieldKind, contrastColor, faceOf, fieldOf, fromView, groundRegion, hasAds, hasStands, isCutField, isGroundEl, isPersp,
-  isStadium, lookOf, materialOf, PERSP, orientAngle, orientOf, tokenR, chipTextScale, chipTextLook, ballStyle,
+  isStadium, lookOf, materialOf, PERSP, orientAngle, orientOf, tokenR, chipTextScale, chipTextLook, chipLines, ballStyle,
 } from "@/lib/board";
 import { AD_LOGOS } from "@/lib/adLogos";
 import { ChipTopSvg, GroundMarksSvg, GroundSvg, STAND, chipPaint, darken, standHeight, stadiumParts, styleOf } from "@/components/board/BoardSvg";
@@ -636,20 +636,27 @@ function buildToken(board, el, look, chip, scr, pending) {
   }
   const s = styleOf(look);
   const fs = Math.max(1.8, r * 1.25) * 1.05;
-  const lab = (text, below, k = 1) => {
+  // textos de la ficha apilados (nombre, función de balón parado y texto de encima): `before` = alto de los que ya van más cerca
+  const lab = (line, below, before) => {
     const bg = labelBgOf(board, el);
     const lk = chipTextLook(el, "label");
+    const own = line.which === "fn" && !bn && el.fnColor ? el.fnColor : null;
+    const col = own || (!bn && lk.color ? lk.color : null);
     const look2 = { font: lk.font, bold: lk.bold };
-    const opts = bg ? { bg, bgAlpha: el.labelBgOpacity ?? 1, fill: bn ? "#111111" : lk.color || contrastColor(bg), stroke: null, ...look2 }
-      : { fill: !bn && lk.color ? lk.color : s.label.fill, stroke: lk.halo === "none" ? null : !bn && lk.halo ? lk.halo : s.label.stroke, ...look2 };
-    const sp = labelSprite(`lab:${text}:${JSON.stringify(opts)}`, text, opts, fs * 1.35 * k);
+    const opts = bg ? { bg, bgAlpha: el.labelBgOpacity ?? 1, fill: bn ? "#111111" : col || contrastColor(bg), stroke: null, ...look2 }
+      : { fill: col || s.label.fill, stroke: lk.halo === "none" ? null : !bn && lk.halo ? lk.halo : s.label.stroke, ...look2 };
+    const sp = labelSprite(`lab:${line.text}:${JSON.stringify(opts)}`, line.text, opts, fs * 1.35 * chipTextScale(el, line.which));
     sp.position.set(0, hgt, 0);
-    const gap = (r * 1.15) / sp.scale.y;
-    sp.center.set(0.5, below ? 1 + gap * 0.62 : -gap * 0.55);
+    const h = sp.scale.y;
+    sp.center.set(0.5, below ? 1 + (r * 1.15 * 0.62 + before) / h : -(r * 1.15 * 0.55 + before) / h);
     group.add(sp);
+    return h * 0.92;
   };
-  if (el.label) lab(String(el.label), true, chipTextScale(el, "label"));
-  if (el.labelTop) lab(String(el.labelTop), false, chipTextScale(el, "top"));
+  const lines = chipLines(el);
+  let acc = 0;
+  for (const l of lines.bottom) acc += lab(l, true, acc);
+  acc = 0;
+  for (const l of lines.top) acc += lab(l, false, acc);
   group.position.set(el.x, 0, el.y);
   return group;
 }

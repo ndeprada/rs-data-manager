@@ -12,12 +12,12 @@ import BoardEditor from "@/components/board/BoardEditor";
 import Board from "@/components/board/BoardSvg";
 import { boardSvgMarkup } from "@/components/board/exportPng";
 import { boardFramePng } from "@/components/board/BoardDownloads";
-import { is3D, isStadium, normalizeBoard, teamsOf } from "@/lib/board";
-import { TopChoice, lab as cardLab, inputCls as cardInput, pillCls as cardPill } from "@/components/board/BoardChipCard";
-import { topModeOf, topPatch } from "@/lib/boardVariant";
+import { chipStyle, contrastColor, fnPosOf, is3D, isStadium, normalizeBoard, teamsOf } from "@/lib/board";
+import { lab as cardLab, inputCls as cardInput, pillCls as cardPill } from "@/components/board/BoardChipCard";
+import { ColorPick } from "@/components/board/BoardControls";
 import {
   assignPlayer, copyPiece, fillWithSquad, flipBoard, ownChips, pieceBoard, previousMatchPieces, legacyToBoard,
-  SP_KINDS, typeOf, pieceSetup, printBoard, playerPatch, funcsFor, funcOf, fnPatch, setFunction, functionCounts, autoTitle, structuresFor, applyStructure, GK_COLOR,
+  SP_KINDS, typeOf, pieceSetup, printBoard, playerPatch, funcsFor, funcOf, fnPatch, setFunction, functionCounts, autoTitle, structuresFor, applyStructure, GK_FN,
 } from "@/lib/setPieceBoard";
 // Jugadas a balón parado con la pizarra común (la misma de tareas y tácticas). Rediseño del 05/11/2026 (maqueta aprobada por
 // Nacho, con el aspecto de RS Manager): banda con las jugadas del partido; a la izquierda la jugada (tipo, a favor / en contra,
@@ -108,19 +108,24 @@ const pill = (on) => ({ height: 30, padding: "0 12px", borderRadius: 999, fontSi
 const btnOut = { height: 34, padding: "0 14px", borderRadius: 8, fontSize: 13, background: "#fff", color: RS.ink2, border: `1px solid ${RS.input}` };
 const inputCls = "w-full outline-none focus:ring-1 focus:ring-[#73000A]";
 const inputStyle = { height: 36, borderRadius: 8, border: `1px solid ${RS.input}`, padding: "0 12px", fontSize: 13.5, background: "#fff", color: RS.ink };
-const dot = (f) => ({ width: 14, height: 14, borderRadius: 999, flex: "0 0 auto", background: f ? f.color : "transparent", border: `2px solid ${f ? f.stroke || f.color : "#9A8C8E"}` });
 
-// Pestaña «Jugador» de la tarjeta de una ficha del Racing (05/11/2026): jugador de los convocados, función y qué va encima
-function AbpChipPlayer({ el, patch, candidates, byId, attack }) {
+// Pestaña «Jugador» de la tarjeta de una ficha del Racing (05/11/2026; función rehecha el 06/11/2026, Nacho: «no quiero que esto
+// implique un cambio de color de la ficha… poder seleccionar si la función aparece encima de la ficha, debajo de la ficha, o el
+// nombre debajo y la función todavía debajo… y el color del texto de la función»): jugador de los convocados, función, dónde se
+// escribe y su color. `toTeam(keys)` copia esos campos a las demás fichas del Racing.
+const FN_POS_OPTS = [
+  { id: "top", label: msg("Encima") },
+  { id: "below", label: msg("Debajo") },
+  { id: "under", label: msg("Bajo el nombre") },
+  { id: "none", label: msg("No mostrar") },
+];
+function AbpChipPlayer({ el, patch, candidates, byId, attack, toTeam }) {
   const t = useT();
-  const funcs = [...(attack ? [] : [{ id: "portero", color: GK_COLOR }]), ...funcsFor(attack)];
+  const [done, setDone] = useState(null);
+  const funcs = [...(attack ? [] : [GK_FN]), ...funcsFor(attack)];
   const pl = el.player_id ? byId.get(el.player_id) : null;
   const fnName = (id) => (id && FN_LABEL[id] ? t(FN_LABEL[id]) : "");
-  const setFn = (f) => {
-    const p = fnPatch(f);
-    if (topModeOf(el, "none") === "fn") Object.assign(p, topPatch("fn", el, { fn: f ? fnName(f.id) : "" }));
-    patch(p, "fn");
-  };
+  const pos = fnPosOf(el);
   return (
     <>
       <label className="block space-y-1"><span className={cardLab}>{t("Jugador")}</span>
@@ -137,15 +142,38 @@ function AbpChipPlayer({ el, patch, candidates, byId, attack }) {
           {funcs.map((f) => {
             const on = el.fn === f.id;
             return (
-              <button key={f.id} type="button" aria-pressed={on} onClick={() => setFn(on ? null : f)} className={`${cardPill(on)} inline-flex items-center gap-1.5`} data-testid={`card-fn-${f.id}`}>
-                <span aria-hidden style={dot(f)} />{fnName(f.id)}
+              <button key={f.id} type="button" aria-pressed={on} onClick={() => { setDone(null); patch(fnPatch(on ? null : f, el), "fn"); }} className={cardPill(on)} data-testid={`card-fn-${f.id}`}>
+                {fnName(f.id)}
               </button>
             );
           })}
         </div>
       </div>
-      <TopChoice el={el} patch={patch} names={{ fn: fnName(el.fn) }} options={[{ id: "fn", label: t("Función") }, { id: "text", label: t("Otro texto") }, { id: "none", label: t("Nada") }]} />
-      <p className="text-[11.5px] text-gray-500">{t("El dorsal y el nombre salen de su ficha.")}</p>
+      {el.fnText && (
+        <div className="space-y-1.5" data-testid="card-fn-style">
+          <span className={cardLab}>{t("Dónde se escribe la función")}</span>
+          <div className="grid grid-cols-4 gap-1" role="group" aria-label={t("Dónde se escribe la función")}>
+            {FN_POS_OPTS.map((o) => (
+              <button key={o.id} type="button" aria-pressed={pos === o.id} onClick={() => { setDone(null); patch({ fnPos: o.id === "under" ? undefined : o.id }, "fnPos"); }}
+                className={`${cardPill(pos === o.id)} px-1 text-[11.5px] leading-tight`} data-testid={`card-fnpos-${o.id}`}>{t(o.label)}</button>
+            ))}
+          </div>
+          {pos !== "none" && (
+            <div className="flex items-center gap-2 text-[12px] text-gray-600">
+              <span>{t("Color de la función")}</span>
+              <ColorPick value={el.fnColor || ""} onChange={(c) => { setDone(null); patch({ fnColor: c || undefined }, "fnColor"); }} label={t("Color de la función")} auto={t("Como el nombre")} autoSwatch="#111827" />
+            </div>
+          )}
+          {toTeam && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => setDone(toTeam(["fnPos", "fnColor", "fnFs"]))} data-testid="card-fn-team"
+                className="h-7 px-2.5 rounded-md border border-[#73000A] bg-[#FBEFEF] text-[11.5px] font-semibold text-[#73000A] hover:bg-[#F6E2E2]">{t("Igual en todas las fichas del Racing")}</button>
+              {done != null && <span className="text-[11px] text-gray-600" role="status" data-testid="card-fn-team-done">{done ? t("Hecho: {n} fichas", { n: done }) : t("Ya estaban todas así")}</span>}
+            </div>
+          )}
+        </div>
+      )}
+      <p className="text-[11.5px] text-gray-500">{t("El dorsal y el nombre salen de su ficha. La función no cambia el color de la ficha (solo el portero va en verde).")}</p>
     </>
   );
 }
@@ -183,7 +211,7 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
   };
   const tags = setup.attack ? ATT_TAGS : DEF_TAGS;
   const fnObj = fnTool === undefined ? null : fnTool === null ? null : funcOf(setup.attack, fnTool);
-  const paint = fnTool === undefined ? null : { teams: ["a"], patch: () => fnPatch(fnObj) };
+  const paint = fnTool === undefined ? null : { teams: ["a"], patch: (target) => fnPatch(fnObj, target) };
   const stamp = tag ? { make: (p, newId) => ({ id: newId(), k: "text", x: p.x, y: p.y, text: t(tag), size: 1.8, bold: true, bg: RS.naranja, color: RS.ink }) } : null;
   const order = (c) => (c.fn === "portero" ? -1 : funcs.findIndex((f) => f.id === c.fn) === -1 ? 99 : funcs.findIndex((f) => f.id === c.fn));
   const sortedChips = [...chips].sort((a, b) => order(a) - order(b));
@@ -274,7 +302,6 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
               return (
                 <button key={c.id || "none"} type="button" aria-pressed={on} onClick={() => { setTag(null); setFnTool(on ? undefined : c.id); }} data-testid={`sp-fn-${c.id || "none"}`}
                   className="flex items-center text-left" style={{ gap: 8, minHeight: 34, padding: "0 10px", borderRadius: 8, fontSize: 13, background: "#fff", color: RS.ink, border: `1px solid ${on ? RS.granate : RS.line}`, boxShadow: on ? `inset 0 0 0 1px ${RS.granate}` : "none", fontWeight: on ? 600 : 400 }}>
-                  <span aria-hidden style={dot(c.id ? c : null)} />
                   <span style={{ flex: "1 1 auto" }}>{c.id ? t(FN_LABEL[c.id]) : t("Sin función")}</span>
                   <span style={{ fontSize: 12, color: RS.muted }} className="tabular-nums">{c.n || ""}</span>
                 </button>
@@ -282,7 +309,7 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
             })}
           </div>
           <p style={{ margin: 0, fontSize: 12, color: fnTool !== undefined ? RS.granate : RS.muted, fontWeight: fnTool !== undefined ? 600 : 400 }} role="status">
-            {fnTool === undefined ? t("Elige una función y toca los jugadores en el campo: cambian de color y el título se escribe solo.")
+            {fnTool === undefined ? t("Elige una función y toca los jugadores en el campo: la función se escribe junto a la ficha y el título se escribe solo.")
               : t("Toca las fichas del Racing para darles «{fn}». Vuelve a tocar el botón para terminar.", { fn: fnTool ? t(FN_LABEL[fnTool]) : t("Sin función") })}
           </p>
         </Card>
@@ -304,7 +331,7 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
           embedded embedHeight={660} paint={paint} stamp={stamp} onStampDone={() => setTag(null)} overlayTitle={overlay}
           variant="abp"
           stamps={{ list: tags.map((g) => ({ id: g, label: t(g) })), active: tag, pick: (g) => { setFnTool(undefined); setTag(g); } }}
-          chipPlayer={(el, patch) => (el.team === "a" ? <AbpChipPlayer el={el} patch={patch} candidates={candidates} byId={byId} attack={setup.attack} /> : null)}
+          chipPlayer={(el, patch, toTeam) => (el.team === "a" ? <AbpChipPlayer el={el} patch={patch} candidates={candidates} byId={byId} attack={setup.attack} toTeam={toTeam} /> : null)}
           chipDescribe={(el) => (el.team === "a" && el.fn && FN_LABEL[el.fn] ? `${teamsOf(board).find((x) => x.id === "a")?.name || "Racing"} · ${t(FN_LABEL[el.fn])}` : null)} />
       </div>
 
@@ -324,13 +351,12 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
             <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
               {sortedChips.map((c) => {
                 const pl = c.player_id ? byId.get(c.player_id) : null;
-                const f = c.fn === "portero" ? { color: GK_COLOR } : funcOf(setup.attack, c.fn);
-                const bg = c.missing ? "#fef3c7" : f ? f.color : RS.granate;
-                const light = bg.toUpperCase() === "#FFFFFF" || bg.toUpperCase() === "#EAB308" || bg.toUpperCase() === "#FF6E00";
+                const cs = chipStyle(board, c);
+                const bg = c.missing ? "#fef3c7" : cs.color || RS.granate;
                 return (
                   <li key={c.id} className="flex items-center" style={{ gap: 6, minHeight: 36, padding: "2px 10px 2px 14px", borderTop: `1px solid ${RS.soft}` }}>
                     <span className="flex items-center justify-center shrink-0" title={c.missing ? t("El jugador de esta ficha no está disponible: elige otro") : undefined}
-                      style={{ width: 24, height: 24, borderRadius: 999, fontSize: 11, fontWeight: 700, background: bg, color: c.missing ? "#92400e" : bg.toUpperCase() === "#FFFFFF" ? RS.granate : light ? RS.ink : "#fff", border: `1.5px solid ${c.missing ? "#f59e0b" : f?.stroke || bg}` }}>{c.inner || "·"}</span>
+                      style={{ width: 24, height: 24, borderRadius: 999, fontSize: 11, fontWeight: 700, background: bg, color: c.missing ? "#92400e" : contrastColor(bg), border: `1.5px solid ${c.missing ? "#f59e0b" : cs.stroke || bg}` }}>{c.inner || "·"}</span>
                     <Select value={c.player_id || "__none__"} onValueChange={(v) => setBoard(assignPlayer(board, c.id, v === "__none__" ? null : byId.get(v) || null))}>
                       <SelectTrigger className="h-8 text-[13px] border-0 shadow-none bg-transparent px-1 flex-1 min-w-0"><SelectValue placeholder={t("Sin asignar")} /></SelectTrigger>
                       <SelectContent className="max-h-72">
@@ -340,7 +366,7 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
                       </SelectContent>
                     </Select>
                     <select value={c.fn === "portero" ? "portero" : funcOf(setup.attack, c.fn) ? c.fn : ""} aria-label={t("Función")}
-                      onChange={(e) => { const v = e.target.value; setBoard(v === "portero" ? setFunction(board, c.id, { id: "portero", color: GK_COLOR }) : setFunction(board, c.id, funcOf(setup.attack, v))); }}
+                      onChange={(e) => { const v = e.target.value; setBoard(setFunction(board, c.id, funcOf(setup.attack, v))); }}
                       className="shrink-0 outline-none" style={{ height: 26, borderRadius: 999, fontSize: 12, fontWeight: 600, padding: "0 6px", maxWidth: 110, border: `1px solid ${RS.line}`, background: RS.bg, color: RS.ink2 }}>
                       <option value="">{t("Sin función")}</option>
                       {!setup.attack && <option value="portero">{t("Portero")}</option>}

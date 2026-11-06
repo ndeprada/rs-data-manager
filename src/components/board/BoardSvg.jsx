@@ -3,7 +3,7 @@ import { BIG_STAND, BS, cornerR, roundRect, rowSeats, seatHash, stairQuads, stan
 import React from "react";
 import {
   arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
-  ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, chipTextScale, chipTextLook, viewBox, wavyPoints, zoneBox, labelBgOf, coneEdgeWidth,
+  ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, chipTextScale, chipTextLook, chipLines, stackBaselines, viewBox, wavyPoints, zoneBox, labelBgOf, coneEdgeWidth,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -1212,22 +1212,32 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
         );
       }
       const lbg = labelBgOf(board, el);
-      const fsTop = fs * chipTextScale(el, "top"), fsBot = fs * chipTextScale(el, "label");
       const lk = chipTextLook(el, "label");
       const bnL = lookOf(look) === "bn";
       const lHalo = lbg || lk.halo === "none" ? "none" : !bnL && lk.halo ? lk.halo : s.label.stroke;
-      const tag = (text, y, key, fs) => (
-        <React.Fragment key={key}>
-          <TextBg x={c.x} y={y} text={text} fs={fs} bold={lk.bold} bg={lbg} alpha={el.labelBgOpacity} look={look} />
-          <text x={c.x} y={y} textAnchor="middle" fontSize={fs} fontWeight={lk.bold ? 700 : 400} fill={lbg ? inkOnBg(lbg, bnL ? null : lk.color, look) : !bnL && lk.color ? lk.color : s.label.fill} stroke={lHalo} strokeWidth={lHalo === "none" ? 0 : lk.halo ? Math.max(0.55, fs * 0.2) : 0.55} paintOrder="stroke" style={{ fontFamily: lk.font }}>{text}</text>
-        </React.Fragment>
-      );
+      const tag = (line, y, key, fs) => {
+        const own = line.which === "fn" && !bnL && el.fnColor ? el.fnColor : null;
+        const col = own || (!bnL && lk.color ? lk.color : null);
+        return (
+          <React.Fragment key={key}>
+            <TextBg x={c.x} y={y} text={line.text} fs={fs} bold={lk.bold} bg={lbg} alpha={el.labelBgOpacity} look={look} />
+            <text x={c.x} y={y} textAnchor="middle" fontSize={fs} fontWeight={lk.bold ? 700 : 400} fill={lbg ? inkOnBg(lbg, col, look) : col || s.label.fill} stroke={lHalo} strokeWidth={lHalo === "none" ? 0 : lk.halo ? Math.max(0.55, fs * 0.2) : 0.55} paintOrder="stroke" style={{ fontFamily: lk.font }}>{line.text}</text>
+          </React.Fragment>
+        );
+      };
+      // textos de arriba (de la ficha hacia arriba) y de abajo (de la ficha hacia abajo): nombre, función y texto de encima
+      const lines = chipLines(el);
+      const stack = (list, anchor, dir, key) => {
+        const sizes = list.map((l) => fs * chipTextScale(el, l.which));
+        const ys = stackBaselines(sizes, anchor, dir);
+        return list.map((l, i) => tag(l, ys[i], `${key}${i}`, sizes[i]));
+      };
       if (part === "labels") {
         // de pie, en la escala de la ficha: el disco mide r·pq de alto y su canto 0,42·r
         return (
           <g opacity={op}>
-            {el.labelTop && !ghost ? tag(el.labelTop, c.y - (r + up) * pq - fsTop * 0.5, "top", fsTop) : null}
-            {el.label && !ghost ? tag(el.label, c.y + (r + down) * pq + r * 0.42 + fsBot * 0.9, "bottom", fsBot) : null}
+            {!ghost ? stack(lines.top, c.y - (r + up) * pq, -1, "t") : null}
+            {!ghost ? stack(lines.bottom, c.y + (r + down) * pq + r * 0.42, 1, "b") : null}
           </g>
         );
       }
@@ -1235,8 +1245,8 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
         <g opacity={op}>
           {ring(r * (el.feet ? 1.5 : 1) + 1.3)}
           <Chip el={el} ctx={ctx} c={c} r={r} ghost={ghost} />
-          {el.labelTop && !ghost ? tag(el.labelTop, c.y - r - up - fsTop * 0.5, "top", fsTop) : null}
-          {el.label && !ghost ? tag(el.label, c.y + r + down + fsBot * 0.9, "bottom", fsBot) : null}
+          {!ghost ? stack(lines.top, c.y - r - up, -1, "t") : null}
+          {!ghost ? stack(lines.bottom, c.y + r + down, 1, "b") : null}
         </g>
       );
     }

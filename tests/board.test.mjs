@@ -1424,3 +1424,19 @@ test("tarjeta: aplicar la letra de una ficha a todo su equipo", async () => {
   assert.equal(out.frames[0].els.find((e) => e.id === "b1").labelFs, undefined);
   assert.equal(applyToTeam(out, src).count, 0);
 });
+
+test("textos de la ficha: función encima, justo debajo o bajo el nombre", async () => {
+  const { chipLines, stackBaselines, chipTextScale } = await import("../src/lib/board.js");
+  const el = { label: "LEO", labelTop: "OJO", fnText: "ZONA" };
+  assert.deepEqual(chipLines(el).bottom.map((l) => l.which), ["label", "fn"]);
+  assert.deepEqual(chipLines({ ...el, fnPos: "below" }).bottom.map((l) => l.which), ["fn", "label"]);
+  assert.deepEqual(chipLines({ ...el, fnPos: "top" }).top.map((l) => l.which), ["fn", "top"]);
+  assert.equal(chipLines({ ...el, fnPos: "none" }).bottom.length, 1);
+  assert.equal(chipLines({ label: "A", fnPos: "top" }).top.length, 0);
+  assert.equal(chipTextScale({}, "fn"), 0.9);
+  assert.equal(chipTextScale({ labelFs: 6 }, "fn"), 0.54);
+  const down = stackBaselines([2, 2], 10, 1);
+  assert.ok(down[1] - 2 * 0.86 >= down[0] + 2 * 0.32); // los recuadros no se pisan
+  const up = stackBaselines([2, 2], 10, -1);
+  assert.ok(up[0] < 10 && up[1] + 2 * 0.32 <= up[0] - 2 * 0.86);
+});

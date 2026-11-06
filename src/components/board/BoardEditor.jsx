@@ -1781,7 +1781,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           look={look}
           roster={roster}
           variant={variant}
-          playerSlot={chipPlayer}
+          playerSlot={chipPlayer ? (el, p) => chipPlayer(el, p, (keys) => { const { board: next, count } = applyToTeam(live.current, el, keys); if (count) commit(next); return count; }) : null}
           describe={chipDescribe}
           patch={patchSel}
           onClose={() => setQuick(null)}

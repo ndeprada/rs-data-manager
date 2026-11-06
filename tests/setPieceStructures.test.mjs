@@ -17,13 +17,14 @@ test("tipo de jugada: se deduce de lo antiguo y se guarda el `type` de siempre",
   assert.equal(structuresFor("banda", false).length, 0);
 });
 
-test("estructura 5-3-2: portero + 10, colores y título que se escribe solo", () => {
+test("estructura 5-3-2: portero + 10, función escrita y título que se escribe solo", () => {
   const s = SP_STRUCTURES.find((x) => x.id === "d-532");
   const b = applyStructure(emptyPieceBoard(), s, { side: "r", newId });
   const own = ownChips(b);
   assert.equal(own.length, 11);
   assert.equal(own.filter((c) => c.fn === "zona").length, 5);
-  assert.equal(own.find((c) => c.fn === "hombre").color, "#FFFFFF");
+  assert.equal(own.find((c) => c.fn === "hombre").color, undefined); // la función ya no cambia el color (06/11/2026)
+  assert.equal(own.find((c) => c.fn === "hombre").fnText, "HOMBRE");
   // añade rivales y balón si no había
   assert.equal(b.frames[0].els.filter((e) => e.k === "token" && e.team === "b").length, 8);
   assert.equal(b.frames[0].els.filter((e) => e.k === "ball").length, 1);
@@ -87,4 +88,31 @@ test("tarjeta de la ficha: poner o quitar jugador", async () => {
   const p = playerPatch({ id: "p1", first_name: "Leo", last_name: "Soler Puig", jersey_number: 10 });
   assert.equal(p.player_id, "p1"); assert.equal(p.inner, "10"); assert.ok(p.label.startsWith("Leo")); assert.equal(p.missing, undefined);
   assert.deepEqual(playerPatch(null), { player_id: undefined, label: undefined, inner: "", missing: undefined });
+});
+
+test("la función no cambia el color de la ficha y se escribe junto a ella (06/11/2026)", async () => {
+  const { upgradeFunctions, fnPatch, GK_FN, GK_COLOR } = await import("../src/lib/setPieceBoard.js");
+  const b0 = applyStructure(emptyPieceBoard(), SP_STRUCTURES.find((x) => x.id === "d-622"), { newId });
+  const chips = ownChips(b0);
+  const zona = chips.find((c) => c.fn === "zona");
+  assert.equal(zona.color, undefined);
+  assert.equal(zona.fnText, "ZONA");
+  const gk = chips.find((c) => c.fn === "portero");
+  assert.equal(gk.color, GK_COLOR);
+  // el portero que pasa a otra función pierde el verde
+  const b1 = setFunction(b0, gk.id, DEF_FUNCS[1]);
+  const c1 = ownChips(b1).find((c) => c.id === gk.id);
+  assert.equal(c1.color, undefined);
+  assert.equal(c1.fnText, "HOMBRE");
+  // un color elegido por el usuario no se toca
+  assert.deepEqual(fnPatch(DEF_FUNCS[0], { color: "#123456" }), { fn: "zona", fnText: "ZONA" });
+  assert.equal(fnPatch(GK_FN).color, GK_COLOR);
+  // las fichas de ayer: color de su función fuera, función encima a su línea propia
+  const old = { v: 2, frames: [{ id: "f", els: [{ id: "x", k: "token", team: "a", x: 1, y: 1, fn: "hombre", color: "#FFFFFF", stroke: "#73000A", topMode: "fn", labelTop: "HOMBRE" }, { id: "y", k: "token", team: "a", x: 2, y: 2, fn: "zona", color: "#00ff00" }] }] };
+  const up = upgradeFunctions(old);
+  const [x, y] = up.frames[0].els;
+  assert.equal(x.color, undefined); assert.equal(x.stroke, undefined);
+  assert.equal(x.labelTop, undefined); assert.equal(x.fnPos, "top"); assert.equal(x.fnText, "HOMBRE");
+  assert.equal(y.color, "#00ff00");
+  assert.equal(upgradeFunctions(up), up);
 });

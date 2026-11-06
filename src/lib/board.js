@@ -253,11 +253,48 @@ export const chipOf = (board) => Math.min(CHIP_RANGE[1], Math.max(CHIP_RANGE[0],
 export const tokenR = (base, el) => base * (Number(el?.size) || 1);
 // Tamaño de los textos de una ficha (05/11/2026, Nacho: «tamaño 5, 6, 8, 10, 12, 14… pero también quiero poder editarlo»):
 // `innerFs` (dentro: dorsal), `topFs` (arriba) y `labelFs` (abajo, el nombre). 10 = el tamaño de siempre; 5 = la mitad, 14 = un 40 % más.
-export const CHIP_TEXT_KEYS = { inner: "innerFs", top: "topFs", label: "labelFs" };
+export const CHIP_TEXT_KEYS = { inner: "innerFs", top: "topFs", label: "labelFs", fn: "fnFs" };
 export const CHIP_TEXT_SIZES = [5, 6, 8, 10, 12, 14];
 export const CHIP_TEXT_RANGE = [3, 30];
 export const cleanTextSize = (v) => { const n = Number(v); if (!Number.isFinite(n) || n <= 0) return null; return Math.round(Math.min(CHIP_TEXT_RANGE[1], Math.max(CHIP_TEXT_RANGE[0], n)) * 10) / 10; };
-export const chipTextScale = (el, which) => (cleanTextSize(el?.[CHIP_TEXT_KEYS[which]]) ?? 10) / 10;
+// la función (balón parado), si no se elige otro tamaño, sale al 90 % del nombre
+export function chipTextScale(el, which) {
+  const own = cleanTextSize(el?.[CHIP_TEXT_KEYS[which]]);
+  if (own != null) return own / 10;
+  return which === "fn" ? chipTextScale(el, "label") * 0.9 : 1;
+}
+
+// Función de la ficha en balón parado (06/11/2026, Nacho: «no quiero que implique un cambio de color de la ficha… poder
+// seleccionar si la función aparece encima de la ficha, debajo de la ficha, o el nombre debajo y la función todavía debajo… y el
+// color del texto de la función»). `fnText` = el texto (p. ej. «ZONA»), `fnPos` = "top" (encima) | "below" (justo debajo de la
+// ficha, el nombre debajo de ella) | "under" (debajo del nombre, por defecto) | "none" (no se ve), `fnColor` = color de la letra
+// (sin dato = el del nombre). La letra (tipografía, negrita, borde) es la de los textos de la ficha.
+export const FN_POSITIONS = ["top", "below", "under", "none"];
+export const fnPosOf = (el) => (FN_POSITIONS.includes(el?.fnPos) ? el.fnPos : "under");
+/** Textos alrededor de una ficha: `top` de la ficha hacia arriba y `bottom` de la ficha hacia abajo ({ text, which }). */
+export function chipLines(el) {
+  const top = [], bottom = [];
+  const pos = el?.fnText ? fnPosOf(el) : "none";
+  const fn = { text: String(el?.fnText || ""), which: "fn" };
+  if (pos === "top") top.push(fn);
+  if (el?.labelTop) top.push({ text: String(el.labelTop), which: "top" });
+  if (pos === "below") bottom.push(fn);
+  if (el?.label) bottom.push({ text: String(el.label), which: "label" });
+  if (pos === "under") bottom.push(fn);
+  return { top, bottom };
+}
+/** Líneas base de textos apilados: la primera pegada al ancla (`dir` -1 = hacia arriba, 1 = hacia abajo), sin que se pisen
+ *  los recuadros de fondo (que van de 0,86·fs por encima de la línea base a 0,32·fs por debajo). */
+export function stackBaselines(sizes, anchor, dir) {
+  const out = [];
+  let y = 0;
+  sizes.forEach((fs, i) => {
+    if (i === 0) y = dir < 0 ? anchor - fs * 0.5 : anchor + fs * 0.9;
+    else { const prev = sizes[i - 1]; y = dir < 0 ? y - prev * 0.86 - fs * 0.32 - fs * 0.06 : y + prev * 0.32 + fs * 0.86 + fs * 0.06; }
+    out.push(y);
+  });
+  return out;
+}
 
 // Mismo tamaño para todas las fichas: fija el tamaño base y quita los tamaños sueltos de cada ficha (en todos los fotogramas).
 export function setAllChips(board, radius) {
@@ -1655,7 +1692,7 @@ export function resizeElements(board, index, ids, factor) {
 // dibujada: extremos, curva, quiebros, giro…).
 export const SAME_KEYS = {
   arrow: ["style", "dash", "wavy", "pointer", "width", "border", "borderColor", "color", "alpha"],
-  token: ["size", "stroke", "edge", "innerFs", "topFs", "labelFs", "innerFont", "innerBold", "innerColor", "innerHalo", "labelFont", "labelBold", "labelColor", "labelHalo"],
+  token: ["size", "stroke", "edge", "innerFs", "topFs", "labelFs", "fnFs", "fnPos", "fnColor", "innerFont", "innerBold", "innerColor", "innerHalo", "labelFont", "labelBold", "labelColor", "labelHalo"],
   ball: ["size", "pattern", "color", "color2", "stroke"],
   cone: ["size", "shape", "color", "stroke", "edge"],
   goal: ["w", "color"],

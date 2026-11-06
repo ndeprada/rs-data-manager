@@ -261,6 +261,7 @@ export default function ChipCard({
             <LetterLine title="Dorsal" sizeKey="innerFs" prefix="inner" el={el} patch={patch} bn={bn} sizeTestid="fs-inner" fontTestid="chip-font-inner" />
             <LetterLine title="Nombre (y texto de encima)" sizeKey="labelFs" prefix="label" el={el} patch={patch} bn={bn} sizeTestid="fs-label" fontTestid="chip-font-label" />
             <LetterLine title="Texto de encima" sizeKey="topFs" el={el} patch={patch} bn={bn} sizeTestid="fs-top" note="Misma letra que el nombre" />
+            {el.fnText && <LetterLine title="Función" sizeKey="fnFs" el={el} patch={patch} bn={bn} sizeTestid="fs-fn" note="Misma letra que el nombre; el color, en Jugador" />}
             {onLetterToTeam && (
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={() => setApplied(onLetterToTeam())} data-testid="card-letter-team"
@@ -268,7 +269,7 @@ export default function ChipCard({
                 {applied != null && <span className="text-[11.5px] text-gray-600" role="status" data-testid="card-letter-done">{applied ? `Hecho: ${applied} ${applied === 1 ? "ficha" : "fichas"} de ${team?.name || "su equipo"}` : "Ya tenían todas esta letra"}</span>}
               </div>
             )}
-            <p className="text-[11px] text-gray-500">Copia el tamaño, la tipografía, la negrita, el color y el borde de la letra (dorsal, nombre y texto de encima) a las demás fichas de {team?.name || "su equipo"}, en todos los fotogramas.</p>
+            <p className="text-[11px] text-gray-500">Copia el tamaño, la tipografía, la negrita, el color y el borde de la letra (dorsal, nombre, texto de encima y función) a las demás fichas de {team?.name || "su equipo"}, en todos los fotogramas.</p>
           </>
         )}
       </div>
