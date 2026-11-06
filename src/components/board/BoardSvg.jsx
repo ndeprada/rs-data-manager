@@ -2,7 +2,7 @@ import { AD_LOGOS } from "@/lib/adLogos";
 import { BIG_STAND, BS, cornerR, roundRect, rowSeats, seatHash, stairQuads, standRows } from "@/lib/stadiumGeo";
 import React from "react";
 import {
-  arrowCorners, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
+  arrowCorners, curveHandle, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
   ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, chipTextScale, chipTextLook, chipLines, stackBaselines, viewBox, wavyPoints, zoneBox, labelBgOf, coneEdgeWidth,
 } from "@/lib/board";
 
@@ -710,7 +710,9 @@ function Arrow({ el, ctx, selected, handles }) {
   const dash = dashArray(ap.dash, w);
   const cap = "round";
   const borderCol = look === "bn" ? "#111111" : el.borderColor || "#111827";
-  const ctrl = el.cx != null && !hasVia(el) ? toV({ x: el.cx, y: el.cy }) : null;
+  // tirador de la curva SOBRE la flecha (también en una recta, para curvarla); el «+» de los quiebros solo sin curva
+  const curved = el.cx != null && !hasVia(el);
+  const ctrl = !el.air && !hasVia(el) ? toV(curveHandle(el)) : null;
   const corners = arrowCorners(el).map(toV);
   const start = flight[0];
   const ground = el.air ? revealPts(arrowPoints(el, 24).map(toV), el.reveal) : null;
@@ -734,8 +736,6 @@ function Arrow({ el, ctx, selected, handles }) {
       )}
       {selected && handles && (
         <g>
-          {ctrl && <line x1={start.x} y1={start.y} x2={ctrl.x} y2={ctrl.y} stroke="#f59e0b" strokeWidth={u} strokeDasharray={`${3 * u} ${2 * u}`} />}
-          {ctrl && <line x1={end.x} y1={end.y} x2={ctrl.x} y2={ctrl.y} stroke="#f59e0b" strokeWidth={u} strokeDasharray={`${3 * u} ${2 * u}`} />}
           <HandleDot x={start.x} y={start.y} u={u} />
           <HandleDot x={end.x} y={end.y} u={u} />
           {ctrl && <HandleDot x={ctrl.x} y={ctrl.y} u={u} fill="#f59e0b" />}
@@ -745,10 +745,12 @@ function Arrow({ el, ctx, selected, handles }) {
           <circle data-h="p2" cx={end.x} cy={end.y} r={HIT * u} fill="transparent" />
           {ctrl && <circle data-h="c" cx={ctrl.x} cy={ctrl.y} r={HIT * u} fill="transparent" />}
           {/* flecha con quiebros: cada quiebro se arrastra (doble clic lo quita) y el «+» de cada tramo añade otro */}
-          {!el.air && !ctrl && corners.slice(0, -1).map((c, i) => {
+          {!el.air && !curved && hasVia(el) && corners.slice(0, -1).map((c, i) => {
             const m = { x: (c.x + corners[i + 1].x) / 2, y: (c.y + corners[i + 1].y) / 2 };
             return <PlusHandle key={`m${i}`} h={`m${i}`} x={m.x} y={m.y} u={u} />;
           })}
+          {/* recta: arrastrar el punto del medio la curva; el «+» (a tres cuartos) le pone un quiebro */}
+          {!el.air && !curved && !hasVia(el) && <PlusHandle h="m0" x={corners[0].x + (corners[1].x - corners[0].x) * 0.75} y={corners[0].y + (corners[1].y - corners[0].y) * 0.75} u={u} />}
           {corners.slice(1, -1).map((c, i) => (
             <g key={`v${i}`}>
               <HandleDot x={c.x} y={c.y} u={u} r={3.5} fill="#f59e0b" />
@@ -1230,7 +1232,7 @@ function Piece({ el, ctx, selected, ghost = false, part = null, pq = 1 }) {
         );
       };
       // textos de arriba (de la ficha hacia arriba) y de abajo (de la ficha hacia abajo): nombre, función y texto de encima
-      const lines = chipLines(el);
+      const lines = chipLines(el, board);
       const stack = (list, anchor, dir, key) => {
         const sizes = list.map((l) => fs * chipTextScale(el, l.which));
         const ys = stackBaselines(sizes, anchor, dir);

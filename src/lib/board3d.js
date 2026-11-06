@@ -652,7 +652,7 @@ function buildToken(board, el, look, chip, scr, pending) {
     group.add(sp);
     return h * 0.92;
   };
-  const lines = chipLines(el);
+  const lines = chipLines(el, board);
   let acc = 0;
   for (const l of lines.bottom) acc += lab(l, true, acc);
   acc = 0;

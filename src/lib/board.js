@@ -273,14 +273,22 @@ export function chipTextScale(el, which) {
 export const FN_POSITIONS = ["top", "below", "under", "none"];
 export const fnPosOf = (el) => (FN_POSITIONS.includes(el?.fnPos) ? el.fnPos : "under");
 /** Textos alrededor de una ficha: `top` de la ficha hacia arriba y `bottom` de la ficha hacia abajo ({ text, which }). */
-export function chipLines(el) {
+// Nombre y apellido en dos líneas (07/11/2026, Nacho: «que salgan el nombre debajo del botón y el apellido debajo del nombre…
+// así en vertical ocupa menos»): con `board.nameStack`, el nombre de la ficha se parte en la primera palabra y el resto.
+export const nameLines = (label, stack) => {
+  const t = String(label || "").trim();
+  if (!stack) return t ? [t] : [];
+  const i = t.indexOf(" ");
+  return i > 0 ? [t.slice(0, i), t.slice(i + 1).trim()] : t ? [t] : [];
+};
+export function chipLines(el, board = null) {
   const top = [], bottom = [];
   const pos = el?.fnText ? fnPosOf(el) : "none";
   const fn = { text: String(el?.fnText || ""), which: "fn" };
   if (pos === "top") top.push(fn);
   if (el?.labelTop) top.push({ text: String(el.labelTop), which: "top" });
   if (pos === "below") bottom.push(fn);
-  if (el?.label) bottom.push({ text: String(el.label), which: "label" });
+  if (el?.label) for (const t of nameLines(el.label, board?.nameStack === true)) bottom.push({ text: t, which: "label" });
   if (pos === "under") bottom.push(fn);
   return { top, bottom };
 }
@@ -290,7 +298,8 @@ export function stackBaselines(sizes, anchor, dir) {
   const out = [];
   let y = 0;
   sizes.forEach((fs, i) => {
-    if (i === 0) y = dir < 0 ? anchor - fs * 0.5 : anchor + fs * 0.9;
+    // hacia abajo con un poco de aire: el recuadro de fondo del nombre no pisa el borde de la ficha
+    if (i === 0) y = dir < 0 ? anchor - fs * 0.5 : anchor + fs * 1.04;
     else { const prev = sizes[i - 1]; y = dir < 0 ? y - prev * 0.86 - fs * 0.32 - fs * 0.06 : y + prev * 0.32 + fs * 0.86 + fs * 0.06; }
     out.push(y);
   });
@@ -437,6 +446,7 @@ export function normalizeBoard(value) {
       // largo con el que se DIBUJA el campo de fútbol 11 (solo para imprimir el balón parado, `squeezeForPrint`): sin dato, 105 m
       // el fotograma 1 es la HOJA (balón parado, 06/11/2026): la imagen que se imprime; la animación son los siguientes
       ...(value.sheet === true ? { sheet: true } : {}),
+      ...(typeof value.nameStack === "boolean" ? { nameStack: value.nameStack } : {}),
       ...(value.pitchLen >= 60 && value.pitchLen < 105 ? { pitchLen: value.pitchLen } : {}),
       ...(validOrbit(value.orbit) ? { orbit: validOrbit(value.orbit) } : {}),
       frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [], ...(validCam(f.cam) ? { cam: validCam(f.cam) } : {}), ...(validOrbit(f.orbit) ? { orbit: validOrbit(f.orbit) } : {}), ...(typeof f.note === "string" && f.note.trim() ? { note: f.note.slice(0, 200) } : {}) })),
@@ -1221,6 +1231,12 @@ export function removeVia(a, i) {
   return { via: via.length ? via : undefined };
 }
 // Tipo de trazado: recta, curva (un punto de control) o con quiebros
+// Curva de una flecha con un tirador SOBRE la propia curva (07/11/2026, Nacho: «modificarla de forma circular»): el punto de
+// la curva a mitad de camino (en una recta, su punto medio) y, al revés, el control de la curva que pasa por un punto dado.
+export const curveHandle = (a) => (a.cx != null && a.cy != null
+  ? { x: (a.x1 + 2 * a.cx + a.x2) / 4, y: (a.y1 + 2 * a.cy + a.y2) / 4 }
+  : { x: (a.x1 + a.x2) / 2, y: (a.y1 + a.y2) / 2 });
+export const curveFromHandle = (a, p) => ({ cx: Math.round((2 * p.x - (a.x1 + a.x2) / 2) * 10) / 10, cy: Math.round((2 * p.y - (a.y1 + a.y2) / 2) * 10) / 10 });
 export const arrowPath = (a) => (hasVia(a) ? "poly" : a.cx != null && a.cy != null ? "curve" : "straight");
 
 // Puntos de la línea de una flecha (recta, curva o con quiebros) para pintarla ondulada, discontinua, etc.
@@ -1316,7 +1332,8 @@ export function arrowProps(a) {
     alpha: a.alpha ?? 1,
   };
 }
-export const dashArray = (dash, w) => (dash === "dashed" ? `${(w * 3 + 1).toFixed(2)} ${(w * 2 + 0.5).toFixed(2)}` : dash === "dotted" ? `0.01 ${(w * 2.2 + 0.4).toFixed(2)}` : undefined);
+// discontinua con tramos y huecos más cortos (07/11/2026, Nacho: «cada tramo es demasiado largo… menos espacio entre tramo y tramo»)
+export const dashArray = (dash, w) => (dash === "dashed" ? `${(w * 1.8 + 0.5).toFixed(2)} ${(w * 1.5 + 0.4).toFixed(2)}` : dash === "dotted" ? `0.01 ${(w * 2.2 + 0.4).toFixed(2)}` : undefined);
 
 // ── Zonas y conectores ─────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -1989,11 +2006,15 @@ export function handleSpec(el, { orient = "v", chip = 1.5, ghost = null, scale =
   const P = (h, p, kind) => pts.push({ h, x: p.x, y: p.y, kind });
   if (el.k === "arrow") {
     const corners = arrowCorners(el);
-    const ctrl = el.cx != null && !hasVia(el) ? { x: el.cx, y: el.cy } : null;
+    const curved = el.cx != null && !hasVia(el);
     P("p1", corners[0], "end");
     P("p2", corners[corners.length - 1], "end");
-    if (ctrl) { P("c", ctrl, "ctrl"); lines.push([corners[0], ctrl], [corners[corners.length - 1], ctrl]); }
-    if (!el.air && !ctrl) corners.slice(0, -1).forEach((c, i) => P(`m${i}`, { x: (c.x + corners[i + 1].x) / 2, y: (c.y + corners[i + 1].y) / 2 }, "mid"));
+    // curva: un tirador sobre la propia flecha (también en una recta, para curvarla); quiebros: el «+» de cada tramo
+    if (!el.air && !hasVia(el)) P("c", curveHandle(el), "ctrl");
+    if (!el.air && !curved) {
+      if (hasVia(el)) corners.slice(0, -1).forEach((c, i) => P(`m${i}`, { x: (c.x + corners[i + 1].x) / 2, y: (c.y + corners[i + 1].y) / 2 }, "mid"));
+      else P("m0", { x: corners[0].x + (corners[1].x - corners[0].x) * 0.75, y: corners[0].y + (corners[1].y - corners[0].y) * 0.75 }, "mid");
+    }
     corners.slice(1, -1).forEach((c, i) => P(`v${i}`, c, "via"));
     if (el.air) P("l", arrowFlight(el, orient)[12], "lift");
   } else if (isQuad(el)) {

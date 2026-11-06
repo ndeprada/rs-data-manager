@@ -85,7 +85,11 @@ export function withSheet(board) {
 export const isAnimatedBoard = (board) => animFrameCount(withSheet(board)) > 1;
 
 // Pizarra de una jugada: la guardada o la antigua convertida, siempre con la hoja delante
-export const pieceBoard = (piece, players = []) => withSheet(piece?.board ? upgradeFunctions(normalizeBoard(piece.board)) : legacyToBoard(piece, players));
+// (en balón parado el nombre y el apellido van en dos líneas salvo que se elija una: 07/11/2026, Nacho)
+export const pieceBoard = (piece, players = []) => {
+  const b = withSheet(piece?.board ? upgradeFunctions(normalizeBoard(piece.board)) : legacyToBoard(piece, players));
+  return typeof b.nameStack === "boolean" ? b : { ...b, nameStack: true };
+};
 export const emptyPieceBoard = () => legacyToBoard({ id: "nueva", tokens: [], arrows: [] });
 
 // Voltear izquierda ↔ derecha (p. ej. un córner del otro lado): todo se refleja respecto al centro del campo, en todos los fotogramas

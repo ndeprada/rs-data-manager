@@ -6,7 +6,7 @@ import {
   AIR_MAX, BALL_PATTERNS, ballStyle, linkProps, zoneShapePatch, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
   boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
   is3D, handleSpec, PERSP, toggleFlag, movableIds, snapTo, isLocked, isHighlighted, resetToPrevious, resizeElements as resizeEls, styleElements, matchElements, VIEW_MODES, viewModeOf, setViewMode, orbitOf, orbitBetween, orbitPreset, ORBIT_PRESETS, setOrbit, clearFrameOrbit, clearOrbits, hasFrameOrbits, validOrbit, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
-  applyToTeam, hasSheet, animFrameCount,
+  applyToTeam, hasSheet, animFrameCount, curveFromHandle,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
 import Board3DView from "./Board3D";
@@ -843,7 +843,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           const other = d.h === "p1" ? (via[0] || { x: d.el.x2, y: d.el.y2 }) : (via[via.length - 1] || { x: d.el.x1, y: d.el.y1 });
           p = magnet(e, p, { skip: d.id, from: d.el.cx != null && !via.length ? null : other });
         }
-        patch = d.h === "p1" ? { x1: p.x, y1: p.y } : d.h === "p2" ? { x2: p.x, y2: p.y } : { cx: p.x, cy: p.y };
+        // la curva se arrastra desde un punto de la propia flecha: la flecha pasa por donde está el dedo
+        patch = d.h === "p1" ? { x1: p.x, y1: p.y } : d.h === "p2" ? { x2: p.x, y2: p.y } : d.el.k === "arrow" ? curveFromHandle(d.el, p) : { cx: p.x, cy: p.y };
       }
       onChange(patchElement(d.snapshot, idx, d.id, patch));
       d.moved = true;
@@ -1016,6 +1017,14 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const cycle = (list, now) => list[(list.indexOf(now) + 1) % list.length];
   const onKey = (e) => {
     if (e.defaultPrevented) return;
+    // Esc: a «Mover y elegir» y se cierra todo; si ya estaba todo cerrado, a pantalla completa sale (lo hace la ventana)
+    if (e.key === "Escape" && !playing) {
+      if (!somethingOpen()) return;
+      e.preventDefault(); e.stopPropagation();
+      if (e.target instanceof Element && e.target.closest("input, textarea, select")) e.target.blur?.();
+      resetAll();
+      return;
+    }
     if (e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable=true], [role=slider], [role=dialog] [role=dialog]")) return;
     // con la cámara elegida: 1–4 encuadres, P horizontal/vertical, R igual que el fotograma anterior, Supr quita la de este fotograma
     if (tool === "camera" && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -1044,7 +1053,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       case "duplicate": return sel.length > 1 ? dupMany() : dupSel();
       case "delete": return sel.length > 1 ? delMany(false) : delSel(false);
       case "deleteHere": return sel.length > 1 ? delMany(true) : delSel(true);
-      case "select": return pickTool("select");
+      case "select": return resetAll();
       case "ball": return pickTool("ball");
       case "camera": return pickTool("camera");
       case "link": return pickTool("link");
@@ -1099,6 +1108,14 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (id === "zone" || id === "quad") lastPick.current.zone = id;
     if (id === "goal" || MATERIAL_IDS.includes(id)) lastPick.current.material = id;
     setTool(id); if (id !== "select") { setSel([]); setMultiMode(false); } setPick([]); setDraft(null); stop();
+  };
+
+  // Volver a «Mover y elegir» y cerrar todo lo abierto (07/11/2026, Nacho: «cuando aprieto ESC o el botón de mover y elegir,
+  // que automáticamente se vaya al mover y elegir y se cierre todo lo demás»; también al volver a tocar el botón de la herramienta)
+  const somethingOpen = () => !!(quick || sel.length || tool !== "select" || side || teamEdit || layersOpen || moreOpen || pick.length || draft);
+  const resetAll = () => {
+    setQuick(null); setSel([]); setMultiMode(false); setSide(null); setTeamEdit(null); setLayersOpen(false); setMoreOpen(false);
+    setPick([]); setDraft(null); setQuietId(null); setTool("select");
   };
 
   // Conector entre las fichas elegidas: línea (de un extremo al otro), zona (contorno que las envuelve) o red (todas con todas)
@@ -1182,7 +1199,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const railTool = (t) => {
     const Icon = t.icon;
     return (
-      <RailBtn key={t.id} label={t.label} title={t.title || t.label} on={tool === t.id} onClick={() => pickTool(t.id)} narrow={narrow}>
+      <RailBtn key={t.id} label={t.label} title={t.title || t.label} on={tool === t.id} onClick={() => (t.id === "select" || tool === t.id ? resetAll() : pickTool(t.id))} narrow={narrow}>
         <Icon className="w-5 h-5" />
         {narrow && <RailLabel>{t.short || t.label}</RailLabel>}
       </RailBtn>
@@ -1193,14 +1210,14 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     const info = TOOL_INFO[curId] || {};
     const Icon = info.icon || g.icon;
     return (
-      <RailBtn key={g.id} label={g.label} title={`${g.label} (${g.key}) · ahora: ${info.label || ""}`} on={g.tools.includes(tool)} onClick={() => pickTool(curId)} narrow={narrow} testid={`rail-${g.id}`}>
+      <RailBtn key={g.id} label={g.label} title={`${g.label} (${g.key}) · ahora: ${info.label || ""}`} on={g.tools.includes(tool)} onClick={() => (g.tools.includes(tool) ? resetAll() : pickTool(curId))} narrow={narrow} testid={`rail-${g.id}`}>
         <Icon className="w-5 h-5" />
         {narrow && <RailLabel>{g.short}</RailLabel>}
       </RailBtn>
     );
   };
   const teamBtn = (t, i) => (
-    <RailBtn key={t.id} label={`Fichas: ${t.name}`} title={`${t.name} (${i + 1})`} on={tool === t.id} onClick={() => pickTool(t.id)} narrow={narrow} testid={`rail-team-${t.id}`}>
+    <RailBtn key={t.id} label={`Fichas: ${t.name}`} title={`${t.name} (${i + 1})`} on={tool === t.id} onClick={() => (tool === t.id ? resetAll() : pickTool(t.id))} narrow={narrow} testid={`rail-team-${t.id}`}>
       <ChipGlyph board={board} el={{ team: t.id }} look={look === "bn" ? "estadio" : look} size={narrow ? 26 : 22} />
       {narrow && <RailLabel>{t.name}</RailLabel>}
     </RailBtn>
@@ -1348,6 +1365,16 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           </div>
         </div>
       )}
+      <div className="space-y-1">
+        <span className="text-[11px] font-semibold text-gray-600">Nombre y apellido</span>
+        <div className="flex gap-1" role="group" aria-label="Nombre y apellido">
+          {[[false, "En una línea"], [true, "En dos líneas"]].map(([v, l]) => (
+            <button key={String(v)} type="button" aria-pressed={!!board.nameStack === v} data-testid={`name-stack-${v ? "on" : "off"}`}
+              onClick={() => commit({ ...live.current, nameStack: v })}
+              className={`h-8 px-2.5 rounded-md border text-xs font-semibold ${!!board.nameStack === v ? "bg-[var(--granate)] text-white border-[var(--granate)]" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>{l}</button>
+          ))}
+        </div>
+      </div>
       {modes && (
         <div className="space-y-1" data-testid="board-mode">
           <span className="text-[11px] font-semibold text-gray-600">Tipo de dibujo</span>
@@ -1964,7 +1991,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         <DialogPrimitive.Content
           aria-describedby={undefined}
           className="outline-none"
-          onEscapeKeyDown={(e) => { if (quick) { e.preventDefault(); setQuick(null); } else if (sel.length || tool !== "select") { e.preventDefault(); setSel([]); pickTool("select"); } }}
+          onEscapeKeyDown={(e) => { if (somethingOpen()) { e.preventDefault(); resetAll(); } }}
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
         >

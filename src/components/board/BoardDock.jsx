@@ -286,11 +286,13 @@ export default function BoardDock({ kind, el, look, selected, variants, active, 
             <Toggle label="Negrita" on={!!el.bold} onChange={(v) => patch({ bold: v || undefined }, "bold")} testid="dock-bold" />
           </>
         )}
-        <div className="grid grid-cols-3 gap-1 pt-1">
-          <button type="button" onClick={onDefault} title={saved ? "Guardado como predeterminado" : "Usar como predeterminado"} aria-label="Usar como predeterminado" data-testid="dock-default"
-            className="h-8 rounded-md flex items-center justify-center" style={{ background: saved ? D.on : D.btn, color: saved ? D.onInk : "#facc15", border: `1px solid ${saved ? D.on : D.line}` }}>
-            <Star className="w-4 h-4" fill={saved ? "currentColor" : "none"} />
-          </button>
+        {/* predeterminado con texto (07/11/2026, Nacho: «dejar un grosor, color… preestablecido»): lo nuevo de este tipo saldrá así */}
+        <button type="button" onClick={onDefault} title="Lo que dibujes de este tipo a partir de ahora saldrá así (grosor, color, trazo…)" data-testid="dock-default"
+          className="mt-1 w-full rounded-md flex items-center justify-center gap-1 px-1 text-[10.5px] font-semibold leading-tight text-center" style={{ minHeight: 34, background: saved ? D.on : D.btn, color: saved ? D.onInk : "#facc15", border: `1px solid ${saved ? D.on : D.line}` }}>
+          <Star className="w-3.5 h-3.5 shrink-0" fill={saved ? "currentColor" : "none"} />
+          <span style={{ color: saved ? D.onInk : D.text }}>{saved ? "Guardado" : "Dejar como predeterminado"}</span>
+        </button>
+        <div className="grid grid-cols-2 gap-1">
           <button type="button" onClick={onMore} title="Más opciones" aria-label="Más opciones" data-testid="dock-more"
             className="h-8 rounded-md flex items-center justify-center" style={{ background: D.btn, color: D.text, border: `1px solid ${D.line}` }}>
             <SlidersHorizontal className="w-4 h-4" />

@@ -1294,7 +1294,7 @@ test("vista en un solo selector y cámara libre del 3D", async () => {
 test("tiradores para la vista 3D (mismos que en 2D)", async () => {
   const L = await import("../src/lib/board.js");
   const hs = (el, o) => L.handleSpec(el, o).pts.map((p) => p.h);
-  assert.deepEqual(hs({ k: "arrow", x1: 0, y1: 0, x2: 10, y2: 0 }), ["p1", "p2", "m0"]);
+  assert.deepEqual(hs({ k: "arrow", x1: 0, y1: 0, x2: 10, y2: 0 }), ["p1", "p2", "c", "m0"]);
   assert.deepEqual(hs({ k: "arrow", x1: 0, y1: 0, x2: 10, y2: 0, cx: 5, cy: 5 }), ["p1", "p2", "c"]);
   assert.deepEqual(hs({ k: "arrow", x1: 0, y1: 0, x2: 10, y2: 0, via: [{ x: 5, y: 3 }] }), ["p1", "p2", "m0", "m1", "v0"]);
   assert.ok(hs({ k: "arrow", x1: 0, y1: 0, x2: 10, y2: 0, air: true, lift: 4 }).includes("l"));
@@ -1471,4 +1471,21 @@ test("hoja + animación: las flechas de la hoja no pasan a la animación y la ho
   const plain = normalizeBoard({ v: 2, frames: [{ id: "x", els: [] }] });
   assert.equal(animOf(plain), plain);
   assert.equal(addElement(plain, 0, { id: "a", k: "arrow", x1: 0, y1: 0, x2: 1, y2: 1 }).frames[0].els.length, 1);
+});
+
+test("flechas: la curva se agarra por un punto de la propia flecha; nombres en dos líneas", async () => {
+  const L = await import("../src/lib/board.js");
+  const a = { k: "arrow", x1: 0, y1: 0, x2: 10, y2: 0 };
+  assert.deepEqual(L.curveHandle(a), { x: 5, y: 0 });
+  const c = L.curveFromHandle(a, { x: 5, y: 4 });
+  assert.deepEqual(c, { cx: 5, cy: 8 });
+  assert.deepEqual(L.curveHandle({ ...a, ...c }), { x: 5, y: 4 });         // la curva pasa por el dedo
+  const m0 = L.handleSpec(a).pts.find((p) => p.h === "m0");
+  assert.equal(m0.x, 7.5);                                                   // el «+» del quiebro, a tres cuartos
+  assert.deepEqual(L.nameLines("Nil Ribas", true), ["Nil", "Ribas"]);
+  assert.deepEqual(L.nameLines("Joan Mas Puig", true), ["Joan", "Mas Puig"]);
+  assert.deepEqual(L.nameLines("Nil Ribas", false), ["Nil Ribas"]);
+  const lines = L.chipLines({ label: "Nil Ribas", fnText: "ZONA" }, { nameStack: true }).bottom.map((l) => l.text);
+  assert.deepEqual(lines, ["Nil", "Ribas", "ZONA"]);
+  assert.equal(L.normalizeBoard({ v: 2, frames: [{ id: "a", els: [] }], nameStack: false }).nameStack, false);
 });
