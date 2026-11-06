@@ -172,19 +172,36 @@ export function copyPiece(piece, { newId, players = [], availableIds = [], keepL
 // saque: "r" derecha, "l" izquierda). `type` (el de siempre) se sigue guardando para la biblioteca, la impresión y lo antiguo.
 export const SP_KINDS = [
   { id: "corner", label: "Córner" },
-  { id: "falta_lateral", label: "F. lateral" },
-  { id: "falta_frontal", label: "F. frontal" },
-  { id: "banda", label: "Banda" },
+  { id: "falta_lateral", label: "Falta lateral" },
+  { id: "falta_frontal", label: "Falta frontal" },
+  { id: "banda", label: "Saque de banda" },
+  { id: "saque_centro", label: "Saque de centro" },
+  { id: "penalti", label: "Penalti" },
+  { id: "otro", label: "Otro" },
 ];
-const TYPE_OF = { corner: ["corner_favor", "corner_contra"], falta_lateral: ["falta_lateral", "falta_contra"], falta_frontal: ["falta_frontal", "falta_contra"], banda: ["saque_banda", "saque_banda"] };
+// 06/11/2026 (Nacho: «saque de centro, penalti… incluso poder añadir otro tipo de jugada» y «el lado izquierdo, el lado
+// derecho o ambos lados»): tipos nuevos, «Otro» con su nombre en `kind_other`, y lado "both" (ambos lados). El saque de
+// centro y el penalti no tienen lado. `draw_side` = hacia qué lado está dibujada la jugada (al pasar de izquierda a derecha
+// se le da la vuelta; «ambos lados» no la toca).
+const TYPE_OF = { corner: ["corner_favor", "corner_contra"], falta_lateral: ["falta_lateral", "falta_contra"], falta_frontal: ["falta_frontal", "falta_contra"], banda: ["saque_banda", "saque_banda"], saque_centro: ["saque_centro", "saque_centro"], penalti: ["penalti", "penalti"], otro: ["otra", "otra"] };
 export const typeOf = (kind, attack) => (TYPE_OF[kind] || TYPE_OF.corner)[attack ? 0 : 1];
+export const hasSide = (kind) => kind !== "penalti" && kind !== "saque_centro";
 // Lo que dice una jugada (las antiguas solo tienen `type`)
 export function pieceSetup(piece) {
   const t = piece?.type || "corner_favor";
-  const kind = piece?.kind || (t.startsWith("corner") ? "corner" : t === "falta_frontal" ? "falta_frontal" : t === "saque_banda" ? "banda" : t.startsWith("falta") ? "falta_lateral" : "corner");
+  const fromType = t.startsWith("corner") ? "corner" : t === "falta_frontal" ? "falta_frontal" : t === "saque_banda" ? "banda" : t === "penalti" ? "penalti" : t === "saque_centro" ? "saque_centro" : t === "saque_puerta" || t === "otra" ? "otro" : t.startsWith("falta") ? "falta_lateral" : "corner";
+  const kind = SP_KINDS.some((k) => k.id === piece?.kind) ? piece.kind : fromType;
   const attack = typeof piece?.attack === "boolean" ? piece.attack : !(t === "corner_contra" || t === "falta_contra");
-  const side = piece?.side === "l" ? "l" : "r";
-  return { kind, attack, side };
+  const side = piece?.side === "l" ? "l" : piece?.side === "both" ? "both" : "r";
+  const drawSide = piece?.draw_side === "l" || piece?.draw_side === "r" ? piece.draw_side : side === "l" ? "l" : "r";
+  const other = String(piece?.kind_other || (t === "saque_puerta" ? "Saque de puerta" : "")).trim();
+  return { kind, attack, side, drawSide, other };
+}
+// Texto de la jugada en español (hojas impresas): «Córner en contra · Lado derecho»
+export function setupLabel(setup) {
+  const k = setup.kind === "otro" ? setup.other || "Otra jugada" : SP_KINDS.find((x) => x.id === setup.kind)?.label || "Córner";
+  const side = hasSide(setup.kind) ? (setup.side === "l" ? "Lado izquierdo" : setup.side === "both" ? "Ambos lados" : "Lado derecho") : "";
+  return [`${k} ${setup.attack ? "a favor" : "en contra"}`, side].filter(Boolean).join(" · ");
 }
 
 // Funciones (decididas por Nacho el 05/11/2026). Defensa: zona, hombre, rechace, corta, palo. Ataque: lanzador, rematador,
@@ -259,7 +276,7 @@ export function functionCounts(board, attack) {
   return funcsFor(attack).map((f) => ({ ...f, n: chips.filter((c) => c.fn === f.id).length }))
     .concat([{ id: null, label: "Sin función", n: chips.filter((c) => !c.fn || (!funcOf(attack, c.fn) && c.fn !== "portero")).length }]);
 }
-const KIND_TITLE = { corner: "CÓRNER", falta_lateral: "FALTA LATERAL", falta_frontal: "FALTA FRONTAL", banda: "SAQUE DE BANDA" };
+const KIND_TITLE = { corner: "CÓRNER", falta_lateral: "FALTA LATERAL", falta_frontal: "FALTA FRONTAL", banda: "SAQUE DE BANDA", saque_centro: "SAQUE DE CENTRO", penalti: "PENALTI" };
 // Título que se escribe solo («5 ZONA · 3 AL HOMBRE · 2 RECHACES») y su subtítulo
 export function autoTitle(board, setup) {
   const { kind, attack, side } = setup;
@@ -267,8 +284,10 @@ export function autoTitle(board, setup) {
   const title = counts.map((c) => `${c.n} ${c.title[c.n === 1 ? 0 : 1]}`).join(" · ");
   const z = counts.find((c) => c.id === "zona")?.n || 0, h = counts.find((c) => c.id === "hombre")?.n || 0;
   const mark = attack ? "" : z && h ? (z >= h ? "MARCAJE MIXTO · BASE ZONAL" : "MARCAJE MIXTO · BASE INDIVIDUAL") : z ? "MARCAJE ZONAL" : h ? "MARCAJE INDIVIDUAL" : "";
-  const what = `${KIND_TITLE[kind] || "CÓRNER"} ${attack ? "A FAVOR" : "EN CONTRA"}${kind === "corner" ? ` · LADO ${side === "l" ? "IZQUIERDO" : "DERECHO"}` : ""}`;
-  return { title, subtitle: mark ? `${mark} · ${what}` : what };
+  const kt = kind === "otro" ? String(setup.other || "OTRA JUGADA").toUpperCase() : KIND_TITLE[kind] || "CÓRNER";
+  const st = hasSide(kind) ? ` · ${side === "l" ? "LADO IZQUIERDO" : side === "both" ? "AMBOS LADOS" : "LADO DERECHO"}` : "";
+  const what = `${kt} ${attack ? "A FAVOR" : "EN CONTRA"}${st}`;
+  return { title, mark, subtitle: mark ? `${mark} · ${what}` : what };
 }
 
 // Estructuras de partida del córner (posiciones con el saque por la derecha; con el lado izquierdo se reflejan).

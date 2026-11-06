@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, BookmarkPlus, X, ArrowUp, ArrowDown, Copy, LayoutTemplate, Users, Printer } from "lucide-react";
+import { Plus, Trash2, BookmarkPlus, X, ArrowUp, ArrowDown, Copy, LayoutTemplate, Users, Printer, FileDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { playerFirstName } from "@/lib/playerName";
@@ -17,7 +17,7 @@ import { lab as cardLab, inputCls as cardInput, pillCls as cardPill } from "@/co
 import { ColorPick } from "@/components/board/BoardControls";
 import {
   assignPlayer, copyPiece, fillWithSquad, flipBoard, ownChips, pieceBoard, previousMatchPieces, legacyToBoard,
-  SP_KINDS, typeOf, pieceSetup, printBoard, playerPatch, funcsFor, funcOf, fnPatch, setFunction, functionCounts, autoTitle, structuresFor, applyStructure, GK_FN, printCrop,
+  SP_KINDS, typeOf, pieceSetup, printBoard, playerPatch, funcsFor, funcOf, fnPatch, setFunction, autoTitle, structuresFor, applyStructure, GK_FN, printCrop, hasSide, setupLabel,
 } from "@/lib/setPieceBoard";
 // Jugadas a balón parado con la pizarra común (la misma de tareas y tácticas). Rediseño del 05/11/2026 (maqueta aprobada por
 // Nacho, con el aspecto de RS Manager): banda con las jugadas del partido; a la izquierda la jugada (tipo, a favor / en contra,
@@ -25,16 +25,6 @@ import {
 // página, con un título que se escribe solo y los fotogramas debajo; a la derecha los jugadores con su función e instrucciones.
 // Las jugadas se guardan en la biblioteca del equipo y se pueden traer del partido anterior; al copiarlas se conservan los
 // jugadores que siguen convocados y los demás quedan marcados con «?» para elegir otro. Lógica pura en src/lib/setPieceBoard.js.
-const TYPES = [
-  { value: "corner_favor", label: msg("Córner a favor") },
-  { value: "corner_contra", label: msg("Córner en contra") },
-  { value: "falta_lateral", label: msg("Falta lateral a favor") },
-  { value: "falta_frontal", label: msg("Falta frontal a favor") },
-  { value: "falta_contra", label: msg("Falta en contra") },
-  { value: "saque_banda", label: msg("Saque de banda") },
-  { value: "penalti", label: msg("Penalti") },
-  { value: "saque_puerta", label: msg("Saque de puerta") },
-];
 const uid = () => Math.random().toString(36).slice(2, 9);
 const newPiece = (n) => ({ id: uid(), name: `Jugada ${n}`, type: "corner_favor", signal: "", notes: "", tokens: [], arrows: [] });
 const shortName = (p) => (p ? `${playerFirstName(p)} ${(p.last_name || "").split(" ")[0]}`.trim() : "");
@@ -64,7 +54,8 @@ const FN_LABEL = {
   zona: msg("Zona"), hombre: msg("Hombre"), rechace: msg("Rechace"), corta: msg("Corta"), palo: msg("Palo"),
   lanzador: msg("Lanzador"), rematador: msg("Rematador"), bloqueo: msg("Bloqueo"), cierra: msg("Cierra"), portero: msg("Portero"),
 };
-const KIND_LABEL = { corner: msg("Córner"), falta_lateral: msg("F. lateral"), falta_frontal: msg("F. frontal"), banda: msg("Banda") };
+const KIND_LABEL = { corner: msg("Córner"), falta_lateral: msg("Falta lateral"), falta_frontal: msg("Falta frontal"), banda: msg("Saque de banda"), saque_centro: msg("Saque de centro"), penalti: msg("Penalti"), otro: msg("Otro") };
+const SIDE_LABEL = { l: msg("Lado izquierdo"), r: msg("Lado derecho"), both: msg("Ambos lados") };
 const FIELD_LOOKS = [
   { id: "estadio", label: msg("Estadio"), swatch: "#2f7a43" },
   { id: "color", label: msg("Verde"), swatch: "#3f8a4a" },
@@ -80,8 +71,6 @@ const LINE_COLORS = [
   { value: "#73000a", label: msg("Granate") },
   { value: "#ffffff", label: msg("Blanco") },
 ];
-const DEF_TAGS = [msg("1er palo"), msg("2º palo"), msg("Ataque al balón"), msg("Línea sube"), msg("Segunda jugada"), msg("Salida rápida"), msg("Portero sale"), msg("Presión a la corta")];
-const ATT_TAGS = [msg("1er palo"), msg("2º palo"), msg("Punto de penalti"), msg("Bloqueo"), msg("Desmarque"), msg("Rechace"), msg("Vigilancia"), msg("Jugada en corto")];
 
 function Lab({ children, style }) {
   return <h3 className="rs2-label" style={{ margin: 0, fontSize: 11, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", color: RS.muted, ...style }}>{children}</h3>;
@@ -89,14 +78,14 @@ function Lab({ children, style }) {
 function Card({ children, testId, style }) {
   return <section className="rounded-xl bg-white flex flex-col" style={{ border: `1px solid ${RS.line}`, padding: "12px 14px", gap: 9, ...style }} data-testid={testId}>{children}</section>;
 }
-function Seg({ options, value, onChange, label, testId }) {
+function Seg({ options, value, onChange, label, testId, small = false }) {
   return (
     <div role="group" aria-label={label} className="flex flex-wrap" style={{ gap: 6 }} data-testid={testId}>
       {options.map((o) => {
         const on = o.value === value;
         return (
           <button key={String(o.value)} type="button" aria-pressed={on} onClick={() => onChange(o.value)} data-testid={o.testId}
-            style={{ flex: "1 1 auto", minHeight: 32, padding: "0 12px", borderRadius: 8, fontSize: 13, fontWeight: on ? 600 : 400, background: on ? RS.granate : RS.bg, color: on ? "#fff" : RS.ink2 }}>
+            style={{ flex: "1 1 auto", minHeight: small ? 28 : 32, padding: small ? "0 8px" : "0 12px", borderRadius: small ? 7 : 8, fontSize: small ? 12.5 : 13, fontWeight: on ? 600 : 400, background: on ? RS.granate : RS.bg, color: on ? "#fff" : RS.ink2 }}>
             {o.label}
           </button>
         );
@@ -104,10 +93,20 @@ function Seg({ options, value, onChange, label, testId }) {
     </div>
   );
 }
+function PrintRow({ label, options, value, onChange, testId, prefix }) {
+  return (
+    <div className="flex flex-wrap items-center" style={{ gap: 5 }} data-testid={testId} role="group" aria-label={label}>
+      <span style={{ width: 78, fontSize: 12, color: "#6B5E60" }}>{label}</span>
+      {options.map(([v, l]) => (
+        <button key={String(v)} type="button" aria-pressed={value === v} onClick={() => onChange(v)} data-testid={`${prefix}${v}`} style={{ ...pill(value === v), height: 26, padding: "0 10px", fontSize: 12 }}>{l}</button>
+      ))}
+    </div>
+  );
+}
 const pill = (on) => ({ height: 30, padding: "0 12px", borderRadius: 999, fontSize: 12.5, fontWeight: on ? 600 : 400, border: `1px solid ${on ? RS.granate : RS.input}`, background: on ? RS.granate : "#fff", color: on ? "#fff" : RS.ink2 });
 const btnOut = { height: 34, padding: "0 14px", borderRadius: 8, fontSize: 13, background: "#fff", color: RS.ink2, border: `1px solid ${RS.input}` };
 const inputCls = "w-full outline-none focus:ring-1 focus:ring-[#73000A]";
-const inputStyle = { height: 36, borderRadius: 8, border: `1px solid ${RS.input}`, padding: "0 12px", fontSize: 13.5, background: "#fff", color: RS.ink };
+const inputSm = { height: 32, borderRadius: 7, border: `1px solid ${"#D9CFCE"}`, padding: "0 10px", fontSize: 13, background: "#fff", color: "#1E1416" };
 
 // Pestaña «Jugador» de la tarjeta de una ficha del Racing (05/11/2026; función rehecha el 06/11/2026, Nacho: «no quiero que esto
 // implique un cambio de color de la ficha… poder seleccionar si la función aparece encima de la ficha, debajo de la ficha, o el
@@ -188,19 +187,17 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
   const board = pieceBoard(piece, lookup);
   const setup = pieceSetup(piece);
   const funcs = funcsFor(setup.attack);
-  const [fnTool, setFnTool] = useState(undefined); // undefined = nada; null = «Sin función»; si no, el id de la función
-  const [tag, setTag] = useState(null);
-  const setBoard = (b) => onChange({ ...piece, ...setup, type: typeOf(setup.kind, setup.attack), board: b });
+  const saved = (s) => ({ kind: s.kind, attack: s.attack, side: s.side, draw_side: s.drawSide, ...(s.kind === "otro" ? { kind_other: s.other } : {}) });
+  const setBoard = (b) => onChange({ ...piece, ...saved(setup), type: typeOf(setup.kind, setup.attack), board: b });
+  // Lado: izquierda ↔ derecha da la vuelta a la jugada; «ambos lados» solo cambia el texto (06/11/2026)
   const setSetup = (next) => {
     const s = { ...setup, ...next };
     let b = board;
-    if (next.side && next.side !== setup.side) b = flipBoard(b);
-    onChange({ ...piece, ...s, type: typeOf(s.kind, s.attack), board: b });
-    if (next.attack !== undefined && next.attack !== setup.attack) setFnTool(undefined);
+    if ((next.side === "l" || next.side === "r") && next.side !== setup.drawSide) { b = flipBoard(b); s.drawSide = next.side; }
+    onChange({ ...piece, ...saved(s), type: typeOf(s.kind, s.attack), board: b });
   };
   const chips = ownChips(board);
-  const counts = functionCounts(board, setup.attack);
-  const { title, subtitle } = autoTitle(board, setup);
+  const { title, mark } = autoTitle(board, setup);
   const byId = new Map(lookup.map((p) => [p.id, p]));
   const structs = structuresFor(setup.kind, setup.attack);
   const tpl = TEMPLATES.find((x) => x.key === typeOf(setup.kind, setup.attack));
@@ -210,46 +207,71 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
     if (hasEls && !window.confirm(t("Se cambiará todo el dibujo de esta jugada. ¿Seguir?"))) return;
     const made = tpl.make();
     let b = legacyToBoard({ id: piece.id, tokens: made.tokens, arrows: made.arrows });
-    if (setup.side === "l") b = flipBoard(b);
+    if (setup.drawSide === "l") b = flipBoard(b);
     setBoard(b);
   };
-  const tags = setup.attack ? ATT_TAGS : DEF_TAGS;
-  const fnObj = fnTool === undefined ? null : fnTool === null ? null : funcOf(setup.attack, fnTool);
-  const paint = fnTool === undefined ? null : { teams: ["a"], patch: (target) => fnPatch(fnObj, target) };
-  const stamp = tag ? { make: (p, newId) => ({ id: newId(), k: "text", x: p.x, y: p.y, text: t(tag), size: 1.8, bold: true, bg: RS.naranja, color: RS.ink }) } : null;
   const order = (c) => (c.fn === "portero" ? -1 : funcs.findIndex((f) => f.id === c.fn) === -1 ? 99 : funcs.findIndex((f) => f.id === c.fn));
   const sortedChips = [...chips].sort((a, b) => order(a) - order(b));
-  const overlay = title || subtitle ? (
-    <div style={{ background: RS.dark, borderRadius: 12, padding: "9px 14px" }}>
-      {title && <p style={{ margin: 0, fontFamily: DISPLAY, fontSize: 22, lineHeight: 1, color: "#fff" }} data-testid="sp-auto-title">{title}</p>}
-      {subtitle && <p style={{ margin: "4px 0 0", fontSize: 12, fontWeight: 600, letterSpacing: ".12em", color: "#E3EEE6" }} data-testid="sp-auto-subtitle">{subtitle}</p>}
+  // Encima de la pizarra: el nombre de la jugada y sus pastillas (tipo, a favor/en contra, lado, señal) y el título automático
+  const tagPill = (text, strong, testId) => (
+    <span data-testid={testId} style={{ display: "inline-flex", alignItems: "center", height: 24, padding: "0 10px", borderRadius: 999, fontSize: 12, fontWeight: 600, whiteSpace: "nowrap",
+      background: strong ? RS.naranja : "rgba(255,255,255,.12)", color: strong ? RS.ink : "#fff", border: strong ? "none" : "1px solid rgba(255,255,255,.28)" }}>{text}</span>
+  );
+  const kindText = setup.kind === "otro" ? setup.other || t("Otra jugada") : t(KIND_LABEL[setup.kind]);
+  const overlay = (
+    <div style={{ background: RS.dark, borderRadius: 12, padding: "9px 14px", display: "flex", flexDirection: "column", gap: 6 }} data-testid="sp-head">
+      <div className="flex flex-wrap items-center" style={{ gap: "6px 8px" }}>
+        <span style={{ fontFamily: DISPLAY, fontSize: 21, lineHeight: 1, color: "#fff", marginRight: 4 }} data-testid="sp-head-name">{piece.name || t("Sin nombre")}</span>
+        {tagPill(kindText, false, "sp-pill-kind")}
+        {tagPill(setup.attack ? t("A favor") : t("En contra"), false, "sp-pill-attack")}
+        {hasSide(setup.kind) && tagPill(t(SIDE_LABEL[setup.side]), false, "sp-pill-side")}
+        {piece.signal ? tagPill(`${t("Señal")}: ${piece.signal}`, true, "sp-pill-signal") : tagPill(t("Sin señal"), false, "sp-pill-signal")}
+      </div>
+      {(title || mark) && (
+        <p style={{ margin: 0, fontSize: 12, fontWeight: 600, letterSpacing: ".1em", color: "#E3EEE6" }}>
+          {title && <span style={{ fontFamily: DISPLAY, fontSize: 16, letterSpacing: 0, color: "#fff", marginRight: 10 }} data-testid="sp-auto-title">{title}</span>}
+          {mark && <span data-testid="sp-auto-subtitle">{mark}</span>}
+        </p>
+      )}
     </div>
-  ) : null;
+  );
 
   return (
     <div className="flex flex-wrap items-start" style={{ gap: 12 }}>
       {/* Izquierda */}
-      <aside className="flex flex-col" style={{ flex: "0 1 290px", minWidth: 250, gap: 10 }}>
-        <Card testId="sp-piece">
-          <Lab>{t("Jugada abierta")}</Lab>
-          <label className="flex flex-col" style={{ gap: 4, fontSize: 12, color: RS.muted }}>{t("Nombre")}
-            <input value={piece.name || ""} onChange={(e) => onChange({ ...piece, name: e.target.value })} placeholder={t("TÍTULO DE LA JUGADA")} className={inputCls} style={inputStyle} data-testid="sp-name" />
-          </label>
-          <label className="flex flex-col" style={{ gap: 4, fontSize: 12, color: RS.muted }}>{t("Señal")}
-            <input value={piece.signal || ""} onChange={(e) => onChange({ ...piece, signal: e.target.value })} placeholder={t("Cómo se avisa: el lanzador se toca la cabeza, bota el balón…")} className={inputCls} style={inputStyle} />
-          </label>
-          <p style={{ margin: 0, fontSize: 12, color: RS.muted }}>{board.frames.length === 1 ? t("1 fotograma") : t("{n} fotogramas", { n: board.frames.length })}{libLinked ? ` · ${t("en la biblioteca")}` : ""}</p>
+      <aside className="flex flex-col" style={{ flex: "0 1 270px", minWidth: 240, gap: 8 }}>
+        <Card testId="sp-piece" style={{ padding: "10px 12px", gap: 7 }}>
+          <Lab>{t("Jugada")}</Lab>
+          <label className="flex items-center" style={{ gap: 8 }}><span style={{ width: 44, fontSize: 11.5, color: RS.muted }}>{t("Nombre")}</span>
+            <input value={piece.name || ""} onChange={(e) => onChange({ ...piece, name: e.target.value })} placeholder={t("Nombre de la jugada")} className={`${inputCls} flex-1 min-w-0`} style={inputSm} data-testid="sp-name" /></label>
+          <label className="flex items-center" style={{ gap: 8 }}><span style={{ width: 44, fontSize: 11.5, color: RS.naranja, fontWeight: 600 }}>{t("Señal")}</span>
+            <input value={piece.signal || ""} onChange={(e) => onChange({ ...piece, signal: e.target.value })} placeholder={t("Señal: levantar el balón, brazo derecho extendido…")} className={`${inputCls} flex-1 min-w-0`} style={inputSm} data-testid="sp-signal" /></label>
+          <p style={{ margin: 0, fontSize: 11.5, color: RS.muted }}>{board.frames.length === 1 ? t("1 fotograma") : t("{n} fotogramas", { n: board.frames.length })}{libLinked ? ` · ${t("en la biblioteca")}` : ""}</p>
         </Card>
 
-        <Card testId="sp-setup">
+        <Card testId="sp-setup" style={{ padding: "10px 12px", gap: 7 }}>
           <Lab>{t("Balón parado")}</Lab>
-          <Seg label={t("Tipo")} value={setup.kind} onChange={(v) => setSetup({ kind: v })} options={SP_KINDS.map((k) => ({ value: k.id, label: t(KIND_LABEL[k.id]), testId: `sp-kind-${k.id}` }))} />
-          <Seg label={t("A favor o en contra")} value={setup.attack} onChange={(v) => setSetup({ attack: v })} options={[{ value: true, label: t("A favor"), testId: "sp-attack" }, { value: false, label: t("En contra"), testId: "sp-defense" }]} />
-          <Seg label={t("Lado")} value={setup.side} onChange={(v) => setSetup({ side: v })} options={[{ value: "l", label: t("Lado izquierdo"), testId: "sp-side-l" }, { value: "r", label: t("Lado derecho"), testId: "sp-side-r" }]} />
-          <p style={{ margin: 0, fontSize: 12, color: RS.muted }}>{t("Cambiar de lado da la vuelta a toda la jugada.")}</p>
+          <div className="grid grid-cols-2" style={{ gap: 4 }} role="group" aria-label={t("Tipo")}>
+            {SP_KINDS.map((k) => {
+              const on = setup.kind === k.id;
+              return (
+                <button key={k.id} type="button" aria-pressed={on} onClick={() => setSetup({ kind: k.id })} data-testid={`sp-kind-${k.id}`}
+                  style={{ minHeight: 28, padding: "0 8px", borderRadius: 7, fontSize: 12.5, fontWeight: on ? 600 : 400, background: on ? RS.granate : RS.bg, color: on ? "#fff" : RS.ink2, textAlign: "left" }}>
+                  {t(KIND_LABEL[k.id])}
+                </button>
+              );
+            })}
+          </div>
+          {setup.kind === "otro" && (
+            <input value={piece.kind_other || ""} onChange={(e) => onChange({ ...piece, kind_other: e.target.value })} placeholder={t("Qué jugada es (p. ej. saque de puerta)")} aria-label={t("Tipo de jugada")} className={inputCls} style={inputSm} data-testid="sp-kind-other" />
+          )}
+          <Seg small label={t("A favor o en contra")} value={setup.attack} onChange={(v) => setSetup({ attack: v })} options={[{ value: true, label: t("A favor"), testId: "sp-attack" }, { value: false, label: t("En contra"), testId: "sp-defense" }]} />
+          {hasSide(setup.kind) && (
+            <Seg small label={t("Lado")} value={setup.side} onChange={(v) => setSetup({ side: v })} options={[{ value: "l", label: t("Izquierdo"), testId: "sp-side-l" }, { value: "r", label: t("Derecho"), testId: "sp-side-r" }, { value: "both", label: t("Ambos"), testId: "sp-side-both" }]} />
+          )}
         </Card>
 
-        <Card testId="sp-field">
+        <Card testId="sp-field" style={{ padding: "10px 12px", gap: 7 }}>
           <Lab>{t("Campo")}</Lab>
           <div className="flex flex-wrap" style={{ gap: 6 }}>
             {FIELD_LOOKS.map((l) => {
@@ -279,13 +301,13 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
           <p style={{ margin: 0, fontSize: 12, color: RS.muted }}>{t("Para imprimir gastando poca tinta: blanco liso o blanco y gris, con las líneas en gris.")}</p>
         </Card>
 
-        <Card testId="sp-structures">
+        <Card testId="sp-structures" style={{ padding: "10px 12px", gap: 7 }}>
           <Lab>{t("Estructura de partida")}</Lab>
           {structs.length > 0 ? (
             <>
               <div className="flex flex-wrap" style={{ gap: 6 }}>
                 {structs.map((s) => (
-                  <button key={s.id} type="button" onClick={() => setBoard(applyStructure(board, s, { side: setup.side, newId: uid }))} style={pill(false)} data-testid={`sp-struct-${s.id}`}>{t(s.label)}</button>
+                  <button key={s.id} type="button" onClick={() => setBoard(applyStructure(board, s, { side: setup.drawSide, newId: uid }))} style={pill(false)} data-testid={`sp-struct-${s.id}`}>{t(s.label)}</button>
                 ))}
               </div>
               <p style={{ margin: 0, fontSize: 12, color: RS.muted }}>{t("Coloca a los jugadores y les da su función; los que ya tenían jugador lo conservan.")}</p>
@@ -298,43 +320,13 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
           ) : <p style={{ margin: 0, fontSize: 12, color: RS.muted }}>{t("Sin estructuras para este tipo de jugada.")}</p>}
         </Card>
 
-        <Card testId="sp-functions">
-          <Lab>{t("Funciones")}</Lab>
-          <div className="grid grid-cols-2" style={{ gap: 6 }}>
-            {counts.map((c) => {
-              const on = fnTool !== undefined && (c.id === null ? fnTool === null : fnTool === c.id);
-              return (
-                <button key={c.id || "none"} type="button" aria-pressed={on} onClick={() => { setTag(null); setFnTool(on ? undefined : c.id); }} data-testid={`sp-fn-${c.id || "none"}`}
-                  className="flex items-center text-left" style={{ gap: 8, minHeight: 34, padding: "0 10px", borderRadius: 8, fontSize: 13, background: "#fff", color: RS.ink, border: `1px solid ${on ? RS.granate : RS.line}`, boxShadow: on ? `inset 0 0 0 1px ${RS.granate}` : "none", fontWeight: on ? 600 : 400 }}>
-                  <span style={{ flex: "1 1 auto" }}>{c.id ? t(FN_LABEL[c.id]) : t("Sin función")}</span>
-                  <span style={{ fontSize: 12, color: RS.muted }} className="tabular-nums">{c.n || ""}</span>
-                </button>
-              );
-            })}
-          </div>
-          <p style={{ margin: 0, fontSize: 12, color: fnTool !== undefined ? RS.granate : RS.muted, fontWeight: fnTool !== undefined ? 600 : 400 }} role="status">
-            {fnTool === undefined ? t("Elige una función y toca los jugadores en el campo: la función se escribe junto a la ficha y el título se escribe solo.")
-              : t("Toca las fichas del Racing para darles «{fn}». Vuelve a tocar el botón para terminar.", { fn: fnTool ? t(FN_LABEL[fnTool]) : t("Sin función") })}
-          </p>
-        </Card>
-
-        <Card testId="sp-tags">
-          <Lab>{t("Etiquetas rápidas")}</Lab>
-          <div className="flex flex-wrap" style={{ gap: 6 }}>
-            {tags.map((g) => (
-              <button key={g} type="button" aria-pressed={tag === g} onClick={() => { setFnTool(undefined); setTag(tag === g ? null : g); }} style={pill(tag === g)} data-testid="sp-tag">{t(g)}</button>
-            ))}
-          </div>
-          <p style={{ margin: 0, fontSize: 12, color: tag ? RS.granate : RS.muted, fontWeight: tag ? 600 : 400 }}>{tag ? t("Toca el sitio del campo donde va «{tag}».", { tag: t(tag) }) : t("Tocas una y luego el sitio del campo donde va.")}</p>
-        </Card>
       </aside>
 
       {/* Centro: la pizarra */}
       <div className="min-w-0" style={{ flex: "999 1 560px" }} data-testid="sp-board">
         <BoardEditor value={board} onChange={setBoard} fields={["half", "tq", "full", "free"]} filename={piece.name || t("Jugada")}
-          embedded embedHeight={660} paint={paint} stamp={stamp} onStampDone={() => setTag(null)} overlayTitle={overlay}
+          embedded embedHeight={660} overlayTitle={overlay}
           variant="abp"
-          stamps={{ list: tags.map((g) => ({ id: g, label: t(g) })), active: tag, pick: (g) => { setFnTool(undefined); setTag(g); } }}
           chipPlayer={(el, patch, toTeam) => (el.team === "a" ? <AbpChipPlayer el={el} patch={patch} candidates={candidates} byId={byId} attack={setup.attack} toTeam={toTeam} /> : null)}
           chipDescribe={(el) => (el.team === "a" && el.fn && FN_LABEL[el.fn] ? `${teamsOf(board).find((x) => x.id === "a")?.name || "Racing"} · ${t(FN_LABEL[el.fn])}` : null)} />
       </div>
@@ -417,66 +409,104 @@ async function pieceSvg(piece, players, opts = {}, aspect = 1.4) {
     c.width = 2400; c.height = Math.round(2400 / ar);
     await (await load3d()).renderBoard3D(c, printable, printable.frames[0].els, { frame: 0, orbit: orbitOf(printable, 0), ...(crop ? { viewOverride: crop } : {}) });
     const url = await blobToDataUrl(await new Promise((res, rej) => c.toBlob((x) => (x ? res(x) : rej(new Error("PNG"))), "image/png")));
-    return `<img src="${url}" alt="">`;
+    return { html: `<img src="${url}" alt="">`, ar };
   }
   const { svg } = await boardSvgMarkup(<Board board={printable} els={printable.frames[0].els} frame={0} camera={null} viewOverride={crop} />, 1600);
   // cada dibujo con sus propios nombres internos: varios en la misma hoja compartían el recorte y los rellenos del primero
   const pre = `p${++printSeq}-`;
-  return svg.replace(/ width="\d+(\.\d+)?" height="\d+(\.\d+)?"/, "")
+  const vb = (svg.match(/viewBox="([^"]+)"/) || [])[1]?.split(/[\s,]+/).map(Number);
+  const ar = crop ? crop[2] / crop[3] : vb && vb[3] ? vb[2] / vb[3] : aspect;
+  const html = svg.replace(/ width="\d+(\.\d+)?" height="\d+(\.\d+)?"/, "")
     .replace(/\bid="/g, `id="${pre}`).replace(/url\(#/g, `url(#${pre}`).replace(/href="#/g, `href="#${pre}`);
+  return { html, ar };
 }
 
 // Hojas A4 sin márgenes de la impresora (así el navegador no escribe arriba y abajo el título, la dirección ni la fecha):
-// el margen lo pone cada hoja (10 mm). Una o dos jugadas por hoja; las instrucciones van debajo del campo, a todo el ancho,
-// y el campo ocupa todo lo que queda.
+// el margen lo pone cada hoja (10 mm). 1, 2 o 4 jugadas por hoja (4 = dos columnas y dos filas); las instrucciones van
+// debajo del campo, a todo el ancho, y el campo ocupa todo lo que queda. «Descargar PDF» compone las mismas hojas en la
+// página (fuera de la vista) y las fotografía (`downloadSessionPdf`, como la hoja de sesión).
 const PAGE_W = 190, PAGE_H = 277, GAP = 6;
-function fieldBoxAspect(p, one) {
-  const card = one ? PAGE_H : (PAGE_H - GAP) / 2;
-  const head = one ? 25 : 19, sig = p.signal ? (one ? 10 : 8.5) : 0;
+const SZ = {
+  1: { logo: 15, club: 14, team: 13, h2: 26, em: 12, kind: 14, sig: 12, sigb: 10, notes: 11, notesb: 9.5, head: 25, sigH: 10, notesMax: 60, chars: 105 },
+  2: { logo: 11, club: 10.5, team: 9.5, h2: 18, em: 9.5, kind: 11, sig: 10, sigb: 8.5, notes: 9.5, notesb: 8.5, head: 19, sigH: 8.5, notesMax: 30, chars: 120 },
+  4: { logo: 8, club: 8, team: 7.5, h2: 13, em: 7, kind: 7.5, sig: 8, sigb: 7, notes: 8, notesb: 7, head: 15, sigH: 7, notesMax: 24, chars: 60 },
+};
+function fieldBoxAspect(p, per) {
+  const z = SZ[per] || SZ[1];
+  const w = per === 4 ? (PAGE_W - GAP) / 2 : PAGE_W;
+  const card = per === 1 ? PAGE_H : (PAGE_H - GAP) / 2;
   const notes = String(p.notes || "").trim();
-  const lines = notes ? notes.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / (one ? 105 : 120))), 0) : 0;
-  const notesH = notes ? Math.min(one ? 60 : 30, 6 + lines * (one ? 5 : 4.3)) : 0;
-  return PAGE_W / Math.max(40, card - head - sig - notesH - 2);
+  const lines = notes ? notes.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / z.chars)), 0) : 0;
+  const notesH = notes ? Math.min(z.notesMax, 6 + lines * z.notes * 0.45) : 0;
+  return w / Math.max(30, card - z.head - (p.signal ? z.sigH : 0) - notesH - 2);
 }
-async function printPieces(list, players, perPage, teamName, book = false, look = {}) {
-  const now = new Date(), y = now.getFullYear();
-  const season = now.getMonth() >= 6 ? `${y}-${String(y + 1).slice(2)}` : `${y - 1}-${String(y).slice(2)}`;
-  const one = perPage === 1;
-  const cover = book ? `<div class="page cover"><img src="${CLUB_LOGO_URL}" alt=""><h1>ESTRATEGIA<br>A BALÓN PARADO</h1><h3>${esc(teamName || "")}</h3><p>TEMPORADA ${season}</p></div>` : "";
-  const typeLabel = (v) => TYPES.find((ty) => ty.value === v)?.label || v;
-  const svgs = await Promise.all(list.map((p) => pieceSvg(p, players, look, fieldBoxAspect(p, one))));
-  const titles = list.map((p) => autoTitle(pieceBoard(p, players), pieceSetup(p)).title);
-  const cards = list.map((p, i) => `<section class="card">
-    <header><div class="club"><img src="${CLUB_LOGO_URL}" alt=""><div><b>RACING SARRIÀ</b><span>${esc(teamName || "")}</span></div></div>
-    <div class="ttl"><h2>${esc(p.name)}</h2>${(p.name || "").trim().toLowerCase() === typeLabel(p.type).toLowerCase() ? "" : `<span>${esc(typeLabel(p.type))}</span>`}${titles[i] ? `<em>${esc(titles[i])}</em>` : ""}</div></header>
-    ${p.signal ? `<div class="sig"><b>SEÑAL</b><span>${esc(p.signal)}</span></div>` : ""}
-    <div class="fld">${svgs[i]}</div>${p.notes ? `<div class="notes"><b>INSTRUCCIONES</b>${esc(p.notes)}</div>` : ""}</section>`);
-  const pages = [];
-  for (let i = 0; i < cards.length; i += perPage) pages.push(`<div class="page">${cards.slice(i, i + perPage).join("")}</div>`);
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>&#8203;</title>
-  <style>
+// Estilos de las hojas; `sc` = prefijo para usarlos dentro de la página (PDF) sin tocar el resto de la app
+function sheetCss(per, sc = "") {
+  const z = SZ[per] || SZ[1];
+  const one = per === 1;
+  return `
+    ${sc}.page{width:210mm;height:297mm;padding:10mm;display:${per === 4 ? "grid" : "flex"};${per === 4 ? "grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;" : "flex-direction:column;"}gap:${GAP}mm;overflow:hidden;break-after:page;page-break-after:always;background:#fff;box-sizing:border-box;font-family:'IBM Plex Sans Condensed',Arial,sans-serif;color:#222}
+    ${sc}.page *{box-sizing:border-box}${per === 4 ? ` ${sc}.club b{display:none} ${sc}.ttl{flex:1}` : ""}
+    ${sc}.page:last-child{break-after:auto;page-break-after:auto}
+    ${sc}.card{${per === 4 ? "" : `flex:${one ? "1 1 0" : `0 0 ${(PAGE_H - GAP) / 2}mm`};`}min-height:0;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+    ${sc}header{flex:none;border-bottom:.6mm solid #73000A;padding-bottom:${per === 4 ? 1.2 : 2}mm;display:flex;justify-content:space-between;align-items:flex-start;gap:${per === 4 ? 3 : 8}mm;margin-bottom:${per === 4 ? 1.5 : 2.5}mm}
+    ${sc}.club{display:flex;align-items:center;gap:${per === 4 ? 1.5 : 2.5}mm;min-width:0} ${sc}.club img{height:${z.logo}mm;width:auto}
+    ${sc}.club b{display:block;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:${z.club}pt;color:#73000A;line-height:1.05;letter-spacing:.3px} ${sc}.club span{display:block;font-size:${z.team}pt;color:#FF6E00;font-weight:700;text-transform:uppercase;line-height:1.1}
+    ${sc}.ttl{text-align:right;min-width:0} ${sc}.ttl h2{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:${z.h2}pt;line-height:1;color:#73000A;text-transform:uppercase;letter-spacing:.3px} ${sc}.ttl em{display:block;font-style:normal;font-family:'Racing Sarria',sans-serif;font-size:${z.em}pt;color:#36000D;margin-top:1mm;letter-spacing:.3px} ${sc}.ttl span{display:block;font-family:'Racing Sarria',sans-serif;font-weight:400;letter-spacing:.5px;font-size:${z.kind}pt;color:#FF6E00;text-transform:uppercase;margin-top:1mm}
+    ${sc}.sig{flex:none;display:flex;align-items:center;gap:${per === 4 ? 2 : 3}mm;border:.3mm solid #FF6E00;border-radius:1.5mm;padding:${per === 4 ? ".6mm 2mm" : "1mm 3mm"};margin-bottom:${per === 4 ? 1.5 : 2.5}mm;font-size:${z.sig}pt}
+    ${sc}.sig b{background:#FF6E00;color:#fff;padding:.4mm 2mm;border-radius:1mm;font-size:${z.sigb}pt;letter-spacing:.5px} ${sc}.sig span{color:#333;font-weight:500}
+    ${sc}.fld{flex:0 1 auto;width:100%;min-height:0;position:relative}
+    ${sc}.fld svg,${sc}.fld img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;overflow:hidden}
+    ${sc}.notes{flex:none;margin-top:${per === 4 ? 1.5 : 2.5}mm;font-size:${z.notes}pt;white-space:pre-wrap;color:#333;border-left:.5mm solid #FF6E00;padding-left:${per === 4 ? 2 : 3}mm;font-weight:500;max-height:${z.notesMax}mm;overflow:hidden}
+    ${sc}.notes b{display:block;color:#FF6E00;font-size:${z.notesb}pt;letter-spacing:.5px;margin-bottom:.8mm}
+    ${sc}.cover{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6mm}
+    ${sc}.cover img{height:50mm;width:auto} ${sc}.cover h1{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:40pt;line-height:1.05;color:#73000A;letter-spacing:.5px;border-bottom:1.2mm solid #FF6E00;padding-bottom:5mm}
+    ${sc}.cover h3{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:24pt;color:#FF6E00;text-transform:uppercase;letter-spacing:.5px} ${sc}.cover p{margin:0;font-size:13pt;color:#555;letter-spacing:2px}`;
+}
+const fontFaces = () => `
     @font-face{font-family:'Racing Sarria';src:url('${location.origin}/fonts/RacingSarria.ttf') format('truetype')}
     @font-face{font-family:'IBM Plex Sans Condensed';font-weight:400;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Regular.ttf') format('truetype')}
     @font-face{font-family:'IBM Plex Sans Condensed';font-weight:500;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Medium.ttf') format('truetype')}
-    @font-face{font-family:'IBM Plex Sans Condensed';font-weight:700;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Bold.ttf') format('truetype')}
-    @page{size:A4;margin:0} *{box-sizing:border-box} html,body{margin:0;padding:0} body{font-family:'IBM Plex Sans Condensed',Arial,sans-serif;color:#222;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .page{width:210mm;height:297mm;padding:10mm;display:flex;flex-direction:column;gap:${GAP}mm;overflow:hidden;break-after:page;page-break-after:always}
-    .page:last-child{break-after:auto;page-break-after:auto}
-    .card{flex:${one ? "1 1 0" : `0 0 ${(PAGE_H - GAP) / 2}mm`};min-height:0;display:flex;flex-direction:column;overflow:hidden}
-    header{flex:none;border-bottom:.6mm solid #73000A;padding-bottom:2mm;display:flex;justify-content:space-between;align-items:flex-start;gap:8mm;margin-bottom:2.5mm}
-    .club{display:flex;align-items:center;gap:2.5mm} .club img{height:${one ? 15 : 11}mm;width:auto}
-    .club b{display:block;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:${one ? 14 : 10.5}pt;color:#73000A;line-height:1.05;letter-spacing:.3px} .club span{display:block;font-size:${one ? 13 : 9.5}pt;color:#FF6E00;font-weight:700;text-transform:uppercase;line-height:1.1}
-    .ttl{text-align:right} .ttl h2{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:${one ? 26 : 18}pt;line-height:1;color:#73000A;text-transform:uppercase;letter-spacing:.3px} .ttl em{display:block;font-style:normal;font-family:'Racing Sarria',sans-serif;font-size:${one ? 12 : 9.5}pt;color:#36000D;margin-top:1mm;letter-spacing:.3px} .ttl span{display:block;font-family:'Racing Sarria',sans-serif;font-weight:400;letter-spacing:.5px;font-size:${one ? 15 : 11}pt;color:#FF6E00;font-weight:700;text-transform:uppercase;margin-top:1mm}
-    .sig{flex:none;display:flex;align-items:center;gap:3mm;border:.3mm solid #FF6E00;border-radius:1.5mm;padding:1mm 3mm;margin-bottom:2.5mm;font-size:${one ? 12 : 10}pt}
-    .sig b{background:#FF6E00;color:#fff;padding:.4mm 2mm;border-radius:1mm;font-size:${one ? 10 : 8.5}pt;letter-spacing:.5px} .sig span{color:#333;font-weight:500}
-    .fld{flex:1 1 0;min-height:0;position:relative}
-    .fld svg,.fld img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;overflow:hidden}
-    .notes{flex:none;margin-top:2.5mm;font-size:${one ? 11 : 9.5}pt;white-space:pre-wrap;color:#333;border-left:.5mm solid #FF6E00;padding-left:3mm;font-weight:500;max-height:${one ? 60 : 30}mm;overflow:hidden}
-    .notes b{display:block;color:#FF6E00;font-size:${one ? 9.5 : 8.5}pt;letter-spacing:.5px;margin-bottom:.8mm}
-    .cover{align-items:center;justify-content:center;text-align:center;gap:6mm}
-    .cover img{height:50mm;width:auto} .cover h1{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:40pt;line-height:1.05;color:#73000A;letter-spacing:.5px;border-bottom:1.2mm solid #FF6E00;padding-bottom:5mm}
-    .cover h3{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:24pt;color:#FF6E00;text-transform:uppercase;letter-spacing:.5px} .cover p{margin:0;font-size:13pt;color:#555;letter-spacing:2px}
-  </style></head><body>${cover}${pages.join("")}</body></html>`;
+    @font-face{font-family:'IBM Plex Sans Condensed';font-weight:700;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Bold.ttf') format('truetype')}`;
+const fileSlug = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase();
+
+async function printPieces(list, players, perPage, teamName, book = false, look = {}, mode = "print") {
+  const per = [1, 2, 4].includes(perPage) ? perPage : 1;
+  const now = new Date(), y = now.getFullYear();
+  const season = now.getMonth() >= 6 ? `${y}-${String(y + 1).slice(2)}` : `${y - 1}-${String(y).slice(2)}`;
+  const cover = book ? `<div class="page cover"><img src="${CLUB_LOGO_URL}" alt=""><h1>ESTRATEGIA<br>A BALÓN PARADO</h1><h3>${esc(teamName || "")}</h3><p>TEMPORADA ${season}</p></div>` : "";
+  const svgs = await Promise.all(list.map((p) => pieceSvg(p, players, look, fieldBoxAspect(p, per))));
+  const titles = list.map((p) => autoTitle(pieceBoard(p, players), pieceSetup(p)).title);
+  const cards = list.map((p, i) => `<section class="card">
+    <header><div class="club"><img src="${CLUB_LOGO_URL}" alt=""><div><b>RACING SARRIÀ</b><span>${esc(teamName || "")}</span></div></div>
+    <div class="ttl"><h2>${esc(p.name)}</h2><span>${esc(setupLabel(pieceSetup(p)))}</span>${titles[i] ? `<em>${esc(titles[i])}</em>` : ""}</div></header>
+    ${p.signal ? `<div class="sig"><b>SEÑAL</b><span>${esc(p.signal)}</span></div>` : ""}
+    <div class="fld" style="aspect-ratio:${svgs[i].ar.toFixed(4)}">${svgs[i].html}</div>${p.notes ? `<div class="notes"><b>INSTRUCCIONES</b>${esc(p.notes)}</div>` : ""}</section>`);
+  const pages = [];
+  for (let i = 0; i < cards.length; i += per) pages.push(`<div class="page">${cards.slice(i, i + per).join("")}</div>`);
+  const body = `${cover}${pages.join("")}`;
+
+  if (mode === "pdf") {
+    const old = document.getElementById("sp-pdf-root");
+    if (old) old.remove();
+    const root = document.createElement("div");
+    root.id = "sp-pdf-root";
+    root.className = "sp-pdf";
+    root.style.cssText = "position:fixed;left:-10000px;top:0;width:210mm;z-index:-1;pointer-events:none";
+    root.innerHTML = `<style>${fontFaces()}${sheetCss(per, ".sp-pdf ")}</style>${body}`;
+    document.body.appendChild(root);
+    try {
+      const { downloadSessionPdf } = await import("@/components/sessions/sessionPdf");
+      await downloadSessionPdf([...root.querySelectorAll(".page")], `balon-parado${teamName ? `-${fileSlug(teamName)}` : ""}.pdf`);
+    } finally { root.remove(); }
+    return true;
+  }
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>&#8203;</title>
+  <style>${fontFaces()}
+    @page{size:A4;margin:0} html,body{margin:0;padding:0} body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    ${sheetCss(per)}
+  </style></head><body>${body}</body></html>`;
   const old = document.getElementById("sp-print-frame");
   if (old) old.remove();
   const fr = document.createElement("iframe");
@@ -485,7 +515,7 @@ async function printPieces(list, players, perPage, teamName, book = false, look 
   document.body.appendChild(fr);
   const doc = fr.contentWindow.document;
   doc.open(); doc.write(html); doc.close();
-  const go = () => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { window.print(); } };
+  const go = () => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch { window.print(); } };
   const ready = fr.contentWindow.document.fonts?.ready || Promise.resolve();
   Promise.race([ready, new Promise((r) => setTimeout(r, 1800))]).then(() => setTimeout(go, 500));
   return true;
@@ -502,19 +532,24 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
   const [prevOpen, setPrevOpen] = useState(false);
   const [order, setOrder] = useState([]);
   const [off, setOff] = useState([]);
-  const [perPage, setPerPage] = useState(1);
   // Vista y orientación al imprimir (se recuerdan en este navegador)
   const [printLook, setPrintLook] = useState(() => { try { return { view: "board", orient: "board", ...JSON.parse(localStorage.getItem("rs_sp_print") || "{}") }; } catch { return { view: "board", orient: "board" }; } });
+  const perPage = [1, 2, 4].includes(printLook.per) ? printLook.per : 1;
+  const setPerPage = (n) => setLook({ per: n });
   const setLook = (patch) => setPrintLook((o) => { const n = { ...o, ...patch }; try { localStorage.setItem("rs_sp_print", JSON.stringify(n)); } catch { /* sin almacenamiento */ } return n; });
   const printList = [...order.filter((id) => pieces.some((p) => p.id === id)), ...pieces.map((p) => p.id).filter((id) => !order.includes(id))];
   const moveP = (id, dir) => { const i = printList.indexOf(id), j = i + dir; if (j < 0 || j >= printList.length) return; const n = [...printList]; [n[i], n[j]] = [n[j], n[i]]; setOrder(n); };
   const flash = (m) => { setNote(m); setTimeout(() => setNote(""), 2800); };
   const lookup = [...candidates, ...allPlayers.filter((p) => !candidates.some((c) => c.id === p.id))];
   const availableIds = candidates.map((p) => p.id);
-  const doPrint = async () => {
+  const [busy, setBusy] = useState(null);
+  const doPrint = async (mode = "print") => {
     const list = printList.filter((id) => !off.includes(id)).map((id) => pieces.find((p) => p.id === id));
     if (!list.length) return flash(t("Marca al menos una jugada"));
-    try { await printPieces(list, lookup, perPage, teamName, false, printLook); } catch (e) { flash(t("No se pudo imprimir: {error}", { error: e?.message || t("error") })); }
+    setBusy(mode);
+    try { await printPieces(list, lookup, perPage, teamName, false, printLook, mode); }
+    catch (e) { flash(mode === "pdf" ? t("No se pudo crear el PDF: {error}", { error: e?.message || t("error") }) : t("No se pudo imprimir: {error}", { error: e?.message || t("error") })); }
+    finally { setBusy(null); }
   };
   const active = pieces.find((p) => p.id === activeId) || pieces[0] || null;
 
@@ -538,13 +573,19 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
   const duplicate = () => { if (!active) return; addPiece({ ...copyPiece(active, { newId: uid, players: lookup, availableIds: lookup.map((p) => p.id), keepLibrary: false }), name: `${active.name} (${t("copia")})` }); };
   const printBook = async () => {
     if (!library.length) return flash(t("La biblioteca está vacía"));
-    const ord = TYPES.map((ty) => ty.value);
-    const list = [...library].sort((a, b) => (ord.indexOf(a.type) - ord.indexOf(b.type)) || (a.name || "").localeCompare(b.name || ""));
+    const ord = SP_KINDS.map((k) => k.id);
+    const key = (x) => { const st = pieceSetup(x); return ord.indexOf(st.kind) * 2 + (st.attack ? 0 : 1); };
+    const list = [...library].sort((a, b) => (key(a) - key(b)) || (a.name || "").localeCompare(b.name || ""));
     try { await printPieces(list, lookup, perPage, teamName, true, printLook); } catch (e) { flash(t("No se pudo imprimir: {error}", { error: e?.message || t("error") })); }
   };
   const update = (p) => onChange(pieces.map((x) => (x.id === p.id ? p : x)));
   const remove = (id) => { onChange(pieces.filter((x) => x.id !== id)); setActiveId(null); };
-  const typeLabel = (v) => TYPES.find((ty) => ty.value === v)?.label || v;
+  // «Córner en contra · Lado derecho», traducido (la hoja impresa usa setupLabel, siempre en español)
+  const setupText = (p) => {
+    const st = pieceSetup(p);
+    const k = st.kind === "otro" ? st.other || t("Otra jugada") : t(KIND_LABEL[st.kind] || "Córner");
+    return [`${k} · ${st.attack ? t("A favor") : t("En contra")}`, hasSide(st.kind) ? t(SIDE_LABEL[st.side]) : ""].filter(Boolean).join(" · ");
+  };
 
   const saveToLibrary = async () => {
     if (!active || !teamId) return;
@@ -596,7 +637,8 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
       <div className="flex flex-wrap items-center" style={{ background: RS.dark, color: "#fff", borderRadius: 14, padding: "12px 18px", gap: "10px 18px" }}>
         <div className="min-w-0">
           <p style={{ margin: 0, fontSize: 12, color: "#E8C9CD" }}>{teamName || t("Acciones a balón parado")}</p>
-          <h2 style={{ margin: 0, fontFamily: DISPLAY, fontSize: 26, lineHeight: 1, fontWeight: 400, color: "#fff", textTransform: "none" }}>{t("Balón parado")}</h2>
+          {/* sin <h2>: la regla general de títulos de la app lo pintaba en granate sobre el granate de la banda */}
+          <div role="heading" aria-level={2} style={{ margin: 0, fontFamily: DISPLAY, fontSize: 26, lineHeight: 1, fontWeight: 400, color: "#fff" }} data-testid="sp-band-title">{t("Balón parado")}</div>
         </div>
         <nav aria-label={t("Jugadas del partido")} className="flex flex-wrap" style={{ gap: 6, flex: "1 1 360px" }}>
           {pieces.map((p) => {
@@ -633,7 +675,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
                   <div key={p.id} className={rowCls} style={{ border: `1px solid ${RS.line}` }}>
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] font-semibold truncate">{p.name || t("Sin nombre")}</p>
-                      <p className="text-[11px] truncate" style={{ color: RS.muted }}>{t(typeLabel(p.type))}</p>
+                      <p className="text-[11px] truncate" style={{ color: RS.muted }}>{setupText(p)}</p>
                     </div>
                     <button type="button" onClick={() => bringPrev([p])} style={{ ...btnOut, height: 30 }}>{t("Copiar")}</button>
                   </div>
@@ -662,34 +704,39 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
       )}
 
       {printOpen && pieces.length > 0 && (
-        <Card>
-          {panelHead(t("Imprimir · elige jugadas y orden"), () => setPrintOpen(false))}
-          <div className="space-y-1">
-            {printList.map((id, i) => { const p = pieces.find((x) => x.id === id); return (
-              <div key={id} className={rowCls} style={{ border: `1px solid ${RS.line}`, padding: "4px 10px" }}>
-                <input type="checkbox" checked={!off.includes(id)} onChange={(e) => setOff(e.target.checked ? off.filter((x) => x !== id) : [...off, id])} className="accent-[#73000A]" />
-                <span className="text-[13px] truncate flex-1 min-w-0">{i + 1}. {p.name || t("Sin nombre")}</span>
-                <button type="button" onClick={() => moveP(id, -1)} className="p-1" style={{ color: RS.muted }} aria-label={t("Subir")}><ArrowUp className="w-3.5 h-3.5" /></button>
-                <button type="button" onClick={() => moveP(id, 1)} className="p-1" style={{ color: RS.muted }} aria-label={t("Bajar")}><ArrowDown className="w-3.5 h-3.5" /></button>
-              </div>); })}
-          </div>
-          <div className="flex flex-wrap items-center gap-2" data-testid="sp-print-view">
-            <span className="text-[12px] w-[86px]" style={{ color: RS.muted }}>{t("Vista")}</span>
-            {[["board", msg("Como en la pizarra")], ["flat", msg("Plana (desde arriba)")], ["persp", msg("Perspectiva")], ["3d", msg("3D")]].map(([v, l]) => (
-              <button key={v} type="button" data-testid={`sp-print-view-${v}`} onClick={() => setLook({ view: v })} style={pill(printLook.view === v)}>{t(l)}</button>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-2" data-testid="sp-print-orient">
-            <span className="text-[12px] w-[86px]" style={{ color: RS.muted }}>{t("Orientación")}</span>
-            {[["board", msg("Como en la pizarra")], ["v", msg("Vertical")], ["h", msg("Horizontal")]].map(([v, l]) => (
-              <button key={v} type="button" data-testid={`sp-print-orient-${v}`} onClick={() => setLook({ orient: v })} style={pill(printLook.orient === v)}>{t(l)}</button>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {[[1, msg("1 por página")], [2, msg("2 por página")]].map(([v, l]) => (
-              <button key={v} type="button" onClick={() => setPerPage(v)} style={pill(perPage === v)}>{t(l)}</button>
-            ))}
-            <button type="button" onClick={doPrint} className="ml-auto inline-flex items-center" style={{ ...btnOut, background: RS.granate, color: "#fff", border: "none", fontWeight: 600, gap: 6 }}><Printer className="w-4 h-4" /> {t("Imprimir")}</button>
+        <Card testId="sp-print" style={{ padding: "10px 12px", gap: 8 }}>
+          {panelHead(t("Imprimir o PDF"), () => setPrintOpen(false))}
+          <div className="flex flex-wrap items-start" style={{ gap: 14 }}>
+            <div style={{ flex: "0 1 280px", minWidth: 220 }}>
+              <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
+                <span style={{ fontSize: 11.5, color: RS.muted }}>{t("{n} de {m} jugadas", { n: printList.filter((id) => !off.includes(id)).length, m: printList.length })}</span>
+                <span className="flex" style={{ gap: 8, fontSize: 11.5 }}>
+                  <button type="button" onClick={() => setOff([])} style={{ color: RS.granate, fontWeight: 600 }} data-testid="sp-print-all">{t("Todas")}</button>
+                  <button type="button" onClick={() => setOff(printList)} style={{ color: RS.muted }}>{t("Ninguna")}</button>
+                </span>
+              </div>
+              <ol style={{ listStyle: "none", margin: 0, padding: 0, border: `1px solid ${RS.line}`, borderRadius: 8, overflow: "hidden", maxHeight: 220, overflowY: "auto" }} data-testid="sp-print-list">
+                {printList.map((id, i) => { const p = pieces.find((x) => x.id === id); const on = !off.includes(id); return (
+                  <li key={id} className="flex items-center" style={{ gap: 6, padding: "3px 6px 3px 8px", borderTop: i ? `1px solid ${RS.soft}` : "none", background: on ? "#fff" : RS.bg }}>
+                    <input type="checkbox" checked={on} onChange={(e) => setOff(e.target.checked ? off.filter((x) => x !== id) : [...off, id])} className="accent-[#73000A]" aria-label={p.name || t("Sin nombre")} />
+                    <span className="truncate flex-1 min-w-0" style={{ fontSize: 12.5, color: on ? RS.ink : RS.muted }}>{i + 1}. {p.name || t("Sin nombre")}</span>
+                    <button type="button" onClick={() => moveP(id, -1)} disabled={i === 0} className="p-0.5 disabled:opacity-30" style={{ color: RS.muted }} aria-label={t("Subir")}><ArrowUp className="w-3.5 h-3.5" /></button>
+                    <button type="button" onClick={() => moveP(id, 1)} disabled={i === printList.length - 1} className="p-0.5 disabled:opacity-30" style={{ color: RS.muted }} aria-label={t("Bajar")}><ArrowDown className="w-3.5 h-3.5" /></button>
+                  </li>); })}
+              </ol>
+            </div>
+            <div className="flex flex-col" style={{ flex: "1 1 320px", gap: 7 }}>
+              <PrintRow label={t("Vista")} testId="sp-print-view" value={printLook.view} onChange={(v) => setLook({ view: v })}
+                options={[["board", t("Como en la pizarra")], ["flat", t("Plana")], ["persp", t("Perspectiva")], ["3d", t("3D")]]} prefix="sp-print-view-" />
+              <PrintRow label={t("Orientación")} testId="sp-print-orient" value={printLook.orient} onChange={(v) => setLook({ orient: v })}
+                options={[["board", t("Como en la pizarra")], ["v", t("Vertical")], ["h", t("Horizontal")]]} prefix="sp-print-orient-" />
+              <PrintRow label={t("Por hoja")} testId="sp-print-per" value={perPage} onChange={setPerPage}
+                options={[[1, "1"], [2, "2"], [4, "4"]]} prefix="sp-print-per-" />
+              <div className="flex flex-wrap items-center" style={{ gap: 6, marginTop: 2 }}>
+                <button type="button" onClick={() => doPrint("print")} disabled={!!busy} className="inline-flex items-center disabled:opacity-50" style={{ ...btnOut, height: 32, background: RS.granate, color: "#fff", border: "none", fontWeight: 600, gap: 6 }} data-testid="sp-print-go"><Printer className="w-4 h-4" /> {t("Imprimir")}</button>
+                <button type="button" onClick={() => doPrint("pdf")} disabled={!!busy} className="inline-flex items-center disabled:opacity-50" style={{ ...btnOut, height: 32, border: `1px solid ${RS.granate}`, color: RS.granate, fontWeight: 600, gap: 6 }} data-testid="sp-print-pdf"><FileDown className="w-4 h-4" /> {busy === "pdf" ? t("Preparando el PDF…") : t("Descargar PDF")}</button>
+              </div>
+            </div>
           </div>
         </Card>
       )}
@@ -705,7 +752,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
                 <div key={l.id} className={rowCls} style={{ border: `1px solid ${RS.line}` }}>
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-semibold truncate">{l.name || t("Sin nombre")}</p>
-                    <p className="text-[11px] truncate" style={{ color: RS.muted }}>{t(typeLabel(l.type))}{l.signal ? ` · ${t("Señal: {signal}", { signal: l.signal })}` : ""}</p>
+                    <p className="text-[11px] truncate" style={{ color: RS.muted }}>{setupText(l)}{l.signal ? ` · ${t("Señal: {signal}", { signal: l.signal })}` : ""}</p>
                   </div>
                   <button type="button" onClick={() => addFromLibrary(l)} style={{ ...btnOut, height: 30, background: RS.granate, color: "#fff", border: "none", fontWeight: 600 }}>{t("Usar")}</button>
                   <button type="button" onClick={() => removeFromLibrary(l)} className="p-1" style={{ color: "#B9A7A9" }} title={t("Quitar de la biblioteca")}><Trash2 className="w-3.5 h-3.5" /></button>

@@ -1,15 +1,30 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyStructure, autoTitle, functionCounts, pieceSetup, typeOf, setFunction, SP_STRUCTURES, DEF_FUNCS, ownChips, emptyPieceBoard, structuresFor } from "../src/lib/setPieceBoard.js";
+import { applyStructure, autoTitle, functionCounts, pieceSetup, setupLabel, hasSide, typeOf, setFunction, SP_STRUCTURES, DEF_FUNCS, ownChips, emptyPieceBoard, structuresFor } from "../src/lib/setPieceBoard.js";
 
 let n = 0;
 const newId = () => `n${++n}`;
 
 test("tipo de jugada: se deduce de lo antiguo y se guarda el `type` de siempre", () => {
-  assert.deepEqual(pieceSetup({ type: "corner_contra" }), { kind: "corner", attack: false, side: "r" });
-  assert.deepEqual(pieceSetup({ type: "falta_contra" }), { kind: "falta_lateral", attack: false, side: "r" });
-  assert.deepEqual(pieceSetup({ type: "saque_banda" }), { kind: "banda", attack: true, side: "r" });
-  assert.deepEqual(pieceSetup({ kind: "corner", attack: true, side: "l", type: "corner_contra" }), { kind: "corner", attack: true, side: "l" });
+  const base = (o) => ({ drawSide: o.side === "l" ? "l" : "r", other: "", ...o });
+  assert.deepEqual(pieceSetup({ type: "corner_contra" }), base({ kind: "corner", attack: false, side: "r" }));
+  assert.deepEqual(pieceSetup({ type: "falta_contra" }), base({ kind: "falta_lateral", attack: false, side: "r" }));
+  assert.deepEqual(pieceSetup({ type: "saque_banda" }), base({ kind: "banda", attack: true, side: "r" }));
+  assert.deepEqual(pieceSetup({ kind: "corner", attack: true, side: "l", type: "corner_contra" }), base({ kind: "corner", attack: true, side: "l" }));
+  // tipos nuevos (06/11/2026): saque de centro, penalti, otro con texto, y «ambos lados» sin girar el dibujo
+  assert.equal(pieceSetup({ type: "saque_puerta" }).kind, "otro");
+  assert.equal(pieceSetup({ type: "saque_puerta" }).other, "Saque de puerta");
+  assert.equal(pieceSetup({ kind: "penalti", attack: true }).kind, "penalti");
+  const both = pieceSetup({ kind: "corner", side: "both", draw_side: "l", attack: false });
+  assert.equal(both.side, "both");
+  assert.equal(both.drawSide, "l");
+  assert.equal(hasSide("penalti"), false);
+  assert.equal(hasSide("saque_centro"), false);
+  assert.equal(hasSide("corner"), true);
+  assert.equal(setupLabel(both), "Córner en contra · Ambos lados");
+  assert.equal(setupLabel({ kind: "penalti", attack: true, side: "r" }), "Penalti a favor");
+  assert.equal(setupLabel({ kind: "otro", attack: true, side: "l", other: "Saque de puerta" }), "Saque de puerta a favor · Lado izquierdo");
+  assert.equal(setupLabel({ kind: "otro", attack: false, side: "r", other: "" }), "Otra jugada en contra · Lado derecho");
   assert.equal(typeOf("corner", false), "corner_contra");
   assert.equal(typeOf("falta_frontal", true), "falta_frontal");
   assert.equal(typeOf("falta_frontal", false), "falta_contra");
