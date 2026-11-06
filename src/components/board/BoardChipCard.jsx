@@ -164,10 +164,12 @@ function LetterLine({ title, sizeKey, prefix, el, patch, bn, sizeTestid, fontTes
 
 export default function ChipCard({
   el, board, look, roster = [], variant = "tareas", playerSlot = null, describe = null,
-  patch, onClose, onDup, onDel, canDelHere = false, locked = false, hl = false, onLock, onHl, onLayer, onTeamPanel,
+  patch, onClose, onDup, onDel, canDelHere = false, locked = false, hl = false, onLock, onHl, onLayer, onTeamPanel, onLetterToTeam,
   style, sheet = false, onGrab,
 }) {
   const [tab, setTabState] = React.useState(readTab);
+  const [applied, setApplied] = React.useState(null); // «Hecho: n fichas» tras aplicar la letra a todo el equipo
+  React.useEffect(() => { setApplied(null); }, [el.id, tab]);
   const setTab = (t) => { setTabState(t); saveTab(t); };
   const teams = teamsOf(board);
   const team = teams.find((t) => t.id === el.team) || teams[0];
@@ -259,7 +261,14 @@ export default function ChipCard({
             <LetterLine title="Dorsal" sizeKey="innerFs" prefix="inner" el={el} patch={patch} bn={bn} sizeTestid="fs-inner" fontTestid="chip-font-inner" />
             <LetterLine title="Nombre (y texto de encima)" sizeKey="labelFs" prefix="label" el={el} patch={patch} bn={bn} sizeTestid="fs-label" fontTestid="chip-font-label" />
             <LetterLine title="Texto de encima" sizeKey="topFs" el={el} patch={patch} bn={bn} sizeTestid="fs-top" note="Misma letra que el nombre" />
-            {onTeamPanel && <button type="button" onClick={() => onTeamPanel(el.team)} className="text-[12px] font-semibold text-[#73000A] hover:underline">Cambiar para todo el equipo →</button>}
+            {onLetterToTeam && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => setApplied(onLetterToTeam())} data-testid="card-letter-team"
+                  className="h-8 px-3 rounded-md border border-[#73000A] bg-[#FBEFEF] text-[12px] font-semibold text-[#73000A] hover:bg-[#F6E2E2]">Aplicar esta letra a todo el equipo</button>
+                {applied != null && <span className="text-[11.5px] text-gray-600" role="status" data-testid="card-letter-done">{applied ? `Hecho: ${applied} ${applied === 1 ? "ficha" : "fichas"} de ${team?.name || "su equipo"}` : "Ya tenían todas esta letra"}</span>}
+              </div>
+            )}
+            <p className="text-[11px] text-gray-500">Copia el tamaño, la tipografía, la negrita, el color y el borde de la letra (dorsal, nombre y texto de encima) a las demás fichas de {team?.name || "su equipo"}, en todos los fotogramas.</p>
           </>
         )}
       </div>

@@ -1686,6 +1686,33 @@ export function styleElements(board, index, ids, kind, patch) {
     return out;
   });
 }
+// «Aplicar a todo el equipo» desde la tarjeta de una ficha (06/11/2026, Nacho: «edito el tamaño del texto de un jugador y le
+// digo que lo aplique a todo el equipo, y no se aplica»): copia esos campos de la ficha `src` a todas las fichas de su equipo, en
+// todos los fotogramas (lo que la ficha no tiene se quita: vuelve al valor de siempre). Devuelve { board, count } (count = fichas
+// distintas cambiadas, sin contar la propia).
+export const CHIP_LETTER_KEYS = [...Object.values(CHIP_TEXT_KEYS), ...CHIP_TEXT_STYLE_KEYS];
+export function applyToTeam(board, src, keys = CHIP_LETTER_KEYS) {
+  if (!src || src.k !== "token") return { board, count: 0 };
+  const ids = new Set();
+  const frames = board.frames.map((f) => ({
+    ...f,
+    els: f.els.map((e) => {
+      if (e.k !== "token" || e.id === src.id || (e.team || "a") !== (src.team || "a")) return e;
+      const out = { ...e };
+      let changed = false;
+      for (const k of keys) {
+        const v = src[k];
+        if (v === undefined || v === null) { if (k in out) { delete out[k]; changed = true; } }
+        else if (out[k] !== v) { out[k] = v; changed = true; }
+      }
+      if (!changed) return e;
+      ids.add(e.id);
+      return out;
+    }),
+  }));
+  return ids.size ? { board: { ...board, frames }, count: ids.size } : { board, count: 0 };
+}
+
 // Copia el aspecto de la primera cosa elegida de ese tipo a las demás de su tipo (lo que la primera no tiene, se quita: valor por
 // defecto). Devuelve el mismo board si no hay al menos dos.
 export function matchElements(board, index, ids, kind) {

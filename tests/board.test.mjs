@@ -1406,3 +1406,21 @@ test("letra de los textos de una ficha: tipografía, negrita, color y borde", as
   assert.equal(chipTextLook(el, "label").font, fontOf("serif"));
   assert.equal(chipTextLook({ labelHalo: "rojo" }, "label").halo, null);
 });
+
+test("tarjeta: aplicar la letra de una ficha a todo su equipo", async () => {
+  const { applyToTeam } = await import("../src/lib/board.js");
+  const src = { id: "a1", k: "token", team: "a", x: 1, y: 1, labelFs: 14, innerFont: "cond", labelBold: false };
+  const b = { v: 2, frames: [
+    { id: "f1", els: [src, { id: "a2", k: "token", team: "a", x: 2, y: 2, labelFs: 6, innerColor: "#ff0000" }, { id: "b1", k: "token", team: "b", x: 3, y: 3 }] },
+    { id: "f2", els: [{ ...src, x: 5 }, { id: "a2", k: "token", team: "a", x: 9, y: 9, labelFs: 6 }, { id: "a3", k: "token", team: "a", x: 4, y: 4 }] },
+  ] };
+  const { board: out, count } = applyToTeam(b, src);
+  assert.equal(count, 2);
+  const a2 = out.frames[0].els.find((e) => e.id === "a2");
+  assert.equal(a2.labelFs, 14); assert.equal(a2.innerFont, "cond"); assert.equal(a2.labelBold, false);
+  assert.equal("innerColor" in a2, false);
+  assert.equal(a2.x, 2);
+  assert.equal(out.frames[1].els.find((e) => e.id === "a3").labelFs, 14);
+  assert.equal(out.frames[0].els.find((e) => e.id === "b1").labelFs, undefined);
+  assert.equal(applyToTeam(out, src).count, 0);
+});
