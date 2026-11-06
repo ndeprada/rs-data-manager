@@ -393,7 +393,9 @@ export function printBoard(board, { view = "board", orient = "board" } = {}) {
 // hueco de la hoja (`aspect` = ancho ÷ alto). Devuelve el recuadro en coordenadas de la vista ([x, y, ancho, alto]) para
 // `viewOverride` (plano, perspectiva y 3D), o null si no hay nada que recortar (espacio libre y campos pequeños).
 const PRINT_AREA = { f11: [40.32, 16.5], f7: [24, 9] };
-export function printCrop(board, aspect) {
+// `aspect` = proporción del hueco; con { tight: true } no se alarga para llenarlo: se queda en lo justo de la jugada
+// (06/11/2026, Nacho: «el campo más corto… al ser tan largo se estira mucho»), y el hueco toma la proporción del recorte.
+export function printCrop(board, aspect, { tight = false } = {}) {
   const b = normalizeBoard(board);
   const field = fieldOf(b.field), orient = orientOf(b.orient);
   const area = PRINT_AREA[fieldKind(field)];
@@ -403,7 +405,7 @@ export function printCrop(board, aspect) {
   const full = persp ? persp.vb : viewBox(field, orient, m);
   // zona en metros del campo (la portería que se ataca está arriba, en y = 0). Siempre el ancho entero, con las dos bandas
   // (06/11/2026, Nacho: «faltan partes del campo»): solo se acorta el largo, desde la portería hasta donde llega la jugada.
-  let x0 = -3, x1 = field.w + 3, y0 = -2.5, y1 = area[1] + 3;
+  let x0 = -3, x1 = field.w + 3, y0 = -2.5, y1 = area[1] + (tight ? 5 : 3);
   const chip = b.chipSize || undefined;
   for (const el of b.frames[0]?.els || []) {
     const bx = elementBounds(el, chip);
@@ -417,7 +419,8 @@ export function printCrop(board, aspect) {
   let R = Math.min(full[0] + full[2], Math.max(...xs)), B = Math.min(full[1] + full[3], Math.max(...ys));
   let w = R - L, h = B - T;
   const fit = (start, size, lo, span) => Math.max(lo, Math.min(start, lo + span - size));
-  if (w / h < aspect) { const nw = Math.min(full[2], h * aspect); L = fit(L - (nw - w) / 2, nw, full[0], full[2]); w = nw; }
+  if (tight) { /* lo justo */ }
+  else if (w / h < aspect) { const nw = Math.min(full[2], h * aspect); L = fit(L - (nw - w) / 2, nw, full[0], full[2]); w = nw; }
   else { const nh = Math.min(full[3], w / aspect); T = fit(T - (nh - h) / 2, nh, full[1], full[3]); h = nh; }
   const r = (v) => Math.round(v * 100) / 100;
   return [r(L), r(T), r(w), r(h)];

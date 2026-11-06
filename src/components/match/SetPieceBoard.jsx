@@ -402,7 +402,7 @@ let printSeq = 0;
 async function pieceSvg(piece, players, opts = {}, aspect = 1.4) {
   const b = printBoard(pieceBoard(piece, players), opts);
   const printable = isStadium(b.look) ? { ...b, look: "blanco" } : b;
-  const crop = printCrop(printable, aspect);
+  const crop = printCrop(printable, aspect, { tight: true });
   if (is3D(printable)) {
     const ar = crop ? crop[2] / crop[3] : aspect;
     const c = document.createElement("canvas");
@@ -426,39 +426,44 @@ async function pieceSvg(piece, players, opts = {}, aspect = 1.4) {
 // debajo del campo, a todo el ancho, y el campo ocupa todo lo que queda. «Descargar PDF» compone las mismas hojas en la
 // página (fuera de la vista) y las fotografía (`downloadSessionPdf`, como la hoja de sesión).
 const PAGE_W = 190, PAGE_H = 277, GAP = 6;
+// Hoja rediseñada (06/11/2026, Nacho: «estamos perdiendo mucho espacio… la señal con una pastillita naranja encima a la
+// derecha del campo… el escudo un poco más pequeño, Racing Sarrià y debajo el equipo con la misma tipografía… el tipo de
+// jugada y el nombre… el campo más corto»): cabecera de una línea, una franja pequeña con el título automático y la señal,
+// el campo recortado a lo justo de la jugada (a todo el ancho) e instrucciones debajo.
 const SZ = {
-  1: { logo: 15, club: 14, team: 13, h2: 26, em: 12, kind: 14, sig: 12, sigb: 10, notes: 11, notesb: 9.5, head: 25, sigH: 10, notesMax: 60, chars: 105 },
-  2: { logo: 11, club: 10.5, team: 9.5, h2: 18, em: 9.5, kind: 11, sig: 10, sigb: 8.5, notes: 9.5, notesb: 8.5, head: 19, sigH: 8.5, notesMax: 30, chars: 120 },
-  4: { logo: 8, club: 8, team: 7.5, h2: 13, em: 7, kind: 7.5, sig: 8, sigb: 7, notes: 8, notesb: 7, head: 15, sigH: 7, notesMax: 24, chars: 60 },
+  1: { logo: 11, club: 13, team: 11, h2: 22, kind: 10.5, em: 10, sig: 10, notes: 11, notesb: 9.5, notesMax: 80, pad: 2.5 },
+  2: { logo: 8.5, club: 10, team: 8.5, h2: 16, kind: 8.5, em: 8.5, sig: 8.5, notes: 9.5, notesb: 8.5, notesMax: 34, pad: 2 },
+  4: { logo: 6.5, club: 7.5, team: 6.5, h2: 11.5, kind: 6.5, em: 6.5, sig: 6.5, notes: 7.5, notesb: 6.5, notesMax: 30, pad: 1.3 },
 };
+// Proporción del hueco del campo (solo orienta el recorte; con «lo justo» manda la jugada)
 function fieldBoxAspect(p, per) {
-  const z = SZ[per] || SZ[1];
   const w = per === 4 ? (PAGE_W - GAP) / 2 : PAGE_W;
   const card = per === 1 ? PAGE_H : (PAGE_H - GAP) / 2;
-  const notes = String(p.notes || "").trim();
-  const lines = notes ? notes.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / z.chars)), 0) : 0;
-  const notesH = notes ? Math.min(z.notesMax, 6 + lines * z.notes * 0.45) : 0;
-  return w / Math.max(30, card - z.head - (p.signal ? z.sigH : 0) - notesH - 2);
+  return w / Math.max(30, card * 0.6);
 }
 // Estilos de las hojas; `sc` = prefijo para usarlos dentro de la página (PDF) sin tocar el resto de la app
 function sheetCss(per, sc = "") {
   const z = SZ[per] || SZ[1];
   const one = per === 1;
+  const D = "font-family:'Racing Sarria',sans-serif;font-weight:400;letter-spacing:.3px;text-transform:uppercase";
   return `
     ${sc}.page{width:210mm;height:297mm;padding:10mm;display:${per === 4 ? "grid" : "flex"};${per === 4 ? "grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;" : "flex-direction:column;"}gap:${GAP}mm;overflow:hidden;break-after:page;page-break-after:always;background:#fff;box-sizing:border-box;font-family:'IBM Plex Sans Condensed',Arial,sans-serif;color:#222}
-    ${sc}.page *{box-sizing:border-box}${per === 4 ? ` ${sc}.club b{display:none} ${sc}.ttl{flex:1}` : ""}
+    ${sc}.page *{box-sizing:border-box}
     ${sc}.page:last-child{break-after:auto;page-break-after:auto}
     ${sc}.card{${per === 4 ? "" : `flex:${one ? "1 1 0" : `0 0 ${(PAGE_H - GAP) / 2}mm`};`}min-height:0;min-width:0;display:flex;flex-direction:column;overflow:hidden}
-    ${sc}header{flex:none;border-bottom:.6mm solid #73000A;padding-bottom:${per === 4 ? 1.2 : 2}mm;display:flex;justify-content:space-between;align-items:flex-start;gap:${per === 4 ? 3 : 8}mm;margin-bottom:${per === 4 ? 1.5 : 2.5}mm}
-    ${sc}.club{display:flex;align-items:center;gap:${per === 4 ? 1.5 : 2.5}mm;min-width:0} ${sc}.club img{height:${z.logo}mm;width:auto}
-    ${sc}.club b{display:block;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:${z.club}pt;color:#73000A;line-height:1.05;letter-spacing:.3px} ${sc}.club span{display:block;font-size:${z.team}pt;color:#FF6E00;font-weight:700;text-transform:uppercase;line-height:1.1}
-    ${sc}.ttl{text-align:right;min-width:0} ${sc}.ttl h2{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:${z.h2}pt;line-height:1;color:#73000A;text-transform:uppercase;letter-spacing:.3px} ${sc}.ttl em{display:block;font-style:normal;font-family:'Racing Sarria',sans-serif;font-size:${z.em}pt;color:#36000D;margin-top:1mm;letter-spacing:.3px} ${sc}.ttl span{display:block;font-family:'Racing Sarria',sans-serif;font-weight:400;letter-spacing:.5px;font-size:${z.kind}pt;color:#FF6E00;text-transform:uppercase;margin-top:1mm}
-    ${sc}.sig{flex:none;display:flex;align-items:center;gap:${per === 4 ? 2 : 3}mm;border:.3mm solid #FF6E00;border-radius:1.5mm;padding:${per === 4 ? ".6mm 2mm" : "1mm 3mm"};margin-bottom:${per === 4 ? 1.5 : 2.5}mm;font-size:${z.sig}pt}
-    ${sc}.sig b{background:#FF6E00;color:#fff;padding:.4mm 2mm;border-radius:1mm;font-size:${z.sigb}pt;letter-spacing:.5px} ${sc}.sig span{color:#333;font-weight:500}
-    ${sc}.fld{flex:0 1 auto;width:100%;min-height:0;position:relative}
+    ${sc}header{flex:none;display:flex;justify-content:space-between;align-items:center;gap:${z.pad * 2}mm;padding-bottom:${z.pad * 0.6}mm;border-bottom:.5mm solid #73000A}
+    ${sc}.club{display:flex;align-items:center;gap:${z.pad * 0.8}mm;flex:none} ${sc}.club img{height:${z.logo}mm;width:auto;display:block}
+    ${sc}.club b{display:block;${D};font-size:${z.club}pt;color:#73000A;line-height:1} ${sc}.club span{display:block;${D};font-size:${z.team}pt;color:#FF6E00;line-height:1.05;margin-top:.4mm}
+    ${sc}.ttl{text-align:right;min-width:0} ${sc}.ttl span{display:block;${D};font-size:${z.kind}pt;color:#FF6E00;line-height:1}
+    ${sc}.ttl h2{margin:.5mm 0 0;${D};font-size:${z.h2}pt;line-height:1;color:#73000A;overflow-wrap:anywhere}
+    ${sc}.meta{flex:none;display:flex;justify-content:space-between;align-items:center;gap:${z.pad * 1.5}mm;margin:${z.pad * 0.6}mm 0 ${z.pad * 0.5}mm;min-height:${z.sig * 0.5}mm}
+    ${sc}.meta em{font-style:normal;${D};font-size:${z.em}pt;color:#36000D;min-width:0}
+    ${sc}.sig{margin-left:auto;display:inline-flex;align-items:baseline;gap:1.5mm;background:#FF6E00;color:#fff;border-radius:10mm;padding:${z.pad * 0.3}mm ${z.pad * 1.2}mm;font-size:${z.sig}pt;font-weight:600;line-height:1.2;max-width:65%}
+    ${sc}.sig b{${D};font-size:${z.sig * 0.9}pt;letter-spacing:.6px;flex:none}
+    ${sc}.fld{flex:0 1 auto;width:100%;min-height:0;position:relative} ${sc}header + .fld{margin-top:${z.pad}mm}
     ${sc}.fld svg,${sc}.fld img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;overflow:hidden}
-    ${sc}.notes{flex:none;margin-top:${per === 4 ? 1.5 : 2.5}mm;font-size:${z.notes}pt;white-space:pre-wrap;color:#333;border-left:.5mm solid #FF6E00;padding-left:${per === 4 ? 2 : 3}mm;font-weight:500;max-height:${z.notesMax}mm;overflow:hidden}
-    ${sc}.notes b{display:block;color:#FF6E00;font-size:${z.notesb}pt;letter-spacing:.5px;margin-bottom:.8mm}
+    ${sc}.notes{flex:none;margin-top:${z.pad}mm;font-size:${z.notes}pt;white-space:pre-wrap;color:#333;border-left:.5mm solid #FF6E00;padding-left:${z.pad}mm;font-weight:500;line-height:1.3;max-height:${z.notesMax}mm;overflow:hidden}
+    ${sc}.notes b{display:block;${D};color:#FF6E00;font-size:${z.notesb}pt;letter-spacing:.5px;margin-bottom:.6mm}
     ${sc}.cover{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6mm}
     ${sc}.cover img{height:50mm;width:auto} ${sc}.cover h1{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:40pt;line-height:1.05;color:#73000A;letter-spacing:.5px;border-bottom:1.2mm solid #FF6E00;padding-bottom:5mm}
     ${sc}.cover h3{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:24pt;color:#FF6E00;text-transform:uppercase;letter-spacing:.5px} ${sc}.cover p{margin:0;font-size:13pt;color:#555;letter-spacing:2px}`;
@@ -478,9 +483,9 @@ async function printPieces(list, players, perPage, teamName, book = false, look 
   const svgs = await Promise.all(list.map((p) => pieceSvg(p, players, look, fieldBoxAspect(p, per))));
   const titles = list.map((p) => autoTitle(pieceBoard(p, players), pieceSetup(p)).title);
   const cards = list.map((p, i) => `<section class="card">
-    <header><div class="club"><img src="${CLUB_LOGO_URL}" alt=""><div><b>RACING SARRIÀ</b><span>${esc(teamName || "")}</span></div></div>
-    <div class="ttl"><h2>${esc(p.name)}</h2><span>${esc(setupLabel(pieceSetup(p)))}</span>${titles[i] ? `<em>${esc(titles[i])}</em>` : ""}</div></header>
-    ${p.signal ? `<div class="sig"><b>SEÑAL</b><span>${esc(p.signal)}</span></div>` : ""}
+    <header><div class="club"><img src="${CLUB_LOGO_URL}" alt=""><div><b>RACING SARRIÀ</b>${teamName ? `<span>${esc(teamName)}</span>` : ""}</div></div>
+    <div class="ttl"><span>${esc(setupLabel(pieceSetup(p)))}</span><h2>${esc(p.name)}</h2></div></header>
+    ${titles[i] || p.signal ? `<div class="meta">${titles[i] ? `<em>${esc(titles[i])}</em>` : ""}${p.signal ? `<span class="sig"><b>SEÑAL</b>${esc(p.signal)}</span>` : ""}</div>` : ""}
     <div class="fld" style="aspect-ratio:${svgs[i].ar.toFixed(4)}">${svgs[i].html}</div>${p.notes ? `<div class="notes"><b>INSTRUCCIONES</b>${esc(p.notes)}</div>` : ""}</section>`);
   const pages = [];
   for (let i = 0; i < cards.length; i += per) pages.push(`<div class="page">${cards.slice(i, i + per).join("")}</div>`);
