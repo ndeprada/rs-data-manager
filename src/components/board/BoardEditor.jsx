@@ -1613,7 +1613,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       style={{ zIndex: 5 }}
     >
       <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b" style={{ background: RAIL.bg, color: RAIL.text, borderColor: RAIL.border }}>
-        <h2 className="text-sm font-bold flex-1 truncate">{panelTitle || "Capas"}</h2>
+        {/* sin <h2>: la regla general de títulos de la app lo pondría granate sobre el fondo granate oscuro */}
+        <div role="heading" aria-level={2} className="text-sm font-bold flex-1 truncate">{panelTitle || "Capas"}</div>
         <button type="button" onClick={() => { setPanelHidden(true); setSide(null); setTeamEdit(null); }} aria-label="Cerrar panel" className="h-7 w-7 rounded-md flex items-center justify-center hover:bg-white/10"><X className="w-4 h-4" /></button>
       </div>
       <div className="p-3 space-y-3 text-gray-800">

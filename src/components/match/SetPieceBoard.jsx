@@ -59,7 +59,7 @@ const KIND_LABEL = { corner: msg("Córner"), falta_lateral: msg("Falta lateral")
 const SIDE_LABEL = { l: msg("Lado izquierdo"), r: msg("Lado derecho"), both: msg("Ambos lados") };
 
 function Lab({ children, style }) {
-  return <h3 className="rs2-label" style={{ margin: 0, fontSize: 11, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", color: RS.muted, ...style }}>{children}</h3>;
+  return <div role="heading" aria-level={3} className="rs2-label" style={{ margin: 0, fontSize: 11, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", color: RS.muted, ...style }}>{children}</div>;
 }
 function Card({ children, testId, style }) {
   return <section className="rounded-xl bg-white flex flex-col" style={{ border: `1px solid ${RS.line}`, padding: "12px 14px", gap: 9, ...style }} data-testid={testId}>{children}</section>;
@@ -270,8 +270,8 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
 
       {/* Derecha: quién hace qué */}
       <aside className="flex flex-col" style={{ flex: "1 1 260px", maxWidth: 320, minWidth: 240, gap: 12 }}>
-        <Card testId="sp-players" style={{ padding: 0, gap: 0, overflow: "hidden" }}>
-          <div className="flex items-baseline justify-between" style={{ padding: "12px 14px 8px", gap: 8 }}>
+        <Card testId="sp-players" style={{ padding: 0, gap: 0, overflow: "clip" }}>
+          <div className="flex flex-wrap items-baseline justify-between" style={{ padding: "12px 14px 8px", columnGap: 8, rowGap: 4 }}>
             <Lab style={{ whiteSpace: "nowrap" }}>{t("Quién hace qué")}{chips.length ? ` · ${chips.length}` : ""}</Lab>
             <button type="button" onClick={() => setBoard(fillWithSquad(board, candidates))} disabled={!chips.some((c) => !c.player_id) || !candidates.length}
               className="inline-flex items-center disabled:opacity-40" style={{ gap: 4, fontSize: 12, fontWeight: 600, color: RS.granate, whiteSpace: "nowrap" }}>
