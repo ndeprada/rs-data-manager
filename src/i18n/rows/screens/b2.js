@@ -591,4 +591,6 @@ export default [
   ["Ya estaban todas así","They were all like this already","Ils étaient déjà tous ainsi","Ja estaven totes així"],
   ["El dorsal y el nombre salen de su ficha. La función no cambia el color de la ficha (solo el portero va en verde).","The number and name come from the player's profile. The role does not change the chip's colour (only the goalkeeper is green).","Le numéro et le nom viennent de sa fiche. La fonction ne change pas la couleur du pion (seul le gardien est en vert).","El dorsal i el nom surten de la seva fitxa. La funció no canvia el color de la fitxa (només el porter va de verd)."],
   ["Elige una función y toca los jugadores en el campo: la función se escribe junto a la ficha y el título se escribe solo.","Choose a role and tap the players on the pitch: the role is written next to the chip and the title writes itself.","Choisis une fonction et touche les joueurs sur le terrain : la fonction s'écrit à côté du pion et le titre s'écrit tout seul.","Tria una funció i toca els jugadors al camp: la funció s'escriu al costat de la fitxa i el títol s'escriu sol."],
+  ["Texto libre encima de la ficha","Free text above the chip","Texte libre au-dessus du pion","Text lliure a sobre de la fitxa"],
+  ["p. ej. 1.er PALO, SALE AL CORTE…","e.g. NEAR POST, CUTS OUT…","ex. 1er POTEAU, SORT À LA COUPE…","p. ex. 1r PAL, SURT AL TALL…"],
 ];

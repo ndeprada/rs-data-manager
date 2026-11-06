@@ -2,7 +2,7 @@
 //  · Las jugadas antiguas (fichas y flechas en un dibujo de 300 × 240 de medio campo) se ven convertidas al vuelo, con los
 //    mismos ids, hasta que alguien las toca; entonces se guarda `piece.board` (las fichas y flechas antiguas se quedan de copia).
 //  · Cada ficha nuestra puede llevar `player_id`: dentro va el dorsal, debajo el nombre y encima el rol de la jugada.
-import { NEW_BOARD_LOOK, fieldOf, isQuad, normalizeBoard, pruneLinks, setViewMode } from "./board.js";
+import { NEW_BOARD_LOOK, fieldOf, fieldKind, isQuad, normalizeBoard, pruneLinks, setViewMode, orientOf, lookOf, marginOf, isPersp, perspectiveOf, viewBox, toView, elementBounds } from "./board.js";
 
 export const SP_FIELD = "half";
 export const SP_TEAMS = [
@@ -366,4 +366,40 @@ export function printBoard(board, { view = "board", orient = "board" } = {}) {
   if (changeView) out = setViewMode(out, view);
   const { cam: _c, orbit: _o, ...rest } = out;
   return { ...rest, frames: rest.frames.map(({ cam: _fc, orbit: _fo, ...f }) => f) };
+}
+
+// Encuadre para imprimir (06/11/2026, Nacho: «al imprimir, cada campo ocupe el máximo posible de ancho… quizás haciendo el
+// campo un poco más estrecho o más corto»): se recorta el campo a la zona de la jugada —el área con la portería y todo lo
+// dibujado en el primer fotograma, con sitio para los nombres— y se estira, sin salir del dibujo, hasta la proporción del
+// hueco de la hoja (`aspect` = ancho ÷ alto). Devuelve el recuadro en coordenadas de la vista ([x, y, ancho, alto]) para
+// `viewOverride` (plano, perspectiva y 3D), o null si no hay nada que recortar (espacio libre y campos pequeños).
+const PRINT_AREA = { f11: [40.32, 16.5], f7: [24, 9] };
+export function printCrop(board, aspect) {
+  const b = normalizeBoard(board);
+  const field = fieldOf(b.field), orient = orientOf(b.orient);
+  const area = PRINT_AREA[fieldKind(field)];
+  if (!area || b.field === "free" || !(aspect > 0)) return null;
+  const m = marginOf(lookOf(b.look), b);
+  const persp = isPersp(b) ? perspectiveOf(field, orient, m) : null;
+  const full = persp ? persp.vb : viewBox(field, orient, m);
+  // zona en metros del campo (la portería que se ataca está arriba, en y = 0)
+  let x0 = (field.w - area[0]) / 2 - 2, x1 = (field.w + area[0]) / 2 + 2, y0 = -2.5, y1 = area[1] + 3;
+  const chip = b.chipSize || undefined;
+  for (const el of b.frames[0]?.els || []) {
+    const bx = elementBounds(el, chip);
+    if (!bx) continue;
+    const below = el.k === "token" ? 6 : 2.5, above = el.k === "token" ? 4 : 2.5;
+    x0 = Math.min(x0, bx.x0 - 3); x1 = Math.max(x1, bx.x1 + 3);
+    y0 = Math.min(y0, bx.y0 - above); y1 = Math.max(y1, bx.y1 + below);
+  }
+  const pts = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => { const v = toView(field, orient, { x, y }); return persp ? persp.P(v) : v; });
+  const xs = pts.map((q) => q.x), ys = pts.map((q) => q.y);
+  let L = Math.max(full[0], Math.min(...xs)), T = Math.max(full[1], Math.min(...ys));
+  let R = Math.min(full[0] + full[2], Math.max(...xs)), B = Math.min(full[1] + full[3], Math.max(...ys));
+  let w = R - L, h = B - T;
+  const fit = (start, size, lo, span) => Math.max(lo, Math.min(start, lo + span - size));
+  if (w / h < aspect) { const nw = Math.min(full[2], h * aspect); L = fit(L - (nw - w) / 2, nw, full[0], full[2]); w = nw; }
+  else { const nh = Math.min(full[3], w / aspect); T = fit(T - (nh - h) / 2, nh, full[1], full[3]); h = nh; }
+  const r = (v) => Math.round(v * 100) / 100;
+  return [r(L), r(T), r(w), r(h)];
 }

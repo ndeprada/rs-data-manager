@@ -11,13 +11,13 @@ import { useT, msg } from "@/i18n";
 import BoardEditor from "@/components/board/BoardEditor";
 import Board from "@/components/board/BoardSvg";
 import { boardSvgMarkup } from "@/components/board/exportPng";
-import { boardFramePng } from "@/components/board/BoardDownloads";
-import { chipStyle, contrastColor, fnPosOf, is3D, isStadium, normalizeBoard, teamsOf } from "@/lib/board";
+import { load3d } from "@/components/board/load3d";
+import { chipStyle, contrastColor, fnPosOf, is3D, isStadium, normalizeBoard, orbitOf, teamsOf } from "@/lib/board";
 import { lab as cardLab, inputCls as cardInput, pillCls as cardPill } from "@/components/board/BoardChipCard";
 import { ColorPick } from "@/components/board/BoardControls";
 import {
   assignPlayer, copyPiece, fillWithSquad, flipBoard, ownChips, pieceBoard, previousMatchPieces, legacyToBoard,
-  SP_KINDS, typeOf, pieceSetup, printBoard, playerPatch, funcsFor, funcOf, fnPatch, setFunction, functionCounts, autoTitle, structuresFor, applyStructure, GK_FN,
+  SP_KINDS, typeOf, pieceSetup, printBoard, playerPatch, funcsFor, funcOf, fnPatch, setFunction, functionCounts, autoTitle, structuresFor, applyStructure, GK_FN, printCrop,
 } from "@/lib/setPieceBoard";
 // Jugadas a balón parado con la pizarra común (la misma de tareas y tácticas). Rediseño del 05/11/2026 (maqueta aprobada por
 // Nacho, con el aspecto de RS Manager): banda con las jugadas del partido; a la izquierda la jugada (tipo, a favor / en contra,
@@ -173,6 +173,10 @@ function AbpChipPlayer({ el, patch, candidates, byId, attack, toTeam }) {
           )}
         </div>
       )}
+      <label className="block space-y-1"><span className={cardLab}>{t("Texto libre encima de la ficha")}</span>
+        <input value={el.labelTop || ""} maxLength={24} onChange={(e) => patch({ labelTop: e.target.value || undefined, topMode: undefined }, "labelTop")}
+          placeholder={t("p. ej. 1.er PALO, SALE AL CORTE…")} className={cardInput} data-testid="card-free-top" />
+      </label>
       <p className="text-[11.5px] text-gray-500">{t("El dorsal y el nombre salen de su ficha. La función no cambia el color de la ficha (solo el portero va en verde).")}</p>
     </>
   );
@@ -398,54 +402,81 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 // Dibujo de una jugada para imprimir: el primer fotograma de su pizarra, con la vista y la orientación elegidas en el panel
-// «Imprimir» (`printBoard`); el estadio sale en blanco (poca tinta). En 3D se hace una imagen (PNG); en plano y perspectiva, SVG.
+// «Imprimir» (`printBoard`); el estadio sale en blanco (poca tinta). Se recorta a la zona de la jugada y a la proporción del
+// hueco de la hoja (`printCrop`, 06/11/2026) para que el campo salga lo más grande posible. En 3D se hace una imagen (PNG);
+// en plano y perspectiva, SVG. Los dos llenan su hueco sin deformarse.
 const blobToDataUrl = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
-async function pieceSvg(piece, players, opts = {}) {
+let printSeq = 0;
+async function pieceSvg(piece, players, opts = {}, aspect = 1.4) {
   const b = printBoard(pieceBoard(piece, players), opts);
   const printable = isStadium(b.look) ? { ...b, look: "blanco" } : b;
+  const crop = printCrop(printable, aspect);
   if (is3D(printable)) {
-    const url = await blobToDataUrl(await boardFramePng(printable, 0));
-    return `<img src="${url}" alt="" style="width:100%;height:auto;display:block">`;
+    const ar = crop ? crop[2] / crop[3] : aspect;
+    const c = document.createElement("canvas");
+    c.width = 2400; c.height = Math.round(2400 / ar);
+    await (await load3d()).renderBoard3D(c, printable, printable.frames[0].els, { frame: 0, orbit: orbitOf(printable, 0), ...(crop ? { viewOverride: crop } : {}) });
+    const url = await blobToDataUrl(await new Promise((res, rej) => c.toBlob((x) => (x ? res(x) : rej(new Error("PNG"))), "image/png")));
+    return `<img src="${url}" alt="">`;
   }
-  const { svg } = await boardSvgMarkup(<Board board={printable} els={printable.frames[0].els} frame={0} />, 1200);
-  return svg.replace(/ width="\d+" height="\d+"/, ' style="width:100%;height:auto;display:block"');
+  const { svg } = await boardSvgMarkup(<Board board={printable} els={printable.frames[0].els} frame={0} camera={null} viewOverride={crop} />, 1600);
+  // cada dibujo con sus propios nombres internos: varios en la misma hoja compartían el recorte y los rellenos del primero
+  const pre = `p${++printSeq}-`;
+  return svg.replace(/ width="\d+(\.\d+)?" height="\d+(\.\d+)?"/, "")
+    .replace(/\bid="/g, `id="${pre}`).replace(/url\(#/g, `url(#${pre}`).replace(/href="#/g, `href="#${pre}`);
 }
 
+// Hojas A4 sin márgenes de la impresora (así el navegador no escribe arriba y abajo el título, la dirección ni la fecha):
+// el margen lo pone cada hoja (10 mm). Una o dos jugadas por hoja; las instrucciones van debajo del campo, a todo el ancho,
+// y el campo ocupa todo lo que queda.
+const PAGE_W = 190, PAGE_H = 277, GAP = 6;
+function fieldBoxAspect(p, one) {
+  const card = one ? PAGE_H : (PAGE_H - GAP) / 2;
+  const head = one ? 25 : 19, sig = p.signal ? (one ? 10 : 8.5) : 0;
+  const notes = String(p.notes || "").trim();
+  const lines = notes ? notes.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / (one ? 105 : 120))), 0) : 0;
+  const notesH = notes ? Math.min(one ? 60 : 30, 6 + lines * (one ? 5 : 4.3)) : 0;
+  return PAGE_W / Math.max(40, card - head - sig - notesH - 2);
+}
 async function printPieces(list, players, perPage, teamName, book = false, look = {}) {
   const now = new Date(), y = now.getFullYear();
   const season = now.getMonth() >= 6 ? `${y}-${String(y + 1).slice(2)}` : `${y - 1}-${String(y).slice(2)}`;
-  const cover = book ? `<div class="cover"><img src="${CLUB_LOGO_URL}" alt=""><h1>ESTRATEGIA<br>A BALÓN PARADO</h1><h3>${esc(teamName || "")}</h3><p>TEMPORADA ${season}</p></div>` : "";
+  const one = perPage === 1;
+  const cover = book ? `<div class="page cover"><img src="${CLUB_LOGO_URL}" alt=""><h1>ESTRATEGIA<br>A BALÓN PARADO</h1><h3>${esc(teamName || "")}</h3><p>TEMPORADA ${season}</p></div>` : "";
   const typeLabel = (v) => TYPES.find((ty) => ty.value === v)?.label || v;
-  const svgs = await Promise.all(list.map((p) => pieceSvg(p, players, look)));
+  const svgs = await Promise.all(list.map((p) => pieceSvg(p, players, look, fieldBoxAspect(p, one))));
   const titles = list.map((p) => autoTitle(pieceBoard(p, players), pieceSetup(p)).title);
   const cards = list.map((p, i) => `<section class="card">
     <header><div class="club"><img src="${CLUB_LOGO_URL}" alt=""><div><b>RACING SARRIÀ</b><span>${esc(teamName || "")}</span></div></div>
     <div class="ttl"><h2>${esc(p.name)}</h2>${(p.name || "").trim().toLowerCase() === typeLabel(p.type).toLowerCase() ? "" : `<span>${esc(typeLabel(p.type))}</span>`}${titles[i] ? `<em>${esc(titles[i])}</em>` : ""}</div></header>
     ${p.signal ? `<div class="sig"><b>SEÑAL</b><span>${esc(p.signal)}</span></div>` : ""}
-    <div class="body"><div class="fld">${svgs[i]}</div>${p.notes ? `<div class="notes"><b>INSTRUCCIONES</b>${esc(p.notes)}</div>` : ""}</div></section>`).join("");
-  const one = perPage === 1;
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Acciones a balón parado${teamName ? " · " + esc(teamName) : ""}</title>
+    <div class="fld">${svgs[i]}</div>${p.notes ? `<div class="notes"><b>INSTRUCCIONES</b>${esc(p.notes)}</div>` : ""}</section>`);
+  const pages = [];
+  for (let i = 0; i < cards.length; i += perPage) pages.push(`<div class="page">${cards.slice(i, i + perPage).join("")}</div>`);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>&#8203;</title>
   <style>
     @font-face{font-family:'Racing Sarria';src:url('${location.origin}/fonts/RacingSarria.ttf') format('truetype')}
     @font-face{font-family:'IBM Plex Sans Condensed';font-weight:400;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Regular.ttf') format('truetype')}
     @font-face{font-family:'IBM Plex Sans Condensed';font-weight:500;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Medium.ttf') format('truetype')}
     @font-face{font-family:'IBM Plex Sans Condensed';font-weight:700;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Bold.ttf') format('truetype')}
-    @page{size:A4;margin:10mm} *{box-sizing:border-box} body{margin:0;font-family:'IBM Plex Sans Condensed',Arial,sans-serif;color:#222}
-    .card{break-inside:avoid;page-break-inside:avoid;height:${one ? "275mm" : "134mm"};${one ? "" : "margin-bottom:6mm;"}overflow:hidden}
-    ${one ? "" : ".card:nth-child(2n){margin-bottom:0}"}
-    header{border-bottom:.6mm solid #73000A;padding-bottom:2mm;display:flex;justify-content:space-between;align-items:flex-start;gap:8mm;margin-bottom:3mm}
-    .club{display:flex;align-items:center;gap:2.5mm} .club img{height:${one ? 15 : 12}mm;width:auto}
-    .club b{display:block;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:${one ? 14 : 11}pt;color:#73000A;line-height:1.05;letter-spacing:.3px} .club span{display:block;font-size:${one ? 13 : 10}pt;color:#FF6E00;font-weight:700;text-transform:uppercase;line-height:1.1}
-    .ttl{text-align:right} .ttl h2{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:${one ? 26 : 19}pt;line-height:1;color:#73000A;text-transform:uppercase;letter-spacing:.3px} .ttl em{display:block;font-style:normal;font-family:'Racing Sarria',sans-serif;font-size:${one ? 12 : 10}pt;color:#36000D;margin-top:1mm;letter-spacing:.3px} .ttl span{display:block;font-family:'Racing Sarria',sans-serif;font-weight:400;letter-spacing:.5px;font-size:${one ? 15 : 11.5}pt;color:#FF6E00;font-weight:700;text-transform:uppercase;margin-top:1mm}
-    .sig{display:flex;align-items:center;gap:3mm;border:.3mm solid #FF6E00;border-radius:1.5mm;padding:1.2mm 3mm;margin-bottom:3mm;font-size:${one ? 12 : 10}pt}
+    @page{size:A4;margin:0} *{box-sizing:border-box} html,body{margin:0;padding:0} body{font-family:'IBM Plex Sans Condensed',Arial,sans-serif;color:#222;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .page{width:210mm;height:297mm;padding:10mm;display:flex;flex-direction:column;gap:${GAP}mm;overflow:hidden;break-after:page;page-break-after:always}
+    .page:last-child{break-after:auto;page-break-after:auto}
+    .card{flex:${one ? "1 1 0" : `0 0 ${(PAGE_H - GAP) / 2}mm`};min-height:0;display:flex;flex-direction:column;overflow:hidden}
+    header{flex:none;border-bottom:.6mm solid #73000A;padding-bottom:2mm;display:flex;justify-content:space-between;align-items:flex-start;gap:8mm;margin-bottom:2.5mm}
+    .club{display:flex;align-items:center;gap:2.5mm} .club img{height:${one ? 15 : 11}mm;width:auto}
+    .club b{display:block;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:${one ? 14 : 10.5}pt;color:#73000A;line-height:1.05;letter-spacing:.3px} .club span{display:block;font-size:${one ? 13 : 9.5}pt;color:#FF6E00;font-weight:700;text-transform:uppercase;line-height:1.1}
+    .ttl{text-align:right} .ttl h2{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:${one ? 26 : 18}pt;line-height:1;color:#73000A;text-transform:uppercase;letter-spacing:.3px} .ttl em{display:block;font-style:normal;font-family:'Racing Sarria',sans-serif;font-size:${one ? 12 : 9.5}pt;color:#36000D;margin-top:1mm;letter-spacing:.3px} .ttl span{display:block;font-family:'Racing Sarria',sans-serif;font-weight:400;letter-spacing:.5px;font-size:${one ? 15 : 11}pt;color:#FF6E00;font-weight:700;text-transform:uppercase;margin-top:1mm}
+    .sig{flex:none;display:flex;align-items:center;gap:3mm;border:.3mm solid #FF6E00;border-radius:1.5mm;padding:1mm 3mm;margin-bottom:2.5mm;font-size:${one ? 12 : 10}pt}
     .sig b{background:#FF6E00;color:#fff;padding:.4mm 2mm;border-radius:1mm;font-size:${one ? 10 : 8.5}pt;letter-spacing:.5px} .sig span{color:#333;font-weight:500}
-    .body{display:flex;gap:4mm;align-items:flex-start;justify-content:center} .fld{flex:1;min-width:0;${one ? "max-height:225mm;" : "max-width:132mm;max-height:100mm;"}overflow:hidden}
-    .notes{width:${one ? "52mm" : "48mm"};font-size:${one ? 11 : 9.5}pt;white-space:pre-wrap;color:#333;border-left:.5mm solid #FF6E00;padding-left:3mm;font-weight:500}
-    .notes b{display:block;color:#FF6E00;font-size:${one ? 9.5 : 8.5}pt;letter-spacing:.5px;margin-bottom:1mm}
-    .cover{height:275mm;page-break-after:always;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6mm}
+    .fld{flex:1 1 0;min-height:0;position:relative}
+    .fld svg,.fld img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;overflow:hidden}
+    .notes{flex:none;margin-top:2.5mm;font-size:${one ? 11 : 9.5}pt;white-space:pre-wrap;color:#333;border-left:.5mm solid #FF6E00;padding-left:3mm;font-weight:500;max-height:${one ? 60 : 30}mm;overflow:hidden}
+    .notes b{display:block;color:#FF6E00;font-size:${one ? 9.5 : 8.5}pt;letter-spacing:.5px;margin-bottom:.8mm}
+    .cover{align-items:center;justify-content:center;text-align:center;gap:6mm}
     .cover img{height:50mm;width:auto} .cover h1{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:40pt;line-height:1.05;color:#73000A;letter-spacing:.5px;border-bottom:1.2mm solid #FF6E00;padding-bottom:5mm}
     .cover h3{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:24pt;color:#FF6E00;text-transform:uppercase;letter-spacing:.5px} .cover p{margin:0;font-size:13pt;color:#555;letter-spacing:2px}
-  </style></head><body>${cover}<div class="pages">${cards}</div></body></html>`;
+  </style></head><body>${cover}${pages.join("")}</body></html>`;
   const old = document.getElementById("sp-print-frame");
   if (old) old.remove();
   const fr = document.createElement("iframe");

@@ -116,3 +116,24 @@ test("la función no cambia el color de la ficha y se escribe junto a ella (06/1
   assert.equal(y.color, "#00ff00");
   assert.equal(upgradeFunctions(up), up);
 });
+
+test("imprimir: el campo se recorta a la jugada y llena el hueco de la hoja", async () => {
+  const { printCrop } = await import("../src/lib/setPieceBoard.js");
+  const b = applyStructure(emptyPieceBoard(), SP_STRUCTURES.find((x) => x.id === "d-622"), { newId });
+  const b2 = { ...b, look: "blanco" };
+  const vb = printCrop(b2, 1.9);
+  assert.ok(Math.abs(vb[2] / vb[3] - 1.9) < 0.02 || vb[2] >= 73.99);   // llena la proporción pedida o todo el ancho
+  assert.ok(vb[3] < 52.5);                           // más corto que el medio campo entero
+  // con pocas fichas cerca del área, la proporción exacta
+  const few = { ...b2, frames: [{ ...b2.frames[0], els: b2.frames[0].els.filter((e) => e.k === "token" && e.y < 14) }] };
+  const vf = printCrop(few, 1.9);
+  assert.ok(Math.abs(vf[2] / vf[3] - 1.9) < 0.02);
+  assert.ok(vb[1] <= -2.5);                          // con la portería
+  // vertical (una por hoja): no puede salir del dibujo, se queda con el ancho del campo
+  const one = printCrop(b2, 0.8);
+  assert.ok(one[2] <= 74.01 && one[3] <= 58.51);
+  // en horizontal también
+  const h = printCrop({ ...b2, orient: "hi" }, 1.9);
+  assert.ok(h[2] > 0 && h[3] > 0);
+  assert.equal(printCrop({ ...b2, field: "free" }, 1.9), null);
+});
