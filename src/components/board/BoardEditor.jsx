@@ -73,12 +73,13 @@ const selectCls = "h-8 rounded-md border border-gray-200 bg-white px-2 text-xs";
 // `embedded`: en ordenador la pizarra se ve y se edita dentro de la página (alto `embedHeight`), con la barra de fotogramas
 // debajo; botón para pasar a pantalla completa. `paint` = { teams, patch(ficha) }: tocar una ficha de esos equipos le aplica el
 // cambio (funciones del balón parado). `stamp` = { make(punto, newId) }: el próximo toque en un sitio vacío coloca ese elemento.
-// `overlayTitle`: título que se ve encima del campo (no se guarda en el dibujo).
+// `overlayTitle`: título que se ve encima del campo (no se guarda en el dibujo); `studioTitle`: el que se ve a pantalla completa
+// (si no se da, el mismo; `null` = ninguno).
 // `variant`: versión de la pizarra (tareas · tactica · abp; ver src/lib/boardVariant.js): cambia la barra de dibujo y la pestaña
 // «Jugador» de la tarjeta de la ficha; «Campo y ajustes» es igual en las tres. `chipPlayer(ficha, patch)`: la página pone su propia
 // pestaña «Jugador» (balón parado: jugador y función; null = la de siempre). `chipDescribe(ficha)`: texto bajo el nombre en la tarjeta.
 // `stamps` = { list: [{id, label}], active, pick(id|null) }: etiquetas rápidas en la barra (balón parado), que se ponen con `stamp`.
-export default function BoardEditor({ value, onChange, roster = [], fields = null, filename = "pizarra", modes = false, embedded = false, embedHeight = 620, paint = null, stamp = null, onStampDone = null, overlayTitle = null, variant: variantIn = "tareas", chipPlayer = null, chipDescribe = null, stamps = null }) {
+export default function BoardEditor({ value, onChange, roster = [], fields = null, filename = "pizarra", modes = false, embedded = false, embedHeight = 620, paint = null, stamp = null, onStampDone = null, overlayTitle = null, studioTitle, variant: variantIn = "tareas", chipPlayer = null, chipDescribe = null, stamps = null }) {
   const variant = cleanVariant(variantIn);
   const rail = railOf(variant);
   const board = useMemo(() => normalizeBoard(value), [value]);
@@ -1142,6 +1143,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const toggleSide = (id) => { setSide((s) => (s === id ? null : id)); setPanelHidden(false); };
 
   const inline = embedded && !narrow && !full;
+  // A pantalla completa se puede enseñar otro título (más pequeño y solo para leer) que el de encima de la pizarra en la página
+  const studioOverlay = studioTitle === undefined ? overlayTitle : studioTitle;
   if (!full && !inline) {
     const first = board.frames[0];
     return (
@@ -1867,14 +1870,14 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       </nav>
       )}
       {panel}
-      {inline ? null : overlayTitle ? null : (
+      {inline ? null : studioOverlay ? null : (
         <div className="absolute left-1/2 -translate-x-1/2 top-3 max-w-[50%] pointer-events-none rounded-full px-4 py-1.5 text-sm font-bold truncate" style={{ background: "rgba(36,0,10,0.9)", border: `1px solid ${RAIL.border}`, zIndex: 3 }}>
           <DialogPrimitive.Title className="truncate">{title}</DialogPrimitive.Title>
         </div>
       )}
-      {!inline && overlayTitle ? <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title> : null}
-      {overlayTitle && !inline ? (
-        <div className="absolute pointer-events-none" style={{ left: 70, top: playing ? 12 : 48, zIndex: 3, maxWidth: "60%" }} data-testid="board-overlay-title">{overlayTitle}</div>
+      {!inline && studioOverlay ? <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title> : null}
+      {studioOverlay && !inline ? (
+        <div className="absolute pointer-events-none" style={{ left: 70, top: playing ? 12 : 48, zIndex: 3, maxWidth: "60%" }} data-testid="board-overlay-title">{studioOverlay}</div>
       ) : null}
       {cur.note ? (
         <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none rounded-lg px-4 py-1.5 text-sm font-semibold text-center" style={{ bottom: 52, maxWidth: "70%", background: "rgba(54,0,13,0.9)", color: "#fff", zIndex: 3 }} data-testid="frame-note-caption">{cur.note}</div>
