@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyStructure, autoTitle, functionCounts, pieceSetup, setupLabel, hasSide, typeOf, setFunction, SP_STRUCTURES, DEF_FUNCS, ownChips, emptyPieceBoard, structuresFor } from "../src/lib/setPieceBoard.js";
+import { squeezeForPrint, squeezeY, PRINT_LEN, printCrop, applyStructure, autoTitle, functionCounts, pieceSetup, setupLabel, hasSide, typeOf, setFunction, SP_STRUCTURES, DEF_FUNCS, ownChips, emptyPieceBoard, structuresFor } from "../src/lib/setPieceBoard.js";
 
 let n = 0;
 const newId = () => `n${++n}`;
@@ -159,4 +159,30 @@ test("imprimir: el campo se recorta a la jugada y llena el hueco de la hoja", as
   assert.ok(tight[0] <= -2.99 && tight[0] + tight[2] >= 70.99);
   const tf = printCrop(few, 0.8, { tight: true });
   assert.ok(tf[1] + tf[3] >= 53.9 && tf[1] <= -2.5); // de la portería a medio campo
+});
+
+test("imprimir: campo más corto (`squeezeForPrint`)", () => {
+  // el área y el arco no cambian; el tramo hasta medio campo se acorta y lo de más allá se desplaza
+  assert.equal(squeezeY(5), 5);
+  assert.equal(squeezeY(21), 21);
+  assert.equal(squeezeY(52.5), PRINT_LEN / 2);
+  assert.ok(squeezeY(36) > 21 && squeezeY(36) < 36);
+  assert.equal(squeezeY(70), 70 - (52.5 - PRINT_LEN / 2));
+  const b = { v: 2, field: "half", look: "blanco", orient: "v", frames: [{ id: "f", els: [
+    { id: "t", k: "token", team: "a", x: 30, y: 10 }, { id: "u", k: "token", team: "a", x: 30, y: 45 },
+    { id: "a", k: "arrow", x1: 30, y1: 45, x2: 30, y2: 12, cy: 30, cx: 30 },
+    { id: "z", k: "zone", shape: "rect", x: 10, y: 20, w: 10, h: 20 },
+  ] }] };
+  const s = squeezeForPrint(b);
+  assert.equal(s.pitchLen, PRINT_LEN);
+  const els = Object.fromEntries(s.frames[0].els.map((e) => [e.id, e]));
+  assert.equal(els.t.y, 10); assert.equal(els.t.x, 30);
+  assert.ok(els.u.y < 45);
+  assert.equal(els.a.y2, 12); assert.ok(els.a.y1 < 45 && els.a.cy < 30);
+  assert.equal(els.z.y, 20); assert.ok(els.z.h < 20);
+  // el recorte «justo» llega al nuevo medio campo, más corto que antes
+  const crop = printCrop(s, 0.8, { tight: true });
+  assert.ok(crop[1] + crop[3] >= PRINT_LEN / 2 + 1.4 && crop[1] + crop[3] < 52.5);
+  // fútbol 7 y espacio libre no cambian
+  assert.equal(squeezeForPrint({ ...b, field: "f7" }).pitchLen, undefined);
 });

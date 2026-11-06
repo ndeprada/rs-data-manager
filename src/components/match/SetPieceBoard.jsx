@@ -17,7 +17,7 @@ import { lab as cardLab, inputCls as cardInput, pillCls as cardPill } from "@/co
 import { ColorPick } from "@/components/board/BoardControls";
 import {
   assignPlayer, copyPiece, fillWithSquad, flipBoard, ownChips, pieceBoard, previousMatchPieces, legacyToBoard,
-  SP_KINDS, typeOf, pieceSetup, printBoard, playerPatch, funcsFor, funcOf, fnPatch, setFunction, autoTitle, structuresFor, applyStructure, GK_FN, printCrop, hasSide, setupLabel,
+  SP_KINDS, typeOf, pieceSetup, printBoard, playerPatch, funcsFor, funcOf, fnPatch, setFunction, autoTitle, structuresFor, applyStructure, GK_FN, printCrop, squeezeForPrint, hasSide, setupLabel,
 } from "@/lib/setPieceBoard";
 // Jugadas a balón parado con la pizarra común (la misma de tareas y tácticas). Rediseño del 06/11/2026 (maqueta «Maqueta ABP ·
 // rediseño» aprobada por Nacho): dos vistas, «Editor» (a la izquierda las jugadas del partido con su dibujo pequeño, agrupadas
@@ -331,7 +331,8 @@ const blobToDataUrl = (blob) => new Promise((res, rej) => { const r = new FileRe
 let printSeq = 0;
 async function pieceSvg(piece, players, opts = {}, aspect = 1.4) {
   const b = printBoard(pieceBoard(piece, players), opts);
-  const printable = isStadium(b.look) ? { ...b, look: "blanco" } : b;
+  // campo algo más corto (`squeezeForPrint`): con 2 o 4 por hoja sale más grande
+  const printable = squeezeForPrint(isStadium(b.look) ? { ...b, look: "blanco" } : b);
   const crop = printCrop(printable, aspect, { tight: true });
   if (is3D(printable)) {
     const ar = crop ? crop[2] / crop[3] : aspect;

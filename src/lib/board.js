@@ -78,7 +78,8 @@ export const MARKS = [
 export const grassOf = (b) => (GRASS.some((g) => g.id === b?.grass) ? b.grass : "auto");
 export const marksOf = (b) => (MARKS.some((m) => m.id === b?.marks) ? b.marks : "none");
 // Largo del campo entero (en medio campo y 3/4 las franjas se cuentan sobre el campo completo)
-const fullLength = (field) => (fieldKind(field) === "f11" ? 105 : field.h);
+// (el campo completo dibujado puede ser más corto al imprimir el balón parado: `pitchLen`)
+const fullLength = (field) => (fieldKind(field) === "f11" && field.id !== "full" ? 105 : field.h);
 /** Líneas de las marcas en metros del campo: carriles a lo largo (anchos del área y del área pequeña) y franjas a lo ancho. */
 export function markLines(field, marks) {
   if (!marks || marks === "none" || field.id === "free") return [];
@@ -433,6 +434,8 @@ export function normalizeBoard(value) {
       ...(camOf(value).z > 1 ? { cam: camOf(value) } : {}),
       ...(value.camRatio === "port" ? { camRatio: "port" } : {}),
       ...(value.view3d === true ? { view3d: true } : {}),
+      // largo con el que se DIBUJA el campo de fútbol 11 (solo para imprimir el balón parado, `squeezeForPrint`): sin dato, 105 m
+      ...(value.pitchLen >= 60 && value.pitchLen < 105 ? { pitchLen: value.pitchLen } : {}),
       ...(validOrbit(value.orbit) ? { orbit: validOrbit(value.orbit) } : {}),
       frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [], ...(validCam(f.cam) ? { cam: validCam(f.cam) } : {}), ...(validOrbit(f.orbit) ? { orbit: validOrbit(f.orbit) } : {}), ...(typeof f.note === "string" && f.note.trim() ? { note: f.note.slice(0, 200) } : {}) })),
     };

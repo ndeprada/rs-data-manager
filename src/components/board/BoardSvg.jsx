@@ -526,10 +526,14 @@ const markStyle = (s) => ({ stroke: s.line, strokeOpacity: 0.62, strokeWidth: s.
 
 const unionVb = (a, b) => { const x = Math.min(a[0], b[0]), y = Math.min(a[1], b[1]); return [x, y, Math.max(a[0] + a[2], b[0] + b[2]) - x, Math.max(a[1] + a[3], b[1] + b[3]) - y]; };
 // Medio campo y 3/4 son un encuadre del campo completo (como un zoom): se pinta el campo entero y el recuadro lo corta
-const drawFieldOf = (field) => (isCutField(field.id) ? { ...field, id: "full", h: FULL_H } : field);
+// `board.pitchLen` (solo al imprimir el balón parado): el campo de fútbol 11 se dibuja más corto, con las mismas áreas y círculo
+const drawFieldOf = (field, board) => {
+  const L = fieldKind(field) === "f11" && board?.pitchLen >= 60 && board.pitchLen < FULL_H ? board.pitchLen : FULL_H;
+  return isCutField(field.id) || field.id === "full" ? { ...field, id: "full", h: L } : field;
+};
 function Field({ field: shown, orient, look, vb, board }) {
   const s = fieldStyle(look, board);
-  const field = drawFieldOf(shown);
+  const field = drawFieldOf(shown, board);
   const free = field.id === "free";
   const grass = grassGroups(field, look, board);
   const marks = markLines(field, marksOf(board));
@@ -612,7 +616,7 @@ export function fieldShapes(field) {
 }
 function FieldPersp({ field: shown, orient, look, vb, persp, board }) {
   const s = fieldStyle(look, board);
-  const field = drawFieldOf(shown);
+  const field = drawFieldOf(shown, board);
   const free = field.id === "free";
   const T = (p) => persp.P(toView(shown, orient, p));
   // texto de las vallas en perspectiva: en su sitio y a la escala de su profundidad (solo en las vallas que se ven de frente)

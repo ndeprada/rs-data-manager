@@ -387,6 +387,39 @@ export function printBoard(board, { view = "board", orient = "board" } = {}) {
   return { ...rest, frames: rest.frames.map(({ cam: _fc, orbit: _fo, ...f }) => f) };
 }
 
+// Campo más corto al imprimir (06/11/2026, Nacho: «que la proporción del campo sea menos larga… que el espacio entre la
+// frontal del área y el centro del campo sea un poco menor… así, con dos jugadas por hoja, el campo sale más grande»): en
+// fútbol 11 se dibuja el campo con 80 m de largo en vez de 105 (`pitchLen`): áreas, portería, punto de penalti y arco
+// iguales, y el tramo entre el arco del área (21 m) y el medio campo pasa de 31,5 m a 19 m. Lo dibujado en ese tramo se
+// acerca a la portería en la misma proporción y lo de más allá del medio campo se desplaza; nada cambia de ancho.
+export const PRINT_LEN = 80;
+const SQ_FROM = 21, REAL_HALF = 52.5;
+export function squeezeY(y, len = PRINT_LEN) {
+  const half = len / 2, k = (half - SQ_FROM) / (REAL_HALF - SQ_FROM);
+  if (!(y > SQ_FROM)) return y;
+  return y <= REAL_HALF ? SQ_FROM + (y - SQ_FROM) * k : y - (REAL_HALF - half);
+}
+export function squeezeForPrint(board, len = PRINT_LEN) {
+  const b = normalizeBoard(board);
+  if (fieldKind(fieldOf(b.field)) !== "f11" || b.field === "free") return b;
+  const Y = (y) => (typeof y === "number" ? r1(squeezeY(y, len)) : y);
+  const P = (q) => ({ ...q, y: Y(q.y) });
+  const sq = (e) => {
+    if (e.k === "link") return e;
+    if (isQuad(e)) return { ...e, pts: e.pts.map(P) };
+    if (e.k === "zone") { const y0 = Y(e.y), y1 = Y(e.y + e.h); return { ...e, y: y0, h: r1(y1 - y0) }; }
+    let o = e;
+    if (e.k === "arrow") {
+      o = { ...e, y1: Y(e.y1), y2: Y(e.y2) };
+      if (e.cy != null) o.cy = Y(e.cy);
+      if (Array.isArray(e.via)) o.via = e.via.map(P);
+    } else if (e.y != null) o = { ...e, y: Y(e.y) };
+    if (e.path) o.path = { ...e.path, ...(e.path.cy != null ? { cy: Y(e.path.cy) } : {}), ...(Array.isArray(e.path.via) ? { via: e.path.via.map(P) } : {}) };
+    return o;
+  };
+  return { ...b, pitchLen: len, frames: b.frames.map((f) => ({ ...f, els: f.els.map(sq) })) };
+}
+
 // Encuadre para imprimir (06/11/2026, Nacho: «al imprimir, cada campo ocupe el máximo posible de ancho… quizás haciendo el
 // campo un poco más estrecho o más corto»): se recorta el campo a la zona de la jugada —el área con la portería y todo lo
 // dibujado en el primer fotograma, con sitio para los nombres— y se estira, sin salir del dibujo, hasta la proporción del
@@ -407,7 +440,7 @@ export function printCrop(board, aspect, { tight = false } = {}) {
   // (06/11/2026, Nacho: «faltan partes del campo»): solo se acorta el largo, desde la portería hasta donde llega la jugada.
   // «lo justo» llega como poco a la línea de medio campo (06/11/2026, Nacho: «que se vea cerrado… la línea de medio campo
   // y la mitad del círculo central, no el campo cortado a medias»)
-  const halfway = fieldKind(field) === "f7" ? field.h / 2 : 52.5;
+  const halfway = fieldKind(field) === "f7" ? field.h / 2 : (b.pitchLen || 105) / 2;
   let x0 = -3, x1 = field.w + 3, y0 = -2.5, y1 = tight ? halfway + 1.5 : area[1] + 3;
   const chip = b.chipSize || undefined;
   for (const el of b.frames[0]?.els || []) {
