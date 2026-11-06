@@ -382,14 +382,14 @@ export function printCrop(board, aspect) {
   const m = marginOf(lookOf(b.look), b);
   const persp = isPersp(b) ? perspectiveOf(field, orient, m) : null;
   const full = persp ? persp.vb : viewBox(field, orient, m);
-  // zona en metros del campo (la portería que se ataca está arriba, en y = 0)
-  let x0 = (field.w - area[0]) / 2 - 2, x1 = (field.w + area[0]) / 2 + 2, y0 = -2.5, y1 = area[1] + 3;
+  // zona en metros del campo (la portería que se ataca está arriba, en y = 0). Siempre el ancho entero, con las dos bandas
+  // (06/11/2026, Nacho: «faltan partes del campo»): solo se acorta el largo, desde la portería hasta donde llega la jugada.
+  let x0 = -3, x1 = field.w + 3, y0 = -2.5, y1 = area[1] + 3;
   const chip = b.chipSize || undefined;
   for (const el of b.frames[0]?.els || []) {
     const bx = elementBounds(el, chip);
     if (!bx) continue;
     const below = el.k === "token" ? 6 : 2.5, above = el.k === "token" ? 4 : 2.5;
-    x0 = Math.min(x0, bx.x0 - 3); x1 = Math.max(x1, bx.x1 + 3);
     y0 = Math.min(y0, bx.y0 - above); y1 = Math.max(y1, bx.y1 + below);
   }
   const pts = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => { const v = toView(field, orient, { x, y }); return persp ? persp.P(v) : v; });

@@ -132,6 +132,8 @@ test("imprimir: el campo se recorta a la jugada y llena el hueco de la hoja", as
   // vertical (una por hoja): no puede salir del dibujo, se queda con el ancho del campo
   const one = printCrop(b2, 0.8);
   assert.ok(one[2] <= 74.01 && one[3] <= 58.51);
+  // nunca se corta a lo ancho: las dos bandas siempre se ven
+  for (const v of [vb, vf, one]) { assert.ok(v[0] <= -2.99); assert.ok(v[0] + v[2] >= 70.99); }
   // en horizontal también
   const h = printCrop({ ...b2, orient: "hi" }, 1.9);
   assert.ok(h[2] > 0 && h[3] > 0);
