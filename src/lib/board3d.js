@@ -1000,7 +1000,7 @@ function draftEls(d) {
   if (!d) return [];
   if (d.k === "box") {
     const x = Math.min(d.x, d.x + d.w), y = Math.min(d.y, d.y + d.h);
-    return [{ id: "draft", k: "zone", shape: "rect", x, y, w: Math.abs(d.w), h: Math.abs(d.h), fill: "#f59e0b", fillOpacity: 0.14, stroke: "#f59e0b", dash: "dashed", strokeWidth: 0.35 }];
+    return [{ id: "draft", k: "zone", shape: "rect", x, y, w: Math.abs(d.w), h: Math.abs(d.h), fill: "#f59e0b", fillOpacity: 0.06, stroke: "#f59e0b", strokeWidth: 0.12 }];
   }
   if (d.k === "zone") {
     const x = Math.min(d.x, d.x + d.w), y = Math.min(d.y, d.y + d.h);

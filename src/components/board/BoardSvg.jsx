@@ -1510,6 +1510,9 @@ function MarkNumbers({ ids, els, ctx }) {
 
 // Recuadro con el que se eligen varias fichas a la vez
 // Caja que rodea a todo lo elegido cuando son varias cosas (se ve que se moverán juntas)
+// Recuadro de elegir varios y marco del grupo elegido: línea continua fina (1 px de pantalla) y relleno muy suave
+// (06/11/2026, Nacho: «que no tenga una línea discontinua y sea más fino y más sutil»)
+const SEL_LINE = 1;
 function GroupBox({ ids, els, ctx }) {
   const b = unionBounds(els.filter((e) => ids.includes(e.id)).map((e) => elementBounds(e, ctx.chip)));
   if (!b) return null;
@@ -1517,19 +1520,19 @@ function GroupBox({ ids, els, ctx }) {
     const pts = [{ x: b.x0, y: b.y0 }, { x: b.x1, y: b.y0 }, { x: b.x1, y: b.y1 }, { x: b.x0, y: b.y1 }].map(ctx.V);
     const xs = pts.map((q) => q.x), ys = pts.map((q) => q.y);
     const lo = { x: Math.min(...xs) - 1.2, y: Math.min(...ys) - 3 }, hi = { x: Math.max(...xs) + 1.2, y: Math.max(...ys) + 1.2 };
-    return <rect x={lo.x} y={lo.y} width={hi.x - lo.x} height={hi.y - lo.y} fill="none" stroke="#f59e0b" strokeWidth={1.2 * (ctx.px || 0.12)} strokeDasharray={`${5 * (ctx.px || 0.12)} ${3 * (ctx.px || 0.12)}`} opacity={0.9} pointerEvents="none" />;
+    return <rect x={lo.x} y={lo.y} width={hi.x - lo.x} height={hi.y - lo.y} fill="none" stroke="#f59e0b" strokeWidth={SEL_LINE * (ctx.px || 0.12)} opacity={0.7} pointerEvents="none" />;
   }
   const a = toView(ctx.field, ctx.orient, { x: b.x0, y: b.y0 }), c = toView(ctx.field, ctx.orient, { x: b.x1, y: b.y1 });
   const pad = 1.2;
-  return <rect x={Math.min(a.x, c.x) - pad} y={Math.min(a.y, c.y) - pad} width={Math.abs(a.x - c.x) + 2 * pad} height={Math.abs(a.y - c.y) + 2 * pad} fill="none" stroke="#f59e0b" strokeWidth={1.2 * (ctx.px || 0.12)} strokeDasharray={`${5 * (ctx.px || 0.12)} ${3 * (ctx.px || 0.12)}`} opacity={0.9} pointerEvents="none" />;
+  return <rect x={Math.min(a.x, c.x) - pad} y={Math.min(a.y, c.y) - pad} width={Math.abs(a.x - c.x) + 2 * pad} height={Math.abs(a.y - c.y) + 2 * pad} fill="none" stroke="#f59e0b" strokeWidth={SEL_LINE * (ctx.px || 0.12)} opacity={0.7} pointerEvents="none" />;
 }
 function BoxMark({ box, ctx }) {
   if (ctx.persp) {
     const pts = [{ x: box.x, y: box.y }, { x: box.x + box.w, y: box.y }, { x: box.x + box.w, y: box.y + box.h }, { x: box.x, y: box.y + box.h }].map(ctx.V);
-    return <polygon points={pts.map((q) => `${q.x},${q.y}`).join(" ")} fill="#f59e0b" fillOpacity={0.12} stroke="#f59e0b" strokeWidth={0.4} strokeDasharray="1.6 1.2" pointerEvents="none" />;
+    return <polygon points={pts.map((q) => `${q.x},${q.y}`).join(" ")} fill="#f59e0b" fillOpacity={0.06} stroke="#f59e0b" strokeOpacity={0.75} strokeWidth={SEL_LINE * (ctx.px || 0.12)} pointerEvents="none" />;
   }
   const a = toView(ctx.field, ctx.orient, { x: box.x, y: box.y }), b = toView(ctx.field, ctx.orient, { x: box.x + box.w, y: box.y + box.h });
-  return <rect x={Math.min(a.x, b.x)} y={Math.min(a.y, b.y)} width={Math.abs(a.x - b.x)} height={Math.abs(a.y - b.y)} fill="#f59e0b" fillOpacity={0.12} stroke="#f59e0b" strokeWidth={0.4} strokeDasharray="1.6 1.2" pointerEvents="none" />;
+  return <rect x={Math.min(a.x, b.x)} y={Math.min(a.y, b.y)} width={Math.abs(a.x - b.x)} height={Math.abs(a.y - b.y)} fill="#f59e0b" fillOpacity={0.06} stroke="#f59e0b" strokeOpacity={0.75} strokeWidth={SEL_LINE * (ctx.px || 0.12)} pointerEvents="none" />;
 }
 
 // Lo que está tumbado en el suelo se aplasta con la perspectiva (`lyingFlat`); lo demás (fichas, balón, picas, maniquíes, textos) se ve de pie.
