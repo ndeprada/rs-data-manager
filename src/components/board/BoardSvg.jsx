@@ -4,6 +4,7 @@ import React from "react";
 import {
   arrowCorners, curveHandle, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
   ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, chipTextScale, chipTextLook, chipLines, stackBaselines, viewBox, wavyPoints, zoneBox, labelBgOf, coneEdgeWidth,
+  attachedView,
 } from "@/lib/board";
 
 // Dibujo (solo pintar, sin interacción) de un fotograma sobre el campo, con seis modos visuales:
@@ -1629,9 +1630,11 @@ function ItemFlat({ el, ctx, els, selected, handles }) {
  * ghosts  [{ …elemento, from, to }] posición anterior de lo que se ha movido (rastro)
  * draft   flecha o zona que se está dibujando
  */
-const Board = React.forwardRef(function Board({ board, els, selId = null, selIds = null, marks = [], markNumbers = false, ghosts = [], draft = null, handles = false, className = "", style, label = "Dibujo", aspect = null, camera, frame = 0, fullView = false, viewOverride = null, overlay = null, ...rest }, ref) {
+const Board = React.forwardRef(function Board({ board, els: elsIn, selId = null, selIds = null, marks = [], markNumbers = false, ghosts = [], draft = null, handles = false, className = "", style, label = "Dibujo", aspect = null, camera, frame = 0, fullView = false, viewOverride = null, overlay = null, ...rest }, ref) {
   // todo el recuadro (campo + margen) y lo que se ve: cámara del fotograma, zoom guardado o proporción fija
   const { field, orient, look, persp, fullVb, vb } = boardView(board, { camera, frame, aspect, fullView, viewOverride });
+  // flechas pegadas a una ficha: siguen a la ficha y empiezan/acaban en su borde
+  const els = React.useMemo(() => attachedView(elsIn || [], chipOf(board)), [elsIn, board]);
   const clipVb = `vbclip-${React.useId().replace(/:/g, "")}`;
   const V = persp ? (p) => persp.P(toView(field, orient, p)) : (p) => toView(field, orient, p);
   // Metros por píxel de pantalla (para que los tiradores midan siempre lo mismo en pantalla): solo con tiradores

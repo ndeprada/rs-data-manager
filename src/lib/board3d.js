@@ -14,7 +14,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  ballR, boardView, chipOf, labelBgOf, fieldKind, contrastColor, faceOf, fieldOf, fromView, groundRegion, hasAds, hasStands, isCutField, isGroundEl, isPersp,
+  attachedView, ballR, boardView, chipOf, labelBgOf, fieldKind, contrastColor, faceOf, fieldOf, fromView, groundRegion, hasAds, hasStands, isCutField, isGroundEl, isPersp,
   isStadium, lookOf, materialOf, PERSP, orientAngle, orientOf, tokenR, chipTextScale, chipTextLook, chipLines, ballStyle,
 } from "@/lib/board";
 import { AD_LOGOS } from "@/lib/adLogos";
@@ -851,6 +851,7 @@ function orbitFromCamera(camera) {
  * cargar (al cumplirse, hay que volver a dibujar) o null si ya está completo.
  */
 export function drawBoard3D(target, board, els, opts = {}) {
+  els = attachedView(els || [], chipOf(board));
   const S = shared();
   const { renderer } = S;
   const look = lookOf(board.look);

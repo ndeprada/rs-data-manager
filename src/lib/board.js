@@ -403,7 +403,7 @@ export const isMovable = (el) => MOVABLE.has(el?.k);
 // los fotogramas siguientes hasta que se les dice «Desaparece desde este fotograma» (`removeElement(..., { fromHere: true })`).
 export const isCarried = (el) => isMovable(el) || el?.k === "link";
 // Claves de posición/forma: valen para su fotograma (así se anima de uno a otro); el resto (color, trazo, texto…) para todos.
-const GEOMETRY_KEYS = new Set(["x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "via", "pts", "w", "h", "lift", "face", "rot", "path", "z", "shape"]);
+const GEOMETRY_KEYS = new Set(["x", "y", "x1", "y1", "x2", "y2", "a1", "a2", "cx", "cy", "via", "pts", "w", "h", "lift", "face", "rot", "path", "z", "shape"]);
 export const isGeometryPatch = (patch) => Object.keys(patch || {}).some((k) => GEOMETRY_KEYS.has(k));
 // Lo que se puede unir con un conector: fichas, conos, balón, picas y maniquíes (puntos, no porterías ni escaleras)
 export const isLinkable = (el) => ["token", "cone", "ball", "pole", "dummy"].includes(el?.k);
@@ -1506,6 +1506,79 @@ export function hitTest(els, p, opts = {}) {
     if (g <= tol && (!near || g < near.g)) near = { el, g };
   }
   return near ? near.el : null;
+}
+
+// ── Flechas pegadas a una ficha (07/11/2026, Nacho: «la uno con algún botón de un jugador… efecto imán y se quede fijada a
+// ese botón: si muevo el botón, ese extremo de la flecha también se mueve»). La flecha guarda `a1`/`a2` = id de la ficha
+// (o balón, cono, pica, maniquí) a la que está pegado su inicio/su punta; ese extremo se guarda en el CENTRO de la ficha y se
+// dibuja recortado en su borde (`attachedView`). Si la ficha se mueve, el extremo la sigue y la curva se desplaza la mitad.
+export const canAttach = (el) => isLinkable(el);
+const attachR = (el, chip) => pointRadius(el, chip) || 0.7 * (Number(el.size) || 1);
+// Ficha que hay debajo de p (con margen tol, en m): la más cercana
+export function attachAt(els, p, chip = DEFAULT_CHIP, tol = 0.4) {
+  let best = null, bd = Infinity;
+  for (const el of els || []) {
+    if (!canAttach(el) || el.x == null) continue;
+    const d = Math.hypot(el.x - p.x, el.y - p.y) - attachR(el, chip);
+    if (d <= tol && d < bd) { bd = d; best = el; }
+  }
+  return best;
+}
+// Lleva los extremos pegados al centro de su ficha (la curva se mueve la mitad de lo que se mueven los extremos;
+// los quiebros se quedan). Si la ficha ya no está, el extremo se suelta donde estaba.
+export function followAttached(els) {
+  if (!(els || []).some((e) => e.k === "arrow" && (e.a1 || e.a2))) return els;
+  const byId = new Map(els.filter(canAttach).map((e) => [e.id, e]));
+  return els.map((el) => {
+    if (el.k !== "arrow" || !(el.a1 || el.a2)) return el;
+    const o = { ...el };
+    let dx = 0, dy = 0;
+    for (const [a, xk, yk] of [["a1", "x1", "y1"], ["a2", "x2", "y2"]]) {
+      if (!o[a]) continue;
+      const t = byId.get(o[a]);
+      if (!t) { delete o[a]; continue; }
+      dx += t.x - o[xk]; dy += t.y - o[yk];
+      o[xk] = t.x; o[yk] = t.y;
+    }
+    if ((dx || dy) && o.cx != null && o.cy != null) { o.cx = round(o.cx + dx / 2); o.cy = round(o.cy + dy / 2); }
+    return o;
+  });
+}
+// Lo que se ve: el extremo pegado no empieza en el centro de la ficha sino en su borde (la punta toca la ficha)
+export function attachedView(els, chip = DEFAULT_CHIP) {
+  const list = followAttached(els);
+  if (list === els && !(els || []).some((e) => e.k === "arrow" && (e.a1 || e.a2))) return els;
+  const byId = new Map(list.filter(canAttach).map((e) => [e.id, e]));
+  return list.map((el) => {
+    if (el.k !== "arrow" || !(el.a1 || el.a2)) return el;
+    const via = hasVia(el) ? el.via : [];
+    const curve = el.cx != null && el.cy != null && !via.length ? { x: el.cx, y: el.cy } : null;
+    const o = { ...el };
+    const trim = (a, xk, yk, nb, gap) => {
+      const t = byId.get(el[a]);
+      if (!t) return;
+      const vx = nb.x - el[xk], vy = nb.y - el[yk], len = Math.hypot(vx, vy);
+      if (len < 0.01) return;
+      const cut = Math.min(attachR(t, chip) + gap, len * 0.4);
+      o[xk] = el[xk] + (vx / len) * cut; o[yk] = el[yk] + (vy / len) * cut;
+    };
+    trim("a1", "x1", "y1", via[0] || curve || { x: el.x2, y: el.y2 }, 0.15);
+    trim("a2", "x2", "y2", via[via.length - 1] || curve || { x: el.x1, y: el.y1 }, 0.2);
+    return o;
+  });
+}
+// Al mover la flecha entera (sin su ficha), se despega
+export const detachArrow = (el, movedIds = []) => {
+  if (el.k !== "arrow" || !(el.a1 || el.a2)) return el;
+  const o = { ...el };
+  if (o.a1 && !movedIds.includes(o.a1)) delete o.a1;
+  if (o.a2 && !movedIds.includes(o.a2)) delete o.a2;
+  return o;
+};
+// Todo el dibujo: cada fotograma con sus flechas pegadas en su sitio
+export function followBoard(board) {
+  if (!board?.frames?.some((f) => (f.els || []).some((e) => e.k === "arrow" && (e.a1 || e.a2)))) return board;
+  return { ...board, frames: board.frames.map((f) => { const els = followAttached(f.els || []); return els === f.els ? f : { ...f, els }; }) };
 }
 
 // Radio de lo que se ve de las cosas «redondas» (ficha, balón, cono)

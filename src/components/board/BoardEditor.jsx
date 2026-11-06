@@ -4,7 +4,7 @@ import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLe
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, BALL_PATTERNS, ballStyle, linkProps, zoneShapePatch, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
-  boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
+  attachAt, attachedView, detachArrow, followBoard, boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
   is3D, handleSpec, PERSP, toggleFlag, movableIds, snapTo, isLocked, isHighlighted, resetToPrevious, resizeElements as resizeEls, styleElements, matchElements, VIEW_MODES, viewModeOf, setViewMode, orbitOf, orbitBetween, orbitPreset, ORBIT_PRESETS, setOrbit, clearFrameOrbit, clearOrbits, hasFrameOrbits, validOrbit, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
   applyToTeam, hasSheet, animFrameCount, curveFromHandle,
 } from "@/lib/board";
@@ -79,7 +79,9 @@ const selectCls = "h-8 rounded-md border border-gray-200 bg-white px-2 text-xs";
 // «Jugador» de la tarjeta de la ficha; «Campo y ajustes» es igual en las tres. `chipPlayer(ficha, patch)`: la página pone su propia
 // pestaña «Jugador» (balón parado: jugador y función; null = la de siempre). `chipDescribe(ficha)`: texto bajo el nombre en la tarjeta.
 // `stamps` = { list: [{id, label}], active, pick(id|null) }: etiquetas rápidas en la barra (balón parado), que se ponen con `stamp`.
-export default function BoardEditor({ value, onChange, roster = [], fields = null, filename = "pizarra", modes = false, embedded = false, embedHeight = 620, paint = null, stamp = null, onStampDone = null, overlayTitle = null, studioTitle, variant: variantIn = "tareas", chipPlayer = null, chipDescribe = null, stamps = null }) {
+export default function BoardEditor({ value, onChange: onChangeIn, roster = [], fields = null, filename = "pizarra", modes = false, embedded = false, embedHeight = 620, paint = null, stamp = null, onStampDone = null, overlayTitle = null, studioTitle, variant: variantIn = "tareas", chipPlayer = null, chipDescribe = null, stamps = null }) {
+  // las flechas pegadas a una ficha siguen a la ficha en cada cambio (07/11/2026)
+  const onChange = (b) => onChangeIn(followBoard(b));
   const variant = cleanVariant(variantIn);
   const rail = railOf(variant);
   const board = useMemo(() => normalizeBoard(value), [value]);
@@ -255,6 +257,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
 
   const shownEls = anim && board.frames[anim.i + 1] ? lerpFrames(board.frames[anim.i], board.frames[anim.i + 1], anim.t) : cur.els;
   const ghosts = !playing && trails && prev ? ghostsOf(prev, cur) : [];
+  // una flecha que se está dibujando desde/hasta una ficha ya se ve empezando/acabando en su borde
+  const draftView = draft?.k === "arrow" && (draft.a1 || draft.a2) ? { ...attachedView([...cur.els, { ...draft, id: "__draft" }], chip).at(-1), id: draft.id } : draft;
   // Vista en un solo selector (Plana · Perspectiva · 3D); con la herramienta Cámara se ve el recuadro en 2D
   const show3d = is3D(board) && tool !== "camera";
   // Dibujar en 3D: el puntero se lleva al campo con la cámara 3D (`v3`) en vez del SVG
@@ -283,7 +287,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   // en 2D (`handleSpec`), llevados a la pantalla con la cámara 3D después de cada pintado y arrastrados con el mismo código
   const handles3d = (() => {
     if (!in3d || sel.length !== 1) return null;
-    const el = cur.els.find((x) => x.id === sel[0]);
+    const el = attachedView(cur.els, chip).find((x) => x.id === sel[0]);
     if (!el) return null;
     const spec = handleSpec(el, { orient, chip, ghost: ghosts.find((g) => g.id === el.id) || null, scale: isPersp(board) ? PERSP.chip : 1 });
     return spec.pts.length ? spec : null;
@@ -465,7 +469,28 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     setGuide(r.guide);
     return { x: r.x, y: r.y };
   };
-  const hitAt = (list, e, p) => {
+  // Imán a fichas para los extremos de una flecha: encima de una ficha (o balón, cono, pica, maniquí) el extremo se pega a
+  // su centro y la seguirá al moverla. Con Control / Alt / Cmd, libre.
+  const attachEnd = (e, p, skip = null) => {
+    if (!p || freeMove(e)) return null;
+    const t = hitTol();
+    const target = attachAt((live.current.frames[idx]?.els || []).filter((x) => x.id !== skip), p, chip, t || 0.4);
+    if (!target) return null;
+    setGuide({ kind: "point", at: { x: target.x, y: target.y } });
+    return target;
+  };
+  const hitAt = (list0, e, p) => {
+    // las flechas pegadas a una ficha se agarran por lo que se ve (empiezan en el borde de la ficha, no en su centro)
+    const hasAtt = list0.some((x) => x.k === "arrow" && (x.a1 || x.a2));
+    if (hasAtt) {
+      const view = new Map(attachedView(cur.els, chip).map((x) => [x.id, x]));
+      const list = list0.map((x) => (x.k === "arrow" && (x.a1 || x.a2) ? view.get(x.id) || x : x));
+      const h = hitAtRaw(list, e, p);
+      return h ? list0.find((x) => x.id === h.id) || h : null;
+    }
+    return hitAtRaw(list0, e, p);
+  };
+  const hitAtRaw = (list, e, p) => {
     if (in3d) {
       const api = v3.current;
       if (!api) return null;
@@ -710,7 +735,14 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (tool === "cone") return add({ id: newId(), k: "cone", x: p.x, y: p.y, ...brush.cone });
     if (tool === "goal") return add({ id: newId(), k: "goal", x: p.x, y: p.y, rot: 0, ...brush.goal });
     if (tool === "text") return add({ id: newId(), k: "text", x: p.x, y: p.y, text: "Texto", ...brush.text });
-    if (ARROW_TOOLS.includes(tool)) { const a = magnet(e, p); setGuide(null); setDraft({ k: "arrow", ...brush[tool], x1: a.x, y1: a.y, x2: a.x, y2: a.y }); drag.current = { mode: "draw", kind: "arrow", start: a }; return; }
+    if (ARROW_TOOLS.includes(tool)) {
+      const at = attachEnd(e, p);
+      const a = at ? { x: at.x, y: at.y } : magnet(e, p);
+      setGuide(null);
+      setDraft({ k: "arrow", ...brush[tool], x1: a.x, y1: a.y, x2: a.x, y2: a.y, a1: at?.id });
+      drag.current = { mode: "draw", kind: "arrow", start: a };
+      return;
+    }
     if (tool === "zone" || tool === "quad") { const a = magnet(e, p); setGuide(null); setDraft({ k: "zone", ...brush[tool], x: a.x, y: a.y, w: 0, h: 0 }); drag.current = { mode: "draw", kind: "zone", start: a }; }
   };
 
@@ -771,8 +803,11 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     }
     if (d.mode === "draw" || d.mode === "box" || d.mode === "marquee") {
       let p = point(e);
-      if (d.mode === "draw" && d.start) p = magnet(e, p, { from: d.kind === "arrow" ? d.start : null });
-      setDraft((c) => (c ? (c.k === "arrow" ? { ...c, x2: p.x, y2: p.y } : { ...c, w: round(p.x - c.x), h: round(p.y - c.y) }) : c));
+      // la punta de una flecha se pega a la ficha que hay debajo (no a la de su inicio)
+      const at = d.mode === "draw" && d.kind === "arrow" ? attachEnd(e, p, draft?.a1 || null) : null;
+      if (at) p = { x: at.x, y: at.y };
+      else if (d.mode === "draw" && d.start) p = magnet(e, p, { from: d.kind === "arrow" ? d.start : null });
+      setDraft((c) => (c ? (c.k === "arrow" ? { ...c, x2: p.x, y2: p.y, a2: at?.id } : { ...c, w: round(p.x - c.x), h: round(p.y - c.y) }) : c));
       return;
     }
     if (d.mode === "cam") {
@@ -838,13 +873,17 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       } else {
         let p = point(e);
         // extremo de una flecha: se endereza respecto al punto vecino (el otro extremo o el quiebro más cercano)
+        let at = null;
         if (d.h === "p1" || d.h === "p2") {
           const via = Array.isArray(d.el.via) ? d.el.via : [];
           const other = d.h === "p1" ? (via[0] || { x: d.el.x2, y: d.el.y2 }) : (via[via.length - 1] || { x: d.el.x1, y: d.el.y1 });
-          p = magnet(e, p, { skip: d.id, from: d.el.cx != null && !via.length ? null : other });
+          // encima de una ficha: el extremo se pega a ella (no a la del otro extremo)
+          at = attachEnd(e, p, d.h === "p1" ? d.el.a2 : d.el.a1);
+          if (at) p = { x: at.x, y: at.y };
+          else p = magnet(e, p, { skip: d.id, from: d.el.cx != null && !via.length ? null : other });
         }
         // la curva se arrastra desde un punto de la propia flecha: la flecha pasa por donde está el dedo
-        patch = d.h === "p1" ? { x1: p.x, y1: p.y } : d.h === "p2" ? { x2: p.x, y2: p.y } : d.el.k === "arrow" ? curveFromHandle(d.el, p) : { cx: p.x, cy: p.y };
+        patch = d.h === "p1" ? { x1: p.x, y1: p.y, a1: at?.id } : d.h === "p2" ? { x2: p.x, y2: p.y, a2: at?.id } : d.el.k === "arrow" ? curveFromHandle(d.el, p) : { cx: p.x, cy: p.y };
       }
       onChange(patchElement(d.snapshot, idx, d.id, patch));
       d.moved = true;
@@ -862,7 +901,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       d.moved = true;
       lastTap.current = { id: null, at: 0 };
       lastDragAt.current = Date.now();
-      const els = d.snapshot.frames[idx].els.map((el) => (d.ids.includes(el.id) ? shiftElement(el, dx, dy) : el));
+      // una flecha pegada que se mueve sin su ficha se despega de ella
+      const els = d.snapshot.frames[idx].els.map((el) => (d.ids.includes(el.id) ? shiftElement(detachArrow(el, d.ids), dx, dy) : el));
       onChange({ ...d.snapshot, frames: d.snapshot.frames.map((f, i) => (i === idx ? { ...f, els } : f)) });
     }
   };
@@ -1737,7 +1777,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           className="w-full h-full"
           label="Pizarra en 3D"
           sel={playing ? null : sel}
-          draft={playing ? null : draft}
+          draft={playing ? null : draftView}
           canvasStyle={{ touchAction: "none", cursor, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
           onPointerDown={onDown}
           onPointerMove={onMove}
@@ -1790,7 +1830,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         marks={playing ? [] : tool === "link" ? pick : selected?.k === "link" ? selected.ids || [] : []}
         markNumbers={!playing && (tool === "link" || (selected?.k === "link" && (selected.mode || "line") === "line"))}
         ghosts={ghosts}
-        draft={draft}
+        draft={draftView}
         handles={!playing && !camTool}
         camera={camTool ? null : showCam ? frameCam(board, idx) : null}
         viewOverride={camView}

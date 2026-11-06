@@ -1489,3 +1489,27 @@ test("flechas: la curva se agarra por un punto de la propia flecha; nombres en d
   assert.deepEqual(lines, ["Nil", "Ribas", "ZONA"]);
   assert.equal(L.normalizeBoard({ v: 2, frames: [{ id: "a", els: [] }], nameStack: false }).nameStack, false);
 });
+
+test("flechas pegadas a una ficha: siguen a la ficha y se dibujan desde su borde", async () => {
+  const B = await import("../src/lib/board.js");
+  const els = [{ id: "t", k: "token", team: "a", x: 10, y: 10 }, { id: "u", k: "token", team: "b", x: 30, y: 10 }, { id: "a", k: "arrow", x1: 10, y1: 10, x2: 30, y2: 10, cx: 20, cy: 4, a1: "t", a2: "u" }];
+  assert.equal(B.attachAt(els, { x: 10.8, y: 10.5 }, 1.5)?.id, "t");
+  assert.equal(B.attachAt(els, { x: 20, y: 20 }, 1.5), null);
+  // la ficha se mueve: el extremo la sigue y la curva se desplaza la mitad
+  const moved = B.followAttached(els.map((e) => (e.id === "t" ? { ...e, x: 14, y: 10 } : e)));
+  const a = moved.find((e) => e.id === "a");
+  assert.equal(a.x1, 14); assert.equal(a.x2, 30); assert.equal(a.cx, 22); assert.equal(a.cy, 4);
+  // sin cambios, nada se mueve
+  assert.deepEqual(B.followAttached(moved).find((e) => e.id === "a"), a);
+  // se ve desde el borde de la ficha, no desde su centro
+  const v = B.attachedView(moved, 1.5).find((e) => e.id === "a");
+  assert.ok(Math.hypot(v.x1 - 14, v.y1 - 10) > 1.4);
+  assert.ok(Math.hypot(v.x2 - 30, v.y2 - 10) > 1.4);
+  // sin la ficha, se suelta
+  const gone = B.followAttached(moved.filter((e) => e.id !== "u")).find((e) => e.id === "a");
+  assert.equal(gone.a2, undefined); assert.equal(gone.x2, 30);
+  // mover la flecha sola la despega; con su ficha, no
+  assert.equal(B.detachArrow(a, ["a"]).a1, undefined);
+  assert.equal(B.detachArrow(a, ["a", "t"]).a1, "t");
+  assert.ok(B.isGeometryPatch({ a1: "t" }));
+});
