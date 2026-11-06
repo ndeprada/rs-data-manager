@@ -6,7 +6,7 @@ import {
   AIR_MAX, BALL_PATTERNS, ballStyle, linkProps, zoneShapePatch, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
   boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
   is3D, handleSpec, PERSP, toggleFlag, movableIds, snapTo, isLocked, isHighlighted, resetToPrevious, resizeElements as resizeEls, styleElements, matchElements, VIEW_MODES, viewModeOf, setViewMode, orbitOf, orbitBetween, orbitPreset, ORBIT_PRESETS, setOrbit, clearFrameOrbit, clearOrbits, hasFrameOrbits, validOrbit, isGeometryPatch, zoneBox, insertVia, removeVia, firstBend, elementBounds, unionBounds, removeElements, removeFrame, removeTeam, resizeElements, setAllChips, setAllFeet, setBibOf, setFeetOf, turnElements, setTeamOf, shiftElement, spreadElements, stepLayer, teamInUse, teamsOf, liftNormal, zoneCorners,
-  applyToTeam,
+  applyToTeam, hasSheet, animFrameCount,
 } from "@/lib/board";
 import Board, { ChipGlyph, styleOf } from "./BoardSvg";
 import Board3DView from "./Board3D";
@@ -83,6 +83,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
   const variant = cleanVariant(variantIn);
   const rail = railOf(variant);
   const board = useMemo(() => normalizeBoard(value), [value]);
+  // Hoja + animación (balón parado): el fotograma 1 es la hoja que se imprime
+  const sheetMode = hasSheet(board);
   const field = fieldOf(board.field);
   const orient = board.orient;
   const look = lookOf(board.look);
@@ -226,8 +228,10 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     if (!playing) return undefined;
     const frames = live.current.frames;
     const end = frames.length - 1;
-    if (end < 1) { setPlaying(false); return undefined; }
-    let i = fi >= end ? 0 : fi;
+    // con hoja (balón parado), la animación empieza en el fotograma 2: la hoja no se reproduce
+    const first = hasSheet(live.current) ? 1 : 0;
+    if (end - first < 1) { setPlaying(false); return undefined; }
+    let i = fi >= end || fi < first ? first : fi;
     let t0 = performance.now();
     let raf = 0;
     setFi(i);
@@ -238,7 +242,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         t0 = now;
         p = 0;
         if (i >= end) {
-          if (loop) { i = 0; setFi(0); } else { setFi(end); setAnim(null); setPlaying(false); return; }
+          if (loop) { i = first; setFi(first); } else { setFi(end); setAnim(null); setPlaying(false); return; }
         } else setFi(i);
       }
       setAnim({ i, t: p });
@@ -1052,12 +1056,12 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
       case "cycleZone": return pickTool(ZONES.includes(tool) ? cycle(ZONES, tool) : lastPick.current.zone);
       case "cycleMaterial": return pickTool(MATS.includes(tool) ? cycle(MATS, tool) : lastPick.current.material);
       case "addFrame": if (!imageMode && board.frames.length < MAX_FRAMES) frameOp((b, i) => addFrame(b, i)); return;
-      case "removeFrame": if (!imageMode && board.frames.length > 1) frameOp((b, i) => removeFrame(b, i)); return;
+      case "removeFrame": if (!imageMode && board.frames.length > 1 && !(hasSheet(board) && idx === 0)) frameOp((b, i) => removeFrame(b, i)); return;
       case "nextFrame": if (!imageMode && idx < last) goFrame(idx + 1); return;
       case "prevFrame": if (!imageMode && idx > 0) goFrame(idx - 1); return;
       case "lastFrame": if (!imageMode) goFrame(last); return;
       case "firstFrame": if (!imageMode) goFrame(0); return;
-      case "play": if (!imageMode && board.frames.length > 1) { if (playing) stop(); else setPlaying(true); } return;
+      case "play": if (!imageMode && animFrameCount(board) > 1) { if (playing) stop(); else setPlaying(true); } return;
       case "trail": return setTrails((t) => !t);
       case "alignH": if (sel.length > 1) alignMany("vcenter"); return;
       case "alignV": if (sel.length > 1) alignMany("hcenter"); return;
@@ -1628,11 +1632,11 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     <button key={f.id} type="button" role="tab" aria-selected={i === idx} onClick={() => goFrame(i)} data-testid={`frame-${i + 1}`}
       className="shrink-0 rounded-lg text-sm font-bold tabular-nums"
       style={{ width: narrow ? 44 : 52, height: narrow ? 36 : 30, background: i === idx ? RAIL.text : RAIL.btn, color: i === idx ? RAIL.onInk : RAIL.text, border: `1px solid ${i === idx ? RAIL.text : RAIL.line}` }}>
-      {String(i + 1).padStart(2, "0")}
+      {sheetMode ? (i === 0 ? "Hoja" : String(i).padStart(2, "0")) : String(i + 1).padStart(2, "0")}
     </button>
   );
   const playBtn = (
-    <RailBtn label={playing ? "Parar" : "Reproducir"} title={board.frames.length < 2 ? "Añade otro fotograma para animar (N)" : playing ? "Parar (Espacio)" : "Reproducir (Espacio)"} on={playing} disabled={imageMode || board.frames.length < 2} onClick={() => (playing ? stop() : setPlaying(true))} testid="rail-play">
+    <RailBtn label={playing ? "Parar" : "Reproducir"} title={animFrameCount(board) < 2 ? "Añade otro fotograma para animar (N)" : playing ? "Parar (Espacio)" : "Reproducir (Espacio)"} on={playing} disabled={imageMode || animFrameCount(board) < 2} onClick={() => (playing ? stop() : setPlaying(true))} testid="rail-play">
       {playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
     </RailBtn>
   );
@@ -1640,7 +1644,7 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
     <>
       <RailBtn label="Añadir fotograma" title="Añadir fotograma (N)" disabled={board.frames.length >= MAX_FRAMES} onClick={() => frameOp((b, i) => addFrame(b, i))} narrow={narrow} testid="rail-add-frame"><Plus className="w-5 h-5" />{narrow && <RailLabel>Nuevo</RailLabel>}</RailBtn>
       <RailBtn label="Duplicar fotograma" title="Duplicar fotograma (las flechas y zonas se deslizan)" disabled={board.frames.length >= MAX_FRAMES} onClick={() => frameOp((b, i) => duplicateFrame(b, i))} narrow={narrow}><Copy className="w-5 h-5" />{narrow && <RailLabel>Duplicar</RailLabel>}</RailBtn>
-      <RailBtn label="Quitar fotograma" title="Quitar fotograma (M)" disabled={board.frames.length < 2} onClick={() => frameOp((b, i) => removeFrame(b, i))} narrow={narrow}><Minus className="w-5 h-5" />{narrow && <RailLabel>Quitar</RailLabel>}</RailBtn>
+      <RailBtn label="Quitar fotograma" title={sheetMode && idx === 0 ? "La hoja no se quita" : "Quitar fotograma (M)"} disabled={board.frames.length < 2 || (sheetMode && idx === 0)} onClick={() => frameOp((b, i) => removeFrame(b, i))} narrow={narrow}><Minus className="w-5 h-5" />{narrow && <RailLabel>Quitar</RailLabel>}</RailBtn>
     </>
   );
   const helpBtn = (
@@ -1884,7 +1888,8 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
         <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none rounded-lg px-4 py-1.5 text-sm font-semibold text-center" style={{ bottom: 52, maxWidth: "70%", background: "rgba(54,0,13,0.9)", color: "#fff", zIndex: 3 }} data-testid="frame-note-caption">{cur.note}</div>
       ) : null}
       <div className="absolute left-1/2 -translate-x-1/2 bottom-3 max-w-[60%] pointer-events-none rounded-full px-4 py-1.5 text-xs flex gap-3 items-center" style={{ background: "rgba(36,0,10,0.9)", border: `1px solid ${RAIL.border}`, zIndex: 3 }} role="status">
-        {!imageMode && board.frames.length > 1 && <span className="font-bold whitespace-nowrap">Fotograma {idx + 1} de {board.frames.length}</span>}
+        {sheetMode ? <span className="font-bold whitespace-nowrap">{idx === 0 ? "Hoja (se imprime)" : `Animación · ${idx} de ${board.frames.length - 1}`}</span>
+          : !imageMode && board.frames.length > 1 && <span className="font-bold whitespace-nowrap">Fotograma {idx + 1} de {board.frames.length}</span>}
         <span className="truncate" style={{ color: error ? "#fca5a5" : RAIL.sub }}>{hint}</span>
         <span className="whitespace-nowrap hidden lg:inline" style={{ color: RAIL.sub }}>Mayús + H · atajos</span>
       </div>
@@ -1903,22 +1908,28 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
           <section aria-label="Fotogramas" className="rounded-xl bg-white p-2.5 flex flex-col gap-2" style={{ border: "1px solid #E6DEDD", color: "#1E1416" }} data-testid="board-timeline">
             <div className="flex flex-wrap items-center gap-1.5">
               <button type="button" aria-label="Primer fotograma" title="Primer fotograma" onClick={() => goFrame(0)} className="inline-flex items-center justify-center" style={{ ...outBtn, width: 34, padding: 0 }}><ChevronLeft className="w-4 h-4" /></button>
-              <button type="button" aria-label={playing ? "Parar" : "Reproducir"} title={board.frames.length < 2 ? "Añade otro fotograma para animar" : playing ? "Parar" : "Reproducir"} disabled={board.frames.length < 2} onClick={() => (playing ? stop() : setPlaying(true))} data-testid="tl-play"
+              <button type="button" aria-label={playing ? "Parar" : "Reproducir"} title={animFrameCount(board) < 2 ? "Añade otro fotograma para animar" : playing ? "Parar" : "Reproducir"} disabled={animFrameCount(board) < 2} onClick={() => (playing ? stop() : setPlaying(true))} data-testid="tl-play"
                 className="inline-flex items-center justify-center rounded-full disabled:opacity-40" style={{ width: 40, height: 40, background: "#73000A", color: "#fff" }}>
                 {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               </button>
               <button type="button" aria-label="Último fotograma" title="Último fotograma" onClick={() => goFrame(board.frames.length - 1)} className="inline-flex items-center justify-center" style={{ ...outBtn, width: 34, padding: 0 }}><ChevronRight className="w-4 h-4" /></button>
               <span aria-hidden className="w-px h-6 mx-1" style={{ background: "#E6DEDD" }} />
-              <div role="tablist" aria-label="Fotogramas" className="flex flex-wrap gap-1">
+              <div role="tablist" aria-label="Fotogramas" className="flex flex-wrap items-center gap-1">
                 {board.frames.map((f, i) => (
-                  <button key={f.id} type="button" role="tab" aria-selected={i === idx} onClick={() => goFrame(i)} data-testid={`frame-${i + 1}`}
-                    className="tabular-nums" style={{ minWidth: 40, height: 32, borderRadius: 8, fontSize: 14, fontWeight: 700, background: i === idx ? "#73000A" : "#F5F2F1", color: i === idx ? "#fff" : "#4A3D3F" }}>
-                    {String(i + 1).padStart(2, "0")}
-                  </button>
+                  <React.Fragment key={f.id}>
+                    {sheetMode && i === 1 && <span className="px-1.5" style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".07em", color: "#6B5E60" }} data-testid="tl-anim-label">ANIMACIÓN</span>}
+                    <button type="button" role="tab" aria-selected={i === idx} onClick={() => goFrame(i)} data-testid={`frame-${i + 1}`} data-sheet={sheetMode && i === 0 ? "true" : undefined}
+                      title={sheetMode && i === 0 ? "La hoja: posición de salida con las flechas que explican la jugada. Es lo que se imprime." : undefined}
+                      className="tabular-nums" style={{ minWidth: sheetMode && i === 0 ? 56 : 40, height: 32, borderRadius: 8, fontSize: 14, fontWeight: 700, background: i === idx ? "#73000A" : "#F5F2F1", color: i === idx ? "#fff" : "#4A3D3F", ...(sheetMode && i === 0 && i !== idx ? { boxShadow: "inset 0 0 0 1.5px #73000A", color: "#73000A" } : {}) }}>
+                      {sheetMode ? (i === 0 ? "Hoja" : String(i).padStart(2, "0")) : String(i + 1).padStart(2, "0")}
+                    </button>
+                    {sheetMode && i === 0 && <span aria-hidden className="w-px h-6 mx-1" style={{ background: "#E6DEDD" }} />}
+                  </React.Fragment>
                 ))}
               </div>
               <button type="button" disabled={board.frames.length >= MAX_FRAMES} onClick={() => frameOp((b, i) => addFrame(b, i))} data-testid="rail-add-frame"
-                className="disabled:opacity-40" style={{ ...outBtn, border: "1px dashed #73000A", color: "#73000A", fontWeight: 600 }}>+ Fotograma</button>
+                title={sheetMode && board.frames.length === 1 ? "La animación empieza con las posiciones de la hoja, sin sus flechas" : undefined}
+                className="disabled:opacity-40" style={{ ...outBtn, border: "1px dashed #73000A", color: "#73000A", fontWeight: 600 }}>{sheetMode && board.frames.length === 1 ? "+ Crear animación" : "+ Fotograma"}</button>
               <span className="flex-1" />
               <div role="group" aria-label="Velocidad" className="flex gap-1">
                 {speeds.map(([v, l]) => <button key={v} type="button" aria-pressed={speed === v} onClick={() => commit({ ...live.current, speed: v }, { record: false })} style={segBtn(speed === v)}>{l}</button>)}
@@ -1926,12 +1937,19 @@ export default function BoardEditor({ value, onChange, roster = [], fields = nul
               <label className="flex items-center gap-1.5 text-[13px]" style={{ color: "#4A3D3F" }}><input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} style={{ accentColor: "#73000A", width: 15, height: 15 }} /> Repetir</label>
               <label className="flex items-center gap-1.5 text-[13px]" style={{ color: "#4A3D3F" }}><input type="checkbox" checked={trails} onChange={(e) => setTrails(e.target.checked)} style={{ accentColor: "#73000A", width: 15, height: 15 }} /> Rastro</label>
             </div>
+            {sheetMode && (
+              <p className="m-0 text-[12.5px]" style={{ color: "#4A3D3F" }} data-testid="tl-hint">
+                {idx === 0
+                  ? <><b style={{ color: "#73000A" }}>Hoja:</b> coloca a todos donde empiezan y dibuja con flechas los desmarques, los bloqueos y el pase. Es lo que se imprime.</>
+                  : <><b style={{ color: "#73000A" }}>Animación:</b> mueve a los jugadores de verdad, fotograma a fotograma. Empieza en las posiciones de la hoja; sus flechas no salen.</>}
+              </p>
+            )}
             <div className="flex flex-wrap gap-1.5">
-              <input value={cur.note || ""} maxLength={200} placeholder={`Nota del fotograma ${idx + 1} (sale como leyenda en el campo)`} aria-label={`Nota del fotograma ${idx + 1}`} data-testid="frame-note"
+              <input value={cur.note || ""} maxLength={200} placeholder={sheetMode && idx === 0 ? "Nota de la hoja (sale como leyenda en el campo)" : `Nota del fotograma ${sheetMode ? idx : idx + 1} (sale como leyenda en el campo)`} aria-label={`Nota del fotograma ${idx + 1}`} data-testid="frame-note"
                 onChange={(e) => { const v = e.target.value; const nb = { ...live.current, frames: live.current.frames.map((f, i) => (i === idx ? (v ? { ...f, note: v } : (({ note: _n, ...r }) => r)(f)) : f)) }; commit(nb, { key: `note-${idx}` }); }}
                 className="flex-1 min-w-[220px] outline-none" style={{ height: 34, borderRadius: 8, border: "1px solid #D9CFCE", padding: "0 12px", fontSize: 13.5, color: "#1E1416", background: "#fff" }} />
               <button type="button" disabled={board.frames.length >= MAX_FRAMES} onClick={() => frameOp((b, i) => duplicateFrame(b, i))} className="disabled:opacity-40" style={outBtn}>Duplicar fotograma</button>
-              <button type="button" disabled={board.frames.length < 2} onClick={() => frameOp((b, i) => removeFrame(b, i))} className="disabled:opacity-40" style={outBtn}>Quitar fotograma</button>
+              <button type="button" disabled={board.frames.length < 2 || (sheetMode && idx === 0)} onClick={() => frameOp((b, i) => removeFrame(b, i))} className="disabled:opacity-40" style={outBtn}>Quitar fotograma</button>
               {hasEls && <BoardDownloads board={board} frame={idx} filename={filename} compact />}
             </div>
           </section>

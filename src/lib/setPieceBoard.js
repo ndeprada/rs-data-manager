@@ -2,7 +2,7 @@
 //  · Las jugadas antiguas (fichas y flechas en un dibujo de 300 × 240 de medio campo) se ven convertidas al vuelo, con los
 //    mismos ids, hasta que alguien las toca; entonces se guarda `piece.board` (las fichas y flechas antiguas se quedan de copia).
 //  · Cada ficha nuestra puede llevar `player_id`: dentro va el dorsal, debajo el nombre y encima el rol de la jugada.
-import { NEW_BOARD_LOOK, fieldOf, fieldKind, isQuad, normalizeBoard, pruneLinks, setViewMode, orientOf, lookOf, marginOf, isPersp, perspectiveOf, viewBox, toView, elementBounds } from "./board.js";
+import { NEW_BOARD_LOOK, animFrameCount, fieldOf, fieldKind, isQuad, normalizeBoard, pruneLinks, setViewMode, orientOf, lookOf, marginOf, isPersp, perspectiveOf, viewBox, toView, elementBounds } from "./board.js";
 
 export const SP_FIELD = "half";
 export const SP_TEAMS = [
@@ -69,8 +69,23 @@ export function legacyToBoard(piece, players = []) {
   return { v: 2, field: SP_FIELD, look: NEW_BOARD_LOOK, orient: "v", teams: SP_TEAMS.map((x) => ({ ...x })), chipSize: SP_CHIP, frames: [{ id: `${piece?.id || "p"}-f1`, els }] };
 }
 
-// Pizarra de una jugada: la guardada o la antigua convertida
-export const pieceBoard = (piece, players = []) => (piece?.board ? upgradeFunctions(normalizeBoard(piece.board)) : legacyToBoard(piece, players));
+// Hoja + animación (06/11/2026, Nacho: «poder hacer la animación de la jugada, pero al mismo tiempo seleccionar un fotograma
+// que sea la imagen de partida, donde además añado flechas… para la hoja»): en balón parado el fotograma 1 es siempre la HOJA
+// (lo que se imprime) y la animación, si la hay, son los siguientes. Una jugada guardada antes con varios fotogramas conserva
+// su animación entera: su hoja es una copia de su primer fotograma (mismos ids, para que nada salte).
+export function withSheet(board) {
+  const b = normalizeBoard(board);
+  if (b.sheet) return b;
+  if (b.frames.length < 2) return { ...b, sheet: true };
+  const f0 = b.frames[0];
+  const hoja = { id: `${f0.id}-hoja`, els: JSON.parse(JSON.stringify(f0.els)), ...(f0.note ? { note: f0.note } : {}) };
+  return { ...b, sheet: true, frames: [hoja, ...b.frames] };
+}
+// ¿La jugada tiene animación? (dos fotogramas o más después de la hoja)
+export const isAnimatedBoard = (board) => animFrameCount(withSheet(board)) > 1;
+
+// Pizarra de una jugada: la guardada o la antigua convertida, siempre con la hoja delante
+export const pieceBoard = (piece, players = []) => withSheet(piece?.board ? upgradeFunctions(normalizeBoard(piece.board)) : legacyToBoard(piece, players));
 export const emptyPieceBoard = () => legacyToBoard({ id: "nueva", tokens: [], arrows: [] });
 
 // Voltear izquierda ↔ derecha (p. ej. un córner del otro lado): todo se refleja respecto al centro del campo, en todos los fotogramas
@@ -144,6 +159,41 @@ export function fillWithSquad(board, candidates) {
     .sort((x, y) => ((GROUP[x.position] ?? 9) - (GROUP[y.position] ?? 9)) || ((Number(x.jersey_number) || 999) - (Number(y.jersey_number) || 999)));
   let i = 0;
   for (const chip of ownChips(b)) if (!chip.player_id && pool[i]) b = assignPlayer(b, chip.id, pool[i++]);
+  return b;
+}
+
+// Propuesta de jugadores para las fichas según su función y el puesto de su ficha (06/11/2026, «Nueva jugada en 3 toques»):
+// lanza un extremo o un mediapunta, rematan y bloquean centrales y delanteros, al rechace van los medios, cierran laterales y
+// medios; en defensa el portero va a la portería y, a favor, los porteros no se usan. Solo las fichas sin jugador; dentro de
+// cada puesto, por dorsal. Es una propuesta: se cambia tocando cada ficha.
+const FN_PREF = {
+  lanzador: ["extremo", "mediapunta", "interior", "mediocentro", "lateral"],
+  rematador: ["central", "delantero_centro", "libre", "mediocentro", "interior", "mediapunta"],
+  bloqueo: ["central", "delantero_centro", "libre", "mediocentro"],
+  rechace: ["mediocentro", "interior", "mediapunta", "extremo"],
+  cierra: ["lateral", "mediocentro", "extremo", "interior"],
+  zona: ["central", "libre", "delantero_centro", "mediocentro", "lateral"],
+  hombre: ["central", "lateral", "mediocentro", "libre", "interior"],
+  corta: ["extremo", "lateral", "mediapunta"],
+  palo: ["lateral", "extremo", "interior"],
+  portero: ["portero"],
+};
+const FN_ORDER = ["portero", "lanzador", "rematador", "bloqueo", "zona", "hombre", "palo", "corta", "rechace", "cierra"];
+export function proposeSquad(board, candidates, attack = true) {
+  let b = normalizeBoard(board);
+  const used = new Set(ownChips(b).map((e) => e.player_id).filter(Boolean));
+  let pool = (candidates || []).filter((p) => !used.has(p.id) && !(attack && p.position === "portero"));
+  const num = (p) => Number(p.jersey_number) || 999;
+  const rank = (fn, p) => { const l = FN_PREF[fn] || []; const i = l.indexOf(p.position); return i < 0 ? (p.position === "portero" ? 99 : 50 + (GROUP[p.position] ?? 9)) : i; };
+  const chips = ownChips(b).filter((c) => !c.player_id)
+    .sort((x, y) => (FN_ORDER.indexOf(x.fn) + 1 || 99) - (FN_ORDER.indexOf(y.fn) + 1 || 99));
+  for (const chip of chips) {
+    if (!pool.length) break;
+    const fn = chip.fn || "";
+    const best = [...pool].sort((x, y) => (rank(fn, x) - rank(fn, y)) || (num(x) - num(y)))[0];
+    b = assignPlayer(b, chip.id, best);
+    pool = pool.filter((p) => p.id !== best.id);
+  }
   return b;
 }
 

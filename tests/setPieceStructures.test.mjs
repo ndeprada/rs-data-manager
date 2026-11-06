@@ -186,3 +186,39 @@ test("imprimir: campo más corto (`squeezeForPrint`)", () => {
   // fútbol 7 y espacio libre no cambian
   assert.equal(squeezeForPrint({ ...b, field: "f7" }).pitchLen, undefined);
 });
+
+test("balón parado: la hoja va siempre delante (`withSheet`)", async () => {
+  const { withSheet, pieceBoard, isAnimatedBoard } = await import("../src/lib/setPieceBoard.js");
+  const one = withSheet({ v: 2, field: "half", frames: [{ id: "f1", els: [{ id: "t", k: "token", team: "a", x: 1, y: 1 }] }] });
+  assert.equal(one.sheet, true);
+  assert.equal(one.frames.length, 1);
+  assert.equal(isAnimatedBoard(one), false);
+  // una jugada antigua con animación la conserva entera y su hoja es una copia del primer fotograma
+  const old = { v: 2, field: "half", frames: [{ id: "f1", els: [{ id: "t", k: "token", team: "a", x: 1, y: 1 }] }, { id: "f2", els: [{ id: "t", k: "token", team: "a", x: 5, y: 5 }] }] };
+  const w = withSheet(old);
+  assert.equal(w.frames.length, 3);
+  assert.equal(w.frames[0].id, "f1-hoja");
+  assert.deepEqual(w.frames[0].els, old.frames[0].els);
+  assert.equal(w.frames[1].id, "f1");
+  assert.equal(isAnimatedBoard(old), true);
+  // ya con hoja: no se toca
+  assert.equal(withSheet(w).frames.length, 3);
+  assert.equal(pieceBoard({ board: old }).frames.length, 3);
+  assert.equal(pieceBoard({ id: "x", tokens: [], arrows: [] }).sheet, true);
+});
+
+test("balón parado: propuesta de jugadores por función (`proposeSquad`)", async () => {
+  const { proposeSquad, applyStructure, emptyPieceBoard, ownChips, SP_STRUCTURES } = await import("../src/lib/setPieceBoard.js");
+  const pl = (id, position, n) => ({ id, first_name: id, last_name: "X", position, jersey_number: n });
+  const squad = [pl("gk", "portero", 1), pl("c1", "central", 4), pl("c2", "central", 5), pl("dc", "delantero_centro", 9), pl("ex", "extremo", 7), pl("mc", "mediocentro", 8), pl("la", "lateral", 2), pl("in", "interior", 6), pl("mp", "mediapunta", 10), pl("l2", "lateral", 3), pl("e2", "extremo", 11)];
+  let n = 0;
+  const att = applyStructure(emptyPieceBoard(), SP_STRUCTURES.find((s) => s.id === "a-41"), { newId: () => `x${++n}` });
+  const a = ownChips(proposeSquad(att, squad, true));
+  const by = (fn) => a.filter((c) => c.fn === fn).map((c) => c.player_id);
+  assert.deepEqual(by("lanzador"), ["ex"]);
+  assert.ok(!a.some((c) => c.player_id === "gk"));                 // a favor, el portero no
+  assert.ok(["c1", "c2", "dc"].every((id) => by("rematador").includes(id) || by("bloqueo").includes(id)));
+  const def = applyStructure(emptyPieceBoard(), SP_STRUCTURES.find((s) => s.id === "d-622"), { newId: () => `y${++n}` });
+  const d = ownChips(proposeSquad(def, squad, false));
+  assert.deepEqual(d.filter((c) => c.fn === "portero").map((c) => c.player_id), ["gk"]);
+});

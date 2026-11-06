@@ -435,6 +435,8 @@ export function normalizeBoard(value) {
       ...(value.camRatio === "port" ? { camRatio: "port" } : {}),
       ...(value.view3d === true ? { view3d: true } : {}),
       // largo con el que se DIBUJA el campo de fútbol 11 (solo para imprimir el balón parado, `squeezeForPrint`): sin dato, 105 m
+      // el fotograma 1 es la HOJA (balón parado, 06/11/2026): la imagen que se imprime; la animación son los siguientes
+      ...(value.sheet === true ? { sheet: true } : {}),
       ...(value.pitchLen >= 60 && value.pitchLen < 105 ? { pitchLen: value.pitchLen } : {}),
       ...(validOrbit(value.orbit) ? { orbit: validOrbit(value.orbit) } : {}),
       frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [], ...(validCam(f.cam) ? { cam: validCam(f.cam) } : {}), ...(validOrbit(f.orbit) ? { orbit: validOrbit(f.orbit) } : {}), ...(typeof f.note === "string" && f.note.trim() ? { note: f.note.slice(0, 200) } : {}) })),
@@ -463,7 +465,20 @@ export const boardMode = (b) => (b?.mode === "image" || b?.mode === "anim" ? b.m
 // Velocidad de la animación (ms por paso entre fotogramas), guardada con el dibujo para que reproductor y vídeo la respeten
 export const SPEED_IDS = [800, 1500, 2600];
 export const boardSpeed = (b) => (SPEED_IDS.includes(b?.speed) ? b.speed : 1500);
-export const isAnimation = (b) => boardMode(b) === "anim" && (b?.frames?.length || 0) > 1;
+export const isAnimation = (b) => boardMode(b) === "anim" && animFrameCount(b) > 1;
+// Hoja + animación (balón parado, 06/11/2026, Nacho: «poder seleccionar un fotograma que sea la imagen de partida, donde
+// añado flechas… para la hoja, y luego a partir de las siguientes ir añadiendo fotogramas y hacer los movimientos reales»):
+// con `sheet`, el fotograma 1 es la hoja (lo que se imprime, con sus flechas de explicación) y la animación son los demás.
+export const hasSheet = (b) => b?.sheet === true;
+export const animFrameCount = (b) => Math.max(0, (b?.frames?.length || 0) - (hasSheet(b) ? 1 : 0));
+// El dibujo que se anima (reproducir, vídeo): sin la hoja
+export const animOf = (b) => {
+  if (!hasSheet(b) || (b.frames?.length || 0) < 2) return b;
+  const { sheet: _s, ...rest } = b;
+  return { ...rest, frames: b.frames.slice(1) };
+};
+// Las flechas de la hoja son solo de la hoja: no pasan a la animación
+const sheetOnly = (el) => el?.k === "arrow";
 
 // ── Fotogramas ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -471,8 +486,11 @@ export const isAnimation = (b) => boardMode(b) === "anim" && (b?.frames?.length 
 // como en FmStadio; lo que no deba seguir se quita con «Desaparece desde este fotograma».
 export function addFrame(board, after = board.frames.length - 1) {
   if (board.frames.length >= MAX_FRAMES) return { board, index: after };
-  const src = board.frames[Math.min(Math.max(after, 0), board.frames.length - 1)];
-  const frame = { id: newId(), els: stripPath(clone(src.els)) };
+  const from = Math.min(Math.max(after, 0), board.frames.length - 1);
+  const src = board.frames[from];
+  // desde la hoja: la animación empieza en sus posiciones, sin sus flechas
+  const els = hasSheet(board) && from === 0 ? src.els.filter((e) => !sheetOnly(e)) : src.els;
+  const frame = { id: newId(), els: stripPath(clone(els)) };
   const frames = [...board.frames];
   frames.splice(after + 1, 0, frame);
   return { board: { ...board, frames }, index: after + 1 };
@@ -483,7 +501,7 @@ export function addFrame(board, after = board.frames.length - 1) {
 export function duplicateFrame(board, index) {
   if (board.frames.length >= MAX_FRAMES) return { board, index };
   const src = board.frames[index];
-  const els = stripPath(clone(src.els));
+  const els = stripPath(clone(hasSheet(board) && index === 0 ? src.els.filter((e) => !sheetOnly(e)) : src.els));
   const frames = [...board.frames];
   frames.splice(index + 1, 0, { id: newId(), els });
   return { board: { ...board, frames }, index: index + 1 };
@@ -593,6 +611,7 @@ export const setFrameEls = (board, index, els) => ({
 // Añade un elemento. Lo que se mueve (y los conectores) entra en todos los fotogramas (forma parte del ejercicio);
 // flechas, zonas y textos, en el fotograma actual y en los siguientes (aparecen ahí y siguen hasta que se les haga desaparecer).
 export function addElement(board, index, el) {
+  if (hasSheet(board) && index === 0 && sheetOnly(el)) return setFrameEls(board, 0, placeElement(board.frames[0].els, clone(el)));
   if (!isCarried(el)) return { ...board, frames: board.frames.map((f, i) => (i >= index && !f.els.some((e) => e.id === el.id) ? { ...f, els: placeElement(f.els, clone(el)) } : f)) };
   const next = { ...board, frames: board.frames.map((f) => ({ ...f, els: placeElement(f.els, clone(el)) })) };
   return el.k === "link" ? pruneLinks(next) : next;

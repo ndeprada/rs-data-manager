@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Play } from "lucide-react";
-import { animationDuration, boardSpeed, camAtTime, elsAtTime, is3D, isAnimation, normalizeBoard, orbitAtTime } from "@/lib/board";
+import { animOf, animationDuration, boardSpeed, camAtTime, elsAtTime, is3D, isAnimation, normalizeBoard, orbitAtTime } from "@/lib/board";
 import Board from "./BoardSvg";
 import Board3DView from "./Board3D";
 
@@ -12,6 +12,8 @@ export default function BoardPlayer({ board, className = "", style, label = "Dib
   const b = useMemo(() => normalizeBoard(board), [board]);
   const speed = boardSpeed(b);
   const anim = isAnimation(b);
+  // con hoja (balón parado), quieta se ve la hoja y al reproducir, la animación (sin la hoja)
+  const ab = useMemo(() => animOf(b), [b]);
   const [t, setT] = useState(null);
   const raf = useRef(0);
   useEffect(() => () => cancelAnimationFrame(raf.current), []);
@@ -19,7 +21,7 @@ export default function BoardPlayer({ board, className = "", style, label = "Dib
 
   const play = () => {
     cancelAnimationFrame(raf.current);
-    const total = animationDuration(b, { speed });
+    const total = animationDuration(ab, { speed });
     const t0 = performance.now();
     setT(0);
     const tick = (now) => {
@@ -31,12 +33,12 @@ export default function BoardPlayer({ board, className = "", style, label = "Dib
     raf.current = requestAnimationFrame(tick);
   };
 
-  const els = t == null ? b.frames[0].els : elsAtTime(b, t, { speed });
+  const els = t == null ? b.frames[0].els : elsAtTime(ab, t, { speed });
   return (
     <div className={`relative ${is3D(b) ? "flex w-full" : "inline-flex"} max-w-full`} style={{ height: style?.height }}>
       {is3D(b)
-        ? <Board3DView board={b} els={els} camera={t == null ? undefined : camAtTime(b, t, { speed })} orbit={t == null ? undefined : orbitAtTime(b, t, { speed })} className={`${className} w-full`} style={style} label={label} />
-        : <Board board={b} els={els} camera={t == null ? undefined : camAtTime(b, t, { speed })} className={className} style={style} label={label} />}
+        ? <Board3DView board={b} els={els} camera={t == null ? undefined : camAtTime(ab, t, { speed })} orbit={t == null ? undefined : orbitAtTime(ab, t, { speed })} className={`${className} w-full`} style={style} label={label} />
+        : <Board board={b} els={els} camera={t == null ? undefined : camAtTime(ab, t, { speed })} className={className} style={style} label={label} />}
       {anim && t == null && (
         <button
           type="button"

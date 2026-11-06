@@ -1,6 +1,6 @@
 import React from "react";
 import Board, { styleOf } from "./BoardSvg";
-import { animationDuration, boardView, camAtTime, camRatioOf, elsAtTime, hasCamera, hasStands, is3D, isStadium, lookOf, normalizeBoard, orbitAtTime, turnQuarter } from "@/lib/board";
+import { animOf, animationDuration, boardView, camAtTime, camRatioOf, elsAtTime, hasCamera, hasStands, is3D, isStadium, lookOf, normalizeBoard, orbitAtTime, turnQuarter } from "@/lib/board";
 import { load3d } from "./load3d";
 import { boardSvgMarkup, loadSvgImage } from "./exportPng";
 import { videoFrameSize } from "@/lib/videoSize";
@@ -54,7 +54,8 @@ const bitrateOf = (w, h, fps) => Math.round(Math.min(60_000_000, Math.max(3_000_
  * Devuelve { blob, ext }.
  */
 export async function boardToVideo(board, { speed = 1500, quality = 1080, fps = 30, format = "fit", onProgress } = {}) {
-  let b = normalizeBoard(board);
+  // con hoja (balón parado), el vídeo es solo la animación
+  let b = animOf(normalizeBoard(board));
   const total = animationDuration(b, { speed });
   if (!total) throw new Error("Para crear un vídeo hacen falta al menos dos fotogramas.");
   // con cámara, el formato del vídeo es el de la cámara y el encuadre se mueve con ella

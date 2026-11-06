@@ -1440,3 +1440,35 @@ test("textos de la ficha: función encima, justo debajo o bajo el nombre", async
   const up = stackBaselines([2, 2], 10, -1);
   assert.ok(up[0] < 10 && up[1] + 2 * 0.32 <= up[0] - 2 * 0.86);
 });
+
+test("hoja + animación: las flechas de la hoja no pasan a la animación y la hoja no se reproduce", async () => {
+  const { addElement, addFrame, duplicateFrame, animOf, animFrameCount, hasSheet, isAnimation, normalizeBoard } = await import("../src/lib/board.js");
+  let b = normalizeBoard({ v: 2, field: "half", look: "blanco", orient: "v", sheet: true, frames: [{ id: "h", els: [{ id: "t1", k: "token", team: "a", x: 30, y: 10 }] }] });
+  assert.equal(hasSheet(b), true);
+  b = addElement(b, 0, { id: "a1", k: "arrow", x1: 30, y1: 10, x2: 34, y2: 5 });
+  assert.equal(b.frames[0].els.length, 2);
+  assert.equal(isAnimation(b), false);
+  const { board: b2, index } = addFrame(b, 0);
+  assert.equal(index, 1);
+  assert.deepEqual(b2.frames[1].els.map((e) => e.id), ["t1"]);   // sin la flecha de la hoja
+  const d = duplicateFrame(b, 0).board;
+  assert.deepEqual(d.frames[1].els.map((e) => e.id), ["t1"]);
+  // una flecha dibujada en la animación sí sigue en los fotogramas siguientes y no entra en la hoja
+  let b3 = addFrame(b2, 1).board;
+  b3 = addElement(b3, 1, { id: "a2", k: "arrow", x1: 1, y1: 1, x2: 5, y2: 5 });
+  assert.equal(b3.frames[0].els.some((e) => e.id === "a2"), false);
+  assert.equal(b3.frames[2].els.some((e) => e.id === "a2"), true);
+  // una ficha nueva entra en todos, también en la hoja
+  const b4 = addElement(b3, 2, { id: "t2", k: "token", team: "b", x: 40, y: 10 });
+  assert.equal(b4.frames.every((f) => f.els.some((e) => e.id === "t2")), true);
+  assert.equal(animFrameCount(b3), 2);
+  assert.equal(isAnimation(b3), true);
+  const a = animOf(b3);
+  assert.equal(a.frames.length, 2);
+  assert.equal(a.sheet, undefined);
+  assert.equal(normalizeBoard(b3).sheet, true);
+  // sin hoja, todo como siempre
+  const plain = normalizeBoard({ v: 2, frames: [{ id: "x", els: [] }] });
+  assert.equal(animOf(plain), plain);
+  assert.equal(addElement(plain, 0, { id: "a", k: "arrow", x1: 0, y1: 0, x2: 1, y2: 1 }).frames[0].els.length, 1);
+});
