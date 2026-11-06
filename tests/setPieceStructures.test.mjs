@@ -155,8 +155,8 @@ test("imprimir: el campo se recorta a la jugada y llena el hueco de la hoja", as
   assert.equal(printCrop({ ...b2, field: "free" }, 1.9), null);
   // «lo justo» (06/11/2026): no se alarga aunque el hueco sea alto, y nunca más largo que el normal
   const tight = printCrop(b2, 0.8, { tight: true });
-  assert.ok(tight[3] < one[3]);
+  assert.ok(tight[1] + tight[3] >= 52.5 + 1.4);   // llega a la línea de medio campo (cerrado)
   assert.ok(tight[0] <= -2.99 && tight[0] + tight[2] >= 70.99);
   const tf = printCrop(few, 0.8, { tight: true });
-  assert.ok(tf[3] >= 21 && tf[3] < 30);             // el área y su arco, con la portería
+  assert.ok(tf[1] + tf[3] >= 53.9 && tf[1] <= -2.5); // de la portería a medio campo
 });

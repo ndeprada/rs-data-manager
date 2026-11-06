@@ -405,7 +405,10 @@ export function printCrop(board, aspect, { tight = false } = {}) {
   const full = persp ? persp.vb : viewBox(field, orient, m);
   // zona en metros del campo (la portería que se ataca está arriba, en y = 0). Siempre el ancho entero, con las dos bandas
   // (06/11/2026, Nacho: «faltan partes del campo»): solo se acorta el largo, desde la portería hasta donde llega la jugada.
-  let x0 = -3, x1 = field.w + 3, y0 = -2.5, y1 = area[1] + (tight ? 5 : 3);
+  // «lo justo» llega como poco a la línea de medio campo (06/11/2026, Nacho: «que se vea cerrado… la línea de medio campo
+  // y la mitad del círculo central, no el campo cortado a medias»)
+  const halfway = fieldKind(field) === "f7" ? field.h / 2 : 52.5;
+  let x0 = -3, x1 = field.w + 3, y0 = -2.5, y1 = tight ? halfway + 1.5 : area[1] + 3;
   const chip = b.chipSize || undefined;
   for (const el of b.frames[0]?.els || []) {
     const bx = elementBounds(el, chip);

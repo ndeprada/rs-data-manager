@@ -458,7 +458,7 @@ function sheetCss(per, sc = "") {
     ${sc}.ttl h2{margin:.5mm 0 0;${D};font-size:${z.h2}pt;line-height:1;color:#73000A;overflow-wrap:anywhere}
     ${sc}.meta{flex:none;display:flex;justify-content:space-between;align-items:center;gap:${z.pad * 1.5}mm;margin:${z.pad * 0.6}mm 0 ${z.pad * 0.5}mm;min-height:${z.sig * 0.5}mm}
     ${sc}.meta em{font-style:normal;${D};font-size:${z.em}pt;color:#36000D;min-width:0}
-    ${sc}.sig{margin-left:auto;display:inline-flex;align-items:baseline;gap:1.5mm;background:#FF6E00;color:#fff;border-radius:10mm;padding:${z.pad * 0.3}mm ${z.pad * 1.2}mm;font-size:${z.sig}pt;font-weight:600;line-height:1.2;max-width:65%}
+    ${sc}.sig{margin-left:auto;display:inline-flex;align-items:baseline;gap:1.5mm;background:#73000A;color:#fff;border-radius:10mm;padding:${z.pad * 0.3}mm ${z.pad * 1.2}mm;font-size:${z.sig}pt;font-weight:600;line-height:1.2;max-width:65%}
     ${sc}.sig b{${D};font-size:${z.sig * 0.9}pt;letter-spacing:.6px;flex:none}
     ${sc}.fld{flex:0 1 auto;width:100%;min-height:0;position:relative} ${sc}header + .fld{margin-top:${z.pad}mm}
     ${sc}.fld svg,${sc}.fld img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;overflow:hidden}
