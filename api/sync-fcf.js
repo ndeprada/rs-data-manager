@@ -12,49 +12,7 @@ import { canUseAutoSync, publicStatus, readSyncStatus, runAutoSync, runTrackedSy
 //   /api/sync-fcf?auto=1         → «sincroniza solo si toca»: la app lo pide al abrirse; el servidor decide (3 h tras una buena, 30 min tras una fallida)
 //   /api/sync-fcf?standings=ID   → clasificación y próximos rivales de un equipo
 
-// SONDA TEMPORAL (07/11/2026): la FCF vuelve a contestar 403. Prueba varias formas de pedir los datos (solo lectura) y devuelve
-// solo los códigos y algunas cabeceras de respuesta. Se quita en cuanto se sepa qué acepta.
-const PROBE_KEY = '34d692850f5c421ba13fe332';
-async function probeFcf(res) {
-  const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
-  const ch = { 'sec-ch-ua': '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"', 'sec-ch-ua-mobile': '?0', 'sec-ch-ua-platform': '"macOS"' };
-  const variants = {
-    actual: { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', accept: 'application/json, text/plain, */*', 'accept-language': 'ca-ES,ca;q=0.9,es;q=0.8,en;q=0.7', referer: 'https://www.fcf.cat/', origin: 'https://www.fcf.cat' },
-    sinOrigin: { 'user-agent': UA, accept: 'application/json, text/plain, */*', 'accept-language': 'ca-ES,ca;q=0.9,es;q=0.8', referer: 'https://www.fcf.cat/' },
-    navegador: { 'user-agent': UA, accept: 'application/json, text/plain, */*', 'accept-language': 'ca-ES,ca;q=0.9,es;q=0.8', 'accept-encoding': 'gzip, deflate, br', referer: 'https://www.fcf.cat/', ...ch, 'sec-fetch-dest': 'empty', 'sec-fetch-mode': 'cors', 'sec-fetch-site': 'same-origin' },
-    pagina: { 'user-agent': UA, accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'accept-language': 'ca-ES,ca;q=0.9,es;q=0.8', 'accept-encoding': 'gzip, deflate, br', ...ch, 'sec-fetch-dest': 'document', 'sec-fetch-mode': 'navigate', 'sec-fetch-site': 'none', 'upgrade-insecure-requests': '1' },
-    minimo: {},
-  };
-  const out = [];
-  const hit = async (u, name, h) => {
-    try {
-      const r = await fetch(u, { headers: h, redirect: 'manual' });
-      const txt = await r.text().catch(() => '');
-      out.push({ u, name, status: r.status, cache: r.headers.get('x-cache'), type: r.headers.get('content-type'), loc: r.headers.get('location'), body: txt.slice(0, 160).replace(/\s+/g, ' ') });
-      return { r, txt };
-    } catch (e) { out.push({ u, name, error: String(e?.message || e) }); return null; }
-  };
-  // 4.ª vuelta: qué trae una página de grupo y la de clubs (enlaces y datos incrustados)
-  const look = async (u) => {
-    const t = await fetch(u, { headers: variants.pagina }).then(async (r) => `${r.status}|` + await r.text()).catch((e) => `ERR|${e}`);
-    const [st, ...rest] = t.split('|'); const h = rest.join('|');
-    const hrefs = [...new Set((h.match(/href="\/ca\/[^"#]+"/g) || []).map((x) => x.slice(6, -1)))];
-    const pick = (re) => hrefs.filter((x) => re.test(x)).slice(0, 12);
-    const flight = (h.match(/self\.__next_f\.push\(\[1,"[^]{0,40}/g) || []).length;
-    const idx = (w) => { const k = h.indexOf(w); return k < 0 ? null : h.slice(Math.max(0, k - 200), k + 500).replace(/\s+/g, ' '); };
-    return { u, st, len: h.length, flight, clubs: pick(/\/club/), equips: pick(/equip/), partits: pick(/partit|acta|jornada/), other: hrefs.filter((x) => !/noticies|^\/ca\/[a-z-]+$/.test(x)).slice(0, 25), punts: idx('Punts') || idx('punts') || idx('PTS'), json: idx('"partidos"') || idx('"partits"') || idx('"clasificacion"') || idx('"classificacio"') };
-  };
-  out.push(await look('https://www.fcf.cat/ca/competicio/2026-2027/primera-catalana/grup-1'));
-  out.push(await look('https://www.fcf.cat/ca/clubs'));
-  out.push(await look('https://www.fcf.cat/ca/competicio-futbol'));
-  let ip = null;
-  try { ip = await (await fetch('https://api.ipify.org?format=json')).json(); } catch { /* sin IP */ }
-  return res.status(200).json({ region: process.env.VERCEL_REGION, ip, out });
-
-}
-
 export default async function handler(req, res) {
-  if (req.query?.probe === PROBE_KEY) return probeFcf(res);
   if (req.query?.standings) { req.query.team_id = req.query.standings; return standingsHandler(req, res); }
   const auth = req.headers.authorization || '';
   const cronOk = process.env.CRON_SECRET && auth === `Bearer ${process.env.CRON_SECRET}`;
