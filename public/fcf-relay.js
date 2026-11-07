@@ -106,17 +106,21 @@
     if (tone === "error") { box.style.borderLeftColor = "#C62828"; fill.style.background = "#C62828"; bar.style.display = "none"; }
   }
 
-  if (!APP || !KEY) { show("Este marcador está incompleto. Vuelve a crearlo en RS Manager (Equipos → Actualizar desde la FCF).", null, "error"); window.__rsRelayRunning = false; return; }
+  // Sin llave (actualización programada): vale la de «Recordar este navegador», que el navegador manda solo (cookie de la app)
+  if (!APP) { show("Este marcador está incompleto. Vuelve a crearlo en RS Manager (Equipos → Actualizar desde la FCF).", null, "error"); window.__rsRelayRunning = false; return; }
 
   // ── App y FCF ─────────────────────────────────────────────────────────────────────────────────────────────────────
   async function post(mode, body) {
+    var headers = { "content-type": "application/json" };
+    if (KEY) headers["x-rs-relay"] = KEY;
     var r = await fetch(APP + "/api/sync-fcf?relay=" + mode, {
-      method: "POST", mode: "cors", credentials: "omit",
-      headers: { "content-type": "application/json", "x-rs-relay": KEY },
+      method: "POST", mode: "cors", credentials: KEY ? "omit" : "include",
+      headers: headers,
       body: JSON.stringify(body || {}),
     });
     var j = {};
     try { j = await r.json(); } catch (e) { j = {}; }
+    if (r.status === 401 && !KEY) throw new Error("Este navegador no está preparado. En RS Manager (Equipos → Actualizar desde la FCF), pulsa «Recordar este navegador».");
     if (r.status === 401) throw new Error("Este marcador ya no vale. Vuelve a crearlo en RS Manager (Equipos → Actualizar desde la FCF).");
     if (r.status === 403) throw new Error("Tu usuario de RS Manager no puede actualizar los datos de la FCF.");
     if (!r.ok) throw new Error(j.error || "Error " + r.status + " en RS Manager");

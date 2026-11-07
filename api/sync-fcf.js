@@ -13,7 +13,8 @@ import { canUseAutoSync, publicStatus, readSyncStatus, recordRelaySync, runAutoS
 //   /api/sync-fcf?status=1       → cuándo fue la última sincronización y cómo salió
 //   /api/sync-fcf?auto=1         → «sincroniza solo si toca»: la app lo pide al abrirse; el servidor decide (3 h tras una buena, 30 min tras una fallida)
 //   /api/sync-fcf?standings=ID   → clasificación y próximos rivales de un equipo
-//   /api/sync-fcf?relay=key      → llave personal del marcador «RS Manager · FCF» (con la sesión de la app)
+//   /api/sync-fcf?relay=key      → llave personal del marcador «RS Manager · FCF» (con la sesión de la app) y si este navegador está recordado
+//   /api/sync-fcf?relay=remember|forget (POST) → «Recordar este navegador»: guarda o quita la llave en una cookie propia
 //   /api/sync-fcf?relay=put|sync|standings (POST) → «Actualizar desde la FCF»: el marcador, dentro de la web de la FCF, trae los datos
 //                                    (la FCF ya no deja leer al servidor), los entrega con put y pide sync/standings hasta que no falta
 //                                    nada (public/fcf-relay.js). Llega desde www.fcf.cat con la llave en la cabecera x-rs-relay.
@@ -71,6 +72,17 @@ async function autoSync(res) {
 
 // «Actualizar desde la FCF» desde el navegador (relevo). Lo puede usar el personal del club, como la sincronización automática.
 const FCF_ORIGINS = ['https://www.fcf.cat', 'https://fcf.cat'];
+// «Recordar este navegador» (07/11/2026, para la actualización diaria programada): la llave en una cookie propia, solo para esta
+// dirección, que el navegador manda también desde la web de la FCF (SameSite=None). Nadie la ve: ni la página ni Claude.
+const RELAY_COOKIE = 'rs_fcf_relay';
+const relayCookie = (v, maxAge) => `${RELAY_COOKIE}=${encodeURIComponent(v)}; Path=/api/sync-fcf; HttpOnly; Secure; SameSite=None; Max-Age=${maxAge}`;
+function readCookie(req, name) {
+  for (const part of String(req.headers.cookie || '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0 && part.slice(0, i).trim() === name) { try { return decodeURIComponent(part.slice(i + 1).trim()); } catch { return ''; } }
+  }
+  return '';
+}
 async function relayHandler(req, res) {
   const origin = String(req.headers.origin || '');
   if (FCF_ORIGINS.includes(origin)) {
@@ -78,19 +90,27 @@ async function relayHandler(req, res) {
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'content-type, x-rs-relay');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Max-Age', '600');
   }
   if (req.method === 'OPTIONS') return res.status(204).end();
-  const key = req.headers['x-rs-relay'];
-  // Desde la web de la FCF solo vale la llave; la sesión de la app, solo desde la app
+  const fromFcf = FCF_ORIGINS.includes(origin);
+  // Desde la web de la FCF vale la llave del marcador o la de «Recordar este navegador» (cookie propia, solo para esto);
+  // la sesión de la app, solo desde la app
+  const key = req.headers['x-rs-relay'] || (fromFcf ? readCookie(req, RELAY_COOKIE) : '');
   let user = null;
-  try { user = key ? await userFromRelayKey(key) : (FCF_ORIGINS.includes(origin) ? null : await getCurrentUser(req)); }
+  try { user = key ? await userFromRelayKey(key) : (fromFcf ? null : await getCurrentUser(req)); }
   catch (e) { console.error('relevo FCF (llave)', e); return res.status(500).json({ error: 'auth_failed' }); }
-  if (!user) return res.status(401).json({ error: key ? 'bad_key' : 'auth_required' });
+  if (!user) return res.status(401).json({ error: key ? 'bad_key' : (fromFcf ? 'not_remembered' : 'auth_required') });
   if (!canUseAutoSync(user)) return res.status(403).json({ error: 'forbidden' });
-  if (String(req.query.relay) === 'key') {
-    if (key) return res.status(403).json({ error: 'forbidden' });
-    return res.status(200).json({ key: relayKeyFor(user) });
+  const mode0 = String(req.query.relay);
+  if (mode0 === 'key' || mode0 === 'remember' || mode0 === 'forget') {
+    if (key || fromFcf) return res.status(403).json({ error: 'forbidden' });
+    const k = relayKeyFor(user);
+    if (mode0 === 'remember' && req.method === 'POST') res.setHeader('Set-Cookie', relayCookie(k, 365 * 24 * 3600));
+    if (mode0 === 'forget' && req.method === 'POST') res.setHeader('Set-Cookie', relayCookie('', 0));
+    const saved = mode0 === 'remember' ? true : mode0 === 'forget' ? false : readCookie(req, RELAY_COOKIE) === k;
+    return res.status(200).json({ key: k, remembered: saved });
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'method' });
   const mode = String(req.query.relay);
