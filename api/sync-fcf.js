@@ -34,21 +34,22 @@ async function probeFcf(res) {
       return { r, txt };
     } catch (e) { out.push({ u, name, error: String(e?.message || e) }); return null; }
   };
-  // 3.ª vuelta: la web nueva (Next.js). Buscador que usa la web, mapa del sitio y páginas de club
-  const srch = await hit('https://www.fcf.cat/api/search?q=sarria&locale=ca', 'search', { ...variants.navegador, referer: 'https://www.fcf.cat/ca' });
-  const sm = await hit('https://www.fcf.cat/sitemap.xml', 'sitemap', variants.pagina);
-  const locs = (sm?.txt.match(/<loc>[^<]+<\/loc>/g) || []).map((x) => x.slice(5, -6)).slice(0, 30);
-  const sub = [];
-  for (const u of locs.filter((x) => /sitemap/i.test(x)).slice(0, 6)) {
-    try { const t = await (await fetch(u, { headers: variants.pagina })).text(); sub.push({ u, n: (t.match(/<loc>/g) || []).length, sample: (t.match(/<loc>[^<]+<\/loc>/g) || []).slice(0, 6).map((x) => x.slice(5, -6)) }); } catch { /* sigue */ }
-  }
-  const links = new Set();
-  const home = await fetch('https://www.fcf.cat/ca', { headers: variants.pagina }).then((r) => r.text()).catch(() => '');
-  for (const m of home.match(/href="\/ca\/[^"#?]+"/g) || []) links.add(m.slice(6, -1));
-  out.push({ searchBody: srch?.txt.slice(0, 600) });
+  // 4.ª vuelta: qué trae una página de grupo y la de clubs (enlaces y datos incrustados)
+  const look = async (u) => {
+    const t = await fetch(u, { headers: variants.pagina }).then(async (r) => `${r.status}|` + await r.text()).catch((e) => `ERR|${e}`);
+    const [st, ...rest] = t.split('|'); const h = rest.join('|');
+    const hrefs = [...new Set((h.match(/href="\/ca\/[^"#]+"/g) || []).map((x) => x.slice(6, -1)))];
+    const pick = (re) => hrefs.filter((x) => re.test(x)).slice(0, 12);
+    const flight = (h.match(/self\.__next_f\.push\(\[1,"[^]{0,40}/g) || []).length;
+    const idx = (w) => { const k = h.indexOf(w); return k < 0 ? null : h.slice(Math.max(0, k - 200), k + 500).replace(/\s+/g, ' '); };
+    return { u, st, len: h.length, flight, clubs: pick(/\/club/), equips: pick(/equip/), partits: pick(/partit|acta|jornada/), other: hrefs.filter((x) => !/noticies|^\/ca\/[a-z-]+$/.test(x)).slice(0, 25), punts: idx('Punts') || idx('punts') || idx('PTS'), json: idx('"partidos"') || idx('"partits"') || idx('"clasificacion"') || idx('"classificacio"') };
+  };
+  out.push(await look('https://www.fcf.cat/ca/competicio/2026-2027/primera-catalana/grup-1'));
+  out.push(await look('https://www.fcf.cat/ca/clubs'));
+  out.push(await look('https://www.fcf.cat/ca/competicio-futbol'));
   let ip = null;
   try { ip = await (await fetch('https://api.ipify.org?format=json')).json(); } catch { /* sin IP */ }
-  return res.status(200).json({ region: process.env.VERCEL_REGION, ip, locs, sub, links: [...links].slice(0, 80), out });
+  return res.status(200).json({ region: process.env.VERCEL_REGION, ip, out });
 
 }
 
