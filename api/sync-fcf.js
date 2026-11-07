@@ -5,6 +5,7 @@ import { saveRelayItems, withRelay } from './_lib/fcfHttp.js';
 import { db } from './_lib/db.js';
 import { createBackup } from './_lib/backup.js';
 import { acquireSyncLock, releaseSyncLock } from './_lib/syncLock.js';
+import { relayKeyFor, userFromRelayKey } from './_lib/fcfRelayKey.js';
 import { canUseAutoSync, publicStatus, readSyncStatus, recordRelaySync, runAutoSync, runTrackedSync } from './_lib/syncStatus.js';
 
 // Una sola función para todo lo de la FCF (el plan gratuito de Vercel limita cuántas funciones se pueden tener):
@@ -12,8 +13,10 @@ import { canUseAutoSync, publicStatus, readSyncStatus, recordRelaySync, runAutoS
 //   /api/sync-fcf?status=1       → cuándo fue la última sincronización y cómo salió
 //   /api/sync-fcf?auto=1         → «sincroniza solo si toca»: la app lo pide al abrirse; el servidor decide (3 h tras una buena, 30 min tras una fallida)
 //   /api/sync-fcf?standings=ID   → clasificación y próximos rivales de un equipo
-//   /api/sync-fcf?relay=put|sync|standings (POST) → «Actualizar desde la FCF»: el navegador trae los datos de la FCF (que ya no deja
-//                                    leer al servidor), los entrega con put y pide sync/standings hasta que no falta nada (src/lib/fcfRelay.js)
+//   /api/sync-fcf?relay=key      → llave personal del marcador «RS Manager · FCF» (con la sesión de la app)
+//   /api/sync-fcf?relay=put|sync|standings (POST) → «Actualizar desde la FCF»: el marcador, dentro de la web de la FCF, trae los datos
+//                                    (la FCF ya no deja leer al servidor), los entrega con put y pide sync/standings hasta que no falta
+//                                    nada (public/fcf-relay.js). Llega desde www.fcf.cat con la llave en la cabecera x-rs-relay.
 
 export default async function handler(req, res) {
   if (req.query?.standings) { req.query.team_id = req.query.standings; return standingsHandler(req, res); }
@@ -67,10 +70,26 @@ async function autoSync(res) {
 }
 
 // «Actualizar desde la FCF» desde el navegador (relevo). Lo puede usar el personal del club, como la sincronización automática.
+const FCF_ORIGINS = ['https://www.fcf.cat', 'https://fcf.cat'];
 async function relayHandler(req, res) {
-  const user = await getCurrentUser(req);
-  if (!user) return res.status(401).json({ error: 'auth_required' });
+  const origin = String(req.headers.origin || '');
+  if (FCF_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'content-type, x-rs-relay');
+    res.setHeader('Access-Control-Max-Age', '600');
+  }
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  const key = req.headers['x-rs-relay'];
+  // Desde la web de la FCF solo vale la llave; la sesión de la app, solo desde la app
+  const user = key ? await userFromRelayKey(key) : (FCF_ORIGINS.includes(origin) ? null : await getCurrentUser(req));
+  if (!user) return res.status(401).json({ error: key ? 'bad_key' : 'auth_required' });
   if (!canUseAutoSync(user)) return res.status(403).json({ error: 'forbidden' });
+  if (String(req.query.relay) === 'key') {
+    if (key) return res.status(403).json({ error: 'forbidden' });
+    return res.status(200).json({ key: relayKeyFor(user) });
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'method' });
   const mode = String(req.query.relay);
   try {
