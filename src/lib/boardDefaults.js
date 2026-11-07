@@ -22,6 +22,8 @@ export function cleanDefaults(d) {
     for (const [t, v] of Object.entries(d.brush)) if (TOOLS.has(t)) { const c = pick(v, DEFAULT_KEYS); if (Object.keys(c).length) b[t] = c; }
     if (Object.keys(b).length) out.brush = b;
   }
+  const sp = cleanSpBase(d.sp);
+  if (sp) out.sp = sp;
   if (d.teams && typeof d.teams === "object") {
     const t = {};
     for (const [id, v] of Object.entries(d.teams)) if (/^[a-z0-9]{1,6}$/i.test(id)) { const c = pick(v, TEAM_KEYS); if (Object.keys(c).length) t[id] = c; }
@@ -82,6 +84,7 @@ export function describeDefaults(defs) {
   if (d.chipSize) out.push(`fichas al ${Math.round((d.chipSize / 1.5) * 100)} %`);
   if (d.teams) out.push(`colores de ${Object.keys(d.teams).length === 1 ? "1 equipo" : `${Object.keys(d.teams).length} equipos`}`);
   for (const t of Object.keys(d.brush || {})) out.push(names[t] || t);
+  if (d.sp) out.push("vista base de balón parado");
   return out;
 }
 
@@ -91,4 +94,39 @@ export function readLocalDefaults() {
 }
 export function writeLocalDefaults(d) {
   try { localStorage.setItem(LS, JSON.stringify(cleanDefaults(d))); } catch { /* sin almacenamiento */ }
+}
+
+// ── Vista base de las jugadas nuevas de balón parado (07/11/2026, Nacho: «quiero poder editar qué campo ver como predeterminado,
+// el tamaño de las letras, colores de equipo etc, y que se me quede guardado para la próxima vez que cree una jugada»).
+//   sp = { board: {campo, vista, orientación, modo visual, césped, líneas, gradas, nombre en dos líneas, tamaño de fichas},
+//          teams: { a|b: {aspecto del equipo + nombre} }, chips: { a|b: {letra de las fichas: tamaños, tipografía, función…} } }
+export const SP_BASE_BOARD_KEYS = ["field", "look", "view", "view3d", "orient", "grass", "marks", "lineColor", "nameStack", "stands", "ads", "chipSize", "labelChip"];
+export const SP_BASE_CHIP_KEYS = ["innerFs", "topFs", "labelFs", "fnFs", "innerFont", "innerBold", "innerColor", "innerHalo", "labelFont", "labelBold", "labelColor", "labelHalo", "fnPos", "fnColor", "labelBg", "labelBgOpacity", "edge", "stroke"];
+const prim = (v) => (typeof v === "string" ? v.length <= 40 : typeof v === "boolean" || isNum(v));
+const pickPrim = (o, keys) => Object.fromEntries(Object.entries(o || {}).filter(([k, v]) => keys.includes(k) && prim(v)));
+export function cleanSpBase(x) {
+  if (!x || typeof x !== "object") return null;
+  const out = {};
+  const b = pickPrim(x.board, SP_BASE_BOARD_KEYS);
+  if (b.field && !["half", "tq", "full"].includes(b.field)) delete b.field;
+  if (b.chipSize != null && !(b.chipSize >= 0.3 && b.chipSize <= 3.2)) delete b.chipSize;
+  if (Object.keys(b).length) out.board = b;
+  for (const part of ["teams", "chips"]) {
+    const keys = part === "teams" ? [...TEAM_KEYS, "name"] : SP_BASE_CHIP_KEYS;
+    const t = {};
+    for (const id of ["a", "b"]) { const c = pickPrim(x[part]?.[id], keys); if (Object.keys(c).length) t[id] = c; }
+    if (Object.keys(t).length) out[part] = t;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+// Lo guardado en esta sesión manda (el perfil que se cargó al entrar ya no está al día después de guardar)
+let session = null;
+export function currentDefaults(user) {
+  return session || cleanDefaults(user?.board_defaults || readLocalDefaults());
+}
+export function rememberDefaults(d) {
+  session = cleanDefaults(d);
+  writeLocalDefaults(session);
+  return session;
 }

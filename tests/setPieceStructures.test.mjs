@@ -222,3 +222,26 @@ test("balón parado: propuesta de jugadores por función (`proposeSquad`)", asyn
   const d = ownChips(proposeSquad(def, squad, false));
   assert.deepEqual(d.filter((c) => c.fn === "portero").map((c) => c.player_id), ["gk"]);
 });
+
+test("vista base de las jugadas nuevas: se toma de una jugada y se pone en otra", async () => {
+  const S = await import("../src/lib/setPieceBoard.js");
+  const D = await import("../src/lib/boardDefaults.js");
+  const src = { v: 2, field: "full", look: "blanco", view: "persp", orient: "hi", nameStack: false, chipSize: 1.1,
+    teams: [{ id: "a", name: "Racing", color: "#73000a" }, { id: "b", name: "Rival", color: "#111111" }],
+    frames: [{ id: "f", els: [{ id: "t1", k: "token", team: "a", x: 30, y: 10, fn: "zona", labelFs: 8, fnPos: "top", fnColor: "#ff6e00" }, { id: "r1", k: "token", team: "b", x: 30, y: 12, innerFs: 12 }] }] };
+  const base = S.spBaseFrom(src);
+  assert.equal(base.board.field, "full"); assert.equal(base.board.view, "persp"); assert.equal(base.board.chipSize, 1.1);
+  assert.equal(base.teams.b.color, "#111111"); assert.equal(base.chips.a.fnPos, "top"); assert.equal(base.chips.b.innerFs, 12);
+  // se guarda con los demás predeterminados
+  assert.deepEqual(D.cleanDefaults({ sp: base }).sp, base);
+  const fresh = { v: 2, field: "half", look: "estadio", frames: [{ id: "f", els: [{ id: "x", k: "token", team: "a", x: 1, y: 1, labelFs: 6, color: "#00a650" }, { id: "y", k: "token", team: "b", x: 2, y: 2 }] }] };
+  const out = S.applySpBase(fresh, base);
+  assert.equal(out.field, "full"); assert.equal(out.look, "blanco"); assert.equal(out.orient, "hi"); assert.equal(out.nameStack, false);
+  const [x, y] = out.frames[0].els;
+  assert.equal(x.labelFs, 8); assert.equal(x.fnPos, "top"); assert.equal(x.color, "#00a650"); // el verde del portero se queda
+  assert.equal(y.innerFs, 12);
+  assert.equal(out.teams.find((t) => t.id === "b").color, "#111111");
+  // un campo de fútbol 7 no se cambia
+  assert.equal(S.applySpBase({ ...fresh, field: "f7" }, base).field, "f7");
+  assert.equal(S.applySpBase(fresh, null), fresh);
+});

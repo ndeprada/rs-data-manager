@@ -1,6 +1,6 @@
-import React, { memo, useMemo, useState } from "react";
+import React, { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Trash2, BookmarkPlus, X, Copy, Users, Printer, FileDown } from "lucide-react";
+import { Trash2, BookmarkPlus, X, Copy, Users, Printer, FileDown, Star } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { playerFirstName } from "@/lib/playerName";
@@ -16,9 +16,11 @@ import { load3d } from "@/components/board/load3d";
 import { animFrameCount, chipStyle, contrastColor, fnPosOf, is3D, isStadium, orbitOf, teamsOf } from "@/lib/board";
 import { lab as cardLab, inputCls as cardInput, pillCls as cardPill } from "@/components/board/BoardChipCard";
 import { ColorPick } from "@/components/board/BoardControls";
+import { useAuthOptional } from "@/lib/AuthContext";
+import { currentDefaults, rememberDefaults } from "@/lib/boardDefaults";
 import {
   assignPlayer, copyPiece, proposeSquad, flipBoard, ownChips, pieceBoard, previousMatchPieces, legacyToBoard,
-  SP_KINDS, typeOf, pieceSetup, printBoard, playerPatch, funcsFor, funcOf, fnPatch, setFunction, autoTitle, structuresFor, applyStructure, GK_FN, printCrop, squeezeForPrint, hasSide, setupLabel,
+  SP_KINDS, typeOf, pieceSetup, printBoard, spBaseFrom, playerPatch, funcsFor, funcOf, fnPatch, setFunction, autoTitle, structuresFor, applyStructure, GK_FN, printCrop, squeezeForPrint, hasSide, setupLabel,
 } from "@/lib/setPieceBoard";
 // Jugadas a balón parado con la pizarra común (la misma de tareas y tácticas). Rediseño del 06/11/2026 (maqueta «Maqueta ABP ·
 // rediseño» aprobada por Nacho): dos vistas, «Editor» (a la izquierda las jugadas del partido con su dibujo pequeño, agrupadas
@@ -178,6 +180,29 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
   const structs = structuresFor(setup.kind, setup.attack);
   const tpl = TEMPLATES.find((x) => x.key === typeOf(setup.kind, setup.attack));
   const hasEls = board.frames.some((f) => f.els.length);
+  // Vista base de las jugadas nuevas (07/11/2026, Nacho): se guarda la de esta jugada en el perfil de quien la usa
+  const auth = useAuthOptional();
+  const [baseMsg, setBaseMsg] = useState("");
+  const saveBase = () => {
+    const d = rememberDefaults({ ...currentDefaults(auth?.user), sp: spBaseFrom(board) });
+    base44.auth?.updateMe?.({ board_defaults: d }).catch(() => {});
+    setBaseMsg(t("Guardada"));
+    setTimeout(() => setBaseMsg(""), 2000);
+  };
+  // Opciones de la pizarra fuera del campo (07/11/2026): la columna de la derecha las recibe solo si está al lado de la pizarra
+  // (en pantallas estrechas la columna baja debajo y las opciones se quedan sobre el campo, como antes)
+  const [sideEl, setSideEl] = useState(null);
+  const [beside, setBeside] = useState(false);
+  const rowRef = useRef(null);
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (!row || !sideEl || typeof ResizeObserver === "undefined") return undefined;
+    const check = () => { const a = sideEl.parentElement?.getBoundingClientRect(), r = row.firstElementChild?.getBoundingClientRect(); setBeside(!!a && !!r && a.left >= r.right - 4); };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(row);
+    return () => ro.disconnect();
+  }, [sideEl]);
   const applyTpl = () => {
     if (!tpl) return;
     if (hasEls && !window.confirm(t("Se cambiará todo el dibujo de esta jugada. ¿Seguir?"))) return;
@@ -200,6 +225,11 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
         <input value={piece.name || ""} onChange={(e) => onChange({ ...piece, name: e.target.value })} placeholder={t("Nombre de la jugada")} aria-label={t("Nombre de la jugada")}
           className="flex-1 min-w-0 outline-none rounded-md hover:bg-[#F5F2F1] focus:bg-[#F5F2F1]" style={{ fontFamily: DISPLAY, fontSize: 28, lineHeight: 1.1, color: RS.granate, textTransform: "uppercase", padding: "2px 6px", margin: "0 -6px", background: "transparent", border: "none" }} data-testid="sp-name" />
         <span className="hidden sm:inline" style={{ fontSize: 12, color: RS.muted, whiteSpace: "nowrap" }}>{animFrameCount(board) > 1 ? t("Hoja + animación ({n} fotogramas)", { n: animFrameCount(board) }) : t("Solo hoja")}{libLinked ? ` · ${t("en la biblioteca")}` : ""}</span>
+        <button type="button" onClick={saveBase} data-testid="sp-base-save"
+          title={t("Las jugadas nuevas que crees saldrán con el campo, la vista, la orientación, los colores de los equipos y el tamaño y la letra de las fichas de esta jugada")}
+          className="inline-flex items-center whitespace-nowrap" style={{ height: 34, padding: "0 10px", gap: 5, borderRadius: 8, border: `1px solid ${RS.line}`, background: baseMsg ? RS.granate : "#fff", color: baseMsg ? "#fff" : RS.ink2, fontSize: 12.5, fontWeight: 600 }}>
+          <Star className="w-3.5 h-3.5" fill={baseMsg ? "currentColor" : "none"} />{baseMsg || t("Usar como vista base")}
+        </button>
         <button type="button" onClick={onDuplicate} title={t("Duplicar")} aria-label={t("Duplicar")} style={iconBtn} data-testid="sp-dup"><Copy className="w-4 h-4" /></button>
         <button type="button" onClick={onSave} disabled={!teamId} title={libLinked ? t("Actualizar en la biblioteca") : t("Guardar en biblioteca")} aria-label={libLinked ? t("Actualizar en la biblioteca") : t("Guardar en biblioteca")} style={{ ...iconBtn, color: libLinked ? RS.granate : RS.ink2 }} className="disabled:opacity-40" data-testid="sp-save-lib"><BookmarkPlus className="w-4 h-4" /></button>
         <button type="button" onClick={onRemove} title={t("Quitar del partido")} aria-label={t("Quitar del partido")} style={{ ...iconBtn, color: "#B42318" }} data-testid="sp-remove"><Trash2 className="w-4 h-4" /></button>
@@ -257,19 +287,20 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
   );
 
   return (
-    <div className="flex flex-wrap items-start" style={{ gap: 14 }}>
+    <div ref={rowRef} className="flex flex-wrap items-start" style={{ gap: 14 }}>
       {/* Centro: la jugada y la pizarra */}
       <div className="min-w-0 flex flex-col" style={{ flex: "999 1 560px", gap: 8 }} data-testid="sp-board">
         {header}
         <BoardEditor value={board} onChange={setBoard} fields={["half", "tq", "full", "free"]} filename={piece.name || t("Jugada")}
           embedded embedHeight={620} studioTitle={studioTag}
-          variant="abp"
+          variant="abp" sideHost={beside ? sideEl : null}
           chipPlayer={(el, patch, toTeam) => (el.team === "a" ? <AbpChipPlayer el={el} patch={patch} candidates={candidates} byId={byId} attack={setup.attack} toTeam={toTeam} /> : null)}
           chipDescribe={(el) => (el.team === "a" && el.fn && FN_LABEL[el.fn] ? `${teamsOf(board).find((x) => x.id === "a")?.name || "Racing"} · ${t(FN_LABEL[el.fn])}` : null)} />
       </div>
 
       {/* Derecha: quién hace qué */}
       <aside className="flex flex-col" style={{ flex: "1 1 260px", maxWidth: 320, minWidth: 240, gap: 12 }}>
+        <div ref={setSideEl} className="empty:hidden" data-testid="sp-board-side" />
         <Card testId="sp-players" style={{ padding: 0, gap: 0, overflow: "clip" }}>
           <div className="flex flex-wrap items-baseline justify-between" style={{ padding: "12px 14px 8px", columnGap: 8, rowGap: 4 }}>
             <Lab style={{ whiteSpace: "nowrap" }}>{t("Quién hace qué")}{chips.length ? ` · ${chips.length}` : ""}</Lab>
@@ -497,6 +528,7 @@ async function printPieces(list, players, perPage, teamName, book = false, look 
 export default function SetPieceBoard({ pieces, onChange, candidates = [], allPlayers = [], teamName = "", teamId, eventId, eventDate }) {
   const t = useT();
   const qc = useQueryClient();
+  const auth = useAuthOptional();
   const [activeId, setActiveId] = useState(null);
   const [libOpen, setLibOpen] = useState(false);
   const [note, setNote] = useState("");
@@ -696,6 +728,8 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
       )}
 
       <SetPieceWizard open={tplOpen} onOpenChange={setTplOpen} onCreate={addPiece} templates={TEMPLATES} candidates={candidates} lookup={lookup} pieces={pieces} library={library}
+        base={tplOpen ? currentDefaults(auth?.user).sp || null : null}
+        onClearBase={() => { const d = rememberDefaults({ ...currentDefaults(auth?.user), sp: undefined }); base44.auth?.updateMe?.({ board_defaults: d }).catch(() => {}); }}
         Thumb={PieceThumb} kindLabel={(k) => KIND_LABEL[k] || KIND_LABEL.corner} fnLabel={(f) => (FN_LABEL[f] ? t(FN_LABEL[f]) : f)} uid={uid} availableIds={availableIds} />
 
       {libOpen && (

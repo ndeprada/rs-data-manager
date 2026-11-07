@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useT } from "@/i18n";
 import {
   SP_KINDS, typeOf, hasSide, pieceSetup, structuresFor, applyStructure, emptyPieceBoard, legacyToBoard, flipBoard,
-  proposeSquad, ownChips, copyPiece, pieceBoard, withSheet,
+  proposeSquad, ownChips, copyPiece, pieceBoard, withSheet, applySpBase,
 } from "@/lib/setPieceBoard";
 
 // «Nueva jugada en 3 toques» (06/11/2026, maqueta «Maqueta ABP · versión nueva» aprobada por Nacho: «ok ponte con ello»):
@@ -15,7 +15,7 @@ const SIGNALS = ["Mano arriba", "Puño cerrado", "Dos dedos", "Tocarse la cabeza
 const sigKey = (x) => String(x || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const R = { granate: "#73000A", dark: "#36000D", bg: "#F5F2F1", line: "#E6DEDD", soft: "#F0EAE9", ink: "#1E1416", ink2: "#4A3D3F", muted: "#6B5E60", input: "#D9CFCE" };
 
-export default function SetPieceWizard({ open, onOpenChange, onCreate, templates, candidates = [], lookup = [], pieces = [], library = [], Thumb, kindLabel, fnLabel, uid, availableIds = [] }) {
+export default function SetPieceWizard({ open, onOpenChange, onCreate, templates, candidates = [], lookup = [], pieces = [], library = [], Thumb, kindLabel, fnLabel, uid, availableIds = [], base = null, onClearBase }) {
   const t = useT();
   const [kind, setKind] = useState("corner");
   const [attack, setAttack] = useState(true);
@@ -23,6 +23,10 @@ export default function SetPieceWizard({ open, onOpenChange, onCreate, templates
   const [startId, setStartId] = useState(null);
   const [fill, setFill] = useState(true);
   const [signal, setSignal] = useState("");
+  // vista base guardada (campo, vista, colores, letra de las fichas): se pone en la jugada nueva si está marcada
+  const [useBase, setUseBase] = useState(true);
+  const [baseGone, setBaseGone] = useState(false);
+  const hasBase = !!base && !baseGone;
   const drawSide = side === "l" ? "l" : "r";
 
   const options = useMemo(() => {
@@ -72,6 +76,7 @@ export default function SetPieceWizard({ open, onOpenChange, onCreate, templates
         type: typeOf(kind, attack), signal: signal.trim(), notes: "", tokens: [], arrows: [], board: b,
       };
     }
+    if (hasBase && useBase) piece = { ...piece, board: applySpBase(piece.board, base) };
     onCreate(piece);
     setStartId(null); setSignal("");
   };
@@ -185,6 +190,17 @@ export default function SetPieceWizard({ open, onOpenChange, onCreate, templates
         <div className="flex flex-wrap items-center" style={{ gap: 10, padding: "12px 20px", borderTop: `1px solid ${R.soft}`, background: "#FBF9F8" }}>
           <span style={{ fontSize: 13, color: R.ink2 }}><b>{kindText} · {attack ? t("A favor") : t("En contra")}</b>{chosen ? ` · ${chosen.label}` : ""}{chips.length ? ` · ${t("{n} fichas del Racing", { n: chips.length })}` : ""}</span>
           <span className="flex-1" />
+          {hasBase ? (
+            <span className="inline-flex items-center" style={{ gap: 8, fontSize: 12.5, color: R.ink2 }} data-testid="wz-base">
+              <label className="inline-flex items-center" style={{ gap: 5, cursor: "pointer" }}>
+                <input type="checkbox" checked={useBase} onChange={(e) => setUseBase(e.target.checked)} data-testid="wz-base-use" />
+                {t("Con mi vista base")}
+              </label>
+              <button type="button" onClick={() => { setBaseGone(true); onClearBase?.(); }} className="underline" style={{ color: R.ink2 }} data-testid="wz-base-clear">{t("Quitar")}</button>
+            </span>
+          ) : (
+            <span style={{ fontSize: 12, color: R.ink2, maxWidth: 260 }} data-testid="wz-base-hint">{t("Para que salgan siempre con tu campo, colores y letras: «Usar como vista base» en una jugada")}</span>
+          )}
           <button type="button" onClick={() => onOpenChange(false)} style={{ height: 40, padding: "0 16px", borderRadius: 9, border: `1px solid ${R.input}`, background: "#fff", fontSize: 14, fontWeight: 600, color: R.ink2 }}>{t("Cancelar")}</button>
           <button type="button" onClick={create} style={{ height: 40, padding: "0 20px", borderRadius: 9, background: R.granate, fontSize: 14, fontWeight: 700, color: "#fff" }} data-testid="wz-create">{t("Crear y abrir en la pizarra")}</button>
         </div>

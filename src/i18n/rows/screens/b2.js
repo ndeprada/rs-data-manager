@@ -656,4 +656,9 @@ export default [
   ["Las tachadas ya las usa otra jugada de este partido.", "The crossed-out ones are already used in this match.", "Celles barrées sont déjà utilisées dans ce match.", "Les ratllades ja les fa servir una altra jugada d'aquest partit."],
   ["{n} fichas del Racing", "{n} Racing tokens", "{n} pions du Racing", "{n} fitxes del Racing"],
   ["Crear y abrir en la pizarra", "Create and open on the board", "Créer et ouvrir sur le tableau", "Crear i obrir a la pissarra"],
+  ["Guardada", "Saved", "Enregistrée", "Desada"],
+  ["Usar como vista base", "Use as base view", "Utiliser comme vue de base", "Fer servir com a vista base"],
+  ["Las jugadas nuevas que crees saldrán con el campo, la vista, la orientación, los colores de los equipos y el tamaño y la letra de las fichas de esta jugada", "New plays you create will use this play's pitch, view, orientation, team colours and chip size and lettering", "Les nouvelles combinaisons que vous créerez reprendront le terrain, la vue, l'orientation, les couleurs des équipes et la taille et le texte des pions de celle-ci", "Les jugades noves que creïs sortiran amb el camp, la vista, l'orientació, els colors dels equips i la mida i la lletra de les fitxes d'aquesta jugada"],
+  ["Con mi vista base", "With my base view", "Avec ma vue de base", "Amb la meva vista base"],
+  ["Para que salgan siempre con tu campo, colores y letras: «Usar como vista base» en una jugada", "To always get your pitch, colours and lettering: “Use as base view” on a play", "Pour toujours avoir votre terrain, vos couleurs et vos textes : « Utiliser comme vue de base » sur une combinaison", "Perquè surtin sempre amb el teu camp, colors i lletres: «Fer servir com a vista base» en una jugada"],
 ];

@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X, RotateCcw, RotateCw, ChevronUp, ChevronDown, Lock, Grid3x3, Tag } from "lucide-react";
@@ -22,7 +23,7 @@ import MultiPanel, { LayerButtons, LayerList } from "./BoardMulti";
 import { useAuthOptional } from "@/lib/AuthContext";
 import { freeMove, snapAnchors, snapPoint } from "@/lib/boardSnap";
 import { base44 } from "@/api/base44Client";
-import { applyBoardDefaults, brushWithDefaults, cleanDefaults, describeDefaults, readLocalDefaults, withElementDefault, writeLocalDefaults } from "@/lib/boardDefaults";
+import { applyBoardDefaults, brushWithDefaults, currentDefaults, describeDefaults, rememberDefaults, withElementDefault } from "@/lib/boardDefaults";
 
 // Editor de la pizarra: fichas de hasta cinco equipos (cada uno de su color), balón, conos, porterías, flechas (rectas,
 // curvas o por el aire), zonas y textos, con fotogramas para animar el movimiento. Mismo editor para tareas de
@@ -79,7 +80,7 @@ const selectCls = "h-8 rounded-md border border-gray-200 bg-white px-2 text-xs";
 // «Jugador» de la tarjeta de la ficha; «Campo y ajustes» es igual en las tres. `chipPlayer(ficha, patch)`: la página pone su propia
 // pestaña «Jugador» (balón parado: jugador y función; null = la de siempre). `chipDescribe(ficha)`: texto bajo el nombre en la tarjeta.
 // `stamps` = { list: [{id, label}], active, pick(id|null) }: etiquetas rápidas en la barra (balón parado), que se ponen con `stamp`.
-export default function BoardEditor({ value, onChange: onChangeIn, roster = [], fields = null, filename = "pizarra", modes = false, embedded = false, embedHeight = 620, paint = null, stamp = null, onStampDone = null, overlayTitle = null, studioTitle, variant: variantIn = "tareas", chipPlayer = null, chipDescribe = null, stamps = null }) {
+export default function BoardEditor({ value, onChange: onChangeIn, roster = [], fields = null, filename = "pizarra", modes = false, embedded = false, embedHeight = 620, paint = null, stamp = null, onStampDone = null, overlayTitle = null, studioTitle, variant: variantIn = "tareas", chipPlayer = null, chipDescribe = null, stamps = null, sideHost = null }) {
   // las flechas pegadas a una ficha siguen a la ficha en cada cambio (07/11/2026)
   const onChange = (b) => onChangeIn(followBoard(b));
   const variant = cleanVariant(variantIn);
@@ -104,12 +105,12 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
   const [pick, setPick] = useState([]);
   // Predeterminados de la persona (tamaños, colores, transparencias): perfil + copia en el navegador
   const auth = useAuthOptional();
-  const [defs, setDefs] = useState(() => cleanDefaults(auth?.user?.board_defaults || readLocalDefaults()));
+  const [defs, setDefs] = useState(() => currentDefaults(auth?.user));
   const [brush, setBrush] = useState(() => brushWithDefaults(BRUSH0, defs));
   const saveDefs = (next) => {
-    const d = cleanDefaults(next);
+    // la vista base del balón parado (`sp`) se guarda desde la página: se conserva la última
+    const d = rememberDefaults({ ...next, sp: currentDefaults(auth?.user).sp });
     setDefs(d);
-    writeLocalDefaults(d);
     setBrush((b) => brushWithDefaults(b, d));
     base44.auth?.updateMe?.({ board_defaults: d }).catch(() => {});
   };
@@ -1204,6 +1205,9 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
   const toggleSide = (id) => { setSide((s) => (s === id ? null : id)); setPanelHidden(false); };
 
   const inline = embedded && !narrow && !full;
+  // Pizarra dentro de la página (07/11/2026, Nacho: «cuando abro el menú me ocupa parte de la pantalla»): la columna de opciones,
+  // los paneles y la tarjeta de la ficha salen fuera del campo, en la columna de la página que se indique (`sideHost`)
+  const outside = inline && !!sideHost;
   // A pantalla completa se puede enseñar otro título (más pequeño y solo para leer) que el de encima de la pizarra en la página
   const studioOverlay = studioTitle === undefined ? overlayTitle : studioTitle;
   if (!full && !inline) {
@@ -1672,16 +1676,44 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
   const dock = dockKind ? (
     <BoardDock kind={dockKind} el={dockEl} look={look} selected={!!selected} variants={dockVariants} active={dockActive} onVariant={onDockVariant} patch={dockPatch}
       saved={dockSaved} onDefault={() => { saveDefs(withElementDefault(defs, dockEl, { chipSize: chip, team: null })); setDockSaved(true); setTimeout(() => setDockSaved(false), 1600); }}
-      onMore={() => { setMoreOpen((m) => !m); setPanelHidden(false); }} onDelete={() => delSel(false)}
+      onMore={() => { setMoreOpen((m) => !m); setPanelHidden(false); }} onDelete={() => delSel(false)} inPage={outside}
       linkPick={dockKind === "link" && !selected ? { count: pick.length, onClear: () => setPick([]) } : null} />
+  ) : null;
+  const chipCard = quickEl && (outside || quickPos) ? (
+    <ChipCard
+      el={quickEl}
+      board={board}
+      look={look}
+      roster={roster}
+      variant={variant}
+      playerSlot={chipPlayer ? (el, p) => chipPlayer(el, p, (keys) => { const { board: next, count } = applyToTeam(live.current, el, keys); if (count) commit(next); return count; }) : null}
+      describe={chipDescribe}
+      patch={patchSel}
+      onClose={() => setQuick(null)}
+      onDup={() => { setQuick(null); dupSel(); }}
+      onDel={(onlyHere) => { setQuick(null); delSel(onlyHere); }}
+      canDelHere={isCarried(quickEl) && board.frames.length > 1}
+      locked={isLocked(quickEl)}
+      hl={isHighlighted(quickEl)}
+      onLock={lockSel}
+      onHl={hlSel}
+      onLayer={layer}
+      onTeamPanel={(id) => { setQuick(null); setTeamEdit(id); setPanelHidden(false); setSide(null); setLayersOpen(false); }}
+      onLetterToTeam={() => { const { board: next, count } = applyToTeam(live.current, quickEl); if (count) commit(next); return count; }}
+      sheet={narrow && !outside}
+      onGrab={narrow || outside ? null : grabCard}
+      style={outside ? { position: "relative", width: "100%", maxWidth: "none", boxShadow: "0 1px 2px rgba(0,0,0,.06)" } : narrow
+        ? { position: "absolute", left: 0, right: 0, maxHeight: "44%", zIndex: 6, ...(quickPos.low ? { top: 0, borderRadius: "0 0 16px 16px" } : { bottom: 0 }) }
+        : { position: "absolute", left: quickPos.left + quickOff.x, top: quickPos.top + quickOff.y, maxHeight: quickPos.maxH, zIndex: 6 }}
+    />
   ) : null;
   const showPanel = !panelHidden && (editTeam || !(quietId && selId === quietId && !side && !layersOpen)) && !(dockKind && !moreOpen) && (panelBody || layersBody);
   const panel = showPanel ? (
     <section
       aria-label={panelTitle || "Panel"}
       data-testid="board-panel"
-      className={narrow ? "absolute left-2 right-2 bottom-2 max-h-[48%] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-2xl border border-gray-200" : `absolute ${dockKind ? "left-[172px]" : "left-[58px]"} top-3 w-[372px] max-h-[calc(100%-24px)] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-2xl border border-gray-200`}
-      style={{ zIndex: 5 }}
+      className={outside ? "relative w-full max-h-[75vh] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-sm border border-gray-200" : narrow ? "absolute left-2 right-2 bottom-2 max-h-[48%] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-2xl border border-gray-200" : `absolute ${dockKind ? "left-[172px]" : "left-[58px]"} top-3 w-[372px] max-h-[calc(100%-24px)] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-2xl border border-gray-200`}
+      style={{ zIndex: outside ? undefined : 5 }}
     >
       <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b" style={{ background: RAIL.bg, color: RAIL.text, borderColor: RAIL.border }}>
         {/* sin <h2>: la regla general de títulos de la app lo pondría granate sobre el fondo granate oscuro */}
@@ -1849,34 +1881,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
       />
       {!show3d && zoomBox}
       {show3d && orbitBox}
-      {quickEl && quickPos && (
-        <ChipCard
-          el={quickEl}
-          board={board}
-          look={look}
-          roster={roster}
-          variant={variant}
-          playerSlot={chipPlayer ? (el, p) => chipPlayer(el, p, (keys) => { const { board: next, count } = applyToTeam(live.current, el, keys); if (count) commit(next); return count; }) : null}
-          describe={chipDescribe}
-          patch={patchSel}
-          onClose={() => setQuick(null)}
-          onDup={() => { setQuick(null); dupSel(); }}
-          onDel={(onlyHere) => { setQuick(null); delSel(onlyHere); }}
-          canDelHere={isCarried(quickEl) && board.frames.length > 1}
-          locked={isLocked(quickEl)}
-          hl={isHighlighted(quickEl)}
-          onLock={lockSel}
-          onHl={hlSel}
-          onLayer={layer}
-          onTeamPanel={(id) => { setQuick(null); setTeamEdit(id); setPanelHidden(false); setSide(null); setLayersOpen(false); }}
-          onLetterToTeam={() => { const { board: next, count } = applyToTeam(live.current, quickEl); if (count) commit(next); return count; }}
-          sheet={narrow}
-          onGrab={narrow ? null : grabCard}
-          style={narrow
-            ? { position: "absolute", left: 0, right: 0, maxHeight: "44%", zIndex: 6, ...(quickPos.low ? { top: 0, borderRadius: "0 0 16px 16px" } : { bottom: 0 }) }
-            : { position: "absolute", left: quickPos.left + quickOff.x, top: quickPos.top + quickOff.y, maxHeight: quickPos.maxH, zIndex: 6 }}
-        />
-      )}
+      {!outside && quickEl && quickPos && chipCard}
       {narrow && panel}
     </div>
   );
@@ -1919,7 +1924,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
         <RailBtn label="Deshacer" title="Deshacer (Ctrl + Z)" disabled={!history.length} onClick={undo}><Undo2 className="w-5 h-5" /></RailBtn>
         <RailBtn label="Rehacer" title="Rehacer (Ctrl + Mayús + Z)" disabled={!future.length} onClick={redo}><Redo2 className="w-5 h-5" /></RailBtn>
       </nav>
-      {dock}
+      {!outside && dock}
       {inline ? (
         <div className="absolute right-2 top-2 flex items-center gap-1" style={{ zIndex: 6 }}>
           <RailBtn label="Campo y ajustes" title="Campo, modo visual, animación y descargas" on={side === "settings"} onClick={() => toggleSide("settings")} testid="rail-settings"><Settings2 className="w-5 h-5" /></RailBtn>
@@ -1941,7 +1946,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
         {helpBtn}
       </nav>
       )}
-      {panel}
+      {!outside && panel}
       {inline ? null : studioOverlay ? null : (
         <div className="absolute left-1/2 -translate-x-1/2 top-3 max-w-[50%] pointer-events-none rounded-full px-4 py-1.5 text-sm font-bold truncate" style={{ background: "rgba(36,0,10,0.9)", border: `1px solid ${RAIL.border}`, zIndex: 3 }}>
           <DialogPrimitive.Title className="truncate">{title}</DialogPrimitive.Title>
@@ -1971,6 +1976,8 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
       <div className="space-y-2" data-testid="board-embedded">
         {overlayTitle ? <div data-testid="board-overlay-title">{overlayTitle}</div> : null}
         {studio}
+        {outside && (dock || panel || chipCard) && createPortal(
+          <div className="space-y-2" data-testid="board-side" onKeyDown={onKey}>{chipCard}{dock}{panel}</div>, sideHost)}
         {!imageMode && (
           <section aria-label="Fotogramas" className="rounded-xl bg-white p-2.5 flex flex-col gap-2" style={{ border: "1px solid #E6DEDD", color: "#1E1416" }} data-testid="board-timeline">
             <div className="flex flex-wrap items-center gap-1.5">

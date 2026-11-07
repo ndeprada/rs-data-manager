@@ -2,7 +2,8 @@
 //  · Las jugadas antiguas (fichas y flechas en un dibujo de 300 × 240 de medio campo) se ven convertidas al vuelo, con los
 //    mismos ids, hasta que alguien las toca; entonces se guarda `piece.board` (las fichas y flechas antiguas se quedan de copia).
 //  · Cada ficha nuestra puede llevar `player_id`: dentro va el dorsal, debajo el nombre y encima el rol de la jugada.
-import { NEW_BOARD_LOOK, animFrameCount, fieldOf, fieldKind, isQuad, normalizeBoard, pruneLinks, setViewMode, orientOf, lookOf, marginOf, isPersp, perspectiveOf, viewBox, toView, elementBounds } from "./board.js";
+import { SP_BASE_BOARD_KEYS, SP_BASE_CHIP_KEYS, cleanSpBase } from "./boardDefaults.js";
+import { NEW_BOARD_LOOK, teamsOf, animFrameCount, fieldOf, fieldKind, isQuad, normalizeBoard, pruneLinks, setViewMode, orientOf, lookOf, marginOf, isPersp, perspectiveOf, viewBox, toView, elementBounds } from "./board.js";
 
 export const SP_FIELD = "half";
 export const SP_TEAMS = [
@@ -514,4 +515,44 @@ export function printCrop(board, aspect, { tight = false } = {}) {
   else { const nh = Math.min(full[3], w / aspect); T = fit(T - (nh - h) / 2, nh, full[1], full[3]); h = nh; }
   const r = (v) => Math.round(v * 100) / 100;
   return [r(L), r(T), r(w), r(h)];
+}
+
+// ── Vista base de las jugadas nuevas (07/11/2026, Nacho): se toma de una jugada y se pone en las que se crean después ────────
+// Del dibujo: campo, vista, orientación, modo visual, césped, líneas, gradas, nombre en dos líneas y tamaño de las fichas.
+// De cada equipo (Racing `a` y rival `b`): sus colores y su nombre, y la letra de sus fichas (de la primera ficha de la hoja).
+export function spBaseFrom(board) {
+  const b = normalizeBoard(board);
+  const out = { board: {}, teams: {}, chips: {} };
+  for (const k of SP_BASE_BOARD_KEYS) if (b[k] !== undefined) out.board[k] = b[k];
+  if (out.board.chipSize === undefined) out.board.chipSize = Number(b.chipSize) || SP_CHIP;
+  for (const t of teamsOf(b)) if (t.id === "a" || t.id === "b") out.teams[t.id] = { ...t };
+  const els = b.frames[0]?.els || [];
+  for (const id of ["a", "b"]) {
+    const list = els.filter((e) => e.k === "token" && e.team === id);
+    const src = list.find((e) => e.fn && e.fn !== "portero") || list[0];
+    if (!src) continue;
+    const c = {};
+    for (const k of SP_BASE_CHIP_KEYS) if (src[k] !== undefined) c[k] = src[k];
+    out.chips[id] = c;
+  }
+  return cleanSpBase(out);
+}
+export function applySpBase(board, base) {
+  const sp = cleanSpBase(base);
+  if (!sp) return board;
+  const b = normalizeBoard(board);
+  const out = { ...b, ...(sp.board || {}) };
+  if (fieldKind(b.field) !== "f11") out.field = b.field; // un campo de fútbol 7 o libre no se cambia
+  if (sp.teams) out.teams = teamsOf(b).map((t) => (sp.teams[t.id] ? { ...t, ...sp.teams[t.id] } : t));
+  if (sp.chips) {
+    const fix = (e) => {
+      const c = e.k === "token" ? sp.chips[e.team] : null;
+      if (!c) return e;
+      const o = { ...e };
+      for (const k of SP_BASE_CHIP_KEYS) delete o[k];
+      return { ...o, ...c };
+    };
+    out.frames = b.frames.map((f) => ({ ...f, els: f.els.map(fix) }));
+  }
+  return out;
 }

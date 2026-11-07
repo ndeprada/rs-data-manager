@@ -114,7 +114,8 @@ function DockColor({ label, value, auto, onChange, testid }) {
   const toggle = (e) => {
     if (open) return setOpen(null);
     const r = e.currentTarget.getBoundingClientRect();
-    setOpen({ left: r.right + 8, top: Math.max(8, Math.min(r.top, (typeof window !== "undefined" ? window.innerHeight : 800) - 250)) });
+    const W = typeof window !== "undefined" ? window.innerWidth : 1400;
+    setOpen({ left: r.right + 184 > W ? Math.max(8, r.left - 176) : r.right + 8, top: Math.max(8, Math.min(r.top, (typeof window !== "undefined" ? window.innerHeight : 800) - 250)) });
   };
   return (
     <div className="relative" data-testid={testid}>
@@ -187,7 +188,8 @@ const r2 = (v) => Math.round(v * 100) / 100;
  * active = id de la variante actual, onVariant(id), patch(cambio, clave), onDefault (★), onMore (panel completo),
  * onDelete (solo con algo elegido).
  */
-export default function BoardDock({ kind, el, look, selected, variants, active, onVariant, patch, onDefault, onMore, onDelete, saved = false, linkPick = null }) {
+// inPage: fuera del campo, en la columna de la página (pizarra dentro de la página, 07/11/2026)
+export default function BoardDock({ kind, el, look, selected, variants, active, onVariant, patch, onDefault, onMore, onDelete, saved = false, linkPick = null, inPage = false }) {
   const s = styleOf(look);
   const title = { arrow: "Flechas", zone: "Zonas", ball: "Balón", material: "Material", text: "Texto", link: "Unir fichas" }[kind];
   const sample = (v) => {
@@ -202,8 +204,8 @@ export default function BoardDock({ kind, el, look, selected, variants, active, 
   const sizeOf = Number(el.size) || 1;
   return (
     <aside aria-label={`${title}: tipos y opciones`} data-testid="board-dock" data-kind={kind}
-      className="absolute top-2.5 bottom-2.5 left-[54px] w-[112px] rounded-xl flex flex-col overflow-y-auto overflow-x-visible no-scrollbar"
-      style={{ background: "rgba(36,0,10,0.96)", border: `1px solid ${D.line}`, zIndex: 6, color: D.text }}>
+      className={inPage ? "relative w-full rounded-xl flex flex-col pb-1" : "absolute top-2.5 bottom-2.5 left-[54px] w-[112px] rounded-xl flex flex-col overflow-y-auto overflow-x-visible no-scrollbar"}
+      style={{ background: "rgba(36,0,10,0.96)", border: `1px solid ${D.line}`, zIndex: inPage ? undefined : 6, color: D.text }}>
       <p className="px-2 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wider" style={{ color: D.sub }}>{title}</p>
       {linkPick && (
         <div className="px-2 pb-1.5 text-[10.5px] leading-snug" style={{ color: D.sub }} data-testid="dock-link-hint">
@@ -211,7 +213,7 @@ export default function BoardDock({ kind, el, look, selected, variants, active, 
           {linkPick.count > 0 && <button type="button" onClick={linkPick.onClear} className="block mt-1 underline" style={{ color: D.text }}>Borrar elección</button>}
         </div>
       )}
-      <div className="px-1.5 flex flex-col gap-1" role="group" aria-label={`Tipos de ${title.toLowerCase()}`}>
+      <div className={inPage ? "px-1.5 grid grid-cols-2 gap-1" : "px-1.5 flex flex-col gap-1"} role="group" aria-label={`Tipos de ${title.toLowerCase()}`}>
         {variants.map((v) => {
           const on = v.id === active;
           return (
