@@ -10,6 +10,10 @@ export const OK_INTERVAL_MS = 3 * 60 * 60 * 1000;
 export const FAIL_RETRY_MS = 30 * 60 * 1000;
 // Igual que la caducidad del candado: una sincronización «en marcha» más vieja que esto se cortó sin terminar
 export const RUNNING_MS = 3 * 60 * 1000;
+// Desde noviembre de 2026 la FCF no deja leer al servidor (fcfHttp.js): si la automática o la de la noche se encuentran el bloqueo,
+// no se apunta como fallo (se pisaría la última actualización buena hecha desde el navegador): se anota `blocked_at` y no se reintenta en 6 h.
+export const BLOCKED_RETRY_MS = 6 * 60 * 60 * 1000;
+const BLOCKED_SHOW_MS = 3 * 24 * 60 * 60 * 1000;
 
 const ROW = `(select id from entities where entity_type = 'FcfSyncStatus' order by created_at, id limit 1)`;
 const NOT_STAFF = ['jugador', 'familiar'];
@@ -21,6 +25,8 @@ const stamp = (s) => Date.parse(s?.finished_at || s?.last_attempt_at || '');
 
 /** ¿Toca sincronizar sola? (función pura: el estado guardado y la hora actual) */
 export function shouldAutoSync(status, now = Date.now()) {
+  const blockedAt = Date.parse(status?.blocked_at || '');
+  if (Number.isFinite(blockedAt) && now - blockedAt < BLOCKED_RETRY_MS) return false;
   const at = stamp(status);
   if (!Number.isFinite(at)) return true;
   const age = now - at;
@@ -30,8 +36,10 @@ export function shouldAutoSync(status, now = Date.now()) {
 
 /** Lo que ve la app: estado normalizado (nunca / en marcha / bien / falló) con las fechas necesarias para mostrarlo. */
 export function publicStatus(s, now = Date.now()) {
+  const bAt = Date.parse(s?.blocked_at || '');
+  const blocked = Number.isFinite(bAt) && now - bAt < BLOCKED_SHOW_MS;
   if (!s || !Number.isFinite(Date.parse(s.last_attempt_at || ''))) {
-    return { state: 'never', last_ok_at: s?.last_ok_at || null, last_ok_source: s?.last_ok_source || null };
+    return { state: 'never', last_ok_at: s?.last_ok_at || null, last_ok_source: s?.last_ok_source || null, blocked };
   }
   const running = !!s.in_progress;
   const state = running ? (now - Date.parse(s.last_attempt_at) <= RUNNING_MS ? 'running' : 'failed') : (s.ok ? 'ok' : 'failed');
@@ -44,6 +52,7 @@ export function publicStatus(s, now = Date.now()) {
     warnings: s.warnings || 0,
     error: state === 'failed' ? (running ? 'La sincronización no llegó a terminar' : (s.error || null)) : null,
     stats: s.stats || null,
+    blocked,
   };
 }
 
@@ -74,6 +83,12 @@ export async function runTrackedSync(db, source, syncFn, clock = () => new Date(
     const stats = await syncFn();
     result = { ok: true, stats };
   } catch (e) {
+    if (e?.code === 'fcf_blocked') {
+      // La FCF bloquea al servidor: se deja el registro como estaba y se anota el bloqueo
+      try { await saveSyncStatus(db, { ...(prev || {}), in_progress: false, blocked_at: clock().toISOString(), blocked_source: source }); }
+      catch (err) { console.error('estado de sincronización (bloqueo)', err); }
+      return { ok: false, blocked: true, error: e.message };
+    }
     console.error(e);
     result = { ok: false, error: e.message };
   }
@@ -115,8 +130,20 @@ export async function runAutoSync(db, syncFn, clock = () => new Date()) {
     if (again) return again;
     const r = await runTrackedSync(db, 'auto', syncFn, clock);
     const status = publicStatus(await readSyncStatus(db), clock().getTime());
+    if (r.blocked) return { ran: false, reason: 'fcf_blocked', status };
     return r.ok ? { ran: true, ok: true, ...r.stats, status } : { ran: true, ok: false, error: r.error, status };
   } finally {
     try { await releaseSyncLock(db); } catch (e) { console.error('liberar candado', e); }
   }
+}
+
+/** Una actualización traída desde el navegador (relevo) terminó bien: se anota como cualquier otra. */
+export async function recordRelaySync(db, stats, clock = () => new Date()) {
+  const at = clock().toISOString();
+  const prev = await readSyncStatus(db).catch(() => null);
+  await saveSyncStatus(db, {
+    ...(prev?.blocked_at ? { blocked_at: prev.blocked_at, blocked_source: prev.blocked_source } : {}),
+    in_progress: false, last_attempt_at: at, finished_at: at, source: 'navegador', ok: true, last_ok_at: at, last_ok_source: 'navegador',
+    warnings: stats?.errors?.length || 0, stats: Object.fromEntries(STAT_KEYS.map((k) => [k, stats?.[k] || 0])),
+  });
 }

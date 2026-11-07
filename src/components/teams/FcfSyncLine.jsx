@@ -24,7 +24,7 @@ export default function FcfSyncLine() {
   // Recién terminada: «ahora mismo» (y no «hace 0 segundos»); también si el reloj del móvil va unos segundos adelantado
   const ago = (d) => (Date.now() - d.getTime() < 45_000 ? t("ahora mismo") : formatDistanceToNowStrict(d, { addSuffix: true, locale }));
   const exact = (d) => format(d, "d MMM yyyy, HH:mm", { locale });
-  const how = (src) => (src === "manual" ? t("manual") : t("automática"));
+  const how = (src) => (src === "manual" ? t("manual") : src === "navegador" ? t("desde el navegador") : t("automática"));
   const at = validDate(s.at);
   const lastOk = validDate(s.last_ok_at);
 
@@ -47,9 +47,17 @@ export default function FcfSyncLine() {
   }
 
   return (
-    <p className={`flex items-center gap-1.5 text-xs ${tone} -mt-2`} title={title} data-testid="fcf-sync-line">
-      <Icon className={`w-3.5 h-3.5 shrink-0 ${s.state === "running" ? "animate-spin" : ""}`} aria-hidden="true" />
-      <span>{text}</span>
-    </p>
+    <div className="-mt-2 space-y-0.5">
+      <p className={`flex items-center gap-1.5 text-xs ${tone}`} title={title} data-testid="fcf-sync-line">
+        <Icon className={`w-3.5 h-3.5 shrink-0 ${s.state === "running" ? "animate-spin" : ""}`} aria-hidden="true" />
+        <span>{text}</span>
+      </p>
+      {s.blocked && (
+        <p className="flex items-center gap-1.5 text-xs text-amber-700" data-testid="fcf-sync-blocked">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+          <span>{t("La FCF no deja que la app se actualice sola: usa «Actualizar desde la FCF».")}</span>
+        </p>
+      )}
+    </div>
   );
 }

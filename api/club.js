@@ -420,7 +420,10 @@ export default async function handler(req, res) {
       const id = String(req.query.event_id || '');
       if (!id) return res.status(400).json({ error: 'event_id' });
       try { return res.status(200).json(await rivalReport(id)); }
-      catch (e) { console.error('rival', e); return res.status(200).json({ available: false, reason: 'fcf_error' }); }
+      catch (e) {
+        if (e?.code === 'fcf_blocked' || e?.code === 'fcf_missing') return res.status(200).json({ available: false, reason: 'fcf_blocked' });
+        console.error('rival', e); return res.status(200).json({ available: false, reason: 'fcf_error' });
+      }
     }
 
     // ── Calendario suscribible por equipo (cuerpo técnico del equipo y coordinación) ──

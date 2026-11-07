@@ -1,15 +1,17 @@
 import { query } from './db.js';
 import { getCurrentUser } from './auth.js';
-import { fcfFetch } from './fcfHttp.js';
+import { fcfJson, isFcfBlocked } from './fcfHttp.js';
 
 const API = 'https://www.fcf.cat/api/competition';
 const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
+// Desde noviembre de 2026 la FCF no deja leer al servidor: se usa lo que trae el navegador («Actualizar desde la FCF», fcfHttp.js).
+// Lo traído en la última hora vale tal cual; si la FCF no contesta, vale lo traído en los últimos 7 días.
+const FRESH = 60 * 60 * 1000;
+const STALE = 7 * 24 * 60 * 60 * 1000;
 async function fetchJson(path) {
-  const r = await fcfFetch(`${API}/${path}`);
-  if (!r.ok) throw new Error(`FCF ${r.status} ${path}`);
-  const j = await r.json();
-  return j.data !== undefined ? j.data : j;
+  const j = await fcfJson(`${API}/${path}`, { fresh: FRESH, stale: STALE });
+  return j && j.data !== undefined ? j.data : j;
 }
 
 // Las clasificaciones se guardan 5 minutos en memoria: el Panel pide la de cada equipo y no hace falta ir a la FCF cada vez.
@@ -91,7 +93,30 @@ export async function standingsHandler(req, res) {
     }));
     res.status(200).json({ available: true, competition, group, grupId, ourTeamId: String(team.fcf_team_code), rows: out });
   } catch (e) {
+    if (isFcfBlocked(e)) return res.status(200).json({ available: false, blocked: true });
     console.error(e);
     res.status(500).json({ available: false, error: e.message });
   }
+}
+
+// Para «Actualizar desde la FCF» (relevo desde el navegador): pide la clasificación, los partidos y los goleadores del grupo de cada
+// equipo, para que el Panel, Mi equipo y el informe del rival tengan datos aunque la FCF no deje leer al servidor.
+// Dentro del relevo lo que falta se apunta solo (fcfHttp.js) y el navegador lo trae en la vuelta siguiente.
+export async function prefetchStandings() {
+  const { rows } = await query(`select id from entities where entity_type = 'Team' and coalesce(data ->> 'fcf_team_code', '') <> ''`);
+  const out = { teams: rows.length, groups: 0, errors: [] };
+  const seen = new Set();
+  for (const r of rows) {
+    try {
+      const g = await resolveGroup(r.id);
+      if (!g.available || seen.has(g.grupId)) continue;
+      seen.add(g.grupId);
+      await getJson(`partidos?grupId=${g.grupId}`);
+      await getJson(`goleadores?grupId=${g.grupId}`).catch((e) => { if (e?.code === 'fcf_missing') throw e; });
+      out.groups++;
+    } catch (e) {
+      if (e?.code !== 'fcf_missing') out.errors.push(`${r.id}: ${e.message}`);
+    }
+  }
+  return out;
 }

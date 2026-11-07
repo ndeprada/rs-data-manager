@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import TeamsTable from "@/components/teams/TeamsTable";
 import TeamStaffSection from "@/components/team/TeamStaffSection";
 import FcfSyncLine from "@/components/teams/FcfSyncLine";
+import FcfRelayDialog from "@/components/teams/FcfRelayDialog";
 import { buildLinks } from "@/lib/staffLink";
 import { FCF_CATEGORIES, FCF_CATEGORY_GROUPS, getCategoryLabel } from "@/components/fcfCategories";
 
@@ -63,21 +64,8 @@ export default function Teams() {
   const t = useT();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const handleFcfSync = async () => {
-    setSyncing(true);
-    try {
-      const r = await fetch("/api/sync-fcf", { credentials: "include" });
-      const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.error || t("Error al sincronizar"));
-      queryClient.invalidateQueries();
-      alert(t("Sincronización FCF completada\n\nEquipos nuevos: {teams}\nJugadores nuevos: {players}\nPartidos nuevos: {created}\nPartidos actualizados: {updated}", { teams: j.teams_created, players: j.players_created, created: j.matches_created, updated: j.matches_updated }) + (j.errors?.length ? "\n\n" + t("Avisos: {n}", { n: j.errors.length }) : ""));
-    } catch (e) {
-      alert(t("No se pudo sincronizar: {error}", { error: e.message }));
-    } finally {
-      setSyncing(false);
-    }
-  };
+  // La FCF ya no deja leer al servidor: los datos se traen desde el navegador (FcfRelayDialog, 07/11/2026)
+  const [relayOpen, setRelayOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [editingTeam, setEditingTeam] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -192,12 +180,12 @@ export default function Teams() {
              </button>
            </div>
            <Button
-             onClick={handleFcfSync}
-             disabled={syncing}
+             onClick={() => setRelayOpen(true)}
              variant="outline"
              className="shadow-sm"
+             data-testid="fcf-relay-open"
            >
-             <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} /> {syncing ? "Sincronizando..." : t("Sincronizar con FCF")}
+             <RefreshCw className="w-4 h-4 mr-2" /> {t("Actualizar desde la FCF")}
            </Button>
            <Button variant="club"
              onClick={() => { setForm(emptyForm); setDialogOpen(true); }}
@@ -208,6 +196,7 @@ export default function Teams() {
          </div>
        </div>
       <FcfSyncLine />
+      <FcfRelayDialog open={relayOpen} onOpenChange={setRelayOpen} />
 
       {isLoading ? (
         <div className="bg-white border border-gray-200 p-8 text-center animate-pulse" style={{ borderRadius: "4px" }}>

@@ -23,6 +23,7 @@ const MatchDetail = lazyPage(() => import('./pages/MatchDetail'));
 const Matches = lazyPage(() => import('./pages/Matches'));
 const Scouting = lazyPage(() => import('./pages/Scouting.jsx'));
 const FcfBridge = lazyPage(() => import('./pages/FcfBridge.jsx'));
+const FcfRelay = lazyPage(() => import('./pages/FcfRelay.jsx'));
 const Coaches = lazyPage(() => import('./pages/Coaches'));
 const CoachProfile = lazyPage(() => import('./pages/CoachProfile'));
 const MyTeam = lazyPage(() => import('./pages/MyTeam'));
@@ -156,6 +157,7 @@ const AuthenticatedApp = () => {
         <Route path="/Matches" element={<Matches />} />
         <Route path="/Scouting" element={<Scouting />} />
         <Route path="/FcfBridge" element={<FcfBridge />} />
+        <Route path="/FcfRelay" element={<FcfRelay />} />
         <Route path="/Coaches" element={<Coaches />} />
         <Route path="/CoachProfile" element={<CoachProfile />} />
         <Route path="/MyTeam" element={<MyTeam />} />

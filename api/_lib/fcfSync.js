@@ -2,16 +2,15 @@ import { query } from './db.js';
 import { buildGuestIndex } from './rosterMatch.js';
 import { validCoords } from '../../src/lib/weather.js';
 import { teamPlaysF7 } from '../../src/lib/matchFormat.js';
-import { fcfFetch } from './fcfHttp.js';
+import { fcfJson } from './fcfHttp.js';
 
 export const CLUB_CODE = '40493342';
 const BASE = `https://www.fcf.cat/api/clubs/${CLUB_CODE}`;
 
+// La FCF ya no deja leer al servidor: dentro de un relevo se usa lo que trae el navegador (fcfHttp.js); fuera, se prueba directamente
 async function getJson(url) {
-  const r = await fcfFetch(url);
-  if (!r.ok) throw new Error(`FCF ${r.status} en ${url}`);
-  const j = await r.json();
-  return j.data !== undefined ? j.data : j;
+  const j = await fcfJson(url);
+  return j && j.data !== undefined ? j.data : j;
 }
 export { getJson as getFcfJson };
 

@@ -1,19 +1,23 @@
 import { getCurrentUser } from './_lib/auth.js';
 import { syncFcf } from './_lib/fcfSync.js';
-import { standingsHandler } from './_lib/fcfStandings.js';
+import { standingsHandler, prefetchStandings } from './_lib/fcfStandings.js';
+import { saveRelayItems, withRelay } from './_lib/fcfHttp.js';
 import { db } from './_lib/db.js';
 import { createBackup } from './_lib/backup.js';
 import { acquireSyncLock, releaseSyncLock } from './_lib/syncLock.js';
-import { canUseAutoSync, publicStatus, readSyncStatus, runAutoSync, runTrackedSync } from './_lib/syncStatus.js';
+import { canUseAutoSync, publicStatus, readSyncStatus, recordRelaySync, runAutoSync, runTrackedSync } from './_lib/syncStatus.js';
 
 // Una sola función para todo lo de la FCF (el plan gratuito de Vercel limita cuántas funciones se pueden tener):
 //   /api/sync-fcf                → sincronizar ahora (botón de Equipos, o la ejecución programada de cada noche)
 //   /api/sync-fcf?status=1       → cuándo fue la última sincronización y cómo salió
 //   /api/sync-fcf?auto=1         → «sincroniza solo si toca»: la app lo pide al abrirse; el servidor decide (3 h tras una buena, 30 min tras una fallida)
 //   /api/sync-fcf?standings=ID   → clasificación y próximos rivales de un equipo
+//   /api/sync-fcf?relay=put|sync|standings (POST) → «Actualizar desde la FCF»: el navegador trae los datos de la FCF (que ya no deja
+//                                    leer al servidor), los entrega con put y pide sync/standings hasta que no falta nada (src/lib/fcfRelay.js)
 
 export default async function handler(req, res) {
   if (req.query?.standings) { req.query.team_id = req.query.standings; return standingsHandler(req, res); }
+  if (req.query?.relay) return relayHandler(req, res);
   const auth = req.headers.authorization || '';
   const cronOk = process.env.CRON_SECRET && auth === `Bearer ${process.env.CRON_SECRET}`;
   const wantsStatus = !cronOk && !!req.query?.status;
@@ -45,6 +49,7 @@ export default async function handler(req, res) {
   try {
     const r = await runTrackedSync(db, cronOk ? 'noche' : 'manual', syncFcf);
     if (r.ok) res.status(200).json({ ok: true, ...r.stats });
+    else if (r.blocked) res.status(200).json({ ok: false, blocked: true, error: r.error });
     else res.status(500).json({ ok: false, error: r.error });
   } finally {
     try { await releaseSyncLock(db); } catch (e) { console.error('liberar candado', e); }
@@ -58,5 +63,34 @@ async function autoSync(res) {
   } catch (e) {
     console.error('sincronización automática', e);
     return res.status(500).json({ ran: false, error: 'auto_failed' });
+  }
+}
+
+// «Actualizar desde la FCF» desde el navegador (relevo). Lo puede usar el personal del club, como la sincronización automática.
+async function relayHandler(req, res) {
+  const user = await getCurrentUser(req);
+  if (!user) return res.status(401).json({ error: 'auth_required' });
+  if (!canUseAutoSync(user)) return res.status(403).json({ error: 'forbidden' });
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method' });
+  const mode = String(req.query.relay);
+  try {
+    if (mode === 'put') return res.status(200).json({ saved: await saveRelayItems(req.body?.items) });
+    if (mode === 'sync' || mode === 'standings') {
+      // `skip`: direcciones que la FCF no ha querido dar ni al navegador (p. ej. un acta que ya no existe): no se espera por ellas
+      const skip = new Set(Array.isArray(req.body?.skip) ? req.body.skip.map(String) : []);
+      const r = await withRelay(() => (mode === 'sync' ? syncFcf() : prefetchStandings()));
+      const missing = r.missing.filter((u) => !skip.has(u));
+      if (missing.length) return res.status(200).json({ done: false, missing });
+      if (r.error) {
+        if (r.error.code !== 'fcf_missing') console.error('relevo FCF', r.error);
+        return res.status(200).json({ done: false, error: r.error.code === 'fcf_missing' ? 'La FCF no ha dado los datos del club' : r.error.message });
+      }
+      if (mode === 'sync') { try { await recordRelaySync(db, r.out); } catch (e) { console.error('estado de sincronización (relevo)', e); } }
+      return res.status(200).json({ done: true, stats: r.out });
+    }
+    return res.status(400).json({ error: 'relay' });
+  } catch (e) {
+    console.error('relevo FCF', e);
+    return res.status(500).json({ error: e.message });
   }
 }

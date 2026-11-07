@@ -2,7 +2,7 @@ import { PGlite } from '@electric-sql/pglite';
 import assert from 'node:assert/strict';
 import {
   OK_INTERVAL_MS, FAIL_RETRY_MS, RUNNING_MS,
-  shouldAutoSync, publicStatus, canUseAutoSync, readSyncStatus, runTrackedSync, runAutoSync,
+  shouldAutoSync, publicStatus, canUseAutoSync, readSyncStatus, runTrackedSync, runAutoSync, recordRelaySync, BLOCKED_RETRY_MS,
 } from '../api/_lib/syncStatus.js';
 import { acquireSyncLock, releaseSyncLock } from '../api/_lib/syncLock.js';
 
@@ -167,6 +167,27 @@ assert.equal(calls, 1, 'una única sincronización aunque abran a la vez');
 assert.equal(many.filter((x) => x.ran).length, 1);
 assert.equal(await rows(), 1, 'una única fila de estado');
 await releaseSyncLock(db);
+
+// La FCF bloquea al servidor: no se apunta como fallo, se anota el bloqueo y no se reintenta en 6 h
+virtualNow += 5 * H;
+calls = 0;
+const blockedSync = async () => { calls++; const e = new Error('La FCF no deja'); e.code = 'fcf_blocked'; throw e; };
+const before = await readSyncStatus(db);
+r = await runAutoSync(db, blockedSync, vclock);
+assert.deepEqual([r.ran, r.reason, calls], [false, 'fcf_blocked', 1]);
+let st = await readSyncStatus(db);
+assert.equal(st.ok, before.ok, 'la última buena sigue como estaba');
+assert.equal(st.finished_at, before.finished_at);
+assert.ok(st.blocked_at && r.status.blocked, 'queda anotado el bloqueo');
+virtualNow += 4 * H;
+assert.equal((await runAutoSync(db, blockedSync, vclock)).ran, false);
+assert.equal(calls, 1, 'durante 6 h no se vuelve a probar');
+assert.ok(BLOCKED_RETRY_MS === 6 * H);
+// Una actualización desde el navegador se anota como buena (y se sigue sabiendo que la automática está bloqueada)
+await recordRelaySync(db, { matches_updated: 3, errors: [] }, vclock);
+st = await readSyncStatus(db);
+const pub = publicStatus(st, virtualNow);
+assert.deepEqual([pub.state, pub.source, pub.stats.matches_updated, pub.blocked], ['ok', 'navegador', 3, true]);
 
 await pg.close();
 console.log('syncStatus OK');
