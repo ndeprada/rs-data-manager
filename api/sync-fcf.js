@@ -11,7 +11,36 @@ import { canUseAutoSync, publicStatus, readSyncStatus, runAutoSync, runTrackedSy
 //   /api/sync-fcf?status=1       → cuándo fue la última sincronización y cómo salió
 //   /api/sync-fcf?auto=1         → «sincroniza solo si toca»: la app lo pide al abrirse; el servidor decide (3 h tras una buena, 30 min tras una fallida)
 //   /api/sync-fcf?standings=ID   → clasificación y próximos rivales de un equipo
+
+// SONDA TEMPORAL (07/11/2026): la FCF vuelve a contestar 403. Prueba varias formas de pedir los datos (solo lectura) y devuelve
+// solo los códigos y algunas cabeceras de respuesta. Se quita en cuanto se sepa qué acepta.
+const PROBE_KEY = '34d692850f5c421ba13fe332';
+async function probeFcf(res) {
+  const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
+  const ch = { 'sec-ch-ua': '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"', 'sec-ch-ua-mobile': '?0', 'sec-ch-ua-platform': '"macOS"' };
+  const variants = {
+    actual: { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', accept: 'application/json, text/plain, */*', 'accept-language': 'ca-ES,ca;q=0.9,es;q=0.8,en;q=0.7', referer: 'https://www.fcf.cat/', origin: 'https://www.fcf.cat' },
+    sinOrigin: { 'user-agent': UA, accept: 'application/json, text/plain, */*', 'accept-language': 'ca-ES,ca;q=0.9,es;q=0.8', referer: 'https://www.fcf.cat/' },
+    navegador: { 'user-agent': UA, accept: 'application/json, text/plain, */*', 'accept-language': 'ca-ES,ca;q=0.9,es;q=0.8', 'accept-encoding': 'gzip, deflate, br', referer: 'https://www.fcf.cat/', ...ch, 'sec-fetch-dest': 'empty', 'sec-fetch-mode': 'cors', 'sec-fetch-site': 'same-origin' },
+    pagina: { 'user-agent': UA, accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'accept-language': 'ca-ES,ca;q=0.9,es;q=0.8', 'accept-encoding': 'gzip, deflate, br', ...ch, 'sec-fetch-dest': 'document', 'sec-fetch-mode': 'navigate', 'sec-fetch-site': 'none', 'upgrade-insecure-requests': '1' },
+    minimo: {},
+  };
+  const urls = ['https://www.fcf.cat/api/clubs/40493342', 'https://www.fcf.cat/api/competition/temporadas', 'https://www.fcf.cat/'];
+  const out = [];
+  for (const u of urls) for (const [name, h] of Object.entries(variants)) {
+    try {
+      const r = await fetch(u, { headers: h, redirect: 'manual' });
+      const txt = await r.text().catch(() => '');
+      out.push({ u, name, status: r.status, server: r.headers.get('server'), cache: r.headers.get('x-cache'), pop: r.headers.get('x-amz-cf-pop'), type: r.headers.get('content-type'), loc: r.headers.get('location'), body: txt.slice(0, 140).replace(/\s+/g, ' ') });
+    } catch (e) { out.push({ u, name, error: String(e?.message || e) }); }
+  }
+  let ip = null;
+  try { ip = await (await fetch('https://api.ipify.org?format=json')).json(); } catch { /* sin IP */ }
+  return res.status(200).json({ region: process.env.VERCEL_REGION, ip, out });
+}
+
 export default async function handler(req, res) {
+  if (req.query?.probe === PROBE_KEY) return probeFcf(res);
   if (req.query?.standings) { req.query.team_id = req.query.standings; return standingsHandler(req, res); }
   const auth = req.headers.authorization || '';
   const cronOk = process.env.CRON_SECRET && auth === `Bearer ${process.env.CRON_SECRET}`;
