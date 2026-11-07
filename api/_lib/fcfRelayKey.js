@@ -7,6 +7,7 @@
 import crypto from 'node:crypto';
 import { query } from './db.js';
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 const sign = (id, v) => crypto.createHmac('sha256', SECRET).update(`fcf-relay|${id}|${v || 1}`).digest('base64url').slice(0, 32);
@@ -27,7 +28,7 @@ export function keyMatches(key, user) {
 export async function userFromRelayKey(key) {
   const s = String(key || '');
   const i = s.lastIndexOf('.');
-  if (i <= 0 || s.length > 200) return null;
+  if (i <= 0 || s.length > 200 || !UUID.test(s.slice(0, i))) return null;
   const { rows } = await query(
     `select e.id, e.data, a.email from entities e join auth_users a on a.id = e.id where e.id = $1 and e.entity_type = 'User'`,
     [s.slice(0, i)]

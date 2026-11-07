@@ -83,7 +83,9 @@ async function relayHandler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   const key = req.headers['x-rs-relay'];
   // Desde la web de la FCF solo vale la llave; la sesión de la app, solo desde la app
-  const user = key ? await userFromRelayKey(key) : (FCF_ORIGINS.includes(origin) ? null : await getCurrentUser(req));
+  let user = null;
+  try { user = key ? await userFromRelayKey(key) : (FCF_ORIGINS.includes(origin) ? null : await getCurrentUser(req)); }
+  catch (e) { console.error('relevo FCF (llave)', e); return res.status(500).json({ error: 'auth_failed' }); }
   if (!user) return res.status(401).json({ error: key ? 'bad_key' : 'auth_required' });
   if (!canUseAutoSync(user)) return res.status(403).json({ error: 'forbidden' });
   if (String(req.query.relay) === 'key') {
