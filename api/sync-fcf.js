@@ -25,18 +25,39 @@ async function probeFcf(res) {
     pagina: { 'user-agent': UA, accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'accept-language': 'ca-ES,ca;q=0.9,es;q=0.8', 'accept-encoding': 'gzip, deflate, br', ...ch, 'sec-fetch-dest': 'document', 'sec-fetch-mode': 'navigate', 'sec-fetch-site': 'none', 'upgrade-insecure-requests': '1' },
     minimo: {},
   };
-  const urls = ['https://www.fcf.cat/api/clubs/40493342', 'https://www.fcf.cat/api/competition/temporadas', 'https://www.fcf.cat/'];
   const out = [];
-  for (const u of urls) for (const [name, h] of Object.entries(variants)) {
+  const hit = async (u, name, h) => {
     try {
       const r = await fetch(u, { headers: h, redirect: 'manual' });
       const txt = await r.text().catch(() => '');
-      out.push({ u, name, status: r.status, server: r.headers.get('server'), cache: r.headers.get('x-cache'), pop: r.headers.get('x-amz-cf-pop'), type: r.headers.get('content-type'), loc: r.headers.get('location'), body: txt.slice(0, 140).replace(/\s+/g, ' ') });
-    } catch (e) { out.push({ u, name, error: String(e?.message || e) }); }
+      out.push({ u, name, status: r.status, cache: r.headers.get('x-cache'), type: r.headers.get('content-type'), loc: r.headers.get('location'), body: txt.slice(0, 160).replace(/\s+/g, ' ') });
+      return { r, txt };
+    } catch (e) { out.push({ u, name, error: String(e?.message || e) }); return null; }
+  };
+  // 1) la web: qué cookies pone y a qué direcciones de datos llama
+  const page = await hit('https://www.fcf.cat/ca', 'web', variants.pagina);
+  const cookies = (page?.r.headers.getSetCookie?.() || []).map((c) => c.split(';')[0]);
+  const html = page?.txt || '';
+  const apis = [...new Set((html.match(/[a-z0-9:/._-]*api[a-z0-9/._?=&-]*/gi) || []).filter((x) => x.length > 4))].slice(0, 40);
+  const scripts = [...new Set((html.match(/src="([^"]+\.js[^"]*)"/g) || []).map((x) => x.slice(5, -1)))].slice(0, 15);
+  // 2) en los scripts de la web, las direcciones de datos
+  const jsApis = new Set();
+  for (const sc of scripts.slice(0, 8)) {
+    try {
+      const u = sc.startsWith('http') ? sc : `https://www.fcf.cat${sc.startsWith('/') ? '' : '/'}${sc}`;
+      const t = await (await fetch(u, { headers: variants.pagina })).text();
+      for (const m of t.match(/["'`][^"'`\s]{0,80}\/api\/[^"'`\s]{0,80}["'`]/g) || []) jsApis.add(m.slice(0, 120));
+      for (const m of t.match(/https?:\/\/[a-z0-9.-]*fcf[a-z0-9.-]*\.[a-z]+[^"'`\s]{0,40}/gi) || []) jsApis.add(m.slice(0, 120));
+    } catch { /* sigue */ }
   }
+  // 3) la misma consulta con las cookies de la web y sin www
+  const ck = cookies.length ? { cookie: cookies.join('; ') } : {};
+  await hit('https://www.fcf.cat/api/clubs/40493342', 'conCookies', { ...variants.navegador, ...ck });
+  await hit('https://fcf.cat/api/clubs/40493342', 'sinWww', variants.navegador);
   let ip = null;
   try { ip = await (await fetch('https://api.ipify.org?format=json')).json(); } catch { /* sin IP */ }
-  return res.status(200).json({ region: process.env.VERCEL_REGION, ip, out });
+  return res.status(200).json({ region: process.env.VERCEL_REGION, ip, cookies: cookies.map((c) => c.split('=')[0]), apis, scripts, jsApis: [...jsApis].slice(0, 60), out });
+
 }
 
 export default async function handler(req, res) {
