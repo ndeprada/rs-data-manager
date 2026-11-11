@@ -55,3 +55,18 @@ test("si el jugador desaparece, lo da por perdido", () => {
 test("no empieza si la caja se sale de la imagen por arriba", () => {
   assert.equal(createTracker(frame([]), 10, 5, 400), null);
 });
+
+test("suavizado del seguimiento: quita el balanceo de cada zancada sin retrasar la marca", async () => {
+  const { smoothTrack } = await import("../src/lib/videoTimeline.js");
+  // jugador que avanza en línea recta con un balanceo de 3 veces por segundo (±0,008) y un fotograma que salta
+  const raw = []; for (let i = 0; i <= 90; i++) { const t = i / 30; raw.push({ vt: t, x: 0.2 + 0.1 * t, y: 0.5 + 0.008 * Math.sin(2 * Math.PI * 3 * t) }); }
+  raw[45].x += 0.08;
+  const s = smoothTrack(raw, 0.15);
+  for (let i = 5; i < 86; i++) {
+    assert.ok(Math.abs(s[i].y - 0.5) < 0.0015, `balanceo en ${i}: ${s[i].y}`);
+    assert.ok(Math.abs(s[i].x - (0.2 + 0.1 * raw[i].vt)) < 0.004, `retraso o salto en ${i}: ${s[i].x}`);
+  }
+  // en los extremos la marca no se va hacia dentro (recta ajustada, no media)
+  assert.ok(Math.abs(s[0].x - 0.2) < 0.003 && Math.abs(s[90].x - 0.5) < 0.003);
+  assert.equal(smoothTrack(raw.slice(0, 2)).length, 2);
+});

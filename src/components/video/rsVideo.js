@@ -4,8 +4,9 @@
 //   const app = mountRSVideo(elemento, { storagePrefix })  →  app.destroy()
 // El vídeo nunca sale del ordenador: se abre como archivo local y lo exportado se descarga.
 import { RATES, stepRate, RESERVED_KEYS, newTag, defaultSets, cleanSet, duplicateKeys, uniqueName, duplicateSet, exportSets, importSets, restoreSets, isDefaultSet, setPayload, syncPlan, sortSets } from "../../lib/videoTags.js";
-import { clipLen, mapL, freezeStartL, localOfVideo, kfOffset, ptsAt, visibleAt as visible, smooth, samplesToLocal, spliceKeys } from "../../lib/videoTimeline.js";
+import { clipLen, mapL, freezeStartL, localOfVideo, kfOffset, ptsAt, visibleAt as visible, smoothTrack, samplesToLocal, spliceKeys } from "../../lib/videoTimeline.js";
 import { createTracker, bodyBox } from "../../lib/videoTracker.js";
+const TRACK_SMOOTH = 0.15; // segundos: suavizado del seguimiento (quita el balanceo de cada zancada)
 
 const PALETTE = ["#ffffff", "#FF6E00", "#ffd400", "#e5484d", "#2fbf71", "#3ec7ff", "#73000A", "#111111"];
 const TRACKABLE = ["ring", "spot", "ellipse", "mag", "poly", "zone"];
@@ -714,8 +715,8 @@ export function mountRSVideo(root, opts = {}) {
     const alive = idxs.map(() => true); let lostAt = null;
     S.tracking = { cancel: false }; $("#trackOv").classList.add("on"); $("#trackBar").style.width = "0%";
     const baseKf = (d.kf || []).map((k) => ({ ...k })), basePtk = (d.ptk || []).map((x) => (x ? x.map((k) => ({ ...k })) : x));
-    const apply = (final) => {
-      const keysOf = (k) => samplesToLocal(c, final ? smooth(samples[k], 2) : samples[k]);
+    const apply = () => {
+      const keysOf = (k) => samplesToLocal(c, smoothTrack(samples[k], TRACK_SMOOTH));
       if (multi) { d.ptk = idxs.map((i, k) => spliceKeys(basePtk[i], L0, keysOf(k))); }
       else { const p0 = d.pts[0]; d.kf = spliceKeys(baseKf, L0, keysOf(0).map((s) => ({ t: s.t, dx: s.x - p0.x, dy: s.y - p0.y }))); }
     };
@@ -740,7 +741,7 @@ export function mountRSVideo(root, opts = {}) {
           else samples[k].push({ vt, x: r.x / TW, y: r.y / TH });
         });
         n++;
-        if (n % 4 === 0) { apply(false); S.L = localOfVideo(c, vt); }
+        if (n % 4 === 0) { apply(); S.L = localOfVideo(c, vt); }
         $("#trackBar").style.width = clamp(((vt - v0) / (vEnd - v0)) * 100, 0, 100) + "%";
         if (vt >= vEnd - 0.02 || !alive.some(Boolean) || vid.ended) return finish();
         schedule();
@@ -748,7 +749,7 @@ export function mountRSVideo(root, opts = {}) {
       vid.play().then(schedule).catch(() => { toast("No se ha podido reproducir el vídeo"); finish(); });
     });
     vid.playbackRate = 1;
-    apply(true); d.tracked = true;
+    apply(); d.tracked = true;
     const cancelled = S.tracking.cancel;
     S.tracking = null; $("#trackOv").classList.remove("on");
     if (!multi && lostAt != null) d.to = Math.max(L0 + 0.3, Math.min(d.to, localOfVideo(c, lostAt) + 0.3));

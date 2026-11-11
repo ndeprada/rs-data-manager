@@ -88,6 +88,14 @@ export function createTracker(img, fx, fy, h, opts = {}) {
     const cx0 = bx, cy0 = by;
     for (let dy = -g; dy <= g; dy++) for (let dx = -g; dx <= g; dx++) if (dx || dy) consider(cx0 + dx, cy0 + dy);
     const raw = score(frame, grid, bx, by, T0, Ta);
+    // ajuste por debajo del píxel: parábola por el mejor punto y sus vecinos (quita el «salto» de píxel en píxel)
+    if (raw >= minScore) {
+      const para = (sm, s0, sp) => { const den = sm - 2 * s0 + sp; return den < -1e-6 ? clamp((0.5 * (sm - sp)) / den, -0.5, 0.5) : 0; };
+      const sxm = score(frame, grid, bx - 1, by, T0, Ta), sxp = score(frame, grid, bx + 1, by, T0, Ta);
+      const sym = score(frame, grid, bx, by - 1, T0, Ta), syp = score(frame, grid, bx, by + 1, T0, Ta);
+      if (sxm > -1 && sxp > -1) bx += para(sxm, raw, sxp);
+      if (sym > -1 && syp > -1) by += para(sym, raw, syp);
+    }
     if (raw < minScore) {
       misses++;
       // sin buena coincidencia: se sigue la inercia un momento, más despacio

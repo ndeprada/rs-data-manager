@@ -72,6 +72,34 @@ export function smooth(samples, win = 2) {
   });
 }
 
+// Suavizado del seguimiento por tiempo (no por número de muestras): en cada instante, recta ajustada a las muestras
+// cercanas con pesos de campana (σ = `sigma` segundos). Quita el balanceo de cada zancada (≈3 por segundo) sin
+// retrasar la marca ni recortar los cambios de dirección, y en los extremos no tira la marca hacia dentro.
+// Dos pasadas: en la segunda, las muestras que se salen mucho de la primera (un fotograma que salta a otro jugador)
+// casi no cuentan. `key` = campo del tiempo.
+export function smoothTrack(samples, sigma = 0.15, key = "vt") {
+  const n = samples.length; if (n < 3 || !(sigma > 0)) return samples.map((s) => ({ ...s }));
+  const T = samples.map((s) => s[key]);
+  const fit = (wOf) => samples.map((s, i) => {
+    let W = 0, St = 0, Sx = 0, Sy = 0, Stt = 0, Stx = 0, Sty = 0;
+    for (let j = i; j >= 0 && T[i] - T[j] <= 3 * sigma; j--) add(j);
+    for (let j = i + 1; j < n && T[j] - T[i] <= 3 * sigma; j++) add(j);
+    function add(j) {
+      const dt = T[j] - T[i]; const w = Math.exp(-(dt * dt) / (2 * sigma * sigma)) * wOf(j); if (!(w > 0)) return;
+      W += w; St += w * dt; Stt += w * dt * dt; Sx += w * samples[j].x; Sy += w * samples[j].y; Stx += w * dt * samples[j].x; Sty += w * dt * samples[j].y;
+    }
+    if (!(W > 0)) return { ...s };
+    const den = W * Stt - St * St;
+    if (Math.abs(den) < 1e-12) return { ...s, x: Sx / W, y: Sy / W };
+    // valor de la recta en dt = 0
+    return { ...s, x: (Sx * Stt - St * Stx) / den, y: (Sy * Stt - St * Sty) / den };
+  });
+  const a = fit(() => 1);
+  const r = samples.map((s, i) => Math.hypot(s.x - a[i].x, s.y - a[i].y));
+  const med = [...r].sort((p, q) => p - q)[(n / 2) | 0] || 0; const lim = Math.max(med * 4, 1e-4);
+  return fit((j) => (r[j] > lim ? 0.05 : 1));
+}
+
 // Muestras del seguimiento [{vt, x, y}] (segundos del vídeo, coordenadas 0..1) → lista [{t, x, y}] en tiempo local,
 // con la posición quieta durante cada congelado que caiga dentro.
 export function samplesToLocal(c, samples) {
