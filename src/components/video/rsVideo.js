@@ -4,9 +4,10 @@
 //   const app = mountRSVideo(elemento, { storagePrefix })  →  app.destroy()
 // El vídeo nunca sale del ordenador: se abre como archivo local y lo exportado se descarga.
 import { RATES, stepRate, RESERVED_KEYS, newTag, defaultSets, cleanSet, duplicateKeys, uniqueName, duplicateSet, exportSets, importSets, restoreSets, isDefaultSet, setPayload, syncPlan, sortSets } from "../../lib/videoTags.js";
-import { clipLen, mapL, freezeStartL, localOfVideo, kfOffset, ptsAt, visibleAt as visible, smoothTrack, samplesToLocal, spliceKeys, nudgeTrack } from "../../lib/videoTimeline.js";
+import { clipLen, mapL, freezeStartL, localOfVideo, kfOffset, ptsAt as rawPtsAt, visibleAt as visible, smoothTrack, samplesToLocal, spliceKeys, nudgeTrack } from "../../lib/videoTimeline.js";
 import { createTracker, bodyBox } from "../../lib/videoTracker.js";
-import { PITCH_TYPES, MARKS, pitchOf, landmarks, pitchLines, markLines, solveCal, toImage, toGround, groundDist, circleImg, groundRectImg, lineImg, calQuality, fmtM } from "../../lib/videoPitch.js";
+import { createCamTracker, toGray, camSample, camMatrixAt, smoothCam, mulH, CAM_W } from "../../lib/videoCamera.js";
+import { PITCH_TYPES, MARKS, pitchOf, landmarks, pitchLines, markLines, solveCal, applyH, invertH, homography, toImage, toGround, groundDist, circleImg, groundRectImg, lineImg, calQuality, fmtM } from "../../lib/videoPitch.js";
 const MIN_CLIP = 0.5; // segundos: corte más corto
 const TRACK_SMOOTH = 0.15;
 const FIX_WIN = 0.6; // segundos antes y después que se mueven al corregir un seguimiento a mano // segundos: suavizado del seguimiento (quita el balanceo de cada zancada)
@@ -75,7 +76,7 @@ const TEMPLATE = `
     <div class="eStage">
       <div class="stage" id="rsvEditStage"><canvas id="rsvCv"></canvas>
         <div class="drop" id="editEmpty" style="display:none"><div class="big">No hay clips en el editor</div><div>Vuelve a «Etiquetar», marca los clips en la playlist y pulsa «Llevar al editor».</div></div>
-        <div class="trackOv" id="trackOv"><span>🎯 Siguiendo al jugador…</span><div class="prog"><div id="trackBar"></div></div><button id="trackStop">Parar</button></div>
+        <div class="trackOv" id="trackOv"><span id="trackMsg">🎯 Siguiendo al jugador…</span><div class="prog"><div id="trackBar"></div></div><button id="trackStop">Parar</button></div>
       </div>
       <div class="transport">
         <button id="ePlay" title="Espacio">▶</button>
@@ -788,7 +789,52 @@ export function mountRSVideo(root, opts = {}) {
     if (!calCache.has(key)) { if (calCache.size > 40) calCache.clear(); calCache.set(key, solveCal(cal, aspectOf())); }
     return calCache.get(key);
   }
-  function calAt(c, L) { const f = c && mapL(c, L).frozen; return f?.cal ? solved(f.cal) : null; }
+  // Calibración en el instante L: la del congelado si lo está; si no, la del congelado calibrado más cercano
+  // llevada a este momento con el movimiento de la cámara (si el corte está analizado).
+  function calAt(c, L) {
+    if (!c) return null; const m = mapL(c, L);
+    if (m.frozen?.cal) { const s = solved(m.frozen.cal); if (s) return s; }
+    const Mt = c.cam && camM(c, m.vt); if (!Mt) return null;
+    const an = [];
+    for (const f of c.freezes) {
+      if (!f.cal) continue; const vt = c.tin + f.at; const s = solved(f.cal); const Ma = s && camM(c, vt); const Mai = Ma && invertH(Ma);
+      if (Mai) { let H = mulH(mulH(Mt, Mai), s.H); const mid = { x: s.p.len / 2, y: s.p.wid / 2 }; if (applyH(H, mid).w * applyH(s.H, mid).w < 0) H = H.map((r) => r.map((v) => -v)); an.push({ f, vt, s, H }); }
+    }
+    if (!an.length) return null;
+    an.sort((a, b) => a.vt - b.vt);
+    const before = [...an].reverse().find((a) => a.vt <= m.vt), after = an.find((a) => a.vt > m.vt);
+    let H, main;
+    if (before && after && before.s.p.field === after.s.p.field) {
+      // entre dos calibraciones: se pasa de una a otra poco a poco (sin saltos)
+      const u = (m.vt - before.vt) / (after.vt - before.vt); main = u < 0.5 ? before : after;
+      const G = [], I = [];
+      for (const l of landmarks(before.s.p)) { const a = applyH(before.H, l), b = applyH(after.H, l); if (a.w > 0 && b.w > 0) { G.push(l); I.push({ x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u }); } }
+      H = G.length >= 6 ? homography(G, I) : main.H;
+      if (H) { const mid = { x: main.s.p.len / 2, y: main.s.p.wid / 2 }; if (applyH(H, mid).w * applyH(main.H, mid).w < 0) H = H.map((r) => r.map((v) => -v)); } else H = main.H;
+    } else { main = before || after; H = main.H; }
+    const Hi = invertH(H); if (!Hi) return null;
+    return { p: main.s.p, H, Hi, n: main.s.n, err: main.s.err, opt: main.f.cal, moving: true };
+  }
+
+  // ---- movimiento de la cámara del corte (c.cam) ----
+  let camVer = 0; const camMemo = new Map();
+  function camM(c, vt) {
+    if (!c?.cam) return null; const k = camVer + "|" + c.id + "|" + vt.toFixed(4);
+    if (!camMemo.has(k)) { if (camMemo.size > 600) camMemo.clear(); camMemo.set(k, camMatrixAt(c.cam, vt)); }
+    return camMemo.get(k);
+  }
+  // Dibujos «pegados al césped» (d.pin = segundo del vídeo en que se dibujaron): siguen el movimiento de la cámara
+  const PIN_SKIP = ["text", "mag"];
+  function pinWarp(d, L) {
+    if (d.pin == null || d.tracked || d.follow || hasOwnTracks(d)) return null;
+    const c = curClip(); if (!c?.cam) return null; const vt = mapL(c, L).vt; if (Math.abs(vt - d.pin) < 1e-4) return null;
+    const A = camM(c, d.pin), B = camM(c, vt); const Ai = A && invertH(A); return Ai && B ? mulH(B, Ai) : null;
+  }
+  function ptsAt(d, L) {
+    const P = rawPtsAt(d, L); const W = pinWarp(d, L); if (!W) return P;
+    return P.map((p) => { const q = applyH(W, p); return { x: q.x, y: q.y }; });
+  }
+  const camCovers = (c, L) => !!(c?.cam && camM(c, mapL(c, L).vt));
   const calFreeze = () => { const c = curClip(); return c && S.calib ? c.freezes.find((f) => f.id === S.calib.fzId) : null; };
   function rectCorners(d, L, cal) {
     const P = ptsAt(d, L); if (P.length < 2) return P;
@@ -799,7 +845,7 @@ export function mountRSVideo(root, opts = {}) {
     for (const l of lines) for (const seg of lineImg(cal, l)) { g.beginPath(); seg.forEach((q, i) => (i ? g.lineTo(q.x * W, q.y * H) : g.moveTo(q.x * W, q.y * H))); g.stroke(); }
   }
   function drawPitchMarks(g, W, H, sc, cal, f) {
-    const fz = f || mapL(curClip(), S.L).frozen; const opt = fz?.cal || {};
+    const fz = f || mapL(curClip(), S.L).frozen; const opt = cal.opt || fz?.cal || {};
     g.save(); g.lineCap = "round";
     if (opt.lines) { g.strokeStyle = "rgba(255,110,0,.85)"; g.lineWidth = 2 * sc; strokeGround(g, W, H, cal, pitchLines(cal.p)); }
     if (opt.marks) { g.strokeStyle = "rgba(255,255,255,.75)"; g.lineWidth = 2.2 * sc; g.setLineDash([10 * sc, 8 * sc]); strokeGround(g, W, H, cal, markLines(cal.p, opt.marks)); }
@@ -840,11 +886,30 @@ export function mountRSVideo(root, opts = {}) {
     let f = mapL(c, S.L).frozen;
     if (!f) { f = makeFreeze(c, Math.max(3, +$("#eFreezeDur").value || 3)); toast("He congelado la imagen aquí para calibrar sobre ella"); }
     const prev = c.freezes.filter((x) => x !== f && x.cal).sort((a, b) => b.at - a.at)[0]?.cal;
-    if (!f.cal) f.cal = { field: prev?.field || "f11", len: prev?.len, wid: prev?.wid, pairs: [], marks: "", lines: false };
+    if (!f.cal) {
+      f.cal = { field: prev?.field || "f11", len: prev?.len, wid: prev?.wid, pairs: [], marks: prev?.marks || "", lines: false };
+      // con la cámara analizada: los puntos ya colocados donde los pone la calibración más cercana (solo hay que afinarlos)
+      const live = calAt(c, freezeStartL(c, f) + 1e-3 - 1e-3) || null;
+      if (live?.moving) {
+        f.cal = { ...f.cal, field: live.opt.field, len: live.opt.len, wid: live.opt.wid };
+        // puntos del campo que se ven en esta imagen; se eligen hasta 6 bien repartidos
+        const vis = landmarks(live.p).map((l) => ({ k: l.k, q: toImage(live, l) })).filter(({ q }) => q.w > 0 && q.x > 0.03 && q.x < 0.97 && q.y > 0.05 && q.y < 0.95);
+        const pick = [];
+        while (pick.length < 6 && pick.length < vis.length) {
+          let bestV = null, bestD = -1;
+          for (const v of vis) { if (pick.includes(v)) continue; const d = pick.length ? Math.min(...pick.map((p) => Math.hypot(p.q.x - v.q.x, p.q.y - v.q.y))) : -Math.hypot(v.q.x - 0.5, v.q.y - 0.6); if (d > bestD) { bestD = d; bestV = v; } }
+          pick.push(bestV);
+        }
+        for (const v of pick) f.cal.pairs.push({ k: v.k, x: +v.q.x.toFixed(4), y: +v.q.y.toFixed(4) });
+        if (f.cal.pairs.length >= 4) toast("Te he dejado los puntos donde los pone la calibración anterior: arrastra cada uno a su sitio exacto (o quita los que no veas bien)");
+        else f.cal.pairs = [];
+      }
+    }
     S.calib = { fzId: f.id, sel: null, drag: null, hover: null }; S.selFreeze = f; S.sel = null; S.draft = null; S.tool = "select";
     renderTools(); renderTimeline(); renderProps();
   }
   function endCalib() { S.calib = null; autosave(); renderProps(); renderTimeline(); }
+  function endCalibQuiet() { if (S.calib) S.calib = null; }
   on($("#eCalib"), "click", (e) => { e.currentTarget.blur(); S.calib ? endCalib() : startCalib(); });
   // dibujo pequeño del campo con los puntos que se pueden marcar
   function miniPitch(cal) {
@@ -869,10 +934,20 @@ export function mountRSVideo(root, opts = {}) {
       <div class="f"><label>Zonas</label><select id="cMarks">${MARKS.map(([k, n]) => `<option value="${k}" ${cal.marks === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
       <div class="f"><label>Ver líneas del campo</label><input type="checkbox" id="cLines" ${cal.lines ? "checked" : ""}></div>
       <div class="btnrow">${cal.pairs.length ? `<button id="cClear">Borrar puntos</button>` : ""}<button id="cRemove" style="color:var(--bad)">Quitar calibración</button></div>
+      ${camBlock(curClip())}
       <button class="pri" id="cDone" style="width:100%;margin-top:6px">Hecho</button>`;
+  }
+  // bloque «Con el vídeo en marcha»: analizar el movimiento de la cámara del corte
+  function camBlock(c) {
+    if (!c) return ""; const st = camStatus(c);
+    return `<h3>Con el vídeo en marcha</h3>
+      <div class="f"><label>Cámara</label><span class="camSt ${st.on ? "on" : ""}">${st.on ? "🎥 " : ""}${st.text}</span></div>
+      <div class="hint">${st.on ? "La calibración y los dibujos pegados al césped siguen el giro y el zoom de la cámara. Si en algún momento las líneas se separan, congela ahí y calibra otra vez: se usa la calibración más cercana." : "Analiza el corte una vez (tarda lo que dura) y la calibración valdrá también con el vídeo en marcha, aunque la cámara gire o haga zoom."}</div>
+      <button id="camGo" data-cam="1" style="width:100%">${st.on ? "Volver a analizar la cámara" : "🎥 Seguir la cámara en todo el corte"}</button>`;
   }
   function bindCalibPanel(el) {
     const f = calFreeze(); const cal = f.cal; const re = () => { autosave(); renderProps(); };
+    el.querySelectorAll("[data-cam]").forEach((b) => on(b, "click", analyzeCamera));
     el.querySelectorAll(".miniPitch .lm").forEach((n) => on(n, "click", () => { S.calib.sel = S.calib.sel === n.dataset.k ? null : n.dataset.k; renderProps(); }));
     on($("#cField"), "change", (e) => { snapshot(); cal.field = e.target.value; cal.len = undefined; cal.wid = undefined; const ok = new Set(landmarks(pitchOf(cal)).map((l) => l.k)); cal.pairs = cal.pairs.filter((x) => ok.has(x.k)); re(); });
     on($("#cLen"), "change", (e) => { snapshot(); cal.len = +e.target.value; re(); });
@@ -931,7 +1006,8 @@ export function mountRSVideo(root, opts = {}) {
   function mkDrawing(type, pts) {
     const c = curClip(); const [from, to] = defaultRange(c); const st = S.style;
     const gnd = GROUND_TYPES.includes(type) && !!calAt(c, S.L);
-    return { id: uid(), type, pts, color: st.color, width: type === "text" ? 4 : st.width, dash: st.dash, fill: st.fill, anim: st.anim, from, to, kf: [], trackH: 0.09, text: type === "ring" ? "Jugador" : type === "text" ? "Texto" : "", ...(gnd ? { gnd: true } : {}) };
+    const pin = !PIN_SKIP.includes(type) && camCovers(c, S.L) ? +mapL(c, S.L).vt.toFixed(4) : null;
+    return { ...(pin != null ? { pin } : {}), id: uid(), type, pts, color: st.color, width: type === "text" ? 4 : st.width, dash: st.dash, fill: st.fill, anim: st.anim, from, to, kf: [], trackH: 0.09, text: type === "ring" ? "Jugador" : type === "text" ? "Texto" : "", ...(gnd ? { gnd: true } : {}) };
   }
   const hasOwnTracks = (d) => d.ptk && d.ptk.some((x) => x && x.length);
   function upsert(list, t, v) { const k = list.find((x) => Math.abs(x.t - t) < 0.05); if (k) Object.assign(k, v); else { list.push({ t, ...v }); list.sort((a, b) => a.t - b.t); } }
@@ -975,12 +1051,17 @@ export function mountRSVideo(root, opts = {}) {
     // en un dibujo con seguimiento, arrastrar corrige ese momento y lo de alrededor (sin saltos)
     if (drag.kind === "handle") {
       if (own && drag.ptk0[drag.h]?.length) d.ptk[drag.h] = nudgeTrack(drag.ptk0[drag.h], S.L, dx, dy, win, "x", "y");
-      else d.pts[drag.h] = { x: drag.orig[drag.h].x + dx, y: drag.orig[drag.h].y + dy };
+      else d.pts[drag.h] = movePinned(d, drag.orig[drag.h], dx, dy);
     } else if (own) { d.ptk = drag.ptk0.map((tk) => (tk && tk.length ? nudgeTrack(tk, S.L, dx, dy, win, "x", "y") : tk)); }
     else if (d.tracked) d.kf = nudgeTrack(drag.kf0, S.L, dx, dy, win);
     else if (d.follow) setKf(d, S.L, drag.ox + dx, drag.oy + dy);
-    else d.pts = drag.orig.map((q) => ({ x: q.x + dx, y: q.y + dy }));
+    else d.pts = drag.orig.map((q) => movePinned(d, q, dx, dy));
   });
+  // mueve un punto guardado (dx, dy) en la pantalla; si el dibujo va pegado al césped se guarda en su imagen de origen
+  function movePinned(d, q, dx, dy) {
+    const W = pinWarp(d, S.L), Wi = W && invertH(W); if (!Wi) return { x: q.x + dx, y: q.y + dy };
+    const a = applyH(W, q), b = applyH(Wi, { x: a.x + dx, y: a.y + dy }); return { x: b.x, y: b.y };
+  }
   on(cv, "pointerup", (e) => {
     const c = curClip(); if (!c) return;
     if (S.calib && calFreeze()) return calibPointer(e, "up");
@@ -1009,6 +1090,22 @@ export function mountRSVideo(root, opts = {}) {
 
   // ---- seguimiento automático ----
   on($("#trackStop"), "click", () => { if (S.tracking) S.tracking.cancel = true; });
+  // Cada fotograma que pinta el vídeo, con su segundo exacto (requestVideoFrameCallback). En el editor el vídeo está
+  // oculto (se pinta en el lienzo) y así el navegador no avisa de los fotogramas: mientras dura se deja «visible» en
+  // un rincón, diminuto y casi transparente. Sin ese aviso (navegadores antiguos), cada vez que se pinta la pantalla.
+  function frameWatch() {
+    const rvfc = typeof vid.requestVideoFrameCallback === "function"; const old = vid.getAttribute("style") || "";
+    if (rvfc && S.mode !== "tag") vid.setAttribute("style", "display:block;position:fixed;left:0;top:0;width:8px;height:6px;opacity:.01;pointer-events:none;z-index:-1");
+    return {
+      next: (fn) => {
+        if (!rvfc) return requestAnimationFrame(() => fn(vid.currentTime));
+        // si el vídeo se para o termina no llegan más fotogramas: a los 0,4 s se mira igualmente
+        let t = null; const id = vid.requestVideoFrameCallback((now, meta) => { clearTimeout(t); fn(meta.mediaTime); });
+        t = setTimeout(() => { vid.cancelVideoFrameCallback(id); fn(vid.currentTime); }, 400);
+      },
+      done: () => { if (rvfc) vid.setAttribute("style", old); },
+    };
+  }
   async function autoTrack(d) {
     const c = curClip(); if (!c || !d || S.tracking) return;
     if (!vid.videoWidth) return toast("El vídeo no está listo");
@@ -1016,6 +1113,7 @@ export function mountRSVideo(root, opts = {}) {
     if (!visible(d, S.L)) seekLocal(d.from + 0.01);
     if (mapL(c, S.L).frozen) { const f = mapL(c, S.L).frozen; seekLocal(freezeStartL(c, f)); }
     snapshot();
+    if (d.pin != null) { d.pts = ptsAt(d, S.L).map((q) => ({ x: q.x, y: q.y })); delete d.pin; }
     const L0 = S.L; const len = clipLen(c);
     if (d.to < len - 0.05) d.to = len;
     const v0 = mapL(c, L0).vt; const vEnd = mapL(c, d.to).vt;
@@ -1043,13 +1141,13 @@ export function mountRSVideo(root, opts = {}) {
     let last = v0, n = 0;
     await new Promise((res) => {
       let done = false;
-      const finish = () => { if (done) return; done = true; vid.pause(); res(); };
-      // el vídeo está oculto en el editor (se pinta en el lienzo), así que se mira cada vez que el navegador pinta
-      const schedule = () => requestAnimationFrame(() => onFrame(0, null));
-      const onFrame = (_now, meta) => {
+      const fw = frameWatch();
+      const finish = () => { if (done) return; done = true; vid.pause(); fw.done(); res(); };
+      const schedule = () => fw.next(onFrame);
+      const onFrame = (mt) => {
         if (done) return;
         if (S.tracking.cancel) return finish();
-        const vt = meta?.mediaTime ?? vid.currentTime;
+        const vt = mt ?? vid.currentTime;
         if (vt <= last + 1e-4) { if (vid.ended || vid.paused) return finish(); return schedule(); }
         const gap = Math.max(1, Math.round((vt - last) * 25)); last = vt;
         img = grab();
@@ -1079,6 +1177,61 @@ export function mountRSVideo(root, opts = {}) {
   }
 
   // ---- panel de propiedades ----
+  // ---- movimiento de la cámara: se analiza el corte entero una vez y la calibración y los dibujos pegados al
+  //      césped lo siguen (fase 2 de la calibración). Se ignora la esquina de la marca de agua de Veo.
+  const CAM_SMOOTH = 0.12;
+  async function analyzeCamera() {
+    const c = curClip(); if (!c || S.tracking) return;
+    if (!vid.videoWidth) return toast("El vídeo no está listo");
+    pause(); endCalibQuiet();
+    const TW = Math.min(CAM_W, vid.videoWidth), TH = Math.round((vid.videoHeight * TW) / vid.videoWidth);
+    const wc = document.createElement("canvas"); wc.width = TW; wc.height = TH; const wg = wc.getContext("2d", { willReadFrequently: true });
+    const grab = () => { wg.drawImage(vid, 0, 0, TW, TH); return toGray(wg.getImageData(0, 0, TW, TH)); };
+    const v0 = c.tin, v1 = c.tout;
+    await seekWait(v0);
+    const tr = createCamTracker(grab(), { avoid: (x, y) => x > 0.84 && y > 0.82 });
+    if (!tr) return toast("No encuentro detalles fijos en la imagen para seguir la cámara");
+    const I = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]; const samples = [camSample(v0, I, TW, TH)];
+    S.tracking = { cancel: false }; $("#trackMsg").textContent = "🎥 Analizando el movimiento de la cámara…"; $("#trackOv").classList.add("on"); $("#trackBar").style.width = "0%";
+    let last = v0, lostAt = null;
+    vid.playbackRate = 1;
+    await new Promise((res) => {
+      let done = false;
+      const fw = frameWatch();
+      const finish = () => { if (done) return; done = true; vid.pause(); fw.done(); res(); };
+      const schedule = () => fw.next(onFrame);
+      const onFrame = (mt) => {
+        if (done) return; if (S.tracking.cancel) return finish();
+        const vt = mt ?? vid.currentTime;
+        if (vt <= last + 1e-4) { if (vid.ended || vid.paused) return finish(); return schedule(); }
+        last = vt; const r = tr.update(grab());
+        if (r.ok) samples.push(camSample(vt, r.C, TW, TH));
+        else if (r.lost > 12) { lostAt = vt; return finish(); }
+        $("#trackBar").style.width = clamp(((vt - v0) / (v1 - v0)) * 100, 0, 100) + "%";
+        if (vt >= v1 - 0.02 || vid.ended) return finish();
+        schedule();
+      };
+      vid.play().then(schedule).catch(() => { toast("No se ha podido reproducir el vídeo"); finish(); });
+    });
+    const cancelled = S.tracking.cancel; S.tracking = null; $("#trackOv").classList.remove("on"); $("#trackMsg").textContent = "🎯 Siguiendo al jugador…";
+    if (samples.length > 2) {
+      snapshot(); c.cam = { samples: smoothCam(samples, (x) => smoothTrack(x, CAM_SMOOTH)) }; camVer++;
+      // los dibujos sin seguimiento que ya había, pegados al césped desde donde están ahora
+      for (const d of c.drawings) if (d.pin == null && !PIN_SKIP.includes(d.type) && !d.tracked && !d.follow && !hasOwnTracks(d) && !(d.kf || []).length) { const vt = mapL(c, d.from).vt; if (camM(c, vt)) d.pin = +vt.toFixed(4); }
+    }
+    seekLocal(Math.min(S.L, clipLen(c))); autosave(); renderTimeline(); renderProps();
+    const endL = fmt(localOfVideo(c, samples[samples.length - 1].vt), 1);
+    if (cancelled) toast("Análisis parado: la cámara se sigue hasta " + endL);
+    else if (lostAt != null) toast(`La cámara se ha perdido en ${fmt(localOfVideo(c, lostAt), 1)} (corte de plano o imagen sin detalles): a partir de ahí la calibración no sigue`);
+    else toast(c.freezes.some((f) => f.cal) ? "Hecho: la calibración sigue a la cámara en todo el corte" : "Hecho. Ahora calibra el campo en cualquier momento del corte y valdrá para todo el corte");
+  }
+  const camStatus = (c) => {
+    if (!c.cam) return { on: false, text: "Sin analizar" };
+    const s = c.cam.samples, a = s[0].vt, b = s[s.length - 1].vt;
+    const full = a <= c.tin + 0.15 && b >= c.tout - 0.25;
+    return { on: true, full, text: full ? "Analizada: sigue la cámara en todo el corte" : `Analizada de ${fmt(localOfVideo(c, a), 1)} a ${fmt(localOfVideo(c, b), 1)}` };
+  };
+
   function renderProps() {
     const c = curClip(); const el = $("#props");
     if (!c) { el.innerHTML = `<h3>Editor</h3><div class="hint">Lleva clips desde la playlist para empezar a dibujar.</div>`; return; }
@@ -1120,6 +1273,7 @@ export function mountRSVideo(root, opts = {}) {
         h += `<h3>Mover a mano</h3><div class="f"><label>Keyframes al arrastrar</label><input type="checkbox" id="pFollow" ${d.follow ? "checked" : ""}></div>
           <div class="hint">Avanza el vídeo y arrastra el dibujo en varios momentos: entre punto y punto se mueve solo (${(d.kf || []).length} keyframes).</div>`;
       }
+      if (!PIN_SKIP.includes(d.type) && !d.tracked && !hasOwnTracks(d) && !d.follow && camCovers(c, S.L)) h += `<div class="f"><label>Pegado al césped</label><input type="checkbox" id="pPin" ${d.pin != null ? "checked" : ""}></div><div class="hint">Pegado al césped: se mueve con la cámara, como si estuviera pintado en el campo. Sin marcar: se queda quieto en la pantalla.</div>`;
       h += `<h3>Acciones</h3><div class="btnrow"><button id="pDup">Duplicar</button><button id="pDel" style="color:var(--bad)">Borrar (Supr)</button></div>`;
     } else if (S.tool === "select") {
       h += `<div class="hint" style="margin-top:12px"><b>Cómo funciona</b><br>1. Para el vídeo donde quieras explicar algo y pulsa <b>❄ Congelar</b>.<br>2. Elige una herramienta a la izquierda y dibuja.<br>3. Lo que dibujas en un congelado dura lo que dura el congelado; en vídeo en movimiento, 4 s (se cambia en la línea de tiempo).<br>4. Para que una marca, un foco o una línea de jugadores siga a los jugadores: selecciónala y pulsa <b>🎯 Seguir</b>.<br><br><kbd>Espacio</kbd> play · <kbd>↑</kbd><kbd>↓</kbd> velocidad · <kbd>,</kbd> <kbd>.</kbd> fotograma · <kbd>Supr</kbd> borrar · <kbd>Ctrl+Z</kbd> deshacer</div>`;
@@ -1128,6 +1282,10 @@ export function mountRSVideo(root, opts = {}) {
         h += `<h3>Congelado</h3><div class="f"><label>Duración</label><span><input type="number" id="pFz" step="0.5" min="0.5" value="${S.selFreeze.dur}"> s</span></div>
           <div class="f"><label>Campo</label><span style="color:${sol ? "var(--good,#2fbf71)" : "var(--mut)"}">${sol ? "📐 Calibrado" : "Sin calibrar"}</span></div>
           <div class="btnrow"><button id="pFzCal">${sol ? "Revisar calibración" : "📐 Calibrar el campo"}</button><button id="pFzDel" style="color:var(--bad)">Quitar congelado</button></div>`;
+      }
+      if (c.freezes.some((f) => f.cal) || c.cam) {
+        const live = !S.selFreeze && calAt(c, S.L)?.moving;
+        h += camBlock(c) + (live ? `<div class="hint">Aquí la calibración viene del congelado más cercano. Si no encaja, <b>📐 Calibrar campo</b>: ya te dejo los puntos colocados para afinarlos.</div>` : "");
       }
     } else {
       h += `<div class="hint" style="margin-top:12px">${{
@@ -1157,11 +1315,13 @@ export function mountRSVideo(root, opts = {}) {
       const th = $("#pTrackH"); if (th) on(th, "input", (e) => { d.trackH = +e.target.value; autosave(); });
       const fw = $("#pFixWin"); if (fw) on(fw, "input", (e) => { d.fixWin = +e.target.value; $("#pFixWinV").textContent = "±" + d.fixWin.toFixed(1).replace(".", ",") + " s"; autosave(); });
       const tcut = $("#pTrackCut"); if (tcut) on(tcut, "click", () => { ch(() => (d.to = Math.max(d.from + 0.1, S.L))); renderProps(); toast("El dibujo termina en " + fmt(S.L, 1)); });
-      const tc = $("#pTrackClear"); if (tc) on(tc, "click", () => { ch(() => { const cur = ptsAt(d, S.L); d.pts = cur; d.kf = []; d.ptk = null; d.tracked = false; }); renderProps(); });
+      const tc = $("#pTrackClear"); if (tc) on(tc, "click", () => { ch(() => { const cur = ptsAt(d, S.L); d.pts = cur; d.kf = []; d.ptk = null; d.tracked = false; if (camCovers(c, S.L) && !PIN_SKIP.includes(d.type)) d.pin = +mapL(c, S.L).vt.toFixed(4); }); renderProps(); });
       on($("#pDup"), "click", () => { snapshot(); const n = JSON.parse(JSON.stringify(d)); n.id = uid(); n.pts = n.pts.map((p) => ({ x: p.x + 0.02, y: p.y + 0.02 })); n.kf = []; n.ptk = null; n.tracked = false; c.drawings.push(n); S.sel = n.id; afterCreate(); });
       on($("#pDel"), "click", delSel);
+      const pp = $("#pPin"); if (pp) on(pp, "change", (e) => ch(() => { const cur = ptsAt(d, S.L).map((q) => ({ x: q.x, y: q.y })); d.pts = cur; if (e.target.checked) d.pin = +mapL(c, S.L).vt.toFixed(4); else delete d.pin; }));
     }
     el.querySelectorAll("[data-trim]").forEach((b) => on(b, "click", () => trimClip(c, b.dataset.trim)));
+    if (!S.calib) el.querySelectorAll("[data-cam]").forEach((b) => on(b, "click", analyzeCamera));
     const fz = $("#pFz");
     if (fz) {
       on(fz, "change", (e) => { snapshot(); const nd = Math.max(0.5, +e.target.value); shiftAfter(c, freezeStartL(c, S.selFreeze) + S.selFreeze.dur, nd - S.selFreeze.dur); S.selFreeze.dur = nd; autosave(); renderTimeline(); });
