@@ -176,3 +176,21 @@
   .rsv header .file{display:none}
   .rsv .brandGrid{grid-template-columns:1fr}
 }
+.rsv .miniPitch{width:100%;display:block;margin:6px 0;user-select:none}
+.rsv .miniPitch rect{fill:#2f7d3c}
+.rsv .miniPitch .ln polyline{fill:none;stroke:rgba(255,255,255,.75);stroke-width:.35}
+.rsv .miniPitch .lm{cursor:pointer}
+.rsv .miniPitch .lm circle{fill:#fff;stroke:#111;stroke-width:.35}
+.rsv .miniPitch .lm:hover circle{fill:#ffd7b5}
+.rsv .miniPitch .lm.done circle{fill:#2fbf71}
+.rsv .miniPitch .lm.sel circle{fill:#ff6e00;stroke:#fff;stroke-width:.5}
+.rsv .miniPitch .lm text{font-size:2.1px;text-anchor:middle;fill:#111;font-weight:700;pointer-events:none}
+.rsv .calSel{font-size:12px;color:var(--mut);padding:6px 8px;border-radius:6px;background:#121316;border:1px dashed var(--line)}
+.rsv .calSel.on{color:#fff;border-color:var(--naranja);background:rgba(255,110,0,.12)}
+.rsv .calQ{font-size:12px;margin:6px 0;padding:6px 8px;border-radius:6px;background:#121316}
+.rsv .calQ.good{color:#2fbf71}.rsv .calQ.ok{color:#e3b341}.rsv .calQ.bad{color:#ff6b6b}.rsv .calQ.none{color:var(--mut)}
+.rsv .calList{font-size:12px;margin:4px 0}
+.rsv .calList div{display:flex;align-items:center;gap:6px;padding:2px 0}
+.rsv .calList span{background:#2fbf71;color:#111;border-radius:4px;padding:0 5px;font-weight:700;font-size:11px}
+.rsv .calList button{margin-left:auto;padding:0 6px}
+.rsv #eCalib.on{background:var(--naranja);color:#fff}

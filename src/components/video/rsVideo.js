@@ -6,12 +6,15 @@
 import { RATES, stepRate, RESERVED_KEYS, newTag, defaultSets, cleanSet, duplicateKeys, uniqueName, duplicateSet, exportSets, importSets, restoreSets, isDefaultSet, setPayload, syncPlan, sortSets } from "../../lib/videoTags.js";
 import { clipLen, mapL, freezeStartL, localOfVideo, kfOffset, ptsAt, visibleAt as visible, smoothTrack, samplesToLocal, spliceKeys } from "../../lib/videoTimeline.js";
 import { createTracker, bodyBox } from "../../lib/videoTracker.js";
+import { PITCH_TYPES, MARKS, pitchOf, landmarks, pitchLines, markLines, solveCal, toImage, toGround, groundDist, circleImg, groundRectImg, lineImg, calQuality, fmtM } from "../../lib/videoPitch.js";
 const MIN_CLIP = 0.5; // segundos: corte más corto
 const TRACK_SMOOTH = 0.15; // segundos: suavizado del seguimiento (quita el balanceo de cada zancada)
 
 const PALETTE = ["#ffffff", "#FF6E00", "#ffd400", "#e5484d", "#2fbf71", "#3ec7ff", "#73000A", "#111111"];
 const TRACKABLE = ["ring", "spot", "ellipse", "mag", "poly", "zone"];
 const MULTI = ["poly", "zone"];
+const GROUND_TYPES = ["ellipse", "spot", "ring", "rect", "measure"]; // con el campo calibrado se dibujan sobre el césped
+const GROUND_R = { ring: 1.2, spot: 1, ellipse: 5 }; // metros, al tocar sin arrastrar
 
 const TEMPLATE = `
 <header>
@@ -78,6 +81,7 @@ const TEMPLATE = `
         <div class="time" id="eTime"><b>00:00.0</b> / 00:00.0</div>
         <label style="display:flex;gap:4px;align-items:center;color:var(--mut)"><input type="checkbox" id="ePlayAll" checked> Secuencia</label>
         <div class="sp"></div>
+        <button id="eCalib" title="Marca 4 puntos del campo en una imagen congelada para dibujar sobre el césped y medir en metros">📐 Calibrar campo</button>
         <button id="eFreeze" title="Congela la imagen en este punto para explicar">❄ Congelar</button>
         <input type="number" id="eFreezeDur" value="3" min="0.5" step="0.5" title="segundos"> s
         <button class="pri" id="eExport">Exportar vídeo</button>
@@ -156,11 +160,13 @@ const TOOLS = [
   ["ellipse", "Zona circular en el césped (O)", '<ellipse cx="12" cy="13" rx="9" ry="5" stroke="currentColor" stroke-width="2" fill="currentColor" fill-opacity=".3"/>'],
   ["spot", "Foco sobre jugador (S)", '<path d="M8 3h8l4 15H4z" fill="currentColor" opacity=".35"/><ellipse cx="12" cy="18" rx="8" ry="3" stroke="currentColor" stroke-width="2" fill="none"/>'],
   ["ring", "Marca de jugador con nombre (M)", '<ellipse cx="12" cy="18" rx="7" ry="3" stroke="currentColor" stroke-width="2" fill="none"/><rect x="6" y="3" width="12" height="7" rx="2" fill="currentColor"/>'],
+  ["rect", "Zona rectangular en el césped (R) · con el campo calibrado sale en perspectiva", '<path d="M3 17l5-10h13l-5 10z" stroke="currentColor" stroke-width="2" fill="currentColor" fill-opacity=".3"/>'],
+  ["measure", "Medir distancia (D) · necesita el campo calibrado", '<path d="M3 17L21 7" stroke="currentColor" stroke-width="2"/><path d="M3 13v8M21 3v8" stroke="currentColor" stroke-width="2"/><path d="M8 14.5l1 1.8M12 12.3l1 1.8M16 10l1 1.8" stroke="currentColor" stroke-width="1.5"/>'],
   ["text", "Texto (T)", '<path d="M5 5h14M12 5v15" stroke="currentColor" stroke-width="2.4"/>'],
   ["mag", "Lupa (G)", '<circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="2" fill="none"/><path d="M15 15l6 6" stroke="currentColor" stroke-width="2.4"/>'],
 ];
-const TOOL_KEYS = { v: "select", a: "arrow", c: "curve", l: "line", f: "poly", z: "zone", o: "ellipse", s: "spot", m: "ring", t: "text", g: "mag" };
-const TOOL_NAMES = { arrow: "Flecha", curve: "Flecha curva", line: "Línea", poly: "Línea de jugadores", zone: "Zona", ellipse: "Zona circular", spot: "Foco", ring: "Marca jugador", text: "Texto", mag: "Lupa" };
+const TOOL_KEYS = { v: "select", a: "arrow", c: "curve", l: "line", f: "poly", z: "zone", o: "ellipse", r: "rect", s: "spot", m: "ring", d: "measure", t: "text", g: "mag" };
+const TOOL_NAMES = { arrow: "Flecha", curve: "Flecha curva", line: "Línea", poly: "Línea de jugadores", zone: "Zona", ellipse: "Zona circular", rect: "Zona rectangular", measure: "Medida", spot: "Foco", ring: "Marca jugador", text: "Texto", mag: "Lupa" };
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -185,7 +191,7 @@ export function mountRSVideo(root, opts = {}) {
   const savedBrand = load("brand") || {};
   const S = {
     video: null, sets: restored.sets, setId: restored.active, clips: [], seq: [], mode: "tag", filter: null, activeRow: null, rec: {},
-    cur: null, L: 0, playing: false, tool: "select", sel: null, selFreeze: null, draft: null, tracking: null,
+    cur: null, L: 0, playing: false, tool: "select", sel: null, selFreeze: null, draft: null, tracking: null, calib: null,
     style: { color: "#ffffff", width: 4, dash: false, fill: 0.25, anim: true },
     brand: { intro: { ...BRAND_DEFAULT.intro, ...(savedBrand.intro || {}) }, wm: { ...BRAND_DEFAULT.wm, ...(savedBrand.wm || {}) } },
   };
@@ -607,10 +613,13 @@ export function mountRSVideo(root, opts = {}) {
     if (vid.readyState >= 2) g.drawImage(vid, 0, 0, W, H); else { g.fillStyle = "#000"; g.fillRect(0, 0, W, H); }
     if (!c) return;
     const sc = H / 720;
+    if (!o.clean && S.calib && calFreeze()) { drawCalibration(g, W, H, sc); return; }
+    const cal = calAt(c, L);
+    if (cal) drawPitchMarks(g, W, H, sc, cal);
     const animate = o.clean || S.playing || S.tracking;
-    for (const d of c.drawings) if (visible(d, L)) drawShape(g, W, H, sc, d, L, !animate);
+    for (const d of c.drawings) if (visible(d, L)) drawShape(g, W, H, sc, d, L, !animate, cal);
     if (o.clean) { if (o.watermark) drawWatermark(g, W, H); return; }
-    if (S.draft) drawShape(g, W, H, sc, S.draft, L, true);
+    if (S.draft) drawShape(g, W, H, sc, S.draft, L, true, cal);
     const sd = c.drawings.find((d) => d.id === S.sel);
     if (sd && visible(sd, L)) {
       if (TRACKABLE.includes(sd.type) && !S.playing) {
@@ -621,7 +630,7 @@ export function mountRSVideo(root, opts = {}) {
       for (const p of ptsAt(sd, L)) { g.fillStyle = "#fff"; g.strokeStyle = "#000"; g.lineWidth = 1.5; g.beginPath(); g.arc(p.x * W, p.y * H, 6, 0, 7); g.fill(); g.stroke(); }
     }
   }
-  function drawShape(g, W, H, sc, d, L, still) {
+  function drawShape(g, W, H, sc, d, L, still, cal) {
     const Pt = ptsAt(d, L).map((p) => ({ x: p.x * W, y: p.y * H }));
     if (!Pt.length) return;
     let alpha = 1, grow = 1;
@@ -649,6 +658,40 @@ export function mountRSVideo(root, opts = {}) {
     } else if (t === "zone") {
       g.beginPath(); Pt.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); if (!still || d !== S.draft) g.closePath();
       g.save(); g.shadowBlur = 0; g.fillStyle = hexA(d.color, d.fill * grow); g.fill(); g.restore(); g.stroke();
+    } else if (t === "rect") {
+      if (Pt.length < 2) { g.restore(); return; }
+      const poly = rectCorners(d, L, cal).map((q) => ({ x: q.x * W, y: q.y * H }));
+      g.beginPath(); poly.forEach((q, i) => (i ? g.lineTo(q.x, q.y) : g.moveTo(q.x, q.y))); g.closePath();
+      g.save(); g.shadowBlur = 0; g.fillStyle = hexA(d.color, d.fill * grow); g.fill(); g.restore(); g.stroke();
+      if (cal && d.gnd && d.text !== "off") {
+        const P0 = ptsAt(d, L), A = toGround(cal, P0[0]), B = toGround(cal, P0[1]);
+        const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+        label(g, `${fmtM(Math.abs(B.x - A.x))} × ${fmtM(Math.abs(B.y - A.y))}`, mid(poly[0], poly[2]).x, mid(poly[0], poly[2]).y, d.color, sc * 0.75, true);
+      }
+    } else if (t === "measure") {
+      if (Pt.length < 2) { g.restore(); return; }
+      const a = Pt[0], b = Pt[1], ang = Math.atan2(b.y - a.y, b.x - a.x), n = { x: -Math.sin(ang), y: Math.cos(ang) }, tk = 9 * sc;
+      g.setLineDash([]); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y);
+      for (const q of [a, b]) { g.moveTo(q.x - n.x * tk, q.y - n.y * tk); g.lineTo(q.x + n.x * tk, q.y + n.y * tk); }
+      g.stroke();
+      const txt = cal && d.gnd ? fmtM(groundDist(cal, ptsAt(d, L)[0], ptsAt(d, L)[1])) : "Calibra el campo";
+      label(g, txt, (a.x + b.x) / 2, (a.y + b.y) / 2 - 18 * sc, d.color, sc * 0.8, true);
+    } else if ((t === "ellipse" || t === "spot" || t === "ring") && cal && d.gnd && Pt.length > 1) {
+      // sobre el césped: círculo de verdad en metros, más pequeño cuanto más lejos
+      const P0 = ptsAt(d, L), G = toGround(cal, P0[0]), R = Math.max(0.2, groundDist(cal, P0[0], P0[1])) * (t === "ring" || t === "ellipse" ? grow : 1);
+      const poly = circleImg(cal, G, R, 56).map((q) => ({ x: q.x * W, y: q.y * H }));
+      const path = () => { g.beginPath(); poly.forEach((q, i) => (i ? g.lineTo(q.x, q.y) : g.moveTo(q.x, q.y))); g.closePath(); };
+      const c0 = Pt[0]; const xs = poly.map((q) => q.x), ys = poly.map((q) => q.y);
+      const rx = Math.max(4, (Math.max(...xs) - Math.min(...xs)) / 2), ry = Math.max(2, (Math.max(...ys) - Math.min(...ys)) / 2);
+      const pxm = rx / R; // píxeles por metro en ese punto del campo: lo de pie (un jugador ≈ 1,8 m) se ve a esa escala
+      if (t === "ellipse") { path(); g.save(); g.shadowBlur = 0; g.fillStyle = hexA(d.color, d.fill); g.fill(); g.restore(); g.stroke(); }
+      if (t === "ring") { g.setLineDash(d.dash ? [lw * 2, lw * 1.6] : []); path(); g.stroke(); if (d.text) label(g, d.text, c0.x, c0.y - pxm * 2 - 20 * sc, d.color, sc, true); }
+      if (t === "spot") {
+        g.shadowBlur = 0; const cy = (Math.max(...ys) + Math.min(...ys)) / 2, top = cy - pxm * 2.2 * grow;
+        const gr = g.createLinearGradient(0, top, 0, cy); gr.addColorStop(0, hexA(d.color, 0)); gr.addColorStop(1, hexA(d.color, 0.42));
+        g.fillStyle = gr; g.beginPath(); g.moveTo(c0.x - rx * 0.45, top); g.lineTo(c0.x + rx * 0.45, top); g.lineTo(c0.x + rx, cy); g.ellipse(c0.x, cy, rx, ry, 0, 0, Math.PI); g.closePath(); g.fill();
+        g.setLineDash([]); g.lineWidth = lw * 0.8; path(); g.fillStyle = hexA(d.color, 0.35); g.fill(); g.stroke();
+      }
     } else if (t === "ellipse" || t === "spot" || t === "ring" || t === "mag") {
       const c0 = Pt[0], c1 = Pt[1] || { x: c0.x + 40 * sc, y: c0.y };
       const rx = Math.max(6, Math.hypot(c1.x - c0.x, c1.y - c0.y)) * (t === "mag" ? 1 : grow);
@@ -684,6 +727,128 @@ export function mountRSVideo(root, opts = {}) {
     g.restore();
   }
 
+  // ---- calibración del campo (sobre un congelado) ----
+  const calCache = new Map();
+  const aspectOf = () => (S.video?.w && S.video?.h ? S.video.w / S.video.h : 16 / 9);
+  function solved(cal) {
+    if (!cal?.pairs || cal.pairs.length < 4) return null;
+    const key = JSON.stringify([cal.field, cal.len, cal.wid, cal.pairs, aspectOf()]);
+    if (!calCache.has(key)) { if (calCache.size > 40) calCache.clear(); calCache.set(key, solveCal(cal, aspectOf())); }
+    return calCache.get(key);
+  }
+  function calAt(c, L) { const f = c && mapL(c, L).frozen; return f?.cal ? solved(f.cal) : null; }
+  const calFreeze = () => { const c = curClip(); return c && S.calib ? c.freezes.find((f) => f.id === S.calib.fzId) : null; };
+  function rectCorners(d, L, cal) {
+    const P = ptsAt(d, L); if (P.length < 2) return P;
+    if (cal && d.gnd) return groundRectImg(cal, P[0], P[1]);
+    return [P[0], { x: P[1].x, y: P[0].y }, P[1], { x: P[0].x, y: P[1].y }];
+  }
+  function strokeGround(g, W, H, cal, lines) {
+    for (const l of lines) for (const seg of lineImg(cal, l)) { g.beginPath(); seg.forEach((q, i) => (i ? g.lineTo(q.x * W, q.y * H) : g.moveTo(q.x * W, q.y * H))); g.stroke(); }
+  }
+  function drawPitchMarks(g, W, H, sc, cal, f) {
+    const fz = f || mapL(curClip(), S.L).frozen; const opt = fz?.cal || {};
+    g.save(); g.lineCap = "round";
+    if (opt.lines) { g.strokeStyle = "rgba(255,110,0,.85)"; g.lineWidth = 2 * sc; strokeGround(g, W, H, cal, pitchLines(cal.p)); }
+    if (opt.marks) { g.strokeStyle = "rgba(255,255,255,.75)"; g.lineWidth = 2.2 * sc; g.setLineDash([10 * sc, 8 * sc]); strokeGround(g, W, H, cal, markLines(cal.p, opt.marks)); }
+    g.restore();
+  }
+  function drawCalibration(g, W, H, sc) {
+    const f = calFreeze(); const cal = f.cal; const sol = solved(cal); const lm = Object.fromEntries(landmarks(pitchOf(cal)).map((l) => [l.k, l]));
+    g.save(); g.fillStyle = "rgba(0,0,0,.18)"; g.fillRect(0, 0, W, H);
+    if (sol) { g.strokeStyle = "rgba(255,110,0,.95)"; g.lineWidth = 2.2 * sc; g.lineCap = "round"; strokeGround(g, W, H, sol, pitchLines(sol.p)); }
+    cal.pairs.forEach((q, i) => {
+      const x = q.x * W, y = q.y * H, r = 7 * sc;
+      g.lineWidth = 2 * sc; g.strokeStyle = "#000"; g.fillStyle = S.calib.drag === i ? "#ff6e00" : "#2fbf71";
+      g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.stroke();
+      g.beginPath(); g.moveTo(x - r * 2, y); g.lineTo(x - r, y); g.moveTo(x + r, y); g.lineTo(x + r * 2, y); g.moveTo(x, y - r * 2); g.lineTo(x, y - r); g.moveTo(x, y + r); g.lineTo(x, y + r * 2); g.strokeStyle = "#fff"; g.stroke();
+      label(g, String(i + 1), x + r * 2.4, y - r * 2.2, "#2fbf71", sc * 0.7, false);
+      if (sol) { const pr = toImage(sol, lm[q.k]); g.strokeStyle = "#ff6e00"; g.lineWidth = 1.5 * sc; g.beginPath(); g.moveTo(x, y); g.lineTo(pr.x * W, pr.y * H); g.stroke(); }
+    });
+    // lupa para afinar: lo que hay bajo el puntero, ampliado
+    const hv = S.calib.hover;
+    if (hv && vid.readyState >= 2) {
+      const R = 70 * sc, z = 3, cx = hv.x * W > W - R * 3 ? R + 12 * sc : W - R - 12 * sc, cy = R + 12 * sc;
+      g.save(); g.beginPath(); g.arc(cx, cy, R, 0, 7); g.clip();
+      const sw = ((R * 2) / z / W) * vid.videoWidth, sh = ((R * 2) / z / H) * vid.videoHeight;
+      g.drawImage(vid, hv.x * vid.videoWidth - sw / 2, hv.y * vid.videoHeight - sh / 2, sw, sh, cx - R, cy - R, R * 2, R * 2);
+      g.strokeStyle = "rgba(255,110,0,.9)"; g.lineWidth = 1.5 * sc; g.beginPath(); g.moveTo(cx - R, cy); g.lineTo(cx + R, cy); g.moveTo(cx, cy - R); g.lineTo(cx, cy + R); g.stroke();
+      g.restore(); g.lineWidth = 3 * sc; g.strokeStyle = "#fff"; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke();
+    }
+    g.restore();
+  }
+  function makeFreeze(c, dur) {
+    const m = mapL(c, S.L); const at = m.vt - c.tin;
+    shiftAfter(c, S.L + 1e-3, dur); const f = { id: uid(), at, dur }; c.freezes.push(f);
+    S.L = freezeStartL(c, f) + 0.001; return f;
+  }
+  function startCalib() {
+    const c = curClip(); if (!c) return toast("Lleva un clip al editor para calibrar el campo");
+    pause(); snapshot();
+    let f = mapL(c, S.L).frozen;
+    if (!f) { f = makeFreeze(c, Math.max(3, +$("#eFreezeDur").value || 3)); toast("He congelado la imagen aquí para calibrar sobre ella"); }
+    const prev = c.freezes.filter((x) => x !== f && x.cal).sort((a, b) => b.at - a.at)[0]?.cal;
+    if (!f.cal) f.cal = { field: prev?.field || "f11", len: prev?.len, wid: prev?.wid, pairs: [], marks: "", lines: false };
+    S.calib = { fzId: f.id, sel: null, drag: null, hover: null }; S.selFreeze = f; S.sel = null; S.draft = null; S.tool = "select";
+    renderTools(); renderTimeline(); renderProps();
+  }
+  function endCalib() { S.calib = null; autosave(); renderProps(); renderTimeline(); }
+  on($("#eCalib"), "click", (e) => { e.currentTarget.blur(); S.calib ? endCalib() : startCalib(); });
+  // dibujo pequeño del campo con los puntos que se pueden marcar
+  function miniPitch(cal) {
+    const p = pitchOf(cal), m = 3, done = Object.fromEntries(cal.pairs.map((q, i) => [q.k, i + 1]));
+    const lines = pitchLines(p).map((l) => `<polyline points="${l.map((q) => `${q.x + m},${q.y + m}`).join(" ")}"/>`).join("");
+    const dots = landmarks(p).map((l) => { const n = done[l.k], sel = S.calib?.sel === l.k;
+      return `<g class="lm ${n ? "done" : ""} ${sel ? "sel" : ""}" data-k="${l.k}"><title>${esc(l.name)}</title><circle cx="${l.x + m}" cy="${l.y + m}" r="${sel ? 2.3 : 1.8}"/>${n ? `<text x="${l.x + m}" y="${l.y + m + 0.9}">${n}</text>` : ""}</g>`; }).join("");
+    return `<svg class="miniPitch" viewBox="0 0 ${p.len + 2 * m} ${p.wid + 2 * m}"><rect x="0" y="0" width="${p.len + 2 * m}" height="${p.wid + 2 * m}" rx="2"/><g class="ln">${lines}</g>${dots}</svg>`;
+  }
+  function calibPanel() {
+    const f = calFreeze(); const cal = f.cal; const p = pitchOf(cal); const q = calQuality(solved(cal)); const lm = Object.fromEntries(landmarks(p).map((l) => [l.k, l]));
+    const selName = S.calib.sel ? lm[S.calib.sel]?.name : null;
+    return `<h3>📐 Calibrar el campo</h3>
+      <div class="hint">1. Toca en el dibujo un punto del campo que se vea bien en la imagen.<br>2. Tócalo en la imagen (arriba a la derecha sale una lupa).<br>Hacen falta <b>4 puntos</b> (mejor 5 o 6), repartidos y que no estén todos en la misma línea. Las líneas naranjas tienen que caer encima de las del campo.</div>
+      <div class="f"><label>Campo</label><select id="cField">${Object.entries(PITCH_TYPES).map(([k, v]) => `<option value="${k}" ${p.field === k ? "selected" : ""}>${v.name}</option>`).join("")}</select></div>
+      <div class="f"><label>Largo × ancho</label><span><input type="number" id="cLen" value="${p.len}" min="30" max="130" step="0.5" style="width:56px"> × <input type="number" id="cWid" value="${p.wid}" min="20" max="100" step="0.5" style="width:56px"> m</span></div>
+      ${miniPitch(cal)}
+      <div class="calSel ${selName ? "on" : ""}">${selName ? `Ahora toca en la imagen: <b>${esc(selName)}</b>` : "Elige un punto en el dibujo del campo"}</div>
+      <div class="calQ ${q.level}">${q.text}</div>
+      ${cal.pairs.length ? `<div class="calList">${cal.pairs.map((x, i) => `<div><span>${i + 1}</span>${esc(lm[x.k]?.name || x.k)}<button data-cdel="${i}" title="Quitar este punto">✕</button></div>`).join("")}</div>` : ""}
+      <h3>En el césped</h3>
+      <div class="f"><label>Zonas</label><select id="cMarks">${MARKS.map(([k, n]) => `<option value="${k}" ${cal.marks === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
+      <div class="f"><label>Ver líneas del campo</label><input type="checkbox" id="cLines" ${cal.lines ? "checked" : ""}></div>
+      <div class="btnrow">${cal.pairs.length ? `<button id="cClear">Borrar puntos</button>` : ""}<button id="cRemove" style="color:var(--bad)">Quitar calibración</button></div>
+      <button class="pri" id="cDone" style="width:100%;margin-top:6px">Hecho</button>`;
+  }
+  function bindCalibPanel(el) {
+    const f = calFreeze(); const cal = f.cal; const re = () => { autosave(); renderProps(); };
+    el.querySelectorAll(".miniPitch .lm").forEach((n) => on(n, "click", () => { S.calib.sel = S.calib.sel === n.dataset.k ? null : n.dataset.k; renderProps(); }));
+    on($("#cField"), "change", (e) => { snapshot(); cal.field = e.target.value; cal.len = undefined; cal.wid = undefined; const ok = new Set(landmarks(pitchOf(cal)).map((l) => l.k)); cal.pairs = cal.pairs.filter((x) => ok.has(x.k)); re(); });
+    on($("#cLen"), "change", (e) => { snapshot(); cal.len = +e.target.value; re(); });
+    on($("#cWid"), "change", (e) => { snapshot(); cal.wid = +e.target.value; re(); });
+    on($("#cMarks"), "change", (e) => { snapshot(); cal.marks = e.target.value; re(); });
+    on($("#cLines"), "change", (e) => { snapshot(); cal.lines = e.target.checked; re(); });
+    el.querySelectorAll("[data-cdel]").forEach((b) => on(b, "click", () => { snapshot(); cal.pairs.splice(+b.dataset.cdel, 1); re(); }));
+    const cl = $("#cClear"); if (cl) on(cl, "click", () => { snapshot(); cal.pairs = []; re(); });
+    on($("#cRemove"), "click", () => { snapshot(); delete f.cal; S.calib = null; autosave(); renderProps(); renderTimeline(); toast("Calibración quitada"); });
+    on($("#cDone"), "click", () => {
+      if (cal.pairs.length && !solved(cal)) toast(cal.pairs.length < 4 ? "Faltan puntos: la calibración no se usará hasta tener 4" : "Con estos puntos no se puede calcular: revisa que no estén en la misma línea");
+      endCalib();
+    });
+  }
+  function calibPointer(e, kind) {
+    const f = calFreeze(); const cal = f.cal; const p = evPt(e); const W = cv.width, H = cv.height, tol = (14 / cv.getBoundingClientRect().width) * W;
+    if (kind === "down") {
+      const i = cal.pairs.findIndex((q) => Math.hypot((q.x - p.x) * W, (q.y - p.y) * H) < tol);
+      if (i >= 0) { snapshot(); S.calib.drag = i; return; }
+      if (!S.calib.sel) return toast("Primero elige en el dibujo del campo (a la derecha) qué punto vas a marcar");
+      snapshot(); cal.pairs = cal.pairs.filter((q) => q.k !== S.calib.sel); cal.pairs.push({ k: S.calib.sel, x: p.x, y: p.y });
+      S.calib.drag = cal.pairs.length - 1; S.calib.sel = null; renderProps(); return;
+    }
+    if (kind === "move") { S.calib.hover = p; if (S.calib.drag != null) { const q = cal.pairs[S.calib.drag]; if (q) { q.x = clamp(p.x, 0, 1); q.y = clamp(p.y, 0, 1); } } cv.style.cursor = "crosshair"; return; }
+    if (kind === "up") { if (S.calib.drag != null) { S.calib.drag = null; autosave(); renderProps(); } }
+    if (kind === "leave") S.calib.hover = null;
+  }
+
   // ---- ratón / dedo sobre el vídeo ----
   const evPt = (e) => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }; };
   const segD = (p, a, b) => { const l2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2; let u = l2 ? ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2 : 0; u = clamp(u, 0, 1); return Math.hypot(p.x - a.x - u * (b.x - a.x), p.y - a.y - u * (b.y - a.y)); };
@@ -698,6 +863,8 @@ export function mountRSVideo(root, opts = {}) {
       const d = vis[k], pp = Pp(d);
       if (["arrow", "line", "poly", "curve"].includes(d.type)) { const pl = d.type === "curve" ? [...Array(21)].map((_, i) => qb(pp[0], pp[1], pp[2], i / 20)) : pp; for (let i = 0; i < pl.length - 1; i++) if (segD(q, pl[i], pl[i + 1]) < tol) return { d, h: -1 }; }
       else if (d.type === "zone") { if (inPoly(q, pp)) return { d, h: -1 }; }
+      else if (d.type === "rect") { if (inPoly(q, rectCorners(d, S.L, calAt(c, S.L)).map((r) => ({ x: r.x * W, y: r.y * H })))) return { d, h: -1 }; }
+      else if (d.type === "measure") { if (segD(q, pp[0], pp[1]) < tol) return { d, h: -1 }; }
       else if (d.type === "text") { if (Math.abs(q.x - pp[0].x - 60) < 80 && Math.abs(q.y - pp[0].y) < 24) return { d, h: -1 }; }
       else { const r = Math.hypot(pp[1].x - pp[0].x, pp[1].y - pp[0].y); const ry = d.type === "mag" ? r : r * 0.4; const dx = (q.x - pp[0].x) / r, dy = (q.y - pp[0].y) / Math.max(ry, 8);
         if (dx * dx + dy * dy < 1.4 || (d.type === "ring" && Math.abs(q.x - pp[0].x) < 50 && q.y < pp[0].y && q.y > pp[0].y - (d.trackH || 0.09) * H - 40)) return { d, h: -1 }; }
@@ -711,7 +878,8 @@ export function mountRSVideo(root, opts = {}) {
   }
   function mkDrawing(type, pts) {
     const c = curClip(); const [from, to] = defaultRange(c); const st = S.style;
-    return { id: uid(), type, pts, color: st.color, width: type === "text" ? 4 : st.width, dash: st.dash, fill: st.fill, anim: st.anim, from, to, kf: [], trackH: 0.09, text: type === "ring" ? "Jugador" : type === "text" ? "Texto" : "" };
+    const gnd = GROUND_TYPES.includes(type) && !!calAt(c, S.L);
+    return { id: uid(), type, pts, color: st.color, width: type === "text" ? 4 : st.width, dash: st.dash, fill: st.fill, anim: st.anim, from, to, kf: [], trackH: 0.09, text: type === "ring" ? "Jugador" : type === "text" ? "Texto" : "", ...(gnd ? { gnd: true } : {}) };
   }
   const hasOwnTracks = (d) => d.ptk && d.ptk.some((x) => x && x.length);
   function upsert(list, t, v) { const k = list.find((x) => Math.abs(x.t - t) < 0.05); if (k) Object.assign(k, v); else { list.push({ t, ...v }); list.sort((a, b) => a.t - b.t); } }
@@ -719,6 +887,7 @@ export function mountRSVideo(root, opts = {}) {
   let drag = null;
   on(cv, "pointerdown", (e) => {
     const c = curClip(); if (!c || S.tracking) return; cv.setPointerCapture(e.pointerId); const p = evPt(e);
+    if (S.calib && calFreeze()) return calibPointer(e, "down");
     if (S.playing) pause();
     if (S.tool === "select") {
       const h = hit(c, p);
@@ -738,8 +907,10 @@ export function mountRSVideo(root, opts = {}) {
     S.draft = mkDrawing(S.tool, S.tool === "curve" ? [p, { ...p }, { ...p }] : [p, { ...p }]);
     drag = { kind: "create" };
   });
+  on(cv, "pointerleave", (e) => { if (S.calib && calFreeze()) calibPointer(e, "leave"); });
   on(cv, "pointermove", (e) => {
     const p = evPt(e); const c = curClip(); if (!c) return;
+    if (S.calib && calFreeze()) return calibPointer(e, "move");
     if ((S.tool === "poly" || S.tool === "zone") && S.draft) { S.draft.pts[S.draft.pts.length - 1] = p; return; }
     if (!drag) { cv.style.cursor = S.tool === "select" ? (hit(c, p) ? "move" : "default") : "crosshair"; return; }
     if (drag.kind === "create") {
@@ -755,13 +926,16 @@ export function mountRSVideo(root, opts = {}) {
     else if (d.follow || d.tracked) setKf(d, S.L, drag.ox + dx, drag.oy + dy);
     else d.pts = drag.orig.map((q) => ({ x: q.x + dx, y: q.y + dy }));
   });
-  on(cv, "pointerup", () => {
+  on(cv, "pointerup", (e) => {
     const c = curClip(); if (!c) return;
+    if (S.calib && calFreeze()) return calibPointer(e, "up");
     if (drag?.kind === "create") {
       const d = S.draft; S.draft = null; drag = null;
       const big = Math.hypot(d.pts[d.pts.length - 1].x - d.pts[0].x, d.pts[d.pts.length - 1].y - d.pts[0].y) > 0.006;
       if (!big && !["ring", "spot", "ellipse", "mag"].includes(d.type)) return;
-      if (!big) d.pts[1] = { x: d.pts[0].x + { ring: 0.022, spot: 0.03, ellipse: 0.06, mag: 0.08 }[d.type], y: d.pts[0].y };
+      const gcal = d.gnd && calAt(c, S.L);
+      if (!big && gcal) { const G = toGround(gcal, d.pts[0]); const q = toImage(gcal, { x: G.x + GROUND_R[d.type], y: G.y }); d.pts[1] = { x: q.x, y: q.y }; }
+      else if (!big) d.pts[1] = { x: d.pts[0].x + { ring: 0.022, spot: 0.03, ellipse: 0.06, mag: 0.08 }[d.type], y: d.pts[0].y };
       snapshot(); c.drawings.push(d); S.sel = d.id; afterCreate(d.type === "ring"); return;
     }
     if (drag) { drag = null; autosave(); renderTimeline(); renderProps(); }
@@ -849,6 +1023,9 @@ export function mountRSVideo(root, opts = {}) {
   function renderProps() {
     const c = curClip(); const el = $("#props");
     if (!c) { el.innerHTML = `<h3>Editor</h3><div class="hint">Lleva clips desde la playlist para empezar a dibujar.</div>`; return; }
+    if (S.calib && !calFreeze()) S.calib = null;
+    $("#eCalib").classList.toggle("on", !!S.calib);
+    if (S.calib) { el.innerHTML = calibPanel(); bindCalibPanel(el); return; }
     const d = c.drawings.find((x) => x.id === S.sel);
     const st = d || S.style;
     const sw = PALETTE.map((col) => `<i style="background:${col}" class="${st.color.toLowerCase() === col.toLowerCase() ? "on" : ""}" data-c="${col}"></i>`).join("");
@@ -884,13 +1061,19 @@ export function mountRSVideo(root, opts = {}) {
       h += `<h3>Acciones</h3><div class="btnrow"><button id="pDup">Duplicar</button><button id="pDel" style="color:var(--bad)">Borrar (Supr)</button></div>`;
     } else if (S.tool === "select") {
       h += `<div class="hint" style="margin-top:12px"><b>Cómo funciona</b><br>1. Para el vídeo donde quieras explicar algo y pulsa <b>❄ Congelar</b>.<br>2. Elige una herramienta a la izquierda y dibuja.<br>3. Lo que dibujas en un congelado dura lo que dura el congelado; en vídeo en movimiento, 4 s (se cambia en la línea de tiempo).<br>4. Para que una marca, un foco o una línea de jugadores siga a los jugadores: selecciónala y pulsa <b>🎯 Seguir</b>.<br><br><kbd>Espacio</kbd> play · <kbd>↑</kbd><kbd>↓</kbd> velocidad · <kbd>,</kbd> <kbd>.</kbd> fotograma · <kbd>Supr</kbd> borrar · <kbd>Ctrl+Z</kbd> deshacer</div>`;
-      if (S.selFreeze) h += `<h3>Congelado</h3><div class="f"><label>Duración</label><span><input type="number" id="pFz" step="0.5" min="0.5" value="${S.selFreeze.dur}"> s</span></div><div class="btnrow"><button id="pFzDel" style="color:var(--bad)">Quitar congelado</button></div>`;
+      if (S.selFreeze) {
+        const sol = S.selFreeze.cal ? solved(S.selFreeze.cal) : null;
+        h += `<h3>Congelado</h3><div class="f"><label>Duración</label><span><input type="number" id="pFz" step="0.5" min="0.5" value="${S.selFreeze.dur}"> s</span></div>
+          <div class="f"><label>Campo</label><span style="color:${sol ? "var(--good,#2fbf71)" : "var(--mut)"}">${sol ? "📐 Calibrado" : "Sin calibrar"}</span></div>
+          <div class="btnrow"><button id="pFzCal">${sol ? "Revisar calibración" : "📐 Calibrar el campo"}</button><button id="pFzDel" style="color:var(--bad)">Quitar congelado</button></div>`;
+      }
     } else {
       h += `<div class="hint" style="margin-top:12px">${{
         arrow: "Arrastra desde el origen hasta el destino.", curve: "Arrastra de origen a destino; luego, con Seleccionar, mueve el punto central para curvarla.", line: "Arrastra para trazar la línea.",
         poly: "Clic en los pies de cada jugador (p. ej. la línea defensiva). Doble clic o Intro para terminar. Después puedes pulsar «Seguir» para que la línea se mueva con ellos.", zone: "Clic en cada vértice. Doble clic o Intro para cerrar la zona.",
         ellipse: "Arrastra desde el centro hacia fuera. Se dibuja aplanada, como pegada al césped.", spot: "Clic en los pies del jugador (o arrastra para el tamaño).",
-        ring: "Clic en los pies del jugador y escribe su nombre o dorsal.", text: "Clic donde quieras el texto y escríbelo a la derecha.", mag: "Clic donde quieras ampliar; arrastra para el tamaño." }[S.tool]}</div>`;
+        ring: "Clic en los pies del jugador y escribe su nombre o dorsal.", rect: "Arrastra de una esquina a la contraria. Con el campo calibrado sale tumbada en el césped, con sus medidas en metros.",
+        measure: "Arrastra de un punto a otro del césped: sale la distancia en metros. Necesita el campo calibrado (botón 📐).", text: "Clic donde quieras el texto y escríbelo a la derecha.", mag: "Clic donde quieras ampliar; arrastra para el tamaño." }[S.tool]}</div>`;
     }
     el.innerHTML = h;
     const tgt = d || S.style;
@@ -918,6 +1101,7 @@ export function mountRSVideo(root, opts = {}) {
     const fz = $("#pFz");
     if (fz) {
       on(fz, "change", (e) => { snapshot(); const nd = Math.max(0.5, +e.target.value); shiftAfter(c, freezeStartL(c, S.selFreeze) + S.selFreeze.dur, nd - S.selFreeze.dur); S.selFreeze.dur = nd; autosave(); renderTimeline(); });
+      on($("#pFzCal"), "click", () => { seekLocal(freezeStartL(c, S.selFreeze) + 0.01); startCalib(); });
       on($("#pFzDel"), "click", () => { snapshot(); const f = S.selFreeze, s = freezeStartL(c, f); shiftAfter(c, s + f.dur, -f.dur, s); c.freezes = c.freezes.filter((x) => x !== f); S.selFreeze = null; seekLocal(Math.min(S.L, clipLen(c))); autosave(); renderTimeline(); renderProps(); });
     }
   }
@@ -942,9 +1126,9 @@ export function mountRSVideo(root, opts = {}) {
   on($("#eFreeze"), "click", () => {
     const c = curClip(); if (!c) return; pause(); const m = mapL(c, S.L);
     if (m.frozen) return toast("Ya estás en un congelado");
-    const dur = Math.max(0.5, +$("#eFreezeDur").value || 3); const at = m.vt - c.tin;
-    snapshot(); shiftAfter(c, S.L + 1e-3, dur); const f = { id: uid(), at, dur }; c.freezes.push(f);
-    S.selFreeze = f; S.L = freezeStartL(c, f) + 0.001; if (S.tool === "select") S.tool = "arrow"; renderTools();
+    const dur = Math.max(0.5, +$("#eFreezeDur").value || 3);
+    snapshot(); const f = makeFreeze(c, dur);
+    S.selFreeze = f; if (S.tool === "select") S.tool = "arrow"; renderTools();
     autosave(); renderTimeline(); renderProps(); toast("Imagen congelada " + dur + " s · dibuja encima");
   });
 
@@ -1037,7 +1221,8 @@ export function mountRSVideo(root, opts = {}) {
       if (k === ",") { pause(); seekLocal(S.L - 1 / 25); return; } if (k === ".") { pause(); seekLocal(S.L + 1 / 25); return; }
       if (k === "arrowleft") { e.preventDefault(); pause(); seekLocal(S.L - (e.shiftKey ? 5 : 1)); return; } if (k === "arrowright") { e.preventDefault(); pause(); seekLocal(S.L + (e.shiftKey ? 5 : 1)); return; }
       if (k === "delete" || k === "backspace") { e.preventDefault(); delSel(); return; }
-      if (k === "enter") { finishDraft(); return; } if (k === "escape") { S.draft = null; S.sel = null; renderProps(); renderTimeline(); return; }
+      if (k === "enter") { finishDraft(); return; } if (k === "escape") { if (S.calib) return endCalib(); S.draft = null; S.sel = null; renderProps(); renderTimeline(); return; }
+      if (S.calib) return;
       if (TOOL_KEYS[k]) setTool(TOOL_KEYS[k]);
     }
   });
