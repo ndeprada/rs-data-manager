@@ -63,6 +63,24 @@ export function ptsAt(d, L) {
 
 export const visibleAt = (d, L) => L >= d.from - 1e-6 && L <= d.to + 1e-6;
 
+// Corrige un seguimiento en el instante L: ese momento se mueve (dx, dy) y los de alrededor cada vez menos hasta
+// `win` segundos antes y después (campana), para que la marca llegue al sitio bueno sin dar un salto.
+// `list` = [{t, kx, ky}] ordenada; devuelve una lista nueva (con un punto en L si no lo había).
+export function nudgeTrack(list, L, dx, dy, win = 0.6, kx = "dx", ky = "dy") {
+  const out = (list || []).map((k) => ({ ...k }));
+  if (!out.some((k) => Math.abs(k.t - L) < 1e-3)) {
+    const p = interpAt(list, L, [kx, ky]) || { [kx]: 0, [ky]: 0 };
+    out.push({ t: L, [kx]: p[kx], [ky]: p[ky] }); out.sort((a, b) => a.t - b.t);
+  }
+  const W = Math.max(0.05, win);
+  for (const k of out) {
+    const u = Math.abs(k.t - L) / W; if (u >= 1) continue;
+    const w = Math.abs(k.t - L) < 1e-3 ? 1 : 0.5 * (1 + Math.cos(Math.PI * u));
+    k[kx] += dx * w; k[ky] += dy * w;
+  }
+  return out;
+}
+
 // Media móvil de una lista de posiciones (para quitar temblor del seguimiento)
 export function smooth(samples, win = 2) {
   return samples.map((s, i) => {

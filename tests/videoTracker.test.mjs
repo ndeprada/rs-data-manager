@@ -70,3 +70,18 @@ test("suavizado del seguimiento: quita el balanceo de cada zancada sin retrasar 
   assert.ok(Math.abs(s[0].x - 0.2) < 0.003 && Math.abs(s[90].x - 0.5) < 0.003);
   assert.equal(smoothTrack(raw.slice(0, 2)).length, 2);
 });
+
+test("corregir un seguimiento: mueve ese momento del todo y lo de alrededor cada vez menos", async () => {
+  const { nudgeTrack, interpAt } = await import("../src/lib/videoTimeline.js");
+  const kf = []; for (let i = 0; i <= 100; i++) kf.push({ t: i / 25, dx: i / 1000, dy: 0 });
+  const out = nudgeTrack(kf, 2, 0.1, -0.05, 0.6);
+  const at = (t) => interpAt(out, t, ["dx", "dy"]);
+  assert.ok(Math.abs(at(2).dx - (0.05 + 0.1)) < 1e-9 && Math.abs(at(2).dy + 0.05) < 1e-9);
+  assert.ok(at(2.3).dx > 2.3 * 25 / 1000 && at(2.3).dx < 2.3 * 25 / 1000 + 0.1); // a medias
+  assert.equal(at(1).dx, 25 / 1000); // fuera del alcance no cambia
+  assert.equal(at(3).dx, 75 / 1000);
+  assert.equal(kf[50].dx, 0.05); // la lista original no se toca
+  // en un momento sin punto, se crea uno
+  const sparse = nudgeTrack([{ t: 0, x: 0.1, y: 0.1 }, { t: 4, x: 0.5, y: 0.1 }], 1, 0, 0.2, 0.5, "x", "y");
+  assert.equal(sparse.length, 3); assert.ok(Math.abs(sparse[1].x - 0.2) < 1e-9 && Math.abs(sparse[1].y - 0.3) < 1e-9);
+});

@@ -194,3 +194,5 @@
 .rsv .calList span{background:#2fbf71;color:#111;border-radius:4px;padding:0 5px;font-weight:700;font-size:11px}
 .rsv .calList button{margin-left:auto;padding:0 6px}
 .rsv #eCalib.on{background:var(--naranja);color:#fff}
+.rsv .fixBox{margin-top:8px;padding:8px;border:1px solid rgba(255,110,0,.45);border-radius:7px;background:rgba(255,110,0,.06)}
+.rsv .fixBox>b{display:block;margin-bottom:6px;font-size:12px}

@@ -4,11 +4,12 @@
 //   const app = mountRSVideo(elemento, { storagePrefix })  →  app.destroy()
 // El vídeo nunca sale del ordenador: se abre como archivo local y lo exportado se descarga.
 import { RATES, stepRate, RESERVED_KEYS, newTag, defaultSets, cleanSet, duplicateKeys, uniqueName, duplicateSet, exportSets, importSets, restoreSets, isDefaultSet, setPayload, syncPlan, sortSets } from "../../lib/videoTags.js";
-import { clipLen, mapL, freezeStartL, localOfVideo, kfOffset, ptsAt, visibleAt as visible, smoothTrack, samplesToLocal, spliceKeys } from "../../lib/videoTimeline.js";
+import { clipLen, mapL, freezeStartL, localOfVideo, kfOffset, ptsAt, visibleAt as visible, smoothTrack, samplesToLocal, spliceKeys, nudgeTrack } from "../../lib/videoTimeline.js";
 import { createTracker, bodyBox } from "../../lib/videoTracker.js";
 import { PITCH_TYPES, MARKS, pitchOf, landmarks, pitchLines, markLines, solveCal, toImage, toGround, groundDist, circleImg, groundRectImg, lineImg, calQuality, fmtM } from "../../lib/videoPitch.js";
 const MIN_CLIP = 0.5; // segundos: corte más corto
-const TRACK_SMOOTH = 0.15; // segundos: suavizado del seguimiento (quita el balanceo de cada zancada)
+const TRACK_SMOOTH = 0.15;
+const FIX_WIN = 0.6; // segundos antes y después que se mueven al corregir un seguimiento a mano // segundos: suavizado del seguimiento (quita el balanceo de cada zancada)
 
 const PALETTE = ["#ffffff", "#FF6E00", "#ffd400", "#e5484d", "#2fbf71", "#3ec7ff", "#73000A", "#111111"];
 const TRACKABLE = ["ring", "spot", "ellipse", "mag", "poly", "zone"];
@@ -627,8 +628,23 @@ export function mountRSVideo(root, opts = {}) {
         const pts = ptsAt(sd, L); (MULTI.includes(sd.type) ? pts : [pts[0]]).forEach((p) => { const b = bodyBox(p.x * W, p.y * H, (sd.trackH || 0.09) * H); g.strokeRect(b.x, b.y, b.w, b.h); });
         g.restore();
       }
+      if ((sd.tracked || hasOwnTracks(sd)) && !S.playing) drawTrackPath(g, W, H, sd, L);
       for (const p of ptsAt(sd, L)) { g.fillStyle = "#fff"; g.strokeStyle = "#000"; g.lineWidth = 1.5; g.beginPath(); g.arc(p.x * W, p.y * H, 6, 0, 7); g.fill(); g.stroke(); }
     }
+  }
+  // recorrido del seguimiento (±2 s): ayuda a ver dónde se ha ido con otro jugador
+  function drawTrackPath(g, W, H, d, L) {
+    const a = Math.max(d.from, L - 2), b = Math.min(d.to, L + 2); if (b - a < 0.1) return;
+    const own = hasOwnTracks(d); const idx = own ? d.ptk.map((tk, i) => (tk && tk.length ? i : -1)).filter((i) => i >= 0) : [0];
+    g.save(); g.lineWidth = 2; g.setLineDash([]);
+    for (const i of idx) {
+      for (const [lo, hi, col] of [[a, L, "rgba(255,110,0,.55)"], [L, b, "rgba(255,255,255,.55)"]]) {
+        g.strokeStyle = col; g.beginPath(); let first = true;
+        for (let t = lo; t <= hi + 1e-6; t += 1 / 25) { const q = ptsAt(d, t)[i]; if (first) { g.moveTo(q.x * W, q.y * H); first = false; } else g.lineTo(q.x * W, q.y * H); }
+        g.stroke();
+      }
+    }
+    g.restore();
   }
   function drawShape(g, W, H, sc, d, L, still, cal) {
     const Pt = ptsAt(d, L).map((p) => ({ x: p.x * W, y: p.y * H }));
@@ -895,7 +911,8 @@ export function mountRSVideo(root, opts = {}) {
       S.sel = h.d.id; snapshot();
       const d = h.d; const centered = ["ellipse", "spot", "ring", "mag", "text"].includes(d.type) && h.h === 0;
       const [ox, oy] = kfOffset(d, S.L);
-      drag = { kind: h.h >= 0 && !centered ? "handle" : "move", d, h: h.h, start: p, orig: d.pts.map((q) => ({ ...q })), ox, oy, cur: ptsAt(d, S.L) };
+      drag = { kind: h.h >= 0 && !centered ? "handle" : "move", d, h: h.h, start: p, orig: d.pts.map((q) => ({ ...q })), ox, oy, cur: ptsAt(d, S.L),
+        kf0: (d.kf || []).map((k) => ({ ...k })), ptk0: (d.ptk || []).map((tk) => (tk ? tk.map((k) => ({ ...k })) : tk)) };
       renderProps(); renderTimeline(); return;
     }
     if (S.tool === "poly" || S.tool === "zone") {
@@ -917,13 +934,15 @@ export function mountRSVideo(root, opts = {}) {
       const d = S.draft; if (d.type === "curve") { d.pts[2] = p; const a = d.pts[0], dx = p.x - a.x, dy = p.y - a.y; d.pts[1] = { x: a.x + dx / 2 - dy * 0.25, y: a.y + dy / 2 + dx * 0.25 }; } else d.pts[1] = p;
       return;
     }
-    const d = drag.d, dx = p.x - drag.start.x, dy = p.y - drag.start.y;
-    const own = hasOwnTracks(d);
+    const d = drag.d, dx = p.x - drag.start.x, dy = p.y - drag.start.y; drag.last = p;
+    const own = hasOwnTracks(d), win = d.fixWin || FIX_WIN; drag.fixed = own || d.tracked;
+    // en un dibujo con seguimiento, arrastrar corrige ese momento y lo de alrededor (sin saltos)
     if (drag.kind === "handle") {
-      if (own && d.ptk[drag.h]?.length) upsert(d.ptk[drag.h], S.L, { x: drag.cur[drag.h].x + dx, y: drag.cur[drag.h].y + dy });
+      if (own && drag.ptk0[drag.h]?.length) d.ptk[drag.h] = nudgeTrack(drag.ptk0[drag.h], S.L, dx, dy, win, "x", "y");
       else d.pts[drag.h] = { x: drag.orig[drag.h].x + dx, y: drag.orig[drag.h].y + dy };
-    } else if (own) { d.ptk.forEach((tk, i) => { if (tk && tk.length) upsert(tk, S.L, { x: drag.cur[i].x + dx, y: drag.cur[i].y + dy }); }); }
-    else if (d.follow || d.tracked) setKf(d, S.L, drag.ox + dx, drag.oy + dy);
+    } else if (own) { d.ptk = drag.ptk0.map((tk) => (tk && tk.length ? nudgeTrack(tk, S.L, dx, dy, win, "x", "y") : tk)); }
+    else if (d.tracked) d.kf = nudgeTrack(drag.kf0, S.L, dx, dy, win);
+    else if (d.follow) setKf(d, S.L, drag.ox + dx, drag.oy + dy);
     else d.pts = drag.orig.map((q) => ({ x: q.x + dx, y: q.y + dy }));
   });
   on(cv, "pointerup", (e) => {
@@ -938,7 +957,11 @@ export function mountRSVideo(root, opts = {}) {
       else if (!big) d.pts[1] = { x: d.pts[0].x + { ring: 0.022, spot: 0.03, ellipse: 0.06, mag: 0.08 }[d.type], y: d.pts[0].y };
       snapshot(); c.drawings.push(d); S.sel = d.id; afterCreate(d.type === "ring"); return;
     }
-    if (drag) { drag = null; autosave(); renderTimeline(); renderProps(); }
+    if (drag) {
+      const wasFix = drag.fixed && (drag.kind === "move" || hasOwnTracks(drag.d)) && Math.hypot(drag.start.x - (drag.last?.x ?? drag.start.x), drag.start.y - (drag.last?.y ?? drag.start.y)) > 0.002;
+      drag = null; autosave(); renderTimeline(); renderProps();
+      if (wasFix) toast(`Corregido en ${fmt(S.L, 1)}. Si desde aquí se va con otro jugador, pulsa «🎯 Seguir desde aquí»`);
+    }
   });
   on(cv, "dblclick", () => finishDraft());
   function finishDraft() {
@@ -1037,8 +1060,11 @@ export function mountRSVideo(root, opts = {}) {
         const tracked = d.tracked || hasOwnTracks(d);
         h += `<div class="track"><button class="pri" id="pTrack">🎯 Seguir ${MULTI.includes(d.type) ? "a los jugadores" : "al jugador"} desde aquí</button>
           <div class="f"><label>Altura del jugador</label><input type="range" id="pTrackH" min="0.03" max="0.35" step="0.005" value="${d.trackH || 0.09}"></div>
-          <div class="hint">${MULTI.includes(d.type) ? "Cada punto tiene que estar en los pies de un jugador." : "Pon la marca en los pies del jugador."} Ajusta la altura hasta que el recuadro naranja cubra al jugador de pies a cabeza y pulsa el botón. Si se va con otro, arrástrala a su sitio en ese momento y vuelve a pulsar.</div>
-          ${tracked ? `<div class="btnrow"><button id="pTrackClear">Quitar seguimiento</button></div>` : ""}</div>`;
+          ${tracked ? "" : `<div class="hint">${MULTI.includes(d.type) ? "Cada punto tiene que estar en los pies de un jugador." : "Pon la marca en los pies del jugador."} Ajusta la altura hasta que el recuadro naranja cubra al jugador de pies a cabeza y pulsa el botón.</div>`}
+          ${tracked ? `<div class="fixBox"><b>Corregir el seguimiento</b>
+            <div class="hint">Ve al momento en que se equivoca (barra de tiempo o <kbd>,</kbd> <kbd>.</kbd> fotograma a fotograma) y <b>arrastra la marca</b> al jugador: se corrige ese momento y, suavemente, lo de alrededor. La línea naranja es por dónde ha pasado y la blanca por dónde va a ir. Si desde ahí sigue a otro, pulsa «🎯 Seguir desde aquí» y vuelve a seguir desde el sitio corregido.</div>
+            <div class="f"><label>Alcance de la corrección</label><span><input type="range" id="pFixWin" min="0.2" max="3" step="0.1" value="${d.fixWin || FIX_WIN}"> <small id="pFixWinV">±${(d.fixWin || FIX_WIN).toFixed(1).replace(".", ",")} s</small></span></div>
+            <div class="btnrow"><button id="pTrackCut" title="El dibujo desaparece en este momento">✂ Termina aquí</button><button id="pTrackClear">Quitar seguimiento</button></div></div>` : ""}</div>`;
       }
     } else {
       h += `<h3>${S.tool === "select" ? "Clip" : "Nuevo: " + TOOL_NAMES[S.tool]}</h3>`;
@@ -1093,6 +1119,8 @@ export function mountRSVideo(root, opts = {}) {
       const fol = $("#pFollow"); if (fol) on(fol, "change", (e) => { ch(() => (d.follow = e.target.checked)); if (d.follow) toast("Avanza el vídeo y arrastra la marca sobre el jugador"); });
       const tb = $("#pTrack"); if (tb) on(tb, "click", () => autoTrack(d));
       const th = $("#pTrackH"); if (th) on(th, "input", (e) => { d.trackH = +e.target.value; autosave(); });
+      const fw = $("#pFixWin"); if (fw) on(fw, "input", (e) => { d.fixWin = +e.target.value; $("#pFixWinV").textContent = "±" + d.fixWin.toFixed(1).replace(".", ",") + " s"; autosave(); });
+      const tcut = $("#pTrackCut"); if (tcut) on(tcut, "click", () => { ch(() => (d.to = Math.max(d.from + 0.1, S.L))); renderProps(); toast("El dibujo termina en " + fmt(S.L, 1)); });
       const tc = $("#pTrackClear"); if (tc) on(tc, "click", () => { ch(() => { const cur = ptsAt(d, S.L); d.pts = cur; d.kf = []; d.ptk = null; d.tracked = false; }); renderProps(); });
       on($("#pDup"), "click", () => { snapshot(); const n = JSON.parse(JSON.stringify(d)); n.id = uid(); n.pts = n.pts.map((p) => ({ x: p.x + 0.02, y: p.y + 0.02 })); n.kf = []; n.ptk = null; n.tracked = false; c.drawings.push(n); S.sel = n.id; afterCreate(); });
       on($("#pDel"), "click", delSel);
