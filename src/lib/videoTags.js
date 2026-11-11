@@ -47,7 +47,42 @@ export function cleanTag(t) {
 }
 
 export function cleanSet(s) {
-  return { id: typeof s?.id === "string" && s.id ? s.id : newId(), name: String(s?.name ?? "").trim().slice(0, 60) || "Tabla sin nombre", tags: (Array.isArray(s?.tags) ? s.tags : []).map(cleanTag) };
+  const out = { id: typeof s?.id === "string" && s.id ? s.id : newId(), name: String(s?.name ?? "").trim().slice(0, 60) || "Tabla sin nombre", tags: (Array.isArray(s?.tags) ? s.tags : []).map(cleanTag) };
+  // En RS Manager cada tabla es de una persona (owner_id) y puede estar compartida con el club (shared)
+  if (typeof s?.owner_id === "string" && s.owner_id) { out.owner_id = s.owner_id; out.owner_name = String(s.owner_name || ""); }
+  if (s?.shared === true) out.shared = true;
+  if (s?._new === true) out._new = true; // todavía no guardada en RS Manager
+  return out;
+}
+
+// ¿Es la tabla de ejemplo sin tocar? (no hace falta subirla a RS Manager)
+export function isDefaultSet(s) {
+  const def = DEFAULT_MATCH.map(([label, color, key]) => `${label}|${color}|${key}|8|4|instant`).join(";");
+  return s?.name === "Análisis de partido" && (s.tags || []).map((t) => `${t.label}|${t.color}|${t.key}|${t.pre}|${t.post}|${t.mode}`).join(";") === def;
+}
+
+// Lo que se guarda en RS Manager de una tabla
+export function setPayload(s) {
+  return { name: s.name, tags: (s.tags || []).map(cleanTag), shared: s.shared === true, owner_id: s.owner_id || "", owner_name: s.owner_name || "" };
+}
+
+// Qué hay que crear, cambiar o borrar en RS Manager comparando con lo último guardado (saved: Map id → JSON de setPayload)
+export function syncPlan(saved, sets, canEdit = () => true) {
+  const create = [], update = [], remove = [];
+  const ids = new Set(sets.map((s) => s.id));
+  for (const s of sets) {
+    if (!canEdit(s)) continue;
+    if (s._new) create.push(s);
+    else if (saved.has(s.id) && saved.get(s.id) !== JSON.stringify(setPayload(s))) update.push(s);
+  }
+  for (const id of saved.keys()) if (!ids.has(id)) remove.push(id);
+  return { create, update, remove };
+}
+
+// Orden de la lista: primero las mías, luego las del club; dentro, por nombre
+export function sortSets(sets, meId) {
+  const mine = (s) => !s.owner_id || s.owner_id === meId;
+  return [...sets].sort((a, b) => (mine(b) - mine(a)) || a.name.localeCompare(b.name, "es"));
 }
 
 // Teclas repetidas dentro de una tabla: { tecla: [ids] } solo con las que se repiten
@@ -66,6 +101,7 @@ export function uniqueName(name, sets) {
 }
 
 export function duplicateSet(set, sets) {
+  // La copia es de quien la hace y no está compartida
   return { id: newId(), name: uniqueName(`${set.name} (copia)`, sets), tags: set.tags.map((t) => ({ ...t, id: newId() })) };
 }
 

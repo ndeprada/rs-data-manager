@@ -3,7 +3,7 @@
 // Es JavaScript normal (sin React) para poder usar el mismo código dentro de RS Manager y como página suelta:
 //   const app = mountRSVideo(elemento, { storagePrefix })  →  app.destroy()
 // El vídeo nunca sale del ordenador: se abre como archivo local y lo exportado se descarga.
-import { RATES, stepRate, RESERVED_KEYS, newTag, cleanSet, duplicateKeys, uniqueName, duplicateSet, exportSets, importSets, restoreSets } from "../../lib/videoTags.js";
+import { RATES, stepRate, RESERVED_KEYS, newTag, defaultSets, cleanSet, duplicateKeys, uniqueName, duplicateSet, exportSets, importSets, restoreSets, isDefaultSet, setPayload, syncPlan, sortSets } from "../../lib/videoTags.js";
 import { clipLen, mapL, freezeStartL, localOfVideo, kfOffset, ptsAt, visibleAt as visible, smooth, samplesToLocal, spliceKeys } from "../../lib/videoTimeline.js";
 import { createTracker, bodyBox } from "../../lib/videoTracker.js";
 
@@ -91,6 +91,8 @@ const TEMPLATE = `
 <div class="dlg" id="dlgTags"><div class="box">
   <h2>Tabla de etiquetas</h2>
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span style="color:var(--mut)">Nombre de la tabla</span><input id="setName" type="text" style="flex:1;max-width:340px"></div>
+  <div id="setShareRow" style="display:none;margin:0 0 8px"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="setShared"> Compartir con el club: la verán y la podrán usar todos los entrenadores</label></div>
+  <p class="hint" id="setRO" style="display:none;color:#ffb27a"></p>
   <p class="hint">Crea tantas tablas como quieras (análisis de partido, del rival, individual…) y elige cuál usar arriba. «Instantánea»: un clic crea el clip con los segundos de antes y después. «Inicio/fin»: primer clic empieza, segundo clic termina. La tecla es opcional (no valen espacio, flechas, coma ni punto).</p>
   <table class="tagEd"><thead><tr><th>Color</th><th>Nombre</th><th>Tecla</th><th>Antes (s)</th><th>Después (s)</th><th>Modo</th><th></th></tr></thead><tbody id="tagEdBody"></tbody></table>
   <div style="margin-top:8px"><button id="tagAdd">+ Añadir etiqueta</button></div>
@@ -185,11 +187,62 @@ export function mountRSVideo(root, opts = {}) {
     brand: { intro: { ...BRAND_DEFAULT.intro, ...(savedBrand.intro || {}) }, wm: { ...BRAND_DEFAULT.wm, ...(savedBrand.wm || {}) } },
   };
   let hist = [];
+  // Tablas en RS Manager (opcional): opts.tagStore = { me: {id, name, admin}, list, create, update, remove }
+  const remote = opts.tagStore || null;
+  const me = remote?.me || null;
+  const isMine = (s) => !remote || !s.owner_id || s.owner_id === me.id;
+  const canEditSet = (s) => isMine(s) || (!!me?.admin && s.shared === true);
+  const own = (s) => { if (remote) Object.assign(s, { _new: true, owner_id: me.id, owner_name: me.name }); return s; };
+  let saved = null; // Map id → lo último guardado en RS Manager (null hasta cargar)
+  let syncT = 0, syncing = false, syncAgain = false;
+  const queueSync = () => { if (!remote || !saved) return; clearTimeout(syncT); syncT = setTimeout(syncSets, 700); };
+  async function syncSets() {
+    if (!remote || !saved) return;
+    if (syncing) { syncAgain = true; return; }
+    syncing = true;
+    try {
+      const plan = syncPlan(saved, S.sets, canEditSet);
+      for (const s of plan.create) {
+        const old = s.id; s.owner_id ||= me.id; s.owner_name ||= me.name;
+        const doc = await remote.create(setPayload(s));
+        s.id = doc.id; delete s._new; if (S.setId === old) S.setId = doc.id;
+        saved.set(s.id, JSON.stringify(setPayload(s)));
+      }
+      for (const s of plan.update) { await remote.update(s.id, setPayload(s)); saved.set(s.id, JSON.stringify(setPayload(s))); }
+      for (const id of plan.remove) { await remote.remove(id); saved.delete(id); }
+      if (plan.create.length && alive) { renderSetSel(); store("sets", { sets: S.sets, active: S.setId }); }
+    } catch {
+      if (alive) toast("No se ha podido guardar la tabla en RS Manager; se volverá a intentar");
+      setTimeout(queueSync, 8000);
+    } finally { syncing = false; if (syncAgain) { syncAgain = false; queueSync(); } }
+  }
+  async function loadRemote() {
+    try {
+      const docs = await remote.list();
+      const sets = (Array.isArray(docs) ? docs : []).map((d) => cleanSet(d));
+      saved = new Map(sets.map((x) => [x.id, JSON.stringify(setPayload(x))]));
+      // tablas creadas en este ordenador que aún no se habían guardado
+      restored.sets.filter((x) => x._new && x.owner_id === me.id).forEach((x) => { x.name = uniqueName(x.name, sets); sets.push(x); });
+      // la primera vez: las tablas que ya había en este navegador pasan a RS Manager (menos la de ejemplo sin tocar)
+      if (!load("migrated")) {
+        restored.sets.filter((x) => !x.owner_id && x.tags.length && !isDefaultSet(x)).forEach((x) => { const c = own({ ...x, id: uid() }); c.name = uniqueName(c.name, sets); sets.push(c); });
+        store("migrated", true);
+      }
+      if (!sets.some(isMine)) sets.push(own(defaultSets()[0]));
+      S.sets = sortSets(sets, me.id);
+      if (!S.sets.some((x) => x.id === S.setId)) S.setId = (S.sets.find(isMine) || S.sets[0]).id;
+      if (!alive) return;
+      renderSetSel(); renderTagGrid(); if ($("#dlgTags").classList.contains("on")) renderTagEd();
+      store("sets", { sets: S.sets, active: S.setId }); queueSync();
+    } catch {
+      if (alive) toast("No se han podido cargar las tablas de RS Manager: se usan las de este ordenador");
+    }
+  }
   const vid = $("#rsvVid"), cv = $("#rsvCv"), ctx = cv.getContext("2d");
   const activeSet = () => S.sets.find((s) => s.id === S.setId) || S.sets[0];
   const tags = () => activeSet().tags;
   const projKey = () => (S.video ? `p:${S.video.name}:${S.video.size}` : null);
-  let saveT; const autosave = () => { clearTimeout(saveT); saveT = setTimeout(() => { store("sets", { sets: S.sets, active: S.setId }); const k = projKey(); if (k && !store(k, { clips: S.clips, seq: S.seq })) toast("No se ha podido guardar en el navegador: usa «Guardar proyecto»"); }, 300); };
+  let saveT; const autosave = () => { queueSync(); clearTimeout(saveT); saveT = setTimeout(() => { store("sets", { sets: S.sets, active: S.setId }); const k = projKey(); if (k && !store(k, { clips: S.clips, seq: S.seq })) toast("No se ha podido guardar en el navegador: usa «Guardar proyecto»"); }, 300); };
   const snapshot = () => { hist.push(JSON.stringify({ clips: S.clips, seq: S.seq })); if (hist.length > 60) hist.shift(); };
   const undo = () => { const h = hist.pop(); if (!h) return toast("Nada que deshacer"); const o = JSON.parse(h); S.clips = o.clips; S.seq = o.seq; S.sel = null; renderAll(); autosave(); };
   const toast = (m) => { const t = $("#rsvToast"); t.textContent = m; t.classList.add("on"); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("on"), 2400); };
@@ -249,14 +302,16 @@ export function mountRSVideo(root, opts = {}) {
      1 · ETIQUETAR
      ========================================================= */
   function renderSetSel() {
-    $("#setSel").innerHTML = S.sets.map((s) => `<option value="${s.id}" ${s.id === S.setId ? "selected" : ""}>${esc(s.name)}</option>`).join("") + `<option value="__new">＋ Nueva tabla…</option>`;
+    const opt = (s) => `<option value="${s.id}" ${s.id === S.setId ? "selected" : ""}>${esc(s.name)}${remote && isMine(s) && s.shared ? " · compartida" : ""}${!isMine(s) && s.owner_name ? " · " + esc(s.owner_name) : ""}</option>`;
+    const mine = S.sets.filter(isMine), club = S.sets.filter((s) => !isMine(s));
+    $("#setSel").innerHTML = (remote ? `<optgroup label="Mis tablas">${mine.map(opt).join("")}</optgroup>` + (club.length ? `<optgroup label="Del club">${club.map(opt).join("")}</optgroup>` : "") : S.sets.map(opt).join("")) + `<option value="__new">＋ Nueva tabla…</option>`;
   }
   on($("#setSel"), "change", (e) => {
     if (e.target.value === "__new") { newSet(); openTagEditor(); return; }
     S.setId = e.target.value; S.rec = {}; autosave(); renderSetSel(); renderTagGrid(); toast("Tabla: " + activeSet().name);
     e.target.blur(); // para que las teclas de las etiquetas funcionen enseguida
   });
-  function newSet() { const s = { id: uid(), name: uniqueName("Nueva tabla", S.sets), tags: [newTag({ label: "Nueva etiqueta", key: "1" })] }; S.sets.push(s); S.setId = s.id; autosave(); renderSetSel(); renderTagGrid(); }
+  function newSet() { const s = own({ id: uid(), name: uniqueName("Nueva tabla", S.sets), tags: [newTag({ label: "Nueva etiqueta", key: "1" })] }); S.sets.push(s); S.setId = s.id; autosave(); renderSetSel(); renderTagGrid(); }
   function renderTagGrid() {
     const ts = tags();
     $("#tagGrid").innerHTML = ts.length ? ts.map((t) => `<button class="tagBtn ${S.rec[t.id] != null ? "rec" : ""}" style="--c:${t.color}" data-id="${t.id}">
@@ -358,31 +413,39 @@ export function mountRSVideo(root, opts = {}) {
   function openTagEditor() { renderTagEd(); $("#dlgTags").classList.add("on"); }
   on($("#btnTagEdit"), "click", openTagEditor);
   on($("#tagClose"), "click", () => { $("#dlgTags").classList.remove("on"); renderSetSel(); renderTagGrid(); autosave(); document.activeElement?.blur?.(); });
-  on($("#tagAdd"), "click", () => { tags().push(newTag()); renderTagEd(); autosave(); setTimeout(() => { const inps = $$('#tagEdBody input[data-k="label"]'); inps[inps.length - 1]?.select(); }, 0); });
-  on($("#setName"), "input", (e) => { activeSet().name = e.target.value.slice(0, 60) || "Tabla sin nombre"; autosave(); renderSetSel(); });
+  on($("#tagAdd"), "click", () => { if (!canEditSet(activeSet())) return; tags().push(newTag()); renderTagEd(); autosave(); setTimeout(() => { const inps = $$('#tagEdBody input[data-k="label"]'); inps[inps.length - 1]?.select(); }, 0); });
+  on($("#setName"), "input", (e) => { if (!canEditSet(activeSet())) return; activeSet().name = e.target.value.slice(0, 60) || "Tabla sin nombre"; autosave(); renderSetSel(); });
   on($("#setNew"), "click", () => { newSet(); renderTagEd(); });
-  on($("#setDup"), "click", () => { const c = duplicateSet(activeSet(), S.sets); S.sets.push(c); S.setId = c.id; autosave(); renderTagEd(); toast("Tabla duplicada"); });
+  on($("#setShared"), "change", (e) => { const set = activeSet(); if (!isMine(set)) return; set.shared = e.target.checked; autosave(); renderSetSel(); toast(set.shared ? "Tabla compartida: la verán todos los entrenadores" : "La tabla vuelve a ser solo tuya"); });
+  on($("#setDup"), "click", () => { const c = own(duplicateSet(activeSet(), S.sets)); S.sets.push(c); S.setId = c.id; autosave(); renderTagEd(); toast("Tabla duplicada"); });
   on($("#setDel"), "click", () => {
-    if (S.sets.length < 2) return toast("Tiene que quedar al menos una tabla");
+    if (!canEditSet(activeSet())) return;
+    if (S.sets.filter(isMine).length < 2 && isMine(activeSet())) return toast("Tiene que quedar al menos una tabla tuya");
     const b = $("#setDel");
-    if (!b.dataset.confirm) { b.dataset.confirm = "1"; b.textContent = "¿Seguro? Pulsa otra vez"; setTimeout(() => { b.dataset.confirm = ""; b.textContent = "Borrar tabla"; }, 2500); return; }
+    if (!b.dataset.confirm) { b.dataset.confirm = "1"; b.textContent = remote && activeSet().shared ? "¿Seguro? Se quita para todo el club" : "¿Seguro? Pulsa otra vez"; setTimeout(() => { b.dataset.confirm = ""; b.textContent = "Borrar tabla"; }, 2500); return; }
     b.dataset.confirm = ""; b.textContent = "Borrar tabla";
-    S.sets = S.sets.filter((s) => s.id !== S.setId); S.setId = S.sets[0].id; autosave(); renderTagEd(); toast("Tabla borrada");
+    S.sets = S.sets.filter((s) => s.id !== S.setId); S.setId = (S.sets.find(isMine) || S.sets[0]).id; autosave(); renderTagEd(); toast("Tabla borrada");
   });
   on($("#setExp"), "click", () => saveFile(`Etiquetas - ${activeSet().name}.json`, new Blob([JSON.stringify(exportSets([activeSet()]), null, 1)], { type: "application/json" })));
   on($("#setImp"), "click", () => $("#rsvSetIn").click());
   on($("#rsvSetIn"), "change", async (e) => {
     const f = e.target.files[0]; e.target.value = ""; if (!f) return;
-    try { const got = importSets(await f.text(), S.sets); S.sets.push(...got); S.setId = got[0].id; autosave(); renderTagEd(); toast(got.length === 1 ? `Tabla «${got[0].name}» importada` : `${got.length} tablas importadas`); }
+    try { const got = importSets(await f.text(), S.sets).map(own); S.sets.push(...got); S.setId = got[0].id; autosave(); renderTagEd(); toast(got.length === 1 ? `Tabla «${got[0].name}» importada` : `${got.length} tablas importadas`); }
     catch (err) { toast(err.message); }
   });
   function renderTagEd() {
     const set = activeSet(); $("#setName").value = set.name; renderSetSel();
+    const ro = !canEditSet(set); const dis = ro ? "disabled" : "";
+    $("#setName").disabled = ro; $("#tagAdd").style.display = ro ? "none" : ""; $("#setDel").style.display = ro ? "none" : "";
+    $("#setShareRow").style.display = remote && isMine(set) ? "" : "none"; $("#setShared").checked = set.shared === true;
+    const roMsg = ro ? `Tabla de ${esc(set.owner_name || "otra persona")} compartida con el club. Solo la puede cambiar su autor o coordinación: pulsa «Duplicar» para tener tu copia y cambiarla.`
+      : !isMine(set) ? `Tabla de ${esc(set.owner_name || "otra persona")} compartida con el club: los cambios los verá todo el club.` : "";
+    $("#setRO").style.display = roMsg ? "" : "none"; $("#setRO").innerHTML = roMsg;
     const dup = duplicateKeys(set.tags); const dupIds = new Set(Object.values(dup).flat());
-    $("#tagEdBody").innerHTML = set.tags.map((t, i) => `<tr data-id="${t.id}"><td><input type="color" data-k="color" value="${t.color}"></td><td><input type="text" data-k="label" value="${esc(t.label)}"></td>
-      <td><input class="key ${dupIds.has(t.id) ? "bad-key" : ""}" data-k="key" maxlength="1" value="${esc(t.key)}" title="${dupIds.has(t.id) ? "Esta tecla está repetida" : ""}"></td><td><input type="number" data-k="pre" value="${t.pre}" min="0"></td><td><input type="number" data-k="post" value="${t.post}" min="0"></td>
-      <td><select data-k="mode"><option value="instant" ${t.mode === "instant" ? "selected" : ""}>Instantánea</option><option value="toggle" ${t.mode === "toggle" ? "selected" : ""}>Inicio/fin</option></select></td>
-      <td style="white-space:nowrap"><button data-mv="-1" ${i ? "" : "disabled"} title="Subir">↑</button><button data-mv="1" ${i < set.tags.length - 1 ? "" : "disabled"} title="Bajar">↓</button><button data-del="1" title="Quitar">✕</button></td></tr>`).join("") ||
+    $("#tagEdBody").innerHTML = set.tags.map((t, i) => `<tr data-id="${t.id}"><td><input type="color" data-k="color" value="${t.color}" ${dis}></td><td><input type="text" data-k="label" value="${esc(t.label)}" ${dis}></td>
+      <td><input class="key ${dupIds.has(t.id) ? "bad-key" : ""}" data-k="key" maxlength="1" value="${esc(t.key)}" title="${dupIds.has(t.id) ? "Esta tecla está repetida" : ""}" ${dis}></td><td><input type="number" data-k="pre" value="${t.pre}" min="0" ${dis}></td><td><input type="number" data-k="post" value="${t.post}" min="0" ${dis}></td>
+      <td><select data-k="mode" ${dis}><option value="instant" ${t.mode === "instant" ? "selected" : ""}>Instantánea</option><option value="toggle" ${t.mode === "toggle" ? "selected" : ""}>Inicio/fin</option></select></td>
+      <td style="white-space:nowrap">${ro ? "" : `<button data-mv="-1" ${i ? "" : "disabled"} title="Subir">↑</button><button data-mv="1" ${i < set.tags.length - 1 ? "" : "disabled"} title="Bajar">↓</button><button data-del="1" title="Quitar">✕</button>`}</td></tr>`).join("") ||
       `<tr><td colspan="7" style="color:var(--mut);padding:12px">Sin etiquetas todavía.</td></tr>`;
     $$("#tagEdBody tr[data-id]").forEach((tr) => {
       const t = set.tags.find((x) => x.id === tr.dataset.id);
@@ -393,6 +456,7 @@ export function mountRSVideo(root, opts = {}) {
         else t[k] = inp.value;
         autosave();
       }));
+      if (ro) return;
       on(tr.querySelector("[data-del]"), "click", () => { set.tags = set.tags.filter((x) => x !== t); autosave(); renderTagEd(); });
       tr.querySelectorAll("[data-mv]").forEach((b) => on(b, "click", () => { const i = set.tags.indexOf(t), j = i + +b.dataset.mv; [set.tags[i], set.tags[j]] = [set.tags[j], set.tags[i]]; autosave(); renderTagEd(); }));
     });
@@ -1057,7 +1121,7 @@ export function mountRSVideo(root, opts = {}) {
     try {
       const o = JSON.parse(await f.text()); if (o.app !== "rs-video") throw 0; snapshot();
       const set = o.tagSet || (o.tags ? { name: "Tabla del proyecto", tags: o.tags } : null);
-      if (set && !S.sets.some((x) => x.id === set.id)) { const c = cleanSet(set); c.name = uniqueName(c.name, S.sets); S.sets.push(c); S.setId = c.id; }
+      if (set && !S.sets.some((x) => x.id === set.id)) { const c = own(cleanSet({ ...set, owner_id: undefined, shared: false })); c.name = uniqueName(c.name, S.sets); S.sets.push(c); S.setId = c.id; }
       S.clips = o.clips || []; S.seq = o.seq || [];
       if (!S.video || S.video.name !== o.video?.name) { S.pendingProj = { clips: S.clips, seq: S.seq }; toast("Proyecto cargado · ahora abre el vídeo «" + (o.video?.name || "") + "»"); }
       else toast("Proyecto cargado");
@@ -1065,12 +1129,15 @@ export function mountRSVideo(root, opts = {}) {
     } catch { toast("Ese archivo no es un proyecto de RS Video"); }
   });
 
+  if (remote) loadRemote();
+
   function renderAll() { renderSetSel(); renderTagGrid(); renderClips(); renderMarks(); renderTools(); renderProps(); if (S.mode === "edit") renderTimeline(); }
   renderAll();
 
   return {
     destroy() {
       alive = false; cancelAnimationFrame(raf); clearTimeout(saveT);
+      if (remote && saved) { clearTimeout(syncT); syncSets(); } // lo último que se cambió se guarda aunque se salga de la página
       if (S.tracking) S.tracking.cancel = true;
       vid.pause(); if (vid.src) URL.revokeObjectURL(vid.src);
       cleanups.forEach((f) => f());

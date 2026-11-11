@@ -139,6 +139,9 @@ export const SESSION_ENTITIES = new Set(['CoachSession']);
 // Paleta del club de contenidos de sesión (02/11/2026): la lee todo el personal; la crea y aprueba coordinación;
 // un entrenador solo puede proponer (status 'propuesto') o retirar su propia propuesta.
 export const PALETTE_ENTITIES = new Set(['SessionContent']);
+// Tablas de etiquetas del análisis de vídeo (11/11/2026): cada persona tiene las suyas y puede compartirlas con el club.
+// Las compartidas (shared) las ve todo el personal; solo las cambia su autor (owner_id) o coordinación.
+export const VIDEO_TAG_ENTITIES = new Set(['VideoTagSet']);
 // Campos de la ficha del jugador que solo escribe quien puede editar fichas (entrenadores y coordinación)
 export const PLAYER_STAFF_FIELDS = [WEAK_FOOT_FIELD];
 
@@ -243,6 +246,22 @@ export function checkSessionWrite({ perms, userId, method, body = {}, existing =
   return body.owner_id === undefined || body.owner_id === userId ? { ok: true } : deny;
 }
 
+// Tablas de etiquetas de vídeo: crear solo a nombre propio; cambiar o borrar las propias, y coordinación también las compartidas
+export function checkVideoTagWrite({ perms, userId, method, body = {}, existing = null }) {
+  if (perms.isAdmin) return { ok: true };
+  const deny = { ok: false, error: 'forbidden_role' };
+  if (method === 'POST') return body.owner_id === userId ? { ok: true } : deny;
+  if (!existing) return deny;
+  const allowed = existing.owner_id === userId || (perms.administration && existing.shared === true);
+  if (!allowed) return deny;
+  return body.owner_id === undefined || body.owner_id === existing.owner_id ? { ok: true } : deny;
+}
+
+export function filterVideoTagRead({ perms, userId, docs }) {
+  if (perms.isAdmin) return docs;
+  return docs.filter((d) => d.owner_id === userId || d.shared === true);
+}
+
 export function filterSessionRead({ perms, userId, docs }) {
   if (perms.isAdmin || perms.administration) return docs;
   return docs.filter((d) => d.owner_id === userId);
@@ -255,6 +274,7 @@ export function filterRoleRead({ perms, entity, docs, ownIds = new Set(), userId
   if (PLAYER_EVAL_ENTITIES.has(entity)) return perms.playerEval === 'none' ? [] : docs;
   if (PLANNING_ENTITIES.has(entity)) return perms.administration ? docs : [];
   if (SESSION_ENTITIES.has(entity)) return filterSessionRead({ perms, userId, docs });
+  if (VIDEO_TAG_ENTITIES.has(entity)) return filterVideoTagRead({ perms, userId, docs });
   if (COACH_EVAL_ENTITIES.has(entity)) {
     if (perms.coaches !== 'own') return docs;
     return docs.filter((d) => ownIds.has(d.staff_id) && ownerCanSeeCoachDoc(entity, d));

@@ -104,3 +104,46 @@ test("seguimiento: las muestras pasan a tiempo local y se quedan quietas en el c
   const spliced = spliceKeys([{ t: 0, x: 0 }, { t: 5, x: 1 }], 3, [{ t: 3, x: 2 }]);
   assert.deepEqual(spliced.map((s) => s.t), [0, 3]);
 });
+
+import { isDefaultSet, setPayload, syncPlan, sortSets, cleanSet as cleanSet2 } from "../src/lib/videoTags.js";
+import { checkVideoTagWrite, filterVideoTagRead, permissionsOf } from "../src/lib/permissions.js";
+
+test("tablas en RS Manager: dueño, compartida, tabla de ejemplo", () => {
+  const c = cleanSet2({ id: "x", name: "Rival", tags: [], owner_id: "u1", owner_name: "Nacho", shared: true });
+  assert.equal(c.owner_id, "u1");
+  assert.equal(c.shared, true);
+  assert.equal(cleanSet2({ name: "A", shared: "sí" }).shared, undefined);
+  assert.equal(isDefaultSet(defaultSets()[0]), true);
+  const changed = defaultSets()[0]; changed.tags[0].pre = 5;
+  assert.equal(isDefaultSet(changed), false);
+  assert.deepEqual(Object.keys(setPayload(c)).sort(), ["name", "owner_id", "owner_name", "shared", "tags"]);
+});
+
+test("tablas en RS Manager: qué se crea, cambia y borra", () => {
+  const a = { id: "a", name: "A", tags: [], owner_id: "u1" };
+  const b = { id: "b", name: "B", tags: [], owner_id: "u2", shared: true };
+  const saved = new Map([["a", JSON.stringify(setPayload(a))], ["b", JSON.stringify(setPayload(b))], ["z", "{}"]]);
+  const n = { id: "tmp", name: "Nueva", tags: [], owner_id: "u1", _new: true };
+  const a2 = { ...a, name: "A cambiada" };
+  const b2 = { ...b, name: "B cambiada" };
+  const plan = syncPlan(saved, [a2, b2, n], (s) => s.owner_id === "u1");
+  assert.deepEqual(plan.create.map((s) => s.id), ["tmp"]);
+  assert.deepEqual(plan.update.map((s) => s.id), ["a"], "la de otro no se toca aunque cambie en pantalla");
+  assert.deepEqual(plan.remove, ["z"]);
+  assert.deepEqual(sortSets([b, { id: "c", name: "C", owner_id: "u1" }, a], "u1").map((s) => s.id), ["a", "c", "b"]);
+});
+
+test("permisos de las tablas: cada uno las suyas; coordinación también las compartidas", () => {
+  const coach = permissionsOf({ id: "u1", app_role: "entrenador", access_status: "approved" });
+  const coord = permissionsOf({ id: "u9", app_role: "coordinador_general", access_status: "approved" });
+  const mine = { owner_id: "u1", shared: false }, other = { owner_id: "u2", shared: true }, privateOther = { owner_id: "u2", shared: false };
+  assert.equal(checkVideoTagWrite({ perms: coach, userId: "u1", method: "POST", body: { owner_id: "u1" } }).ok, true);
+  assert.equal(checkVideoTagWrite({ perms: coach, userId: "u1", method: "POST", body: { owner_id: "u2" } }).ok, false);
+  assert.equal(checkVideoTagWrite({ perms: coach, userId: "u1", method: "PUT", body: { name: "x" }, existing: mine }).ok, true);
+  assert.equal(checkVideoTagWrite({ perms: coach, userId: "u1", method: "PUT", body: { name: "x" }, existing: other }).ok, false);
+  assert.equal(checkVideoTagWrite({ perms: coach, userId: "u1", method: "PUT", body: { owner_id: "u2" }, existing: mine }).ok, false);
+  assert.equal(checkVideoTagWrite({ perms: coord, userId: "u9", method: "PUT", body: { name: "x" }, existing: other }).ok, true);
+  assert.equal(checkVideoTagWrite({ perms: coord, userId: "u9", method: "DELETE", existing: privateOther }).ok, false);
+  const seen = filterVideoTagRead({ perms: coach, userId: "u1", docs: [mine, other, privateOther] });
+  assert.deepEqual(seen, [mine, other]);
+});
