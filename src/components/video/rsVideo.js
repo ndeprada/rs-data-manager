@@ -26,6 +26,7 @@ const TEMPLATE = `
   <button id="rsvOpen">Abrir vídeo</button>
   <button id="rsvSaveProj" title="Guardar etiquetas y dibujos en un archivo">Guardar proyecto</button>
   <button id="rsvLoadProj">Cargar proyecto</button>
+  <button id="rsvExt" title="Abre el vídeo en otra ventana para llevarla al monitor o al proyector">🖥 Otra pantalla</button>
   <button id="rsvFull" title="Pantalla completa">⛶</button>
   <input type="file" id="rsvFileIn" accept="video/*" hidden>
   <input type="file" id="rsvProjIn" accept=".json,application/json" hidden>
@@ -33,6 +34,7 @@ const TEMPLATE = `
 </header>
 <main>
   <section class="view on" id="tagView">
+    <aside class="tagDock" id="tagDock"></aside>
     <div class="left">
       <div class="stage" id="rsvTagStage">
         <video id="rsvVid" playsinline muted preload="auto"></video>
@@ -54,9 +56,10 @@ const TEMPLATE = `
       </div>
       <div class="trimRow" id="trimRow" hidden></div>
       <div class="tags">
-        <div class="tagsHead"><b style="color:var(--txt)">Etiquetas</b><select id="setSel" title="Tabla de etiquetas"></select>
+        <div class="tagsHead"><b style="color:var(--txt)" class="tagsTitle">Etiquetas</b><select id="setSel" title="Tabla de etiquetas"></select>
           <button id="btnTagEdit">Editar tabla</button><div class="sp"></div>
-          <span>Pulsa el botón o su tecla mientras ves el partido · <kbd>↑</kbd><kbd>↓</kbd> velocidad</span></div>
+          <span class="tagsTip">Pulsa el botón o su tecla mientras ves el partido · <kbd>↑</kbd><kbd>↓</kbd> velocidad</span>
+          <span class="dockSeg" title="Dónde va la tabla de etiquetas"><button data-dock="left" title="A la izquierda">◧</button><button data-dock="bottom" title="Debajo del vídeo">⬓</button><button data-dock="float" title="Flotante: arrástrala por su barra donde quieras">⧉</button></span></div>
         <div class="tagGrid" id="tagGrid"></div>
       </div>
     </div>
@@ -487,12 +490,45 @@ export function mountRSVideo(root, opts = {}) {
   on($("#tFrameB"), "click", () => { vid.pause(); vid.currentTime -= 1 / 25; }); on($("#tFrameF"), "click", () => { vid.pause(); vid.currentTime += 1 / 25; });
   on($("#tRate"), "change", (e) => { vid.playbackRate = +e.target.value; e.target.blur(); });
   on(vid, "play", () => { $("#tPlay").textContent = "❚❚"; }); on(vid, "pause", () => { $("#tPlay").textContent = "▶"; });
-  on($("#tBar"), "mousedown", (e) => {
-    if (!S.video) return; const r = $("#tBar").getBoundingClientRect();
-    const mk = e.target.closest(".mk");
-    if (mk) { const c = clipById(mk.dataset.id); if (c) { S.activeRow = c.id; vid.pause(); stopAt = null; vid.currentTime = c.tin; renderClips(); renderMarks(); $(`.row[data-id="${c.id}"]`)?.scrollIntoView({ block: "nearest" }); } return; }
-    const mv = (ev) => { vid.currentTime = clamp((ev.clientX - r.left) / r.width, 0, 1) * S.video.duration; stopAt = null; }; mv(e);
-    const up = () => { removeEventListener("mousemove", mv); removeEventListener("mouseup", up); }; addEventListener("mousemove", mv); addEventListener("mouseup", up);
+  // barra del partido: tocar = ir a ese momento; tocar un corte = elegirlo; en el corte elegido, arrastrar sus
+  // extremos cambia el inicio y el final, y arrastrar el centro lo mueve (igual que en la barra de corte de abajo)
+  on($("#tBar"), "pointerdown", (e) => {
+    if (!S.video) return; e.preventDefault(); const bar = $("#tBar"); const r = bar.getBoundingClientRect(); const D = S.video.duration;
+    const tAt = (x) => clamp((x - r.left) / r.width, 0, 1) * D;
+    const act = S.activeRow && clipById(S.activeRow);
+    let g = null;
+    if (act) {
+      const x0 = r.left + (act.tin / D) * r.width, x1 = r.left + (act.tout / D) * r.width, edge = Math.min(10, Math.max(4, (x1 - x0) / 3));
+      if (Math.abs(e.clientX - x0) <= edge) g = "in"; else if (Math.abs(e.clientX - x1) <= edge) g = "out";
+      else if (e.target.closest(".mk")?.dataset.id === act.id) g = "move";
+    }
+    if (!g) {
+      const mk = e.target.closest(".mk");
+      if (mk) { const c = clipById(mk.dataset.id); if (c) { S.activeRow = c.id; vid.pause(); stopAt = null; vid.currentTime = c.tin; renderClips(); renderMarks(); $(`.row[data-id="${c.id}"]`)?.scrollIntoView({ block: "nearest" }); } return; }
+      const mv = (ev) => { vid.currentTime = tAt(ev.clientX); stopAt = null; }; mv(e);
+      const up = () => { removeEventListener("pointermove", mv); removeEventListener("pointerup", up); }; addEventListener("pointermove", mv); addEventListener("pointerup", up); return;
+    }
+    vid.pause(); stopAt = null; snapshot();
+    const t0 = tAt(e.clientX), in0 = act.tin, len = act.tout - act.tin; let moved = false;
+    const mv = (ev) => {
+      const t = tAt(ev.clientX); moved = true;
+      if (g === "in") { setClipRange(act, Math.min(t, act.tout - MIN_CLIP), act.tout); vid.currentTime = act.tin; }
+      else if (g === "out") { setClipRange(act, act.tin, Math.max(t, act.tin + MIN_CLIP)); vid.currentTime = act.tout; }
+      else { const ni = clamp(in0 + (t - t0), 0, D - len); setClipRange(act, ni, ni + len); vid.currentTime = act.tin; }
+      renderMarks(); placeTrim(act);
+    };
+    const up = () => {
+      removeEventListener("pointermove", mv); removeEventListener("pointerup", up);
+      if (!moved) { hist.pop(); vid.currentTime = g === "out" ? act.tout : act.tin; return; }
+      S.clips.sort((x, y) => x.tin - y.tin); autosave(); renderClips(); renderMarks();
+    };
+    addEventListener("pointermove", mv); addEventListener("pointerup", up);
+  });
+  // el cursor dice qué se puede hacer: ↔ en los extremos del corte elegido
+  on($("#tBar"), "pointermove", (e) => {
+    const act = S.video && S.activeRow && clipById(S.activeRow); const bar = $("#tBar"); if (!act) { bar.style.cursor = ""; return; }
+    const r = bar.getBoundingClientRect(), D = S.video.duration, x0 = r.left + (act.tin / D) * r.width, x1 = r.left + (act.tout / D) * r.width, edge = Math.min(10, Math.max(4, (x1 - x0) / 3));
+    bar.style.cursor = Math.abs(e.clientX - x0) <= edge || Math.abs(e.clientX - x1) <= edge ? "ew-resize" : e.target.closest(".mk")?.dataset.id === act.id ? "grab" : "pointer";
   });
   function tagTick() {
     if (!S.video) return;
@@ -1211,6 +1247,67 @@ export function mountRSVideo(root, opts = {}) {
   on($("#eFrameB"), "click", () => { pause(); seekLocal(S.L - 1 / 25); }); on($("#eFrameF"), "click", () => { pause(); seekLocal(S.L + 1 / 25); });
   on($("#eRate"), "change", (e) => { if (S.playing) vid.playbackRate = +e.target.value; e.target.blur(); });
 
+  /* ---- dónde va la tabla de etiquetas: izquierda, debajo del vídeo o flotante (se arrastra por su barra) ---- */
+  const tagsEl = root.querySelector("#tagView .tags");
+  let dock = load("tagDock") || { at: "left", x: 80, y: 80, w: 300, h: 420 };
+  function placeTags() {
+    const tv = $("#tagView");
+    tv.classList.remove("dock-left", "dock-bottom", "dock-float"); tv.classList.add("dock-" + dock.at);
+    if (dock.at === "left") $("#tagDock").appendChild(tagsEl);
+    else if (dock.at === "bottom") $("#tagView .left").appendChild(tagsEl);
+    else {
+      tv.appendChild(tagsEl);
+      const W = tv.clientWidth || 1200, H = tv.clientHeight || 700;
+      dock.w = clamp(dock.w, 220, Math.max(220, W - 20)); dock.h = clamp(dock.h, 160, Math.max(160, H - 20));
+      dock.x = clamp(dock.x, 0, Math.max(0, W - 120)); dock.y = clamp(dock.y, 0, Math.max(0, H - 60));
+      Object.assign(tagsEl.style, { left: dock.x + "px", top: dock.y + "px", width: dock.w + "px", height: dock.h + "px" });
+    }
+    if (dock.at !== "float") Object.assign(tagsEl.style, { left: "", top: "", width: "", height: "" });
+    $$("[data-dock]").forEach((b) => b.classList.toggle("on", b.dataset.dock === dock.at));
+  }
+  $$("[data-dock]").forEach((b) => on(b, "click", () => { dock = { ...dock, at: b.dataset.dock }; store("tagDock", dock); placeTags(); b.blur(); }));
+  on(tagsEl.querySelector(".tagsHead"), "pointerdown", (e) => {
+    if (dock.at !== "float" || e.target.closest("button,select,input")) return;
+    e.preventDefault(); const x0 = e.clientX, y0 = e.clientY, ox = dock.x, oy = dock.y;
+    const mv = (ev) => { dock.x = ox + ev.clientX - x0; dock.y = oy + ev.clientY - y0; placeTags(); };
+    const up = () => { removeEventListener("pointermove", mv); removeEventListener("pointerup", up); store("tagDock", dock); };
+    addEventListener("pointermove", mv); addEventListener("pointerup", up);
+  });
+  // tamaño de la flotante (se cambia por la esquina de abajo a la derecha)
+  const dockRO = new ResizeObserver(() => { if (dock.at === "float" && tagsEl.offsetWidth) { dock.w = tagsEl.offsetWidth; dock.h = tagsEl.offsetHeight; store("tagDock", dock); } });
+  dockRO.observe(tagsEl); cleanups.push(() => dockRO.disconnect());
+  placeTags();
+
+  /* ---- otra pantalla: una ventana aparte que enseña el vídeo (con los dibujos) para llevarla al monitor ---- */
+  let ext = null;
+  function openExternal() {
+    if (ext && !ext.win.closed) { ext.win.focus(); return; }
+    const win = window.open("", "rsvExternal", "width=1280,height=720");
+    if (!win) return toast("El navegador ha bloqueado la ventana: permite las ventanas emergentes de esta página");
+    win.document.title = "RS Video · pantalla";
+    win.document.body.innerHTML = `<style>html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:system-ui,sans-serif}canvas{position:absolute;inset:0;width:100%;height:100%}
+      #fs{position:fixed;right:14px;bottom:14px;background:rgba(0,0,0,.6);color:#fff;border:1px solid #555;border-radius:8px;padding:8px 12px;cursor:pointer;opacity:.85}
+      body:fullscreen #fs{display:none}#hint{position:fixed;left:14px;bottom:14px;color:#bbb;font-size:13px;background:rgba(0,0,0,.6);padding:6px 10px;border-radius:6px}</style>
+      <canvas id="c"></canvas><div id="hint">Arrastra esta ventana al otro monitor y pulsa «Pantalla completa»</div><button id="fs">⛶ Pantalla completa</button>`;
+    const c = win.document.getElementById("c");
+    win.document.getElementById("fs").onclick = () => { win.document.documentElement.requestFullscreen?.().catch(() => {}); win.document.getElementById("hint").remove(); };
+    ext = { win, c, g: c.getContext("2d") };
+    root.classList.add("ext"); $("#rsvExt").classList.add("on"); setTimeout(sizeCanvas, 50);
+    toast("Vídeo en otra ventana: llévala al monitor. Aquí tienes más sitio para etiquetas y línea de tiempo");
+  }
+  function closeExternal() { if (!ext) return; try { if (!ext.win.closed) ext.win.close(); } catch { /* ya cerrada */ } ext = null; root.classList.remove("ext"); $("#rsvExt").classList.remove("on"); setTimeout(sizeCanvas, 50); }
+  on($("#rsvExt"), "click", (e) => { e.currentTarget.blur(); ext ? closeExternal() : openExternal(); });
+  cleanups.push(closeExternal);
+  function drawExternal() {
+    if (!ext) return; if (ext.win.closed) { closeExternal(); return; }
+    const c = ext.c, dpr = ext.win.devicePixelRatio || 1, W = Math.round(ext.win.innerWidth * dpr), H = Math.round(ext.win.innerHeight * dpr);
+    if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+    const g = ext.g; g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+    const vw = S.video?.w || 16, vh = S.video?.h || 9, s = Math.min(W / vw, H / vh), w = vw * s, h = vh * s, x = (W - w) / 2, y = (H - h) / 2;
+    if (S.mode === "edit" && curClip()) { g.save(); g.translate(x, y); render(g, w, h, curClip(), S.L, { clean: true }); g.restore(); }
+    else if (vid.readyState >= 2) g.drawImage(vid, x, y, w, h);
+  }
+
   /* ---- bucle principal ---- */
   let raf = 0, alive = true;
   function loop(now) {
@@ -1225,6 +1322,7 @@ export function mountRSVideo(root, opts = {}) {
         const ph = $("#phead"), det = $("#det"); if (ph && det) ph.style.left = 10 + S.L * ((det.clientWidth - 20) / L) + "px";
       }
     }
+    if (ext && !S.exporting) drawExternal();
     raf = requestAnimationFrame(loop);
   }
   raf = requestAnimationFrame(loop);
