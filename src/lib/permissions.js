@@ -21,7 +21,7 @@ export const DIRECCION = ['director', 'director_deportivo', 'coordinador_general
 export const COORD_ETAPA = ['coordinador_f7', 'coordinador_f11'];
 export const COORDINATORS = [...DIRECCION, ...COORD_ETAPA];
 
-const ALL_TOOLS = ['stats', 'methodology', 'tactics', 'scouting', 'reports', 'material'];
+const ALL_TOOLS = ['stats', 'methodology', 'tactics', 'video', 'scouting', 'reports', 'material'];
 const MENU = { panel: true, myTeam: true, tools: ALL_TOOLS };
 
 const COORD = {

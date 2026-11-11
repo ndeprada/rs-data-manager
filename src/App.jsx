@@ -18,6 +18,7 @@ const PlayerProfile = lazyPage(() => import('./pages/PlayerProfile'));
 const Reports = lazyPage(() => import('./pages/Reports'));
 const Stats = lazyPage(() => import('./pages/Stats'));
 const Tactics = lazyPage(() => import('./pages/Tactics'));
+const VideoAnalysis = lazyPage(() => import('./pages/VideoAnalysis'));
 const Attendance = lazyPage(() => import('./pages/Attendance'));
 const MatchDetail = lazyPage(() => import('./pages/MatchDetail'));
 const Matches = lazyPage(() => import('./pages/Matches'));
@@ -151,6 +152,7 @@ const AuthenticatedApp = () => {
         <Route path="/Reports" element={<Reports />} />
         <Route path="/Stats" element={<Stats />} />
         <Route path="/Tactics" element={<Tactics />} />
+        <Route path="/Video" element={<VideoAnalysis />} />
         <Route path="/Attendance" element={<Attendance />} />
         <Route path="/MatchDetail" element={<MatchDetail />} />
         <Route path="/Matches" element={<Matches />} />

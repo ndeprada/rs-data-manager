@@ -4,7 +4,7 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Shield, CalendarDays, Menu, X,
   FileText, BarChart2, Target, Binoculars, LogOut, ChevronRight, ClipboardList, UserCog,
-  UserCheck, Trophy, Calendar, MapPin, Package, BookOpen, Bell, CalendarRange
+  UserCheck, Trophy, Calendar, MapPin, Package, BookOpen, Bell, CalendarRange, Clapperboard
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
@@ -216,6 +216,7 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
     { key: "stats", label: msg("Estadísticas"), path: "/Stats", icon: BarChart2 },
     { key: "methodology", label: msg("Metodología"), path: "/Methodology", icon: BookOpen },
     { key: "tactics", label: msg("Táctica"), path: "/Tactics", icon: Target },
+    { key: "video", label: msg("Vídeo"), path: "/Video", icon: Clapperboard },
     { key: "scouting", label: msg("Planificación"), path: "/Scouting", icon: Binoculars },
     { key: "reports", label: msg("Informes"), path: "/Reports", icon: FileText },
     { key: "material", label: msg("Material"), path: "/Material", icon: Package },

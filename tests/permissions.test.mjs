@@ -50,7 +50,7 @@ assert.equal(tabs('psicologo').length, 7);
 assert.deepEqual(p('fisioterapeuta').tools, []);
 assert.deepEqual(p('psicologo').tools, ['stats']);
 assert.equal(p('psicologo').myTeam, false);
-assert.equal(p('entrenador').tools.length, 6);
+assert.equal(p('entrenador').tools.length, 7);
 assert.equal(p('fisioterapeuta').stats, 'none');
 assert.equal(p('entrenador').stats, 'team');
 
