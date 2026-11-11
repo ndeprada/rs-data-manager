@@ -9,8 +9,6 @@ export default [
   ["Ajustar foto","Adjust photo","Ajuster la photo","Ajusta la foto"],
   ["Fondo de la foto","Photo background","Fond de la photo","Fons de la foto"],
   ["Zoom","Zoom","Zoom","Zoom"],
-  ["RS Data","RS Data","RS Data","RS Data"],
-  ["Manager","Manager","Manager","Manager"],
   ["Acceso restringido","Access restricted","Accès restreint","Accés restringit"],
   ["No estás registrado para usar esta aplicación. Contacta con el administrador para solicitar acceso.","You are not registered to use this application. Contact the administrator to request access.","Vous n'êtes pas inscrit pour utiliser cette application. Contactez l'administrateur pour demander l'accès.","No estàs registrat per fer servir aquesta aplicació. Contacta amb l'administrador per sol·licitar l'accés."],
   ["Si crees que es un error, puedes:","If you think this is a mistake, you can:","Si vous pensez qu'il s'agit d'une erreur, vous pouvez :","Si creus que és un error, pots:"],

@@ -237,10 +237,7 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
           <div className="w-8 h-8 shrink-0 rounded-[6px] flex items-center justify-center" style={{ background: "rgba(255,255,255,0.13)" }}>
             <img src={CLUB_LOGO_URL_WHITE} alt={t("RS")} className="w-6 h-6 object-contain" />
           </div>
-          <div>
-            <p className="text-white font-black text-sm leading-tight uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>{t("RS Data")}</p>
-            <p className="text-[9px] uppercase tracking-widest leading-tight" style={{ fontFamily: "var(--font-display)", color: "var(--naranja)" }}>{t("Manager")}</p>
-          </div>
+          <p className="text-white font-black text-sm leading-tight uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>{t("RS Manager")}</p>
         </Link>
       </div>
 
