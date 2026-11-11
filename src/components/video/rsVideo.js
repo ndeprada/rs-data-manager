@@ -6,6 +6,7 @@
 import { RATES, stepRate, RESERVED_KEYS, newTag, defaultSets, cleanSet, duplicateKeys, uniqueName, duplicateSet, exportSets, importSets, restoreSets, isDefaultSet, setPayload, syncPlan, sortSets } from "../../lib/videoTags.js";
 import { clipLen, mapL, freezeStartL, localOfVideo, kfOffset, ptsAt, visibleAt as visible, smoothTrack, samplesToLocal, spliceKeys } from "../../lib/videoTimeline.js";
 import { createTracker, bodyBox } from "../../lib/videoTracker.js";
+const MIN_CLIP = 0.5; // segundos: corte más corto
 const TRACK_SMOOTH = 0.15; // segundos: suavizado del seguimiento (quita el balanceo de cada zancada)
 
 const PALETTE = ["#ffffff", "#FF6E00", "#ffd400", "#e5484d", "#2fbf71", "#3ec7ff", "#73000A", "#111111"];
@@ -47,6 +48,7 @@ const TEMPLATE = `
         <div class="time" id="tTime"><b>00:00</b> / 00:00</div>
         <div class="bar" id="tBar"><div class="track"></div><div class="fill" id="tFill"></div><div id="tMarks"></div><div class="head" id="tHead"></div></div>
       </div>
+      <div class="trimRow" id="trimRow" hidden></div>
       <div class="tags">
         <div class="tagsHead"><b style="color:var(--txt)">Etiquetas</b><select id="setSel" title="Tabla de etiquetas"></select>
           <button id="btnTagEdit">Editar tabla</button><div class="sp"></div>
@@ -332,7 +334,7 @@ export function mountRSVideo(root, opts = {}) {
       let a = S.rec[id], b = now; delete S.rec[id]; if (b < a) [a, b] = [b, a]; if (b - a < 1) b = a + 1;
       c = newClip(t, clamp(a - t.pre, 0, D), clamp(b + t.post, 0, D));
     } else c = newClip(t, clamp(now - t.pre, 0, D), clamp(now + t.post, 0, D));
-    snapshot(); S.clips.push(c); S.clips.sort((a, b) => a.tin - b.tin);
+    snapshot(); S.clips.push(c); S.clips.sort((a, b) => a.tin - b.tin); S.activeRow = c.id;
     renderTagGrid(); renderClips(); renderMarks(); autosave();
     const nb = $(`.tagBtn[data-id="${id}"]`); if (nb) { nb.classList.add("flash"); setTimeout(() => nb.classList.remove("flash"), 250); }
     $(`.row[data-id="${c.id}"]`)?.scrollIntoView({ block: "nearest" });
@@ -355,7 +357,7 @@ export function mountRSVideo(root, opts = {}) {
     renderChips();
     const list = filtered(); const picked = S.clips.filter((c) => c.pick).length;
     $("#clipCount").textContent = S.clips.length + (S.clips.length === 1 ? " clip" : " clips") + (picked ? " · " + picked + (picked === 1 ? " marcado" : " marcados") : "");
-    if (!S.clips.length) { $("#clipList").innerHTML = `<div class="empty">Aún no hay clips.<br>Reproduce el partido y pulsa una etiqueta (o su tecla) cuando pase la acción: el clip aparecerá aquí.</div>`; return; }
+    if (!S.clips.length) { S.activeRow = null; renderTrim(); $("#clipList").innerHTML = `<div class="empty">Aún no hay clips.<br>Reproduce el partido y pulsa una etiqueta (o su tecla) cuando pase la acción: el clip aparecerá aquí.</div>`; return; }
     $("#clipList").innerHTML = list.map((c) => `<div class="row ${S.activeRow === c.id ? "act" : ""}" style="--c:${c.color}" data-id="${c.id}">
       <input type="checkbox" ${c.pick ? "checked" : ""} data-a="pick" title="Marcar para el editor">
       <div><div class="n">${esc(c.label)}${S.seq.includes(c.id) ? ' <span style="color:var(--naranja);font-size:10px">● en editor</span>' : ""}</div>
@@ -369,15 +371,16 @@ export function mountRSVideo(root, opts = {}) {
       if (a) {
         snapshot();
         if (a === "good") c.rating = c.rating === 1 ? 0 : 1; else if (a === "bad") c.rating = c.rating === -1 ? 0 : -1;
-        else if (a === "fav") c.fav = !c.fav; else if (a === "del") { S.clips = S.clips.filter((x) => x !== c); S.seq = S.seq.filter((x) => x !== c.id); }
-        else if (a === "in-") c.tin = Math.max(0, c.tin - 1); else if (a === "in+") c.tin = Math.min(c.tout - 1, c.tin + 1);
-        else if (a === "out-") c.tout = Math.max(c.tin + 1, c.tout - 1); else if (a === "out+") c.tout = Math.min(S.video.duration, c.tout + 1);
-        else if (a === "inNow") c.tin = Math.min(vid.currentTime, c.tout - 1); else if (a === "outNow") c.tout = Math.max(vid.currentTime, c.tin + 1);
+        else if (a === "fav") c.fav = !c.fav; else if (a === "del") { S.clips = S.clips.filter((x) => x !== c); S.seq = S.seq.filter((x) => x !== c.id); if (S.activeRow === c.id) S.activeRow = null; }
+        else if (a === "in-") setClipRange(c, c.tin - 1, c.tout); else if (a === "in+") setClipRange(c, Math.min(c.tout - MIN_CLIP, c.tin + 1), c.tout);
+        else if (a === "out-") setClipRange(c, c.tin, c.tout - 1); else if (a === "out+") setClipRange(c, c.tin, c.tout + 1);
+        else if (a === "inNow") setClipRange(c, Math.min(vid.currentTime, c.tout - MIN_CLIP), c.tout); else if (a === "outNow") setClipRange(c, c.tin, vid.currentTime);
         if (a.startsWith("in")) vid.currentTime = c.tin; if (a.startsWith("out")) vid.currentTime = Math.max(c.tin, c.tout - 2);
         autosave(); renderClips(); renderMarks(); return;
       }
       S.activeRow = c.id; playRange(c.tin, c.tout); renderClips();
     }));
+    renderTrim();
   }
   let stopAt = null;
   const playRange = (a, b) => { vid.currentTime = a; stopAt = b; vid.play(); };
@@ -390,8 +393,88 @@ export function mountRSVideo(root, opts = {}) {
   });
   function renderMarks() {
     const D = S.video?.duration || 1;
-    $("#tMarks").innerHTML = S.clips.map((c) => `<div class="mk" style="left:${(c.tin / D) * 100}%;width:${Math.max(0.25, ((c.tout - c.tin) / D) * 100)}%;background:${c.color}"></div>`).join("");
+    $("#tMarks").innerHTML = S.clips.map((c) => `<div class="mk ${S.activeRow === c.id ? "on" : ""}" data-id="${c.id}" title="${esc(c.label)} · ${fmt(c.tin)} → ${fmt(c.tout)}" style="left:${(c.tin / D) * 100}%;width:${Math.max(0.25, ((c.tout - c.tin) / D) * 100)}%;background:${c.color}"></div>`).join("");
   }
+
+  // ---- inicio y final de un corte: se cambian arrastrando los extremos en la barra de corte ----
+  // Cambiar el inicio deja congelados, dibujos y seguimientos en el mismo momento del vídeo.
+  function setClipRange(c, nin, nout) {
+    const D = S.video?.duration || Math.max(nout, c.tout);
+    nin = clamp(nin, 0, D); nout = clamp(nout, 0, D);
+    if (nout - nin < MIN_CLIP) { if (nin + MIN_CLIP <= D) nout = nin + MIN_CLIP; else nin = Math.max(0, nout - MIN_CLIP); }
+    const dIn = nin - c.tin;
+    if (Math.abs(dIn) > 1e-6) {
+      c.freezes.forEach((f) => (f.at -= dIn));
+      c.drawings.forEach((d) => { d.from = Math.max(0, d.from - dIn); d.to = Math.max(d.from + 0.1, d.to - dIn); (d.kf || []).forEach((k) => (k.t -= dIn)); (d.ptk || []).forEach((tk) => (tk || []).forEach((k) => (k.t -= dIn))); });
+    }
+    c.tin = nin; c.tout = nout;
+    c.freezes = c.freezes.filter((f) => f.at >= 0 && f.at <= c.tout - c.tin);
+    const L = clipLen(c); c.drawings.forEach((d) => { d.to = Math.min(d.to, L); d.from = Math.min(d.from, d.to - 0.1); });
+  }
+  let trimWin = null;
+  const niceStep = (W) => [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300].find((s) => W / s <= 12) || 600;
+  function renderTrim() {
+    const el = $("#trimRow"); const c = S.activeRow && clipById(S.activeRow);
+    if (!S.video || !c) { el.hidden = true; trimWin = null; return; }
+    const D = S.video.duration;
+    if (!trimWin || trimWin.id !== c.id || c.tin < trimWin.a || c.tout > trimWin.b) {
+      const pad = Math.max(6, (c.tout - c.tin) * 0.8);
+      trimWin = { id: c.id, a: Math.max(0, c.tin - pad), b: Math.min(D, c.tout + pad) };
+    }
+    const { a, b } = trimWin, W = Math.max(0.5, b - a), P = (t) => ((t - a) / W) * 100;
+    const st = niceStep(W); let ticks = "";
+    for (let t = Math.ceil(a / st) * st; t <= b + 1e-6; t += st) ticks += `<div class="tk" style="left:${P(t)}%"><span>${fmt(t)}</span></div>`;
+    const others = S.clips.filter((o) => o !== c && o.tout > a && o.tin < b)
+      .map((o) => `<div class="tother" data-id="${o.id}" title="${esc(o.label)} · ${fmt(o.tin)} → ${fmt(o.tout)}" style="left:${P(Math.max(a, o.tin))}%;width:${P(Math.min(b, o.tout)) - P(Math.max(a, o.tin))}%;background:${o.color}"></div>`).join("");
+    el.hidden = false;
+    el.innerHTML = `<div class="trimInfo"><span class="dot" style="background:${c.color}"></span><b>${esc(c.label)}</b>
+        <span>Inicio <b id="trIn">${fmt(c.tin, 1)}</b></span><span>Final <b id="trOut">${fmt(c.tout, 1)}</b></span><span id="trLen">${(c.tout - c.tin).toFixed(1)} s</span>
+        <span class="hint">Arrastra los extremos para cambiar el inicio y el final · el centro mueve el corte entero</span><div class="sp"></div>
+        <button data-tr="play" title="Ver el corte">▶ Ver el corte</button><button data-tr="close" title="Cerrar">✕</button></div>
+      <div class="trimTrack" id="trTrack">${ticks}<div class="tothers">${others}</div>
+        <div class="tclip" id="trClip" style="--c:${c.color}"><div class="grip l" data-g="in" title="Inicio del corte"></div><div class="grip r" data-g="out" title="Final del corte"></div></div>
+        <div class="thead" id="trHead"></div></div>`;
+    placeTrim(c);
+    el.querySelectorAll("[data-tr]").forEach((bt) => on(bt, "click", () => {
+      if (bt.dataset.tr === "play") playRange(c.tin, c.tout);
+      else { S.activeRow = null; renderClips(); renderMarks(); }
+      bt.blur();
+    }));
+  }
+  function placeTrim(c) {
+    if (!trimWin) return; const W = Math.max(0.5, trimWin.b - trimWin.a), P = (t) => ((t - trimWin.a) / W) * 100;
+    const cl = $("#trClip"); if (!cl) return;
+    cl.style.left = P(c.tin) + "%"; cl.style.width = Math.max(0.3, P(c.tout) - P(c.tin)) + "%";
+    $("#trIn").textContent = fmt(c.tin, 1); $("#trOut").textContent = fmt(c.tout, 1); $("#trLen").textContent = (c.tout - c.tin).toFixed(1) + " s";
+  }
+  on($("#trimRow"), "pointerdown", (e) => {
+    const track = e.target.closest("#trTrack"); if (!track || !trimWin) return;
+    const c = clipById(S.activeRow); if (!c) return;
+    e.preventDefault();
+    const r = track.getBoundingClientRect(), W = trimWin.b - trimWin.a;
+    const tAt = (x) => clamp(trimWin.a + ((x - r.left) / r.width) * W, trimWin.a, trimWin.b);
+    const other = e.target.closest(".tother");
+    if (other) { S.activeRow = other.dataset.id; const o = clipById(other.dataset.id); vid.pause(); vid.currentTime = o.tin; renderClips(); renderMarks(); return; }
+    const g = e.target.dataset.g || (e.target.closest("#trClip") ? "move" : null);
+    vid.pause(); stopAt = null;
+    if (!g) { const mv = (ev) => { vid.currentTime = tAt(ev.clientX); }; mv(e); const up = () => { removeEventListener("pointermove", mv); removeEventListener("pointerup", up); }; addEventListener("pointermove", mv); addEventListener("pointerup", up); return; }
+    snapshot();
+    const t0 = tAt(e.clientX), in0 = c.tin, out0 = c.tout, len = out0 - in0; let moved = false;
+    const mv = (ev) => {
+      const t = tAt(ev.clientX); moved = true;
+      if (g === "in") { setClipRange(c, Math.min(t, c.tout - MIN_CLIP), c.tout); vid.currentTime = c.tin; }
+      else if (g === "out") { setClipRange(c, c.tin, Math.max(t, c.tin + MIN_CLIP)); vid.currentTime = c.tout; }
+      else { const ni = clamp(in0 + (t - t0), 0, S.video.duration - len); setClipRange(c, ni, ni + len); vid.currentTime = c.tin; }
+      placeTrim(c); renderMarks();
+    };
+    const up = () => {
+      removeEventListener("pointermove", mv); removeEventListener("pointerup", up);
+      if (!moved) { hist.pop(); vid.currentTime = g === "out" ? c.tout : c.tin; return; }
+      S.clips.sort((x, y) => x.tin - y.tin); autosave(); renderClips(); renderMarks();
+      if (S.seq.includes(c.id) && S.cur === c.id) { renderTimeline(); renderProps(); }
+    };
+    addEventListener("pointermove", mv); addEventListener("pointerup", up);
+  });
   on($("#tPlay"), "click", () => (vid.paused ? vid.play() : vid.pause()));
   on($("#tBack"), "click", () => (vid.currentTime -= 2)); on($("#tFwd"), "click", () => (vid.currentTime += 2));
   on($("#tFrameB"), "click", () => { vid.pause(); vid.currentTime -= 1 / 25; }); on($("#tFrameF"), "click", () => { vid.pause(); vid.currentTime += 1 / 25; });
@@ -399,6 +482,8 @@ export function mountRSVideo(root, opts = {}) {
   on(vid, "play", () => { $("#tPlay").textContent = "❚❚"; }); on(vid, "pause", () => { $("#tPlay").textContent = "▶"; });
   on($("#tBar"), "mousedown", (e) => {
     if (!S.video) return; const r = $("#tBar").getBoundingClientRect();
+    const mk = e.target.closest(".mk");
+    if (mk) { const c = clipById(mk.dataset.id); if (c) { S.activeRow = c.id; vid.pause(); stopAt = null; vid.currentTime = c.tin; renderClips(); renderMarks(); $(`.row[data-id="${c.id}"]`)?.scrollIntoView({ block: "nearest" }); } return; }
     const mv = (ev) => { vid.currentTime = clamp((ev.clientX - r.left) / r.width, 0, 1) * S.video.duration; stopAt = null; }; mv(e);
     const up = () => { removeEventListener("mousemove", mv); removeEventListener("mouseup", up); }; addEventListener("mousemove", mv); addEventListener("mouseup", up);
   });
@@ -408,6 +493,7 @@ export function mountRSVideo(root, opts = {}) {
     if (stopAt != null && t >= stopAt) { vid.pause(); stopAt = null; }
     $("#tTime").innerHTML = `<b>${fmt(t)}</b> / ${fmt(D)}`;
     $("#tFill").style.width = (t / D) * 100 + "%"; $("#tHead").style.left = (t / D) * 100 + "%";
+    const th = trimWin && $("#trHead"); if (th) { const u = (t - trimWin.a) / (trimWin.b - trimWin.a); th.style.display = u < 0 || u > 1 ? "none" : ""; th.style.left = u * 100 + "%"; }
   }
 
   // ----- tabla de etiquetas (diálogo) -----
@@ -846,16 +932,10 @@ export function mountRSVideo(root, opts = {}) {
     });
   }
   function trimClip(c, how) {
-    snapshot(); const D = S.video.duration; let dIn = 0;
-    if (how === "in-") dIn = -Math.min(1, c.tin); if (how === "in+") dIn = Math.min(1, c.tout - c.tin - 1);
-    if (dIn) {
-      c.tin += dIn; c.freezes.forEach((f) => (f.at -= dIn)); c.freezes = c.freezes.filter((f) => f.at >= 0 && f.at <= c.tout - c.tin);
-      c.drawings.forEach((d) => { d.from = Math.max(0, d.from - dIn); d.to = Math.max(d.from + 0.1, d.to - dIn); (d.kf || []).forEach((k) => (k.t -= dIn)); (d.ptk || []).forEach((tk) => (tk || []).forEach((k) => (k.t -= dIn))); });
-    }
-    if (how === "out-") { c.tout = Math.max(c.tin + 1, c.tout - 1); c.freezes = c.freezes.filter((f) => f.at <= c.tout - c.tin); }
-    if (how === "out+") c.tout = Math.min(D, c.tout + 1);
-    const L = clipLen(c); c.drawings.forEach((d) => { d.to = Math.min(d.to, L); d.from = Math.min(d.from, d.to - 0.1); });
-    seekLocal(Math.min(S.L, L)); autosave(); renderProps(); renderTimeline(); renderClips();
+    snapshot();
+    if (how === "in-") setClipRange(c, c.tin - 1, c.tout); if (how === "in+") setClipRange(c, Math.min(c.tout - MIN_CLIP, c.tin + 1), c.tout);
+    if (how === "out-") setClipRange(c, c.tin, Math.max(c.tin + MIN_CLIP, c.tout - 1)); if (how === "out+") setClipRange(c, c.tin, c.tout + 1);
+    seekLocal(Math.min(S.L, clipLen(c))); autosave(); renderProps(); renderTimeline(); renderClips(); renderMarks();
   }
 
   // ---- congelar ----
