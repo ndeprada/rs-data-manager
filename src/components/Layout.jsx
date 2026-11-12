@@ -205,6 +205,8 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
   const unreadCount = unreadFeedback.filter((f) => !f.read_at).length;
   const myProfilePath = myStaffId ? `/CoachProfile?id=${myStaffId}` : user?.id ? `/CoachProfile?userId=${user.id}` : null;
 
+  // Apartados que el club ha ocultado (Configuración → Estructura del club)
+  const hidden = new Set(BRAND.hidden || []);
   const adminNav = [
     { label: msg("Panel"), path: "/Dashboard", icon: LayoutDashboard },
     { label: msg("Calendario"), path: "/Calendar", icon: CalendarDays },
@@ -212,8 +214,8 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
     { label: msg("Jugadores"), path: "/Players", icon: Users },
     { label: msg("Personal"), path: "/Coaches", icon: UserCheck },
     { label: msg("Accesos"), path: "/Accesos", icon: UserCog },
-    { label: msg("Temporada"), path: "/Season", icon: CalendarRange },
-    { label: msg("Campos"), path: "/Fields", icon: MapPin },
+    !hidden.has("season") && { label: msg("Temporada"), path: "/Season", icon: CalendarRange },
+    !hidden.has("fields") && { label: msg("Campos"), path: "/Fields", icon: MapPin },
     canConfigureClub(user) && { label: msg("Configuración"), path: "/Configuracion", icon: Settings2 },
   ].filter(Boolean);
 
@@ -225,7 +227,7 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
     { key: "scouting", label: msg("Planificación"), path: "/Scouting", icon: Binoculars },
     { key: "reports", label: msg("Informes"), path: "/Reports", icon: FileText },
     { key: "material", label: msg("Material"), path: "/Material", icon: Package },
-  ].filter((item) => perms.tools.includes(item.key));
+  ].filter((item) => perms.tools.includes(item.key) && !hidden.has(item.key));
 
   // Quien ve a todos los jugadores sin ser coordinación (porteros, psicología, fisio…) tiene su propio bloque de club
   const clubNav = [

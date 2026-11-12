@@ -1,3 +1,4 @@
+import { BRAND } from "@/lib/brand";
 // Etiquetas de Planificación → Scouting (solo español, como el resto de Scouting)
 import { birthYearOf } from "@/lib/birthYear";
 import { playerFullName } from "@/lib/playerName";
@@ -22,4 +23,6 @@ export function teamInitials(name) {
     .filter((w) => w && !/^(DE|DEL|LA|EL|LES|I|Y|C|F|E|S|CE|CF|UD|AT|AE|CD|SE|FC|ESC|CLUB|FUTBOL|ESPORTIU)$/i.test(w));
   return (words.slice(0, 3).map((w) => w[0]).join("") || "··").toUpperCase();
 }
-export const isRacingTeam = (name) => /RACING SARRI/i.test(String(name || ""));
+// ¿Es un equipo del club? Por cómo aparece su nombre en las actas de la FCF (Configuración → Estructura del club)
+const norm = (x) => String(x || "").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+export const isRacingTeam = (name) => { const k = norm(BRAND.fcfName).trim(); return !!k && norm(name).includes(k); };

@@ -297,7 +297,7 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
           embedded embedHeight={620} studioTitle={studioTag}
           variant="abp" sideHost={beside ? sideEl : null}
           chipPlayer={(el, patch, toTeam) => (el.team === "a" ? <AbpChipPlayer el={el} patch={patch} candidates={candidates} byId={byId} attack={setup.attack} toTeam={toTeam} /> : null)}
-          chipDescribe={(el) => (el.team === "a" && el.fn && FN_LABEL[el.fn] ? `${teamsOf(board).find((x) => x.id === "a")?.name || "Racing"} · ${t(FN_LABEL[el.fn])}` : null)} />
+          chipDescribe={(el) => (el.team === "a" && el.fn && FN_LABEL[el.fn] ? `${teamsOf(board).find((x) => x.id === "a")?.name || BRAND.shortName} · ${t(FN_LABEL[el.fn])}` : null)} />
       </div>
 
       {/* Derecha: quién hace qué */}

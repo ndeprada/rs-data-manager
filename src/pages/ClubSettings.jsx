@@ -12,12 +12,14 @@ import { Page, TopBar, Card, Btn, RS } from "@/components/rs2/kit";
 import { FieldRow, ImageField, ColorField, FontField, inputStyle } from "@/components/settings/BrandFields";
 import { BrandPreview } from "@/components/settings/BrandPreview";
 import { PatternEditor } from "@/components/settings/PatternEditor";
+import { StructureEditor } from "@/components/settings/StructureEditor";
 
 const TABS = [
   { key: "identidad", label: msg("Identidad"), testId: "cfg-tab-identidad" },
   { key: "colores", label: msg("Colores"), testId: "cfg-tab-colores" },
   { key: "tipografias", label: msg("Tipografías"), testId: "cfg-tab-tipografias" },
   { key: "patrones", label: msg("Patrones de página"), testId: "cfg-tab-patrones" },
+  { key: "estructura", label: msg("Estructura del club"), testId: "cfg-tab-estructura" },
 ];
 
 const COLOR_ROWS = [
@@ -103,7 +105,8 @@ export default function ClubSettings() {
         {loadError && <div style={{ fontSize: 13, color: "#B91C1C", marginBottom: 10 }}>{t("No se ha podido leer la configuración guardada.")}</div>}
 
         {tab === "patrones" && <PatternEditor draft={draft} set={set} />}
-        {tab !== "patrones" && (
+        {tab === "estructura" && <StructureEditor draft={draft} set={set} />}
+        {!["patrones", "estructura"].includes(tab) && (
         <div className="grid xl:grid-cols-[minmax(0,1fr)_440px]" style={{ gap: 16, alignItems: "start" }}>
           <div className="flex flex-col" style={{ gap: 12 }}>
             {tab === "identidad" && (

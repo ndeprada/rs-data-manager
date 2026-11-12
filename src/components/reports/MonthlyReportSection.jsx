@@ -1,3 +1,4 @@
+import { BRAND } from "@/lib/brand";
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -58,7 +59,7 @@ export default function MonthlyReportSection() {
     const assists = stats.reduce((a, x) => a + (x.assists || 0), 0);
     const present = att.filter((a) => a.status === "present" || a.status === "apart").length;
     const attRate = att.length > 0 ? Math.round((present / att.length) * 100) : null;
-    const body = `Estimado/a ${player.guardian_name || "tutor/a"},\n\nLe enviamos el resumen de ${periodLabel} de ${playerFullName(player)} (${team?.name || ""}):\n\n• Partidos jugados: ${stats.length}\n• Goles / asistencias: ${goals} / ${assists}${attRate !== null ? `\n• Asistencia a entrenos: ${attRate}%` : ""}\n\n(Adjuntamos el informe completo en PDF.)\n\nUn saludo,\nRacing Sarrià`;
+    const body = `Estimado/a ${player.guardian_name || "tutor/a"},\n\nLe enviamos el resumen de ${periodLabel} de ${playerFullName(player)} (${team?.name || ""}):\n\n• Partidos jugados: ${stats.length}\n• Goles / asistencias: ${goals} / ${assists}${attRate !== null ? `\n• Asistencia a entrenos: ${attRate}%` : ""}\n\n(Adjuntamos el informe completo en PDF.)\n\nUn saludo,\n${BRAND.clubName}`;
     return `mailto:${player.guardian_email}?subject=${encodeURIComponent(`Informe mensual de ${playerFullName(player)} — ${periodLabel}`)}&body=${encodeURIComponent(body)}`;
   };
 

@@ -4,11 +4,11 @@
 //  · Cada ficha nuestra puede llevar `player_id`: dentro va el dorsal, debajo el nombre y encima el rol de la jugada.
 import { SP_BASE_BOARD_KEYS, SP_BASE_CHIP_KEYS, cleanSpBase } from "./boardDefaults.js";
 import { NEW_BOARD_LOOK, teamsOf, animFrameCount, fieldOf, fieldKind, isQuad, normalizeBoard, pruneLinks, setViewMode, orientOf, lookOf, marginOf, isPersp, perspectiveOf, viewBox, toView, elementBounds } from "./board.js";
-import { C as clubColor } from "./brand.js";
+import { C as clubColor, BRAND } from "./brand.js";
 
 export const SP_FIELD = "half";
 export const SP_TEAMS = [
-  { id: "a", name: "Racing", color: clubColor.primary },
+  { id: "a", name: BRAND.shortName, color: clubColor.primary },
   { id: "b", name: "Rival", color: "#2563eb" },
 ];
 const SP_CHIP = 1.9;

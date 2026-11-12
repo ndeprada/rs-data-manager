@@ -3,6 +3,8 @@
 // El secreto se genera una vez y se guarda en la base (entidad IcsConfig, privada); "revs" permite cambiar el enlace de un equipo.
 import crypto from 'node:crypto';
 import { isCancelled, cancelText, cancelWord } from '../../src/lib/eventCancel.js';
+import { fullBrand } from '../../src/lib/brand.js';
+import { readClubBrand } from './clubBrand.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MATCHES = ['partido_liga', 'partido_amistoso', 'torneo'];
@@ -76,10 +78,10 @@ const VTIMEZONE = [
 ];
 
 // Construye el calendario. events: [{ id, data, updated_at }]. No incluye notas internas ni datos de jugadores.
-export function buildIcs({ team, events, base, now = new Date() }) {
+export function buildIcs({ team, events, base, now = new Date(), clubName = 'Racing Sarrià' }) {
   const lines = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Racing Sarria//RS Manager//ES', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-    `X-WR-CALNAME:${esc(`${team.name} · Racing Sarrià`)}`, 'X-WR-TIMEZONE:Europe/Madrid', 'X-PUBLISHED-TTL:PT1H', 'REFRESH-INTERVAL;VALUE=DURATION:PT1H',
+    `X-WR-CALNAME:${esc(`${team.name} · ${clubName}`)}`, 'X-WR-TIMEZONE:Europe/Madrid', 'X-PUBLISHED-TTL:PT1H', 'REFRESH-INTERVAL;VALUE=DURATION:PT1H',
     ...VTIMEZONE,
   ];
   let n = 0;
@@ -133,5 +135,7 @@ export async function feedFor(db, teamId, given, base) {
   const cfg = await readConfig(db);
   if (!tokenMatches(cfg, teamId, given)) return null;
   const { rows } = await db.query(`select id, data, updated_at from entities where entity_type = 'Event' and data->>'team_id' = $1 order by data->>'date'`, [teamId]);
-  return buildIcs({ team: t[0].data, events: rows, base });
+  let clubName;
+  try { clubName = fullBrand(await readClubBrand()).clubName; } catch { /* el de siempre */ }
+  return buildIcs({ team: t[0].data, events: rows, base, clubName });
 }

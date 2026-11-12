@@ -50,3 +50,10 @@ test("tonos derivados y avisos de contraste", () => {
   assert.ok(colorWarnings({ primary: "#FFEE99" }).some((w) => w.key === "primary"));
   assert.ok(Math.abs(contrastRatio("#000000", "#FFFFFF") - 21) < 0.01);
 });
+
+test("estructura: nombre corto, nombre en actas y apartados ocultos", () => {
+  const c = cleanBrand({ shortName: " Club ", fcfName: "CLUB X", hidden: ["video", "nada", "fields"] });
+  assert.deepEqual(c, { fcfName: "CLUB X", shortName: "Club", hidden: ["video", "fields"] });
+  assert.deepEqual(brandDiff(fullBrand({ shortName: "Racing", hidden: [] })), {});
+  assert.deepEqual(brandDiff(fullBrand(c)), c);
+});
