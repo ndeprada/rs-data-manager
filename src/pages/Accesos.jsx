@@ -1,3 +1,4 @@
+import { POLL } from "@/lib/query-client";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -122,7 +123,7 @@ export default function Accesos() {
   });
 
   // Familiares: su acceso depende de que el club apruebe el vínculo con el jugador
-  const { data: pendingLinks = [] } = useQuery({ queryKey: ["pendingLinks"], queryFn: () => base44.club.pendingLinks(), refetchInterval: 60000 });
+  const { data: pendingLinks = [] } = useQuery({ queryKey: ["pendingLinks"], queryFn: () => base44.club.pendingLinks(), refetchInterval: POLL.slow, refetchOnWindowFocus: true });
   const isFamily = (u) => u.app_role === "familiar" || u.app_role_pending === "familiar" || u.person_type === "familiar";
   const familyDecide = useMutation({
     mutationFn: async ({ user, decision }) => {

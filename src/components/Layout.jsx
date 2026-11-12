@@ -10,7 +10,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 import { CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
-import { usePendingUsers } from "@/lib/pendingUsers";
+import { usePendingUsersCount } from "@/lib/pendingUsers";
+import { POLL } from "@/lib/query-client";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { addDays, isWithinInterval, parseISO } from "date-fns";
@@ -171,7 +172,7 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
   const t = useT();
   const { user, logout } = useAuth();
   const { isCoordinator, appRole, selectedTeamId, perms } = useTeamAccess();
-  const pendingUsers = usePendingUsers(isCoordinator);
+  const pendingUsersCount = usePendingUsersCount(isCoordinator);
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
     queryFn: () => base44.entities.Event.list("-date"),
@@ -202,7 +203,8 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
     queryKey: ["coachFeedbackUnread", myStaffId],
     queryFn: () => base44.entities.CoachFeedback.filter({ staff_id: myStaffId, status: "enviado" }),
     enabled: !!myStaffId,
-    refetchInterval: 120000,
+    refetchInterval: POLL.slow,
+    refetchOnWindowFocus: true,
   });
   const unreadCount = unreadFeedback.filter((f) => !f.read_at).length;
   const myProfilePath = myStaffId ? `/CoachProfile?id=${myStaffId}` : user?.id ? `/CoachProfile?userId=${user.id}` : null;
@@ -255,7 +257,7 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
         {isCoordinator && (
           <>
             <SectionLabel>{msg("Administración")}</SectionLabel>
-            {adminNav.map(item => <NavItem key={item.path} item={item} onClick={onClose} badge={item.path === "/Accesos" ? pendingUsers.length : 0} />)}
+            {adminNav.map(item => <NavItem key={item.path} item={item} onClick={onClose} badge={item.path === "/Accesos" ? pendingUsersCount : 0} />)}
           </>
         )}
 
@@ -334,7 +336,7 @@ export default function Layout() {
   const t = useT();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isCoordinator } = useTeamAccess();
-  const pendingUsersCount = usePendingUsers(isCoordinator).length;
+  const pendingUsersCount = usePendingUsersCount(isCoordinator);
   const playerMode = usePlayerMode();
   const { pathname } = useLocation();
   // Patrón de página de la configuración del club (en la zona de jugadores, siempre «familias»)

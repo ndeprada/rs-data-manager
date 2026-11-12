@@ -1,3 +1,4 @@
+import { POLL } from "@/lib/query-client";
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -9,7 +10,7 @@ import { useT, useDateLocale } from "@/i18n";
 export default function Inbox() {
   const t = useT();
   const locale = useDateLocale();
-  const { data = [], isLoading } = useQuery({ queryKey: ["inbox"], queryFn: () => base44.club.inbox(), refetchInterval: 60000 });
+  const { data = [], isLoading } = useQuery({ queryKey: ["inbox"], queryFn: () => base44.club.inbox(), refetchInterval: POLL.medium, refetchOnWindowFocus: true });
   if (isLoading) return null;
   if (data.length === 0) {
     return <div className="bg-white border border-gray-200 rounded-xl p-8 text-center"><Bell className="w-6 h-6 text-gray-200 mx-auto mb-2" /><p className="text-sm text-gray-400">{t("Todavía no has recibido avisos.")}</p></div>;

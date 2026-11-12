@@ -218,6 +218,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    // Cuántos usuarios esperan aprobación (aviso del menú y del Panel): solo un número, no la lista de usuarios
+    if (a === 'pending_count') {
+      if (!isCoord(user)) return res.status(200).json({ n: 0 });
+      const { rows } = await query(`select count(*)::int as n from entities where entity_type = 'User' and data ->> 'access_status' = 'pending'`);
+      return res.status(200).json({ n: rows[0].n });
+    }
+
     if (a === 'my_push') {
       const { rows } = await query(`select count(*)::int as n from entities where entity_type = 'PushSubscription' and data ->> 'user_id' = $1`, [user.id]);
       return res.status(200).json({ devices: rows[0].n, configured: true });

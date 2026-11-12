@@ -17,7 +17,7 @@ import { isCancelled, cancelText } from "@/lib/eventCancel";
 import { groupPendingByTeam } from "@/lib/pendingByTeam";
 import PendingByTeamDialog from "@/components/dashboard/PendingByTeamDialog";
 import { useTrainingStatus } from "@/lib/trainingStatus";
-import { usePendingUsers } from "@/lib/pendingUsers";
+import { usePendingUsersCount } from "@/lib/pendingUsers";
 
 import { PageTitle } from "@/components/common/PageHeader";
 import PendingStrip from "@/components/dashboard/PendingStrip";
@@ -150,7 +150,7 @@ export default function Dashboard() {
   const t = useT();
   const dfl = useDateLocale();
   const { isCoordinator, coachTeamIds, canManageTeam } = useTeamAccess();
-  const pendingUsers = usePendingUsers(isCoordinator);
+  const pendingUsersCount = usePendingUsersCount(isCoordinator);
   const [tab, setTab] = useState("equipos");
   const [group, setGroup] = useState("Todos");
 
@@ -231,7 +231,7 @@ export default function Dashboard() {
     { key: "convPlayed", icon: Users, count: noConvPlayed.length, label: noConvPlayed.length === 1 ? t("partido jugado sin convocatoria") : t("partidos jugados sin convocatoria"), cta: msg("Revisar"), onClick: openList("matches"), to: noConvPlayed[0] ? matchLink(noConvPlayed[0], "convocatoria") : "/Calendar" },
     { key: "res", icon: Trophy, count: noResult.length, label: noResult.length === 1 ? t("partido jugado sin resultado") : t("partidos jugados sin resultado"), cta: msg("Revisar"), onClick: openList("matches"), to: noResult[0] ? matchLink(noResult[noResult.length - 1]) : "/Calendar" },
     { key: "goals", icon: Target, count: noClass.length, label: noClass.length === 1 ? t("partido con goles sin clasificar") : t("partidos con goles sin clasificar"), cta: msg("Clasificar"), onClick: openList("matches"), to: noClass[0] ? matchLink(noClass[0], "acta") : "/Calendar", tone: "var(--granate)" },
-    isCoordinator && { key: "users", icon: UserCog, count: pendingUsers.length, label: pendingUsers.length === 1 ? t("usuario por aprobar") : t("usuarios por aprobar"), cta: msg("Revisar"), to: "/Accesos" },
+    isCoordinator && { key: "users", icon: UserCog, count: pendingUsersCount, label: pendingUsersCount === 1 ? t("usuario por aprobar") : t("usuarios por aprobar"), cta: msg("Revisar"), to: "/Accesos" },
   ];
 
   // Resultados del último fin de semana (viernes a domingo ya jugados), de todos los equipos en su ámbito

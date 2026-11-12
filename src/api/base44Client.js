@@ -5,6 +5,7 @@
 // para no tener que tocar el resto de la app.
 
 import { sortTeams } from '@/lib/teamOrder';
+import { queryClientInstance } from '@/lib/query-client';
 
 async function apiFetch(path, { method = 'GET', body, query } = {}) {
   let url = path;
@@ -34,6 +35,9 @@ async function apiFetch(path, { method = 'GET', body, query } = {}) {
     err.data = data;
     throw err;
   }
+  // Tras guardar algo, todo lo leído pasa a «viejo» (sin volver a pedirlo ahora): la próxima pantalla que se abra lo
+  // pide de nuevo, aunque no hayan pasado los 30 s de staleTime (query-client.js)
+  if (method !== 'GET') queryClientInstance.invalidateQueries({ refetchType: 'none' });
   if (res.status === 204) return null;
   return res.json();
 }
@@ -132,6 +136,7 @@ export const base44 = {
     subscribe: (subscription) => clubPost('subscribe', { subscription }),
     unsubscribe: (endpoint) => clubPost('unsubscribe', { endpoint }),
     inbox: () => clubGet('inbox'),
+    pendingCount: () => clubGet('pending_count'),
     history: () => clubGet('history'),
     preview: (audience) => clubPost('preview', { audience }),
     people: (q) => clubGet('people', { q }),
