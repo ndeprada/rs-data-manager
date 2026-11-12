@@ -37,7 +37,7 @@ export default function VideoAnalysis() {
     <div
       ref={ref}
       data-testid="video-analysis"
-      className="w-full h-[calc(100dvh-88px)] lg:h-[calc(100dvh-32px)] min-h-[520px]"
+      className="rs-nodark w-full h-[calc(100dvh-88px)] lg:h-[calc(100dvh-32px)] min-h-[520px]"
     />
   );
 }

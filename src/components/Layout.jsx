@@ -21,6 +21,7 @@ import { BRAND } from "@/lib/brand";
 import { brandDraftActive, endBrandDraft } from "@/lib/brandBoot";
 import { canConfigureClub } from "@/lib/permissions";
 import { pageInfo } from "@/lib/pagePatterns";
+import { ThemeToggle } from "@/components/settings/ThemeToggle";
 
 const MY_TEAM_SUBITEMS = [
   { label: msg("Panel"), path: "/MyTeam", exact: true, icon: LayoutDashboard },
@@ -138,7 +139,7 @@ function PlayerSidebar({ onClose = () => {}, drawer = false }) {
   const t = useT();
   const { user, logout } = useAuth();
   return (
-    <div className="flex flex-col h-full" style={{ background: "var(--granate)" }}>
+    <div className="rs-nodark flex flex-col h-full" style={{ background: "var(--granate)" }}>
       <div className="px-3 py-4 border-b border-white/10">
         <Link to="/PlayerTeam" onClick={onClose} className="flex items-center gap-2.5">
           <img src={CLUB_LOGO_URL_WHITE} alt={BRAND.clubName} className="w-7 h-7 object-contain" />
@@ -156,6 +157,7 @@ function PlayerSidebar({ onClose = () => {}, drawer = false }) {
           <button onClick={logout} aria-label={t("Salir")} title={t("Cerrar sesión")} className="text-white/60 hover:text-white"><LogOut className="w-4 h-4" /></button>
         </div>
         {!drawer && <LanguageSelector tone="dark" className="px-0.5 pt-1" />}
+        <ThemeToggle className="mt-1" />
       </div>
     </div>
   );
@@ -237,7 +239,7 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
   ].filter(Boolean);
 
   return (
-    <div className="flex flex-col h-full" style={{ background: "var(--granate)" }}>
+    <div className="rs-nodark flex flex-col h-full" style={{ background: "var(--granate)" }}>
       {/* Logo */}
       <div className="px-3 py-4 border-b border-white/10">
         <Link to="/Dashboard" onClick={onClose} className="flex items-center gap-2.5">
@@ -322,6 +324,7 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
           </div>
         )}
         {!drawer && <LanguageSelector tone="dark" className="px-0.5" />}
+        <ThemeToggle className="mt-1" />
       </div>
     </div>
   );
@@ -373,7 +376,7 @@ export default function Layout() {
       </aside>
 
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center shadow-sm" style={{ background: "var(--granate)" }}>
+      <div className="rs-nodark lg:hidden fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center shadow-sm" style={{ background: "var(--granate)" }}>
         <div className="flex items-center gap-2">
           <button onClick={() => setMobileOpen(!mobileOpen)} aria-label={t("Menú")} className="relative p-2 -ml-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -385,6 +388,7 @@ export default function Layout() {
           </Link>
         </div>
         <LanguageSelector tone="dark" className="ml-auto -mr-1.5" />
+        <ThemeToggle className="ml-1 lg:hidden" />
       </div>
 
       {/* Mobile Drawer */}

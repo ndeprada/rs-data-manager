@@ -219,7 +219,7 @@ export function sheetBlocks({ session, team, players = [], matchRef, pdiGoals = 
 
 export function Page({ children, n, of }) {
   return (
-    <div className="session-page" style={{ width: PAGE_W, height: PAGE_H, boxSizing: "border-box", padding: `${PAD.t}px ${PAD.x}px ${PAD.b}px`, background: "#fff", fontFamily: BODY, color: INK, fontSize: BASE, display: "flex", flexDirection: "column", overflow: "hidden", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
+    <div className="session-page rs-nodark" style={{ width: PAGE_W, height: PAGE_H, boxSizing: "border-box", padding: `${PAD.t}px ${PAD.x}px ${PAD.b}px`, background: "#fff", fontFamily: BODY, color: INK, fontSize: BASE, display: "flex", flexDirection: "column", overflow: "hidden", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
       <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
       <div style={{ height: FOOT, display: "flex", alignItems: "flex-end", justifyContent: "space-between", fontSize: 8.5, color: "#9A8C8E", borderTop: "1px solid #EFE6E6", paddingTop: 4, boxSizing: "border-box" }}>
         <span>{BRAND.clubName} · {BRAND.appName}</span><span>Página {n} de {of}</span>

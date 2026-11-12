@@ -497,7 +497,7 @@ async function printPieces(list, players, perPage, teamName, book = false, look 
     if (old) old.remove();
     const root = document.createElement("div");
     root.id = "sp-pdf-root";
-    root.className = "sp-pdf";
+    root.className = "sp-pdf rs-nodark";
     root.style.cssText = "position:fixed;left:-10000px;top:0;width:210mm;z-index:-1;pointer-events:none";
     root.innerHTML = `<style>${fontFaces()}${sheetCss(per, ".sp-pdf ")}</style>${body}`;
     document.body.appendChild(root);

@@ -4,6 +4,34 @@
 // que ya tiene index.html / index.css), así que no cambia nada de lo que se ve.
 import { BRAND, FONT_ROLES, brandCssVars } from "./brand.js";
 import { patternCss } from "./pagePatterns.js";
+import { darkCss, themeFor, THEME_PREF_KEY } from "./darkTheme.js";
+
+// Modo que ha elegido esta persona (solo cuenta si el club deja elegir)
+export function themePref() {
+  try { return window.localStorage.getItem(THEME_PREF_KEY) || ""; } catch { return ""; }
+}
+
+// Pone o quita el modo oscuro (clase rs-dark en <html> y su hoja de estilos)
+export function applyTheme(b = BRAND) {
+  if (typeof document === "undefined") return;
+  const dark = themeFor(b, themePref()) === "dark";
+  const root = document.documentElement;
+  root.classList.toggle("rs-dark", dark);
+  let st = document.getElementById("club-dark");
+  if (dark) {
+    if (!st) { st = document.createElement("style"); st.id = "club-dark"; document.head.appendChild(st); }
+    st.textContent = darkCss(b.colors);
+    setMeta('meta[name="theme-color"]', "content", "#141011");
+  } else if (st) {
+    st.remove();
+  }
+}
+
+// La persona cambia de modo (botón del menú): se guarda en este navegador y se aplica al momento
+export function setThemePref(pref, b = BRAND) {
+  try { window.localStorage.setItem(THEME_PREF_KEY, pref === "dark" ? "dark" : "light"); } catch { /* sin almacenamiento */ }
+  applyTheme(b);
+}
 
 // Carga una tipografía (Google Fonts o archivo subido). `id` evita cargarla dos veces.
 export function loadFont({ name, kind, url }, id) {
@@ -47,4 +75,5 @@ export function applyBrand(b = BRAND) {
   let st = document.getElementById("club-patterns");
   if (css && !st) { st = document.createElement("style"); st.id = "club-patterns"; document.head.appendChild(st); }
   if (st) st.textContent = css;
+  applyTheme(b);
 }

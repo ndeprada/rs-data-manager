@@ -10,7 +10,8 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "dark-colors": "node scripts/darkColors.mjs"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.2.6",

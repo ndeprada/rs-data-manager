@@ -19,6 +19,7 @@ export const DEFAULT_BRAND = Object.freeze({
   shortName: "Racing", // nombre corto (pizarra de balón parado, textos breves)
   fcfName: "RACING SARRI", // cómo aparece el club en el nombre de sus equipos en las actas de la FCF
   hidden: Object.freeze([]), // apartados del menú ocultos (menuSections.js)
+  theme: "light", // modo de color: light (como siempre) · dark (oscuro para todos) · choice (cada persona elige)
   // Escudo: el de color para fondos claros y el blanco para fondos oscuros
   logo: "https://media.base44.com/images/public/69c2d5060bf86f45f1a86177/6ddddac4f_Escudo_Granate.png",
   logoWhite: "https://media.base44.com/images/public/69c2d5060bf86f45f1a86177/09c970d20_Escudo_Blanco.png",
@@ -135,6 +136,7 @@ export function cleanBrand(raw = {}) {
   const out = {};
   for (const k of ["appName", "clubName", "fcfName"]) { const v = str(r[k], 40); if (v) out[k] = v; }
   { const v = str(r.shortName, 20); if (v) out.shortName = v; }
+  if (r.theme === "dark" || r.theme === "choice") out.theme = r.theme;
   if (Array.isArray(r.hidden)) { const h = MENU_KEYS.filter((k) => r.hidden.includes(k)); if (h.length) out.hidden = h; }
   for (const k of ["logo", "logoWhite", "loginImage", "icon", "web"]) { const v = cleanUrl(r[k]); if (v) out[k] = v; }
   if (r.social && typeof r.social === "object") {
@@ -174,6 +176,7 @@ export function brandDiff(full = {}) {
   const c = cleanBrand(full), d = DEFAULT_BRAND, out = {};
   for (const k of ["appName", "clubName", "shortName", "fcfName", "logo", "logoWhite", "loginImage", "icon", "web"]) if (c[k] && c[k] !== d[k]) out[k] = c[k];
   if (c.hidden) out.hidden = c.hidden;
+  if (c.theme) out.theme = c.theme;
   for (const group of ["social", "colors"]) {
     const g = {};
     for (const [k, v] of Object.entries(c[group] || {})) if (v !== d[group][k]) g[k] = v;

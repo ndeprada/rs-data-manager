@@ -1892,7 +1892,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
   const hint = in3d && !error ? (tool === "pan" ? "En 3D · Arrastra para girar la cámara · Mayús + arrastrar para moverla · rueda para acercar" : `En 3D · ${hint0} · Alt + arrastrar gira la cámara`) : hint0;
 
   const studio = narrow ? (
-    <div className="fixed inset-0 flex flex-col" style={{ background: styleOf(look).surround || RAIL.bg, color: RAIL.text, zIndex: 50 }} onKeyDown={onKey} tabIndex={-1} data-testid="board-studio">
+    <div className="rs-nodark fixed inset-0 flex flex-col" style={{ background: styleOf(look).surround || RAIL.bg, color: RAIL.text, zIndex: 50 }} onKeyDown={onKey} tabIndex={-1} data-testid="board-studio">
       <header className="flex items-center gap-1.5 px-2 py-2" style={{ background: RAIL.bg, borderBottom: `1px solid ${RAIL.border}` }}>
         <RailBtn label="Salir de la pizarra" title="Salir" onClick={closeStudio} testid="board-close"><ChevronLeft className="w-5 h-5" /></RailBtn>
         <div className="flex-1 min-w-0">
@@ -1917,7 +1917,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
       </nav>
     </div>
   ) : (
-    <div className={inline ? "relative w-full rounded-xl overflow-hidden outline-none" : "fixed inset-0"} style={{ background: styleOf(look).surround || (inline ? "#E9E4E3" : "#0d2a1f"), color: RAIL.text, zIndex: inline ? 0 : 50, ...(inline ? { height: embedHeight } : {}) }} onKeyDown={onKey} tabIndex={-1} data-testid={inline ? "board-inline" : "board-studio"}>
+    <div className={inline ? "rs-nodark relative w-full rounded-xl overflow-hidden outline-none" : "rs-nodark fixed inset-0"} style={{ background: styleOf(look).surround || (inline ? "#E9E4E3" : "#0d2a1f"), color: RAIL.text, zIndex: inline ? 0 : 50, ...(inline ? { height: embedHeight } : {}) }} onKeyDown={onKey} tabIndex={-1} data-testid={inline ? "board-inline" : "board-studio"}>
       {stage}
       <nav aria-label="Herramientas" className="absolute left-2.5 top-2.5 bottom-2.5 flex flex-col gap-[3px] overflow-y-auto overflow-x-hidden no-scrollbar [&_.w-5]:w-[18px] [&_.w-5]:h-[18px]" style={{ zIndex: 6, "--rb": railSize }}>
         {toolButtons}
@@ -1978,7 +1978,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
         {overlayTitle ? <div data-testid="board-overlay-title">{overlayTitle}</div> : null}
         {studio}
         {outside && (dock || panel || chipCard) && createPortal(
-          <div className="space-y-2" data-testid="board-side" onKeyDown={onKey}>{chipCard}{dock}{panel}</div>, sideHost)}
+          <div className="rs-nodark space-y-2" data-testid="board-side" onKeyDown={onKey}>{chipCard}{dock}{panel}</div>, sideHost)}
         {!imageMode && (
           <section aria-label="Fotogramas" className="rounded-xl bg-white p-2.5 flex flex-col gap-2" style={{ border: "1px solid #E6DEDD", color: "#1E1416" }} data-testid="board-timeline">
             <div className="flex flex-wrap items-center gap-1.5">

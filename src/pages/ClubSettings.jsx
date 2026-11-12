@@ -1,6 +1,6 @@
 // Configuración del club (12/11/2026): identidad, colores y tipografías, con vista previa antes de guardar.
 // Solo administración y dirección (también lo exige el servidor). Sin nada guardado, la app es la de Racing Sarrià.
-// Siguientes fases: patrones de página, estructura del club, modo claro/oscuro y exportar/importar.
+// Pestañas: identidad, colores, tipografías, patrones de página, estructura del club y modo y copia (claro/oscuro, exportar/importar).
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
@@ -13,6 +13,7 @@ import { FieldRow, ImageField, ColorField, FontField, inputStyle } from "@/compo
 import { BrandPreview } from "@/components/settings/BrandPreview";
 import { PatternEditor } from "@/components/settings/PatternEditor";
 import { StructureEditor } from "@/components/settings/StructureEditor";
+import { ThemeBackup } from "@/components/settings/ThemeBackup";
 
 const TABS = [
   { key: "identidad", label: msg("Identidad"), testId: "cfg-tab-identidad" },
@@ -20,6 +21,7 @@ const TABS = [
   { key: "tipografias", label: msg("Tipografías"), testId: "cfg-tab-tipografias" },
   { key: "patrones", label: msg("Patrones de página"), testId: "cfg-tab-patrones" },
   { key: "estructura", label: msg("Estructura del club"), testId: "cfg-tab-estructura" },
+  { key: "modo", label: msg("Modo y copia"), testId: "cfg-tab-modo" },
 ];
 
 const COLOR_ROWS = [
@@ -100,13 +102,14 @@ export default function ClubSettings() {
       <TopBar title={t("Configuración")} tabs={TABS.map((x) => ({ ...x, label: t(x.label) }))} active={tab} onTab={setTab} />
       <div style={{ maxWidth: 1360, margin: "0 auto", padding: "14px 24px 120px" }}>
         <p style={{ fontSize: 13, color: RS.ink2, marginBottom: 12, maxWidth: 820 }}>
-          {t("Aquí se cambia el aspecto de la app: nombre, escudo, colores, tipografías y patrones de página. Los cambios se ven antes de guardarlos y se pueden probar en toda la app sin que nadie más los vea.")}
+          {t("Aquí se cambia el aspecto de la app: nombre, escudo, colores, tipografías, patrones de página y modo de color. Los cambios se ven antes de guardarlos y se pueden probar en toda la app sin que nadie más los vea.")}
         </p>
         {loadError && <div style={{ fontSize: 13, color: "#B91C1C", marginBottom: 10 }}>{t("No se ha podido leer la configuración guardada.")}</div>}
 
         {tab === "patrones" && <PatternEditor draft={draft} set={set} />}
         {tab === "estructura" && <StructureEditor draft={draft} set={set} />}
-        {!["patrones", "estructura"].includes(tab) && (
+        {tab === "modo" && <ThemeBackup draft={draft} set={set} replace={(b) => { setNote(""); setDraft(b); }} />}
+        {!["patrones", "estructura", "modo"].includes(tab) && (
         <div className="grid xl:grid-cols-[minmax(0,1fr)_440px]" style={{ gap: 16, alignItems: "start" }}>
           <div className="flex flex-col" style={{ gap: 12 }}>
             {tab === "identidad" && (

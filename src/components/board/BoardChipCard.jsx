@@ -187,8 +187,8 @@ export default function ChipCard({
   return (
     <div
       className={sheet
-        ? "z-20 rounded-t-2xl border border-gray-200 bg-white text-gray-900 shadow-2xl flex flex-col"
-        : "z-20 w-[300px] max-w-[calc(100%-8px)] rounded-xl border border-gray-200 bg-white text-gray-900 shadow-2xl flex flex-col"}
+        ? "rs-nodark z-20 rounded-t-2xl border border-gray-200 bg-white text-gray-900 shadow-2xl flex flex-col"
+        : "rs-nodark z-20 w-[300px] max-w-[calc(100%-8px)] rounded-xl border border-gray-200 bg-white text-gray-900 shadow-2xl flex flex-col"}
       style={style}
       data-testid="chip-quick"
       role="dialog"
