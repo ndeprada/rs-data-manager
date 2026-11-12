@@ -3,6 +3,7 @@
 // Se llama en main.jsx antes de pintar la app. Sin configuración, salen los valores de Racing Sarrià (los mismos
 // que ya tiene index.html / index.css), así que no cambia nada de lo que se ve.
 import { BRAND, FONT_ROLES, brandCssVars } from "./brand.js";
+import { patternCss } from "./pagePatterns.js";
 
 // Carga una tipografía (Google Fonts o archivo subido). `id` evita cargarla dos veces.
 export function loadFont({ name, kind, url }, id) {
@@ -41,4 +42,9 @@ export function applyBrand(b = BRAND) {
   }
   setMeta('meta[name="theme-color"]', "content", b.colors?.primary);
   setMeta('link[rel="icon"]', "href", b.icon || b.logo);
+  // Patrones de página: solo hay reglas si se ha cambiado algo
+  const css = patternCss(b, b.colors);
+  let st = document.getElementById("club-patterns");
+  if (css && !st) { st = document.createElement("style"); st.id = "club-patterns"; document.head.appendChild(st); }
+  if (st) st.textContent = css;
 }

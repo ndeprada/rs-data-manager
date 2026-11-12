@@ -10,6 +10,8 @@
 // En CSS y clases de Tailwind se usan las variables --club-* que pone applyBrand() (src/lib/applyBrand.js):
 //   text-club, bg-club-dark, border-club-accent, bg-club-soft… (ver tailwind.config.js)
 
+import { cleanPatterns } from "./pagePatterns.js";
+
 export const DEFAULT_BRAND = Object.freeze({
   appName: "RS Manager",
   clubName: "Racing Sarrià",
@@ -20,6 +22,8 @@ export const DEFAULT_BRAND = Object.freeze({
   icon: "", // icono de la app instalable (sin él, el de siempre de /api/icon)
   web: "", // web del club
   social: Object.freeze({ instagram: "", x: "", facebook: "", youtube: "", tiktok: "" }),
+  patterns: Object.freeze({}), // ajustes por patrón de página (pagePatterns.js); vacío = como siempre
+  pages: Object.freeze({}), // patrón o ajustes propios de una página
   colors: Object.freeze({
     primary: "#73000A", // granate: títulos, botones, cabeceras
     primaryDark: "#36000D", // granate oscuro: bandas, degradados, menú
@@ -53,7 +57,7 @@ export function setBrand(cfg = {}) {
   const colors = { ...d.colors, ...(cfg.colors || {}) };
   const fonts = { ...d.fonts, ...(cfg.fonts || {}) };
   const social = { ...d.social, ...(cfg.social || {}) };
-  Object.assign(BRAND, { ...d, ...cfg, colors, fonts, social });
+  Object.assign(BRAND, { ...d, ...cfg, colors, fonts, social, patterns: cfg.patterns || {}, pages: cfg.pages || {} });
   Object.assign(C, colors);
   Object.assign(F, fonts, {
     title: fontStack(fonts.titleName), // "'Racing Sarria', sans-serif"
@@ -149,13 +153,14 @@ export function cleanBrand(raw = {}) {
     }
     if (Object.keys(fo).length) out.fonts = fo;
   }
+  Object.assign(out, cleanPatterns({ patterns: r.patterns, pages: r.pages }));
   return out;
 }
 
 // Configuración completa (por defecto + lo guardado), lista para editar
 export function fullBrand(cfg = {}) {
   const d = DEFAULT_BRAND, c = cleanBrand(cfg);
-  return { ...d, ...c, colors: { ...d.colors, ...(c.colors || {}) }, fonts: { ...d.fonts, ...(c.fonts || {}) }, social: { ...d.social, ...(c.social || {}) } };
+  return { ...d, ...c, colors: { ...d.colors, ...(c.colors || {}) }, fonts: { ...d.fonts, ...(c.fonts || {}) }, social: { ...d.social, ...(c.social || {}) }, patterns: c.patterns || {}, pages: c.pages || {} };
 }
 
 // Solo lo que cambia respecto a los valores por defecto
@@ -174,6 +179,8 @@ export function brandDiff(full = {}) {
     if (keys.some((k) => (c.fonts[k] || "") !== (d.fonts[k] || ""))) for (const k of keys) fo[k] = c.fonts[k];
   }
   if (Object.keys(fo).length) out.fonts = fo;
+  if (c.patterns) out.patterns = c.patterns;
+  if (c.pages) out.pages = c.pages;
   return out;
 }
 

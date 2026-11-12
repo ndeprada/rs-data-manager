@@ -11,11 +11,13 @@ import { brandDraftActive, startBrandDraft, storeBrand, endBrandDraft } from "@/
 import { Page, TopBar, Card, Btn, RS } from "@/components/rs2/kit";
 import { FieldRow, ImageField, ColorField, FontField, inputStyle } from "@/components/settings/BrandFields";
 import { BrandPreview } from "@/components/settings/BrandPreview";
+import { PatternEditor } from "@/components/settings/PatternEditor";
 
 const TABS = [
   { key: "identidad", label: msg("Identidad"), testId: "cfg-tab-identidad" },
   { key: "colores", label: msg("Colores"), testId: "cfg-tab-colores" },
   { key: "tipografias", label: msg("Tipografías"), testId: "cfg-tab-tipografias" },
+  { key: "patrones", label: msg("Patrones de página"), testId: "cfg-tab-patrones" },
 ];
 
 const COLOR_ROWS = [
@@ -96,10 +98,12 @@ export default function ClubSettings() {
       <TopBar title={t("Configuración")} tabs={TABS.map((x) => ({ ...x, label: t(x.label) }))} active={tab} onTab={setTab} />
       <div style={{ maxWidth: 1360, margin: "0 auto", padding: "14px 24px 120px" }}>
         <p style={{ fontSize: 13, color: RS.ink2, marginBottom: 12, maxWidth: 820 }}>
-          {t("Aquí se cambia el aspecto de la app: nombre, escudo, colores y tipografías. Los cambios se ven a la derecha antes de guardarlos y se pueden probar en toda la app sin que nadie más los vea.")}
+          {t("Aquí se cambia el aspecto de la app: nombre, escudo, colores, tipografías y patrones de página. Los cambios se ven antes de guardarlos y se pueden probar en toda la app sin que nadie más los vea.")}
         </p>
         {loadError && <div style={{ fontSize: 13, color: "#B91C1C", marginBottom: 10 }}>{t("No se ha podido leer la configuración guardada.")}</div>}
 
+        {tab === "patrones" && <PatternEditor draft={draft} set={set} />}
+        {tab !== "patrones" && (
         <div className="grid xl:grid-cols-[minmax(0,1fr)_440px]" style={{ gap: 16, alignItems: "start" }}>
           <div className="flex flex-col" style={{ gap: 12 }}>
             {tab === "identidad" && (
@@ -181,6 +185,7 @@ export default function ClubSettings() {
             </Card>
           </div>
         </div>
+        )}
       </div>
 
       {/* Barra de guardar */}

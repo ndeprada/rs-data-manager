@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { LanguageProvider } from '@/i18n';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Login from './pages/Login';
+import { PatternScope } from '@/components/settings/PatternScope';
 import Layout from './components/Layout';
 const Dashboard = lazyPage(() => import('./pages/Dashboard'));
 const Teams = lazyPage(() => import('./pages/Teams'));
@@ -88,12 +89,12 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      return <Login />;
+      return <PatternScope page="acceso"><Login /></PatternScope>;
     }
   }
 
   if (!isAuthenticated) {
-    return <Login />;
+    return <PatternScope page="acceso"><Login /></PatternScope>;
   }
 
   const isAdminUser = user?.role === 'admin';
@@ -101,12 +102,12 @@ const AuthenticatedApp = () => {
 
   // Acceso rechazado o eliminado → pantalla de denegado
   if (user && !isAdminUser && (status === 'rejected' || status === 'deleted')) {
-    return <PendingApproval />;
+    return <PatternScope page="alta"><PendingApproval /></PatternScope>;
   }
 
   // Familiar con vínculo aprobado
   if (user && !isAdminUser && user.app_role === 'familiar' && status === 'approved') {
-    return <FamilyHome />;
+    return <PatternScope page="familia"><FamilyHome /></PatternScope>;
   }
 
   // Jugador con acceso aprobado
@@ -128,12 +129,12 @@ const AuthenticatedApp = () => {
   // Usuario sin función aprobada ni solicitud pendiente → elegir jugador / cuerpo técnico
   const hasRole = !!user?.app_role && STAFF_ROLES.includes(user.app_role);
   if (user && !isAdminUser && !hasRole && !user.app_role_pending) {
-    return <RoleSetup />;
+    return <PatternScope page="alta"><RoleSetup /></PatternScope>;
   }
 
   // Solicitud pendiente de aprobación → pantalla de espera
   if (user && !isAdminUser && (status === 'pending' || !hasRole)) {
-    return <PendingApproval />;
+    return <PatternScope page="alta"><PendingApproval /></PatternScope>;
   }
 
   // Render the main app
