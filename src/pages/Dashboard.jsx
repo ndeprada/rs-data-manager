@@ -50,7 +50,7 @@ const Big = ({ children, color = RS.granate, size = 30 }) => <span className="rs
 function Head({ title, right }) {
   return (
     <div className="flex flex-wrap items-center" style={{ gap: 10, padding: "9px 14px", borderBottom: `1px solid ${RS.lineSoft}` }}>
-      <h2 className="rs2-display" style={{ margin: 0, fontSize: 15, color: RS.granate }}>{title}</h2>
+      <h2 style={{ margin: 0, borderLeft: `4px solid ${RS.naranja}`, paddingLeft: 8, lineHeight: 1 }}><span className="rs2-display" style={{ fontSize: 20, lineHeight: 1.1, color: RS.granate }}>{title}</span></h2>
       <div className="flex flex-wrap items-center" style={{ marginLeft: "auto", gap: 10, fontSize: 12 }}>{right}</div>
     </div>
   );
@@ -281,7 +281,7 @@ export default function Dashboard() {
             <p className="rs2-label" style={{ letterSpacing: ".16em", textTransform: "uppercase" }}>
               {t("Temporada {replace}", { replace: CURRENT_SEASON.replace("-", "–") })} · <span className="capitalize">{format(now, "EEEE d MMMM", { locale: dfl })}</span>
             </p>
-            <h1 className="rs2-display" style={{ margin: "2px 0 0", fontSize: 34, color: RS.granate }}>{t("Panel de control")}</h1>
+            <h1 style={{ margin: "2px 0 0" }}><span className="rs2-display" style={{ fontSize: 34, color: RS.granate }}>{t("Panel de control")}</span></h1>
           </div>
           {hasMine && (
             <div className="flex" style={{ marginLeft: "auto", gap: 4, background: "#fff", border: `1px solid ${RS.line}`, borderRadius: 999, padding: 3 }} role="group" aria-label={t("Ver")} data-testid="dash-scope">
