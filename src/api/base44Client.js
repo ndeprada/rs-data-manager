@@ -125,6 +125,8 @@ export const base44 = {
   entities: entitiesProxy,
 
   club: {
+    brand: () => clubGet('brand'),
+    saveBrand: (brand) => clubPost('brand_save', { brand }),
     vapid: () => clubGet('vapid'),
     myPush: () => clubGet('my_push'),
     subscribe: (subscription) => clubPost('subscribe', { subscription }),

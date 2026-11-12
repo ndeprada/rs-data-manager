@@ -5,6 +5,13 @@ import { useT, LanguageSelector, msg } from "@/i18n";
 import { C as clubColor, F as clubFont } from "@/lib/brand";
 import { BRAND } from "@/lib/brand";
 
+// Web y redes del club (configuración): enlaces debajo del recuadro de acceso
+const SOCIAL_LABEL = { instagram: "Instagram", x: "X", facebook: "Facebook", youtube: "YouTube", tiktok: "TikTok" };
+const clubLinks = [
+  ...(BRAND.web ? [["Web", BRAND.web]] : []),
+  ...Object.entries(SOCIAL_LABEL).filter(([k]) => BRAND.social?.[k]).map(([k, label]) => [label, BRAND.social[k]]),
+];
+
 export default function Login() {
   const t = useT();
   const [mode, setMode] = useState("login"); // "login" | "register"
@@ -45,14 +52,16 @@ export default function Login() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center bg-[#f5f5f5] p-4"
+      className="min-h-screen flex flex-col items-center justify-center bg-[#f5f5f5] p-4"
       style={{
         "--granate": clubColor.primary,
         "--naranja": clubColor.accent,
         "--font-display": clubFont.body,
+        // Imagen de fondo de la configuración del club (opcional), oscurecida para que se lea el recuadro
+        ...(BRAND.loginImage ? { background: `linear-gradient(rgba(0,0,0,.35), rgba(0,0,0,.35)), center / cover no-repeat url("${BRAND.loginImage}")` } : {}),
       }}
     >
-      <div className="w-full max-w-md">
+      <div className={`w-full max-w-md ${BRAND.loginImage ? "bg-white/95 rounded-xl shadow-xl p-6" : ""}`}>
         <div className="flex justify-end mb-2"><LanguageSelector variant="names" /></div>
         <div className="text-center mb-6">
           <img src={CLUB_LOGO_URL} alt={t("RS Club")} className="w-14 h-14 object-contain mx-auto mb-4" />
@@ -171,6 +180,13 @@ export default function Login() {
           )}
         </div>
       </div>
+      {clubLinks.length > 0 && (
+        <div className={`mt-5 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs ${BRAND.loginImage ? "text-white/90" : "text-gray-500"}`} data-testid="login-links">
+          {clubLinks.map(([label, href]) => (
+            <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="hover:underline">{label}</a>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

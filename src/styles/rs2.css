@@ -8,18 +8,20 @@
   --rs-orange-soft: #FFE7D6; --rs-orange-ink: #8A3A00;
   background: var(--rs-bg);
   color: var(--rs-ink);
-  font-family: 'IBM Plex Sans Condensed', system-ui, sans-serif;
+  font-family: var(--club-font-body), system-ui, sans-serif;
 }
 
 /* Los títulos de la app (h1–h6) tienen colores y mayúsculas globales: aquí manda el diseño de la maqueta */
 .rs2 :is(h1, h2, h3, h4, h5, h6) {
-  font-family: 'IBM Plex Sans Condensed', system-ui, sans-serif !important;
+  font-family: var(--club-font-body), system-ui, sans-serif !important;
   color: inherit !important; text-transform: none !important; letter-spacing: normal !important; font-weight: 700 !important;
 }
 .rs2 .rs2-display, .rs2 :is(h1, h2, h3).rs2-display {
-  font-family: var(--club-font-title), 'IBM Plex Sans Condensed', sans-serif !important;
+  font-family: var(--club-font-title), var(--club-font-body), sans-serif !important;
   font-weight: 400 !important; letter-spacing: 0.03em !important; text-transform: uppercase !important; line-height: 0.95;
 }
+/* Números grandes de los resúmenes: tipografía de números del club */
+.rs2 .rs2-display.tabular-nums { font-family: var(--club-font-numbers), var(--club-font-body), sans-serif !important; }
 /* La app rebaja las negritas en general; en este diseño se usan las de verdad */
 .rs2 .font-bold { font-weight: 700 !important; }
 .rs2 .font-semibold { font-weight: 600 !important; }

@@ -4,7 +4,7 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Shield, CalendarDays, Menu, X,
   FileText, BarChart2, Target, Binoculars, LogOut, ChevronRight, ClipboardList, UserCog,
-  UserCheck, Trophy, Calendar, MapPin, Package, BookOpen, Bell, CalendarRange, Clapperboard
+  UserCheck, Trophy, Calendar, MapPin, Package, BookOpen, Bell, CalendarRange, Clapperboard, Settings2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
@@ -18,6 +18,8 @@ import { buildLinks } from "@/lib/staffLink";
 import { usePlayerMode } from "@/lib/playerMode";
 import { useT, msg, LanguageSelector } from "@/i18n";
 import { BRAND } from "@/lib/brand";
+import { brandDraftActive, endBrandDraft } from "@/lib/brandBoot";
+import { canConfigureClub } from "@/lib/permissions";
 
 const MY_TEAM_SUBITEMS = [
   { label: msg("Panel"), path: "/MyTeam", exact: true, icon: LayoutDashboard },
@@ -211,7 +213,8 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
     { label: msg("Accesos"), path: "/Accesos", icon: UserCog },
     { label: msg("Temporada"), path: "/Season", icon: CalendarRange },
     { label: msg("Campos"), path: "/Fields", icon: MapPin },
-  ];
+    canConfigureClub(user) && { label: msg("Configuración"), path: "/Configuracion", icon: Settings2 },
+  ].filter(Boolean);
 
   const toolsNav = [
     { key: "stats", label: msg("Estadísticas"), path: "/Stats", icon: BarChart2 },
@@ -400,6 +403,13 @@ export default function Layout() {
 
       {/* Main */}
       <main className="flex-1 lg:ml-40 pt-16 lg:pt-0 bg-[#f5f5f5] min-w-0 overflow-x-clip">
+        {brandDraftActive && (
+          <div className="sticky top-16 lg:top-0 z-20 flex flex-wrap items-center gap-2 px-4 py-2 text-sm text-white" style={{ background: "#1F1416" }} data-testid="brand-draft-banner">
+            <span className="flex-1 min-w-[180px]">{t("Estás probando un aspecto sin guardar. Solo lo ves tú, en esta pestaña.")}</span>
+            <Link to="/Configuracion" className="px-3 py-1 rounded-md bg-white/15 hover:bg-white/25">{t("Volver a Configuración")}</Link>
+            <button type="button" onClick={endBrandDraft} className="px-3 py-1 rounded-md border border-white/40 hover:bg-white/10" data-testid="brand-draft-end">{t("Salir de la prueba")}</button>
+          </div>
+        )}
         <div className="p-3 md:p-4 max-w-[1600px] mx-auto w-full min-w-0">
           <Suspense fallback={<div className="flex items-center justify-center py-24"><div className="w-8 h-8 border-4 border-slate-200 border-t-[var(--granate)] rounded-full animate-spin"></div></div>}>
             <Outlet />

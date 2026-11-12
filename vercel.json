@@ -11,6 +11,10 @@
       "destination": "/api/upload"
     },
     {
+      "source": "/api/manifest",
+      "destination": "/api/upload?m=1"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

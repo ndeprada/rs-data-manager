@@ -38,6 +38,7 @@ const PendingApproval = lazyPage(() => import('./pages/PendingApproval'));
 const PlayerTeam = lazyPage(() => import('./pages/PlayerTeam'));
 import { STAFF_FUNCTION_VALUES } from '@/lib/staffRoles';
 const Accesos = lazyPage(() => import('./pages/Accesos'));
+const ClubSettings = lazyPage(() => import('./pages/ClubSettings'));
 const Season = lazyPage(() => import('./pages/Season'));
 const Fields = lazyPage(() => import('./pages/Fields'));
 const CleanDB = lazyPage(() => import('./pages/CleanDB'));
@@ -166,6 +167,7 @@ const AuthenticatedApp = () => {
         <Route path="/MyTeam/Attendance" element={<TeamAttendance />} />
         <Route path="/MyTeam/Development" element={<Development />} />
         <Route path="/Accesos" element={<Accesos />} />
+        <Route path="/Configuracion" element={<ClubSettings />} />
         <Route path="/Season" element={<Season />} />
         <Route path="/Fields" element={<Fields />} />
         <Route path="/DataImport" element={<DataImport />} />

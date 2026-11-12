@@ -281,3 +281,6 @@ export function filterRoleRead({ perms, entity, docs, ownIds = new Set(), userId
   }
   return docs;
 }
+
+// Configuración del club (identidad, colores, tipografías…): solo administración y dirección (12/11/2026)
+export const canConfigureClub = (u) => !!u && (u.role === "admin" || DIRECCION.includes(u.app_role));

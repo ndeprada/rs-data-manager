@@ -9,7 +9,7 @@
   --club-accent: #FF6E00; --club-accent-soft: #FFF7ED; --club-deep: #24000A;
   --club-primary-rgb: 115 0 10; --club-primary-dark-rgb: 54 0 13; --club-primary-soft-rgb: 253 242 244;
   --club-accent-rgb: 255 110 0; --club-accent-soft-rgb: 255 247 237; --club-deep-rgb: 36 0 10;
-  --club-font-title: 'Racing Sarria', sans-serif; --club-font-body: 'IBM Plex Sans Condensed', sans-serif;
+  --club-font-title: 'Racing Sarria', sans-serif; --club-font-body: 'IBM Plex Sans Condensed', sans-serif; --club-font-numbers: 'Racing Sarria', sans-serif;
   --granate: var(--club-primary); --granate-dark: var(--club-primary-dark); --granate-hover: var(--club-primary-dark);
   --granate-pale: var(--club-primary-soft); --naranja: var(--club-accent); --naranja-pale: var(--club-accent-soft);
 }
@@ -147,7 +147,7 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 }
 /* Editor de texto enriquecido (plan de partido, análisis del rival) */
 .rs-rich .ql-toolbar.ql-snow { border-color: #e5e7eb; border-radius: 8px 8px 0 0; padding: 4px 6px; }
-.rs-rich .ql-container.ql-snow { border-color: #e5e7eb; border-radius: 0 0 8px 8px; font-family: 'IBM Plex Sans Condensed', sans-serif; font-size: 14px; }
+.rs-rich .ql-container.ql-snow { border-color: #e5e7eb; border-radius: 0 0 8px 8px; font-family: var(--club-font-body), sans-serif; font-size: 14px; }
 .rs-rich .ql-editor { min-height: var(--rich-min, 120px); padding: 8px 12px; }
 .rs-rich .ql-editor.ql-blank::before { font-style: normal; color: #9ca3af; }
 .rs-rich .ql-snow .ql-picker.ql-font { width: 110px; }

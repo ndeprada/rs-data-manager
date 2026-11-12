@@ -8,7 +8,8 @@ import { rivalReport } from './_lib/fcfRival.js';
 import { cleanDuplicates } from './_lib/dedupe.js';
 import { feedFor, readConfig, tokenFor, rotateToken, isUuid } from './_lib/ics.js';
 import { requireUser } from './_lib/auth.js';
-import { permissionsOf } from '../src/lib/permissions.js';
+import { permissionsOf, DIRECCION } from '../src/lib/permissions.js';
+import { readClubBrand, saveClubBrand } from './_lib/clubBrand.js';
 import { ensureSchema, importActas, searchPlayers, playerDetail, meta as fcfMeta, yearCounts, groupTeams, teamSquad, alerts as fcfAlerts, actaIds } from './_lib/fcfDb.js';
 import { isAdmin, coachTeamIdsOf } from './_lib/access.js';
 import { COORD, STAFF, isApprovedUser, teamIdsOfUser, reachableUserIds, searchPeople, MAX_INDIVIDUALS } from './_lib/recipients.js';
@@ -150,12 +151,27 @@ async function icsFeed(req, res) {
 
 export default async function handler(req, res) {
   if (req.query.a === 'ics') return icsFeed(req, res);
+  // Aspecto del club (nombre, escudo, colores, tipografías): público, lo necesita también la pantalla de acceso
+  if (req.query.a === 'brand' && req.method === 'GET') {
+    try {
+      return res.status(200).json({ brand: await readClubBrand() });
+    } catch (e) {
+      console.error('brand', e);
+      return res.status(500).json({ error: 'brand_failed' });
+    }
+  }
   const user = await requireUser(req, res);
   if (!user) return;
   const a = req.query.a;
   const body = req.body || {};
 
   try {
+    // Configuración del club: solo administración y dirección
+    if (a === 'brand_save' && req.method === 'POST') {
+      if (!(isAdmin(user) || DIRECCION.includes(user.app_role))) return res.status(403).json({ error: 'forbidden' });
+      return res.status(200).json({ brand: await saveClubBrand(body.brand, user) });
+    }
+
     // ── Base de datos FCF (Planificación → Scouting): solo dirección, coordinación y administración ──
     // Las actas llegan desde el navegador de quien las lee en la intranet de la FCF a través de la página /FcfBridge de la
     // app (mensajes entre ventanas), así que se guardan con su sesión: no hace falta ninguna clave.
