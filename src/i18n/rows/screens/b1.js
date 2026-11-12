@@ -512,7 +512,7 @@ export default [
   ["No tienes un equipo asignado. Contacta con el coordinador.","You have no team assigned. Contact the coordinator.","Aucune équipe ne vous est attribuée. Contactez le coordinateur.","No tens cap equip assignat. Contacta amb el coordinador."],
   ["No tienes acceso a esta sección.","You don't have access to this section.","Vous n'avez pas accès à cette section.","No tens accés a aquesta secció."],
   ["Directorio","Directory","Annuaire","Directori"],
-  ["Racing Sarrià · {length} jugadores registrados","Racing Sarrià · {length} registered players","Racing Sarrià · {length} joueurs inscrits","Racing Sarrià · {length} jugadors registrats"],
+  ["{club} · {length} jugadores registrados","{club} · {length} registered players","{club} · {length} joueurs inscrits","{club} · {length} jugadors registrats"],
   ["Nuevo Jugador","New Player","Nouveau joueur","Nou jugador"],
   ["Plantilla actual","Current squad","Effectif actuel","Plantilla actual"],
   ["Histórico","Archive","Historique","Històric"],

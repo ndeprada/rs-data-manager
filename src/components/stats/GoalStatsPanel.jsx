@@ -3,6 +3,7 @@ import { eventMinutes } from "@/lib/matchDuration";
 import { fromStored, GOAL_PHASES, GOAL_AREAS, GOAL_SECTORS, SP_TYPES, SP_HOW, CREATE_ALL, FINISHES } from "@/lib/goalTypes";
 import { playerFullName } from "@/lib/playerName";
 import { useT, msg } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 const BUCKETS = ["1-15'", "16-30'", "31-45'", "46-60'", "61-75'", "76-90'", "+90'"];
 
@@ -40,7 +41,7 @@ function Timeline({ rows, parts }) {
         {rows.map((r, i) => (
           <div key={r.label} className={`flex-1 min-w-0 ${i === 3 ? "border-l border-dashed border-gray-300 pl-1" : ""}`}>
             <div className="flex items-end justify-center gap-[3px]" style={{ height: H + 14 }}>
-              {[[r.f, "var(--granate)", "#73000A"], [r.a, "#9ca3af", "#6b7280"]].map(([v, bg, tx], k) => (
+              {[[r.f, "var(--granate)", clubColor.primary], [r.a, "#9ca3af", "#6b7280"]].map(([v, bg, tx], k) => (
                 <div key={k} className="flex flex-col items-center justify-end w-[40%] max-w-[22px]">
                   <span className="text-[10px] leading-none font-bold mb-0.5" style={{ color: tx }}>{v || ""}</span>
                   <div className="w-full rounded-t-sm" style={{ height: v ? Math.max(3, (v / max) * H) : 1, background: v ? bg : "#e5e7eb" }} />
@@ -195,7 +196,7 @@ export default function GoalStatsPanel({ events = [], players = [], teams = [] }
         </Card>
         <Card title={t("Mapa de goles")} sub={t("Dónde marcamos y dónde encajamos (juego no parado; ataque hacia arriba)")}>
           <div className="grid grid-cols-2 gap-3">
-            <GoalMap title={t("Marcamos")} color="#73000A" cells={d.mapF} />
+            <GoalMap title={t("Marcamos")} color={clubColor.primary} cells={d.mapF} />
             <GoalMap title={t("Encajamos")} color="#4b5563" cells={d.mapA} />
           </div>
         </Card>

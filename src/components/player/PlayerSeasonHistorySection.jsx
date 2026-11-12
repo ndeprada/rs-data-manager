@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { C as clubColor } from "@/lib/brand";
 
 const EMPTY_FORM = {
   season: "", team_name: "", category: "",
@@ -158,7 +159,7 @@ export default function PlayerSeasonHistorySection({ playerId }) {
                       </p>
                     </div>
                     {/* Goles/Asist */}
-                    <div className="rounded-xl p-3 text-center" style={{ background: "#fdf2f4" }}>
+                    <div className="rounded-xl p-3 text-center" style={{ background: clubColor.primarySoft }}>
                       <p className="text-[10px] uppercase tracking-wide mb-1" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>Goles / Asist.</p>
                       <div className="flex items-baseline justify-center gap-1">
                         <span className="text-2xl font-black leading-none" style={{ color: "var(--granate)" }}>{s.goals || 0}</span>

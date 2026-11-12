@@ -11,7 +11,7 @@ import { useT } from "@/i18n";
 
 // Selector de equipo con el estilo del club (borde granate)
 export const TeamSelectTrigger = ({ placeholder }) => (
-  <SelectTrigger className="w-52 h-9 font-bold text-[13px] text-[#73000A] border border-[#73000A] bg-white hover:bg-[#FDF2F4] [&>span]:text-[#73000A] [&>svg]:text-[#73000A] [&>svg]:opacity-100"><SelectValue placeholder={placeholder} /></SelectTrigger>
+  <SelectTrigger className="w-52 h-9 font-bold text-[13px] text-club border border-club bg-white hover:bg-club-soft [&>span]:text-club [&>svg]:text-club [&>svg]:opacity-100"><SelectValue placeholder={placeholder} /></SelectTrigger>
 );
 
 // Cabecera común de las subsecciones de Mi Equipo: volver, etiqueta, título, subtítulo (equipo · categoría)

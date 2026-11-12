@@ -11,6 +11,7 @@ import PlayerInfoCards from "./PlayerInfoCards";
 import { scoreText } from "@/lib/matchScore";
 import { SEVERITY_LABELS, labelOf } from "@/lib/injuryLabels";
 import { useT, useFormat, msg } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 const REASON_LABEL = {
   lesion: msg("Lesión"), enfermo: msg("Enfermo"), clase: msg("Clase"), examen: msg("Examen"),
@@ -39,7 +40,7 @@ function Card({ title, onMore, children, className = "" }) {
       <div className="flex items-center justify-between mb-2">
         <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{title}</p>
         {onMore && (
-          <button onClick={onMore} className="text-[11px] font-semibold flex items-center gap-0.5" style={{ color: "#73000A" }}>
+          <button onClick={onMore} className="text-[11px] font-semibold flex items-center gap-0.5" style={{ color: clubColor.primary }}>
             {t("Ver más")} <ChevronRight className="w-3 h-3" />
           </button>
         )}

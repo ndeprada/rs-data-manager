@@ -5,6 +5,8 @@ import { Clock, XCircle, LogOut } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { FUNCTION_LABELS, teamRoleLabel } from "@/lib/staffRoles";
 import { useT, LanguageSelector } from "@/i18n";
+import { C as clubColor, F as clubFont } from "@/lib/brand";
+import { BRAND } from "@/lib/brand";
 
 export default function PendingApproval() {
   const t = useT();
@@ -17,8 +19,8 @@ export default function PendingApproval() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5] p-4">
       <style>{`
-        .rs-font { font-family: 'IBM Plex Sans Condensed', sans-serif; }
-        .rs-body { font-family: 'IBM Plex Sans Condensed', sans-serif; }
+        .rs-font { font-family: ${clubFont.body}; }
+        .rs-body { font-family: ${clubFont.body}; }
       `}</style>
 
       <div className="w-full max-w-md text-center">
@@ -27,8 +29,8 @@ export default function PendingApproval() {
           src="https://media.base44.com/images/public/69b72e4f23c3602504953d0d/442c01da9_Escudo_Granate.png"
           alt={t("RS Club")} className="w-14 h-14 object-contain mx-auto mb-6"
         />
-        <h1 className="rs-font text-3xl font-black uppercase tracking-wider text-[#73000A] mb-2">
-          {t("RS Manager")}
+        <h1 className="rs-font text-3xl font-black uppercase tracking-wider text-club mb-2">
+          {BRAND.appName}
         </h1>
 
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-8 mt-6">
@@ -52,8 +54,8 @@ export default function PendingApproval() {
             </>
           ) : (
             <>
-              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "var(--granate-pale, #fdf2f4)" }}>
-                <Clock className="w-8 h-8" style={{ color: "var(--granate, #73000A)" }} />
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: `var(--granate-pale, ${clubColor.primarySoft})` }}>
+                <Clock className="w-8 h-8" style={{ color: `var(--granate, ${clubColor.primary})` }} />
               </div>
               <h2 className="rs-font text-2xl font-black uppercase text-gray-900 mb-2">{t("Pendiente de aprobación")}</h2>
               <p className="rs-body text-gray-500 text-sm mb-4">

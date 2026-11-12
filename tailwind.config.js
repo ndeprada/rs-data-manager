@@ -10,6 +10,15 @@ module.exports = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+  			// Colores del club (src/lib/brand.js + applyBrand): text-club, bg-club-dark, border-club-accent/40…
+  			club: {
+  				DEFAULT: 'rgb(var(--club-primary-rgb) / <alpha-value>)',
+  				dark: 'rgb(var(--club-primary-dark-rgb) / <alpha-value>)',
+  				soft: 'rgb(var(--club-primary-soft-rgb) / <alpha-value>)',
+  				accent: 'rgb(var(--club-accent-rgb) / <alpha-value>)',
+  				'accent-soft': 'rgb(var(--club-accent-soft-rgb) / <alpha-value>)',
+  				deep: 'rgb(var(--club-deep-rgb) / <alpha-value>)'
+  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

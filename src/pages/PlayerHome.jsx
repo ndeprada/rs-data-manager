@@ -2,6 +2,8 @@ import React from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { LogOut, CheckCircle2 } from "lucide-react";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
+import { C as clubColor, F as clubFont } from "@/lib/brand";
+import { BRAND } from "@/lib/brand";
 
 // Pantalla para jugadores con acceso aprobado (el área de jugador aún no existe)
 export default function PlayerHome() {
@@ -9,12 +11,12 @@ export default function PlayerHome() {
   return (
     <div
       className="min-h-screen flex items-center justify-center bg-[#f5f5f5] p-4"
-      style={{ "--granate": "#73000A", "--font-display": "'IBM Plex Sans Condensed', sans-serif" }}
+      style={{ "--granate": clubColor.primary, "--font-display": clubFont.body }}
     >
       <div className="w-full max-w-md text-center">
         <img src={CLUB_LOGO_URL} alt="RS Club" className="w-14 h-14 object-contain mx-auto mb-4" />
         <h1 className="text-3xl font-black uppercase tracking-wider mb-6" style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}>
-          RS Manager
+          {BRAND.appName}
         </h1>
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-8">
           <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto mb-3" />

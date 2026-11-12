@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { AREAS, areasFor, computeAverages, scoreColor } from "@/lib/eval360";
 import { useT, useFormat } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 // Círculo estilo FIFA; value en escala 1-10
 function StatCircle({ label, value }) {
@@ -43,7 +44,7 @@ export default function PlayerAttributesBar({ playerId, position }) {
       <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{t("Atributos")}</span>
-          <span className="inline-flex items-center justify-center min-w-7 h-7 px-1 rounded-lg text-xs font-black text-white shadow-sm" style={{ background: "linear-gradient(135deg, #73000A, #36000D)" }}>
+          <span className="inline-flex items-center justify-center min-w-7 h-7 px-1 rounded-lg text-xs font-black text-white shadow-sm" style={{ background: `linear-gradient(135deg, ${clubColor.primary}, ${clubColor.primaryDark})` }}>
             {avg.overall ?? "—"}
           </span>
         </div>

@@ -1,7 +1,7 @@
 /* Análisis de vídeo (RS Video). Todo dentro de .rsv para no tocar el resto de la app. */
 .rsv{
   --bg:#0f1012; --panel:#17181b; --panel2:#1f2024; --line:#2b2d32; --txt:#e9e9ec; --mut:#8b8d95;
-  --granate:#73000A; --granate2:#36000D; --naranja:#FF6E00; --ok:#2fbf71; --bad:#e5484d; --fav:#f5c518;
+  --granate:var(--club-primary, #73000A); --granate2:var(--club-primary-dark, #36000D); --naranja:var(--club-accent, #FF6E00); --ok:#2fbf71; --bad:#e5484d; --fav:#f5c518;
   position:relative; display:grid; grid-template-rows:44px minmax(0,1fr); min-height:0; overflow:hidden;
   background:var(--bg); color:var(--txt); font-family:'IBM Plex Sans Condensed','Barlow Condensed',system-ui,sans-serif; font-size:13px; line-height:1.3;
   border-radius:10px; text-transform:none; letter-spacing:normal;
@@ -205,7 +205,7 @@
 .rsv .miniPitch .lm circle{fill:#fff;stroke:#111;stroke-width:.35}
 .rsv .miniPitch .lm:hover circle{fill:#ffd7b5}
 .rsv .miniPitch .lm.done circle{fill:#2fbf71}
-.rsv .miniPitch .lm.sel circle{fill:#ff6e00;stroke:#fff;stroke-width:.5}
+.rsv .miniPitch .lm.sel circle{fill:var(--club-accent, #ff6e00);stroke:#fff;stroke-width:.5}
 .rsv .miniPitch .lm text{font-size:2.1px;text-anchor:middle;fill:#111;font-weight:700;pointer-events:none}
 .rsv .calSel{font-size:12px;color:var(--mut);padding:6px 8px;border-radius:6px;background:#121316;border:1px dashed var(--line)}
 .rsv .calSel.on{color:#fff;border-color:var(--naranja);background:rgba(255,110,0,.12)}

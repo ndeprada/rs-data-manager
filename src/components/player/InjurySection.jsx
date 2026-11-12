@@ -15,17 +15,18 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from "@/components/ui/textarea";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
+import { C as clubColor } from "@/lib/brand";
 
 const TYPE_LABELS = { muscular: "Muscular", osea: "Ósea", ligamento: "Ligamento", tendon: "Tendón", contusion: "Contusión", otro: "Otro" };
 const PART_LABELS = { tobillo: "Tobillo", rodilla: "Rodilla", muslo: "Muslo", gemelo: "Gemelo", isquiotibial: "Isquiotibial", cadera: "Cadera", espalda: "Espalda", hombro: "Hombro", brazo: "Brazo", cabeza: "Cabeza", otro: "Otro" };
 const SEVERITY_STYLES = {
   leve:     { label: "Leve",     bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
-  moderada: { label: "Moderada", bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
-  grave:    { label: "Grave",    bg: "#fdf2f4", color: "#73000A", border: "#fecdd3" },
+  moderada: { label: "Moderada", bg: clubColor.accentSoft, color: "#ea580c", border: "#fed7aa" },
+  grave:    { label: "Grave",    bg: clubColor.primarySoft, color: clubColor.primary, border: "#fecdd3" },
 };
 const STATUS_STYLES = {
-  activa:       { label: "Activa",       bg: "#fdf2f4", color: "#73000A", border: "#fecdd3" },
-  recuperacion: { label: "Recuperación", bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
+  activa:       { label: "Activa",       bg: clubColor.primarySoft, color: clubColor.primary, border: "#fecdd3" },
+  recuperacion: { label: "Recuperación", bg: clubColor.accentSoft, color: "#ea580c", border: "#fed7aa" },
   alta:         { label: "Alta",         bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
 };
 const PHASE_STATUS = {

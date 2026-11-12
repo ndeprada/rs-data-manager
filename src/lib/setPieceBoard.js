@@ -4,10 +4,11 @@
 //  · Cada ficha nuestra puede llevar `player_id`: dentro va el dorsal, debajo el nombre y encima el rol de la jugada.
 import { SP_BASE_BOARD_KEYS, SP_BASE_CHIP_KEYS, cleanSpBase } from "./boardDefaults.js";
 import { NEW_BOARD_LOOK, teamsOf, animFrameCount, fieldOf, fieldKind, isQuad, normalizeBoard, pruneLinks, setViewMode, orientOf, lookOf, marginOf, isPersp, perspectiveOf, viewBox, toView, elementBounds } from "./board.js";
+import { C as clubColor } from "./brand.js";
 
 export const SP_FIELD = "half";
 export const SP_TEAMS = [
-  { id: "a", name: "Racing", color: "#73000A" },
+  { id: "a", name: "Racing", color: clubColor.primary },
   { id: "b", name: "Rival", color: "#2563eb" },
 ];
 const SP_CHIP = 1.9;
@@ -40,7 +41,7 @@ export function legacyToBoard(piece, players = []) {
     const el = {
       id: a.id, k: "arrow", style: dashed ? "move" : "pass", dash: dashed ? "dashed" : "solid",
       x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y,
-      color: a.color || (a.team === "rival" ? "#2563eb" : "#73000A"),
+      color: a.color || (a.team === "rival" ? "#2563eb" : clubColor.primary),
       width: r1(Math.max(0.2, (a.width || 1.4) / 4.2)),
       ...(a.head === false ? { pointer: "none" } : {}),
       ...(a.border ? { border: true } : {}),

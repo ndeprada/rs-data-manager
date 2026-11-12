@@ -22,6 +22,8 @@ import {
   assignPlayer, copyPiece, proposeSquad, flipBoard, ownChips, pieceBoard, previousMatchPieces, legacyToBoard,
   SP_KINDS, typeOf, pieceSetup, printBoard, spBaseFrom, playerPatch, funcsFor, funcOf, fnPatch, setFunction, autoTitle, structuresFor, applyStructure, GK_FN, printCrop, squeezeForPrint, hasSide, setupLabel,
 } from "@/lib/setPieceBoard";
+import { C as clubColor, F as clubFont } from "@/lib/brand";
+import { BRAND } from "@/lib/brand";
 // Jugadas a balón parado con la pizarra común (la misma de tareas y tácticas). Rediseño del 06/11/2026 (maqueta «Maqueta ABP ·
 // rediseño» aprobada por Nacho): dos vistas, «Editor» (a la izquierda las jugadas del partido con su dibujo pequeño, agrupadas
 // en a favor / en contra; en el centro una franja con nombre, tipo, lado, estructura y señal encima de la pizarra; a la derecha
@@ -51,8 +53,8 @@ const TEMPLATES = [
 ];
 
 // ── Colores y piezas del aspecto de RS Manager (rs2) ──────────────────────────────────────────────────────────────
-const RS = { granate: "#73000A", dark: "#36000D", naranja: "#FF6E00", bg: "#F5F2F1", line: "#E6DEDD", soft: "#EEE7E6", ink: "#1E1416", ink2: "#4A3D3F", muted: "#6B5E60", input: "#D9CFCE" };
-const DISPLAY = "'Racing Sarria', 'IBM Plex Sans Condensed', sans-serif";
+const RS = { granate: clubColor.primary, dark: clubColor.primaryDark, naranja: clubColor.accent, bg: "#F5F2F1", line: "#E6DEDD", soft: "#EEE7E6", ink: "#1E1416", ink2: "#4A3D3F", muted: "#6B5E60", input: "#D9CFCE" };
+const DISPLAY = clubFont.titleBody;
 const FN_LABEL = {
   zona: msg("Zona"), hombre: msg("Hombre"), rechace: msg("Rechace"), corta: msg("Corta"), palo: msg("Palo"),
   lanzador: msg("Lanzador"), rematador: msg("Rematador"), bloqueo: msg("Bloqueo"), cierra: msg("Cierra"), portero: msg("Portero"),
@@ -126,7 +128,7 @@ function AbpChipPlayer({ el, patch, candidates, byId, attack, toTeam }) {
           {toTeam && (
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => setDone(toTeam(["fnPos", "fnColor", "fnFs"]))} data-testid="card-fn-team"
-                className="h-7 px-2.5 rounded-md border border-[#73000A] bg-[#FBEFEF] text-[11.5px] font-semibold text-[#73000A] hover:bg-[#F6E2E2]">{t("Igual en todas las fichas del Racing")}</button>
+                className="h-7 px-2.5 rounded-md border border-club bg-[#FBEFEF] text-[11.5px] font-semibold text-club hover:bg-[#F6E2E2]">{t("Igual en todas las fichas del Racing")}</button>
               {done != null && <span className="text-[11px] text-gray-600" role="status" data-testid="card-fn-team-done">{done ? t("Hecho: {n} fichas", { n: done }) : t("Ya estaban todas así")}</span>}
             </div>
           )}
@@ -240,7 +242,7 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
         </select>
         {setup.kind === "otro" && (
           <input value={piece.kind_other || ""} onChange={(e) => onChange({ ...piece, kind_other: e.target.value })} placeholder={t("Qué jugada es (p. ej. saque de puerta)")} aria-label={t("Tipo de jugada")}
-            className="outline-none focus:ring-1 focus:ring-[#73000A]" style={{ ...selPill, fontWeight: 400, width: 220, padding: "0 12px" }} data-testid="sp-kind-other" />
+            className="outline-none focus:ring-1 focus:ring-club" style={{ ...selPill, fontWeight: 400, width: 220, padding: "0 12px" }} data-testid="sp-kind-other" />
         )}
         <span role="group" aria-label={t("A favor o en contra")} style={segOuter}>
           <button type="button" aria-pressed={setup.attack} onClick={() => setSetup({ attack: true })} style={segBtn(setup.attack)} data-testid="sp-attack">{t("A favor")}</button>
@@ -345,7 +347,7 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
         <Card>
           <Lab>{t("Instrucciones")}</Lab>
           <textarea rows={6} value={piece.notes || ""} onChange={(e) => onChange({ ...piece, notes: e.target.value })} placeholder={t("Quién saca, quién ataca el primer palo, rechace…")}
-            className="w-full outline-none focus:ring-1 focus:ring-[#73000A] resize-y" style={{ borderRadius: 8, border: `1px solid ${RS.input}`, padding: "8px 12px", fontSize: 13.5, lineHeight: 1.45, minHeight: 116, color: RS.ink }} />
+            className="w-full outline-none focus:ring-1 focus:ring-club resize-y" style={{ borderRadius: 8, border: `1px solid ${RS.input}`, padding: "8px 12px", fontSize: 13.5, lineHeight: 1.45, minHeight: 116, color: RS.ink }} />
           <p style={{ margin: 0, fontSize: 11.5, color: RS.muted }}>{t("Salen en la hoja impresa, debajo del campo.")}</p>
         </Card>
         {/* Imprimir sin salir del editor (la hoja = el fotograma «Hoja») */}
@@ -419,44 +421,44 @@ function fieldBoxAspect(p, per) {
 function sheetCss(per, sc = "") {
   const z = SZ[per] || SZ[1];
   const one = per === 1;
-  const D = "font-family:'Racing Sarria',sans-serif;font-weight:400;letter-spacing:.3px;text-transform:uppercase";
+  const D = `font-family:${clubFont.title};font-weight:400;letter-spacing:.3px;text-transform:uppercase`;
   return `
-    ${sc}.page{width:210mm;height:297mm;padding:10mm;display:${per === 4 ? "grid" : "flex"};${per === 4 ? "grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;" : "flex-direction:column;"}gap:${GAP}mm;overflow:hidden;break-after:page;page-break-after:always;background:#fff;box-sizing:border-box;font-family:'IBM Plex Sans Condensed',Arial,sans-serif;color:#222}
+    ${sc}.page{width:210mm;height:297mm;padding:10mm;display:${per === 4 ? "grid" : "flex"};${per === 4 ? "grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;" : "flex-direction:column;"}gap:${GAP}mm;overflow:hidden;break-after:page;page-break-after:always;background:#fff;box-sizing:border-box;font-family:'${clubFont.bodyName}',Arial,sans-serif;color:#222}
     ${sc}.page *{box-sizing:border-box}
     ${sc}.page:last-child{break-after:auto;page-break-after:auto}
     ${sc}.card{${per === 4 || per === "all" ? "" : `flex:${one ? "1 1 0" : `0 0 ${(PAGE_H - GAP) / 2}mm`};`}min-height:0;min-width:0;display:flex;flex-direction:column;overflow:hidden}
-    ${sc}header{flex:none;display:flex;justify-content:space-between;align-items:center;gap:${z.pad * 2}mm;padding-bottom:${z.pad * 0.6}mm;border-bottom:.5mm solid #73000A}
+    ${sc}header{flex:none;display:flex;justify-content:space-between;align-items:center;gap:${z.pad * 2}mm;padding-bottom:${z.pad * 0.6}mm;border-bottom:.5mm solid ${clubColor.primary}}
     ${sc}.club{display:flex;align-items:center;gap:${z.pad * 0.8}mm;flex:none} ${sc}.club img{height:${z.logo}mm;width:auto;display:block}
-    ${sc}.club b{display:block;${D};font-size:${z.club}pt;color:#73000A;line-height:1} ${sc}.club span{display:block;${D};font-size:${z.team}pt;color:#FF6E00;line-height:1.05;margin-top:.4mm}
-    ${sc}.ttl{text-align:right;min-width:0} ${sc}.ttl span{display:block;${D};font-size:${z.kind}pt;color:#FF6E00;line-height:1}
-    ${sc}.ttl h2{margin:.5mm 0 0;${D};font-size:${z.h2}pt;line-height:1;color:#73000A;overflow-wrap:anywhere}
+    ${sc}.club b{display:block;${D};font-size:${z.club}pt;color:${clubColor.primary};line-height:1} ${sc}.club span{display:block;${D};font-size:${z.team}pt;color:${clubColor.accent};line-height:1.05;margin-top:.4mm}
+    ${sc}.ttl{text-align:right;min-width:0} ${sc}.ttl span{display:block;${D};font-size:${z.kind}pt;color:${clubColor.accent};line-height:1}
+    ${sc}.ttl h2{margin:.5mm 0 0;${D};font-size:${z.h2}pt;line-height:1;color:${clubColor.primary};overflow-wrap:anywhere}
     ${sc}.meta{flex:none;display:flex;justify-content:space-between;align-items:center;gap:${z.pad * 1.5}mm;margin:${z.pad * 0.6}mm 0 ${z.pad * 0.5}mm;min-height:${z.sig * 0.5}mm}
-    ${sc}.meta em{font-style:normal;${D};font-size:${z.em}pt;color:#36000D;min-width:0}
-    ${sc}.sig{margin-left:auto;display:inline-flex;align-items:baseline;gap:1.5mm;background:#73000A;color:#fff;border-radius:10mm;padding:${z.pad * 0.3}mm ${z.pad * 1.2}mm;font-size:${z.sig}pt;font-weight:600;line-height:1.2;max-width:65%}
+    ${sc}.meta em{font-style:normal;${D};font-size:${z.em}pt;color:${clubColor.primaryDark};min-width:0}
+    ${sc}.sig{margin-left:auto;display:inline-flex;align-items:baseline;gap:1.5mm;background:${clubColor.primary};color:#fff;border-radius:10mm;padding:${z.pad * 0.3}mm ${z.pad * 1.2}mm;font-size:${z.sig}pt;font-weight:600;line-height:1.2;max-width:65%}
     ${sc}.sig b{${D};font-size:${z.sig * 0.9}pt;letter-spacing:.6px;flex:none}
     ${sc}.fld{flex:0 1 auto;width:100%;min-height:0;position:relative} ${sc}header + .fld{margin-top:${z.pad}mm}
     ${sc}.fld svg,${sc}.fld img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;overflow:hidden}
-    ${sc}.notes{flex:none;margin-top:${z.pad}mm;font-size:${z.notes}pt;white-space:pre-wrap;color:#333;border-left:.5mm solid #FF6E00;padding-left:${z.pad}mm;font-weight:500;line-height:1.3;max-height:${z.notesMax}mm;overflow:hidden}
-    ${sc}.notes b{display:block;${D};color:#FF6E00;font-size:${z.notesb}pt;letter-spacing:.5px;margin-bottom:.6mm}
+    ${sc}.notes{flex:none;margin-top:${z.pad}mm;font-size:${z.notes}pt;white-space:pre-wrap;color:#333;border-left:.5mm solid ${clubColor.accent};padding-left:${z.pad}mm;font-weight:500;line-height:1.3;max-height:${z.notesMax}mm;overflow:hidden}
+    ${sc}.notes b{display:block;${D};color:${clubColor.accent};font-size:${z.notesb}pt;letter-spacing:.5px;margin-bottom:.6mm}
     ${per === "all" ? `
-    ${sc}.bqtop{flex:none;display:flex;align-items:center;gap:3mm;padding-bottom:1.5mm;border-bottom:.5mm solid #73000A}
-    ${sc}.bqtop img{height:8mm;width:auto;display:block} ${sc}.bqtop b{display:block;${D};font-size:15pt;color:#73000A;line-height:1} ${sc}.bqtop span{display:block;${D};font-size:9pt;color:#FF6E00;line-height:1.1;margin-top:.4mm}
+    ${sc}.bqtop{flex:none;display:flex;align-items:center;gap:3mm;padding-bottom:1.5mm;border-bottom:.5mm solid ${clubColor.primary}}
+    ${sc}.bqtop img{height:8mm;width:auto;display:block} ${sc}.bqtop b{display:block;${D};font-size:15pt;color:${clubColor.primary};line-height:1} ${sc}.bqtop span{display:block;${D};font-size:9pt;color:${clubColor.accent};line-height:1.1;margin-top:.4mm}
     ${sc}.bqtop em{margin-left:auto;font-style:normal;font-size:7.5pt;color:#6B5E60;text-align:right;line-height:1.3}
     ${sc}.bqg{flex:1 1 0;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:4mm}
     ${sc}.bqc{border:.3mm solid #E6DEDD;border-radius:2mm;padding:2mm;gap:1.2mm}
-    ${sc}.bqh{flex:none;display:flex;justify-content:space-between;align-items:baseline;gap:2mm} ${sc}.bqh b{${D};font-size:12.5pt;color:#73000A;line-height:1.05;min-width:0;overflow-wrap:anywhere} ${sc}.bqh.ctr b{color:#36000D}
+    ${sc}.bqh{flex:none;display:flex;justify-content:space-between;align-items:baseline;gap:2mm} ${sc}.bqh b{${D};font-size:12.5pt;color:${clubColor.primary};line-height:1.05;min-width:0;overflow-wrap:anywhere} ${sc}.bqh.ctr b{color:${clubColor.primaryDark}}
     ${sc}.bqh span{flex:none;font-size:6.5pt;font-weight:700;letter-spacing:.5px;color:#B54800;text-transform:uppercase} ${sc}.bqh.ctr span{color:#4A3D3F}
     ${sc}.bqc .fld{flex:1 1 0;aspect-ratio:auto!important}
     ${sc}.bqn{flex:none;font-size:8pt;color:#333;line-height:1.25;overflow:hidden;max-height:7.5mm} ${sc}.bqn b{font-weight:700}` : ""}
     ${sc}.cover{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6mm}
-    ${sc}.cover img{height:50mm;width:auto} ${sc}.cover h1{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:40pt;line-height:1.05;color:#73000A;letter-spacing:.5px;border-bottom:1.2mm solid #FF6E00;padding-bottom:5mm}
-    ${sc}.cover h3{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:24pt;color:#FF6E00;text-transform:uppercase;letter-spacing:.5px} ${sc}.cover p{margin:0;font-size:13pt;color:#555;letter-spacing:2px}`;
+    ${sc}.cover img{height:50mm;width:auto} ${sc}.cover h1{margin:0;font-family:${clubFont.title};font-weight:400;font-size:40pt;line-height:1.05;color:${clubColor.primary};letter-spacing:.5px;border-bottom:1.2mm solid ${clubColor.accent};padding-bottom:5mm}
+    ${sc}.cover h3{margin:0;font-family:${clubFont.title};font-weight:400;font-size:24pt;color:${clubColor.accent};text-transform:uppercase;letter-spacing:.5px} ${sc}.cover p{margin:0;font-size:13pt;color:#555;letter-spacing:2px}`;
 }
 const fontFaces = () => `
-    @font-face{font-family:'Racing Sarria';src:url('${location.origin}/fonts/RacingSarria.ttf') format('truetype')}
-    @font-face{font-family:'IBM Plex Sans Condensed';font-weight:400;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Regular.ttf') format('truetype')}
-    @font-face{font-family:'IBM Plex Sans Condensed';font-weight:500;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Medium.ttf') format('truetype')}
-    @font-face{font-family:'IBM Plex Sans Condensed';font-weight:700;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Bold.ttf') format('truetype')}`;
+    @font-face{font-family:'${clubFont.titleName}';src:url('${location.origin}${clubFont.titleUrl}') format('truetype')}
+    @font-face{font-family:'${clubFont.bodyName}';font-weight:400;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Regular.ttf') format('truetype')}
+    @font-face{font-family:'${clubFont.bodyName}';font-weight:500;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Medium.ttf') format('truetype')}
+    @font-face{font-family:'${clubFont.bodyName}';font-weight:700;src:url('${location.origin}/fonts/IBMPlexSansCondensed-Bold.ttf') format('truetype')}`;
 const fileSlug = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase();
 
 async function printPieces(list, players, perPage, teamName, book = false, look = {}, mode = "print") {
@@ -469,7 +471,7 @@ async function printPieces(list, players, perPage, teamName, book = false, look 
   const svgs = await Promise.all(list.map((p) => pieceSvg(p, players, look, fieldBoxAspect(p, per))));
   const titles = list.map((p) => autoTitle(pieceBoard(p, players), pieceSetup(p)).title);
   const cards = list.map((p, i) => `<section class="card">
-    <header><div class="club"><img src="${CLUB_LOGO_URL}" alt=""><div><b>RACING SARRIÀ</b>${teamName ? `<span>${esc(teamName)}</span>` : ""}</div></div>
+    <header><div class="club"><img src="${CLUB_LOGO_URL}" alt=""><div><b>${esc(BRAND.clubName.toUpperCase())}</b>${teamName ? `<span>${esc(teamName)}</span>` : ""}</div></div>
     <div class="ttl"><span>${esc(setupLabel(pieceSetup(p)))}</span><h2>${esc(p.name)}</h2></div></header>
     ${titles[i] || p.signal ? `<div class="meta">${titles[i] ? `<em>${esc(titles[i])}</em>` : ""}${p.signal ? `<span class="sig"><b>SEÑAL</b>${esc(p.signal)}</span>` : ""}</div>` : ""}
     <div class="fld" style="aspect-ratio:${svgs[i].ar.toFixed(4)}">${svgs[i].html}</div>${p.notes ? `<div class="notes"><b>INSTRUCCIONES</b>${esc(p.notes)}</div>` : ""}</section>`);
@@ -678,7 +680,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
   );
 
   return (
-    <div className="flex flex-col" style={{ gap: 12, fontFamily: "'IBM Plex Sans Condensed', system-ui, sans-serif", color: RS.ink }} data-testid="set-pieces">
+    <div className="flex flex-col" style={{ gap: 12, fontFamily: `'${clubFont.bodyName}', system-ui, sans-serif`, color: RS.ink }} data-testid="set-pieces">
       {/* Barra superior: qué es, editor o resumen, y acciones */}
       <div className="flex flex-wrap items-center" style={{ gap: "10px 16px" }}>
         <div className="min-w-0" style={{ marginRight: 4 }}>
@@ -844,7 +846,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
                       <div className="relative overflow-hidden" style={{ aspectRatio: "74 / 60", borderRadius: 8, border: `1px solid ${RS.soft}` }}>
                         <button type="button" onClick={() => openPiece(p.id)} className="absolute inset-0" aria-label={t("Abrir {name} en el editor", { name: p.name || t("Sin nombre") })} style={{ background: "#fff" }}><PieceThumb piece={p} lookup={lookup} /></button>
                         <label className="absolute flex items-center" style={{ top: 6, right: 6, gap: 5, background: "rgba(255,255,255,.94)", borderRadius: 6, padding: "3px 7px", fontSize: 12, color: RS.ink2 }}>
-                          <input type="checkbox" checked={on} onChange={(e) => setOff(e.target.checked ? off.filter((x) => x !== p.id) : [...off, p.id])} className="accent-[#73000A]" style={{ margin: 0 }} data-testid="sp-sum-print" />{t("Imprimir")}
+                          <input type="checkbox" checked={on} onChange={(e) => setOff(e.target.checked ? off.filter((x) => x !== p.id) : [...off, p.id])} className="accent-club" style={{ margin: 0 }} data-testid="sp-sum-print" />{t("Imprimir")}
                         </label>
                       </div>
                       <button type="button" onClick={() => openPiece(p.id)} className="flex flex-col text-left" style={{ gap: 5, padding: "0 2px" }}>

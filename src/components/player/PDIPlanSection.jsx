@@ -17,6 +17,7 @@ import { usePlayerMode } from "@/lib/playerMode";
 import { stageOf, f7Info, isF7Position, f7ContentOptions, F7_POSITIONS } from "@/lib/f7Positions";
 import { isF7Team } from "@/lib/teamOrder";
 import { useT, useFormat, msg } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 const STAGE_LABEL = { f7: msg("Fútbol 7"), f11: msg("Fútbol 11") };
 const F7_GROUPS = ["tecnicas", "fisicas", "mentales"];
@@ -228,7 +229,7 @@ export default function PDIPlanSection({ player, team }) {
     <div className="space-y-4">
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
         <div className="flex flex-wrap items-start gap-4">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--granate-pale, #fdf2f4)" }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `var(--granate-pale, ${clubColor.primarySoft})` }}>
             <Target className="w-5 h-5" style={{ color: "var(--granate)" }} />
           </div>
           <div className="flex-1 min-w-[220px]">

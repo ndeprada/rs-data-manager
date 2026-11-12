@@ -1,11 +1,12 @@
 import React from "react";
 import "./sessionFonts";
+import { C as clubColor, F as clubFont } from "@/lib/brand";
 
 // Piezas de la pantalla de sesiones con el aspecto de la maqueta aprobada por Nacho (02/11/2026):
 // fondo #F5F2F1, tarjetas blancas con borde #E6DEDD y radio 12, títulos en Barlow Condensed, texto en Inter,
 // etiquetas de 11 px en mayúsculas y bandas granate oscuro (#36000D) para las partes de la sesión.
-export const C = { granate: "#73000A", dark: "#36000D", ink: "#1F1416", soft: "#3A2E30", muted: "#6B5E60", line: "#E6DEDD", field: "#DDD3D4", pale: "#FBF8F8", paleLine: "#EFE6E6", bg: "#F5F2F1" };
-export const DISPLAY = "'Barlow Condensed', 'Racing Sarria', Arial, sans-serif";
+export const C = { granate: clubColor.primary, dark: clubColor.primaryDark, ink: "#1F1416", soft: "#3A2E30", muted: "#6B5E60", line: "#E6DEDD", field: "#DDD3D4", pale: "#FBF8F8", paleLine: "#EFE6E6", bg: "#F5F2F1" };
+export const DISPLAY = `'Barlow Condensed', '${clubFont.titleName}', Arial, sans-serif`;
 
 export const D = ({ as: Tag = "div", size = 18, className = "", style, children, ...rest }) => (
   <Tag className={`ss-d ${className}`} style={{ fontFamily: DISPLAY, textTransform: "uppercase", letterSpacing: ".02em", fontWeight: 800, fontSize: size, color: C.granate, lineHeight: 1.1, ...style }} {...rest}>{children}</Tag>
@@ -44,4 +45,4 @@ export const Pill = ({ on, color = C.granate, dashed = false, className = "", ch
 );
 
 // Clases de los campos de texto como en la maqueta (borde #DDD3D4, radio 8, 14 px)
-export const inputCls = "rounded-lg border-[#DDD3D4] text-sm text-[#1F1416] focus-visible:ring-[#73000A]/30";
+export const inputCls = "rounded-lg border-[#DDD3D4] text-sm text-[#1F1416] focus-visible:ring-club/30";

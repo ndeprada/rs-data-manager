@@ -212,7 +212,7 @@ export default function PostMatchTab({ eventId, teamId, event, players, convocat
               const isPlaying = playing === i && !!emb;
               const open = () => { if (emb) setPlaying(isPlaying ? null : i); else window.open(l.url, "_blank", "noopener"); };
               return (
-                <div key={i} className={`rounded-xl border bg-white overflow-hidden ${isPlaying ? "sm:col-span-2 border-[#73000A]" : "border-gray-200"}`}>
+                <div key={i} className={`rounded-xl border bg-white overflow-hidden ${isPlaying ? "sm:col-span-2 border-club" : "border-gray-200"}`}>
                   <div className="flex items-center gap-3 p-2">
                     <button type="button" onClick={open} className="relative shrink-0 w-24 aspect-video rounded-lg overflow-hidden bg-gray-900 group" title={emb ? (isPlaying ? t("Cerrar el reproductor") : t("Reproducir aquí")) : t("Abrir vídeo")}>
                       {thumb && <img src={thumb} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" />}

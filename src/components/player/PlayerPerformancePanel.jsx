@@ -12,6 +12,7 @@ import { participationOf, minutesAlerts, playerLevel } from "@/lib/participation
 import { useParticipationContext } from "@/lib/useParticipation";
 import { ReasonChips, FormatPills, FORMAT_OPTIONS, PctPill, alertText } from "@/components/stats/ParticipationBits";
 import { useT, useFormat } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 function StatBox({ label, value, sub, color = "gray" }) {
   const colors = {
@@ -233,7 +234,7 @@ export default function PlayerPerformancePanel({ playerId }) {
                 formatter={(value, name) => name === t("Valoración (★)") ? [`${value} ★`, name] : [`${value}%`, name]}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              {!playerMode && <Line yAxisId="rating" type="monotone" dataKey="rating" name={t("Valoración (★)")} stroke="#FF6E00" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />}
+              {!playerMode && <Line yAxisId="rating" type="monotone" dataKey="rating" name={t("Valoración (★)")} stroke={clubColor.accent} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />}
               <Line yAxisId="asistencia" type="monotone" dataKey="asistencia" name={t("Asistencia (%)")} stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
             </LineChart>
           </ResponsiveContainer>

@@ -1,3 +1,4 @@
+import { C as clubColor } from "./brand.js";
 // Pizarra de dibujo y animación (motor común de tareas, tácticas y balón parado).
 // Se guarda como datos, no como imagen: { v:2, field, look, orient, frames:[{ id, els:[…] }] }.
 // Cada fotograma es una foto completa de lo que hay en el campo. Los elementos que se mueven (fichas, balón, conos,
@@ -141,7 +142,7 @@ export const AD_PANELS = [
 // más (hasta MAX_TEAMS). `n` (Neutro) es de los dibujos antiguos: solo aparece si hay fichas que lo usan.
 export const MAX_TEAMS = 8;
 export const DEFAULT_TEAMS = [
-  { id: "a", name: "Equipo A", color: "#73000A" },
+  { id: "a", name: "Equipo A", color: clubColor.primary },
   { id: "b", name: "Equipo B", color: "#2563eb" },
   { id: "c", name: "Comodín", color: "#f59e0b" },
   { id: "gk", name: "Portero", color: "#16a34a" },

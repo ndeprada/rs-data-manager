@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { BRAND } from "@/lib/brand";
 
 function setFill(doc, r, g, b) { doc.setFillColor(r, g, b); }
 function setDraw(doc, r, g, b) { doc.setDrawColor(r, g, b); }
@@ -158,7 +159,7 @@ export function generatePDF(data) {
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text("RS Manager — Informe Confidencial", margin, 294.5);
+    doc.text(`${BRAND.appName} — Informe Confidencial`, margin, 294.5);
     doc.text("Pàgina " + p + " / " + total, W - margin - 20, 294.5);
   }
 

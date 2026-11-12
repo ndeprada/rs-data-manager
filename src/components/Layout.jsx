@@ -17,6 +17,7 @@ import { addDays, isWithinInterval, parseISO } from "date-fns";
 import { buildLinks } from "@/lib/staffLink";
 import { usePlayerMode } from "@/lib/playerMode";
 import { useT, msg, LanguageSelector } from "@/i18n";
+import { BRAND } from "@/lib/brand";
 
 const MY_TEAM_SUBITEMS = [
   { label: msg("Panel"), path: "/MyTeam", exact: true, icon: LayoutDashboard },
@@ -68,7 +69,7 @@ function NavItem({ item, onClick, badge = 0 }) {
         <item.icon className={`shrink-0 w-3.5 h-3.5 ${active ? "text-[color:var(--granate)]" : "text-white/55 group-hover:text-white/85"}`} />
       )}
       <span className="flex-1 leading-none">{t(item.label)}</span>
-      {badge > 0 && <span className="min-w-4 h-4 px-1 rounded-full bg-[#FF6E00] text-white text-[9px] font-black flex items-center justify-center shrink-0" title={t("{n} usuario(s) pendientes de aceptar", { n: badge })}>{badge}</span>}
+      {badge > 0 && <span className="min-w-4 h-4 px-1 rounded-full bg-club-accent text-white text-[9px] font-black flex items-center justify-center shrink-0" title={t("{n} usuario(s) pendientes de aceptar", { n: badge })}>{badge}</span>}
       
     </Link>
   );
@@ -137,8 +138,8 @@ function PlayerSidebar({ onClose = () => {}, drawer = false }) {
     <div className="flex flex-col h-full" style={{ background: "var(--granate)" }}>
       <div className="px-3 py-4 border-b border-white/10">
         <Link to="/PlayerTeam" onClick={onClose} className="flex items-center gap-2.5">
-          <img src={CLUB_LOGO_URL_WHITE} alt={t("RS Club")} className="w-7 h-7 object-contain" />
-          <h1 className="font-bold text-xl tracking-wider uppercase leading-none text-white" style={{ fontFamily: "var(--font-display)" }}>{t("RS Manager")}</h1>
+          <img src={CLUB_LOGO_URL_WHITE} alt={BRAND.clubName} className="w-7 h-7 object-contain" />
+          <h1 className="font-bold text-xl tracking-wider uppercase leading-none text-white" style={{ fontFamily: "var(--font-display)" }}>{BRAND.appName}</h1>
         </Link>
       </div>
       <nav className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5">
@@ -235,9 +236,9 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
       <div className="px-3 py-4 border-b border-white/10">
         <Link to="/Dashboard" onClick={onClose} className="flex items-center gap-2.5">
           <div className="w-8 h-8 shrink-0 rounded-[6px] flex items-center justify-center" style={{ background: "rgba(255,255,255,0.13)" }}>
-            <img src={CLUB_LOGO_URL_WHITE} alt={t("RS")} className="w-6 h-6 object-contain" />
+            <img src={CLUB_LOGO_URL_WHITE} alt={BRAND.clubName} className="w-6 h-6 object-contain" />
           </div>
-          <p className="text-white font-black text-sm leading-tight uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>{t("RS Manager")}</p>
+          <p className="text-white font-black text-sm leading-tight uppercase tracking-wide" style={{ fontFamily: "var(--font-display)" }}>{BRAND.appName}</p>
         </Link>
       </div>
 
@@ -331,11 +332,9 @@ export default function Layout() {
     <div className="min-h-screen bg-[#f5f5f5] text-gray-900 flex">
       <style>{`
         :root {
-          --granate: #73000A; --granate-dark: #36000D; --granate-hover: #36000D;
-          --granate-pale: #fdf2f4; --naranja: #FF6E00; --naranja-pale: #fff7ed;
-          --font-display: 'IBM Plex Sans Condensed', sans-serif;
-          --font-title: 'Racing Sarria', sans-serif;
-          --font-body: 'IBM Plex Sans Condensed', sans-serif;
+          --font-display: var(--club-font-body);
+          --font-title: var(--club-font-title);
+          --font-body: var(--club-font-body);
         }
         * { font-family: var(--font-body); }
         h1 { font-family: var(--font-title) !important; font-weight: 800 !important; letter-spacing: 0.04em; color: var(--granate) !important; text-transform: uppercase; font-size: 2rem; line-height: 1.1; }
@@ -368,11 +367,11 @@ export default function Layout() {
         <div className="flex items-center gap-2">
           <button onClick={() => setMobileOpen(!mobileOpen)} aria-label={t("Menú")} className="relative p-2 -ml-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            {pendingUsersCount > 0 && !mobileOpen && <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-[#FF6E00] border border-[#73000A]" />}
+            {pendingUsersCount > 0 && !mobileOpen && <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-club-accent border border-club" />}
           </button>
           <Link to={playerMode ? "/PlayerTeam" : "/Dashboard"} onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
-            <img src={CLUB_LOGO_URL_WHITE} alt={t("RS Club")} className="w-7 h-7 object-contain" />
-            <h1 className="font-bold text-xl tracking-wider uppercase leading-none" style={{ fontFamily: "var(--font-display)", color: "#ffffff" }}>{t("RS Manager")}</h1>
+            <img src={CLUB_LOGO_URL_WHITE} alt={BRAND.clubName} className="w-7 h-7 object-contain" />
+            <h1 className="font-bold text-xl tracking-wider uppercase leading-none" style={{ fontFamily: "var(--font-display)", color: "#ffffff" }}>{BRAND.appName}</h1>
           </Link>
         </div>
         <LanguageSelector tone="dark" className="ml-auto -mr-1.5" />

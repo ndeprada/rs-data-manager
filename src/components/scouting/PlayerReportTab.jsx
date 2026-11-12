@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/components/ui/use-toast";
 
 import EmptyState from "@/components/common/EmptyState";
+import { C as clubColor } from "@/lib/brand";
 function skillColor(value) {
   if (!value) return "#e5e7eb";
   if (value <= 3) return "#ef4444";
@@ -61,17 +62,17 @@ function generatePDF(report, player) {
       <div style="margin:4px 0;display:flex;align-items:center;gap:8px;">
         <span style="width:100px;font-size:11px;color:#555;">${label}</span>
         <div style="flex:1;background:#eee;height:8px;border-radius:4px;overflow:hidden;">
-          <div style="width:${(value||0)*10}%;height:8px;background:#73000A;border-radius:4px;"></div>
+          <div style="width:${(value||0)*10}%;height:8px;background:${clubColor.primary};border-radius:4px;"></div>
         </div>
-        <span style="font-size:11px;font-weight:bold;color:#73000A;width:24px;text-align:right;">${value||0}</span>
+        <span style="font-size:11px;font-weight:bold;color:${clubColor.primary};width:24px;text-align:right;">${value||0}</span>
       </div>`;
     const stars = (v) => [1,2,3,4,5].map(i => `<span style="color:${i<=(v||0)?'#f59e0b':'#e5e7eb'};font-size:18px;">★</span>`).join("");
     win.document.write(`
       <!DOCTYPE html><html><head><meta charset="UTF-8"><title>Informe Scouting</title>
-      <style>body{font-family:Arial,sans-serif;padding:32px;color:#111;}h1{color:#73000A;margin:0;}h2{color:#73000A;font-size:14px;margin:20px 0 8px;border-bottom:1px solid #eee;padding-bottom:4px;}p{margin:4px 0;font-size:13px;color:#444;}.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:bold;background:#dbeafe;color:#1d4ed8;}</style>
+      <style>body{font-family:Arial,sans-serif;padding:32px;color:#111;}h1{color:${clubColor.primary};margin:0;}h2{color:${clubColor.primary};font-size:14px;margin:20px 0 8px;border-bottom:1px solid #eee;padding-bottom:4px;}p{margin:4px 0;font-size:13px;color:#444;}.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:bold;background:#dbeafe;color:#1d4ed8;}</style>
       </head><body>
-        <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;border-bottom:2px solid #73000A;padding-bottom:16px;">
-          ${player?.photo_url ? `<img src="${player.photo_url}" style="width:80px;height:80px;object-fit:cover;border-radius:50%;">` : `<div style="width:80px;height:80px;border-radius:50%;background:#73000A;display:flex;align-items:center;justify-content:center;color:white;font-size:28px;font-weight:bold;">${player?.first_name?.[0]||""}${player?.last_name?.[0]||""}</div>`}
+        <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;border-bottom:2px solid ${clubColor.primary};padding-bottom:16px;">
+          ${player?.photo_url ? `<img src="${player.photo_url}" style="width:80px;height:80px;object-fit:cover;border-radius:50%;">` : `<div style="width:80px;height:80px;border-radius:50%;background:${clubColor.primary};display:flex;align-items:center;justify-content:center;color:white;font-size:28px;font-weight:bold;">${player?.first_name?.[0]||""}${player?.last_name?.[0]||""}</div>`}
           <div>
             <h1>${player?.first_name || ""} ${player?.last_name || ""}</h1>
             <p>${player?.position || ""} · ${player?.current_club || ""}</p>

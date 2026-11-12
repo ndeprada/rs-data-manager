@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { C as clubColor } from "@/lib/brand";
 
 const emptyForm = { date: "", evaluator: "", period: "", technical: "", tactical: "", physical: "", mental: "", strengths: "", areas_to_improve: "", objectives: "", overall_rating: "" };
 
@@ -31,7 +32,7 @@ function PDICard({ pdi, onEdit, onDelete, readOnly }) {
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--granate-pale, #fdf2f4)" }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `var(--granate-pale, ${clubColor.primarySoft})` }}>
             <BookOpen className="w-5 h-5" style={{ color: "var(--granate)" }} />
           </div>
           <div className="min-w-0">
@@ -44,7 +45,7 @@ function PDICard({ pdi, onEdit, onDelete, readOnly }) {
         </div>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {pdi.overall_rating && (
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold" style={{ background: "var(--naranja-pale, #fff7ed)", color: "var(--naranja)" }}>
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold" style={{ background: `var(--naranja-pale, ${clubColor.accentSoft})`, color: "var(--naranja)" }}>
               <Star className="w-3.5 h-3.5" />{pdi.overall_rating}/10
             </span>
           )}

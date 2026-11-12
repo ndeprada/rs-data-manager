@@ -2,10 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Paleta oficial del club (disponible también fuera del Layout: login, registro...) */
+/* Colores y tipografías del club. Estos son los de Racing Sarrià (por defecto); applyBrand() (src/lib/applyBrand.js)
+   pone encima los de la configuración del club. Las variables antiguas (--granate, --naranja…) apuntan a ellas. */
 :root {
-  --granate: #73000A; --granate-dark: #36000D; --granate-hover: #36000D;
-  --granate-pale: #fdf2f4; --naranja: #FF6E00; --naranja-pale: #fff7ed;
+  --club-primary: #73000A; --club-primary-dark: #36000D; --club-primary-soft: #FDF2F4;
+  --club-accent: #FF6E00; --club-accent-soft: #FFF7ED; --club-deep: #24000A;
+  --club-primary-rgb: 115 0 10; --club-primary-dark-rgb: 54 0 13; --club-primary-soft-rgb: 253 242 244;
+  --club-accent-rgb: 255 110 0; --club-accent-soft-rgb: 255 247 237; --club-deep-rgb: 36 0 10;
+  --club-font-title: 'Racing Sarria', sans-serif; --club-font-body: 'IBM Plex Sans Condensed', sans-serif;
+  --granate: var(--club-primary); --granate-dark: var(--club-primary-dark); --granate-hover: var(--club-primary-dark);
+  --granate-pale: var(--club-primary-soft); --naranja: var(--club-accent); --naranja-pale: var(--club-accent-soft);
 }
 
 
@@ -14,7 +20,7 @@
 
 /* Racing Sarria solo en títulos y textos grandes; el resto, IBM Plex */
 :is([style*="font-display"], .font-display, .rs-font):is(.text-xl, .text-2xl, .text-3xl, .text-4xl, .text-5xl, .text-6xl, .text-7xl, .text-8xl) {
-  font-family: 'Racing Sarria', sans-serif !important;
+  font-family: var(--club-font-title) !important;
   letter-spacing: 0.05em !important;
 }
 

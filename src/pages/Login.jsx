@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import { useT, LanguageSelector, msg } from "@/i18n";
+import { C as clubColor, F as clubFont } from "@/lib/brand";
+import { BRAND } from "@/lib/brand";
 
 export default function Login() {
   const t = useT();
@@ -45,9 +47,9 @@ export default function Login() {
     <div
       className="min-h-screen flex items-center justify-center bg-[#f5f5f5] p-4"
       style={{
-        "--granate": "#73000A",
-        "--naranja": "#FF6E00",
-        "--font-display": "'IBM Plex Sans Condensed', sans-serif",
+        "--granate": clubColor.primary,
+        "--naranja": clubColor.accent,
+        "--font-display": clubFont.body,
       }}
     >
       <div className="w-full max-w-md">
@@ -58,7 +60,7 @@ export default function Login() {
             className="text-3xl font-black uppercase tracking-wider"
             style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}
           >
-            {t("RS Manager")}
+            {BRAND.appName}
           </h1>
         </div>
 

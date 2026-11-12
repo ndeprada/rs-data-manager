@@ -15,11 +15,12 @@ import { f7Markings } from "@/lib/pitchGeometry";
 import { isF7Team } from "@/lib/teamOrder";
 import { FORMATION_POSITIONS, formationsFor, isFormationOf, formationOptions, formationLabel, normalizeFormation, tacticsFormat } from "@/lib/matchFormations";
 import { useT, msg } from "@/i18n";
+import { C as clubColor, F as clubFont } from "@/lib/brand";
 
 // ── Draggable Football Field ────────────────────────────
 const KITS = {
-  "1": { label: msg("1ª"), fill: "#ffffff", stroke: "#73000A", num: "#73000A" },
-  "2": { label: msg("2ª"), fill: "#73000A", stroke: "#36000D", num: "#ffffff" },
+  "1": { label: msg("1ª"), fill: "#ffffff", stroke: clubColor.primary, num: clubColor.primary },
+  "2": { label: msg("2ª"), fill: clubColor.primary, stroke: clubColor.primaryDark, num: "#ffffff" },
   "3": { label: msg("3ª"), fill: "#22a559", stroke: "#0f5132", num: "#ffffff" },
 };
 const GK_KITS = {
@@ -142,7 +143,7 @@ function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsC
             {selectedIdx === i && <circle cx={cx} cy={cy} r="19" fill="rgba(252,221,9,0.18)" stroke="#FCDD09" strokeWidth="2.5" />}
             <circle cx={cx + 1} cy={cy + 1.5} r="13" fill="rgba(0,0,0,0.25)" />
             <circle cx={cx} cy={cy} r="13" fill={player ? k.fill : "rgba(255,255,255,0.15)"} stroke={player ? k.stroke : "white"} strokeWidth="2.2" strokeDasharray={player ? "0" : "4 3"} />
-            <text x={cx} y={cy + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 17 : 13} fontWeight="400" style={{ fontFamily: "'Racing Sarria', sans-serif" }} fill={player ? k.num : "white"}>
+            <text x={cx} y={cy + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={player ? 17 : 13} fontWeight="400" style={{ fontFamily: clubFont.title }} fill={player ? k.num : "white"}>
               {player ? (player.jersey_number || player.first_name?.[0]) : "+"}
             </text>
             {player && captainId && player.id === captainId && (
@@ -150,7 +151,7 @@ function DraggableField({ kit, gkKit, captainId,  slots, positions, onPositionsC
                 <rect x="-0.8" y="-0.8" width="15.6" height="11.6" rx="2" fill="#1f2937" opacity="0.55" />
                 <rect x="0" y="0" width="14" height="10" rx="1.5" fill="#FCDD09" />
                 {[1.4, 4.4, 7.4, 10.4].map(x => <rect key={x} x={x} y="0" width="1.7" height="10" fill="#DA121A" />)}
-                <text x="7" y="8.4" textAnchor="middle" fontSize="9" style={{ fontFamily: "'Racing Sarria', sans-serif" }} fill="white" stroke="rgba(0,0,0,0.8)" strokeWidth="1.8" paintOrder="stroke" strokeLinejoin="round">{t("C")}</text>
+                <text x="7" y="8.4" textAnchor="middle" fontSize="9" style={{ fontFamily: clubFont.title }} fill="white" stroke="rgba(0,0,0,0.8)" strokeWidth="1.8" paintOrder="stroke" strokeLinejoin="round">{t("C")}</text>
               </g>
             )}
             {player && (
@@ -458,7 +459,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
                     return (
                       <button key={p.id} type="button" onClick={() => onBenchTap(p)}
                         className={`flex items-center gap-1.5 text-left rounded-md px-1 py-0.5 border ${on ? "bg-yellow-50 border-yellow-400" : "border-transparent hover:bg-gray-50"} ${newGroup ? "sm:mt-1.5" : ""}`}>
-                        <span className="w-[22px] h-[22px] rounded-full flex items-center justify-center shrink-0" style={{ background: k.fill, border: `2px solid ${k.stroke}`, color: k.num, fontFamily: "'Racing Sarria', sans-serif", fontSize: 11 }}>
+                        <span className="w-[22px] h-[22px] rounded-full flex items-center justify-center shrink-0" style={{ background: k.fill, border: `2px solid ${k.stroke}`, color: k.num, fontFamily: clubFont.title, fontSize: 11 }}>
                           {p.jersey_number || p.first_name?.[0]}
                         </span>
                         <span className="text-[11px] font-medium text-gray-800 truncate">{playerFirstName(p)} {firstSurname(p.last_name)}</span>

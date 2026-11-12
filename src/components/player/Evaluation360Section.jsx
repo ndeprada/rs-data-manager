@@ -17,6 +17,7 @@ import { stageOf, f7Info } from "@/lib/f7Positions";
 import { getPositionList } from "@/lib/playerPositions";
 import { isF7Team } from "@/lib/teamOrder";
 import { useT, useFormat, msg } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 function currentQuarter() {
   const d = new Date();
@@ -213,7 +214,7 @@ export default function Evaluation360Section({ player, playerId, team }) {
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
           <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--granate-pale, #fdf2f4)" }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `var(--granate-pale, ${clubColor.primarySoft})` }}>
             <Radar className="w-5 h-5" style={{ color: "var(--granate)" }} />
           </div>
           <div className="flex-1 min-w-0">
@@ -282,7 +283,7 @@ export default function Evaluation360Section({ player, playerId, team }) {
                     key={tb.key}
                     type="button"
                     onClick={() => setTab(tb.key)}
-                    className={`px-3 py-2 text-sm font-semibold border-b-2 whitespace-nowrap ${tab === tb.key ? "border-[#73000A] text-[#73000A]" : "border-transparent text-gray-500"}`}
+                    className={`px-3 py-2 text-sm font-semibold border-b-2 whitespace-nowrap ${tab === tb.key ? "border-club text-club" : "border-transparent text-gray-500"}`}
                   >
                     {t(tb.label)}{tb.pending ? <span className="ml-1 text-[10px] font-semibold text-orange-600" title={t("Ítems pendientes de revisión")}>{t("· en revisión")}</span> : null}{v != null ? <span className="ml-1.5 text-xs font-black" style={{ color: scoreColor(v) }}>{v}</span> : null}
                   </button>

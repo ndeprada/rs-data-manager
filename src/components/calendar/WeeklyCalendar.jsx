@@ -5,23 +5,24 @@ import { isCancelled, cancelText } from "@/lib/eventCancel";
 import EventWeather from "@/components/EventWeather";
 import MatchResultPill, { resultOf } from "@/components/calendar/MatchResultPill";
 import { useT, useDateLocale } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 const EVENT_TYPE_COLORS = {
-  partido_amistoso: "#73000A",   // granate
-  partido_liga: "#73000A",       // granate
-  torneo: "#73000A",             // granate
-  entrenamiento_fisico: "#FF6E00", // naranja
-  entrenamiento: "#FF6E00",        // naranja
-  sesion_teorica: "#FF6E00",       // naranja
-  sesion_video: "#FF6E00",         // naranja
+  partido_amistoso: clubColor.primary,   // granate
+  partido_liga: clubColor.primary,       // granate
+  torneo: clubColor.primary,             // granate
+  entrenamiento_fisico: clubColor.accent, // naranja
+  entrenamiento: clubColor.accent,        // naranja
+  sesion_teorica: clubColor.accent,       // naranja
+  sesion_video: clubColor.accent,         // naranja
   reunion_equipo: "#64748b",       // slate
   reunion_jugador: "#64748b",      // slate
   reunion_capitanes: "#64748b",    // slate
-  stage: "#FF6E00",              // naranja
+  stage: clubColor.accent,              // naranja
   concentracion: "#64748b",       // slate
   cena_equipo: "#64748b",         // slate
   comida_equipo: "#64748b",       // slate
-  evento_club: "#73000A",         // granate (evento de todo el club)
+  evento_club: clubColor.primary,         // granate (evento de todo el club)
 };
 
 export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "all", onEventClick, selectedDay, onSelectDay }) {
@@ -124,11 +125,11 @@ export default function WeeklyCalendar({ events = [], teams = [], filterTeam = "
       {/* Legend */}
       <div className="px-4 py-2 border-t border-gray-100 grid grid-cols-3 gap-3 bg-gray-50">
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full" style={{ background: "#73000A" }} />
+          <div className="w-2 h-2 rounded-full" style={{ background: clubColor.primary }} />
           <span className="text-[10px] text-gray-400">{t("Partido oficial")}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full" style={{ background: "#FF6E00" }} />
+          <div className="w-2 h-2 rounded-full" style={{ background: clubColor.accent }} />
           <span className="text-[10px] text-gray-400">{t("Entrenamiento")}</span>
         </div>
         <div className="flex items-center gap-1.5">

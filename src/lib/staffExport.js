@@ -1,3 +1,4 @@
+import { C as clubColor, F as clubFont } from "./brand.js";
 // Exportar la lista del personal: Excel (CSV que Excel abre directamente) e impresión. Sin dependencias.
 
 const CELL_FORMULA = /^[=@\t\r]/;
@@ -31,18 +32,18 @@ export function staffPrintHtml({ header, rows, title, subtitle, logoUrl, origin 
   const body = rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c) || "—"}</td>`).join("")}</tr>`).join("");
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
 <style>
-  @font-face{font-family:'Racing Sarria';src:url('${origin}/fonts/RacingSarria.ttf') format('truetype')}
-  @font-face{font-family:'IBM Plex Sans Condensed';font-weight:400;src:url('${origin}/fonts/IBMPlexSansCondensed-Regular.ttf') format('truetype')}
-  @font-face{font-family:'IBM Plex Sans Condensed';font-weight:700;src:url('${origin}/fonts/IBMPlexSansCondensed-Bold.ttf') format('truetype')}
+  @font-face{font-family:'${clubFont.titleName}';src:url('${origin}${clubFont.titleUrl}') format('truetype')}
+  @font-face{font-family:'${clubFont.bodyName}';font-weight:400;src:url('${origin}/fonts/IBMPlexSansCondensed-Regular.ttf') format('truetype')}
+  @font-face{font-family:'${clubFont.bodyName}';font-weight:700;src:url('${origin}/fonts/IBMPlexSansCondensed-Bold.ttf') format('truetype')}
   @page{size:A4 landscape;margin:10mm} *{box-sizing:border-box}
-  body{margin:0;font-family:'IBM Plex Sans Condensed',Arial,sans-serif;color:#222;font-size:9.5pt}
-  header{display:flex;align-items:center;justify-content:space-between;border-bottom:.6mm solid #73000A;padding-bottom:2.5mm;margin-bottom:4mm}
+  body{margin:0;font-family:'${clubFont.bodyName}',Arial,sans-serif;color:#222;font-size:9.5pt}
+  header{display:flex;align-items:center;justify-content:space-between;border-bottom:.6mm solid ${clubColor.primary};padding-bottom:2.5mm;margin-bottom:4mm}
   .club{display:flex;align-items:center;gap:3mm} .club img{height:13mm;width:auto}
-  h1{margin:0;font-family:'Racing Sarria',sans-serif;font-weight:400;font-size:20pt;color:#73000A;text-transform:uppercase;letter-spacing:.3px;line-height:1}
-  .sub{font-size:9.5pt;color:#FF6E00;font-weight:700;text-transform:uppercase;margin-top:1mm}
+  h1{margin:0;font-family:${clubFont.title};font-weight:400;font-size:20pt;color:${clubColor.primary};text-transform:uppercase;letter-spacing:.3px;line-height:1}
+  .sub{font-size:9.5pt;color:${clubColor.accent};font-weight:700;text-transform:uppercase;margin-top:1mm}
   .meta{font-size:8.5pt;color:#666;text-align:right}
   table{width:100%;border-collapse:collapse}
-  th{background:#73000A;color:#fff;text-align:left;font-size:8pt;letter-spacing:.5px;text-transform:uppercase;padding:1.6mm 2mm}
+  th{background:${clubColor.primary};color:#fff;text-align:left;font-size:8pt;letter-spacing:.5px;text-transform:uppercase;padding:1.6mm 2mm}
   td{padding:1.5mm 2mm;border-bottom:.2mm solid #ddd;vertical-align:top}
   tr:nth-child(even) td{background:#f6f6f6} tr{break-inside:avoid;page-break-inside:avoid} thead{display:table-header-group}
   td:first-child{font-weight:700}

@@ -10,6 +10,8 @@ import { toast } from "@/components/ui/use-toast";
 import { CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
 import { useT, useDateLocale, msg } from "@/i18n";
+import { C as clubColor, F as clubFont } from "@/lib/brand";
+import { BRAND } from "@/lib/brand";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 
@@ -118,20 +120,20 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
         <meta charset="utf-8"/>
         <title>Agenda Semanal – ${weekendLabel}</title>
         <style>
-          @font-face{font-family:'Racing Sarria';src:url('${window.location.origin}/fonts/RacingSarria.ttf');font-weight:100 900;} @font-face{font-family:'IBM Plex Sans Condensed';src:url('${window.location.origin}/fonts/IBMPlexSansCondensed-Regular.ttf');font-weight:400;} @font-face{font-family:'IBM Plex Sans Condensed';src:url('${window.location.origin}/fonts/IBMPlexSansCondensed-Bold.ttf');font-weight:600 900;}
+          @font-face{font-family:'${clubFont.titleName}';src:url('${window.location.origin}${clubFont.titleUrl}');font-weight:100 900;} @font-face{font-family:'${clubFont.bodyName}';src:url('${window.location.origin}/fonts/IBMPlexSansCondensed-Regular.ttf');font-weight:400;} @font-face{font-family:'${clubFont.bodyName}';src:url('${window.location.origin}/fonts/IBMPlexSansCondensed-Bold.ttf');font-weight:600 900;}
           * { margin:0; padding:0; box-sizing:border-box; }
-          body { font-family:'IBM Plex Sans Condensed',sans-serif; color:#1a1a1a; background:#fff; padding:24px; }
+          body { font-family:${clubFont.body}; color:#1a1a1a; background:#fff; padding:24px; }
           .print-root { max-width:800px; margin:0 auto; }
-          .header { display:flex; align-items:center; gap:16px; margin-bottom:24px; padding-bottom:16px; border-bottom: 3px solid #73000A; }
-          .header-logo { width:60px; height:60px; background:#73000A; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:8px; }
+          .header { display:flex; align-items:center; gap:16px; margin-bottom:24px; padding-bottom:16px; border-bottom: 3px solid ${clubColor.primary}; }
+          .header-logo { width:60px; height:60px; background:${clubColor.primary}; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:8px; }
           .header-logo img { width:100%; height:100%; object-fit:contain; filter:brightness(10); }
-          .header-text h1 { font-family:'Racing Sarria',sans-serif; font-weight:800; font-size:24px; text-transform:uppercase; letter-spacing:0.05em; color:#73000A; }
-          .header-text p { font-family:'IBM Plex Sans Condensed',sans-serif; font-size:14px; color:#666; text-transform:uppercase; letter-spacing:0.1em; }
+          .header-text h1 { font-family:${clubFont.title}; font-weight:800; font-size:24px; text-transform:uppercase; letter-spacing:0.05em; color:${clubColor.primary}; }
+          .header-text p { font-family:${clubFont.body}; font-size:14px; color:#666; text-transform:uppercase; letter-spacing:0.1em; }
           table { width:100%; border-collapse:collapse; font-size:12px; }
-          thead tr { background:#73000A; color:white; }
-          thead th { padding:8px 10px; text-align:left; font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.1em; }
+          thead tr { background:${clubColor.primary}; color:white; }
+          thead th { padding:8px 10px; text-align:left; font-family:${clubFont.body}; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.1em; }
           tbody tr { border-bottom:1px solid #e5e7eb; }
-          tbody tr:nth-child(even) { background:#fdf2f4; }
+          tbody tr:nth-child(even) { background:${clubColor.primarySoft}; }
           tbody td { padding:8px 10px; vertical-align:middle; }
           .team-name { font-weight:600; font-size:13px; }
           .day-badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:700; text-transform:uppercase; }
@@ -222,7 +224,7 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
           ${rows || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#9ca3af;">Sin partidos este fin de semana</td></tr>'}
         </tbody>
       </table>
-      <div class="footer">Generado el ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: dfl })} · RS Manager</div>
+      <div class="footer">Generado el ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: dfl })} · ${BRAND.appName}</div>
     `;
   };
 
@@ -250,19 +252,19 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
               const printHTML = buildPrintHTML();
               const win = window.open("", "_blank");
               win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Agenda – ${weekendLabel}</title><style>
-                @font-face{font-family:'Racing Sarria';src:url('${window.location.origin}/fonts/RacingSarria.ttf');font-weight:100 900;} @font-face{font-family:'IBM Plex Sans Condensed';src:url('${window.location.origin}/fonts/IBMPlexSansCondensed-Regular.ttf');font-weight:400;} @font-face{font-family:'IBM Plex Sans Condensed';src:url('${window.location.origin}/fonts/IBMPlexSansCondensed-Bold.ttf');font-weight:600 900;}
+                @font-face{font-family:'${clubFont.titleName}';src:url('${window.location.origin}${clubFont.titleUrl}');font-weight:100 900;} @font-face{font-family:'${clubFont.bodyName}';src:url('${window.location.origin}/fonts/IBMPlexSansCondensed-Regular.ttf');font-weight:400;} @font-face{font-family:'${clubFont.bodyName}';src:url('${window.location.origin}/fonts/IBMPlexSansCondensed-Bold.ttf');font-weight:600 900;}
                 *{margin:0;padding:0;box-sizing:border-box;}
-                body{font-family:'IBM Plex Sans Condensed',sans-serif;color:#1a1a1a;background:#fff;padding:24px;}
-                .header{display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #73000A;}
-                .header-logo{width:60px;height:60px;background:#73000A;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:8px;}
+                body{font-family:${clubFont.body};color:#1a1a1a;background:#fff;padding:24px;}
+                .header{display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid ${clubColor.primary};}
+                .header-logo{width:60px;height:60px;background:${clubColor.primary};border-radius:8px;display:flex;align-items:center;justify-content:center;padding:8px;}
                 .header-logo img{width:100%;height:100%;object-fit:contain;filter:brightness(10);}
-                .header-text h1{font-family:'Racing Sarria',sans-serif;font-weight:800;font-size:24px;text-transform:uppercase;letter-spacing:0.05em;color:#73000A;}
-                .header-text p{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:14px;color:#666;text-transform:uppercase;letter-spacing:0.1em;}
+                .header-text h1{font-family:${clubFont.title};font-weight:800;font-size:24px;text-transform:uppercase;letter-spacing:0.05em;color:${clubColor.primary};}
+                .header-text p{font-family:${clubFont.body};font-size:14px;color:#666;text-transform:uppercase;letter-spacing:0.1em;}
                 table{width:100%;border-collapse:collapse;font-size:12px;}
-                thead tr{background:#73000A;color:white;}
-                thead th{padding:8px 10px;text-align:left;font-family:'IBM Plex Sans Condensed',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;}
+                thead tr{background:${clubColor.primary};color:white;}
+                thead th{padding:8px 10px;text-align:left;font-family:${clubFont.body};font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;}
                 tbody tr{border-bottom:1px solid #e5e7eb;}
-                tbody tr:nth-child(even){background:#fdf2f4;}
+                tbody tr:nth-child(even){background:${clubColor.primarySoft};}
                 tbody td{padding:8px 10px;vertical-align:middle;}
                 .team-name{font-weight:600;font-size:13px;}
                 .day-badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;}

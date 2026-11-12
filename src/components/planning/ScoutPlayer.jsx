@@ -23,6 +23,7 @@ import { CURRENT_SEASON } from "@/lib/staffRoles";
 import { useScouted, usePlanningNav, useIsPlanningAdmin } from "./useScouting";
 import { SCOUT_POSITION, LATERALITY, CONTACT, spName, isRacingTeam } from "./labels";
 import { newScoutFromFcf } from "./ScoutAlerts";
+import { BRAND } from "@/lib/brand";
 
 const label = { fontSize: 11, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", color: RS.muted };
 
@@ -235,7 +236,7 @@ export default function ScoutPlayer() {
                 </table>
               </div>
               <div className="flex flex-col" style={{ padding: "9px 14px", gap: 8, borderTop: `1px solid ${RS.lineSoft}` }}>
-                <h3 style={{ margin: 0, fontSize: 14 }}>Partidos contra Racing Sarrià</h3>
+                <h3 style={{ margin: 0, fontSize: 14 }}>Partidos contra {BRAND.clubName}</h3>
                 {vsRacing.length === 0 ? <Empty>Ninguno en las actas leídas.</Empty> : vsRacing.map((m) => (
                   <div key={m.acta} className="flex flex-wrap items-baseline" style={{ gap: "6px 14px", fontSize: 13 }}>
                     <span style={{ fontWeight: 600, minWidth: 84 }}>{m.match_date || "—"}</span>

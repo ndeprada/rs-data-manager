@@ -3,12 +3,13 @@ import { Star, SlidersHorizontal, Trash2, Check, Minus, Plus } from "lucide-reac
 import { ARROW_W, BALL_PATTERNS, ballStyle } from "@/lib/board";
 import { BallGlyph, styleOf } from "./BoardSvg";
 import { PALETTE } from "./BoardControls";
+import { C as clubColor } from "@/lib/brand";
 
 // Segunda columna de la pizarra (05/11/2026, Nacho: «al clicar en el icono de flecha… que me salga otra columna con todos los
 // tipos de flechas dibujadas… y una barra final donde pueda seleccionar el grosor, el color y el borde, y una estrellita para
 // marcar como predeterminado… la tarjeta de ahora ocupa mucho y tapa el campo»). Va pegada a la barra izquierda: arriba los
 // tipos dibujados y abajo lo básico; «Más opciones» abre el panel completo de siempre.
-const D = { bg: "#24000a", tile: "#fbf7f6", tileOn: "#FF6E00", line: "#7a2a2f", text: "#F7E9E4", sub: "#E2C3BA", on: "#FF6E00", onInk: "#2a0009", btn: "rgba(42,0,9,0.94)" };
+const D = { bg: clubColor.deep, tile: "#fbf7f6", tileOn: clubColor.accent, line: "#7a2a2f", text: "#F7E9E4", sub: "#E2C3BA", on: clubColor.accent, onInk: "#2a0009", btn: "rgba(42,0,9,0.94)" };
 
 const ARROW_SAMPLES = {
   move: { label: "Desplazamiento", dash: "3 2.2", wavy: false, air: false },
@@ -69,7 +70,7 @@ function LinkSample({ mode, color }) {
       {mode === "zone" && <path d="M10 20 L26 8 L54 9 L40 18 Z" fill={c} fillOpacity={0.25} stroke={c} strokeWidth={1.6} />}
       {mode === "line" && <path d={`M${pts.map((p) => p.join(" ")).join(" L")}`} fill="none" stroke={c} strokeWidth={2} />}
       {mode === "mesh" && pts.flatMap((a, i) => pts.slice(i + 1).map((b, j) => <path key={`${i}-${j}`} d={`M${a[0]} ${a[1]} L${b[0]} ${b[1]}`} stroke={c} strokeWidth={1.1} />))}
-      {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={3.6} fill="#73000A" stroke="#fff" strokeWidth={1} />)}
+      {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={3.6} fill={clubColor.primary} stroke="#fff" strokeWidth={1} />)}
     </svg>
   );
 }
@@ -98,7 +99,7 @@ export const MATERIAL_VARIANTS = [
 export const TEXT_VARIANTS = [
   { id: "normal", label: "Normal", patch: { size: 3, bold: undefined, bg: undefined } },
   { id: "big", label: "Título", big: true, bold: true, patch: { size: 5, bold: true, bg: undefined } },
-  { id: "tag", label: "Etiqueta", bold: true, bg: "#FF6E00", patch: { size: 2.2, bold: true, bg: "#FF6E00", color: "#1E1416" } },
+  { id: "tag", label: "Etiqueta", bold: true, bg: clubColor.accent, patch: { size: 2.2, bold: true, bg: clubColor.accent, color: "#1E1416" } },
 ];
 export const materialVariantOf = (el) => {
   if (!el) return null;
@@ -132,7 +133,7 @@ function DockColor({ label, value, auto, onChange, testid }) {
             </button>
           ))}
           <label className="col-span-6 flex items-center gap-1.5 text-[11px] text-gray-600 mt-1">
-            <input type="color" value={/^#[0-9a-f]{6}$/i.test(value || "") ? value : "#73000a"} onChange={(e) => onChange(e.target.value)} className="w-7 h-7 p-0 border-0 bg-transparent" aria-label="Otro color" />
+            <input type="color" value={/^#[0-9a-f]{6}$/i.test(value || "") ? value : clubColor.primary} onChange={(e) => onChange(e.target.value)} className="w-7 h-7 p-0 border-0 bg-transparent" aria-label="Otro color" />
             Otro color
           </label>
           <button type="button" onClick={() => { onChange(undefined); setOpen(null); }} className="col-span-6 h-7 rounded-md border border-gray-200 text-[11px] font-semibold text-gray-600 hover:bg-gray-50">El de siempre</button>
@@ -194,7 +195,7 @@ export default function BoardDock({ kind, el, look, selected, variants, active, 
   const title = { arrow: "Flechas", zone: "Zonas", ball: "Balón", material: "Material", text: "Texto", link: "Unir fichas" }[kind];
   const sample = (v) => {
     if (kind === "arrow") return <ArrowSample v={ARROW_SAMPLES[v.id]} color={el.color || s.arrows?.[ARROW_SAMPLES[v.id]?.air ? "pass" : v.id] || "#111827"} width={el.width ?? ARROW_W} />;
-    if (kind === "zone") return <ZoneSample shape={v.id} fill={el.fill || "#73000A"} stroke={el.stroke || "#73000A"} />;
+    if (kind === "zone") return <ZoneSample shape={v.id} fill={el.fill || clubColor.primary} stroke={el.stroke || clubColor.primary} />;
     if (kind === "ball") { const bs = ballStyle(el); return <BallGlyph pattern={v.id} color={bs.color} color2={el.color2 || "#111827"} size={26} />; }
     if (kind === "material") return <MaterialSample id={v.id} color={el.color} />;
     if (kind === "text") return <TextSample v={v} />;

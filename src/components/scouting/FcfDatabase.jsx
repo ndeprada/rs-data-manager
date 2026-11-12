@@ -26,7 +26,7 @@ const fmtDate = (d) => (d ? new Date(d).toLocaleString("es-ES", { day: "2-digit"
 
 function Year({ value }) {
   if (!value) return <span className="text-gray-300" title="Año pendiente de deducir (juveniles: con la temporada anterior)">—</span>;
-  return <span className="inline-block text-xs font-bold px-2 py-0.5 rounded-md bg-[#F3ECEB] text-[#36000D]" title="Estimado por la competición">{value}</span>;
+  return <span className="inline-block text-xs font-bold px-2 py-0.5 rounded-md bg-[#F3ECEB] text-club-dark" title="Estimado por la competición">{value}</span>;
 }
 
 export default function FcfDatabase() {
@@ -244,11 +244,11 @@ function FcfPlayerDialog({ id, onClose }) {
           <div className="py-10 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
         ) : (
           <div className="space-y-5">
-            <div className="rounded-xl bg-[#36000D] text-white p-4 grid grid-cols-3 sm:grid-cols-6 gap-3">
+            <div className="rounded-xl bg-club-dark text-white p-4 grid grid-cols-3 sm:grid-cols-6 gap-3">
               <Stat label="Partidos" value={tot.pj} />
               <Stat label="Titular" value={tot.tit} />
               <Stat label="Suplente" value={tot.sup} />
-              <div className="flex flex-col"><span className="text-2xl font-black leading-none tabular-nums text-[#FF6E00]" style={FONT_DISPLAY}>{tot.goals}</span><span className="text-[11px] mt-1 opacity-80">Goles</span></div>
+              <div className="flex flex-col"><span className="text-2xl font-black leading-none tabular-nums text-club-accent" style={FONT_DISPLAY}>{tot.goals}</span><span className="text-[11px] mt-1 opacity-80">Goles</span></div>
               <Stat label="Amarillas" value={tot.yellow} />
               <Stat label="Rojas" value={tot.red} />
             </div>
@@ -308,7 +308,7 @@ function FcfPlayerDialog({ id, onClose }) {
                       <span className="w-20 text-gray-500 tabular-nums">{m.match_date || "—"}</span>
                       <span className="text-xs text-gray-400 w-10">J{m.jornada ?? "?"}</span>
                       <span className="flex-1 min-w-[180px]">vs {titleCase(rival)}</span>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${m.starter ? "bg-[#73000A] text-white" : "bg-[#FFE7D6] text-[#8A3A00]"}`}>{m.starter ? "Titular" : "Suplente"}</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${m.starter ? "bg-club text-white" : "bg-[#FFE7D6] text-[#8A3A00]"}`}>{m.starter ? "Titular" : "Suplente"}</span>
                       {m.goals > 0 && <span className="text-xs font-bold text-[var(--granate)]">{m.goals} {m.goals === 1 ? "gol" : "goles"}</span>}
                       {m.yellow > 0 && <span className="inline-block w-2.5 h-3.5 rounded-[2px] bg-yellow-400" title="Amarilla" />}
                       {m.second_yellow > 0 && <span className="text-xs text-red-600" title="Doble amarilla">2A</span>}

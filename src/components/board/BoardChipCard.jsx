@@ -17,7 +17,7 @@ import { ColorPick, NO_FILL, Slider, TextSizePick, Toggle } from "./BoardControl
 const TAB_LABEL = { jugador: "Jugador", aspecto: "Aspecto", letra: "Letra" };
 export const lab = "block text-[10.5px] font-semibold uppercase tracking-wide text-gray-500";
 export const inputCls = "h-8 w-full min-w-0 rounded-md border border-gray-200 bg-white px-2 text-[13px] text-gray-900";
-export const pillCls = (on) => `h-7 rounded-md px-2 text-[12px] font-semibold border ${on ? "border-[#73000A] bg-[#FBEFEF] text-[#73000A]" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"}`;
+export const pillCls = (on) => `h-7 rounded-md px-2 text-[12px] font-semibold border ${on ? "border-club bg-[#FBEFEF] text-club" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"}`;
 const iconBtn = "h-8 w-8 rounded-md flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-30";
 
 const readTab = () => { try { return cleanCardTab(localStorage.getItem("rs_chip_tab")); } catch { return "jugador"; } };
@@ -28,7 +28,7 @@ function TeamDots({ board, el, look, patch }) {
     <div className="flex flex-wrap gap-1" role="group" aria-label="Equipo de esta ficha" data-testid="card-team">
       {teamsOf(board).map((t) => (
         <button key={t.id} type="button" title={t.name} aria-label={t.name} aria-pressed={el.team === t.id} onClick={() => patch({ team: t.id })}
-          className={`h-8 min-w-8 px-1 rounded-md flex items-center gap-1 border text-[11px] font-semibold ${el.team === t.id ? "border-[#73000A] bg-[#FBEFEF] text-[#73000A]" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+          className={`h-8 min-w-8 px-1 rounded-md flex items-center gap-1 border text-[11px] font-semibold ${el.team === t.id ? "border-club bg-[#FBEFEF] text-club" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
           <ChipGlyph board={board} el={{ team: t.id }} look={look} size={18} />
           <span className="max-w-[64px] truncate">{t.name}</span>
         </button>
@@ -118,7 +118,7 @@ function TacticPlayer({ el, patch, roster }) {
       </div>
       <TopChoice el={el} patch={patch} names={names} options={[{ id: "pos", label: "Puesto" }, { id: "rol", label: "Rol" }, { id: "text", label: "Otro" }, { id: "none", label: "Nada" }]} />
       <details className="text-[12px] text-gray-600">
-        <summary className="cursor-pointer select-none font-semibold text-[#73000A]">Cambiar el dorsal o el nombre a mano</summary>
+        <summary className="cursor-pointer select-none font-semibold text-club">Cambiar el dorsal o el nombre a mano</summary>
         <div className="grid grid-cols-[60px_1fr] gap-2 pt-1.5">
           <input value={el.inner || ""} maxLength={3} onChange={(e) => patch({ inner: e.target.value || undefined }, "inner")} className={`${inputCls} text-center`} aria-label="Texto dentro de la ficha" />
           <input value={el.label || ""} onChange={(e) => patch({ label: e.target.value }, "label")} className={inputCls} aria-label="Nombre de la ficha" />
@@ -207,7 +207,7 @@ export default function ChipCard({
       <div className="mx-2.5 p-[3px] rounded-lg bg-[#F3EEED] grid grid-cols-3 gap-[3px]" role="tablist" aria-label="Pestañas de la ficha">
         {CARD_TABS.map((t) => (
           <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} data-testid={`card-tab-${t}`}
-            className={`h-7 rounded-md text-[12.5px] font-semibold ${tab === t ? "bg-white text-[#73000A] shadow-sm" : "text-gray-600"}`}>{TAB_LABEL[t]}</button>
+            className={`h-7 rounded-md text-[12.5px] font-semibold ${tab === t ? "bg-white text-club shadow-sm" : "text-gray-600"}`}>{TAB_LABEL[t]}</button>
         ))}
       </div>
 
@@ -237,7 +237,7 @@ export default function ChipCard({
                 <div className="flex-1 min-w-[170px] grid grid-cols-4 gap-0.5 rounded-lg bg-[#F3EEED] p-0.5" role="group" aria-label="Grosor del borde" data-testid="card-edge">
                   {EDGE_STEPS.map((s) => {
                     const on = edgeStepOf(chipStyle(board, el).edge) === s.id;
-                    return <button key={s.id} type="button" aria-pressed={on} onClick={() => patch({ edge: s.value }, "edge")} className={`h-7 rounded-md text-[11.5px] font-semibold ${on ? "bg-white text-[#73000A] shadow-sm" : "text-gray-600"}`}>{s.label}</button>;
+                    return <button key={s.id} type="button" aria-pressed={on} onClick={() => patch({ edge: s.value }, "edge")} className={`h-7 rounded-md text-[11.5px] font-semibold ${on ? "bg-white text-club shadow-sm" : "text-gray-600"}`}>{s.label}</button>;
                   })}
                 </div>
               </div>
@@ -252,7 +252,7 @@ export default function ChipCard({
                 {!bn && <Toggle on={!!labelBgOf(board, el) && labelBgOf(board, el) === chipStyle(board, el).color} onChange={(v) => patch({ labelBg: v ? "chip" : board.labelChip ? "none" : undefined })} title="El nombre con el color de la ficha">Nombre del color de la ficha</Toggle>}
               </div>
             )}
-            {onTeamPanel && <button type="button" onClick={() => onTeamPanel(el.team)} className="text-[12px] font-semibold text-[#73000A] hover:underline" data-testid="card-team-panel">Cambiar para todo el equipo →</button>}
+            {onTeamPanel && <button type="button" onClick={() => onTeamPanel(el.team)} className="text-[12px] font-semibold text-club hover:underline" data-testid="card-team-panel">Cambiar para todo el equipo →</button>}
           </>
         )}
 
@@ -265,7 +265,7 @@ export default function ChipCard({
             {onLetterToTeam && (
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={() => setApplied(onLetterToTeam())} data-testid="card-letter-team"
-                  className="h-8 px-3 rounded-md border border-[#73000A] bg-[#FBEFEF] text-[12px] font-semibold text-[#73000A] hover:bg-[#F6E2E2]">Aplicar esta letra a todo el equipo</button>
+                  className="h-8 px-3 rounded-md border border-club bg-[#FBEFEF] text-[12px] font-semibold text-club hover:bg-[#F6E2E2]">Aplicar esta letra a todo el equipo</button>
                 {applied != null && <span className="text-[11.5px] text-gray-600" role="status" data-testid="card-letter-done">{applied ? `Hecho: ${applied} ${applied === 1 ? "ficha" : "fichas"} de ${team?.name || "su equipo"}` : "Ya tenían todas esta letra"}</span>}
               </div>
             )}

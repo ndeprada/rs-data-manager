@@ -10,6 +10,7 @@ import { Check, ChevronDown, ChevronRight, Plus, Search, X } from "lucide-react"
 import {
   BLOCKS, PRIORITY, STAGES, blockInfo, contentBlock, contentName, paletteContentId, priorityOf, stageContents, stageInfo, stagesOfContent, targetPct,
 } from "@/lib/sessionPlan";
+import { C as clubColor } from "@/lib/brand";
 
 const MAX_PRINCIPAL = 2;
 // Secundarios sin límite (03/11/2026, Nacho: «hay contenidos que se trabajan a la vez… no limitemos los secundarios»)
@@ -25,7 +26,7 @@ export function ContentChip({ id, stage, kind, onRemove, task }) {
   // Aspecto de la maqueta: principal en granate claro, secundario en gris con «· sec.»
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full ${onRemove ? "pl-2 pr-1" : "px-2"} py-[3px] text-[11px] font-semibold whitespace-nowrap max-w-full`} title={b?.label}
-      style={main ? { background: "#FBEDEE", border: "1px solid #E6B9BE", color: "#73000A" } : { background: "#F7F4F4", border: "1px solid #DDD3D4", color: "#6B5E60" }}>
+      style={main ? { background: "#FBEDEE", border: "1px solid #E6B9BE", color: clubColor.primary } : { background: "#F7F4F4", border: "1px solid #DDD3D4", color: "#6B5E60" }}>
       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: b?.color || "#999" }} />
       <span className="truncate">{contentName(id, task)}{!main && " · sec."}</span>
       {pr && <span className="text-[10px] font-extrabold rounded px-1" style={{ background: PRIORITY[pr].bg, color: PRIORITY[pr].color }} title={`Prioridad ${PRIORITY[pr].label.toLowerCase()} en la etapa`}>{PRIORITY[pr].short}</span>}

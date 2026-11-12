@@ -92,7 +92,7 @@ export default function PlayerTeam() {
                 return (
                   <button key={e.id} onClick={() => isMatch && setOpenMatch(e)} className={`w-full px-3 py-2 flex items-center gap-3 text-left ${isMatch ? "hover:bg-gray-50" : "cursor-default"}`}>
                     <div className="w-20 shrink-0 text-xs font-bold text-gray-500 capitalize">{dayLabel(d, t, locale)}<span className="block text-[10px] font-normal text-gray-400">{format(d, "HH:mm")}</span></div>
-                    {isMatch ? <Swords className="w-4 h-4 shrink-0 text-[#73000A]" /> : <Dumbbell className="w-4 h-4 shrink-0 text-orange-500" />}
+                    {isMatch ? <Swords className="w-4 h-4 shrink-0 text-club" /> : <Dumbbell className="w-4 h-4 shrink-0 text-orange-500" />}
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm truncate ${isCancelled(e) ? "text-gray-400 line-through" : "text-gray-900"}`}>{isMatch ? (e.title || t("vs {rival}", { rival: e.opponent })) : (e.title || t(TYPE_LABEL[e.type] || msg("Evento")))}</p>
                       {e.location && !isCancelled(e) && <p className="text-[11px] text-gray-400 truncate">{e.location}</p>}
@@ -110,7 +110,7 @@ export default function PlayerTeam() {
           <div className="px-3 py-2 border-b border-gray-100"><h3 className="font-black text-xs uppercase tracking-wider" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{t("Plantilla")} ({mates.length})</h3></div>
           <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 divide-gray-50 max-h-[26rem] overflow-y-auto">
             {mates.map((p) => (
-              <div key={p.id} className={`px-3 py-1.5 flex items-center gap-2 ${p.id === playerId ? "bg-[#fdf2f4]" : ""}`}>
+              <div key={p.id} className={`px-3 py-1.5 flex items-center gap-2 ${p.id === playerId ? "bg-club-soft" : ""}`}>
                 <span className="w-6 text-xs font-black text-gray-400 text-center">{p.jersey_number ?? "—"}</span>
                 <span className="w-6 h-6 rounded overflow-hidden border border-gray-200 flex items-center justify-center shrink-0 bg-gray-50">
                   {p.photo_url ? <img src={p.photo_url} alt="" className="w-full h-full object-cover" loading="lazy" /> : <User className="w-3.5 h-3.5 text-gray-300" />}

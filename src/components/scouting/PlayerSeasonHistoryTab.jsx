@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { C as clubColor } from "@/lib/brand";
 
 function skillColor(v) {
   if (!v) return "#e5e7eb";
@@ -151,7 +152,7 @@ export default function PlayerSeasonHistoryTab({ playerId }) {
               <XAxis dataKey="season" tick={{ fontSize: 10 }} />
               <YAxis domain={[0, 5]} tick={{ fontSize: 10 }} />
               <Tooltip formatter={(v) => `${v}/5`} />
-              <Line type="monotone" dataKey="rating" stroke="#73000A" strokeWidth={2} dot={{ fill: "#73000A", r: 4 }} />
+              <Line type="monotone" dataKey="rating" stroke={clubColor.primary} strokeWidth={2} dot={{ fill: clubColor.primary, r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>

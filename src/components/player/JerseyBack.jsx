@@ -1,12 +1,13 @@
 import React from "react";
 import { useT } from "@/i18n";
+import { C as clubColor, F as clubFont } from "@/lib/brand";
 
 // Espalda de la camiseta de Racing Sarrià con el dorsal del jugador (blanca; naranja para porteros)
 export default function JerseyBack({ number, goalkeeper = false, className = "w-11 h-12" }) {
   const t = useT();
-  const fill = goalkeeper ? "#FF6E00" : "#F4F4F4";
+  const fill = goalkeeper ? clubColor.accent : "#F4F4F4";
   const stroke = goalkeeper ? "#B84C00" : "#CFCFCF";
-  const ink = goalkeeper ? "#FFFFFF" : "#73000A";
+  const ink = goalkeeper ? "#FFFFFF" : clubColor.primary;
   const len = String(number).length;
   const size = len >= 3 ? 36 : len === 2 ? 48 : 56;
   return (
@@ -17,11 +18,11 @@ export default function JerseyBack({ number, goalkeeper = false, className = "w-
       />
       {/* cuello y costuras */}
       <path d="M40,6 Q60,17 80,6" fill="none" stroke={ink} strokeWidth="2" opacity={goalkeeper ? 0.6 : 0.9} />
-      <text x="60" y="27" textAnchor="middle" fontSize="5" letterSpacing="0.3" fill={ink} opacity="0.7" style={{ fontFamily: "'IBM Plex Sans Condensed', sans-serif", fontWeight: 600 }}>
+      <text x="60" y="27" textAnchor="middle" fontSize="5" letterSpacing="0.3" fill={ink} opacity="0.7" style={{ fontFamily: clubFont.body, fontWeight: 600 }}>
         EF HRISTO STOITCHKOV
       </text>
       <image href={goalkeeper ? "/img/chalito-blanco.png" : "/img/chalito-granate.png"} x="40" y="102" width="40" height="15" preserveAspectRatio="xMidYMid meet" />
-      <text x="60" y="82" textAnchor="middle" fontSize={size} fill={ink} style={{ fontFamily: "'Racing Sarria', sans-serif", letterSpacing: "0.05em" }}>
+      <text x="60" y="82" textAnchor="middle" fontSize={size} fill={ink} style={{ fontFamily: clubFont.title, letterSpacing: "0.05em" }}>
         {number}
       </text>
     </svg>

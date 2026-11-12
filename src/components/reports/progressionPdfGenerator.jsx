@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { playerFullName } from "@/lib/playerName";
+import { BRAND } from "@/lib/brand";
 
 function setFill(doc, r, g, b) { doc.setFillColor(r, g, b); }
 function setDraw(doc, r, g, b) { doc.setDrawColor(r, g, b); }
@@ -349,7 +350,7 @@ export function downloadProgressionPDF(player, team, matchStats, attendance, pdi
     setTxt(doc, 255, 255, 255);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text(`RS Manager — Progresión Individual — ${playerFullName(player)}`, margin, 294.5);
+    doc.text(`${BRAND.appName} — Progresión Individual — ${playerFullName(player)}`, margin, 294.5);
     doc.text(`Pág. ${p} / ${totalPages}`, W - margin - 16, 294.5);
   }
 

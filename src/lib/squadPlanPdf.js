@@ -11,6 +11,7 @@ import { fitText } from "@/lib/matchSheetLayout";
 import { playerFullName } from "@/lib/playerName";
 import { F7_FIELD } from "@/lib/pitchGeometry";
 import { GROUPS, POSITION_LABEL, LEAVE, passText, pdfLists, squadByGroup, statusLabel, zoneTitle, roleShort } from "@/lib/squadPlan";
+import { BRAND } from "./brand.js";
 
 const GRANATE = [115, 0, 10];
 const INK = [30, 30, 30];
@@ -374,7 +375,7 @@ export async function downloadSquadPlanPDF({ team, season, isF7 = false, plan, l
   const pages = doc.getNumberOfPages();
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p);
-    put("RS Manager · Racing Sarrià", MARGIN, H - 5, { pt: 6.5, color: [150, 150, 150] });
+    put(`${BRAND.appName} · ${BRAND.clubName}`, MARGIN, H - 5, { pt: 6.5, color: [150, 150, 150] });
     put(`Página ${p} de ${pages}`, W - MARGIN, H - 5, { pt: 6.5, color: [150, 150, 150], align: "right" });
   }
   doc.save(`Planificacion_${safe(ours)}_${season}.pdf`);

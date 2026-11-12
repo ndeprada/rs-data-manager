@@ -7,6 +7,7 @@ import { playerFirstName } from "@/lib/playerName";
 import { f7Markings } from "./pitchGeometry";
 import { lineupLayout, firstSurname, fitText, LINEUP } from "@/lib/matchSheetLayout";
 import { drawRichText } from "@/lib/richTextPdf";
+import { BRAND } from "./brand.js";
 
 const GRANATE = [115, 0, 10];
 const hex = (h) => { const n = parseInt(h.replace("#", ""), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
@@ -178,7 +179,7 @@ export async function downloadMatchSheetPDF({ event, team, isF7 = false, formati
   doc.setDrawColor(225, 210, 210); doc.setLineWidth(0.3);
   doc.line(10, H - 9, W - 10, H - 9);
   doc.setTextColor(150, 150, 150); doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
-  doc.text(`${ours} · RS Manager`, 10, H - 5);
+  doc.text(`${ours} · ${BRAND.appName}`, 10, H - 5);
   doc.text(`Generado el ${format(new Date(), "d/MM/yyyy HH:mm")}`, W - 10, H - 5, { align: "right" });
 
   const safe = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "");

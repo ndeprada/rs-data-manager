@@ -41,6 +41,7 @@ import { useTeamAccess } from "@/lib/TeamAccessContext";
 import FamiliesSection from "@/components/player/FamiliesSection";
 import { PlayerMatchesReadOnly, PlayerInjuriesReadOnly, PlayerDocumentsReadOnly, PlayerHistoryReadOnly } from "@/components/player/PlayerReadOnlySections";
 import { useT, useFormat, msg } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 const POSITION_LABELS = {
   portero: msg("Portero"), lateral: msg("Lateral"), central: msg("Central"), libre: msg("Libre"),
@@ -218,11 +219,11 @@ export default function PlayerProfile() {
 
               <div className="min-w-0">
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
-                  <span style={{ color: "#FF6E00" }}>{playerFirstName(player)}</span>{" "}
+                  <span style={{ color: clubColor.accent }}>{playerFirstName(player)}</span>{" "}
                   <span className="text-white">{player.last_name}</span>
                 </h1>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-white/70">
-                  {team && <span className="inline-flex items-center gap-1"><Shield className="w-3 h-3" style={{ color: "#FF6E00" }} />{team.name}</span>}
+                  {team && <span className="inline-flex items-center gap-1"><Shield className="w-3 h-3" style={{ color: clubColor.accent }} />{team.name}</span>}
                   {player.position && <span>· {POSITION_LABELS[player.position] ? t(POSITION_LABELS[player.position]) : player.position}{getExtraPositions(player).map((e) => ` / ${POSITION_LABELS[e.position] ? t(POSITION_LABELS[e.position]) : e.position}`).join("")}</span>}
                   {age && <span>· {t("Nac.")} {age}</span>}
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${st.bg} ${st.text}`}>
@@ -270,7 +271,7 @@ export default function PlayerProfile() {
                 <TabsTrigger
                   key={tb.value}
                   value={tb.value}
-                  className="flex-1 min-w-0 rounded-none border-b-2 border-transparent px-1.5 sm:px-2 py-3 text-xs font-semibold text-gray-500 transition-all gap-1.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-[#73000A] data-[state=active]:text-[#73000A]"
+                  className="flex-1 min-w-0 rounded-none border-b-2 border-transparent px-1.5 sm:px-2 py-3 text-xs font-semibold text-gray-500 transition-all gap-1.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-club data-[state=active]:text-club"
                 >
                   {tb.icon}
                   <span className="hidden md:inline">{t(tb.label)}</span>

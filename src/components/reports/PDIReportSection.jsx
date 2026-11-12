@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { downloadPDIPDF } from "./pdiPdfGenerator";
 import { playerFullName, matchesPlayerSearch } from "@/lib/playerName";
 import { useT } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
@@ -112,7 +113,7 @@ export default function PDIReportSection() {
                     <td className="px-3 py-3 text-gray-600">{team?.name || "—"}</td>
                     <td className="px-3 py-3 text-center">
                       {pdiCount > 0 ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: "#fdf2f4", color: "var(--granate)" }}>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: clubColor.primarySoft, color: "var(--granate)" }}>
                           <BookOpen className="w-3 h-3" /> {pdiCount}
                         </span>
                       ) : (

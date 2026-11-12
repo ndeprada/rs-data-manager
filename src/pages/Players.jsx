@@ -17,6 +17,7 @@ import { useTeamAccess } from "@/lib/TeamAccessContext";
 
 import { PageTitle } from "@/components/common/PageHeader";
 import { useT, useFormat, msg } from "@/i18n";
+import { BRAND } from "@/lib/brand";
 const POSITIONS = [
   { value: "portero", label: msg("Portero") },
   { value: "lateral", label: msg("Lateral") },
@@ -184,7 +185,7 @@ export default function Players() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <PageTitle kicker={t("Directorio")} title={t("Jugadores")} subtitle={<>{t("Racing Sarrià · {length} jugadores registrados", { length: players.length })}</>} />
+        <PageTitle kicker={t("Directorio")} title={t("Jugadores")} subtitle={<>{t("{club} · {length} jugadores registrados", { club: BRAND.clubName, length: players.length })}</>} />
         {perms.editPlayers && (
           <Button variant="club" onClick={() => { setEditingPlayer(null); setDialogOpen(true); }}>
             <Plus className="w-4 h-4 mr-1" /> {t("Nuevo Jugador")}

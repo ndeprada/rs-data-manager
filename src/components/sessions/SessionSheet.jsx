@@ -10,6 +10,8 @@ import {
 import { fullDate, playerFullName, posShort, sortRoster } from "./sessionHelpers";
 import { REASON_CODE, areaFor, attCode, attendanceOf } from "./sessionAttendance";
 import { packPages } from "./sessionPdf";
+import { C as clubColor, F as clubFont } from "@/lib/brand";
+import { BRAND } from "@/lib/brand";
 
 // Hoja de la sesión en hojas A4 (rediseño del 02/11/2026, igual que la maqueta aprobada por Nacho).
 // Cada hoja mide 794 × 1123 px (A4 a 96 ppp) y se compone de bloques (cabecera, objetivos, jugadores, cada tarea…):
@@ -23,8 +25,8 @@ const GAP = 6;
 export const CONTENT_W = PAGE_W - 2 * PAD.x;
 export const CONTENT_H = PAGE_H - PAD.t - PAD.b - FOOT;
 
-const GRANATE = "#73000A", DARK = "#36000D", INK = "#1F1416", SOFT = "#3A2E30", MUTED = "#6B5E60", LINE = "#E6DEDD";
-const DISPLAY = "'Barlow Condensed', 'Racing Sarria', Arial, sans-serif";
+const GRANATE = clubColor.primary, DARK = clubColor.primaryDark, INK = "#1F1416", SOFT = "#3A2E30", MUTED = "#6B5E60", LINE = "#E6DEDD";
+const DISPLAY = `'Barlow Condensed', '${clubFont.titleName}', Arial, sans-serif`;
 const BODY = "Inter, Arial, Helvetica, sans-serif";
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const lines = (s) => String(s || "").split("\n").map((x) => x.replace(/^\s*[•\-*]\s*/, "").trim()).filter(Boolean);
@@ -144,7 +146,7 @@ export function sheetBlocks({ session, team, players = [], matchRef, pdiGoals = 
         <img src={CLUB_LOGO_URL} alt="" crossOrigin="anonymous" style={{ width: 30, height: "auto" }} />
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 1, minWidth: 0 }}>
-        <div style={{ ...d, fontSize: 8, fontWeight: 700, color: MUTED }}>Racing Sarrià · Sesión de entrenamiento</div>
+        <div style={{ ...d, fontSize: 8, fontWeight: 700, color: MUTED }}>{BRAND.clubName} · Sesión de entrenamiento</div>
         <div style={{ ...d, fontSize: 16, fontWeight: 800, color: GRANATE, lineHeight: 1 }}>{team?.name || "Equipo"}</div>
         <div style={{ fontSize: 7.5, color: SOFT }}>{[ownerName && `Entrenador: ${ownerName}`, stage?.label].filter(Boolean).join(" · ")}</div>
       </div>
@@ -220,7 +222,7 @@ export function Page({ children, n, of }) {
     <div className="session-page" style={{ width: PAGE_W, height: PAGE_H, boxSizing: "border-box", padding: `${PAD.t}px ${PAD.x}px ${PAD.b}px`, background: "#fff", fontFamily: BODY, color: INK, fontSize: BASE, display: "flex", flexDirection: "column", overflow: "hidden", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
       <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
       <div style={{ height: FOOT, display: "flex", alignItems: "flex-end", justifyContent: "space-between", fontSize: 8.5, color: "#9A8C8E", borderTop: "1px solid #EFE6E6", paddingTop: 4, boxSizing: "border-box" }}>
-        <span>Racing Sarrià · RS Manager</span><span>Página {n} de {of}</span>
+        <span>{BRAND.clubName} · {BRAND.appName}</span><span>Página {n} de {of}</span>
       </div>
     </div>
   );

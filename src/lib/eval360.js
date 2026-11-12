@@ -4,6 +4,7 @@
 //  - 4.6 Currículum por etapas (técnica ofensiva/defensiva, bases del juego, hábitos de juego)
 // No reordenar ni cambiar los ids: se guardan en las evaluaciones.
 import { POSITION_CATALOG } from "./competencyCatalog.js";
+import { C as clubColor } from "./brand.js";
 
 export const AREAS = [
   {
@@ -128,7 +129,7 @@ export function computeAverages(scores = {}, areas = AREAS) {
 export function scoreColor(v) {
   if (v == null) return "#9ca3af";
   if (v >= 8) return "#16a34a";
-  if (v >= 6) return "#73000A";
+  if (v >= 6) return clubColor.primary;
   if (v >= 4) return "#ea580c";
   return "#dc2626";
 }

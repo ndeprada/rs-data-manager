@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { format, endOfWeek, eachWeekOfInterval, subWeeks } from "date-fns";
 import { es } from "date-fns/locale";
+import { C as clubColor } from "@/lib/brand";
 
 const RPE_LABELS = {
   1: "Muy fácil", 2: "Fácil", 3: "Moderado", 4: "Algo duro",
@@ -141,7 +142,7 @@ export default function TrainingLoadSection({ playerId }) {
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
           <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--naranja-pale, #fff7ed)" }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `var(--naranja-pale, ${clubColor.accentSoft})` }}>
             <Zap className="w-5 h-5" style={{ color: "var(--naranja)" }} />
           </div>
           <div className="flex-1 min-w-0">

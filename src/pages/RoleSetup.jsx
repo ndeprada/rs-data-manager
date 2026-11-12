@@ -12,6 +12,8 @@ import TeamRolesEditor from "@/components/access/TeamRolesEditor";
 import PlayerPicker from "@/components/avisos/PlayerPicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useT, useFormat, msg, LanguageSelector } from "@/i18n";
+import { C as clubColor, F as clubFont } from "@/lib/brand";
+import { BRAND } from "@/lib/brand";
 
 const FONT = { fontFamily: "var(--font-display)" };
 
@@ -20,13 +22,13 @@ function Shell({ children }) {
   return (
     <div
       className="min-h-screen flex items-center justify-center bg-[#f5f5f5] p-4"
-      style={{ "--granate": "#73000A", "--naranja": "#FF6E00", "--font-display": "'IBM Plex Sans Condensed', sans-serif" }}
+      style={{ "--granate": clubColor.primary, "--naranja": clubColor.accent, "--font-display": clubFont.body }}
     >
       <div className="w-full max-w-md">
         <div className="flex justify-end mb-2"><LanguageSelector variant="names" /></div>
         <div className="text-center mb-6">
           <img src={CLUB_LOGO_URL} alt={t("RS Club")} className="w-14 h-14 object-contain mx-auto mb-4" />
-          <h1 className="text-3xl font-black uppercase tracking-wider" style={{ color: "var(--granate)", ...FONT }}>{t("RS Manager")}</h1>
+          <h1 className="text-3xl font-black uppercase tracking-wider" style={{ color: "var(--granate)", ...FONT }}>{BRAND.appName}</h1>
         </div>
         <div className="bg-white border border-gray-200 rounded-sm shadow-sm p-6 sm:p-8">{children}</div>
       </div>
@@ -49,7 +51,7 @@ function LogoutButton({ logout }) {
 
 const optionClass = (selected) =>
   `w-full text-left px-4 py-3 rounded-sm border text-sm font-medium transition-colors ${
-    selected ? "border-[#73000A] bg-[#fdf2f4] text-[#73000A]" : "border-gray-200 hover:bg-gray-50 text-gray-700"
+    selected ? "border-club bg-club-soft text-club" : "border-gray-200 hover:bg-gray-50 text-gray-700"
   }`;
 
 export default function RoleSetup() {

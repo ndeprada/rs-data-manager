@@ -6,6 +6,7 @@ import { findRole } from "@/lib/competencyCatalog";
 import PlayerFoot from "./PlayerFoot";
 import { Phone, Mail } from "lucide-react";
 import { useT, msg } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 const POSITION_LABELS = {
   portero: msg("POR"), lateral: msg("LAT"), central: msg("CT"), libre: msg("LIB"),
@@ -56,8 +57,8 @@ function FootballField({ player }) {
           <stop offset="100%" stopColor="#1e6b2e" />
         </linearGradient>
         <radialGradient id="primaryGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#73000A" stopOpacity="0.6" />
-          <stop offset="100%" stopColor="#73000A" stopOpacity="0" />
+          <stop offset="0%" stopColor={clubColor.primary} stopOpacity="0.6" />
+          <stop offset="100%" stopColor={clubColor.primary} stopOpacity="0" />
         </radialGradient>
       </defs>
 
@@ -192,8 +193,8 @@ export default function PlayerInfoCards({ player, footMode = "hidden" }) {
       </div>
       {(player.phone || player.email) && (
         <div className="border-t border-gray-100 px-4 py-2 flex flex-wrap gap-x-4 gap-y-1">
-          {player.phone && <a href={`tel:${player.phone}`} className="flex items-center gap-1.5 text-xs text-gray-600"><Phone className="w-3 h-3" style={{ color: "#73000A" }} />{player.phone}</a>}
-          {player.email && <a href={`mailto:${player.email}`} className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0"><Mail className="w-3 h-3 shrink-0" style={{ color: "#73000A" }} /><span className="truncate">{player.email}</span></a>}
+          {player.phone && <a href={`tel:${player.phone}`} className="flex items-center gap-1.5 text-xs text-gray-600"><Phone className="w-3 h-3" style={{ color: clubColor.primary }} />{player.phone}</a>}
+          {player.email && <a href={`mailto:${player.email}`} className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0"><Mail className="w-3 h-3 shrink-0" style={{ color: clubColor.primary }} /><span className="truncate">{player.email}</span></a>}
         </div>
       )}
     </div>

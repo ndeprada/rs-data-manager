@@ -8,6 +8,8 @@ import PushToggle from "@/components/avisos/PushToggle";
 import Inbox from "@/components/avisos/Inbox";
 import PlayerPicker, { relLabel } from "@/components/avisos/PlayerPicker";
 import { useT, LanguageSelector } from "@/i18n";
+import { C as clubColor, F as clubFont } from "@/lib/brand";
+import { BRAND } from "@/lib/brand";
 
 // Área de familiares: sus hijos vinculados y los avisos del club. (Perfil y estadísticas: siguiente fase.)
 export default function FamilyHome() {
@@ -25,12 +27,12 @@ export default function FamilyHome() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] p-4" style={{ "--granate": "#73000A", "--font-display": "'IBM Plex Sans Condensed', sans-serif" }}>
+    <div className="min-h-screen bg-[#f5f5f5] p-4" style={{ "--granate": clubColor.primary, "--font-display": clubFont.body }}>
       <div className="w-full max-w-md mx-auto space-y-4">
         <div className="flex justify-end"><LanguageSelector variant="names" /></div>
         <div className="text-center">
           <img src={CLUB_LOGO_URL} alt={t("RS Club")} className="w-12 h-12 object-contain mx-auto mb-2" />
-          <h1 className="text-2xl font-black uppercase tracking-wider" style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}>{t("RS Manager")}</h1>
+          <h1 className="text-2xl font-black uppercase tracking-wider" style={{ color: "var(--granate)", fontFamily: "var(--font-display)" }}>{BRAND.appName}</h1>
           <p className="text-gray-500 text-sm">{t("Hola")}{user?.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}</p>
         </div>
 

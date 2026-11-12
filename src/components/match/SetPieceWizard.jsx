@@ -5,6 +5,7 @@ import {
   SP_KINDS, typeOf, hasSide, pieceSetup, structuresFor, applyStructure, emptyPieceBoard, legacyToBoard, flipBoard,
   proposeSquad, ownChips, copyPiece, pieceBoard, withSheet, applySpBase,
 } from "@/lib/setPieceBoard";
+import { C as clubColor, F as clubFont } from "@/lib/brand";
 
 // «Nueva jugada en 3 toques» (06/11/2026, maqueta «Maqueta ABP · versión nueva» aprobada por Nacho: «ok ponte con ello»):
 // 1) qué jugada (tipo, a favor / en contra, lado), 2) punto de partida (estructuras de córner, la plantilla básica del tipo,
@@ -13,7 +14,7 @@ import {
 // La jugada se crea solo con la HOJA (sin animación): la animación se añade después en la pizarra.
 const SIGNALS = ["Mano arriba", "Puño cerrado", "Dos dedos", "Tocarse la cabeza", "Dos manos arriba", "Brazo extendido"];
 const sigKey = (x) => String(x || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-const R = { granate: "#73000A", dark: "#36000D", bg: "#F5F2F1", line: "#E6DEDD", soft: "#F0EAE9", ink: "#1E1416", ink2: "#4A3D3F", muted: "#6B5E60", input: "#D9CFCE" };
+const R = { granate: clubColor.primary, dark: clubColor.primaryDark, bg: "#F5F2F1", line: "#E6DEDD", soft: "#F0EAE9", ink: "#1E1416", ink2: "#4A3D3F", muted: "#6B5E60", input: "#D9CFCE" };
 
 export default function SetPieceWizard({ open, onOpenChange, onCreate, templates, candidates = [], lookup = [], pieces = [], library = [], Thumb, kindLabel, fnLabel, uid, availableIds = [], base = null, onClearBase }) {
   const t = useT();
@@ -91,9 +92,9 @@ export default function SetPieceWizard({ open, onOpenChange, onCreate, templates
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[1060px] w-[calc(100vw-24px)] p-0 gap-0 overflow-hidden" style={{ fontFamily: "'IBM Plex Sans Condensed', system-ui, sans-serif", color: R.ink }} data-testid="sp-wizard">
+      <DialogContent className="max-w-[1060px] w-[calc(100vw-24px)] p-0 gap-0 overflow-hidden" style={{ fontFamily: `'${clubFont.bodyName}', system-ui, sans-serif`, color: R.ink }} data-testid="sp-wizard">
         <div className="flex items-center flex-wrap" style={{ gap: "4px 12px", padding: "16px 20px", borderBottom: `1px solid ${R.soft}` }}>
-          <DialogTitle className="m-0" style={{ fontFamily: "'Racing Sarria', 'IBM Plex Sans Condensed', sans-serif", fontWeight: 400, fontSize: 26, lineHeight: 1, color: R.granate }}>{t("NUEVA JUGADA")}</DialogTitle>
+          <DialogTitle className="m-0" style={{ fontFamily: clubFont.titleBody, fontWeight: 400, fontSize: 26, lineHeight: 1, color: R.granate }}>{t("NUEVA JUGADA")}</DialogTitle>
           <span style={{ fontSize: 13, color: R.muted }}>{t("Tres decisiones y ya está en la pizarra, lista para retocar")}</span>
         </div>
         <div className="grid md:grid-cols-[290px_minmax(0,1fr)_minmax(0,1fr)] max-h-[70vh] overflow-y-auto">
@@ -183,7 +184,7 @@ export default function SetPieceWizard({ open, onOpenChange, onCreate, templates
               })}
             </div>
             <input id="wz-signal" value={signal} onChange={(e) => setSignal(e.target.value)} placeholder={t("O escríbela: brazo derecho extendido…")} data-testid="wz-signal"
-              className="outline-none focus:ring-1 focus:ring-[#73000A]" style={{ height: 38, borderRadius: 9, border: `1px solid ${usedNow ? "#B42318" : R.input}`, padding: "0 12px", fontSize: 14, color: R.ink }} />
+              className="outline-none focus:ring-1 focus:ring-club" style={{ height: 38, borderRadius: 9, border: `1px solid ${usedNow ? "#B42318" : R.input}`, padding: "0 12px", fontSize: 14, color: R.ink }} />
             <span style={{ fontSize: 11.5, color: usedNow ? "#B42318" : R.muted }}>{usedNow ? t("Esa señal ya la usa otra jugada de este partido.") : t("Las tachadas ya las usa otra jugada de este partido.")}</span>
           </section>
         </div>

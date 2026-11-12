@@ -9,24 +9,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useT, msg, useDateLocale } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 const FONT = { fontFamily: "var(--font-display)" };
 
 // Estructura basada en el documento de evaluación del Área de Metodología
 export const EVAL_BLOCKS = [
-  { key: "habitos", label: msg("Hábitos"), color: "#36000D", sections: [
+  { key: "habitos", label: msg("Hábitos"), color: clubColor.primaryDark, sections: [
     { key: "puntualidad", label: msg("Puntualidad, control de vestuarios…") },
     { key: "material", label: msg("Material") },
     { key: "datos", label: msg("Control de datos") },
     { key: "segundo", label: msg("Observaciones para 2º entrenador/a") },
   ]},
-  { key: "entrenamientos", label: msg("Entrenamientos"), color: "#73000A", sections: [
+  { key: "entrenamientos", label: msg("Entrenamientos"), color: clubColor.primary, sections: [
     { key: "metodologia", label: msg("Metodología") },
     { key: "planificacion", label: msg("Planificación y diseño de sesiones") },
     { key: "direccion_entreno", label: msg("Dirección del entrenamiento") },
     { key: "correcciones", label: msg("Correcciones") },
   ]},
-  { key: "partidos", label: msg("Partidos"), color: "#FF6E00", sections: [
+  { key: "partidos", label: msg("Partidos"), color: clubColor.accent, sections: [
     { key: "preparacion", label: msg("Preparación") },
     { key: "direccion_partido", label: msg("Dirección de partido") },
     { key: "minutos", label: msg("Gestión de minutos") },

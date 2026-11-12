@@ -5,6 +5,7 @@ import { teamRoleLabel } from "@/lib/staffRoles";
 import { downloadCsv, exportFileName, printHtml, staffPrintHtml, toCsv } from "@/lib/staffExport";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import { useT, msg } from "@/i18n";
+import { BRAND } from "@/lib/brand";
 
 const ACCESS = {
   approved: { icon: Check, text: msg("Con acceso"), cls: "text-green-600" },
@@ -40,7 +41,7 @@ export default function StaffTable({ rows, onOpen, filterLabel = "Todos los equi
   ]);
   const exportExcel = () => downloadCsv(exportFileName("personal-racing-sarria"), toCsv(EXPORT_HEADER, exportData));
   const exportPrint = () => printHtml(staffPrintHtml({
-    header: EXPORT_HEADER, rows: exportData, title: "Personal", subtitle: `Racing Sarrià · ${filterLabel}`, // la hoja impresa y el Excel van siempre en español
+    header: EXPORT_HEADER, rows: exportData, title: "Personal", subtitle: `${BRAND.clubName} · ${filterLabel}`, // la hoja impresa y el Excel van siempre en español
     logoUrl: CLUB_LOGO_URL, origin: window.location.origin,
   }));
 

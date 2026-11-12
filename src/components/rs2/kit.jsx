@@ -5,9 +5,10 @@ import { Search } from "lucide-react";
 import "@/styles/rs2.css";
 import { juvenilYear, JUV_STYLE } from "@/lib/juvenilYear";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
+import { C as clubColor } from "@/lib/brand";
 
 export const RS = {
-  granate: "#73000A", granateDark: "#36000D", naranja: "#FF6E00",
+  granate: clubColor.primary, granateDark: clubColor.primaryDark, naranja: clubColor.accent,
   bg: "#F5F2F1", line: "#E6DEDD", lineSoft: "#EEE7E6", head: "#FBF8F8", soft: "#F3ECEB",
   ink: "#1E1416", ink2: "#4A3D3F", muted: "#6B5E60", faint: "#9A8C8E", input: "#D9CFCE",
   orangeSoft: "#FFE7D6", orangeInk: "#8A3A00",

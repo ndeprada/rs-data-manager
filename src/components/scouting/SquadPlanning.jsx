@@ -19,6 +19,7 @@ import { DOT, LEAVE_TAG, PASS_TAG } from "./squadPlanUi";
 import { TeamPills, PlanBand, Coverage, ColumnsView } from "./SquadPlanViews";
 import { Pills } from "@/components/rs2/kit";
 import { usePlanningNav } from "@/components/planning/useScouting";
+import { C as clubColor } from "@/lib/brand";
 
 // Scouting → Planificación: plantilla prevista de cada equipo para la temporada siguiente, en un campo a escala con todos los puestos a la vista
 // (ataque a la derecha, o arriba en el móvil). Los jugadores actuales continúan salvo que se marque «duda» o «se va» (baja del club o baja propia);
@@ -257,7 +258,7 @@ export default function SquadPlanning() {
   return (
     <div className="space-y-2.5" data-testid="squad-planning">
       <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
-        <span className="text-[11px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5" style={{ background: "#F3ECEB", color: "#36000D" }} data-testid="plan-season">Temporada {season}</span>
+        <span className="text-[11px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5" style={{ background: "#F3ECEB", color: clubColor.primaryDark }} data-testid="plan-season">Temporada {season}</span>
         <TeamPills teams={teams} value={tid} onChange={setTeamId} />
         <div className="ml-auto flex flex-wrap justify-end gap-1.5 [&_button]:h-8 [&_button]:px-2.5 [&_button]:text-xs">
           <Button type="button" variant="outline" size="sm" onClick={makePdf} disabled={!team || loading || pdfBusy} data-testid="plan-pdf">

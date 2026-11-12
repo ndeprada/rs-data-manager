@@ -11,6 +11,7 @@ import { downloadProgressionPDF } from "./progressionPdfGenerator";
 import { matchesPlayerSearch } from "@/lib/playerName";
 import { useCountedStats } from "@/lib/matchStatus";
 import { useT } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 const POSITION_LABELS = {
   portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB",
@@ -155,7 +156,7 @@ export default function ProgressionReportSection() {
                     </td>
                     <td className="px-3 py-3 text-center hidden lg:table-cell">
                       {pdiCount > 0 ? (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-sm" style={{ background: "#fdf2f4", color: "var(--granate)", fontFamily: "var(--font-display)" }}>
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-sm" style={{ background: clubColor.primarySoft, color: "var(--granate)", fontFamily: "var(--font-display)" }}>
                           {t("{pdiCount} eval.", { pdiCount })}
                         </span>
                       ) : <span className="text-xs text-gray-300">—</span>}

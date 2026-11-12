@@ -24,6 +24,7 @@ import { useAuthOptional } from "@/lib/AuthContext";
 import { freeMove, snapAnchors, snapPoint } from "@/lib/boardSnap";
 import { base44 } from "@/api/base44Client";
 import { applyBoardDefaults, brushWithDefaults, currentDefaults, describeDefaults, rememberDefaults, withElementDefault } from "@/lib/boardDefaults";
+import { C as clubColor } from "@/lib/brand";
 
 // Editor de la pizarra: fichas de hasta cinco equipos (cada uno de su color), balón, conos, porterías, flechas (rectas,
 // curvas o por el aire), zonas y textos, con fotogramas para animar el movimiento. Mismo editor para tareas de
@@ -46,7 +47,7 @@ const LINE_TOOLS = [
   { id: "move", label: "Desplazamiento", icon: MoveUpRight },
   { id: "pass", label: "Pase", icon: Spline, color: "#2563eb" },
   { id: "air", label: "Pase aéreo (con sombra)", icon: TrendingUp, color: "#2563eb" },
-  { id: "dribble", label: "Conducción", icon: Activity, color: "#73000A" },
+  { id: "dribble", label: "Conducción", icon: Activity, color: clubColor.primary },
   { id: "zone", label: "Zona", icon: Square },
   { id: "quad", label: "Zona 4 esquinas", icon: Pentagon },
   { id: "link", label: "Unir fichas", icon: Waypoints },
@@ -1473,7 +1474,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
           const on = stamps.active === g.id;
           return (
             <button key={g.id} type="button" aria-pressed={on} onClick={() => { stamps.pick(on ? null : g.id); setTool("select"); }} data-testid="stamp-pick"
-              className={`h-7 px-2.5 rounded-full border text-[12px] font-semibold ${on ? "bg-[#FF6E00] text-[#24000a] border-[#FF6E00]" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}`}>{g.label}</button>
+              className={`h-7 px-2.5 rounded-full border text-[12px] font-semibold ${on ? "bg-club-accent text-club-deep border-club-accent" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}`}>{g.label}</button>
           );
         })}
       </div>
@@ -1624,7 +1625,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
         <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-xs text-red-600" disabled={!hasCamera(board)} onClick={clearAllCams} data-testid="cam-clear">Quitar la cámara</Button>
       </div>
       <label className="flex items-center gap-2 text-[12px] text-gray-700">
-        <input type="checkbox" checked={showCam} onChange={(e) => setShowCam(e.target.checked)} data-testid="cam-show" style={{ accentColor: "#FF6E00" }} />
+        <input type="checkbox" checked={showCam} onChange={(e) => setShowCam(e.target.checked)} data-testid="cam-show" style={{ accentColor: clubColor.accent }} />
         Ver lo que ve la cámara mientras dibujo
       </label>
     </div>
@@ -1970,7 +1971,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
 
   if (inline) {
     const speeds = [[2600, "0,5×"], [1500, "1×"], [800, "2×"]];
-    const segBtn = (on) => ({ height: 32, padding: "0 12px", borderRadius: 8, fontSize: 13, fontWeight: on ? 600 : 400, background: on ? "#73000A" : "#F5F2F1", color: on ? "#fff" : "#4A3D3F" });
+    const segBtn = (on) => ({ height: 32, padding: "0 12px", borderRadius: 8, fontSize: 13, fontWeight: on ? 600 : 400, background: on ? clubColor.primary : "#F5F2F1", color: on ? "#fff" : "#4A3D3F" });
     const outBtn = { height: 34, padding: "0 12px", borderRadius: 8, fontSize: 13, background: "#fff", color: "#4A3D3F", border: "1px solid #D9CFCE" };
     return (
       <div className="space-y-2" data-testid="board-embedded">
@@ -1983,7 +1984,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
             <div className="flex flex-wrap items-center gap-1.5">
               <button type="button" aria-label="Primer fotograma" title="Primer fotograma" onClick={() => goFrame(0)} className="inline-flex items-center justify-center" style={{ ...outBtn, width: 34, padding: 0 }}><ChevronLeft className="w-4 h-4" /></button>
               <button type="button" aria-label={playing ? "Parar" : "Reproducir"} title={animFrameCount(board) < 2 ? "Añade otro fotograma para animar" : playing ? "Parar" : "Reproducir"} disabled={animFrameCount(board) < 2} onClick={() => (playing ? stop() : setPlaying(true))} data-testid="tl-play"
-                className="inline-flex items-center justify-center rounded-full disabled:opacity-40" style={{ width: 40, height: 40, background: "#73000A", color: "#fff" }}>
+                className="inline-flex items-center justify-center rounded-full disabled:opacity-40" style={{ width: 40, height: 40, background: clubColor.primary, color: "#fff" }}>
                 {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               </button>
               <button type="button" aria-label="Último fotograma" title="Último fotograma" onClick={() => goFrame(board.frames.length - 1)} className="inline-flex items-center justify-center" style={{ ...outBtn, width: 34, padding: 0 }}><ChevronRight className="w-4 h-4" /></button>
@@ -1994,7 +1995,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
                     {sheetMode && i === 1 && <span className="px-1.5" style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".07em", color: "#6B5E60" }} data-testid="tl-anim-label">ANIMACIÓN</span>}
                     <button type="button" role="tab" aria-selected={i === idx} onClick={() => goFrame(i)} data-testid={`frame-${i + 1}`} data-sheet={sheetMode && i === 0 ? "true" : undefined}
                       title={sheetMode && i === 0 ? "La hoja: posición de salida con las flechas que explican la jugada. Es lo que se imprime." : undefined}
-                      className="tabular-nums" style={{ minWidth: sheetMode && i === 0 ? 56 : 40, height: 32, borderRadius: 8, fontSize: 14, fontWeight: 700, background: i === idx ? "#73000A" : "#F5F2F1", color: i === idx ? "#fff" : "#4A3D3F", ...(sheetMode && i === 0 && i !== idx ? { boxShadow: "inset 0 0 0 1.5px #73000A", color: "#73000A" } : {}) }}>
+                      className="tabular-nums" style={{ minWidth: sheetMode && i === 0 ? 56 : 40, height: 32, borderRadius: 8, fontSize: 14, fontWeight: 700, background: i === idx ? clubColor.primary : "#F5F2F1", color: i === idx ? "#fff" : "#4A3D3F", ...(sheetMode && i === 0 && i !== idx ? { boxShadow: `inset 0 0 0 1.5px ${clubColor.primary}`, color: clubColor.primary } : {}) }}>
                       {sheetMode ? (i === 0 ? "Hoja" : String(i).padStart(2, "0")) : String(i + 1).padStart(2, "0")}
                     </button>
                     {sheetMode && i === 0 && <span aria-hidden className="w-px h-6 mx-1" style={{ background: "#E6DEDD" }} />}
@@ -2003,19 +2004,19 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
               </div>
               <button type="button" disabled={board.frames.length >= MAX_FRAMES} onClick={() => frameOp((b, i) => addFrame(b, i))} data-testid="rail-add-frame"
                 title={sheetMode && board.frames.length === 1 ? "La animación empieza con las posiciones de la hoja, sin sus flechas" : undefined}
-                className="disabled:opacity-40" style={{ ...outBtn, border: "1px dashed #73000A", color: "#73000A", fontWeight: 600 }}>{sheetMode && board.frames.length === 1 ? "+ Crear animación" : "+ Fotograma"}</button>
+                className="disabled:opacity-40" style={{ ...outBtn, border: `1px dashed ${clubColor.primary}`, color: clubColor.primary, fontWeight: 600 }}>{sheetMode && board.frames.length === 1 ? "+ Crear animación" : "+ Fotograma"}</button>
               <span className="flex-1" />
               <div role="group" aria-label="Velocidad" className="flex gap-1">
                 {speeds.map(([v, l]) => <button key={v} type="button" aria-pressed={speed === v} onClick={() => commit({ ...live.current, speed: v }, { record: false })} style={segBtn(speed === v)}>{l}</button>)}
               </div>
-              <label className="flex items-center gap-1.5 text-[13px]" style={{ color: "#4A3D3F" }}><input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} style={{ accentColor: "#73000A", width: 15, height: 15 }} /> Repetir</label>
-              <label className="flex items-center gap-1.5 text-[13px]" style={{ color: "#4A3D3F" }}><input type="checkbox" checked={trails} onChange={(e) => setTrails(e.target.checked)} style={{ accentColor: "#73000A", width: 15, height: 15 }} /> Rastro</label>
+              <label className="flex items-center gap-1.5 text-[13px]" style={{ color: "#4A3D3F" }}><input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} style={{ accentColor: clubColor.primary, width: 15, height: 15 }} /> Repetir</label>
+              <label className="flex items-center gap-1.5 text-[13px]" style={{ color: "#4A3D3F" }}><input type="checkbox" checked={trails} onChange={(e) => setTrails(e.target.checked)} style={{ accentColor: clubColor.primary, width: 15, height: 15 }} /> Rastro</label>
             </div>
             {sheetMode && (
               <p className="m-0 text-[12.5px]" style={{ color: "#4A3D3F" }} data-testid="tl-hint">
                 {idx === 0
-                  ? <><b style={{ color: "#73000A" }}>Hoja:</b> coloca a todos donde empiezan y dibuja con flechas los desmarques, los bloqueos y el pase. Es lo que se imprime.</>
-                  : <><b style={{ color: "#73000A" }}>Animación:</b> mueve a los jugadores de verdad, fotograma a fotograma. Empieza en las posiciones de la hoja; sus flechas no salen.</>}
+                  ? <><b style={{ color: clubColor.primary }}>Hoja:</b> coloca a todos donde empiezan y dibuja con flechas los desmarques, los bloqueos y el pase. Es lo que se imprime.</>
+                  : <><b style={{ color: clubColor.primary }}>Animación:</b> mueve a los jugadores de verdad, fotograma a fotograma. Empieza en las posiciones de la hoja; sus flechas no salen.</>}
               </p>
             )}
             <div className="flex flex-wrap gap-1.5">
@@ -2051,7 +2052,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
 
 // ── Barras de la pantalla completa ─────────────────────────────────────────────────────────────────────────────────
 const coarse = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)")?.matches;
-const RAIL = { bg: "#24000a", btn: "rgba(42,0,9,0.94)", line: "#a84a2a", ink: "#FF9B4A", on: "#FF6E00", onInk: "#2a0009", text: "#F7E9E4", sub: "#E2C3BA", border: "#7a2a2f" };
+const RAIL = { bg: clubColor.deep, btn: "rgba(42,0,9,0.94)", line: "#a84a2a", ink: "#FF9B4A", on: clubColor.accent, onInk: "#2a0009", text: "#F7E9E4", sub: "#E2C3BA", border: "#7a2a2f" };
 const zoomBtnDark = "h-8 w-8 rounded-md flex items-center justify-center hover:bg-white/10 disabled:opacity-30";
 function RailBtn({ label, title, on, disabled, onClick, children, narrow = false, dashed = false, testid }) {
   return (
@@ -2093,7 +2094,7 @@ function CameraOverlay({ rect, view, frame, own, has, inheritedFrom }) {
       <rect data-h="cm" x={x} y={y} width={w} height={h} fill="transparent" stroke="#fff" strokeWidth={u * 0.9} strokeDasharray={own ? undefined : `${u * 4} ${u * 3}`} style={{ cursor: "move" }} />
       {[[x, y], [x + w, y], [x + w, y + h], [x, y + h]].map(([cx, cy], i) => (
         <g key={i}>
-          <circle cx={cx} cy={cy} r={u * 3.2} fill="#fff" stroke="#FF6E00" strokeWidth={u * 0.9} pointerEvents="none" />
+          <circle cx={cx} cy={cy} r={u * 3.2} fill="#fff" stroke={clubColor.accent} strokeWidth={u * 0.9} pointerEvents="none" />
           <circle data-h={`k${i}`} cx={cx} cy={cy} r={u * 8} fill="transparent" style={{ cursor: i % 2 ? "nesw-resize" : "nwse-resize" }} />
         </g>
       ))}
@@ -2118,12 +2119,12 @@ function FlagButtons({ locked, hl, canReset, onLock, onHl, onReset }) {
 function SnapGuide({ guide, field, orient, persp, mpp }) {
   const V = (q) => { const v = toView(field, orient, q); return persp ? persp.P(v) : v; };
   const px = mpp || 0.1;
-  const ring = (at) => { const c = V(at); return <circle cx={c.x} cy={c.y} r={6 * px} fill="none" stroke="#FF6E00" strokeWidth={2 * px} />; };
+  const ring = (at) => { const c = V(at); return <circle cx={c.x} cy={c.y} r={6 * px} fill="none" stroke={clubColor.accent} strokeWidth={2 * px} />; };
   return (
     <g pointerEvents="none" data-testid="snap-guide" data-kind={guide.kind}>
       {(guide.lines || []).map(([a, b], i) => {
         const p = V(a), q = V(b);
-        return <line key={i} x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke="#FF6E00" strokeWidth={1.4 * px} strokeDasharray={`${5 * px} ${4 * px}`} />;
+        return <line key={i} x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke={clubColor.accent} strokeWidth={1.4 * px} strokeDasharray={`${5 * px} ${4 * px}`} />;
       })}
       {guide.kind === "point" && guide.at && ring(guide.at)}
       {guide.kind === "axis" && guide.at && ring(guide.at)}

@@ -2,6 +2,7 @@ import React from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { playerFullName } from "@/lib/playerName";
 import { useT } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 const POSITION_COLORS = {
   portero: "#3b82f6",           // azul
@@ -9,10 +10,10 @@ const POSITION_COLORS = {
   lateral: "#14b8a6",           // teal
   central: "#22c55e",           // verde
   libre: "#dc2626",             // rojo oscuro
-  mediocentro: "#FF6E00",       // naranja
-  interior: "#FF6E00",          // naranja
-  mediapunta: "#FF6E00",        // naranja
-  extremo: "#73000A",           // granate
+  mediocentro: clubColor.accent,       // naranja
+  interior: clubColor.accent,          // naranja
+  mediapunta: clubColor.accent,        // naranja
+  extremo: clubColor.primary,           // granate
 };
 
 export default function MinutesDistributionChart({ matchStats, players }) {
@@ -82,8 +83,8 @@ export default function MinutesDistributionChart({ matchStats, players }) {
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#3b82f6" }}></span>{t("Portero")}</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#22c55e" }}></span>{t("Central")}</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#14b8a6" }}></span>{t("Lateral")}</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#FF6E00" }}></span>{t("Mediocentro/Interior")}</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#73000A" }}></span>{t("Extremo")}</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: clubColor.accent }}></span>{t("Mediocentro/Interior")}</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: clubColor.primary }}></span>{t("Extremo")}</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#ef4444" }}></span>{t("Delantero")}</span>
             </div>
           </>

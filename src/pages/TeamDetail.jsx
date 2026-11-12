@@ -25,6 +25,7 @@ import EditEventDialog from "@/components/myteam/EditEventDialog";
 import { useCountedStats } from "@/lib/matchStatus";
 import { statTeamResolver, statsOfTeam } from "@/lib/teamStats";
 import { useT, msg } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 const EVENT_TYPES = [
   { value: "entrenamiento", label: msg("Entrenamiento") },
@@ -44,8 +45,8 @@ const isMatchType = (type) => ["partido_amistoso", "partido_liga", "torneo"].inc
 
 const STATUS_STYLES = {
   activo: { label: msg("Activo"), bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
-  lesionado: { label: msg("Lesionado"), bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
-  baja: { label: msg("Baja"), bg: "#fdf2f4", color: "#73000A", border: "#fecdd3" },
+  lesionado: { label: msg("Lesionado"), bg: clubColor.accentSoft, color: "#ea580c", border: "#fed7aa" },
+  baja: { label: msg("Baja"), bg: clubColor.primarySoft, color: clubColor.primary, border: "#fecdd3" },
 };
 
 const POSITIONS = {

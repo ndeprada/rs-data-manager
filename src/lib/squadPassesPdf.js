@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { loadImage } from "@/lib/matchSheetPdf";
 import { fitText } from "@/lib/matchSheetLayout";
+import { BRAND } from "./brand.js";
 
 const GRANATE = [115, 0, 10];
 const INK = [30, 30, 30];
@@ -121,7 +122,7 @@ export async function downloadClubPassesPDF({ season, summary, logoUrl }) {
   const pages = doc.getNumberOfPages();
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p);
-    put("RS Manager · Racing Sarrià", MARGIN, H - 6, { pt: 6.5, color: [150, 150, 150] });
+    put(`${BRAND.appName} · ${BRAND.clubName}`, MARGIN, H - 6, { pt: 6.5, color: [150, 150, 150] });
     put(`Página ${p} de ${pages}`, W - MARGIN, H - 6, { pt: 6.5, color: [150, 150, 150], align: "right" });
   }
   doc.save(`Pases_del_club_${safe(season)}.pdf`);

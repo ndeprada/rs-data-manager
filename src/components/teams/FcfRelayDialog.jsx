@@ -9,6 +9,7 @@ import { useT } from "@/i18n";
 import { FCF_STATUS_KEY } from "@/lib/fcfAutoSync";
 import { FCF_HOME, bookmarkletCode } from "@/lib/fcfRelay";
 import FcfSyncLine from "@/components/teams/FcfSyncLine";
+import { C as clubColor } from "@/lib/brand";
 
 async function fetchKey(mode = "key") {
   const r = await fetch(`/api/sync-fcf?relay=${mode}`, { method: mode === "key" ? "GET" : "POST", credentials: "include" });
@@ -55,7 +56,7 @@ export function RelayBookmark({ relayKey }) {
     <a ref={ref} href="#" onClick={(e) => e.preventDefault()} draggable="true" data-testid="relay-bookmark"
       title={t("Arrástralo a la barra de marcadores")}
       className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold text-white shadow-sm cursor-grab select-none"
-      style={{ background: "#73000A" }}>
+      style={{ background: clubColor.primary }}>
       <Bookmark className="w-4 h-4" aria-hidden="true" /> RS Manager · FCF
     </a>
   );
