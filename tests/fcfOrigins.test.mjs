@@ -11,6 +11,9 @@ assert.ok(!nameFits({ first_name: 'Jan', last_name: 'Puig' }, 'PUIGDEMONT MAS, J
 assert.ok(!nameFits({ first_name: 'Jan', last_name: 'Puig' }, 'PUIG MAS, JANET'));
 assert.equal(pickCandidate({}, []).reason, 'sin_fcf');
 assert.equal(pickCandidate({ birth_year: 2012 }, [{ fcf_id: '1', club: false, birth_year: 2011 }, { fcf_id: '2', club: false, birth_year: 2012 }]).pick.fcf_id, '2');
+assert.equal(pickCandidate({ birth_year: 2012 }, [{ fcf_id: '1', club: false, exact: true, birth_year: 2010 }]).reason, 'dudoso', 'un solo candidato de otro club con otro año');
+assert.equal(pickCandidate({}, [{ fcf_id: '1', club: false, exact: false }]).reason, 'dudoso', 'nombre aproximado y nunca en el club');
+assert.equal(pickCandidate({}, [{ fcf_id: '1', club: false, exact: true }]).pick.fcf_id, '1');
 assert.equal(pickCandidate({}, [{ fcf_id: '1', club: true }, { fcf_id: '2', club: false }]).pick.fcf_id, '1');
 assert.equal(pickCandidate({}, [{ fcf_id: '1' }, { fcf_id: '2' }]).reason, 'dudoso');
 
@@ -43,11 +46,12 @@ const players = [
   { id: 'd', data: { first_name: 'Marc', last_name: 'Gil', team_id: 't1' } },
   { id: 'e', data: { first_name: 'Leo', last_name: 'Ningú', team_id: 't1' } },
   { id: 'f', data: { first_name: 'Jan', last_name: 'Puig Mas', team_id: 't2', previous_club: 'Escola Pia' } },
+  { id: 'h', data: { first_name: 'Marc', last_name: 'Gil Sola', team_id: 't1' } },
   { id: 'g', data: { first_name: 'Old', last_name: 'Baja', status: 'baja' } },
 ];
 const rows = await originProposals(db, players, { season: '2026-2027', clubName: 'RACING SARRI' });
 const by = Object.fromEntries(rows.map((r) => [r.id, r]));
-assert.equal(rows.length, 6, 'las bajas no cuentan');
+assert.equal(rows.length, 7, 'las bajas no cuentan');
 assert.equal(by.a.status, 'ok');
 assert.equal(by.a.origin.team, 'CAN BUXERES, F.C. A');
 assert.equal(by.a.origin.club, false);
@@ -55,10 +59,11 @@ assert.equal(by.b.fcf_id, '12', 'entre dos con el mismo nombre, el que ha jugado
 assert.equal(by.b.origin.team, 'RACING SARRIÀ, C.F. B');
 assert.equal(by.b.origin.club, true);
 assert.equal(by.c.status, 'sin_anterior');
-assert.equal(by.d.status, 'ok', 'ficha a mano con un apellido');
-assert.equal(by.d.origin.season, '2024-2025');
-assert.equal(by.d.origin.last_season, false);
+assert.equal(by.d.status, 'dudoso', 'ficha a mano con un apellido y nunca en el club: no se adivina');
 assert.equal(by.e.status, 'sin_fcf');
+assert.equal(by.h.status, 'ok');
+assert.equal(by.h.origin.season, '2024-2025', 'última temporada en la que aparece');
+assert.equal(by.h.origin.last_season, false);
 assert.equal(by.f.status, 'manual', 'lo escrito a mano no se toca');
 assert.equal(originPatch(by.f), null);
 assert.deepEqual(originPatch(by.a), { fcf_player_id: '11', previous_club: 'CAN BUXERES, F.C. A', previous_club_source: 'fcf', previous_club_season: '2025-2026', previous_club_comp: 'INFANTIL PRIMERA DIVISIÓ S14' });

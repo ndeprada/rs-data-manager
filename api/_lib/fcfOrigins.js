@@ -43,7 +43,14 @@ export function nameFits(p, fcfName) {
 
 // Elige entre los candidatos de la FCF: primero los que han jugado con el club, luego el año de nacimiento y el dorsal
 export function pickCandidate(p, cands) {
-  if (cands.length <= 1) return { pick: cands[0] || null, reason: cands.length ? 'nombre' : 'sin_fcf' };
+  const by0 = Number(p.birth_year) || (p.birth_date ? Number(String(p.birth_date).slice(0, 4)) : 0);
+  // Un único candidato que nunca ha jugado con el club solo vale si el nombre es el mismo y no choca con el año de nacimiento
+  if (cands.length === 1 && !cands[0].club) {
+    const c = cands[0];
+    if (!c.exact || (by0 && c.birth_year && c.birth_year !== by0)) return { pick: null, reason: 'dudoso', options: 1 };
+    return { pick: c, reason: 'nombre' };
+  }
+  if (cands.length <= 1) return { pick: cands[0] || null, reason: cands.length ? 'club' : 'sin_fcf' };
   let list = cands;
   const club = list.filter((c) => c.club);
   if (club.length) list = club;
@@ -114,7 +121,8 @@ export async function originProposals(db, players, { season = currentSeason(), c
   const matched = [];
   const out = [];
   for (const p of live) {
-    const list = cands.filter((c) => nameFits(p, c.name));
+    const ex = appKeys(p).exact;
+    const list = cands.filter((c) => nameFits(p, c.name)).map((c) => ({ ...c, exact: normName(c.name) === ex }));
     const { pick, reason, options } = pickCandidate(p, list);
     out.push({ player: p, pick, reason, options });
     if (pick) matched.push(pick.fcf_id);
@@ -132,7 +140,7 @@ export async function originProposals(db, players, { season = currentSeason(), c
     else status = 'ok';
     return {
       id: p.id, team_id: p.team_id || null, name: `${p.first_name || ''} ${p.last_name || ''}`.trim(),
-      status, reason, options: options || 0, fcf_id: pick?.fcf_id || null, fcf_name: pick?.name || null,
+      status, reason, options: options || 0, fcf_id: pick?.fcf_id || null, fcf_name: pick?.name || null, in_club: !!pick?.club, by_fcf: pick?.birth_year ?? null,
       current: p.previous_club || '',
       origin: from ? { team: from.team, competition: from.competition, season: from.season, pj: from.pj, more: from.more, club: isClub(from.team), last_season: from.season === prevSeason } : null,
     };
