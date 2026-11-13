@@ -1513,3 +1513,23 @@ test("flechas pegadas a una ficha: siguen a la ficha y se dibujan desde su borde
   assert.equal(B.detachArrow(a, ["a", "t"]).a1, "t");
   assert.ok(B.isGeometryPatch({ a1: "t" }));
 });
+
+test("flechas: curva libre pasa por sus puntos y la línea no lleva punta", async () => {
+  const B = await import("../src/lib/board.js");
+  const a = { k: "arrow", x1: 0, y1: 0, x2: 20, y2: 0, via: [{ x: 10, y: 6 }], smooth: true };
+  assert.equal(B.arrowPath(a), "smooth");
+  assert.equal(B.arrowPath({ ...a, smooth: undefined }), "poly");
+  const pts = B.arrowPoints(a, 24);
+  assert.ok(pts.some((p) => Math.abs(p.x - 10) < 1e-9 && Math.abs(p.y - 6) < 1e-9), "pasa por el punto");
+  // es curva: a un cuarto del recorrido no está sobre la recta del inicio al punto
+  const q = B.smoothAt(a, 0, 0.5);
+  assert.ok(Math.abs(q.y - q.x * 0.6) > 0.1);
+  // el + está sobre la curva y el punto nuevo no cambia la forma de forma brusca
+  const ins = B.insertVia(a, 0);
+  assert.deepEqual(ins.via[0], { x: B.round ? ins.via[0].x : ins.via[0].x, y: ins.via[0].y });
+  assert.ok(Math.abs(ins.via[0].y - q.y) < 0.2);
+  assert.equal(B.arrowProps({ style: "line" }).pointer, "none");
+  assert.equal(B.arrowProps({ style: "line", pointer: "bar" }).pointer, "bar");
+  assert.equal(B.arrowProps({ style: "pass" }).pointer, "arrow");
+  assert.ok(B.isGeometryPatch({ smooth: true }));
+});

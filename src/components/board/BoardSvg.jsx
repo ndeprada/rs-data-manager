@@ -4,7 +4,7 @@ import { KitShirt } from "@/components/match/KitShirt";
 import { BIG_STAND, BS, cornerR, roundRect, rowSeats, seatHash, stairQuads, standRows } from "@/lib/stadiumGeo";
 import React from "react";
 import {
-  arrowCorners, curveHandle, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
+  arrowCorners, segmentMid, curveHandle, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
   ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, chipTextScale, chipTextLook, chipLines, stackBaselines, viewBox, wavyPoints, zoneBox, labelBgOf, coneEdgeWidth,
   attachedView,
 } from "@/lib/board";
@@ -697,17 +697,16 @@ function Arrow({ el, ctx, selected, handles }) {
   const dx = flight[n].x - flight[n - 1].x, dy = flight[n].y - flight[n - 1].y;
   const dl = Math.hypot(dx, dy) || 1;
   const ux = dx / dl, uy = dy / dl;
-  // Punta estilizada (03/11/2026, Nacho: «la punta más estrechita»): más corta y estrecha que antes (1,4 + 1,9·w de largo y
-  // tan ancha como larga), con la base algo hundida; la línea termina dentro de la punta.
+  // Punta (13/11/2026, Nacho: «la base de la punta… que sea recta, y más finita»): triángulo con la base recta y estrecho;
+  // la línea termina debajo de la punta. «Bloqueo» = rayita perpendicular al final.
   const headLen = 1.0 + 1.5 * w;
-  const trim = ap.pointer === "none" || ap.pointer === "dot" ? 0 : ap.pointer === "bar" ? 0.4 : headLen * 0.72;
+  const trim = ap.pointer === "none" || ap.pointer === "dot" ? 0 : ap.pointer === "bar" ? w * 0.5 : headLen * 0.92;
   const line = flight.map((p, i) => (i === n ? { x: p.x - ux * trim, y: p.y - uy * trim } : p));
   const d = pathOf(ap.wavy ? wavyPoints(line, 0.3 + w * 0.45, 2.4 + w * 0.6) : line);
   const end = flight[n];
   const hx = end.x, hy = end.y;
-  const half = Math.max(w * 0.95, headLen * 0.36);
-  const notch = headLen * 0.8;
-  const headPts = `${hx},${hy} ${hx - ux * headLen - uy * half},${hy - uy * headLen + ux * half} ${hx - ux * notch},${hy - uy * notch} ${hx - ux * headLen + uy * half},${hy - uy * headLen - ux * half}`;
+  const half = Math.max(w * 0.85, headLen * 0.27);
+  const headPts = `${hx},${hy} ${hx - ux * headLen - uy * half},${hy - uy * headLen + ux * half} ${hx - ux * headLen + uy * half},${hy - uy * headLen - ux * half}`;
   const barHalf = 0.7 + w * 1.2;
   const barPts = `${hx - uy * barHalf},${hy + ux * barHalf} ${hx + uy * barHalf},${hy - ux * barHalf}`;
   const dash = dashArray(ap.dash, w);
@@ -749,7 +748,7 @@ function Arrow({ el, ctx, selected, handles }) {
           {ctrl && <circle data-h="c" cx={ctrl.x} cy={ctrl.y} r={HIT * u} fill="transparent" />}
           {/* flecha con quiebros: cada quiebro se arrastra (doble clic lo quita) y el «+» de cada tramo añade otro */}
           {!el.air && !curved && hasVia(el) && corners.slice(0, -1).map((c, i) => {
-            const m = { x: (c.x + corners[i + 1].x) / 2, y: (c.y + corners[i + 1].y) / 2 };
+            const m = toV(segmentMid(el, i));
             return <PlusHandle key={`m${i}`} h={`m${i}`} x={m.x} y={m.y} u={u} />;
           })}
           {/* recta: arrastrar el punto del medio la curva; el «+» (a tres cuartos) le pone un quiebro */}

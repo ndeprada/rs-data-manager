@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X, RotateCcw, RotateCw, ChevronUp, ChevronDown, Lock, Grid3x3, Tag } from "lucide-react";
+import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Slash, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X, RotateCcw, RotateCw, ChevronUp, ChevronDown, Lock, Grid3x3, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AIR_MAX, BALL_PATTERNS, ballStyle, linkProps, zoneShapePatch, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
@@ -48,13 +48,14 @@ const LINE_TOOLS = [
   { id: "pass", label: "Pase", icon: Spline, color: "#2563eb" },
   { id: "air", label: "Pase aéreo (con sombra)", icon: TrendingUp, color: "#2563eb" },
   { id: "dribble", label: "Conducción", icon: Activity, color: clubColor.primary },
+  { id: "line", label: "Línea", icon: Slash },
   { id: "zone", label: "Zona", icon: Square },
   { id: "quad", label: "Zona 4 esquinas", icon: Pentagon },
   { id: "link", label: "Unir fichas", icon: Waypoints },
   { id: "text", label: "Texto", icon: Type },
 ];
-const ARROW_TOOLS = ["move", "pass", "air", "dribble"];
-const KIND_OF_TOOL = { ball: "ball", cone: "cone", goal: "goal", pole: "pole", hurdle: "hurdle", ladder: "ladder", dummy: "dummy", move: "arrow", pass: "arrow", air: "arrow", dribble: "arrow", zone: "zone", quad: "zone", text: "text" };
+const ARROW_TOOLS = ["move", "pass", "air", "dribble", "line"];
+const KIND_OF_TOOL = { ball: "ball", cone: "cone", goal: "goal", pole: "pole", hurdle: "hurdle", ladder: "ladder", dummy: "dummy", move: "arrow", pass: "arrow", air: "arrow", dribble: "arrow", line: "arrow", zone: "zone", quad: "zone", text: "text" };
 const SPEEDS = [{ id: 2600, label: "Lenta" }, { id: 1500, label: "Normal" }, { id: 800, label: "Rápida" }];
 const MAX_HISTORY = 30;
 
@@ -945,9 +946,9 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
     if (d.mode === "draw" && draft) {
       const big = draft.k === "arrow" ? Math.hypot(draft.x2 - draft.x1, draft.y2 - draft.y1) > 2.5 : Math.abs(draft.w) > 2.5 && Math.abs(draft.h) > 2.5;
       if (big) {
-        const { curved, bends, ...rest } = draft;
+        const { curved, bends, smooth, ...rest } = draft;
         const el = { id: newId(), ...rest };
-        if (bends && el.k === "arrow" && !el.air) el.via = [firstBend(el)];
+        if (bends && el.k === "arrow" && !el.air) { el.via = [firstBend(el)]; if (smooth) el.smooth = true; }
         else if (curved && el.k === "arrow") Object.assign(el, defaultControl(el));
         if (el.k === "zone" && el.shape === "quad") {
           // zona libre: nace como un rectángulo cuyas cuatro esquinas se pueden mover por separado
@@ -980,7 +981,9 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
   const brushKey = isTeamTool(tool) ? "token" : tool;
   const patchBrush = (patch) => setBrush((b) => ({ ...b, [brushKey]: { ...b[brushKey], ...patch } }));
   const setArrowType = (t) => {
-    if (selected?.k === "arrow") patchSel({ ...ARROW_PRESETS[t], lift: t === "air" ? Number(selected.lift) || 6 : selected.lift, ...(t === "air" ? { via: undefined } : {}) }, "type");
+    // al dejar de ser «Línea», si no se le había puesto punta, vuelve la flecha
+    const head = t !== "line" && selected?.style === "line" && (!selected.pointer || selected.pointer === "none") ? { pointer: undefined } : {};
+    if (selected?.k === "arrow") patchSel({ ...ARROW_PRESETS[t], ...head, lift: t === "air" ? Number(selected.lift) || 6 : selected.lift, ...(t === "air" ? { via: undefined, smooth: undefined } : {}) }, "type");
     else pickTool(t);
   };
   const patchTeam = (id, patch) => commit({ ...live.current, teams: teamsOf(live.current).map((t) => (t.id === id ? { ...t, ...patch } : t)) }, { key: `team-${id}-${Object.keys(patch)[0]}` });

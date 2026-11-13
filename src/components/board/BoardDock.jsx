@@ -3,6 +3,7 @@ import { Star, SlidersHorizontal, Trash2, Check, Minus, Plus } from "lucide-reac
 import { ARROW_W, BALL_PATTERNS, ballStyle } from "@/lib/board";
 import { BallGlyph, styleOf } from "./BoardSvg";
 import { PALETTE } from "./BoardControls";
+import { POINTERS, TRACES, arrowTrace, tracePatch } from "./BoardProps";
 import { C as clubColor } from "@/lib/brand";
 
 // Segunda columna de la pizarra (05/11/2026, Nacho: «al clicar en el icono de flecha… que me salga otra columna con todos los
@@ -16,20 +17,39 @@ const ARROW_SAMPLES = {
   pass: { label: "Pase", dash: null, wavy: false, air: false },
   air: { label: "Pase aéreo", dash: null, wavy: false, air: true },
   dribble: { label: "Conducción", dash: null, wavy: true, air: false },
+  line: { label: "Línea", dash: null, wavy: false, air: false, pointer: "none" },
 };
 
-function ArrowSample({ v, color, width = 1 }) {
+// Final de la línea según la punta: flecha (base recta y estrecha), bloqueo (rayita), punto o nada
+function SampleHead({ pointer, color, x, y, a, w = 2.4 }) {
+  if (pointer === "none") return null;
+  const t = `translate(${x} ${y}) rotate(${a})`;
+  if (pointer === "bar") return <path d="M0 -5.5 V5.5" stroke={color} strokeWidth={w + 0.6} strokeLinecap="round" transform={t} />;
+  if (pointer === "dot") return <circle cx="0" cy="0" r={2.4 + w * 0.3} fill={color} transform={t} />;
+  return <path d="M0 0 L-7.5 -2.9 L-7.5 2.9 Z" fill={color} transform={t} />;
+}
+function ArrowSample({ v, color, width = 1, pointer }) {
   const w = 1.6 + width * 2.2;
-  const d = v.wavy ? "M6 18 q4 -6 8 0 t8 0 t8 0 t8 0 t8 0" : v.air ? "M6 20 Q30 0 52 14" : "M6 18 L50 10";
+  const p = pointer || v.pointer || "arrow";
+  const d = v.wavy ? "M6 18 q4 -6 8 0 t8 0 t8 0 t8 0 t8 0" : v.air ? "M6 20 Q30 0 52 14" : p === "arrow" ? "M6 18 L49 10.3" : "M6 18 L54 9";
   const end = v.wavy ? { x: 54, y: 18, a: 0 } : v.air ? { x: 54, y: 15, a: 32 } : { x: 54, y: 9.3, a: -10 };
   return (
     <svg viewBox="0 0 64 26" width="64" height="26" aria-hidden="true">
       {v.air && <path d="M6 20 L52 15" stroke="#9ca3af" strokeWidth={1.4} strokeDasharray="2 2" fill="none" opacity={0.7} />}
       <path d={d} stroke={color} strokeWidth={w} strokeDasharray={v.dash || undefined} fill="none" strokeLinecap="round" />
-      <path d="M0 0 L-7 -4 L-5.5 0 L-7 4 Z" fill={color} transform={`translate(${end.x} ${end.y}) rotate(${end.a})`} />
+      <SampleHead pointer={p} color={color} x={end.x} y={end.y} a={end.a} w={w} />
     </svg>
   );
 }
+// Muestras del trazado: recta, curva (un punto), curva libre (varios puntos) y quiebros
+const TRACE_DRAW = {
+  straight: "M4 16 L36 4",
+  curve: "M4 16 Q18 -4 36 6",
+  smooth: "M4 14 C10 2 16 2 20 9 S30 16 36 4",
+  poly: "M4 16 L14 5 L24 13 L36 4",
+};
+const traceDraw = (id) => <svg viewBox="0 0 40 20" width="40" height="20" aria-hidden="true"><path d={TRACE_DRAW[id]} stroke="#1e1416" strokeWidth={1.8} fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+const headDraw = (id) => <svg viewBox="0 0 40 14" width="40" height="14" aria-hidden="true"><path d={id === "arrow" ? "M3 7 H28" : "M3 7 H33"} stroke="#1e1416" strokeWidth={1.8} fill="none" strokeLinecap="round" /><SampleHead pointer={id} color="#1e1416" x={34} y={7} a={0} w={1.8} /></svg>;
 function ZoneSample({ shape, fill, stroke }) {
   return (
     <svg viewBox="0 0 64 30" width="64" height="30" aria-hidden="true">
@@ -194,7 +214,7 @@ export default function BoardDock({ kind, el, look, selected, variants, active, 
   const s = styleOf(look);
   const title = { arrow: "Flechas", zone: "Zonas", ball: "Balón", material: "Material", text: "Texto", link: "Unir fichas" }[kind];
   const sample = (v) => {
-    if (kind === "arrow") return <ArrowSample v={ARROW_SAMPLES[v.id]} color={el.color || s.arrows?.[ARROW_SAMPLES[v.id]?.air ? "pass" : v.id] || "#111827"} width={el.width ?? ARROW_W} />;
+    if (kind === "arrow") return <ArrowSample v={ARROW_SAMPLES[v.id]} color={el.color || s.arrows?.[ARROW_SAMPLES[v.id]?.air ? "pass" : v.id] || s.arrows?.move || "#111827"} width={el.width ?? ARROW_W} pointer={v.id === active ? el.pointer : undefined} />;
     if (kind === "zone") return <ZoneSample shape={v.id} fill={el.fill || clubColor.primary} stroke={el.stroke || clubColor.primary} />;
     if (kind === "ball") { const bs = ballStyle(el); return <BallGlyph pattern={v.id} color={bs.color} color2={el.color2 || "#111827"} size={26} />; }
     if (kind === "material") return <MaterialSample id={v.id} color={el.color} />;
@@ -229,7 +249,13 @@ export default function BoardDock({ kind, el, look, selected, variants, active, 
       <div className="mt-auto px-1.5 pt-2 pb-2 flex flex-col gap-1.5 border-t" style={{ borderColor: D.line, marginTop: 8 }}>
         {kind === "arrow" && (
           <>
-            <DockColor label="Color" value={el.color} auto={s.arrows?.[el.style] || "#111827"} onChange={(c) => patch({ color: c }, "color")} testid="dock-color" />
+            <Pick label="Punta" testid="dock-pointer" value={el.pointer || (el.style === "line" ? "none" : "arrow")}
+              options={POINTERS.map((o) => ({ value: o.id, label: o.label, draw: headDraw(o.id) }))} onChange={(v) => patch({ pointer: v }, "pointer")} />
+            {!el.air && (
+              <Pick label="Trazado" testid="dock-trace" value={arrowTrace(el, !selected)}
+                options={TRACES.map((o) => ({ value: o.id, label: o.label, draw: traceDraw(o.id) }))} onChange={(v) => patch(tracePatch(el, v, !selected), "trace")} />
+            )}
+            <DockColor label="Color" value={el.color} auto={s.arrows?.[el.style] || s.arrows?.move || "#111827"} onChange={(c) => patch({ color: c }, "color")} testid="dock-color" />
             <Pick label="Grosor" testid="dock-width" value={[0.25, 0.4, 0.6, 0.9].reduce((a, b) => (Math.abs(b - (el.width ?? ARROW_W)) < Math.abs(a - (el.width ?? ARROW_W)) ? b : a))}
               options={[0.25, 0.4, 0.6, 0.9].map((w) => ({ value: w, label: `${w}`, draw: line(w * 4, null) }))} onChange={(w) => patch({ width: w }, "width")} />
             <Pick label="Trazo" testid="dock-dash" value={el.dash || (el.style === "move" ? "dashed" : "solid")}

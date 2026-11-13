@@ -131,8 +131,8 @@ const SIZE_OF = {
   goal: { label: "Ancho", min: 1, max: 12, step: 0.1, get: (e) => Number(e.w) || 7.32, key: "w", fmt: (v) => `${v.toFixed(1)} m` },
   text: { label: "Tamaño", min: 0.8, max: 10, step: 0.1, get: (e) => Number(e.size) || 3, key: "size", fmt: (v) => v.toFixed(1) },
 };
-const ARROW_KINDS = [{ id: "move", label: "Desplaz." }, { id: "pass", label: "Pase" }, { id: "dribble", label: "Conducción" }];
-const ARROW_KIND_PATCH = { move: { style: "move", dash: "dashed", wavy: false }, pass: { style: "pass", dash: "solid", wavy: false }, dribble: { style: "dribble", dash: "solid", wavy: true } };
+const ARROW_KINDS = [{ id: "move", label: "Desplaz." }, { id: "pass", label: "Pase" }, { id: "dribble", label: "Conducción" }, { id: "line", label: "Línea" }];
+const ARROW_KIND_PATCH = { move: { style: "move", dash: "dashed", wavy: false }, pass: { style: "pass", dash: "solid", wavy: false }, dribble: { style: "dribble", dash: "solid", wavy: true }, line: { style: "line", dash: "solid", wavy: false, pointer: "none" } };
 const same = (list, f) => (list.every((e) => f(e) === f(list[0])) ? f(list[0]) : null);
 
 function SameBlock({ els, onStyle, onMatch }) {
@@ -159,7 +159,7 @@ function SameBlock({ els, onStyle, onMatch }) {
               {head}
               <Row>
                 <Seg label="Tipo de flecha" value={kind} options={ARROW_KINDS} onChange={(v) => onStyle(k, ARROW_KIND_PATCH[v])} />
-                <Seg label="Punta" value={same(aps, (a) => a.pointer)} options={[{ id: "arrow", label: "Flecha" }, { id: "bar", label: "Barra" }, { id: "dot", label: "Punto" }, { id: "none", label: "Sin" }]} onChange={(v) => onStyle(k, { pointer: v })} />
+                <Seg label="Punta" value={same(aps, (a) => a.pointer)} options={[{ id: "arrow", label: "Flecha" }, { id: "bar", label: "Bloqueo" }, { id: "dot", label: "Punto" }, { id: "none", label: "Sin" }]} onChange={(v) => onStyle(k, { pointer: v })} />
               </Row>
               <Row>
                 <Seg label="Trazo" value={same(aps, (a) => a.dash)} options={DASHES.map((d) => ({ id: d.id, label: d.label }))} onChange={(v) => onStyle(k, { dash: v })} />

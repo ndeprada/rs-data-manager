@@ -1,6 +1,6 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { AIR_MAX, BALL_PATTERNS, CHIP_KINDS, CHIP_PATTERNS, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, LADDER_RUNGS, arrowPath, arrowProps, ballStyle, chipOf, chipStyle, contrastColor, defaultControl, firstBend, hasVia, ladderRungs, linkProps, materialOf, teamsOf, zoneShapePatch } from "@/lib/board";
+import { AIR_MAX, BALL_PATTERNS, CHIP_KINDS, CHIP_PATTERNS, DASHES, DEFAULT_CHIP, FONTS, GOAL_SIZES, LADDER_RUNGS, arrowPath, arrowProps, ballStyle, curveHandle, chipOf, chipStyle, contrastColor, defaultControl, firstBend, hasVia, ladderRungs, linkProps, materialOf, teamsOf, zoneShapePatch } from "@/lib/board";
 import { BallGlyph, ChipGlyph, styleOf } from "./BoardSvg";
 import { ColorPick, NO_FILL, Row, Seg, Slider, Toggle } from "./BoardControls";
 import BoardKitPicker from "./BoardKitPicker";
@@ -13,6 +13,7 @@ export const ARROW_TYPES = [
   { id: "pass", label: "Pase" },
   { id: "air", label: "Pase aéreo" },
   { id: "dribble", label: "Conducción" },
+  { id: "line", label: "Línea" },
 ];
 // Lo que define cada tipo de flecha (el resto de propiedades —grosor, color, borde…— se conserva al cambiar de tipo)
 export const ARROW_PRESETS = {
@@ -21,7 +22,21 @@ export const ARROW_PRESETS = {
   pass: { style: "pass", dash: "solid", wavy: false, air: false },
   air: { style: "pass", dash: "solid", wavy: false, air: true, lift: 6 },
   dribble: { style: "dribble", dash: "solid", wavy: true, air: false },
+  // línea sin tipo (13/11/2026, Nacho: «una flecha sin… desplazamiento, pase… pero que le pueda modificar la punta»)
+  line: { style: "line", dash: "solid", wavy: false, air: false, pointer: "none" },
 };
+// Trazado de una flecha (o de las que se dibujarán con la herramienta, `brush`) y el cambio para pasar a otro
+export const TRACES = [{ id: "straight", label: "Recta" }, { id: "curve", label: "Curva" }, { id: "smooth", label: "Curva libre" }, { id: "poly", label: "Quiebros" }];
+export const POINTERS = [{ id: "arrow", label: "Flecha" }, { id: "bar", label: "Bloqueo" }, { id: "dot", label: "Punto" }, { id: "none", label: "Sin punta" }];
+export const arrowTrace = (el, brush) => (brush ? (el.bends ? (el.smooth ? "smooth" : "poly") : el.curved ? "curve" : "straight") : arrowPath(el));
+export function tracePatch(el, v, brush) {
+  if (brush) return { curved: v === "curve", bends: v === "poly" || v === "smooth", smooth: v === "smooth" || undefined };
+  if (v === "straight") return { cx: undefined, cy: undefined, via: undefined, smooth: undefined };
+  if (v === "curve") return { ...(el.cx != null && !hasVia(el) ? { cx: el.cx, cy: el.cy } : defaultControl(el)), via: undefined, smooth: undefined };
+  // curva libre y quiebros: los mismos puntos (si venía de una curva, el primero sobre la curva para que no cambie de forma)
+  const via = hasVia(el) ? el.via : el.cx != null ? [curveHandle(el)] : [firstBend(el)];
+  return { cx: undefined, cy: undefined, via: via.map((q) => ({ x: Math.round(q.x * 10) / 10, y: Math.round(q.y * 10) / 10 })), smooth: v === "smooth" || undefined };
+}
 export const typeOfArrow = (a) => (a.air ? "air" : a.style || "move");
 
 export const KIND_LABEL = { token: "Ficha", ball: "Balón", cone: "Cono", goal: "Portería", pole: "Pica", hurdle: "Valla", ladder: "Escalera de coordinación", dummy: "Maniquí", arrow: "Flecha", zone: "Zona", link: "Conector entre fichas", text: "Texto" };
@@ -155,20 +170,15 @@ function MaterialBlock({ el, brush, patch, look }) {
 function ArrowBlock({ el, brush, patch, onType, look }) {
   const ap = arrowProps(el);
   const type = typeOfArrow(el);
-  const path = brush ? (el.bends ? "poly" : el.curved ? "curve" : "straight") : arrowPath(el);
-  const setPath = (v) => {
-    if (brush) return patch({ curved: v === "curve", bends: v === "poly" });
-    if (v === "straight") return patch({ cx: undefined, cy: undefined, via: undefined });
-    if (v === "curve") return patch({ ...defaultControl(el), via: undefined });
-    return patch({ cx: undefined, cy: undefined, via: hasVia(el) ? el.via : [firstBend(el)] });
-  };
+  const path = arrowTrace(el, brush);
+  const setPath = (v) => patch(tracePatch(el, v, brush), "trace");
   const auto = styleOf(look).arrows[el.style] || "#111827";
   return (
     <>
       <Row>
         <Seg label="Tipo de flecha" value={type} options={ARROW_TYPES} onChange={onType} />
-        {type !== "air" && <Seg label="Trazado" value={path} options={[{ id: "straight", label: "Recta" }, { id: "curve", label: "Curva" }, { id: "poly", label: "Quiebros" }]} onChange={setPath} />}
-        <Seg label="Punta" value={ap.pointer} options={[{ id: "arrow", label: "Flecha" }, { id: "bar", label: "Barra" }, { id: "dot", label: "Punto" }, { id: "none", label: "Sin punta" }]} onChange={(v) => patch({ pointer: v })} />
+        {type !== "air" && <Seg label="Trazado" value={path} options={TRACES} onChange={setPath} />}
+        <Seg label="Punta" value={ap.pointer} options={POINTERS} onChange={(v) => patch({ pointer: v })} />
       </Row>
       <Row>
         <Seg label="Trazo" value={ap.dash} options={LINE_OPTS} onChange={(v) => patch({ dash: v })} />
@@ -185,6 +195,7 @@ function ArrowBlock({ el, brush, patch, onType, look }) {
           </>
         )}
       </Row>
+      {path === "smooth" && type !== "air" && !brush && <p className="text-[11px] text-gray-500">La línea pasa en curva por los puntos naranjas: arrástralos para darle la forma; el «+» añade otro punto y doble clic sobre uno lo quita.</p>}
       {path === "poly" && type !== "air" && !brush && <p className="text-[11px] text-gray-500">Arrastra los puntos naranjas para mover cada quiebro; el «+» de cada tramo añade otro y doble clic sobre un quiebro lo quita.</p>}
       {path === "curve" && type !== "air" && !brush && <p className="text-[11px] text-gray-500">Arrastra el punto naranja para curvar la flecha.</p>}
       {type === "air" && !brush && <p className="text-[11px] text-gray-500">Arrastra el punto azul para subir o bajar el arco (y pasarlo al otro lado); la sombra gris marca por dónde va el balón en el suelo.</p>}

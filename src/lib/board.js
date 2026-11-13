@@ -404,7 +404,7 @@ export const isMovable = (el) => MOVABLE.has(el?.k);
 // los fotogramas siguientes hasta que se les dice «Desaparece desde este fotograma» (`removeElement(..., { fromHere: true })`).
 export const isCarried = (el) => isMovable(el) || el?.k === "link";
 // Claves de posición/forma: valen para su fotograma (así se anima de uno a otro); el resto (color, trazo, texto…) para todos.
-const GEOMETRY_KEYS = new Set(["x", "y", "x1", "y1", "x2", "y2", "a1", "a2", "cx", "cy", "via", "pts", "w", "h", "lift", "face", "rot", "path", "z", "shape"]);
+const GEOMETRY_KEYS = new Set(["x", "y", "x1", "y1", "x2", "y2", "a1", "a2", "cx", "cy", "via", "smooth", "pts", "w", "h", "lift", "face", "rot", "path", "z", "shape"]);
 export const isGeometryPatch = (patch) => Object.keys(patch || {}).some((k) => GEOMETRY_KEYS.has(k));
 // Lo que se puede unir con un conector: fichas, conos, balón, picas y maniquíes (puntos, no porterías ni escaleras)
 export const isLinkable = (el) => ["token", "cone", "ball", "pole", "dummy"].includes(el?.k);
@@ -683,9 +683,10 @@ function lerpShape(e, n, k) {
   if (e.k === "arrow") {
     const o = { ...base, x1: mix(e.x1, n.x1, k), y1: mix(e.y1, n.y1, k), x2: mix(e.x2, n.x2, k), y2: mix(e.y2, n.y2, k) };
     const ce = arrowPath(e), cn = arrowPath(n);
-    if (ce === "poly" || cn === "poly") {
+    if (ce === "smooth" || cn === "smooth") o.smooth = true;
+    if (ce === "poly" || cn === "poly" || ce === "smooth" || cn === "smooth") {
       // mismos quiebros: se mueven; si no, se reparte el recorrido de cada uno y se mezclan punto a punto
-      if (ce === cn && e.via.length === n.via.length) o.via = e.via.map((q, i) => mixPt(q, n.via[i], k));
+      if (hasVia(e) && hasVia(n) && e.via.length === n.via.length) o.via = e.via.map((q, i) => mixPt(q, n.via[i], k));
       else {
         const pe = arrowPoints(e, 12), pn = arrowPoints(n, 12);
         const at = (pts, i) => pts[Math.round((i / 12) * (pts.length - 1))];
@@ -1220,7 +1221,7 @@ export const arrowCorners = (a) => [{ x: a.x1, y: a.y1 }, ...(hasVia(a) ? a.via 
 export function insertVia(a, i, at = null) {
   const c = arrowCorners(a);
   const k = Math.max(0, Math.min(i, c.length - 2));
-  const p = at || { x: round((c[k].x + c[k + 1].x) / 2), y: round((c[k].y + c[k + 1].y) / 2) };
+  const p = at || (a.smooth ? smoothAt(a, k, 0.5) : { x: round((c[k].x + c[k + 1].x) / 2), y: round((c[k].y + c[k + 1].y) / 2) });
   const via = [...(a.via || [])];
   via.splice(k, 0, { x: round(p.x), y: round(p.y) });
   return { via, cx: undefined, cy: undefined };
@@ -1241,10 +1242,41 @@ export const curveHandle = (a) => (a.cx != null && a.cy != null
   ? { x: (a.x1 + 2 * a.cx + a.x2) / 4, y: (a.y1 + 2 * a.cy + a.y2) / 4 }
   : { x: (a.x1 + a.x2) / 2, y: (a.y1 + a.y2) / 2 });
 export const curveFromHandle = (a, p) => ({ cx: Math.round((2 * p.x - (a.x1 + a.x2) / 2) * 10) / 10, cy: Math.round((2 * p.y - (a.y1 + a.y2) / 2) * 10) / 10 });
-export const arrowPath = (a) => (hasVia(a) ? "poly" : a.cx != null && a.cy != null ? "curve" : "straight");
+export const arrowPath = (a) => (hasVia(a) ? (a.smooth ? "smooth" : "poly") : a.cx != null && a.cy != null ? "curve" : "straight");
+
+// «Curva libre» (13/11/2026, Nacho: «que realmente sea una curva… no que se deforme de forma recta»): los mismos puntos que los
+// quiebros (`via`) con `smooth: true`, pero la línea pasa por todos ellos en una curva suave (Catmull-Rom).
+const crPoint = (p0, p1, p2, p3, t) => {
+  const t2 = t * t, t3 = t2 * t;
+  const f = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+  return { x: f(p0.x, p1.x, p2.x, p3.x), y: f(p0.y, p1.y, p2.y, p3.y) };
+};
+// Punto de la curva libre en el tramo i (0 = del inicio al primer punto) a la fracción t
+export function smoothAt(a, i, t = 0.5) {
+  const c = arrowCorners(a);
+  const k = Math.max(0, Math.min(i, c.length - 2));
+  return crPoint(c[k - 1] || c[k], c[k], c[k + 1], c[k + 2] || c[k + 1], t);
+}
+// Punto medio de cada tramo, donde va el «+» para añadir otro punto (en la curva libre, sobre la propia curva)
+export function segmentMid(a, i) {
+  if (a.smooth) return smoothAt(a, i, 0.5);
+  const c = arrowCorners(a);
+  return { x: (c[i].x + c[i + 1].x) / 2, y: (c[i].y + c[i + 1].y) / 2 };
+}
 
 // Puntos de la línea de una flecha (recta, curva o con quiebros) para pintarla ondulada, discontinua, etc.
 export function arrowPoints(a, steps = 24) {
+  if (hasVia(a) && a.smooth) {
+    const c = arrowCorners(a);
+    const lens = c.slice(1).map((q, i) => Math.hypot(q.x - c[i].x, q.y - c[i].y));
+    const total = lens.reduce((s, l) => s + l, 0) || 1;
+    const out = [{ x: c[0].x, y: c[0].y }];
+    lens.forEach((l, j) => {
+      const n = Math.max(3, Math.round((steps * 1.5 * l) / total));
+      for (let i = 1; i <= n; i++) out.push(i === n ? { x: c[j + 1].x, y: c[j + 1].y } : smoothAt(a, j, i / n));
+    });
+    return out;
+  }
   if (hasVia(a)) {
     // cada tramo recto con pasos según su longitud; las esquinas quedan exactas
     const c = arrowCorners(a);
@@ -1331,7 +1363,8 @@ export function arrowProps(a) {
     width: a.width ?? ARROW_W,
     dash: a.dash ?? (a.style === "move" ? "dashed" : "solid"),
     wavy: a.wavy ?? a.style === "dribble",
-    pointer: a.pointer || "arrow",
+    // «Línea» (13/11/2026): sin punta salvo que se le ponga una
+    pointer: a.pointer || (a.style === "line" ? "none" : "arrow"),
     border: !!a.border,
     alpha: a.alpha ?? 1,
   };
@@ -2089,7 +2122,7 @@ export function handleSpec(el, { orient = "v", chip = 1.5, ghost = null, scale =
     // curva: un tirador sobre la propia flecha (también en una recta, para curvarla); quiebros: el «+» de cada tramo
     if (!el.air && !hasVia(el)) P("c", curveHandle(el), "ctrl");
     if (!el.air && !curved) {
-      if (hasVia(el)) corners.slice(0, -1).forEach((c, i) => P(`m${i}`, { x: (c.x + corners[i + 1].x) / 2, y: (c.y + corners[i + 1].y) / 2 }, "mid"));
+      if (hasVia(el)) corners.slice(0, -1).forEach((c, i) => P(`m${i}`, segmentMid(el, i), "mid"));
       else P("m0", { x: corners[0].x + (corners[1].x - corners[0].x) * 0.75, y: corners[0].y + (corners[1].y - corners[0].y) * 0.75 }, "mid");
     }
     corners.slice(1, -1).forEach((c, i) => P(`v${i}`, c, "via"));

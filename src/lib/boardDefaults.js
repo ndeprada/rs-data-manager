@@ -7,7 +7,7 @@ import { teamsOf } from "./board.js";
 
 export const DEFAULT_KEYS = ["bends", "curved", "shape", "color", "color2", "pattern", "size", "w", "rungs", "width", "dash", "wavy", "border", "borderColor", "pointer", "fill", "fillOpacity", "stroke", "strokeWidth", "font", "bold", "lift", "bg", "bgOpacity", "alpha", "edge", "innerFs", "topFs", "labelFs", "fnFs", "fnPos", "fnColor", "innerFont", "innerBold", "innerColor", "innerHalo", "labelFont", "labelBold", "labelColor", "labelHalo"];
 export const TEAM_KEYS = ["color", "pattern", "color2", "stroke", "kit", "trim", "edge"];
-const TOOLS = new Set(["ball", "cone", "goal", "pole", "hurdle", "ladder", "dummy", "text", "zone", "quad", "move", "pass", "air", "dribble", "link"]);
+const TOOLS = new Set(["ball", "cone", "goal", "pole", "hurdle", "ladder", "dummy", "text", "zone", "quad", "move", "pass", "air", "dribble", "line", "link"]);
 
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 const pick = (o, keys) => Object.fromEntries(Object.entries(o || {}).filter(([k, v]) => keys.includes(k) && v !== undefined && v !== null && (typeof v !== "object")));
