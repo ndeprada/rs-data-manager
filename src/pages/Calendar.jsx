@@ -1,710 +1,447 @@
-import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+// Calendario del club (rediseño del 13/11/2026, maqueta «Maqueta Calendario · RS Manager» aprobada por Nacho):
+// resumen de la semana, filtros en una franja (qué se ve, etapa, campo y varios equipos), mes con cada partido a la vista,
+// panel del día a la derecha y, en el móvil, la semana por días. Cálculos puros en src/lib/calendarView.js.
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, ChevronLeft, ChevronRight, Pencil, Trash2, MapPin, Users, ClipboardList, FileText, Home as HomeIcon, Plane as PlaneIcon } from "lucide-react";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, addDays, addWeeks } from "date-fns";
+import { ChevronLeft, ChevronRight, Pencil, Trash2, MapPin, Users, ClipboardList, FileText, Home as HomeIcon, Plane as PlaneIcon, ChevronDown, Plus } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import EventAttendanceDialog from "@/components/calendar/EventAttendanceDialog";
 import ConvocatoriaDialog from "@/components/calendar/ConvocatoriaDialog";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
-import EventWeather from "@/components/EventWeather";
-import MatchResultPill, { resultOf } from "@/components/calendar/MatchResultPill";
-import { sortTeams } from "@/lib/teamOrder";
-import { isCancelled, cancelText } from "@/lib/eventCancel";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import BulkCancelButton from "@/components/myteam/BulkCancelButton";
 import SessionReportDialog from "@/components/calendar/SessionReportDialog";
 import EventListWithDragDrop from "@/components/calendar/EventListWithDragDrop";
 import WeeklyCalendar from "@/components/calendar/WeeklyCalendar";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, startOfDay, addDays } from "date-fns";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { useToast } from "@/components/ui/use-toast";
-import { notifyTeamPush, pushResultText } from "@/lib/notifyTeam";
-
-import { PageTitle } from "@/components/common/PageHeader";
 import CalendarSubscribe from "@/components/calendar/CalendarSubscribe";
+import EventWeather from "@/components/EventWeather";
+import MatchResultPill, { resultOf } from "@/components/calendar/MatchResultPill";
+import { Page, RS } from "@/components/rs2/kit";
+import { WIN, LOSS } from "@/components/rs2/dashParts";
+import { sortTeams } from "@/lib/teamOrder";
+import { teamPlaysF7 } from "@/lib/matchFormat";
+import { isCancelled, cancelText } from "@/lib/eventCancel";
+import { useMatchStatus } from "@/lib/matchStatus";
+import { useTeamAccess } from "@/lib/TeamAccessContext";
+import { CURRENT_SEASON } from "@/lib/staffRoles";
+import { eventKind, eventsOnDay, matchesCalFilters, EMPTY_CAL_FILTERS, KINDS, dayItems, weekSummary, fieldUse, placeOptions } from "@/lib/calendarView";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useT, useDateLocale, msg } from "@/i18n";
-const EVENT_TYPES = [
-  { value: "partido_amistoso", label: msg("Partido amistoso"), isMatch: true },
-  { value: "partido_liga", label: msg("Partido de liga"), isMatch: true },
-  { value: "torneo", label: msg("Torneo"), isMatch: true },
-  { value: "entrenamiento_fisico", label: msg("Entrenamiento físico"), isMatch: false },
-  { value: "entrenamiento", label: msg("Entrenamiento"), isMatch: false },
-  { value: "sesion_teorica", label: msg("Sesión teórica"), isMatch: false },
-  { value: "sesion_video", label: msg("Sesión de vídeo"), isMatch: false },
-  { value: "reunion_equipo", label: msg("Reunión de equipo"), isMatch: false },
-  { value: "reunion_jugador", label: msg("Reunión jugador"), isMatch: false },
-  { value: "reunion_capitanes", label: msg("Reunión de capitanes"), isMatch: false },
-  { value: "stage", label: msg("Stage"), isMatch: false },
-  { value: "concentracion", label: msg("Concentración"), isMatch: false },
-  { value: "cena_equipo", label: msg("Cena de equipo"), isMatch: false },
-  { value: "comida_equipo", label: msg("Comida de equipo"), isMatch: false },
-  { value: "evento_club", label: msg("Evento del club"), isMatch: false },
-];
 
-const isMatchType = (type) => EVENT_TYPES.find(t => t.value === type)?.isMatch;
-const getEventLabel = (type) => EVENT_TYPES.find(t => t.value === type)?.label || type;
+const EVENT_LABELS = {
+  partido_amistoso: msg("Partido amistoso"), partido_liga: msg("Partido de liga"), torneo: msg("Torneo"),
+  entrenamiento_fisico: msg("Entrenamiento físico"), entrenamiento: msg("Entrenamiento"), sesion_teorica: msg("Sesión teórica"), sesion_video: msg("Sesión de vídeo"),
+  reunion_equipo: msg("Reunión de equipo"), reunion_jugador: msg("Reunión jugador"), reunion_capitanes: msg("Reunión de capitanes"), stage: msg("Stage"),
+  concentracion: msg("Concentración"), cena_equipo: msg("Cena de equipo"), comida_equipo: msg("Comida de equipo"), evento_club: msg("Evento del club"),
+};
+const KIND_STYLE = {
+  match: { bg: "#FBEFEF", fg: RS.ink, bar: RS.granate },
+  training: { bg: "#FFF1E6", fg: "#8A3A00", bar: RS.naranja },
+  other: { bg: "#EEF2FF", fg: "#3730A3", bar: "#6366F1" },
+};
+const KIND_LABEL = { match: msg("Partidos"), training: msg("Entrenos"), other: msg("Otros") };
+const VIEW_KEY = "rs_cal_view";
+const FILTER_KEY = "rs_cal_filters";
+const chip = (bg, fg) => ({ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: bg, color: fg, whiteSpace: "nowrap", display: "inline-block" });
+const seasonLabel = (s) => String(s || "").replace(/^(\d{4})-\d{2}(\d{2})$/, "$1–$2");
+const hhmm = (d) => format(new Date(d), "HH:mm");
+const readFilters = () => {
+  try {
+    const f = JSON.parse(localStorage.getItem(FILTER_KEY) || "null");
+    if (!f) return EMPTY_CAL_FILTERS;
+    const kinds = Array.isArray(f.kinds) ? f.kinds.filter((k) => KINDS.includes(k)) : KINDS;
+    return { kinds: kinds.length ? kinds : KINDS, stage: ["all", "f7", "f11"].includes(f.stage) ? f.stage : "all", place: typeof f.place === "string" ? f.place : "all", teams: Array.isArray(f.teams) ? f.teams : [] };
+  } catch { return EMPTY_CAL_FILTERS; }
+};
 
-const emptyForm = { title: "", type: "entrenamiento", team_id: "", date: "", end_date: "", location: "", field_id: "", opponent: "", notes: "", is_recurring: false, recurrence_until: "", send_notification: false, notification_message: "" };
-
-// Tipos que pueden tener fecha fin multi-día
-const MULTIDAY_TYPES = ["torneo", "stage", "concentracion"];
+function Pill({ on, onClick, children, testId, title }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={on} data-testid={testId} title={title}
+      style={{ fontSize: 11, padding: "3px 9px", borderRadius: 999, border: "1px solid", background: on ? RS.granate : "#fff", color: on ? "#fff" : RS.ink2, borderColor: on ? RS.granate : RS.line, fontWeight: on ? 700 : 500, whiteSpace: "nowrap" }}>
+      {children}
+    </button>
+  );
+}
+function Segmented({ options, value, onChange, testPrefix, label }) {
+  const t = useT();
+  return (
+    <div role="group" aria-label={label} className="flex" style={{ gap: 3, background: RS.soft, borderRadius: 999, padding: 3 }}>
+      {options.map(([k, l]) => (
+        <button key={k} type="button" onClick={() => onChange(k)} aria-pressed={value === k} data-testid={`${testPrefix}-${k}`}
+          style={{ fontSize: 11, padding: "3px 10px", borderRadius: 999, border: 0, fontWeight: value === k ? 700 : 400, background: value === k ? "#fff" : "none", color: value === k ? RS.granate : RS.ink2, boxShadow: value === k ? "0 1px 2px rgba(0,0,0,.08)" : "none", whiteSpace: "nowrap" }}>{t(l)}</button>
+      ))}
+    </div>
+  );
+}
+const FilterLabel = ({ children }) => <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: RS.muted }}>{children}</span>;
 
 export default function Calendar() {
   const t = useT();
   const dfl = useDateLocale();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const { teamIds: myTeamIds = [] } = useTeamAccess();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [weekRef, setWeekRef] = useState(new Date());
   const [deleteId, setDeleteId] = useState(null);
   const [deleteSeriesId, setDeleteSeriesId] = useState(null);
-  const [editingEvent, setEditingEvent] = useState(null);
   const [editDialogEvent, setEditDialogEvent] = useState(null);
   const [createDay, setCreateDay] = useState(null);
-  const [form, setForm] = useState(emptyForm);
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [filterTeam, setFilterTeam] = useState("all");
+  const [selectedDay, setSelectedDay] = useState(() => new Date());
   const [convocatoriaEvent, setConvocatoriaEvent] = useState(null);
   const [attendanceEvent, setAttendanceEvent] = useState(null);
   const [sessionReportEvent, setSessionReportEvent] = useState(null);
-  const [coachName, setCoachName] = useState("");
-  const [viewMode, setViewMode] = useState("calendar"); // 'calendar', 'week', or 'list'
+  const coachName = "";
+  const [viewMode, setViewModeState] = useState(() => { try { return localStorage.getItem(VIEW_KEY) || "calendar"; } catch { return "calendar"; } });
+  const setViewMode = (v) => { setViewModeState(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* sin almacenamiento */ } };
+  const [f, setF] = useState(readFilters);
+  useEffect(() => { try { localStorage.setItem(FILTER_KEY, JSON.stringify(f)); } catch { /* sin almacenamiento */ } }, [f]);
+  const set = (patch) => setF((x) => ({ ...x, ...patch }));
 
-  const { data: events = [] } = useQuery({
-    queryKey: ["events"],
-    queryFn: () => base44.entities.Event.list("-date"),
-  });
+  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
+  const { data: teamsRaw = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
+  const { data: fields = [] } = useQuery({ queryKey: ["fields"], queryFn: () => base44.entities.Field.list() });
+  const { data: attendance = [] } = useQuery({ queryKey: ["attendance_all"], queryFn: () => base44.entities.TrainingAttendance.list() });
+  const { data: convocs = [] } = useQuery({ queryKey: ["convocatorias_all"], queryFn: () => base44.entities.Convocatoria.list() });
+  const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
+  const { data: injuries = [] } = useQuery({ queryKey: ["injuries_all"], queryFn: () => base44.entities.Injury.list(), retry: false });
+  const { pending } = useMatchStatus();
 
-  const { data: teams = [] } = useQuery({
-    queryKey: ["teams"],
-    queryFn: () => base44.entities.Team.list(),
-  });
+  const teams = useMemo(() => sortTeams(teamsRaw), [teamsRaw]);
+  const teamById = useMemo(() => new Map(teams.map((tm) => [tm.id, tm])), [teams]);
+  const fieldName = (id) => fields.find((x) => x.id === id)?.name || "";
+  const isF7 = (id) => { const tm = teamById.get(id); return tm ? teamPlaysF7(tm) : false; };
+  const attCount = useMemo(() => { const m = new Map(); for (const a of attendance) if (a.status) m.set(a.event_id, (m.get(a.event_id) || 0) + 1); return m; }, [attendance]);
+  const convBy = useMemo(() => new Map(convocs.map((c) => [c.event_id, c])), [convocs]);
+  const injuredByTeam = useMemo(() => {
+    const out = new Set(injuries.filter((i) => i.status !== "alta").map((i) => i.player_id));
+    const m = new Map();
+    for (const p of players) if (p.status !== "baja" && (p.status === "lesionado" || out.has(p.id))) m.set(p.team_id, (m.get(p.team_id) || 0) + 1);
+    return m;
+  }, [players, injuries]);
 
-  const { data: fields = [] } = useQuery({
-    queryKey: ["fields"],
-    queryFn: () => base44.entities.Field.list(),
-  });
+  const filtered = useMemo(() => events.filter((e) => matchesCalFilters(e, f, { isF7 })), [events, f, teamById]);  
+  const week = useMemo(() => weekSummary(filtered, { withAttendance: new Set(attCount.keys()), convByEvent: convBy, pending }), [filtered, attCount, convBy, pending]);
 
-  const buildDefaultNotificationMessage = (event) => {
-    const team = teams.find(t => t.id === event.team_id);
-    const eventDate = event.date ? format(new Date(event.date), "dd/MM/yyyy 'a las' HH:mm") : "";
-    const eventLabel = getEventLabel(event.type);
-    return `Se ha añadido un nuevo evento al calendario:\n\n📌 ${event.title}\n🏷️ Tipo: ${eventLabel}\n📅 Fecha: ${eventDate}${event.location ? `\n📍 Lugar: ${event.location}` : ""}${team ? `\n🛡️ Equipo: ${team.name}` : ""}${event.notes ? `\n📝 Notas: ${event.notes}` : ""}`;
-  };
-
-  // Aviso al móvil del equipo (notificación de la app). Antes iba por email, pero no hay servicio de email conectado.
-  const sendEventNotifications = async (event, customMessage) => {
-    if (!event.team_id) return;
-    const team = teams.find(t => t.id === event.team_id);
-    try {
-      const r = await notifyTeamPush({
-        teamId: event.team_id,
-        teamName: team?.name,
-        title: `📅 Nuevo evento: ${event.title}`,
-        body: customMessage || buildDefaultNotificationMessage(event),
-      });
-      toast({ title: t("Aviso enviado al equipo"), description: pushResultText(r, t) });
-    } catch (e) {
-      toast({ title: t("El evento se ha creado, pero no se pudo enviar el aviso"), description: e?.message || t("Inténtalo desde Avisos."), variant: "destructive" });
-    }
-  };
-
-  const createRecurringEvents = async (baseData) => {
-    const { is_recurring, recurrence_until, ...eventData } = baseData;
-    const fmt = (d) => format(d, "yyyy-MM-dd'T'HH:mm");
-    const baseDate = new Date(eventData.date);
-    const baseEnd = eventData.end_date ? new Date(eventData.end_date) : null;
-    const durationMs = baseEnd && baseEnd > baseDate ? baseEnd - baseDate : 90 * 60000;
-    const untilDate = new Date(recurrence_until);
-    untilDate.setHours(23, 59, 59);
-    const seriesId = `series_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const items = [];
-    let current = new Date(baseDate);
-    while (current <= untilDate) {
-      // Cada ocurrencia lleva su propia fecha de fin (misma duración) y hora local, sin desfase UTC
-      items.push({ ...eventData, date: fmt(current), end_date: fmt(new Date(current.getTime() + durationMs)), series_id: seriesId });
-      current = new Date(current.getFullYear(), current.getMonth(), current.getDate() + 7, current.getHours(), current.getMinutes());
-    }
-    const created = [];
-    for (let i = 0; i < items.length; i += 10) {
-      created.push(...(await Promise.all(items.slice(i, i + 10).map((it) => base44.entities.Event.create(it)))));
-    }
-    return created;
-  };
-
-  const createMutation = useMutation({
-    mutationFn: (data) => {
-      if (data.is_recurring) return createRecurringEvents(data);
-      const { is_recurring, recurrence_until, ...eventData } = data;
-      return base44.entities.Event.create(eventData);
-    },
-    onSuccess: async (result, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["events"] });
-      const notifMessage = variables.notification_message;
-      const doSend = variables.send_notification;
-      closeDialog();
-      const createdEvent = Array.isArray(result) ? result[0] : result;
-      if (createdEvent && doSend) {
-        sendEventNotifications({ ...createdEvent }, notifMessage || null);
-      }
-    },
-  });
+  const monthStart = startOfMonth(currentMonth);
+  const days = eachDayOfInterval({ start: startOfWeek(monthStart, { weekStartsOn: 1 }), end: endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 }) });
+  const monthEvents = useMemo(() => events.filter((e) => isSameMonth(new Date(e.date), currentMonth) && matchesCalFilters(e, { ...f, place: "all" }, { isF7 })), [events, currentMonth, f, teamById]);  
+  const places = placeOptions(monthEvents, fieldName);
+  const today = new Date();
+  const singleTeam = f.teams.length === 1 ? f.teams[0] : null;
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Event.update(id, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["events"] }); closeDialog(); },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["events"] }),
   });
-
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Event.delete(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["events"] }); setDeleteId(null); },
     onError: () => { queryClient.invalidateQueries({ queryKey: ["events"] }); setDeleteId(null); },
   });
-
   const deleteSeriesMutation = useMutation({
-    mutationFn: async (seriesId) => {
-      const seriesEvents = events.filter(e => e.series_id === seriesId);
-      return Promise.all(seriesEvents.map(e => base44.entities.Event.delete(e.id)));
-    },
+    mutationFn: async (seriesId) => Promise.all(events.filter((e) => e.series_id === seriesId).map((e) => base44.entities.Event.delete(e.id))),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["events"] }); setDeleteSeriesId(null); },
   });
+  const handleDragEnd = ({ destination, source, draggableId }) => {
+    if (!destination || source.droppableId === destination.droppableId) return;
+    const event = events.find((e) => e.id === draggableId);
+    if (!event) return;
+    const [y, m, d] = destination.droppableId.split("-");
+    const cur = new Date(event.date);
+    const nd = new Date(y, parseInt(m) - 1, parseInt(d), cur.getHours(), cur.getMinutes());
+    updateMutation.mutate({ id: event.id, data: { date: format(nd, "yyyy-MM-dd'T'HH:mm") } });
+  };
+  const openMatch = (e) => navigate(`/MatchDetail?id=${e.id}&teamId=${e.team_id}`);
+  const teamShort = (e) => teamById.get(e.team_id)?.name || t("Club");
 
-  const handleDragEnd = (result) => {
-    const { source, destination, draggableId } = result;
-    if (!destination) return;
+  // ── Una línea del mes ─────────────────────────────────────────
+  const monthItem = (it, i) => {
+    if (it.group) {
+      return (
+        <button key={`g${i}`} type="button" onClick={(ev) => { ev.stopPropagation(); setSelectedDay(new Date(it.date)); }}
+          style={{ ...line, background: KIND_STYLE.training.bg, color: KIND_STYLE.training.fg }} data-testid="cal-group">
+          <b>{hhmm(it.date)}</b> {t("{n} entrenos", { n: it.n })}
+        </button>
+      );
+    }
+    const e = it.event, kind = eventKind(e), st = KIND_STYLE[kind];
+    const { rs, result } = resultOf(e);
+    const cancelled = isCancelled(e);
+    return (
+      <button key={e.id} type="button" title={[teamShort(e), e.opponent ? t("vs {v}", { v: e.opponent }) : e.title, cancelled ? cancelText(e, t) : ""].filter(Boolean).join(" · ")}
+        onClick={(ev) => { ev.stopPropagation(); if (kind === "match") openMatch(e); else setSelectedDay(new Date(e.date)); }}
+        data-testid={`cal-item-${e.id}`}
+        style={{ ...line, background: cancelled ? RS.lineSoft : st.bg, color: cancelled ? RS.faint : st.fg, borderLeft: kind === "match" ? `3px solid ${cancelled ? RS.faint : st.bar}` : 0, textDecoration: cancelled ? "line-through" : "none" }}>
+        <b>{hhmm(e.date)}</b>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0, textAlign: "left" }}>{kind === "match" ? teamShort(e) : (e.team_id && kind === "training" ? teamShort(e) : e.title)}</span>
+        {rs && <span style={{ color: rs.solid, fontWeight: 800 }} aria-hidden="true">{result === "victoria" ? "✓" : result === "derrota" ? "✕" : "–"}</span>}
+      </button>
+    );
+  };
+  const line = { display: "flex", alignItems: "center", gap: 4, width: "100%", fontSize: 10, padding: "2px 5px", borderRadius: 5, whiteSpace: "nowrap", overflow: "hidden", border: 0, lineHeight: 1.35 };
 
-    const sourceDate = source.droppableId;
-    const destDate = destination.droppableId;
-
-    if (sourceDate !== destDate) {
-      const event = events.find(e => e.id === draggableId);
-      if (event) {
-        const [year, month, day] = destDate.split('-');
-        const currentTime = new Date(event.date);
-        const newDate = new Date(year, parseInt(month) - 1, parseInt(day), currentTime.getHours(), currentTime.getMinutes());
-        
-        updateMutation.mutate({
-          id: event.id,
-          data: { date: newDate.toISOString() }
-        });
+  // ── Una fila del panel del día ────────────────────────────────
+  const statusChips = (e) => {
+    const kind = eventKind(e);
+    const past = new Date(e.date) < today;
+    const out = [];
+    if (isCancelled(e)) return [<span key="c" style={chip(RS.lineSoft, RS.ink2)}>{cancelText(e, t)}</span>];
+    if (kind === "match") {
+      if (pending.has(e.id)) out.push(<button key="p" type="button" onClick={() => openMatch(e)} style={{ ...chip("#FEF3C7", "#92400E"), border: 0 }}>{t("Por cerrar")}</button>);
+      if (!past) {
+        const n = convBy.get(e.id)?.player_ids?.length || 0;
+        out.push(n
+          ? <button key="cv" type="button" onClick={() => setConvocatoriaEvent(e)} style={{ ...chip("#DCFCE7", WIN), border: 0 }}>{t("Convocatoria · {n}", { n })}</button>
+          : <button key="cv" type="button" onClick={() => setConvocatoriaEvent(e)} style={{ ...chip("#FEF3C7", "#92400E"), border: 0 }} data-testid={`cal-noconv-${e.id}`}>{t("Sin convocatoria")}</button>);
+        const inj = injuredByTeam.get(e.team_id) || 0;
+        if (inj) out.push(<span key="i" style={chip("#FEE2E2", LOSS)}>{inj === 1 ? t("1 lesionado") : t("{n} lesionados", { n: inj })}</span>);
       }
+    } else if (kind === "training" && past) {
+      const n = attCount.get(e.id) || 0;
+      out.push(n
+        ? <button key="a" type="button" onClick={() => setAttendanceEvent(e)} style={{ ...chip("#DCFCE7", WIN), border: 0 }}>{t("Lista pasada · {n}", { n })}</button>
+        : <button key="a" type="button" onClick={() => setAttendanceEvent(e)} style={{ ...chip("#FEF3C7", "#92400E"), border: 0 }} data-testid={`cal-nolist-${e.id}`}>{t("Pasar lista")}</button>);
     }
+    return out;
   };
-
-  const closeDialog = () => { setDialogOpen(false); setEditingEvent(null); setForm(emptyForm); };
-
-  const openNewEvent = (day) => {
-    setCreateDay(day);
-  };
-
-  // Genera el mensaje de notificación por defecto cuando cambian campos relevantes
-  const refreshDefaultMessage = (updatedForm) => {
-    if (!updatedForm.send_notification) return updatedForm;
-    const fakeEvent = {
-      title: updatedForm.title || t("(sin título)"),
-      type: updatedForm.type,
-      date: updatedForm.date,
-      location: updatedForm.location,
-      notes: updatedForm.notes,
-      team_id: updatedForm.team_id,
-    };
-    const msg = buildDefaultNotificationMessage(fakeEvent);
-    return { ...updatedForm, notification_message: msg };
-  };
-
-  // Editar un evento (y, si es de una serie, ampliar o acortar sus fechas) con el editor completo
-  const openEdit = (event) => setEditDialogEvent(event);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (editingEvent) {
-      updateMutation.mutate({ id: editingEvent.id, data: form });
-    } else {
-      createMutation.mutate(form);
-    }
-  };
-
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
-  const days = eachDayOfInterval({ start: calStart, end: calEnd });
-
-  const filteredEvents = filterTeam === "all" ? events : events.filter((e) => e.team_id === filterTeam);
-  const getEventsForDay = (day) => filteredEvents.filter((e) => {
-    const start = new Date(e.date);
-    const end = e.end_date && new Date(e.end_date) >= start ? new Date(e.end_date) : start;
-    const dayStart = startOfDay(day);
-    const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000 - 1);
-    return start <= dayEnd && end >= dayStart;
-  });
-  const today = new Date();
-  const dayEvents = selectedDay ? getEventsForDay(selectedDay) : [];
-
-  return (
-    <div className="space-y-4">
-      <CreateEventDialog open={!!createDay} onOpenChange={(o) => { if (!o) setCreateDay(null); }} date={createDay} teams={sortTeams(teams)} />
-      <EditEventDialog open={!!editDialogEvent} onOpenChange={(o) => { if (!o) setEditDialogEvent(null); }} event={editDialogEvent} />
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <PageTitle kicker={t("Administración")} title={t("Calendario")} subtitle={t("Entrenamientos y partidos")} />
-        <div className="flex gap-2">
-          <Select value={filterTeam} onValueChange={setFilterTeam}>
-            <SelectTrigger className="w-40 h-8 text-sm border-gray-200 bg-white"><SelectValue placeholder={t("Equipo")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("Todos")}</SelectItem>
-              {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <div className="flex border border-gray-200 rounded p-0.5 bg-white">
-            <button onClick={() => setViewMode("calendar")} className={`px-2.5 py-1.5 text-xs font-bold rounded transition-colors ${viewMode === "calendar" ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700"}`} title={t("Mes")}>{t("Mes")}</button>
-            <button onClick={() => setViewMode("week")} className={`px-2.5 py-1.5 text-xs font-bold rounded transition-colors ${viewMode === "week" ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700"}`} title={t("Semana")}>{t("Semana")}</button>
-            <button onClick={() => setViewMode("list")} className={`px-2.5 py-1.5 text-xs font-bold rounded transition-colors ${viewMode === "list" ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700"}`} title={t("Lista")}>{t("Lista")}</button>
-          </div>
-          {filterTeam !== "all" && <CalendarSubscribe teamId={filterTeam} teamName={teams.find((t) => t.id === filterTeam)?.name} />}
-          <BulkCancelButton teamId={filterTeam !== "all" ? filterTeam : undefined} />
-          <Button variant="club" size="sm" onClick={() => openNewEvent(today)} className="h-8 text-xs">
-            <Plus className="w-3.5 h-3.5 mr-1" /> {t("Nuevo")}
-          </Button>
-        </div>
-      </div>
-
-      {/* List View with Drag-Drop */}
-      {viewMode === "list" && (
-        <EventListWithDragDrop
-          events={events}
-          teams={teams}
-          onDragEnd={handleDragEnd}
-          onEdit={openEdit}
-          onDelete={(id) => setDeleteId(id)}
-          onDeleteSeries={(sid) => setDeleteSeriesId(sid)}
-          onOpenAttendance={setAttendanceEvent}
-          onOpenSession={setSessionReportEvent}
-          onOpenConvocation={setConvocatoriaEvent}
-          onNavigateMatch={(id, teamId) => navigate(`/MatchDetail?id=${id}&teamId=${teamId}`)}
-          filterTeam={filterTeam}
-        />
-      )}
-
-      {/* Weekly View */}
-      {viewMode === "week" && (
-        <div className="space-y-6">
-          <WeeklyCalendar
-            events={filteredEvents}
-            teams={teams}
-            filterTeam={filterTeam}
-            onEventClick={(event) => {
-              if (isMatchType(event.type)) {
-                navigate(`/MatchDetail?id=${event.id}&teamId=${event.team_id}`);
-              }
-            }}
-            selectedDay={selectedDay}
-            onSelectDay={setSelectedDay}
-          />
-
-          {/* Selected Day Events */}
-          {selectedDay && (
-            <div className="bg-white border border-gray-200 overflow-hidden shadow-sm" style={{ borderRadius: "4px" }}>
-              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                <p className="font-bold text-sm text-gray-800 capitalize" style={{ fontFamily: "var(--font-display)" }}>
-                  {format(selectedDay, "EEEE d 'de' MMMM", { locale: dfl })}
-                </p>
-                <Button variant="club" size="sm" onClick={() => openNewEvent(selectedDay)} className="h-7 text-xs">
-                  <Plus className="w-3 h-3 mr-1" /> {t("Añadir")}
-                </Button>
-              </div>
-              {dayEvents.length === 0 ? (
-                <div className="py-6 text-center text-sm text-gray-300">{t("Sin eventos")}</div>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {dayEvents.map((event) => {
-                    const team = teams.find((t) => t.id === event.team_id);
-                    const isMatch = isMatchType(event.type);
-                    const showAttendance = attendanceEvent?.id === event.id;
-                    return (
-                      <div key={event.id}>
-                        <div className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer"
-                          onClick={() => { if (isMatch) navigate(`/MatchDetail?id=${event.id}&teamId=${event.team_id}`); }}>
-                          <div className="w-7 h-7 rounded flex items-center justify-center text-[10px] font-black text-white shrink-0"
-                            style={{ background: resultOf(event).rs?.solid || (isMatch ? "var(--granate)" : "var(--naranja)"), fontFamily: "var(--font-display)" }}>
-                            {t(getEventLabel(event.type)).slice(0, 2).toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-bold truncate ${isCancelled(event) ? "text-gray-400 line-through" : "text-gray-900"}`}>{event.title}{isCancelled(event) && <span className="ml-2 inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300">{cancelText(event, t)}</span>}</p>
-                            <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-400 mt-0.5">
-                              <span>{t(getEventLabel(event.type))}</span>
-                              {team && <span>· {team.name}</span>}
-                              {event.opponent && <span className="inline-flex items-center gap-1">· {event.is_home === true ? <HomeIcon className="w-3 h-3 text-green-600" /> : event.is_home === false ? <PlaneIcon className="w-3 h-3 text-sky-600" /> : null}{event.opponent_logo_url && <img src={event.opponent_logo_url} alt="" className="w-4 h-4 object-contain" referrerPolicy="no-referrer" />}{t("vs")} {event.opponent}</span>}
-                              {(event.location || event.field_id) && (
-                                <span className="flex items-center gap-0.5">
-                                  <MapPin className="w-2.5 h-2.5" />
-                                  {event.field_id ? fields.find(f => f.id === event.field_id)?.name || event.location : event.location}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <span className="shrink-0 flex flex-col items-end gap-0.5"><span className="text-xs font-bold text-gray-500">{format(new Date(event.date), "HH:mm")}</span><MatchResultPill event={event} size="sm" /><EventWeather event={event} rain size="sm" /></span>
-                          <div className="flex gap-0.5 shrink-0">
-                            <button onClick={e => { e.stopPropagation(); setAttendanceEvent(showAttendance ? null : event); }}
-                              className={`p-1 rounded transition-colors ${showAttendance ? "bg-green-100 text-green-700" : "hover:bg-green-50 text-gray-300 hover:text-green-600"}`} title={t("Asistencia")}>
-                              <ClipboardList className="w-3.5 h-3.5" />
-                            </button>
-                            {!isMatch && <button onClick={e => { e.stopPropagation(); setSessionReportEvent(event); }} className="p-1 rounded hover:bg-purple-50 text-gray-300 hover:text-purple-600" title={t("Informe")}><FileText className="w-3.5 h-3.5" /></button>}
-                            {isMatch && <button onClick={e => { e.stopPropagation(); setConvocatoriaEvent(event); }} className="p-1 rounded hover:bg-blue-50 text-gray-300 hover:text-blue-600" title={t("Convocatoria")}><Users className="w-3.5 h-3.5" /></button>}
-                            <button onClick={e => { e.stopPropagation(); openEdit(event); }} className="p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-600"><Pencil className="w-3.5 h-3.5" /></button>
-                            <button onClick={e => { e.stopPropagation(); setDeleteId(event.id); }} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                            {event.series_id && <button onClick={e => { e.stopPropagation(); setDeleteSeriesId(event.series_id); }} className="p-1 rounded hover:bg-red-100 text-gray-300 hover:text-red-600 text-[9px] font-black" style={{ fontFamily: "var(--font-display)" }}>{t("SERIE")}</button>}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+  const iconBtn = { padding: 4, borderRadius: 6, color: "#B8ACAD", background: "none", border: 0 };
+  const dayRow = (e) => {
+    const kind = eventKind(e), isMatch = kind === "match";
+    const place = e.field_id ? fieldName(e.field_id) || e.location : e.location;
+    return (
+      <div key={e.id} className="flex" style={{ gap: 10, padding: "8px 0", borderTop: `1px solid ${RS.lineSoft}` }} data-testid={`cal-day-row-${e.id}`}>
+        <span className="rs2-display tabular-nums" style={{ fontSize: 16, color: KIND_STYLE[kind].bar, width: 44, flex: "none" }}>{hhmm(e.date)}</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <button type="button" onClick={() => (isMatch ? openMatch(e) : setEditDialogEvent(e))} className="hover:underline" style={{ fontWeight: 700, fontSize: 13, color: isCancelled(e) ? RS.faint : RS.ink, textDecoration: isCancelled(e) ? "line-through" : undefined, background: "none", border: 0, padding: 0, textAlign: "left" }}>
+            {e.team_id ? teamShort(e) : e.title}
+          </button>
+          <span style={{ display: "block", fontSize: 12, color: RS.ink2 }}>
+            {isMatch && e.opponent ? `${t("vs {v}", { v: e.opponent })} · ` : e.team_id && !isMatch && e.title && e.title.toLowerCase() !== t(EVENT_LABELS[e.type] || e.type).toLowerCase() ? `${e.title} · ` : ""}{t(EVENT_LABELS[e.type] || e.type)}{e.fcf_jornada ? ` · ${t("J{n}", { n: e.fcf_jornada })}` : ""}
+          </span>
+          {place && (
+            <span className="flex items-center" style={{ gap: 5, fontSize: 11, color: RS.muted, marginTop: 2 }}>
+              {isMatch ? (e.is_home === false ? <PlaneIcon width={12} height={12} aria-label={t("Fuera")} /> : <HomeIcon width={12} height={12} aria-label={t("En casa")} />) : <MapPin width={12} height={12} aria-hidden="true" />}{place}
+            </span>
           )}
+          <span className="flex flex-wrap items-center" style={{ gap: 4, marginTop: 4 }}>
+            <MatchResultPill event={e} size="sm" />
+            {statusChips(e)}
+            <EventWeather event={e} rain size="sm" />
+          </span>
+        </span>
+        <span className="flex flex-col" style={{ gap: 0, flex: "none" }}>
+          <span className="flex">
+            <button type="button" onClick={() => setAttendanceEvent(e)} title={t("Asistencia")} aria-label={t("Asistencia")} style={iconBtn}><ClipboardList className="w-3.5 h-3.5" /></button>
+            {isMatch
+              ? <button type="button" onClick={() => setConvocatoriaEvent(e)} title={t("Convocatoria")} aria-label={t("Convocatoria")} style={iconBtn}><Users className="w-3.5 h-3.5" /></button>
+              : <button type="button" onClick={() => setSessionReportEvent(e)} title={t("Informe")} aria-label={t("Informe")} style={iconBtn}><FileText className="w-3.5 h-3.5" /></button>}
+          </span>
+          <span className="flex">
+            <button type="button" onClick={() => setEditDialogEvent(e)} title={t("Editar")} aria-label={t("Editar")} style={iconBtn} data-testid={`cal-edit-${e.id}`}><Pencil className="w-3.5 h-3.5" /></button>
+            <button type="button" onClick={() => setDeleteId(e.id)} title={t("Eliminar")} aria-label={t("Eliminar")} style={iconBtn}><Trash2 className="w-3.5 h-3.5" /></button>
+          </span>
+          {e.series_id && <button type="button" onClick={() => setDeleteSeriesId(e.series_id)} title={t("Eliminar toda la serie")} style={{ ...iconBtn, fontSize: 9, fontWeight: 800 }}>{t("SERIE")}</button>}
+        </span>
+      </div>
+    );
+  };
+  const dayPanel = (day, { compact = false } = {}) => {
+    const evs = eventsOnDay(filtered, day);
+    const nm = evs.filter((e) => eventKind(e) === "match" && !isCancelled(e)).length;
+    const nt = evs.filter((e) => eventKind(e) === "training" && !isCancelled(e)).length;
+    const use = fieldUse(evs, fieldName);
+    return (
+      <div data-testid="cal-day">
+        <div className="flex flex-wrap items-baseline" style={{ gap: 8 }}>
+          <span className="rs2-display" style={{ fontSize: compact ? 16 : 20, color: RS.granate, textTransform: "uppercase" }}>{format(day, "EEEE d", { locale: dfl })}</span>
+          <span style={{ fontSize: 12, color: RS.muted }}>{[nm ? (nm === 1 ? t("1 partido") : t("{n} partidos", { n: nm })) : null, nt ? (nt === 1 ? t("1 entreno") : t("{n} entrenos", { n: nt })) : null].filter(Boolean).join(" · ") || t("Sin eventos")}</span>
         </div>
+        {use.length > 0 && <div style={{ fontSize: 11, color: RS.muted, margin: "4px 0 2px" }} data-testid="cal-field-use">{use.map((u) => `${u.name}: ${u.n} (${u.times.join(" · ")})`).join(" — ")}</div>}
+        {evs.map(dayRow)}
+        <button type="button" onClick={() => setCreateDay(day)} data-testid="cal-add-day"
+          style={{ width: "100%", marginTop: 8, fontSize: 12, fontWeight: 700, padding: 7, borderRadius: 8, border: `1px dashed ${RS.line}`, background: "#fff", color: RS.granate }}>
+          + {t("Añadir evento el {d}", { d: format(day, "EEEE d", { locale: dfl }) })}
+        </button>
+      </div>
+    );
+  };
+
+  // ── Resumen de la semana ──────────────────────────────────────
+  const kpis = [
+    { k: "matches", n: week.matches, label: t("partidos esta semana"), sub: t("{a} en casa · {b} fuera", { a: week.home, b: week.away }), color: RS.granate },
+    { k: "trainings", n: week.trainings, label: t("entrenos esta semana"), sub: week.cancelled ? (week.cancelled === 1 ? t("1 suspendido") : t("{n} suspendidos", { n: week.cancelled })) : "", color: RS.ink2 },
+    { k: "lists", n: week.listsDue, label: t("listas por pasar"), sub: t("entrenos ya hechos"), color: week.listsDue ? "#B45309" : RS.ink2 },
+    { k: "conv", n: week.convDue, label: t("convocatorias por hacer"), sub: t("partidos de esta semana"), color: week.convDue ? "#B45309" : RS.ink2 },
+    { k: "close", n: week.toClose, label: t("partidos por cerrar"), sub: t("acta o minutos"), color: week.toClose ? LOSS : RS.ink2 },
+  ];
+
+  // ── Filtros ───────────────────────────────────────────────────
+  const toggleKind = (k) => setF((x) => { const has = x.kinds.includes(k); const kinds = has ? x.kinds.filter((y) => y !== k) : [...x.kinds, k]; return { ...x, kinds: kinds.length ? kinds : x.kinds }; });
+  const toggleTeam = (id) => setF((x) => ({ ...x, teams: x.teams.includes(id) ? x.teams.filter((y) => y !== id) : [...x.teams, id] }));
+  const mine = myTeamIds.filter((id) => teamById.has(id));
+  const isMine = mine.length > 0 && f.teams.length === mine.length && mine.every((id) => f.teams.includes(id));
+  const teamLabel = f.teams.length === 0 ? t("Todos ({n})", { n: teams.length }) : f.teams.length === 1 ? (teamById.get(f.teams[0])?.name || "1") : t("{n} equipos", { n: f.teams.length });
+  const filterBar = (
+    <div className="rs2-card flex flex-wrap items-center" style={{ gap: "8px 14px", padding: "8px 14px" }} data-testid="cal-filters">
+      <span className="flex flex-wrap items-center" style={{ gap: 6 }}><FilterLabel>{t("Ver")}</FilterLabel>{KINDS.map((k) => <Pill key={k} on={f.kinds.includes(k)} onClick={() => toggleKind(k)} testId={`cal-kind-${k}`}>{t(KIND_LABEL[k])}</Pill>)}</span>
+      <span className="flex flex-wrap items-center" style={{ gap: 6 }}><FilterLabel>{t("Etapa")}</FilterLabel>{[["all", t("Todos")], ["f11", t("Fútbol 11")], ["f7", t("Fútbol 7")]].map(([k, l]) => <Pill key={k} on={f.stage === k} onClick={() => set({ stage: k })} testId={`cal-stage-${k}`}>{l}</Pill>)}</span>
+      {(places.fields.length > 0 || places.away > 0 || f.place !== "all") && (
+        <span className="flex flex-wrap items-center" style={{ gap: 6 }}><FilterLabel>{t("Campo")}</FilterLabel>
+          <Pill on={f.place === "all"} onClick={() => set({ place: "all" })} testId="cal-place-all">{t("Todos")}</Pill>
+          {places.fields.map((p) => <Pill key={p.id} on={f.place === p.id} onClick={() => set({ place: p.id })} testId={`cal-place-${p.id}`}>{p.name} <span style={{ opacity: 0.6 }}>{p.n}</span></Pill>)}
+          {places.away > 0 && <Pill on={f.place === "away"} onClick={() => set({ place: "away" })} testId="cal-place-away">{t("Fuera")} <span style={{ opacity: 0.6 }}>{places.away}</span></Pill>}
+        </span>
       )}
-
-      {/* Calendar View */}
-      {viewMode === "calendar" && (
-        <div className="space-y-6">
-          <div className="bg-white border border-gray-200 overflow-hidden shadow-sm rounded-xl">
-            {/* Month nav */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/60">
-              <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-200 text-gray-500 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
-              <p className="text-base font-black capitalize tracking-wide" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
-                {format(currentMonth, "MMMM yyyy", { locale: dfl })}
-              </p>
-              <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-200 text-gray-500 transition-colors"><ChevronRight className="w-4 h-4" /></button>
+      <span className="flex flex-wrap items-center" style={{ gap: 6 }}><FilterLabel>{t("Equipos")}</FilterLabel>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" data-testid="cal-teams" style={{ fontSize: 12, padding: "4px 10px", borderRadius: 8, border: `1px solid ${RS.line}`, background: "#fff", color: RS.ink, display: "inline-flex", alignItems: "center", gap: 4 }}>{teamLabel}<ChevronDown width={13} height={13} aria-hidden="true" /></button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-64 p-3" data-testid="cal-teams-list">
+            <div className="flex" style={{ gap: 12, fontSize: 11, marginBottom: 6 }}>
+              <button type="button" onClick={() => set({ teams: [] })} style={{ fontWeight: 700, color: RS.granate }} data-testid="cal-teams-all">{t("Todos")}</button>
+              {mine.length > 0 && <button type="button" onClick={() => set({ teams: mine })} style={{ fontWeight: 700, color: RS.granate }}>{t("Mis equipos")}</button>}
             </div>
-
-            {/* Day headers */}
-            <div className="grid grid-cols-7 text-center border-b border-gray-100">
-              {Array.from({ length: 7 }, (_, i) => format(addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), i), "EEE", { locale: dfl }).replace(/\.$/, "")).map((d) => (
-                <div key={d} className="py-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400" style={{ fontFamily: "var(--font-display)" }}>{d}</div>
+            <div style={{ maxHeight: 320, overflowY: "auto" }}>
+              {teams.map((tm) => (
+                <label key={tm.id} className="flex items-center" style={{ gap: 7, fontSize: 12, padding: "3px 0", color: RS.ink, cursor: "pointer" }}>
+                  <input type="checkbox" checked={f.teams.length === 0 || f.teams.includes(tm.id)} onChange={() => (f.teams.length === 0 ? set({ teams: teams.filter((x) => x.id !== tm.id).map((x) => x.id) }) : toggleTeam(tm.id))} style={{ accentColor: RS.granate }} data-testid={`cal-team-${tm.id}`} />
+                  <span style={{ flex: 1, minWidth: 0 }} className="truncate">{tm.name}</span>
+                  <span style={{ fontSize: 10, color: RS.muted }}>{teamPlaysF7(tm) ? "F7" : "F11"}</span>
+                </label>
               ))}
             </div>
+          </PopoverContent>
+        </Popover>
+        {mine.length > 0 && <Pill on={isMine} onClick={() => set({ teams: isMine ? [] : mine })} testId="cal-mine">{t("Mis equipos")}</Pill>}
+      </span>
+    </div>
+  );
 
-            {/* Day cells */}
-            <div className="grid grid-cols-7 divide-x divide-y divide-gray-100">
-              {days.map((day, i) => {
-                const dayEvts = getEventsForDay(day);
-                const isToday = isSameDay(day, today);
-                const inMonth = isSameMonth(day, currentMonth);
-                const isSelected = selectedDay && isSameDay(day, selectedDay);
-                const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                return (
-                  <button key={i} onClick={() => setSelectedDay(day)}
-                    className={`p-1 text-left transition-colors min-h-[56px] flex flex-col gap-0.5 ${!inMonth ? "opacity-30" : ""} ${isSelected ? "bg-red-50" : isWeekend && inMonth ? "hover:bg-orange-50/60" : "hover:bg-gray-50"}`}
-                    style={!isSelected && isWeekend && inMonth ? { background: "#fff8f0" } : {}}>
-                    <span className={`text-[10px] font-bold inline-flex items-center justify-center w-5 h-5 rounded-full mb-0.5 ${isToday ? "text-white" : isSelected ? "text-white" : "text-gray-600"}`}
-                      style={isToday ? { background: "var(--granate)" } : isSelected ? { background: "var(--granate)", opacity: 0.7 } : {}}>
-                      {format(day, "d")}
-                    </span>
-                    {filterTeam === "all" ? (
-                      // Vista de todo el club: un resumen por día (si no, un fin de semana tiene decenas de partidos). Al pulsar se ve el detalle debajo.
-                      dayEvts.length > 0 && (() => {
-                        const nm = dayEvts.filter((e) => isMatchType(e.type)).length, nt = dayEvts.length - nm;
-                        const chip = "text-[10px] font-bold text-white rounded-full px-1.5 py-0.5 leading-tight w-fit sm:w-full sm:text-center";
-                        return (
-                          <div className="flex flex-col gap-0.5 w-full">
-                            {nm > 0 && <span className={chip} style={{ background: "var(--granate)" }}>{nm}<span className="hidden sm:inline"> {nm === 1 ? t("partido") : t("partidos")}</span></span>}
-                            {nt > 0 && <span className={chip} style={{ background: "var(--naranja)" }}>{nt}<span className="hidden sm:inline"> {nt === 1 ? t("entreno") : t("entrenos")}</span></span>}
-                          </div>
-                        );
-                      })()
-                    ) : (
-                      <>
-                        <div className="hidden sm:flex flex-col gap-0.5 w-full">
-                          {dayEvts.slice(0, 2).map((evt) => {
-                            const isMatch = isMatchType(evt.type);
-                            const { rs } = resultOf(evt); // partido jugado: el chip toma el color del resultado y enseña el marcador en vez de la hora
-                            const eventColor = rs ? rs.solid : isMatch ? "var(--granate)" : "var(--naranja)";
-                            return (
-                              <div key={evt.id}
-                                onClick={(e) => { e.stopPropagation(); isMatch ? navigate(`/MatchDetail?id=${evt.id}&teamId=${evt.team_id}`) : navigate(`/MyTeam/Attendance?eventId=${evt.id}`); }}
-                                className={`text-[9px] truncate px-1.5 py-0.5 rounded-full font-bold text-white hover:opacity-80 transition-opacity cursor-pointer leading-tight w-full ${isCancelled(evt) ? "line-through" : ""}`}
-                                title={isCancelled(evt) ? cancelText(evt, t) : undefined}
-                                style={{ background: isCancelled(evt) ? "#9ca3af" : eventColor }}>
-                                {rs ? <MatchResultPill event={evt} size="xs" onDark className="mr-0.5 align-middle" /> : <span className="opacity-80 mr-0.5">{format(new Date(evt.date), "HH:mm")}</span>}
-                                {isMatch && evt.is_home === true && <HomeIcon className="inline w-2.5 h-2.5 mr-0.5 -mt-0.5" />}{isMatch && evt.is_home === false && <PlaneIcon className="inline w-2.5 h-2.5 mr-0.5 -mt-0.5" />}{isMatch && evt.opponent_logo_url && <img src={evt.opponent_logo_url} alt="" className="inline w-3 h-3 object-contain bg-white rounded-full mr-0.5 -mt-0.5" referrerPolicy="no-referrer" />}{evt.title}
-                              </div>
-                            );
-                          })}
-                          {dayEvts.length > 2 && <p className="text-[9px] text-gray-500 px-0.5 font-medium">+{dayEvts.length - 2}</p>}
-                        </div>
-                        {/* En el móvil, puntos de color: no caben textos */}
-                        <div className="flex sm:hidden flex-wrap gap-0.5 px-0.5">
-                          {dayEvts.slice(0, 6).map((evt) => <span key={evt.id} className="w-2 h-2 rounded-full" style={{ background: resultOf(evt).rs?.solid || (isMatchType(evt.type) ? "var(--granate)" : "var(--naranja)") }} />)}
-                        </div>
-                      </>
-                    )}
-                  </button>
-                );
-              })}
+  // ── Mes (ordenador) ───────────────────────────────────────────
+  const MAX_LINES = 4;
+  const monthView = (
+    <section className="rs2-card" style={{ flex: "1 1 560px", minWidth: 0, overflow: "hidden", padding: 0 }} data-testid="cal-month">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
+        {Array.from({ length: 7 }, (_, i) => format(addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), i), "EEE", { locale: dfl }).replace(/\.$/, "")).map((d) => (
+          <div key={d} style={{ padding: "6px 8px", fontSize: 10, fontWeight: 700, letterSpacing: ".1em", color: RS.muted, textTransform: "uppercase", borderBottom: `1px solid ${RS.line}` }}>{d}</div>
+        ))}
+        {days.map((day) => {
+          const items = dayItems(eventsOnDay(filtered, day));
+          const inMonth = isSameMonth(day, currentMonth);
+          const sel = isSameDay(day, selectedDay);
+          const isToday = isSameDay(day, today);
+          const weekend = day.getDay() === 0 || day.getDay() === 6;
+          const more = items.length - MAX_LINES;
+          return (
+            <div key={day.toISOString()} role="button" tabIndex={0} onClick={() => setSelectedDay(day)} onKeyDown={(ev) => { if (ev.key === "Enter") setSelectedDay(day); }}
+              aria-label={format(day, "EEEE d MMMM", { locale: dfl })} aria-pressed={sel} data-testid={`cal-cell-${format(day, "yyyy-MM-dd")}`}
+              style={{ minHeight: 104, padding: "4px 5px", borderRight: `1px solid ${RS.lineSoft}`, borderBottom: `1px solid ${RS.lineSoft}`, background: sel ? "#FFF7F0" : weekend ? "#FCFAF9" : "#fff", boxShadow: sel ? `inset 0 0 0 2px ${RS.naranja}` : "none", display: "flex", flexDirection: "column", gap: 2, cursor: "pointer", opacity: inMonth ? 1 : 0.45, minWidth: 0 }}>
+              <span style={{ display: "inline-flex", width: 22, height: 22, borderRadius: 99, alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: isToday ? 700 : 500, background: isToday ? RS.granate : "none", color: isToday ? "#fff" : RS.ink }}>{format(day, "d")}</span>
+              {items.slice(0, more > 0 ? MAX_LINES - 1 : MAX_LINES).map(monthItem)}
+              {more > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: RS.muted, textDecoration: "underline" }}>{t("+{n} más", { n: more + 1 })}</span>}
             </div>
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap items-center" style={{ gap: 14, padding: "8px 14px", fontSize: 11, color: RS.muted, borderTop: `1px solid ${RS.lineSoft}` }}>
+        {["match", "training", "other"].map((k) => <span key={k} className="inline-flex items-center" style={{ gap: 4 }}><span style={{ width: 10, height: 10, background: KIND_STYLE[k].bg, borderLeft: k === "match" ? `3px solid ${KIND_STYLE.match.bar}` : 0 }} />{t(KIND_LABEL[k])}</span>)}
+        <span><b style={{ color: WIN }}>✓</b> {t("ganado")} · <b style={{ color: LOSS }}>✕</b> {t("perdido")} · <b style={{ color: "#B45309" }}>–</b> {t("empate")}</span>
+        <span style={{ marginLeft: "auto" }}>{t("{n} eventos este mes", { n: filtered.filter((e) => isSameMonth(new Date(e.date), currentMonth)).length })}</span>
+      </div>
+    </section>
+  );
 
-            {/* Legend inline */}
-            <div className="px-5 py-3 border-t border-gray-100 flex items-center gap-5 bg-gray-50/60">
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--granate)" }} /><span className="text-[10px] text-gray-500 font-medium">{t("Partido")}</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--naranja)" }} /><span className="text-[10px] text-gray-500 font-medium">{t("Entrenamiento / Evento")}</span></div>
-              <div className="ml-auto text-[10px] text-gray-400">{filteredEvents.length === 1 ? t("{n} evento", { n: 1 }) : t("{n} eventos", { n: filteredEvents.length })}</div>
-            </div>
+  // ── Móvil: la semana por días ─────────────────────────────────
+  const weekStart = startOfWeek(weekRef, { weekStartsOn: 1 });
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const mobileWeek = (
+    <div className="flex flex-col" style={{ gap: 10 }} data-testid="cal-mobile-week">
+      <div className="flex items-center" style={{ gap: 8 }}>
+        <button type="button" onClick={() => setWeekRef(addWeeks(weekRef, -1))} aria-label={t("Semana anterior")} style={{ width: 34, height: 34, borderRadius: 8, border: `1px solid ${RS.line}`, background: "#fff" }}><ChevronLeft className="w-4 h-4 mx-auto" /></button>
+        <span className="rs2-display" style={{ fontSize: 18, flex: 1, textAlign: "center", textTransform: "uppercase" }}>{format(weekStart, "d", { locale: dfl })} – {format(addDays(weekStart, 6), "d MMM", { locale: dfl })}</span>
+        <button type="button" onClick={() => setWeekRef(addWeeks(weekRef, 1))} aria-label={t("Semana siguiente")} style={{ width: 34, height: 34, borderRadius: 8, border: `1px solid ${RS.line}`, background: "#fff" }}><ChevronRight className="w-4 h-4 mx-auto" /></button>
+      </div>
+      <div className="flex" style={{ gap: 5 }}>
+        {weekDays.map((d) => {
+          const evs = eventsOnDay(filtered, d).filter((e) => !isCancelled(e));
+          const hasMatch = evs.some((e) => eventKind(e) === "match");
+          const isToday = isSameDay(d, today), sel = isSameDay(d, selectedDay);
+          return (
+            <button key={d.toISOString()} type="button" onClick={() => { setSelectedDay(d); document.getElementById(`cal-m-${format(d, "yyyy-MM-dd")}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+              style={{ flex: 1, padding: "6px 0", borderRadius: 10, border: `1px solid ${sel ? RS.naranja : RS.line}`, background: isToday ? RS.granate : "#fff", color: isToday ? "#fff" : RS.ink, fontSize: 11, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+              <span style={{ opacity: 0.7, textTransform: "uppercase" }}>{format(d, "EEEEE", { locale: dfl })}</span>
+              <b style={{ fontSize: 14 }}>{format(d, "d")}</b>
+              <span style={{ width: 5, height: 5, borderRadius: 9, background: evs.length ? (hasMatch ? (isToday ? "#fff" : RS.granate) : RS.naranja) : "transparent" }} />
+            </button>
+          );
+        })}
+      </div>
+      {weekDays.map((d) => (eventsOnDay(filtered, d).length > 0 || isSameDay(d, selectedDay)) && (
+        <div key={d.toISOString()} id={`cal-m-${format(d, "yyyy-MM-dd")}`} className="rs2-card" style={{ padding: "10px 12px" }}>{dayPanel(d, { compact: true })}</div>
+      ))}
+    </div>
+  );
+
+  return (
+    <Page testId="calendar">
+      <CreateEventDialog open={!!createDay} onOpenChange={(o) => { if (!o) setCreateDay(null); }} date={createDay} teams={teams} />
+      <EditEventDialog open={!!editDialogEvent} onOpenChange={(o) => { if (!o) setEditDialogEvent(null); }} event={editDialogEvent} />
+      <div style={{ maxWidth: 1500, margin: "0 auto", padding: isMobile ? "12px 10px 24px" : "18px 22px 28px", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="flex flex-wrap items-end" style={{ gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: ".16em", color: RS.muted, textTransform: "uppercase" }}>{t("Club · Temporada {s}", { s: seasonLabel(CURRENT_SEASON) })}</div>
+            <h1 style={{ margin: "2px 0 0", lineHeight: 1 }}><span className="rs2-display" style={{ fontSize: isMobile ? 30 : 36, color: RS.granate }}>{t("CALENDARIO")}</span></h1>
           </div>
-
-          {/* Selected Day Events */}
-          {selectedDay && (
-            <div className="bg-white border border-gray-200 overflow-hidden shadow-sm" style={{ borderRadius: "4px" }}>
-              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                <p className="font-bold text-sm text-gray-800 capitalize" style={{ fontFamily: "var(--font-display)" }}>
-                  {format(selectedDay, "EEEE d 'de' MMMM", { locale: dfl })}
-                </p>
-                <Button variant="club" size="sm" onClick={() => openNewEvent(selectedDay)} className="h-7 text-xs">
-                  <Plus className="w-3 h-3 mr-1" /> {t("Añadir")}
-                </Button>
-              </div>
-              {dayEvents.length === 0 ? (
-                <div className="py-6 text-center text-sm text-gray-300">{t("Sin eventos")}</div>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {dayEvents.map((event) => {
-                    const team = teams.find((t) => t.id === event.team_id);
-                    const isMatch = isMatchType(event.type);
-                    const showAttendance = attendanceEvent?.id === event.id;
-                    return (
-                      <div key={event.id}>
-                        <div className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer"
-                          onClick={() => { if (isMatch) navigate(`/MatchDetail?id=${event.id}&teamId=${event.team_id}`); }}>
-                          <div className="w-7 h-7 rounded flex items-center justify-center text-[10px] font-black text-white shrink-0"
-                            style={{ background: resultOf(event).rs?.solid || (isMatch ? "var(--granate)" : "var(--naranja)"), fontFamily: "var(--font-display)" }}>
-                            {t(getEventLabel(event.type)).slice(0, 2).toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-bold truncate ${isCancelled(event) ? "text-gray-400 line-through" : "text-gray-900"}`}>{event.title}{isCancelled(event) && <span className="ml-2 inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-300">{cancelText(event, t)}</span>}</p>
-                            <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-400 mt-0.5">
-                              <span>{t(getEventLabel(event.type))}</span>
-                              {team && <span>· {team.name}</span>}
-                              {event.opponent && <span className="inline-flex items-center gap-1">· {event.is_home === true ? <HomeIcon className="w-3 h-3 text-green-600" /> : event.is_home === false ? <PlaneIcon className="w-3 h-3 text-sky-600" /> : null}{event.opponent_logo_url && <img src={event.opponent_logo_url} alt="" className="w-4 h-4 object-contain" referrerPolicy="no-referrer" />}{t("vs")} {event.opponent}</span>}
-                              {(event.location || event.field_id) && (
-                                <span className="flex items-center gap-0.5">
-                                  <MapPin className="w-2.5 h-2.5" />
-                                  {event.field_id ? fields.find(f => f.id === event.field_id)?.name || event.location : event.location}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <span className="shrink-0 flex flex-col items-end gap-0.5"><span className="text-xs font-bold text-gray-500">{format(new Date(event.date), "HH:mm")}</span><MatchResultPill event={event} size="sm" /><EventWeather event={event} rain size="sm" /></span>
-                          <div className="flex gap-0.5 shrink-0">
-                            <button onClick={e => { e.stopPropagation(); setAttendanceEvent(showAttendance ? null : event); }}
-                              className={`p-1 rounded transition-colors ${showAttendance ? "bg-green-100 text-green-700" : "hover:bg-green-50 text-gray-300 hover:text-green-600"}`} title={t("Asistencia")}>
-                              <ClipboardList className="w-3.5 h-3.5" />
-                            </button>
-                            {!isMatch && <button onClick={e => { e.stopPropagation(); setSessionReportEvent(event); }} className="p-1 rounded hover:bg-purple-50 text-gray-300 hover:text-purple-600" title={t("Informe")}><FileText className="w-3.5 h-3.5" /></button>}
-                            {isMatch && <button onClick={e => { e.stopPropagation(); setConvocatoriaEvent(event); }} className="p-1 rounded hover:bg-blue-50 text-gray-300 hover:text-blue-600" title={t("Convocatoria")}><Users className="w-3.5 h-3.5" /></button>}
-                            <button onClick={e => { e.stopPropagation(); openEdit(event); }} className="p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-600"><Pencil className="w-3.5 h-3.5" /></button>
-                            <button onClick={e => { e.stopPropagation(); setDeleteId(event.id); }} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                            {event.series_id && <button onClick={e => { e.stopPropagation(); setDeleteSeriesId(event.series_id); }} className="p-1 rounded hover:bg-red-100 text-gray-300 hover:text-red-600 text-[9px] font-black" style={{ fontFamily: "var(--font-display)" }}>{t("SERIE")}</button>}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+          {!isMobile && viewMode === "calendar" && (
+            <div className="flex items-center" style={{ gap: 8, marginLeft: 18, paddingBottom: 2 }}>
+              <button type="button" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} aria-label={t("Mes anterior")} data-testid="cal-prev" style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${RS.line}`, background: "#fff" }}><ChevronLeft className="w-4 h-4 mx-auto" /></button>
+              <span className="rs2-display" style={{ fontSize: 22, color: RS.ink, textTransform: "uppercase", minWidth: 190, textAlign: "center" }} data-testid="cal-month-label">{format(currentMonth, "MMMM yyyy", { locale: dfl })}</span>
+              <button type="button" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} aria-label={t("Mes siguiente")} data-testid="cal-next" style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${RS.line}`, background: "#fff" }}><ChevronRight className="w-4 h-4 mx-auto" /></button>
+              <button type="button" onClick={() => { setCurrentMonth(new Date()); setSelectedDay(new Date()); }} data-testid="cal-today" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 8, border: `1px solid ${RS.line}`, background: "#fff", color: RS.ink2 }}>{t("Hoy")}</button>
             </div>
           )}
+          <div className="flex flex-wrap items-center" style={{ marginLeft: "auto", gap: 8 }}>
+            {!isMobile && <Segmented options={[["calendar", msg("Mes")], ["week", msg("Semana")], ["list", msg("Lista")]]} value={viewMode} onChange={setViewMode} testPrefix="cal-view" label={t("Vista")} />}
+            {singleTeam && <CalendarSubscribe teamId={singleTeam} teamName={teamById.get(singleTeam)?.name} />}
+            <BulkCancelButton teamId={singleTeam || undefined} />
+            <button type="button" onClick={() => setCreateDay(selectedDay || today)} data-testid="cal-new"
+              style={{ fontSize: 13, fontWeight: 700, padding: "7px 14px", borderRadius: 8, border: 0, background: RS.granate, color: "#fff", display: "inline-flex", alignItems: "center", gap: 4 }}><Plus width={14} height={14} aria-hidden="true" />{t("Nuevo")}</button>
+          </div>
         </div>
-      )}
 
-      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
-        <DialogContent className="bg-white border-gray-200 max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-gray-900">{editingEvent ? t("Editar Evento") : t("Nuevo Evento")}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-gray-700">{t("Título *")}</Label>
-              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required className="border-gray-200" />
+        <div className="flex flex-wrap" style={{ gap: 8 }} data-testid="cal-kpis">
+          {kpis.map((k) => (
+            <div key={k.k} data-testid={`cal-kpi-${k.k}`} style={{ flex: isMobile ? "1 1 140px" : "1 1 150px", display: "flex", alignItems: "baseline", gap: 8, padding: "8px 12px", background: "#fff", border: `1px solid ${RS.line}`, borderRadius: 10 }}>
+              <span className="rs2-display tabular-nums" style={{ fontSize: 24, color: k.color }}>{k.n}</span>
+              <span style={{ fontSize: 12, color: RS.ink2, lineHeight: 1.15 }}>{k.label}{k.sub && <span style={{ display: "block", fontSize: 11, color: RS.muted }}>{k.sub}</span>}</span>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-gray-700">{t("Tipo *")}</Label>
-                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-                  <SelectTrigger className="border-gray-200"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {EVENT_TYPES.map(opt => <SelectItem key={opt.value} value={opt.value}>{t(opt.label)}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-gray-700">{t("Equipo *")}</Label>
-                <Select value={form.team_id} onValueChange={(v) => setForm({ ...form, team_id: v })}>
-                  <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Equipo")} /></SelectTrigger>
-                  <SelectContent>
-                    {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-gray-700">{t("Fecha y hora inicio *")}</Label>
-                <Input type="datetime-local" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required className="border-gray-200" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-gray-700">{t("Hora fin")}</Label>
-                <Input
-                  type={MULTIDAY_TYPES.includes(form.type) ? "datetime-local" : "time"}
-                  value={
-                    MULTIDAY_TYPES.includes(form.type)
-                      ? form.end_date
-                      : form.end_date
-                        ? form.end_date.includes("T") ? form.end_date.split("T")[1].slice(0, 5) : form.end_date
-                        : ""
-                  }
-                  onChange={(e) => {
-                    if (MULTIDAY_TYPES.includes(form.type)) {
-                      setForm({ ...form, end_date: e.target.value });
-                    } else {
-                      // Construye end_date con la misma fecha que date pero hora distinta
-                      const baseDate = form.date ? form.date.slice(0, 10) : "";
-                      setForm({ ...form, end_date: baseDate ? `${baseDate}T${e.target.value}` : e.target.value });
-                    }
-                  }}
-                  className="border-gray-200"
-                  placeholder={MULTIDAY_TYPES.includes(form.type) ? "" : "HH:mm"}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-gray-700">{t("Lugar / dirección")}</Label>
-                <Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="border-gray-200" placeholder={t("Opcional")} />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-gray-700">{t("Campo registrado")}</Label>
-                <Select value={form.field_id || "none"} onValueChange={v => setForm({ ...form, field_id: v === "none" ? "" : v })}>
-                  <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Sin campo asignado")} /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{t("Sin campo asignado")}</SelectItem>
-                    {fields.filter(f => f.available !== false).map(f => (
-                      <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {isMatchType(form.type) && (
-              <div className="space-y-2">
-                <Label className="text-gray-700">{t("Rival")}</Label>
-                <Input value={form.opponent} onChange={(e) => setForm({ ...form, opponent: e.target.value })} className="border-gray-200" />
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label className="text-gray-700">{t("Notas")}</Label>
-              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="border-gray-200" rows={3} />
-            </div>
+          ))}
+        </div>
 
-            {/* Notificación — solo en creación */}
-            {!editingEvent && (
-              <div className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50">
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    id="send_notification"
-                    checked={form.send_notification}
-                    onCheckedChange={(v) => {
-                      const updated = { ...form, send_notification: !!v };
-                      if (!!v && !form.notification_message) {
-                        const fakeEvent = {
-                          title: form.title || t("(sin título)"),
-                          type: form.type,
-                          date: form.date,
-                          location: form.location,
-                          notes: form.notes,
-                          team_id: form.team_id,
-                        };
-                        updated.notification_message = buildDefaultNotificationMessage(fakeEvent);
-                      }
-                      setForm(updated);
-                    }}
-                  />
-                  <Label htmlFor="send_notification" className="text-gray-700 cursor-pointer font-medium">
-                    {t("Avisar al equipo en el móvil (notificación de la app)")}
-                  </Label>
-                </div>
-                {form.send_notification && (
-                  <div className="space-y-2 pl-7">
-                    <Label className="text-gray-600 text-sm">{t("Mensaje del aviso")}</Label>
-                    <Textarea
-                      value={form.notification_message}
-                      onChange={(e) => setForm({ ...form, notification_message: e.target.value })}
-                      className="border-gray-200 text-sm"
-                      rows={5}
-                      placeholder={t("Escribe el mensaje que recibirán los miembros del equipo...")}
-                    />
-                    <p className="text-xs text-gray-400">{t("Les llegará a quienes tengan activados los avisos en la app (máx. 600 caracteres).")}</p>
-                  </div>
-                )}
-              </div>
-            )}
+        {filterBar}
 
-            {/* Recurrencia — solo en creación */}
-            {!editingEvent && (
-              <div className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50">
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    id="recurring"
-                    checked={form.is_recurring}
-                    onCheckedChange={(v) => setForm({ ...form, is_recurring: !!v })}
-                  />
-                  <Label htmlFor="recurring" className="text-gray-700 cursor-pointer font-medium">
-                    {t("Evento recurrente (semanal)")}
-                  </Label>
-                </div>
-                {form.is_recurring && (
-                  <div className="space-y-3 pl-7">
-                    <div className="space-y-1">
-                      <Label className="text-gray-600 text-sm">{t("Repetir cada semana hasta")}</Label>
-                      <Input
-                        type="date"
-                        value={form.recurrence_until}
-                        min={form.date ? form.date.slice(0, 10) : undefined}
-                        onChange={(e) => setForm({ ...form, recurrence_until: e.target.value })}
-                        required={form.is_recurring}
-                        className="border-gray-200"
-                      />
-                    </div>
-                    {form.date && form.recurrence_until && (
-                      <p className="text-xs text-gray-400">
-                        {(() => {
-                          const base = new Date(form.date);
-                          const until = new Date(form.recurrence_until);
-                          const weeks = Math.floor((until - base) / (7 * 24 * 3600 * 1000)) + 1;
-                          const dayName = format(base, "EEEE", { locale: dfl });
-                          return t("Se crearán {weeks} eventos, cada {day}, desde el {from} hasta el {to}.", { weeks, day: dayName, from: format(base, "d MMM", { locale: dfl }), to: format(until, "d MMM yyyy", { locale: dfl }) });
-                        })()}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={closeDialog}>{t("Cancelar")}</Button>
-              <Button variant="club" type="submit">{editingEvent ? t("Guardar") : t("Crear")}</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+        {isMobile ? mobileWeek : viewMode === "calendar" ? (
+          <div className="flex flex-wrap items-start" style={{ gap: 12 }}>
+            {monthView}
+            <aside className="rs2-card" style={{ flex: "0 0 300px", padding: "12px 14px", alignSelf: "flex-start" }}>{dayPanel(selectedDay)}</aside>
+          </div>
+        ) : viewMode === "week" ? (
+          <div className="flex flex-col" style={{ gap: 12 }}>
+            <WeeklyCalendar events={filtered} teams={teams} filterTeam="all" onEventClick={(e) => { if (eventKind(e) === "match") openMatch(e); else setSelectedDay(new Date(e.date)); }} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
+            <div className="rs2-card" style={{ padding: "12px 14px" }}>{dayPanel(selectedDay)}</div>
+          </div>
+        ) : (
+          <EventListWithDragDrop events={filtered} teams={teams} onDragEnd={handleDragEnd} onEdit={setEditDialogEvent} onDelete={(id) => setDeleteId(id)} onDeleteSeries={(sid) => setDeleteSeriesId(sid)}
+            onOpenAttendance={setAttendanceEvent} onOpenSession={setSessionReportEvent} onOpenConvocation={setConvocatoriaEvent} onNavigateMatch={(id, teamId) => navigate(`/MatchDetail?id=${id}&teamId=${teamId}`)} filterTeam="all" />
+        )}
+      </div>
 
       <EventAttendanceDialog
         event={attendanceEvent}
@@ -756,6 +493,6 @@ export default function Calendar() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Page>
   );
 }
