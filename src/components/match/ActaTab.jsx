@@ -88,7 +88,10 @@ function Timeline({ events, players, opponent, onRemove, onEdit, duration, total
       const assist = name(ev.assistId);
       return { main: scorer, sub: assist ? `${t("as.")} ${assist}` : "" };
     }
-    if (ev.type === "sub") return { main: `${name(ev.playerIn) || "—"} ↑`, sub: `${name(ev.playerOut) || "—"} ↓` };
+    if (ev.type === "sub") {
+      if (ev.team === "away") return { main: opponent || t("Rival"), sub: t("cambio") };
+      return { main: `${name(ev.playerIn) || "—"} ↑`, sub: `${name(ev.playerOut) || "—"} ↓` };
+    }
     if (ev.type === "card") {
       const who = name(ev.playerId) || (ev.team === "away" ? (opponent || t("Rival")) : "—");
       return { main: who, sub: ev.cardColor === "yellow" ? t("amarilla") : ev.cardColor === "yellow2" ? t("2ª amarilla") : t("roja") };
