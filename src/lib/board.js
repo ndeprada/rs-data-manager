@@ -1354,6 +1354,39 @@ export function arrowHeading(a, orient = "v") {
   return { ux: dx / len, uy: dy / len };
 }
 
+// Final de una flecha con punta (13/11/2026, Nacho: «si la flecha es pequeña, la línea sobresale de la punta… la cabeza queda
+// desplazada»): `pts` = la trayectoria ya en pantalla; `headLen` = largo de la punta y `trim` = cuánto se acorta la línea
+// antes de la punta. La punta mira de donde estaba la línea un largo de punta antes hasta el final (no solo el último
+// tramo), la línea se corta por la trayectoria (se quitan los puntos que caen debajo de la punta) y, si la flecha es más
+// corta que su punta, la punta se encoge (como mucho, el 55 % del largo de la flecha).
+export function arrowTip(pts, headLen, trim) {
+  const n = pts.length - 1;
+  let total = 0;
+  for (let i = 1; i <= n; i++) total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  const k = headLen > 0 && total > 0 ? Math.min(1, (total * 0.55) / headLen) : 1;
+  const hl = headLen * k, tr = trim * k;
+  // punto a una distancia `dist` del final, medida por la trayectoria, y el índice del primer punto que queda antes
+  const back = (dist) => {
+    let acc = 0;
+    for (let i = n; i > 0; i--) {
+      const a = pts[i], b = pts[i - 1];
+      const seg = Math.hypot(a.x - b.x, a.y - b.y);
+      if (acc + seg >= dist) { const f = seg ? (dist - acc) / seg : 0; return { p: { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f }, i: i - 1 }; }
+      acc += seg;
+    }
+    return { p: { ...pts[0] }, i: 0 };
+  };
+  const tip = pts[n];
+  const from = back(Math.max(hl, 1e-6)).p;
+  let ux = tip.x - from.x, uy = tip.y - from.y;
+  let dl = Math.hypot(ux, uy);
+  if (dl < 1e-9) { ux = tip.x - pts[Math.max(0, n - 1)].x; uy = tip.y - pts[Math.max(0, n - 1)].y; dl = Math.hypot(ux, uy) || 1; }
+  ux /= dl; uy /= dl;
+  let line = pts;
+  if (tr > 0) { const c = back(tr); line = [...pts.slice(0, c.i + 1), c.p]; }
+  return { ux, uy, headLen: hl, line, scale: k };
+}
+
 // Grosor, punta y trazo con sus valores por defecto (los dibujos antiguos no traen estos campos).
 // Grosor por defecto: 0,4 m (03/11/2026, Nacho: «las flechas aparecen demasiado grandes»; antes 0,55).
 export const ARROW_W = 0.4;

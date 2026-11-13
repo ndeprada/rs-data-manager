@@ -4,7 +4,7 @@ import { KitShirt } from "@/components/match/KitShirt";
 import { BIG_STAND, BS, cornerR, roundRect, rowSeats, seatHash, stairQuads, standRows } from "@/lib/stadiumGeo";
 import React from "react";
 import {
-  arrowCorners, segmentMid, curveHandle, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
+  arrowCorners, arrowTip, segmentMid, curveHandle, arrowFlight, arrowProps, arrowPoints, hasVia, ballStyle, chipOf, chipStyle, contrastColor, dashArray, faceOf, elementBounds, fieldTurn, unionBounds, fontOf, isQuad, ladderRungs, linkProps, linkShape,
   ballR, boardView, fieldKind, fieldOf, isGroundEl, isCutField, movePoints, pathMode, grassOf, grassRects, markLines, marksOf, marginOf, hasStands, hasAds, AD_PANELS, perspBoost, lookOf, lyingFlat, materialOf, orientAngle, paintOrder, teamsOf, textBgBox, toView, tokenR, chipTextScale, chipTextLook, chipLines, stackBaselines, viewBox, wavyPoints, zoneBox, labelBgOf, coneEdgeWidth,
   attachedView,
 } from "@/lib/board";
@@ -694,18 +694,21 @@ function Arrow({ el, ctx, selected, handles }) {
   const flight = revealPts(arrowFlight(el, orient).map(toV), el.reveal);
   if (flight.length < 2) return null;
   const n = flight.length - 1;
-  const dx = flight[n].x - flight[n - 1].x, dy = flight[n].y - flight[n - 1].y;
-  const dl = Math.hypot(dx, dy) || 1;
-  const ux = dx / dl, uy = dy / dl;
   // Punta (13/11/2026, Nacho: «la base de la punta… que sea recta, y más finita»): triángulo con la base recta y estrecho;
-  // la línea termina debajo de la punta. «Bloqueo» = rayita perpendicular al final.
-  const headLen = 1.0 + 1.5 * w;
-  const trim = ap.pointer === "none" || ap.pointer === "dot" ? 0 : ap.pointer === "bar" ? w * 0.5 : headLen * 0.92;
-  const line = flight.map((p, i) => (i === n ? { x: p.x - ux * trim, y: p.y - uy * trim } : p));
+  // la línea termina debajo de la punta. «Bloqueo» = rayita perpendicular al final. Con flechas cortas la punta se encoge y
+  // la línea se corta por la trayectoria para que no asome por la punta (`arrowTip`).
+  const headLen0 = 1.0 + 1.5 * w;
+  const trim0 = ap.pointer === "none" || ap.pointer === "dot" ? 0 : ap.pointer === "bar" ? w * 0.5 : headLen0 * 0.92;
+  const isHead = ap.pointer === "arrow";
+  const first = arrowTip(flight, isHead ? headLen0 : 0, trim0);
+  const headLen = isHead ? first.headLen : headLen0;
+  const half = Math.max(w * 0.85, headLen0 * 0.27 * first.scale);
+  // la línea (con su remate redondo) tiene que quedar entera debajo de la punta
+  const tipInfo = isHead ? arrowTip(flight, headLen, Math.min(headLen * 0.98, Math.max(headLen * 0.92, (headLen * w) / (2 * half) + w / 2))) : first;
+  const { ux, uy, line } = tipInfo;
   const d = pathOf(ap.wavy ? wavyPoints(line, 0.3 + w * 0.45, 2.4 + w * 0.6) : line);
   const end = flight[n];
   const hx = end.x, hy = end.y;
-  const half = Math.max(w * 0.85, headLen * 0.27);
   const headPts = `${hx},${hy} ${hx - ux * headLen - uy * half},${hy - uy * headLen + ux * half} ${hx - ux * headLen + uy * half},${hy - uy * headLen - ux * half}`;
   const barHalf = 0.7 + w * 1.2;
   const barPts = `${hx - uy * barHalf},${hy + ux * barHalf} ${hx + uy * barHalf},${hy - ux * barHalf}`;

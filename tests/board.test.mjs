@@ -1533,3 +1533,18 @@ test("flechas: curva libre pasa por sus puntos y la línea no lleva punta", asyn
   assert.equal(B.arrowProps({ style: "pass" }).pointer, "arrow");
   assert.ok(B.isGeometryPatch({ smooth: true }));
 });
+
+test("punta de flecha: en flechas cortas se encoge y la línea no asoma", async () => {
+  const B = await import("../src/lib/board.js");
+  const pts = Array.from({ length: 25 }, (_, i) => ({ x: i * 0.05, y: 0 })); // flecha de 1,2 m
+  const t = B.arrowTip(pts, 1.6, 1.47);
+  assert.ok(t.headLen <= 1.2 * 0.55 + 1e-9);
+  const last = t.line[t.line.length - 1];
+  assert.ok(Math.abs(1.2 - last.x - 1.47 * t.scale) < 1e-6, "la línea acaba a la distancia de corte");
+  assert.ok(t.line.every((p) => p.x <= last.x + 1e-9), "ningún punto queda debajo de la punta");
+  assert.ok(Math.abs(t.ux - 1) < 1e-9 && Math.abs(t.uy) < 1e-9);
+  // curva: la punta mira según el tramo final de un largo de punta, no solo el último pasito
+  const curve = B.arrowPoints({ x1: 0, y1: 0, x2: 10, y2: 0, cx: 5, cy: 8 }, 24);
+  const c = B.arrowTip(curve, 2, 1.8);
+  assert.ok(c.uy < 0 && c.ux > 0);
+});
