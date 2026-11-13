@@ -48,7 +48,7 @@ function CardTitle({ children, extra }) {
 // Va / No de cada jugador
 function VaNo({ on, onChange, testId }) {
   const t = useT();
-  const b = (active, bg) => ({ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: active ? bg : "transparent", color: active ? "#fff" : RS.muted });
+  const b = (active, bg) => ({ fontSize: 11.5, fontWeight: 700, padding: "1px 9px", lineHeight: "18px", borderRadius: 999, background: active ? bg : "transparent", color: active ? "#fff" : RS.muted });
   return (
     <span className="inline-flex shrink-0" style={{ background: RS.soft, borderRadius: 999, padding: 2 }} data-testid={testId} data-on={on ? "1" : "0"}>
       <button type="button" style={b(on, GREEN)} onClick={() => !on && onChange(true)} aria-pressed={on}>{t("Va")}</button>
@@ -65,7 +65,7 @@ function PlayerRow({ p, on, onToggle, reason, onReason, dots, pct, level, injury
   // Motivo de la no convocatoria: un desplegable en la propia fila (ocupa menos que los botones)
   const reasonPick = !on && (
     <Select value={reason || ""} onValueChange={(v) => onReason(v === "__none" ? "" : v)}>
-      <SelectTrigger className="h-7 text-xs shrink-0" style={{ width: mobile ? 118 : 140, borderColor: reason ? "#FCA5A5" : RS.line, background: reason ? "#FEF2F2" : "#fff", color: reason ? RED : RS.muted }} data-testid={`conv-reason-${p.id}`}>
+      <SelectTrigger className="h-6 text-xs shrink-0" style={{ width: mobile ? 118 : 140, borderColor: reason ? "#FCA5A5" : RS.line, background: reason ? "#FEF2F2" : "#fff", color: reason ? RED : RS.muted }} data-testid={`conv-reason-${p.id}`}>
         <SelectValue placeholder={t("Motivo…")} />
       </SelectTrigger>
       <SelectContent>
@@ -75,17 +75,17 @@ function PlayerRow({ p, on, onToggle, reason, onReason, dots, pct, level, injury
     </Select>
   );
   return (
-    <div className="flex flex-wrap items-center" style={{ gap: mobile ? "4px 6px" : 8, padding: "5px 8px", background: on ? "transparent" : "#FBF6F5", borderBottom: `1px solid ${RS.lineSoft}` }} data-testid={`conv-row-${p.id}`}>
+    <div className="flex flex-wrap items-center" style={{ gap: mobile ? "3px 6px" : 8, padding: mobile ? "3px 6px" : "2px 8px", minHeight: 28, background: on ? "transparent" : "#FBF6F5", borderBottom: `1px solid ${RS.lineSoft}` }} data-testid={`conv-row-${p.id}`}>
       {onDorsal && on ? (
         // invitado convocado: su dorsal se puede cambiar solo para este partido
         <input value={dorsalOf(p)} onChange={(e) => onDorsal(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))} inputMode="numeric" aria-label={t("Dorsal en este partido")}
           title={p.own_jersey_number != null ? t("Dorsal en este partido (en su ficha: {n})", { n: p.own_jersey_number || "–" }) : t("Dorsal en este partido")}
           className="rs2-display tabular-nums text-center shrink-0" data-testid={`conv-dorsal-${p.id}`}
-          style={{ width: 34, fontSize: 16, padding: "1px 2px", borderRadius: 6, color: clash ? RED : RS.granate, border: `1.5px solid ${clash ? "#FCA5A5" : RS.line}`, background: clash ? "#FEF2F2" : "#fff" }} />
+          style={{ width: 32, fontSize: 15, lineHeight: 1.1, padding: "0 2px", borderRadius: 6, color: clash ? RED : RS.granate, border: `1.5px solid ${clash ? "#FCA5A5" : RS.line}`, background: clash ? "#FEF2F2" : "#fff" }} />
       ) : (
-        <span className="rs2-display tabular-nums text-right shrink-0" style={{ width: 22, fontSize: 17, color: clash && on ? RED : on ? RS.granate : RS.faint }}>{dorsalOf(p) || "•"}</span>
+        <span className="rs2-display tabular-nums text-right shrink-0" style={{ width: 22, fontSize: 15, lineHeight: 1, color: clash && on ? RED : on ? RS.granate : RS.faint }}>{dorsalOf(p) || "•"}</span>
       )}
-      <span className="min-w-0 flex-1 truncate" style={{ fontSize: 13.5, color: on ? RS.ink : RS.muted }}>
+      <span className="min-w-0 flex-1 truncate" style={{ fontSize: 13, lineHeight: "18px", color: on ? RS.ink : RS.muted }}>
         <b style={{ fontWeight: 700 }}>{playerFullName(p)}</b> <span style={{ color: RS.faint, fontSize: 12 }}>{POS[p.position] ? t(POS[p.position]) : ""}</span>
         {injured && <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "#FEE2E2", color: RED }}>{t("Lesión")}</span>}
         {injury?.expected_return && !mobile && <span style={{ marginLeft: 6, fontSize: 11, color: RS.faint }}>{t("vuelve {d}", { d: format(new Date(injury.expected_return), "d MMM", { locale: fmt }) })}</span>}
@@ -270,9 +270,11 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
   const smallBtn = { fontSize: 12.5, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: `1px solid ${RS.line}`, background: "#fff", color: RS.ink, display: "inline-flex", alignItems: "center", gap: 5 };
 
   const renderGroup = ({ group, players: list }) => (
-    <div key={group} style={{ marginBottom: 10 }}>
-      <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase", color: RS.muted, padding: "2px 8px 4px" }}>
-        {t(group)} <span style={{ color: RS.ink2 }}>{t("{a} de {b}", { a: list.filter((p) => convocadoIds.includes(p.id)).length, b: list.length })}</span>
+    <div key={group} style={{ marginBottom: 12 }} data-testid="conv-group">
+      {/* título de cada línea: raya naranja + nombre en oscuro, como los títulos de las tarjetas */}
+      <div className="flex items-center" style={{ gap: 8, padding: "5px 8px", background: RS.soft, borderLeft: `3px solid ${RS.naranja}`, borderRadius: "0 6px 6px 0", marginBottom: 2 }}>
+        <span className="rs2-display" style={{ fontSize: 15, letterSpacing: ".02em", textTransform: "uppercase", color: RS.granateDark }}>{t(group)}</span>
+        <span className="tabular-nums" style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 700, color: RS.ink2 }}>{t("{a} de {b}", { a: list.filter((p) => convocadoIds.includes(p.id)).length, b: list.length })}</span>
       </div>
       {list.map((p) => (
         <PlayerRow key={p.id} p={p} on={convocadoIds.includes(p.id)} onToggle={(on) => setOn(p.id, on)}

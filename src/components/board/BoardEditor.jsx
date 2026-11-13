@@ -1,8 +1,9 @@
 import { createPortal } from "react-dom";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Slash, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X, RotateCcw, RotateCw, ChevronUp, ChevronDown, Lock, Grid3x3, Tag } from "lucide-react";
+import { Activity, BoxSelect, EyeOff, Hand, Maximize, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Copy, Film, Image as ImageIcon, Layers, MousePointer2, MoveUpRight, Pause, Pentagon, Play, Plus, Repeat, Slash, Spline, Square, TrendingUp, Triangle, Type, Trash2, Undo2, Redo2, Waypoints, Video, Settings2, LogOut, Users, Keyboard, Minus, Maximize2, X, RotateCcw, RotateCw, ChevronUp, ChevronDown, Lock, Grid3x3, Tag, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   AIR_MAX, BALL_PATTERNS, ballStyle, linkProps, zoneShapePatch, FIELDS, LOOKS, MATERIALS, MAX_FRAMES, MAX_TEAMS, ORIENTS, addElement, addFrame, addTeam, alignElements, arrowPoints, changeField, chipOf, defaultControl, distributeElements, drawOrder, duplicateFrame, elementsInBox, faceToward, fieldOf, fromView, toView, tokenR,
   attachAt, attachedView, detachArrow, followBoard, boardMode, boardSpeed, camOf, panCam, ZOOM_MAX, CAM_RATIOS, CAM_PRESETS, camRatioOf, frameCam, camRect, rectToCam, cameraPreset, hasCamera, pathMode, pathFor, GRASS, MARKS, grassOf, marksOf, viewBox, zoomCam, ZOOM_STEPS, ghostsOf, hitTest, hitTestPersp, isCarried, isPersp, perspBoost, paintOrder, perspectiveOf, isLinkable, isMovable, isQuad, isSideways, lerpFrames, lookOf, marginOf, isStadium, hasStands, hasAds, materialOf, moveFrame, moveLayer, moveLayerTo, newId, normalizeBoard, nudgeElements, orderForLine, orientOf, patchElement, recolorElements, removeElement,
@@ -82,7 +83,7 @@ const selectCls = "h-8 rounded-md border border-gray-200 bg-white px-2 text-xs";
 // «Jugador» de la tarjeta de la ficha; «Campo y ajustes» es igual en las tres. `chipPlayer(ficha, patch)`: la página pone su propia
 // pestaña «Jugador» (balón parado: jugador y función; null = la de siempre). `chipDescribe(ficha)`: texto bajo el nombre en la tarjeta.
 // `stamps` = { list: [{id, label}], active, pick(id|null) }: etiquetas rápidas en la barra (balón parado), que se ponen con `stamp`.
-export default function BoardEditor({ value, onChange: onChangeIn, roster = [], fields = null, filename = "pizarra", modes = false, embedded = false, embedHeight = 620, paint = null, stamp = null, onStampDone = null, overlayTitle = null, studioTitle, variant: variantIn = "tareas", chipPlayer = null, chipDescribe = null, stamps = null, sideHost = null }) {
+export default function BoardEditor({ value, onChange: onChangeIn, roster = [], fields = null, filename = "pizarra", modes = false, embedded = false, embedHeight = 620, paint = null, stamp = null, onStampDone = null, overlayTitle = null, studioTitle, variant: variantIn = "tareas", chipPlayer = null, chipDescribe = null, stamps = null, sideHost = null, settingsExtra = null }) {
   // las flechas pegadas a una ficha siguen a la ficha en cada cambio (07/11/2026)
   const onChange = (b) => onChangeIn(followBoard(b));
   const variant = cleanVariant(variantIn);
@@ -119,6 +120,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
   const [history, setHistory] = useState([]);
   const [future, setFuture] = useState([]); // lo deshecho, para rehacer
   const [helpOpen, setHelpOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false); // nota del fotograma (pizarra dentro de la página): se abre desde «⋯»
   const lastPick = useRef({ arrow: "move", zone: "zone", material: "goal" });
   const [playing, setPlaying] = useState(false);
   const [anim, setAnim] = useState(null);
@@ -1276,7 +1278,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
   const canNewTeam = rail.newTeam && teams.length < MAX_TEAMS;
   const hasStamps = Boolean(stamps?.list?.length);
   const railCount = 3 + teams.length + (canNewTeam ? 1 : 0) + (roster.length > 0 ? 1 : 0) + 1 + railGroups.length + 1 + (rail.link ? 1 : 0) + (rail.camera ? 1 : 0) + (hasStamps ? 1 : 0) + 2;
-  const railSize = inline ? `clamp(24px, calc(${embedHeight - 24}px / ${railCount} - 3px), 34px)` : `clamp(26px, calc((100vh - 60px) / ${railCount} - 3px), 38px)`;
+  const railSize = inline ? `clamp(24px, calc(${embedHeight - 70}px / ${railCount} - 3px), 34px)` : `clamp(26px, calc((100vh - 60px) / ${railCount} - 3px), 38px)`;
   const toolButtons = (
     <>
       {railTool({ id: "select", label: "Mover", title: "Mover y elegir (V)", icon: MousePointer2 })}
@@ -1332,6 +1334,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
   const defsList = describeDefaults(defs);
   const settingsBody = (
     <div className="space-y-2.5" data-testid="board-settings">
+      {settingsExtra}
       <div className="rounded-md bg-gray-50 border border-gray-200 px-2 py-1.5 text-[11px] text-gray-600" data-testid="board-defaults">
         <b className="text-gray-800">Mis predeterminados:</b> {defsList.length ? defsList.join(" · ") : "ninguno todavía (elige una cosa y pulsa «★ Usar como predeterminado»)"}
         {defsList.length > 0 && <button type="button" className="ml-2 underline text-gray-500" data-testid="board-defaults-reset" onClick={() => saveDefs({})}>Quitar</button>}
@@ -1648,17 +1651,29 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
   const dockEl = !playing && !narrow && !multi && !side && !camTool && !layersOpen && !(quietId && selId === quietId) ? (tool === "link" && !selected ? { k: "link", ...brush.link } : panelEl) : null;
   const dockKind = !dockEl ? null : dockEl.k === "link" ? "link" : dockEl.k === "arrow" ? "arrow" : dockEl.k === "zone" ? "zone" : dockEl.k === "ball" ? "ball" : dockEl.k === "text" ? "text" : (dockEl.k === "cone" || dockEl.k === "goal" || materialOf(dockEl.k)) ? "material" : null;
   const dockPatch = (p, key) => (selected ? patchSel(p, key) : patchBrush(p));
-  const dockVariants = dockKind === "arrow" ? ARROW_TOOLS.map((id) => ({ id, label: (TOOL_INFO[id]?.label || id).replace(/ \(.*\)/, "") }))
+  // «Bloqueo» a la vista (13/11/2026, maqueta del editor de balón parado): una línea con la rayita al final
+  const dockVariants = dockKind === "arrow" ? [...ARROW_TOOLS.map((id) => ({ id, label: (TOOL_INFO[id]?.label || id).replace(/ \(.*\)/, "") })), ...(inline ? [{ id: "block", label: "Bloqueo" }] : [])]
     : dockKind === "zone" ? [{ id: "rect", label: "Rectángulo" }, { id: "ellipse", label: "Elipse" }, { id: "quad", label: "4 esquinas" }]
       : dockKind === "ball" ? BALL_PATTERNS.map((b) => ({ id: b.id, label: b.label }))
         : dockKind === "material" ? MATERIAL_VARIANTS.filter((v) => !selected || v.k === selected.k)
           : dockKind === "text" ? TEXT_VARIANTS
             : dockKind === "link" ? [{ id: "line", label: "Línea", disabled: !selected && pick.length < 2 }, { id: "zone", label: "Zona", disabled: !selected && pick.length < 3 }, { id: "mesh", label: "Red", disabled: !selected && pick.length < 2 }] : [];
-  const dockActive = !dockEl ? null : dockKind === "arrow" ? (selected ? typeOfArrow(selected) : tool)
+  const arrowNow = dockKind === "arrow" ? (selected ? typeOfArrow(selected) : tool) : null;
+  const isBlock = arrowNow === "line" && (selected ? selected.pointer : brush.line?.pointer) === "bar";
+  const dockActive = !dockEl ? null : dockKind === "arrow" ? (inline && isBlock ? "block" : arrowNow)
     : dockKind === "zone" ? (isQuad(dockEl) || tool === "quad" ? "quad" : dockEl.shape || "rect")
       : dockKind === "link" ? (selected ? linkProps(selected).mode : null)
       : dockKind === "ball" ? ballStyle(dockEl).pattern : dockKind === "material" ? materialVariantOf(dockEl) : dockKind === "text" ? textVariantOf(dockEl) : null;
   const onDockVariant = (id) => {
+    if (dockKind === "arrow" && id === "block") {
+      if (selected?.k === "arrow") return patchSel({ ...ARROW_PRESETS.line, pointer: "bar", ...(selected.air ? { lift: undefined } : {}) }, "type");
+      pickTool("line");
+      return setBrush((b) => ({ ...b, line: { ...b.line, pointer: "bar" } }));
+    }
+    if (dockKind === "arrow" && id === "line" && isBlock) {
+      if (selected?.k === "arrow") return patchSel({ pointer: undefined }, "pointer");
+      return setBrush((b) => ({ ...b, line: { ...b.line, pointer: undefined } }));
+    }
     if (dockKind === "arrow") return setArrowType(id);
     if (dockKind === "link") return selected ? patchSel({ mode: id }, "mode") : makeLink(id);
     if (dockKind === "zone") {
@@ -1680,7 +1695,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
   const dock = dockKind ? (
     <BoardDock kind={dockKind} el={dockEl} look={look} selected={!!selected} variants={dockVariants} active={dockActive} onVariant={onDockVariant} patch={dockPatch}
       saved={dockSaved} onDefault={() => { saveDefs(withElementDefault(defs, dockEl, { chipSize: chip, team: null })); setDockSaved(true); setTimeout(() => setDockSaved(false), 1600); }}
-      onMore={() => { setMoreOpen((m) => !m); setPanelHidden(false); }} onDelete={() => delSel(false)} inPage={outside}
+      onMore={() => { setMoreOpen((m) => !m); setPanelHidden(false); }} onDelete={() => delSel(false)} inPage={outside} light={inline} onClose={inline ? resetAll : null}
       linkPick={dockKind === "link" && !selected ? { count: pick.length, onClear: () => setPick([]) } : null} />
   ) : null;
   const chipCard = quickEl && (outside || quickPos) ? (
@@ -1719,10 +1734,10 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
       className={outside ? "relative w-full max-h-[75vh] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-sm border border-gray-200" : narrow ? "absolute left-2 right-2 bottom-2 max-h-[48%] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-2xl border border-gray-200" : `absolute ${dockKind ? "left-[172px]" : "left-[58px]"} top-3 w-[372px] max-h-[calc(100%-24px)] overflow-y-auto rounded-xl bg-white text-gray-900 shadow-2xl border border-gray-200`}
       style={{ zIndex: outside ? undefined : 5 }}
     >
-      <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b" style={{ background: RAIL.bg, color: RAIL.text, borderColor: RAIL.border }}>
+      <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b" style={inline ? { background: LT.bar, color: clubColor.primaryDark, borderColor: LT.line } : { background: RAIL.bg, color: RAIL.text, borderColor: RAIL.border }}>
         {/* sin <h2>: la regla general de títulos de la app lo pondría granate sobre el fondo granate oscuro */}
         <div role="heading" aria-level={2} className="text-sm font-bold flex-1 truncate">{panelTitle || "Capas"}</div>
-        <button type="button" onClick={() => { setPanelHidden(true); setSide(null); setTeamEdit(null); }} aria-label="Cerrar panel" className="h-7 w-7 rounded-md flex items-center justify-center hover:bg-white/10"><X className="w-4 h-4" /></button>
+        <button type="button" onClick={() => { setPanelHidden(true); setSide(null); setTeamEdit(null); }} aria-label="Cerrar panel" className={`h-7 w-7 rounded-md flex items-center justify-center ${inline ? "hover:bg-black/5" : "hover:bg-white/10"}`}><X className="w-4 h-4" /></button>
       </div>
       <div className="p-3 space-y-3 text-gray-800">
         {panelBody}
@@ -1752,50 +1767,64 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
   );
   const helpBtn = (
     <BoardHelp open={helpOpen} onOpenChange={setHelpOpen} side={narrow ? "bottom" : "left"} trigger={
-      <button type="button" aria-label="Ayuda y atajos" title="Ayuda y atajos (Mayús + H)" className="shrink-0 rounded-xl flex items-center justify-center" style={{ width: 44, height: 44, background: RAIL.btn, color: RAIL.ink, border: `1px solid ${RAIL.line}` }}>
+      <button type="button" aria-label="Ayuda y atajos" title="Ayuda y atajos (Mayús + H)" className="shrink-0 rounded-xl flex items-center justify-center" style={inline ? { width: 34, height: 34, background: "#fff", color: LT.ink2, border: `1px solid ${LT.line}` } : { width: 44, height: 44, background: RAIL.btn, color: RAIL.ink, border: `1px solid ${RAIL.line}` }}>
         <Keyboard className="w-5 h-5" />
       </button>
     } />
   );
+  const zbtn = inline ? zoomBtnLight : zoomBtnDark;
+  const onSt = { background: RAIL.on, color: inline ? "#fff" : RAIL.onInk };
+  const lightBox = { background: "#fff", border: `1px solid ${LT.line}`, color: LT.ink };
   const gridBtn = (
-    <button type="button" aria-pressed={snap} className={zoomBtnDark} style={snap ? { background: RAIL.on, color: RAIL.onInk } : undefined} onClick={() => setSnap((v) => !v)}
+    <button type="button" aria-pressed={snap} className={zbtn} style={snap ? onSt : undefined} onClick={() => setSnap((v) => !v)}
       aria-label="Rejilla" title="Rejilla (G): lo que se coloca o se arrastra cae en metros enteros" data-testid="board-grid"><Grid3x3 className="w-4 h-4" /></button>
   );
   const zoomBox = !playing && (
-    <div className="absolute top-2 right-2 flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} data-testid="board-zoom">
-      <button type="button" className={zoomBtnDark} onClick={() => zoomStep(-1)} disabled={cam.z <= 1} aria-label="Alejar"><ZoomOut className="w-4 h-4" /></button>
+    <div className={inline ? "flex items-center gap-0.5 rounded-lg p-0.5" : "absolute top-2 right-2 flex items-center gap-0.5 rounded-lg p-0.5"} style={inline ? lightBox : { background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} data-testid="board-zoom">
+      <button type="button" className={zbtn} onClick={() => zoomStep(-1)} disabled={cam.z <= 1} aria-label="Alejar"><ZoomOut className="w-4 h-4" /></button>
       <span className="text-[11px] font-semibold w-10 text-center tabular-nums" data-testid="zoom-level">{Math.round(cam.z * 100)}%</span>
-      <button type="button" className={zoomBtnDark} onClick={() => zoomStep(1)} disabled={cam.z >= 4} aria-label="Acercar"><ZoomIn className="w-4 h-4" /></button>
-      <button type="button" className={zoomBtnDark} onClick={() => { setCam(null); if (tool === "pan") pickTool("select"); }} disabled={cam.z <= 1} aria-label="Ver todo el campo"><Maximize className="w-4 h-4" /></button>
-      <button type="button" aria-pressed={tool === "pan"} className={zoomBtnDark} style={tool === "pan" ? { background: RAIL.on, color: RAIL.onInk } : undefined} onClick={() => pickTool(tool === "pan" ? "select" : "pan")} disabled={cam.z <= 1 && tool !== "pan"} aria-label="Mover la vista"><Hand className="w-4 h-4" /></button>
+      <button type="button" className={zbtn} onClick={() => zoomStep(1)} disabled={cam.z >= 4} aria-label="Acercar"><ZoomIn className="w-4 h-4" /></button>
+      <button type="button" className={zbtn} onClick={() => { setCam(null); if (tool === "pan") pickTool("select"); }} disabled={cam.z <= 1} aria-label="Ver todo el campo"><Maximize className="w-4 h-4" /></button>
+      <button type="button" aria-pressed={tool === "pan"} className={zbtn} style={tool === "pan" ? onSt : undefined} onClick={() => pickTool(tool === "pan" ? "select" : "pan")} disabled={cam.z <= 1 && tool !== "pan"} aria-label="Mover la vista"><Hand className="w-4 h-4" /></button>
       {gridBtn}
     </div>
   );
   // Cámara del 3D: girar, inclinar, acercar, encuadres rápidos y, en las animaciones, que se mueva durante la jugada
   const toggleFrameOrbit = () => commit(ownOrbit ? clearFrameOrbit(live.current, idx) : setOrbit(live.current, idx, orbitNow(), { perFrame: true }));
   const orbitBox = !playing && (
-    <div className={`absolute right-2 flex flex-wrap justify-end items-center gap-0.5 rounded-lg p-0.5 ${narrow ? "top-11" : "top-14"}`} style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4, maxWidth: "calc(100% - 16px)" }} data-testid="board-orbit">
-      <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ daz: -45 })} aria-label="Girar la cámara a la izquierda" title="Girar a la izquierda"><RotateCcw className="w-4 h-4" /></button>
-      <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ daz: 45 })} aria-label="Girar la cámara a la derecha" title="Girar a la derecha"><RotateCw className="w-4 h-4" /></button>
-      <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ dtilt: 10 })} aria-label="Ver más desde arriba" title="Más desde arriba"><ChevronUp className="w-4 h-4" /></button>
-      <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ dtilt: -10 })} aria-label="Ver más a ras de suelo" title="Más a ras de suelo"><ChevronDown className="w-4 h-4" /></button>
-      <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ kdist: 1.25 })} aria-label="Alejar la cámara" title="Alejar"><ZoomOut className="w-4 h-4" /></button>
-      <button type="button" className={zoomBtnDark} onClick={() => orbitBy({ kdist: 0.8 })} aria-label="Acercar la cámara" title="Acercar"><ZoomIn className="w-4 h-4" /></button>
-      <button type="button" aria-pressed={tool === "pan"} className={zoomBtnDark} style={tool === "pan" ? { background: RAIL.on, color: RAIL.onInk } : undefined} onClick={() => pickTool(tool === "pan" ? "select" : "pan")} aria-label="Mover la cámara arrastrando" title="Arrastra para girar · Mayús + arrastrar para mover · rueda para acercar" data-testid="orbit-hand"><Hand className="w-4 h-4" /></button>
+    <div className={inline ? "flex items-center gap-0.5 rounded-lg p-0.5" : `absolute right-2 flex flex-wrap justify-end items-center gap-0.5 rounded-lg p-0.5 ${narrow ? "top-11" : "top-14"}`} style={inline ? lightBox : { background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4, maxWidth: "calc(100% - 16px)" }} data-testid="board-orbit">
+      <button type="button" className={zbtn} onClick={() => orbitBy({ daz: -45 })} aria-label="Girar la cámara a la izquierda" title="Girar a la izquierda"><RotateCcw className="w-4 h-4" /></button>
+      <button type="button" className={zbtn} onClick={() => orbitBy({ daz: 45 })} aria-label="Girar la cámara a la derecha" title="Girar a la derecha"><RotateCw className="w-4 h-4" /></button>
+      <button type="button" className={zbtn} onClick={() => orbitBy({ dtilt: 10 })} aria-label="Ver más desde arriba" title="Más desde arriba"><ChevronUp className="w-4 h-4" /></button>
+      <button type="button" className={zbtn} onClick={() => orbitBy({ dtilt: -10 })} aria-label="Ver más a ras de suelo" title="Más a ras de suelo"><ChevronDown className="w-4 h-4" /></button>
+      <button type="button" className={zbtn} onClick={() => orbitBy({ kdist: 1.25 })} aria-label="Alejar la cámara" title="Alejar"><ZoomOut className="w-4 h-4" /></button>
+      <button type="button" className={zbtn} onClick={() => orbitBy({ kdist: 0.8 })} aria-label="Acercar la cámara" title="Acercar"><ZoomIn className="w-4 h-4" /></button>
+      <button type="button" aria-pressed={tool === "pan"} className={zbtn} style={tool === "pan" ? onSt : undefined} onClick={() => pickTool(tool === "pan" ? "select" : "pan")} aria-label="Mover la cámara arrastrando" title="Arrastra para girar · Mayús + arrastrar para mover · rueda para acercar" data-testid="orbit-hand"><Hand className="w-4 h-4" /></button>
       {gridBtn}
-      <select value="" onChange={(e) => { if (e.target.value) putOrbit(orbitPreset(live.current, e.target.value), { key: null }); }} aria-label="Encuadres de la cámara" data-testid="orbit-preset"
-        className="h-8 w-[92px] rounded-md bg-transparent text-[11px] font-semibold px-1 hover:bg-white/10 focus:outline-none" style={{ color: RAIL.text, fontSize: 11 }}>
+      <select value="" onChange={(e) => { const v = e.target.value; if (v === "__auto") commit(clearOrbits(live.current)); else if (v === "__frame") toggleFrameOrbit(); else if (v) putOrbit(orbitPreset(live.current, v), { key: null }); }} aria-label="Encuadres de la cámara" data-testid="orbit-preset"
+        className={`h-8 w-[92px] rounded-md bg-transparent text-[11px] font-semibold px-1 focus:outline-none ${inline ? "hover:bg-black/5" : "hover:bg-white/10"}`} style={{ color: inline ? LT.ink : RAIL.text, fontSize: 11 }}>
         <option value="" style={{ color: "#111" }}>Encuadre…</option>
         {ORBIT_PRESETS.map((p) => <option key={p.id} value={p.id} style={{ color: "#111" }}>{p.label}</option>)}
+        {inline && (curOrbit || perFrameOrbit) && <option value="__auto" style={{ color: "#111" }}>Cámara automática</option>}
+        {inline && !imageMode && board.frames.length > 1 && <option value="__frame" style={{ color: "#111" }}>{ownOrbit ? `Quitar la cámara del ${String(idx + 1).padStart(2, "0")}` : perFrameOrbit ? "Fijar la cámara aquí" : "Mover la cámara en la jugada"}</option>}
       </select>
-      <button type="button" className={`${zoomBtnDark} w-auto px-1.5 text-[11px] font-semibold`} onClick={() => commit(clearOrbits(live.current))} disabled={!curOrbit && !perFrameOrbit} aria-label="Volver a la cámara automática" title="Cámara automática" data-testid="orbit-auto"><Maximize className={`w-4 h-4${narrow ? "" : " mr-1"}`} />{!narrow && "Automática"}</button>
-      {!imageMode && board.frames.length > 1 && (
+      {!inline && <button type="button" className={`${zbtn} w-auto px-1.5 text-[11px] font-semibold`} onClick={() => commit(clearOrbits(live.current))} disabled={!curOrbit && !perFrameOrbit} aria-label="Volver a la cámara automática" title="Cámara automática" data-testid="orbit-auto"><Maximize className={`w-4 h-4${narrow ? "" : " mr-1"}`} />{!narrow && "Automática"}</button>}
+      {!inline && !imageMode && board.frames.length > 1 && (
         <button type="button" aria-pressed={ownOrbit} onClick={toggleFrameOrbit} data-testid="orbit-frame"
           title={ownOrbit ? "Quitar la cámara de este fotograma (usará la del anterior)" : "Guardar la cámara en este fotograma: al reproducir y en el vídeo, la cámara se mueve de un fotograma a otro"}
-          className={`${zoomBtnDark} w-auto px-1.5 text-[11px] font-semibold`} style={ownOrbit ? { background: RAIL.on, color: RAIL.onInk } : undefined}>
+          className={`${zbtn} w-auto px-1.5 text-[11px] font-semibold`} style={ownOrbit ? onSt : undefined}>
           <Video className="w-4 h-4 mr-1" />{narrow ? (ownOrbit ? String(idx + 1).padStart(2, "0") : "+") : ownOrbit ? `Cámara del ${String(idx + 1).padStart(2, "0")}` : perFrameOrbit ? "Fijar aquí" : "Mover en la jugada"}
         </button>
       )}
+    </div>
+  );
+  const viewModeBox = (
+    <div className={inline ? "flex items-center gap-0.5 rounded-lg p-0.5 text-[12px] font-semibold" : `absolute top-2 ${dockKind ? "left-[122px]" : "left-2"} flex items-center gap-0.5 rounded-lg p-0.5 text-[11px] font-semibold`}
+      style={inline ? { background: LT.soft, border: `1px solid ${LT.line}`, color: LT.ink2 } : { background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} role="group" aria-label="Vista del campo" title="Vista del campo" data-testid="board-view-mode">
+      {VIEW_MODES.map((m) => (
+        <button key={m.id} type="button" aria-pressed={viewMode === m.id} onClick={() => pickViewMode(m.id)} data-testid={`view-${m.id}`}
+          className={inline ? "h-7 px-2.5 rounded-md" : "h-7 px-2 rounded-md"} style={viewMode === m.id ? onSt : undefined}>{m.label}</button>
+      ))}
     </div>
   );
   const stage = (
@@ -1850,14 +1879,7 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
           ))}
         </svg>
       )}
-      {!playing && (
-        <div className={`absolute top-2 ${dockKind ? "left-[122px]" : "left-2"} flex items-center gap-0.5 rounded-lg p-0.5 text-[11px] font-semibold`} style={{ background: "rgba(36,0,10,0.88)", border: `1px solid ${RAIL.border}`, color: RAIL.text, zIndex: 4 }} role="group" aria-label="Vista del campo" title="Vista del campo" data-testid="board-view-mode">
-          {VIEW_MODES.map((m) => (
-            <button key={m.id} type="button" aria-pressed={viewMode === m.id} onClick={() => pickViewMode(m.id)} data-testid={`view-${m.id}`}
-              className="h-7 px-2 rounded-md" style={viewMode === m.id ? { background: RAIL.on, color: RAIL.onInk } : undefined}>{m.label}</button>
-          ))}
-        </div>
-      )}
+      {!playing && !inline && viewModeBox}
       <Board
         ref={svgRef}
         board={board}
@@ -1883,8 +1905,8 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
         onContextMenu={onContextMenu}
         onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
       />
-      {!show3d && zoomBox}
-      {show3d && orbitBox}
+      {!inline && !show3d && zoomBox}
+      {!inline && show3d && orbitBox}
       {!outside && quickEl && quickPos && chipCard}
       {narrow && panel}
     </div>
@@ -1918,6 +1940,36 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
         {toolButtons}
         <RailBtn label="Deshacer" disabled={!history.length} onClick={undo} narrow><Undo2 className="w-5 h-5" /><RailLabel>Deshacer</RailLabel></RailBtn>
       </nav>
+    </div>
+  ) : inline ? (
+    // Dentro de la página (balón parado): barra propia arriba (vista, zoom o cámara, Campo y ajustes, atajos y pantalla completa)
+    // para que no tape el campo; botonera a la izquierda; todo en tono claro (13/11/2026, maqueta «editor más limpio», opción C)
+    <div className="rs-nodark relative w-full rounded-xl overflow-hidden outline-none flex flex-col" style={{ height: embedHeight, background: "#fff", border: `1px solid ${LT.line}`, color: LT.ink, ...LIGHT_RAIL }} onKeyDown={onKey} tabIndex={-1} data-testid="board-inline">
+      <div className="flex flex-wrap items-center gap-2 px-2 py-1.5 shrink-0" style={{ minHeight: 46, borderBottom: `1px solid ${LT.line}` }} data-testid="board-topbar">
+        {viewModeBox}
+        <span className="flex-1" />
+        {!playing && (show3d ? orbitBox : zoomBox)}
+        <button type="button" onClick={() => toggleSide("settings")} aria-pressed={side === "settings"} data-testid="rail-settings" title="Campo y ajustes: campo, modo visual, animación y descargas" aria-label="Campo y ajustes"
+          className="inline-flex items-center gap-1.5 h-[34px] px-2.5 rounded-lg text-[12.5px] font-semibold whitespace-nowrap" style={side === "settings" ? { background: RAIL.on, color: "#fff", border: `1px solid ${RAIL.on}` } : { background: "#fff", color: LT.ink2, border: `1px solid ${LT.line}` }}>
+          <Settings2 className="w-4 h-4" />{!show3d && " Campo y ajustes"}
+        </button>
+        {helpBtn}
+        <button type="button" onClick={openStudio} aria-label="Pantalla completa" title="Abrir la pizarra a pantalla completa" data-testid="board-expand" className="h-[34px] w-[34px] rounded-lg flex items-center justify-center" style={{ background: "#fff", color: LT.ink2, border: `1px solid ${LT.line}` }}><Maximize2 className="w-4 h-4" /></button>
+      </div>
+      <div className="relative flex-1 min-h-0" style={{ background: styleOf(look).surround || "#E9E4E3" }}>
+        {stage}
+        <nav aria-label="Herramientas" className="absolute left-0 top-0 bottom-0 w-[50px] flex flex-col items-center gap-[3px] py-2 overflow-y-auto overflow-x-hidden no-scrollbar [&_.w-5]:w-[18px] [&_.w-5]:h-[18px]" style={{ zIndex: 6, "--rb": railSize, background: "#fff", borderRight: `1px solid ${LT.line}` }}>
+          {toolButtons}
+          <RailSep />
+          <RailBtn label="Deshacer" title="Deshacer (Ctrl + Z)" disabled={!history.length} onClick={undo}><Undo2 className="w-5 h-5" /></RailBtn>
+          <RailBtn label="Rehacer" title="Rehacer (Ctrl + Mayús + Z)" disabled={!future.length} onClick={redo}><Redo2 className="w-5 h-5" /></RailBtn>
+        </nav>
+        {!outside && dock}
+        {!outside && panel}
+        {cur.note ? (
+          <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none rounded-lg px-4 py-1.5 text-sm font-semibold text-center" style={{ bottom: 12, maxWidth: "70%", background: "rgba(54,0,13,0.9)", color: "#fff", zIndex: 3 }} data-testid="frame-note-caption">{cur.note}</div>
+        ) : null}
+      </div>
     </div>
   ) : (
     <div className={inline ? "rs-nodark relative w-full rounded-xl overflow-hidden outline-none" : "rs-nodark fixed inset-0"} style={{ background: styleOf(look).surround || (inline ? "#E9E4E3" : "#0d2a1f"), color: RAIL.text, zIndex: inline ? 0 : 50, ...(inline ? { height: embedHeight } : {}) }} onKeyDown={onKey} tabIndex={-1} data-testid={inline ? "board-inline" : "board-studio"}>
@@ -1974,6 +2026,10 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
 
   if (inline) {
     const speeds = [[2600, "0,5×"], [1500, "1×"], [800, "2×"]];
+    // en la hoja y la animación, con «Mover» y nada elegido, la ayuda explica qué se hace en cada parte
+    const hintLine = sheetMode && !playing && !error && tool === "select" && !sel.length
+      ? (idx === 0 ? "Hoja: coloca a todos donde empiezan y dibuja las flechas · es lo que se imprime" : "Animación: mueve a los jugadores fotograma a fotograma")
+      : hint;
     const segBtn = (on) => ({ height: 32, padding: "0 12px", borderRadius: 8, fontSize: 13, fontWeight: on ? 600 : 400, background: on ? clubColor.primary : "#F5F2F1", color: on ? "#fff" : "#4A3D3F" });
     const outBtn = { height: 34, padding: "0 12px", borderRadius: 8, fontSize: 13, background: "#fff", color: "#4A3D3F", border: "1px solid #D9CFCE" };
     return (
@@ -1983,53 +2039,61 @@ export default function BoardEditor({ value, onChange: onChangeIn, roster = [], 
         {outside && (dock || panel || chipCard) && createPortal(
           <div className="rs-nodark space-y-2" data-testid="board-side" onKeyDown={onKey}>{chipCard}{dock}{panel}</div>, sideHost)}
         {!imageMode && (
-          <section aria-label="Fotogramas" className="rounded-xl bg-white p-2.5 flex flex-col gap-2" style={{ border: "1px solid #E6DEDD", color: "#1E1416" }} data-testid="board-timeline">
+          // Fotogramas en una sola fila, con la ayuda de la herramienta (antes flotaba sobre el campo) y «⋯» para nota, duplicar y quitar
+          <section aria-label="Fotogramas" className="rounded-xl bg-white px-2.5 py-2 flex flex-col gap-2" style={{ border: `1px solid ${LT.line}`, color: LT.ink }} data-testid="board-timeline">
             <div className="flex flex-wrap items-center gap-1.5">
-              <button type="button" aria-label="Primer fotograma" title="Primer fotograma" onClick={() => goFrame(0)} className="inline-flex items-center justify-center" style={{ ...outBtn, width: 34, padding: 0 }}><ChevronLeft className="w-4 h-4" /></button>
+              <button type="button" aria-label="Fotograma anterior" title="Fotograma anterior" onClick={() => goFrame(Math.max(0, idx - 1))} className="inline-flex items-center justify-center" style={{ ...outBtn, width: 32, height: 32, padding: 0 }}><ChevronLeft className="w-4 h-4" /></button>
               <button type="button" aria-label={playing ? "Parar" : "Reproducir"} title={animFrameCount(board) < 2 ? "Añade otro fotograma para animar" : playing ? "Parar" : "Reproducir"} disabled={animFrameCount(board) < 2} onClick={() => (playing ? stop() : setPlaying(true))} data-testid="tl-play"
-                className="inline-flex items-center justify-center rounded-full disabled:opacity-40" style={{ width: 40, height: 40, background: clubColor.primary, color: "#fff" }}>
+                className="inline-flex items-center justify-center rounded-lg disabled:opacity-40" style={{ ...outBtn, width: 32, height: 32, padding: 0, ...(playing ? { background: clubColor.primary, color: "#fff", border: "none" } : {}) }}>
                 {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               </button>
-              <button type="button" aria-label="Último fotograma" title="Último fotograma" onClick={() => goFrame(board.frames.length - 1)} className="inline-flex items-center justify-center" style={{ ...outBtn, width: 34, padding: 0 }}><ChevronRight className="w-4 h-4" /></button>
-              <span aria-hidden className="w-px h-6 mx-1" style={{ background: "#E6DEDD" }} />
+              <button type="button" aria-label="Fotograma siguiente" title="Fotograma siguiente" onClick={() => goFrame(Math.min(board.frames.length - 1, idx + 1))} className="inline-flex items-center justify-center" style={{ ...outBtn, width: 32, height: 32, padding: 0 }}><ChevronRight className="w-4 h-4" /></button>
+              <span aria-hidden className="w-px h-6 mx-0.5" style={{ background: LT.line }} />
               <div role="tablist" aria-label="Fotogramas" className="flex flex-wrap items-center gap-1">
                 {board.frames.map((f, i) => (
                   <React.Fragment key={f.id}>
-                    {sheetMode && i === 1 && <span className="px-1.5" style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".07em", color: "#6B5E60" }} data-testid="tl-anim-label">ANIMACIÓN</span>}
+                    {sheetMode && i === 1 && <span className="px-1" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".07em", color: LT.muted }} data-testid="tl-anim-label">ANIMACIÓN</span>}
                     <button type="button" role="tab" aria-selected={i === idx} onClick={() => goFrame(i)} data-testid={`frame-${i + 1}`} data-sheet={sheetMode && i === 0 ? "true" : undefined}
                       title={sheetMode && i === 0 ? "La hoja: posición de salida con las flechas que explican la jugada. Es lo que se imprime." : undefined}
-                      className="tabular-nums" style={{ minWidth: sheetMode && i === 0 ? 56 : 40, height: 32, borderRadius: 8, fontSize: 14, fontWeight: 700, background: i === idx ? clubColor.primary : "#F5F2F1", color: i === idx ? "#fff" : "#4A3D3F", ...(sheetMode && i === 0 && i !== idx ? { boxShadow: `inset 0 0 0 1.5px ${clubColor.primary}`, color: clubColor.primary } : {}) }}>
+                      className="tabular-nums" style={{ minWidth: sheetMode && i === 0 ? 52 : 36, height: 32, padding: "0 8px", borderRadius: 8, fontSize: 13.5, fontWeight: 700, background: i === idx ? clubColor.primary : LT.soft, color: i === idx ? "#fff" : LT.ink2, ...(sheetMode && i === 0 && i !== idx ? { boxShadow: `inset 0 0 0 1.5px ${clubColor.primary}`, color: clubColor.primary, background: "#fff" } : {}) }}>
                       {sheetMode ? (i === 0 ? "Hoja" : String(i).padStart(2, "0")) : String(i + 1).padStart(2, "0")}
                     </button>
-                    {sheetMode && i === 0 && <span aria-hidden className="w-px h-6 mx-1" style={{ background: "#E6DEDD" }} />}
                   </React.Fragment>
                 ))}
               </div>
               <button type="button" disabled={board.frames.length >= MAX_FRAMES} onClick={() => frameOp((b, i) => addFrame(b, i))} data-testid="rail-add-frame"
-                title={sheetMode && board.frames.length === 1 ? "La animación empieza con las posiciones de la hoja, sin sus flechas" : undefined}
-                className="disabled:opacity-40" style={{ ...outBtn, border: `1px dashed ${clubColor.primary}`, color: clubColor.primary, fontWeight: 600 }}>{sheetMode && board.frames.length === 1 ? "+ Crear animación" : "+ Fotograma"}</button>
-              <span className="flex-1" />
-              <div role="group" aria-label="Velocidad" className="flex gap-1">
-                {speeds.map(([v, l]) => <button key={v} type="button" aria-pressed={speed === v} onClick={() => commit({ ...live.current, speed: v }, { record: false })} style={segBtn(speed === v)}>{l}</button>)}
-              </div>
-              <label className="flex items-center gap-1.5 text-[13px]" style={{ color: "#4A3D3F" }}><input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} style={{ accentColor: clubColor.primary, width: 15, height: 15 }} /> Repetir</label>
-              <label className="flex items-center gap-1.5 text-[13px]" style={{ color: "#4A3D3F" }}><input type="checkbox" checked={trails} onChange={(e) => setTrails(e.target.checked)} style={{ accentColor: clubColor.primary, width: 15, height: 15 }} /> Rastro</label>
-            </div>
-            {sheetMode && (
-              <p className="m-0 text-[12.5px]" style={{ color: "#4A3D3F" }} data-testid="tl-hint">
-                {idx === 0
-                  ? <><b style={{ color: clubColor.primary }}>Hoja:</b> coloca a todos donde empiezan y dibuja con flechas los desmarques, los bloqueos y el pase. Es lo que se imprime.</>
-                  : <><b style={{ color: clubColor.primary }}>Animación:</b> mueve a los jugadores de verdad, fotograma a fotograma. Empieza en las posiciones de la hoja; sus flechas no salen.</>}
-              </p>
-            )}
-            <div className="flex flex-wrap gap-1.5">
-              <input value={cur.note || ""} maxLength={200} placeholder={sheetMode && idx === 0 ? "Nota de la hoja (sale como leyenda en el campo)" : `Nota del fotograma ${sheetMode ? idx : idx + 1} (sale como leyenda en el campo)`} aria-label={`Nota del fotograma ${idx + 1}`} data-testid="frame-note"
-                onChange={(e) => { const v = e.target.value; const nb = { ...live.current, frames: live.current.frames.map((f, i) => (i === idx ? (v ? { ...f, note: v } : (({ note: _n, ...r }) => r)(f)) : f)) }; commit(nb, { key: `note-${idx}` }); }}
-                className="flex-1 min-w-[220px] outline-none" style={{ height: 34, borderRadius: 8, border: "1px solid #D9CFCE", padding: "0 12px", fontSize: 13.5, color: "#1E1416", background: "#fff" }} />
-              <button type="button" disabled={board.frames.length >= MAX_FRAMES} onClick={() => frameOp((b, i) => duplicateFrame(b, i))} className="disabled:opacity-40" style={outBtn}>Duplicar fotograma</button>
-              <button type="button" disabled={board.frames.length < 2 || (sheetMode && idx === 0)} onClick={() => frameOp((b, i) => removeFrame(b, i))} className="disabled:opacity-40" style={outBtn}>Quitar fotograma</button>
+                title={sheetMode && board.frames.length === 1 ? "La animación empieza con las posiciones de la hoja, sin sus flechas" : "Añadir fotograma (N)"}
+                className="disabled:opacity-40 whitespace-nowrap" style={{ ...outBtn, height: 32, border: `1px dashed ${clubColor.primary}`, color: clubColor.primary, fontWeight: 600 }}>{sheetMode && board.frames.length === 1 ? "+ Crear animación" : "+ Fotograma"}</button>
+              {animFrameCount(board) >= 2 && (
+                <>
+                  <div role="group" aria-label="Velocidad" className="flex gap-0.5 rounded-lg p-0.5" style={{ background: LT.soft }}>
+                    {speeds.map(([v, l]) => <button key={v} type="button" aria-pressed={speed === v} onClick={() => commit({ ...live.current, speed: v }, { record: false })} style={{ ...segBtn(speed === v), height: 28, padding: "0 8px", fontSize: 12, background: speed === v ? clubColor.primary : "transparent" }}>{l}</button>)}
+                  </div>
+                  <label className="flex items-center gap-1 text-[12.5px]" style={{ color: LT.ink2 }}><input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} style={{ accentColor: clubColor.primary, width: 14, height: 14 }} /> Repetir</label>
+                  <label className="flex items-center gap-1 text-[12.5px]" style={{ color: LT.ink2 }}><input type="checkbox" checked={trails} onChange={(e) => setTrails(e.target.checked)} style={{ accentColor: clubColor.primary, width: 14, height: 14 }} /> Rastro</label>
+                </>
+              )}
+              <span className="flex-1 min-w-[140px] text-right text-[12px] leading-tight" style={{ color: error ? "#B42318" : LT.muted }} role="status" data-testid="tl-hint">
+                {hintLine} <span className="whitespace-nowrap">· <b style={{ color: LT.ink2 }}>Mayús + H</b> atajos</span>
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" aria-label="Más opciones del fotograma" title="Nota, duplicar y quitar fotograma" data-testid="tl-more" className="inline-flex items-center justify-center" style={{ ...outBtn, width: 32, height: 32, padding: 0 }}><MoreHorizontal className="w-4 h-4" /></button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onSelect={() => setNoteOpen(true)} data-testid="tl-note">{cur.note ? "Cambiar la nota del fotograma" : "Añadir nota al fotograma"}</DropdownMenuItem>
+                  <DropdownMenuItem disabled={board.frames.length >= MAX_FRAMES} onSelect={() => frameOp((b, i) => duplicateFrame(b, i))} data-testid="tl-dup">Duplicar fotograma</DropdownMenuItem>
+                  <DropdownMenuItem disabled={board.frames.length < 2 || (sheetMode && idx === 0)} onSelect={() => frameOp((b, i) => removeFrame(b, i))} data-testid="tl-remove">Quitar fotograma</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               {hasEls && <BoardDownloads board={board} frame={idx} filename={filename} compact />}
             </div>
+            {(noteOpen || cur.note) && (
+              <input value={cur.note || ""} maxLength={200} autoFocus={noteOpen && !cur.note} placeholder={sheetMode && idx === 0 ? "Nota de la hoja (sale como leyenda en el campo)" : `Nota del fotograma ${sheetMode ? idx : idx + 1} (sale como leyenda en el campo)`} aria-label={`Nota del fotograma ${idx + 1}`} data-testid="frame-note"
+                onChange={(e) => { const v = e.target.value; const nb = { ...live.current, frames: live.current.frames.map((f, i) => (i === idx ? (v ? { ...f, note: v } : (({ note: _n, ...r }) => r)(f)) : f)) }; commit(nb, { key: `note-${idx}` }); }}
+                onBlur={() => { if (!cur.note) setNoteOpen(false); }}
+                className="w-full outline-none" style={{ height: 32, borderRadius: 8, border: "1px solid #D9CFCE", padding: "0 12px", fontSize: 13, color: LT.ink, background: "#fff" }} />
+            )}
           </section>
         )}
       </div>
@@ -2068,14 +2132,19 @@ function RailBtn({ label, title, on, disabled, onClick, children, narrow = false
       onClick={onClick}
       data-testid={testid}
       className="shrink-0 rounded-xl flex flex-col items-center justify-center gap-0.5 disabled:opacity-35 transition-colors"
-      style={{ width: narrow ? 58 : "var(--rb, 44px)", height: narrow ? 52 : "var(--rb, 44px)", background: on ? RAIL.on : RAIL.btn, color: on ? RAIL.onInk : RAIL.ink, border: `1px ${dashed ? "dashed" : "solid"} ${on ? RAIL.on : RAIL.line}` }}
+      style={{ width: narrow ? 58 : "var(--rb, 44px)", height: narrow ? 52 : "var(--rb, 44px)", background: on ? RAIL.on : `var(--rl-btn, ${RAIL.btn})`, color: on ? `var(--rl-onink, ${RAIL.onInk})` : `var(--rl-ink, ${RAIL.ink})`, border: `1px ${dashed ? "dashed" : "solid"} ${on ? RAIL.on : `var(--rl-line, ${RAIL.line})`}` }}
     >
       {children}
     </button>
   );
 }
 const RailLabel = ({ children }) => <span className="text-[10px] font-semibold leading-none max-w-[54px] truncate">{children}</span>;
-const RailSep = ({ narrow = false }) => <span aria-hidden="true" className={narrow ? "w-px h-8 shrink-0 mx-0.5" : "h-px w-7 shrink-0 my-[3px] mx-auto"} style={{ background: RAIL.border }} />;
+const RailSep = ({ narrow = false }) => <span aria-hidden="true" className={narrow ? "w-px h-8 shrink-0 mx-0.5" : "h-px w-7 shrink-0 my-[3px] mx-auto"} style={{ background: `var(--rl-sep, ${RAIL.border})` }} />;
+// Tono claro de la pizarra dentro de la página (13/11/2026, Nacho eligió la opción C: «la de color claro»): barra de arriba,
+// botonera y opciones como las tarjetas blancas de la app; el campo y las fichas no cambian. La pantalla completa sigue oscura.
+const LIGHT_RAIL = { "--rl-btn": "#ffffff", "--rl-ink": clubColor.primary, "--rl-onink": "#ffffff", "--rl-line": "#E6DEDD", "--rl-sep": "#E6DEDD" };
+const LT = { ink: "#1E1416", ink2: "#4A3D3F", muted: "#6B5E60", line: "#E6DEDD", soft: "#F5F2F1", bar: "#FBF8F8" };
+const zoomBtnLight = "h-8 w-8 rounded-md flex items-center justify-center hover:bg-black/5 disabled:opacity-30";
 const TOOL_INFO = Object.fromEntries([...OBJECT_TOOLS, ...LINE_TOOLS].map((t) => [t.id, t]));
 const TOOL_GROUPS = [
   { id: "arrow", label: "Flechas", short: "Flecha", key: "A", icon: MoveUpRight, tools: ARROW_TOOLS },

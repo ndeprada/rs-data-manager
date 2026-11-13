@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Star, SlidersHorizontal, Trash2, Check, Minus, Plus } from "lucide-react";
+import React, { createContext, useContext, useState } from "react";
+import { Star, SlidersHorizontal, Trash2, Check, Minus, Plus, X } from "lucide-react";
 import { ARROW_W, BALL_PATTERNS, ballStyle } from "@/lib/board";
 import { BallGlyph, styleOf } from "./BoardSvg";
 import { PALETTE } from "./BoardControls";
@@ -10,7 +10,10 @@ import { C as clubColor } from "@/lib/brand";
 // tipos de flechas dibujadas… y una barra final donde pueda seleccionar el grosor, el color y el borde, y una estrellita para
 // marcar como predeterminado… la tarjeta de ahora ocupa mucho y tapa el campo»). Va pegada a la barra izquierda: arriba los
 // tipos dibujados y abajo lo básico; «Más opciones» abre el panel completo de siempre.
-const D = { bg: clubColor.deep, tile: "#fbf7f6", tileOn: clubColor.accent, line: "#7a2a2f", text: "#F7E9E4", sub: "#E2C3BA", on: clubColor.accent, onInk: "#2a0009", btn: "rgba(42,0,9,0.94)" };
+const DARK = { bg: "rgba(36,0,10,0.96)", tile: "#fbf7f6", tileOn: clubColor.accent, line: "#7a2a2f", text: "#F7E9E4", sub: "#E2C3BA", on: clubColor.accent, onInk: "#2a0009", btn: "rgba(42,0,9,0.94)", ink: "#4A3D3F", del: "#fca5a5", star: "#facc15" };
+// Tono claro (13/11/2026, Nacho eligió la opción C de la maqueta): la columna fuera del campo, como las tarjetas blancas de la app
+const LIGHT = { bg: "#ffffff", tile: "#F7F3F2", tileOn: clubColor.accent, line: "#E6DEDD", text: "#1E1416", sub: "#6B5E60", on: clubColor.accent, onInk: "#ffffff", btn: "#ffffff", ink: "#4A3D3F", del: "#B42318", star: "#D97706" };
+const Theme = createContext(DARK);
 
 const ARROW_SAMPLES = {
   move: { label: "Desplazamiento", dash: "3 2.2", wavy: false, air: false },
@@ -18,6 +21,7 @@ const ARROW_SAMPLES = {
   air: { label: "Pase aéreo", dash: null, wavy: false, air: true },
   dribble: { label: "Conducción", dash: null, wavy: true, air: false },
   line: { label: "Línea", dash: null, wavy: false, air: false, pointer: "none" },
+  block: { label: "Bloqueo", dash: null, wavy: false, air: false, pointer: "bar" },
 };
 
 // Final de la línea según la punta: flecha (base recta y estrecha), bloqueo (rayita), punto o nada
@@ -130,7 +134,8 @@ export const materialVariantOf = (el) => {
 export const textVariantOf = (el) => (el?.bg ? "tag" : (Number(el?.size) || 3) >= 4.5 ? "big" : "normal");
 
 // Color: muestra + paleta que sale hacia la derecha (no empuja la columna)
-function DockColor({ label, value, auto, onChange, testid }) {
+function DockColor({ label, value, auto, onChange, testid, tile = false }) {
+  const D = useContext(Theme);
   const [open, setOpen] = useState(null);
   const toggle = (e) => {
     if (open) return setOpen(null);
@@ -140,11 +145,19 @@ function DockColor({ label, value, auto, onChange, testid }) {
   };
   return (
     <div className="relative" data-testid={testid}>
-      <button type="button" onClick={toggle} aria-expanded={!!open} aria-label={label} title={label}
-        className="w-full flex items-center gap-1.5 rounded-lg px-1.5 h-8 text-[11px] font-semibold" style={{ background: D.btn, color: D.text, border: `1px solid ${open ? D.on : D.line}` }}>
-        <span className="w-5 h-5 rounded-full border border-white/40 shrink-0" style={{ background: value || auto }} />
-        <span className="truncate">{label}</span>
-      </button>
+      {tile ? (
+        <button type="button" onClick={toggle} aria-expanded={!!open} aria-label={label} title={label}
+          className="w-full rounded-md flex flex-col items-center justify-center pt-1 pb-0.5 gap-0.5" style={{ background: D.tile, border: `1px solid ${open ? D.on : D.line}` }}>
+          <span className="w-[22px] h-[14px] rounded border border-black/20" style={{ background: value || auto }} />
+          <span className="text-[10px] font-semibold leading-tight" style={{ color: D.ink }}>{label}</span>
+        </button>
+      ) : (
+        <button type="button" onClick={toggle} aria-expanded={!!open} aria-label={label} title={label}
+          className="w-full flex items-center gap-1.5 rounded-lg px-1.5 h-8 text-[11px] font-semibold" style={{ background: D.btn, color: D.text, border: `1px solid ${open ? D.on : D.line}` }}>
+          <span className="w-5 h-5 rounded-full border border-black/20 shrink-0" style={{ background: value || auto }} />
+          <span className="truncate">{label}</span>
+        </button>
+      )}
       {open && (
         <div className="fixed w-[168px] rounded-xl bg-white p-2 shadow-2xl border border-gray-200 grid grid-cols-6 gap-1" style={{ zIndex: 60, left: open.left, top: open.top }} role="group" aria-label={label}>
           {PALETTE.map((c) => (
@@ -163,17 +176,21 @@ function DockColor({ label, value, auto, onChange, testid }) {
   );
 }
 // Elegir entre unos pocos valores (grosores, transparencias, trazos) con su dibujo
-function Pick({ label, options, value, onChange, testid }) {
+// labeled (columna fuera del campo): el dibujo y, debajo, su nombre («Recta», «Fino»…), todas las opciones en una fila
+function Pick({ label, options, value, onChange, testid, labeled = false }) {
+  const D = useContext(Theme);
   return (
     <div data-testid={testid}>
       <span className="block text-[10px] font-semibold mb-0.5" style={{ color: D.sub }}>{label}</span>
-      <div className="grid grid-cols-2 gap-1">
+      <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${labeled ? options.length : 2}, minmax(0,1fr))` }}>
         {options.map((o) => {
           const on = o.value === value;
           return (
             <button key={String(o.value)} type="button" aria-pressed={on} aria-label={`${label}: ${o.label}`} title={o.label} onClick={() => onChange(o.value)}
-              className="h-7 rounded-md flex items-center justify-center" style={{ background: on ? D.on : D.tile, border: `1px solid ${on ? D.on : "transparent"}` }}>
-              {o.draw}
+              className={labeled ? "rounded-md flex flex-col items-center justify-center pt-1 pb-0.5 gap-0.5" : "h-7 rounded-md flex items-center justify-center"}
+              style={{ background: on ? D.on : D.tile, border: `1px solid ${on ? D.on : labeled ? D.line : "transparent"}`, ...(labeled && on ? { filter: "none" } : {}) }}>
+              <span style={labeled && on ? { filter: "brightness(0) invert(1)" } : undefined} className="flex items-center justify-center">{o.draw}</span>
+              {labeled && <span className="text-[10px] font-semibold leading-tight" style={{ color: on ? D.onInk : D.ink }}>{o.label}</span>}
             </button>
           );
         })}
@@ -182,6 +199,7 @@ function Pick({ label, options, value, onChange, testid }) {
   );
 }
 function Step({ label, onMinus, onPlus, text, testid }) {
+  const D = useContext(Theme);
   return (
     <div data-testid={testid}>
       <span className="block text-[10px] font-semibold mb-0.5" style={{ color: D.sub }}>{label}</span>
@@ -194,6 +212,7 @@ function Step({ label, onMinus, onPlus, text, testid }) {
   );
 }
 function Toggle({ label, on, onChange, testid }) {
+  const D = useContext(Theme);
   return (
     <button type="button" aria-pressed={on} onClick={() => onChange(!on)} data-testid={testid}
       className="w-full h-7 rounded-md text-[11px] font-semibold" style={{ background: on ? D.on : D.btn, color: on ? D.onInk : D.text, border: `1px solid ${on ? D.on : D.line}` }}>{label}</button>
@@ -210,11 +229,12 @@ const r2 = (v) => Math.round(v * 100) / 100;
  * onDelete (solo con algo elegido).
  */
 // inPage: fuera del campo, en la columna de la página (pizarra dentro de la página, 07/11/2026)
-export default function BoardDock({ kind, el, look, selected, variants, active, onVariant, patch, onDefault, onMore, onDelete, saved = false, linkPick = null, inPage = false }) {
+export default function BoardDock({ kind, el, look, selected, variants, active, onVariant, patch, onDefault, onMore, onDelete, saved = false, linkPick = null, inPage = false, light = false, onClose = null }) {
+  const D = light ? LIGHT : DARK;
   const s = styleOf(look);
   const title = { arrow: "Flechas", zone: "Zonas", ball: "Balón", material: "Material", text: "Texto", link: "Unir fichas" }[kind];
   const sample = (v) => {
-    if (kind === "arrow") return <ArrowSample v={ARROW_SAMPLES[v.id]} color={el.color || s.arrows?.[ARROW_SAMPLES[v.id]?.air ? "pass" : v.id] || s.arrows?.move || "#111827"} width={el.width ?? ARROW_W} pointer={v.id === active ? el.pointer : undefined} />;
+    if (kind === "arrow") { const col = el.color || s.arrows?.[ARROW_SAMPLES[v.id]?.air ? "pass" : v.id === "block" ? "line" : v.id] || s.arrows?.move || "#111827"; return <ArrowSample v={ARROW_SAMPLES[v.id]} color={light && /^#f/i.test(col) ? "#1E1416" : col} width={el.width ?? ARROW_W} pointer={v.id === active && v.id !== "block" ? el.pointer : undefined} />; }
     if (kind === "zone") return <ZoneSample shape={v.id} fill={el.fill || clubColor.primary} stroke={el.stroke || clubColor.primary} />;
     if (kind === "ball") { const bs = ballStyle(el); return <BallGlyph pattern={v.id} color={bs.color} color2={el.color2 || "#111827"} size={26} />; }
     if (kind === "material") return <MaterialSample id={v.id} color={el.color} />;
@@ -224,24 +244,28 @@ export default function BoardDock({ kind, el, look, selected, variants, active, 
   };
   const sizeOf = Number(el.size) || 1;
   return (
+    <Theme.Provider value={D}>
     <aside aria-label={`${title}: tipos y opciones`} data-testid="board-dock" data-kind={kind}
       className={inPage ? "relative w-full rounded-xl flex flex-col pb-1" : "absolute top-2.5 bottom-2.5 left-[54px] w-[112px] rounded-xl flex flex-col overflow-y-auto overflow-x-visible no-scrollbar"}
-      style={{ background: "rgba(36,0,10,0.96)", border: `1px solid ${D.line}`, zIndex: inPage ? undefined : 6, color: D.text }}>
-      <p className="px-2 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wider" style={{ color: D.sub }}>{title}</p>
+      style={{ background: D.bg, border: `1px solid ${D.line}`, zIndex: inPage ? undefined : 6, color: D.text, ...(light ? { boxShadow: "0 1px 2px rgba(0,0,0,.05)" } : {}) }}>
+      <div className="flex items-center px-2 pt-2 pb-1">
+        <p className="flex-1 m-0 text-[11px] font-bold uppercase tracking-wider" style={{ color: D.sub }}>{title}</p>
+        {onClose && <button type="button" onClick={onClose} aria-label="Cerrar" title="Cerrar (Esc)" data-testid="dock-close" className="h-6 w-6 rounded-md flex items-center justify-center" style={{ border: `1px solid ${D.line}`, color: D.sub }}><X className="w-3.5 h-3.5" /></button>}
+      </div>
       {linkPick && (
         <div className="px-2 pb-1.5 text-[10.5px] leading-snug" style={{ color: D.sub }} data-testid="dock-link-hint">
           {linkPick.count ? `${linkPick.count} ${linkPick.count === 1 ? "elegida" : "elegidas"}: elige cómo unirlas` : "Toca las fichas que quieras unir o arrastra un recuadro sobre ellas"}
           {linkPick.count > 0 && <button type="button" onClick={linkPick.onClear} className="block mt-1 underline" style={{ color: D.text }}>Borrar elección</button>}
         </div>
       )}
-      <div className={inPage ? "px-1.5 grid grid-cols-2 gap-1" : "px-1.5 flex flex-col gap-1"} role="group" aria-label={`Tipos de ${title.toLowerCase()}`}>
+      <div className={inPage ? "px-1.5 grid grid-cols-3 gap-1" : "px-1.5 flex flex-col gap-1"} role="group" aria-label={`Tipos de ${title.toLowerCase()}`}>
         {variants.map((v) => {
           const on = v.id === active;
           return (
             <button key={v.id} type="button" aria-pressed={on} onClick={() => onVariant(v.id)} title={v.label} data-testid={`dock-v-${v.id}`} disabled={v.disabled}
-              className="rounded-lg flex flex-col items-center pt-1 pb-0.5 disabled:opacity-40" style={{ background: D.tile, border: `2px solid ${on ? D.tileOn : "transparent"}` }}>
-              {sample(v)}
-              <span className="text-[10px] font-semibold leading-tight text-center px-0.5" style={{ color: "#4A3D3F" }}>{v.label}</span>
+              className="rounded-lg flex flex-col items-center pt-1 pb-0.5 disabled:opacity-40 overflow-hidden" style={{ background: light ? "#fff" : D.tile, border: `${light && !on ? 1 : 2}px solid ${on ? D.tileOn : light ? D.line : "transparent"}`, ...(light ? { boxShadow: on ? "0 0 0 1px " + D.tileOn : "none" } : {}) }}>
+              <span className={inPage ? "[&>svg]:w-[52px] [&>svg]:h-auto flex justify-center w-full" : ""}>{sample(v)}</span>
+              <span className="text-[10px] font-semibold leading-tight text-center px-0.5" style={{ color: D.ink }}>{v.label}</span>
             </button>
           );
         })}
@@ -249,17 +273,33 @@ export default function BoardDock({ kind, el, look, selected, variants, active, 
       <div className="mt-auto px-1.5 pt-2 pb-2 flex flex-col gap-1.5 border-t" style={{ borderColor: D.line, marginTop: 8 }}>
         {kind === "arrow" && (
           <>
-            <Pick label="Punta" testid="dock-pointer" value={el.pointer || (el.style === "line" ? "none" : "arrow")}
+            {inPage && !el.air && (
+              <Pick label="Trazado" testid="dock-trace" labeled value={arrowTrace(el, !selected)}
+                options={TRACES.map((o) => ({ value: o.id, label: TRACE_SHORT[o.id] || o.label, draw: traceDraw(o.id) }))} onChange={(v) => patch(tracePatch(el, v, !selected), "trace")} />
+            )}
+            <Pick label="Punta" testid="dock-pointer" labeled={inPage} value={el.pointer || (el.style === "line" ? "none" : "arrow")}
               options={POINTERS.map((o) => ({ value: o.id, label: o.label, draw: headDraw(o.id) }))} onChange={(v) => patch({ pointer: v }, "pointer")} />
-            {!el.air && (
+            {!inPage && !el.air && (
               <Pick label="Trazado" testid="dock-trace" value={arrowTrace(el, !selected)}
                 options={TRACES.map((o) => ({ value: o.id, label: o.label, draw: traceDraw(o.id) }))} onChange={(v) => patch(tracePatch(el, v, !selected), "trace")} />
             )}
-            <DockColor label="Color" value={el.color} auto={s.arrows?.[el.style] || s.arrows?.move || "#111827"} onChange={(c) => patch({ color: c }, "color")} testid="dock-color" />
-            <Pick label="Grosor" testid="dock-width" value={[0.25, 0.4, 0.6, 0.9].reduce((a, b) => (Math.abs(b - (el.width ?? ARROW_W)) < Math.abs(a - (el.width ?? ARROW_W)) ? b : a))}
-              options={[0.25, 0.4, 0.6, 0.9].map((w) => ({ value: w, label: `${w}`, draw: line(w * 4, null) }))} onChange={(w) => patch({ width: w }, "width")} />
-            <Pick label="Trazo" testid="dock-dash" value={el.dash || (el.style === "move" ? "dashed" : "solid")}
-              options={[{ value: "solid", label: "Continua", draw: line(1.8) }, { value: "dashed", label: "Discontinua", draw: line(1.8, "5 3") }, { value: "dotted", label: "Punteada", draw: line(2, "0.1 3.5") }]} onChange={(d) => patch({ dash: d }, "dash")} />
+            {inPage ? (
+              <div className="flex items-end gap-1">
+                <div className="flex-1 min-w-0">
+                  <Pick label="Grosor" testid="dock-width" labeled value={[0.25, 0.4, 0.7].reduce((a, b) => (Math.abs(b - (el.width ?? ARROW_W)) < Math.abs(a - (el.width ?? ARROW_W)) ? b : a))}
+                    options={[[0.25, "Fino"], [0.4, "Normal"], [0.7, "Grueso"]].map(([w, l]) => ({ value: w, label: l, draw: line(w * 4, null) }))} onChange={(w) => patch({ width: w }, "width")} />
+                </div>
+                <div className="w-[58px] shrink-0"><DockColor tile label="Color" value={el.color} auto={s.arrows?.[el.style] || s.arrows?.move || "#111827"} onChange={(c) => patch({ color: c }, "color")} testid="dock-color" /></div>
+              </div>
+            ) : (
+              <>
+                <DockColor label="Color" value={el.color} auto={s.arrows?.[el.style] || s.arrows?.move || "#111827"} onChange={(c) => patch({ color: c }, "color")} testid="dock-color" />
+                <Pick label="Grosor" testid="dock-width" value={[0.25, 0.4, 0.6, 0.9].reduce((a, b) => (Math.abs(b - (el.width ?? ARROW_W)) < Math.abs(a - (el.width ?? ARROW_W)) ? b : a))}
+                  options={[0.25, 0.4, 0.6, 0.9].map((w) => ({ value: w, label: `${w}`, draw: line(w * 4, null) }))} onChange={(w) => patch({ width: w }, "width")} />
+              </>
+            )}
+            <Pick label="Trazo" testid="dock-dash" labeled={inPage} value={el.dash || (el.style === "move" ? "dashed" : "solid")}
+              options={[{ value: "solid", label: "Continua", draw: line(1.8) }, { value: "dashed", label: inPage ? "Discont." : "Discontinua", draw: line(1.8, "5 3") }, { value: "dotted", label: "Punteada", draw: line(2, "0.1 3.5") }]} onChange={(d) => patch({ dash: d }, "dash")} />
             <Toggle label={el.border ? "Con borde" : "Sin borde"} on={!!el.border} onChange={(v) => patch({ border: v || undefined }, "border")} testid="dock-border" />
             {el.border && <DockColor label="Borde" value={el.borderColor} auto="#ffffff" onChange={(c) => patch({ borderColor: c }, "borderColor")} testid="dock-border-color" />}
           </>
@@ -316,8 +356,21 @@ export default function BoardDock({ kind, el, look, selected, variants, active, 
           </>
         )}
         {/* predeterminado con texto (07/11/2026, Nacho: «dejar un grosor, color… preestablecido»): lo nuevo de este tipo saldrá así */}
+        {inPage ? (
+          <div className="mt-1 flex items-stretch gap-1">
+            <button type="button" onClick={onDefault} title="Lo que dibujes de este tipo a partir de ahora saldrá así (grosor, color, trazo…)" data-testid="dock-default"
+              className="flex-1 rounded-md flex items-center justify-center gap-1 px-1.5 text-[11px] font-semibold" style={{ minHeight: 32, background: saved ? D.on : D.btn, color: saved ? D.onInk : D.star, border: `1px solid ${saved ? D.on : D.line}` }}>
+              <Star className="w-3.5 h-3.5 shrink-0" fill={saved ? "currentColor" : "none"} />
+              <span style={{ color: saved ? D.onInk : D.text }}>{saved ? "Guardado" : "Predeterminado"}</span>
+            </button>
+            <button type="button" onClick={onMore} title="Más opciones" data-testid="dock-more" className="rounded-md px-2.5 text-[11px] font-semibold" style={{ background: D.btn, color: D.text, border: `1px solid ${D.line}` }}>Más…</button>
+            {selected && (
+              <button type="button" onClick={onDelete} title="Quitar" aria-label="Quitar" data-testid="dock-delete" className="w-8 rounded-md flex items-center justify-center" style={{ background: D.btn, color: D.del, border: `1px solid ${D.line}` }}><Trash2 className="w-4 h-4" /></button>
+            )}
+          </div>
+        ) : (<>
         <button type="button" onClick={onDefault} title="Lo que dibujes de este tipo a partir de ahora saldrá así (grosor, color, trazo…)" data-testid="dock-default"
-          className="mt-1 w-full rounded-md flex items-center justify-center gap-1 px-1 text-[10.5px] font-semibold leading-tight text-center" style={{ minHeight: 34, background: saved ? D.on : D.btn, color: saved ? D.onInk : "#facc15", border: `1px solid ${saved ? D.on : D.line}` }}>
+          className="mt-1 w-full rounded-md flex items-center justify-center gap-1 px-1 text-[10.5px] font-semibold leading-tight text-center" style={{ minHeight: 34, background: saved ? D.on : D.btn, color: saved ? D.onInk : D.star, border: `1px solid ${saved ? D.on : D.line}` }}>
           <Star className="w-3.5 h-3.5 shrink-0" fill={saved ? "currentColor" : "none"} />
           <span style={{ color: saved ? D.onInk : D.text }}>{saved ? "Guardado" : "Dejar como predeterminado"}</span>
         </button>
@@ -328,14 +381,17 @@ export default function BoardDock({ kind, el, look, selected, variants, active, 
           </button>
           {selected ? (
             <button type="button" onClick={onDelete} title="Quitar" aria-label="Quitar" data-testid="dock-delete"
-              className="h-8 rounded-md flex items-center justify-center" style={{ background: D.btn, color: "#fca5a5", border: `1px solid ${D.line}` }}>
+              className="h-8 rounded-md flex items-center justify-center" style={{ background: D.btn, color: D.del, border: `1px solid ${D.line}` }}>
               <Trash2 className="w-4 h-4" />
             </button>
           ) : <span />}
         </div>
+        </>)}
       </div>
     </aside>
+    </Theme.Provider>
   );
 }
 
+const TRACE_SHORT = { smooth: "Libre" };
 export { BALL_PATTERNS };

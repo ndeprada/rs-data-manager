@@ -1,6 +1,7 @@
 import React, { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Trash2, BookmarkPlus, X, Copy, Users, Printer, FileDown, Star } from "lucide-react";
+import { Trash2, BookmarkPlus, X, Copy, Users, Printer, FileDown, Star, MoreHorizontal, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { base44 } from "@/api/base44Client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { playerFirstName } from "@/lib/playerName";
@@ -189,7 +190,7 @@ const selPill = { height: 32, borderRadius: 999, border: `1px solid ${RS.input}`
 // Una jugada (rediseño del 06/11/2026, maqueta «Maqueta ABP · rediseño» aprobada por Nacho): encima de la pizarra, en una franja,
 // el nombre, el tipo, a favor / en contra, el lado, la estructura de partida, el resumen automático y la señal; la pizarra de
 // siempre; a la derecha «Quién hace qué» (jugador y función de cada ficha) y las instrucciones.
-function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDuplicate, onRemove, libLinked, onPrint, busy, total, shirtKit }) {
+function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDuplicate, onRemove, libLinked, shirtKit }) {
   const t = useT();
   const board = pieceBoard(piece, lookup);
   const setup = pieceSetup(piece);
@@ -222,6 +223,23 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
   // (en pantallas estrechas la columna baja debajo y las opciones se quedan sobre el campo, como antes)
   const [sideEl, setSideEl] = useState(null);
   const [beside, setBeside] = useState(false);
+  // Quién hace qué e instrucciones se pueden plegar; con las opciones de una herramienta abiertas encima, las instrucciones quedan
+  // en una línea (13/11/2026, maqueta «editor más limpio»)
+  const [whoOpen, setWhoOpen] = useState(true);
+  const [instrOpen, setInstrOpenRaw] = useState(true);
+  const [instrBusyOpen, setInstrBusyOpen] = useState(false);
+  const [sideBusy, setSideBusy] = useState(false);
+  useEffect(() => {
+    if (!sideEl || typeof MutationObserver === "undefined") return undefined;
+    const check = () => setSideBusy(sideEl.childElementCount > 0);
+    check();
+    const mo = new MutationObserver(check);
+    mo.observe(sideEl, { childList: true });
+    return () => mo.disconnect();
+  }, [sideEl]);
+  useEffect(() => { if (!sideBusy) setInstrBusyOpen(false); }, [sideBusy]);
+  const instrShown = sideBusy && beside ? instrBusyOpen : instrOpen;
+  const setInstrOpen = (v) => (sideBusy && beside ? setInstrBusyOpen(v) : setInstrOpenRaw(v));
   const rowRef = useRef(null);
   useLayoutEffect(() => {
     const row = rowRef.current;
@@ -248,33 +266,19 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
   const order = (c) => (c.fn === "portero" ? -1 : funcs.findIndex((f) => f.id === c.fn) === -1 ? 99 : funcs.findIndex((f) => f.id === c.fn));
   const sortedChips = [...chips].sort((a, b) => order(a) - order(b));
 
+  // Cabecera de la jugada en una línea (13/11/2026, maqueta «editor más limpio» aprobada por Nacho): nombre, tipo, a favor /
+  // en contra, lado y estructura; duplicar, biblioteca, vista base y quitar en «⋯»; debajo, la señal
   const header = (
-    <section className="rounded-xl bg-white flex flex-col" style={{ border: `1px solid ${RS.line}`, padding: "12px 16px", gap: 10 }} data-testid="sp-head">
-      <div className="flex items-center" style={{ gap: 10 }}>
-        <input value={piece.name || ""} onChange={(e) => onChange({ ...piece, name: e.target.value })} placeholder={t("Nombre de la jugada")} aria-label={t("Nombre de la jugada")}
-          className="flex-1 min-w-0 outline-none rounded-md hover:bg-[#F5F2F1] focus:bg-[#F5F2F1]" style={{ fontFamily: DISPLAY, fontSize: 28, lineHeight: 1.1, color: RS.granate, textTransform: "uppercase", padding: "2px 6px", margin: "0 -6px", background: "transparent", border: "none" }} data-testid="sp-name" />
-        <span className="hidden sm:inline" style={{ fontSize: 12, color: RS.muted, whiteSpace: "nowrap" }}>{animFrameCount(board) > 1 ? t("Hoja + animación ({n} fotogramas)", { n: animFrameCount(board) }) : t("Solo hoja")}{libLinked ? ` · ${t("en la biblioteca")}` : ""}</span>
-        <button type="button" onClick={saveBase} data-testid="sp-base-save"
-          title={t("Las jugadas nuevas que crees saldrán con el campo, la vista, la orientación, los colores de los equipos y el tamaño y la letra de las fichas de esta jugada")}
-          className="inline-flex items-center whitespace-nowrap" style={{ height: 34, padding: "0 10px", gap: 5, borderRadius: 8, border: `1px solid ${RS.line}`, background: baseMsg ? RS.granate : "#fff", color: baseMsg ? "#fff" : RS.ink2, fontSize: 12.5, fontWeight: 600 }}>
-          <Star className="w-3.5 h-3.5" fill={baseMsg ? "currentColor" : "none"} />{baseMsg || t("Usar como vista base")}
-        </button>
-        <button type="button" onClick={onDuplicate} title={t("Duplicar")} aria-label={t("Duplicar")} style={iconBtn} data-testid="sp-dup"><Copy className="w-4 h-4" /></button>
-        <button type="button" onClick={onSave} disabled={!teamId} title={libLinked ? t("Actualizar en la biblioteca") : t("Guardar en biblioteca")} aria-label={libLinked ? t("Actualizar en la biblioteca") : t("Guardar en biblioteca")} style={{ ...iconBtn, color: libLinked ? RS.granate : RS.ink2 }} className="disabled:opacity-40" data-testid="sp-save-lib"><BookmarkPlus className="w-4 h-4" /></button>
-        <button type="button" onClick={onRemove} title={t("Quitar del partido")} aria-label={t("Quitar del partido")} style={{ ...iconBtn, color: "#B42318" }} data-testid="sp-remove"><Trash2 className="w-4 h-4" /></button>
-      </div>
-      <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
-        <span className="inline-flex items-center" style={{ background: RS.bg, borderRadius: 999, padding: 2 }} data-testid="sp-chips">
-          <span style={{ fontSize: 11.5, color: RS.muted, padding: "0 6px 0 8px" }}>{t("Fichas")}</span>
-          <button type="button" style={segBtn(!board.realShirts)} onClick={() => board.realShirts && setBoard({ ...board, realShirts: undefined })} data-testid="sp-chips-buttons">{t("Botones")}</button>
-          <button type="button" style={segBtn(!!board.realShirts)} onClick={() => { if (!board.realShirts) { preloadKitData(); setBoard({ ...board, realShirts: true, shirtKit: shirtKit || board.shirtKit }); } }} data-testid="sp-chips-shirts">{t("Camisetas")}</button>
-        </span>
-        <select value={setup.kind} onChange={(e) => setSetup({ kind: e.target.value })} aria-label={t("Tipo de jugada")} style={selPill} data-testid="sp-kind">
+    <section className="rounded-xl bg-white flex flex-col" style={{ border: `1px solid ${RS.line}`, padding: "10px 14px", gap: 9 }} data-testid="sp-head">
+      <div className="flex flex-wrap items-center" style={{ gap: 6 }}>
+        <input value={piece.name || ""} onChange={(e) => onChange({ ...piece, name: e.target.value })} placeholder={t("Nombre de la jugada")} aria-label={t("Nombre de la jugada")} size={Math.max(8, Math.min(22, (piece.name || "").length + 1))}
+          className="min-w-0 outline-none rounded-md hover:bg-[#F5F2F1] focus:bg-[#F5F2F1]" style={{ fontFamily: DISPLAY, fontSize: 26, lineHeight: 1.1, color: RS.granate, textTransform: "uppercase", padding: "2px 6px", margin: "0 0 0 -6px", background: "transparent", border: "none", maxWidth: 260 }} data-testid="sp-name" />
+        <select value={setup.kind} onChange={(e) => setSetup({ kind: e.target.value })} aria-label={t("Tipo de jugada")} style={{ ...selPill, maxWidth: 124 }} data-testid="sp-kind">
           {SP_KINDS.map((k) => <option key={k.id} value={k.id}>{t(KIND_LABEL[k.id])}</option>)}
         </select>
         {setup.kind === "otro" && (
           <input value={piece.kind_other || ""} onChange={(e) => onChange({ ...piece, kind_other: e.target.value })} placeholder={t("Qué jugada es (p. ej. saque de puerta)")} aria-label={t("Tipo de jugada")}
-            className="outline-none focus:ring-1 focus:ring-club" style={{ ...selPill, fontWeight: 400, width: 220, padding: "0 12px" }} data-testid="sp-kind-other" />
+            className="outline-none focus:ring-1 focus:ring-club" style={{ ...selPill, fontWeight: 400, width: 200, padding: "0 12px" }} data-testid="sp-kind-other" />
         )}
         <span role="group" aria-label={t("A favor o en contra")} style={segOuter}>
           <button type="button" aria-pressed={setup.attack} onClick={() => setSetup({ attack: true })} style={segBtn(setup.attack)} data-testid="sp-attack">{t("A favor")}</button>
@@ -282,32 +286,62 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
         </span>
         {hasSide(setup.kind) && (
           <span role="group" aria-label={t("Lado")} style={segOuter}>
-            {[["l", t("Izquierdo")], ["r", t("Derecho")], ["both", t("Ambos")]].map(([v, l]) => (
-              <button key={v} type="button" aria-pressed={setup.side === v} onClick={() => setSetup({ side: v })} style={segBtn(setup.side === v)} data-testid={`sp-side-${v}`}>{l}</button>
+            {[["l", t("Izq.")], ["r", t("Dcho.")], ["both", t("Ambos")]].map(([v, l]) => (
+              <button key={v} type="button" aria-pressed={setup.side === v} onClick={() => setSetup({ side: v })} style={segBtn(setup.side === v)} title={t(SIDE_LABEL[v])} data-testid={`sp-side-${v}`}>{l}</button>
             ))}
           </span>
         )}
         {(structs.length > 0 || tpl) && (
-          <select value="" onChange={(e) => { if (e.target.value) pickStructure(e.target.value); }} aria-label={t("Estructura de partida")} style={{ ...selPill, fontWeight: 400, color: RS.ink2 }} data-testid="sp-structure">
+          <select value="" onChange={(e) => { if (e.target.value) pickStructure(e.target.value); }} aria-label={t("Estructura de partida")} style={{ ...selPill, fontWeight: 400, color: RS.ink2, maxWidth: 150 }} data-testid="sp-structure">
             <option value="">{t("Estructura de partida…")}</option>
             {structs.map((st) => <option key={st.id} value={st.id}>{t(st.label)}</option>)}
             {!structs.length && tpl && <option value="__tpl">{t("Básica: {name}", { name: t(tpl.label) })}</option>}
           </select>
         )}
-        <span className="flex-1" />
-        {(title || mark) && (
-          <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: ".05em", color: RS.muted, textAlign: "right" }}>
-            {title && <span style={{ fontFamily: DISPLAY, fontSize: 15, letterSpacing: 0, color: RS.dark, marginRight: 8 }} data-testid="sp-auto-title">{title}</span>}
-            {mark && <span data-testid="sp-auto-subtitle">{mark}</span>}
-          </span>
-        )}
       </div>
-      <label className="flex items-center" style={{ gap: 10, minHeight: 36, borderRadius: 999, background: RS.granate, color: "#fff", padding: "0 6px 0 14px" }}>
-        <span style={{ fontFamily: DISPLAY, fontSize: 15, letterSpacing: ".04em" }}>{t("SEÑAL")}</span>
-        <input value={piece.signal || ""} onChange={(e) => onChange({ ...piece, signal: e.target.value })} placeholder={t("Señal: levantar el balón, brazo derecho extendido…")} aria-label={t("Señal")}
-          className="flex-1 min-w-0 outline-none placeholder:text-white/60" style={{ height: 28, border: "none", borderRadius: 999, background: "rgba(255,255,255,.13)", color: "#fff", fontSize: 14, padding: "0 12px" }} data-testid="sp-signal" />
-      </label>
+      <div className="flex flex-wrap items-center" style={{ gap: "6px 12px" }}>
+        <label className="flex items-center flex-1" style={{ gap: 10, minHeight: 34, minWidth: 260, borderRadius: 999, background: RS.granate, color: "#fff", padding: "0 5px 0 14px" }}>
+          <span style={{ fontFamily: DISPLAY, fontSize: 15, letterSpacing: ".04em" }}>{t("SEÑAL")}</span>
+          <input value={piece.signal || ""} onChange={(e) => onChange({ ...piece, signal: e.target.value })} placeholder={t("Señal: levantar el balón, brazo derecho extendido…")} aria-label={t("Señal")}
+            className="flex-1 min-w-0 outline-none placeholder:text-white/60" style={{ height: 26, border: "none", borderRadius: 999, background: "rgba(255,255,255,.13)", color: "#fff", fontSize: 14, padding: "0 12px" }} data-testid="sp-signal" />
+        </label>
+        {baseMsg && <span style={{ fontSize: 12, fontWeight: 600, color: RS.granate }} role="status">{baseMsg}</span>}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" aria-label={t("Más opciones de la jugada")} title={t("Duplicar, biblioteca, vista base y quitar")} style={iconBtn} data-testid="sp-more"><MoreHorizontal className="w-4 h-4" /></button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-60">
+            <DropdownMenuItem onSelect={onDuplicate} data-testid="sp-dup"><Copy className="w-4 h-4 mr-2" />{t("Duplicar jugada")}</DropdownMenuItem>
+            <DropdownMenuItem disabled={!teamId} onSelect={onSave} data-testid="sp-save-lib"><BookmarkPlus className="w-4 h-4 mr-2" />{libLinked ? t("Actualizar en la biblioteca") : t("Guardar en biblioteca")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={saveBase} data-testid="sp-base-save"
+              title={t("Las jugadas nuevas que crees saldrán con el campo, la vista, la orientación, los colores de los equipos y el tamaño y la letra de las fichas de esta jugada")}>
+              <Star className="w-4 h-4 mr-2" />{t("Usar como vista base")}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onRemove} className="text-[#B42318] focus:text-[#B42318]" data-testid="sp-remove"><Trash2 className="w-4 h-4 mr-2" />{t("Quitar jugada")}</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      {(title || mark) && (
+        <div style={{ margin: "-2px 0 0", lineHeight: 1.2 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: ".05em", color: RS.muted }}>
+            {title && <span style={{ fontFamily: DISPLAY, fontSize: 14, letterSpacing: 0, color: RS.dark, marginRight: 6 }} data-testid="sp-auto-title">{title}</span>}
+            {mark && <span data-testid="sp-auto-subtitle">{mark}</span>}
+            <span style={{ marginLeft: 6, fontWeight: 400, letterSpacing: 0 }}>· {animFrameCount(board) > 1 ? t("Hoja + animación ({n} fotogramas)", { n: animFrameCount(board) }) : t("Solo hoja")}{libLinked ? ` · ${t("en la biblioteca")}` : ""}</span>
+          </span>
+        </div>
+      )}
     </section>
+  );
+  // «Fichas: Botones / Camisetas» pasa a «Campo y ajustes» de la pizarra
+  const chipsSetting = (
+    <div className="flex items-center gap-2" data-testid="sp-chips">
+      <span className="text-[11px] font-semibold text-gray-600">{t("Fichas de {club}", { club: BRAND.shortName })}</span>
+      <span className="inline-flex items-center" style={{ background: RS.bg, borderRadius: 999, padding: 2 }}>
+        <button type="button" style={segBtn(!board.realShirts)} onClick={() => board.realShirts && setBoard({ ...board, realShirts: undefined })} data-testid="sp-chips-buttons">{t("Botones")}</button>
+        <button type="button" style={segBtn(!!board.realShirts)} onClick={() => { if (!board.realShirts) { preloadKitData(); setBoard({ ...board, realShirts: true, shirtKit: shirtKit || board.shirtKit }); } }} data-testid="sp-chips-shirts">{t("Camisetas")}</button>
+      </span>
+    </div>
   );
 
   // A pantalla completa: un título pequeño, solo para leer, con el nombre, el tipo y la señal
@@ -327,7 +361,7 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
         {header}
         <BoardEditor value={board} onChange={setBoard} fields={["half", "tq", "full", "free"]} filename={piece.name || t("Jugada")}
           embedded embedHeight={620} studioTitle={studioTag}
-          variant="abp" sideHost={beside ? sideEl : null}
+          variant="abp" sideHost={beside ? sideEl : null} settingsExtra={chipsSetting}
           chipPlayer={(el, patch, toTeam) => (el.team === "a" ? <AbpChipPlayer el={el} patch={patch} candidates={candidates} byId={byId} attack={setup.attack} toTeam={toTeam} /> : null)}
           chipDescribe={(el) => (el.team === "a" && el.fn && FN_LABEL[el.fn] ? `${teamsOf(board).find((x) => x.id === "a")?.name || BRAND.shortName} · ${t(FN_LABEL[el.fn])}` : null)} />
       </div>
@@ -336,14 +370,19 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
       <aside className="flex flex-col" style={{ flex: "1 1 260px", maxWidth: 320, minWidth: 240, gap: 12 }}>
         <div ref={setSideEl} className="empty:hidden" data-testid="sp-board-side" />
         <Card testId="sp-players" style={{ padding: 0, gap: 0, overflow: "clip" }}>
-          <div className="flex flex-wrap items-baseline justify-between" style={{ padding: "12px 14px 8px", columnGap: 8, rowGap: 4 }}>
-            <Lab style={{ whiteSpace: "nowrap" }}>{t("Quién hace qué")}{chips.length ? ` · ${chips.length}` : ""}</Lab>
-            <button type="button" onClick={() => setBoard(proposeSquad(board, candidates, setup.attack))} disabled={!chips.some((c) => !c.player_id) || !candidates.length}
-              className="inline-flex items-center disabled:opacity-40" style={{ gap: 4, fontSize: 12, fontWeight: 600, color: RS.granate, whiteSpace: "nowrap" }}>
-              <Users className="w-3.5 h-3.5" /> {t("Rellenar con convocados")}
+          <div className="flex flex-wrap items-center justify-between" style={{ padding: "10px 12px 8px 14px", columnGap: 8, rowGap: 4 }}>
+            <button type="button" onClick={() => setWhoOpen((v) => !v)} aria-expanded={whoOpen} className="inline-flex items-center" style={{ gap: 4 }} data-testid="sp-players-toggle">
+              <Lab style={{ whiteSpace: "nowrap", margin: 0 }}>{t("Quién hace qué")}{chips.length ? ` · ${chips.length}` : ""}</Lab>
+              <ChevronDown className="w-4 h-4" style={{ color: RS.muted, transform: whoOpen ? "none" : "rotate(-90deg)", transition: "transform .15s" }} />
             </button>
+            {whoOpen && (
+              <button type="button" onClick={() => setBoard(proposeSquad(board, candidates, setup.attack))} disabled={!chips.some((c) => !c.player_id) || !candidates.length}
+                className="inline-flex items-center disabled:opacity-40" style={{ gap: 4, fontSize: 12, fontWeight: 600, color: RS.granate, whiteSpace: "nowrap" }}>
+                <Users className="w-3.5 h-3.5" /> {t("Rellenar con convocados")}
+              </button>
+            )}
           </div>
-          {sortedChips.length === 0 ? (
+          {!whoOpen ? null : sortedChips.length === 0 ? (
             <p style={{ margin: 0, padding: "0 14px 12px", fontSize: 12, color: RS.muted }}>{t("Elige una estructura de partida o coloca fichas del Racing en la pizarra.")}</p>
           ) : (
             <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
@@ -376,22 +415,19 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
             </ul>
           )}
         </Card>
-        <Card>
-          <Lab>{t("Instrucciones")}</Lab>
+        <Card testId="sp-notes" style={instrShown ? undefined : { padding: "10px 12px 10px 14px", gap: 0 }}>
+          <button type="button" onClick={() => setInstrOpen(!instrShown)} aria-expanded={instrShown} className="flex items-center w-full text-left" style={{ gap: 6 }} data-testid="sp-notes-toggle">
+            <Lab style={{ whiteSpace: "nowrap", margin: 0 }}>{t("Instrucciones")}</Lab>
+            {!instrShown && <span className="flex-1 min-w-0 truncate" style={{ fontSize: 12.5, color: piece.notes ? RS.ink2 : RS.faint }}>{piece.notes ? piece.notes.split("\n")[0] : t("Quién saca, quién ataca…")}</span>}
+            {instrShown && <span className="flex-1" />}
+            <ChevronDown className="w-4 h-4 shrink-0" style={{ color: RS.muted, transform: instrShown ? "none" : "rotate(-90deg)", transition: "transform .15s" }} />
+          </button>
+          {instrShown && <>
           <textarea rows={6} value={piece.notes || ""} onChange={(e) => onChange({ ...piece, notes: e.target.value })} placeholder={t("Quién saca, quién ataca el primer palo, rechace…")}
             className="w-full outline-none focus:ring-1 focus:ring-club resize-y" style={{ borderRadius: 8, border: `1px solid ${RS.input}`, padding: "8px 12px", fontSize: 13.5, lineHeight: 1.45, minHeight: 116, color: RS.ink }} />
           <p style={{ margin: 0, fontSize: 11.5, color: RS.muted }}>{t("Salen en la hoja impresa, debajo del campo.")}</p>
+          </>}
         </Card>
-        {/* Imprimir sin salir del editor (la hoja = el fotograma «Hoja») */}
-        <section className="rounded-xl flex flex-col" style={{ background: RS.dark, color: "#fff", padding: "12px 14px", gap: 9 }} data-testid="sp-print-card">
-          <div role="heading" aria-level={3} style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: "#E8C9CD" }}>{t("Imprimir")}</div>
-          <div className="flex flex-wrap" style={{ gap: 6 }}>
-            <button type="button" disabled={!!busy} onClick={() => onPrint("one")} className="disabled:opacity-50" style={{ height: 32, padding: "0 12px", borderRadius: 999, background: "#fff", color: RS.dark, fontSize: 13, fontWeight: 700 }} data-testid="sp-print-one">{t("Esta jugada")}</button>
-            <button type="button" disabled={!!busy || total < 1} onClick={() => onPrint("bench")} className="disabled:opacity-50" style={{ height: 32, padding: "0 12px", borderRadius: 999, border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontSize: 13, fontWeight: 600 }} data-testid="sp-print-bench">{t("Todas en una (banquillo)")}</button>
-          </div>
-          <button type="button" onClick={() => onPrint("more")} style={{ alignSelf: "flex-start", fontSize: 12.5, color: "#FFD3B0", fontWeight: 600 }} data-testid="sp-print-more">{t("Más opciones: 2 o 4 por hoja, vista, PDF…")}</button>
-          <p style={{ margin: 0, fontSize: 11.5, color: "#E8C9CD" }}>{t("Se imprime la hoja, en fondo blanco: casi no gasta tinta.")}</p>
-        </section>
       </aside>
     </div>
   );
@@ -737,7 +773,19 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
         <div className="flex flex-wrap" style={{ gap: 6 }}>
           <button type="button" onClick={() => setPrevOpen((v) => !v)} disabled={!teamId} style={topBtn} className="disabled:opacity-40" data-testid="sp-prev-open">{t("Traer del partido anterior")}</button>
           <button type="button" onClick={() => setLibOpen((v) => !v)} style={topBtn} data-testid="sp-lib-open">{t("Biblioteca{v}", { v: library.length ? ` (${library.length})` : "" })}</button>
-          <button type="button" onClick={() => setView("resumen")} disabled={!pieces.length} className="disabled:opacity-40" style={{ ...topBtn, border: "none", background: RS.granate, color: "#fff", fontWeight: 700 }} data-testid="sp-print-open"><Printer className="w-4 h-4" /> {t("Imprimir / PDF")}</button>
+          {/* Imprimir en un solo sitio (13/11/2026): «Esta jugada», «Todas en una (banquillo)» y «Más opciones…» (el resumen) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" disabled={!pieces.length || !!busy} className="disabled:opacity-40" style={{ ...topBtn, border: "none", background: RS.granate, color: "#fff", fontWeight: 700 }} data-testid="sp-print-open"><Printer className="w-4 h-4" /> {busy ? t("Preparando…") : t("Imprimir / PDF")} <ChevronDown className="w-4 h-4" /></button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuItem disabled={view !== "editor" || !active} onSelect={() => printQuick([active], 1)} data-testid="sp-print-one">{t("Esta jugada")}</DropdownMenuItem>
+              <DropdownMenuItem disabled={pieces.length < 1} onSelect={() => printQuick(printList.map((id) => pieces.find((p) => p.id === id)).filter(Boolean), "all")} data-testid="sp-print-bench">{t("Todas en una (banquillo)")}</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setView("resumen")} data-testid="sp-print-more">{t("Más opciones: 2 o 4 por hoja, vista, PDF…")}</DropdownMenuItem>
+              <p className="px-2 pb-1.5 pt-0.5 text-[11px]" style={{ color: RS.muted }}>{t("Se imprime la hoja, en fondo blanco: casi no gasta tinta.")}</p>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       {note && <p style={{ margin: 0, fontSize: 12.5, color: RS.ink2 }} role="status">{note}</p>}
@@ -861,8 +909,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
               <PieceEditor key={active.id} piece={active} onChange={update} candidates={candidates} lookup={lookup} teamId={teamId} shirtKit={shirtKit}
                 libLinked={!!active.lib_id && library.some((l) => l.id === active.lib_id)}
                 onSave={saveToLibrary} onDuplicate={duplicate} onRemove={() => remove(active.id)}
-                busy={busy} total={pieces.length}
-                onPrint={(w) => (w === "more" ? setView("resumen") : printQuick(w === "one" ? [active] : printList.map((id) => pieces.find((p) => p.id === id)), w === "one" ? 1 : "all"))} />
+ />
             )}
           </div>
         </div>
