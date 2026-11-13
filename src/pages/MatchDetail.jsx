@@ -31,7 +31,7 @@ export default function MatchDetail() {
   const params = new URLSearchParams(location.search);
   const { canManageTeam } = useTeamAccess();
   const eventId = params.get("id");
-  const teamId = params.get("teamId");
+  const urlTeamId = params.get("teamId");
 
   const [activeTab, setActiveTabState] = useState(STEP_KEYS.includes(params.get("tab")) ? params.get("tab") : null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -53,6 +53,8 @@ export default function MatchDetail() {
     enabled: !!eventId,
   });
 
+  // Sin «teamId» en la dirección (p. ej. desde Mi equipo → Partidos), el equipo del partido: si no, todos salían como «De otros equipos»
+  const teamId = urlTeamId || event?.team_id || null;
   const { data: teamPlayers = [] } = useQuery({
     queryKey: ["teamPlayers", teamId],
     queryFn: () => base44.entities.Player.filter({ team_id: teamId }),
