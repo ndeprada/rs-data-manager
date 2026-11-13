@@ -137,4 +137,6 @@ export default [
   ["2.º cuarto", "2nd quarter", "2e quart-temps", "2n quart"],
   ["3.er cuarto", "3rd quarter", "3e quart-temps", "3r quart"],
   ["4.º cuarto", "4th quarter", "4e quart-temps", "4t quart"],
+  ["Once, banquillo, rival y plan de partido en una hoja A4", "Line-up, bench, opponent and game plan on one A4 sheet", "Onze, banc, adversaire et plan de match sur une feuille A4", "Onze, banqueta, rival i pla de partit en un full A4"],
+  ["Añadir la hoja para el banquillo (minutos, cambios y tarjetas del rival)", "Add the bench sheet (minutes, subs and opponent cards)", "Ajouter la feuille du banc (minutes, changements et cartons adverses)", "Afegir el full per a la banqueta (minuts, canvis i targetes del rival)"],
 ];

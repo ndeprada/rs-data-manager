@@ -27,7 +27,9 @@ import { participationOf, playerLevel } from "@/lib/participation";
 import { useParticipationContext } from "@/lib/useParticipation";
 import { agendaMeta } from "@/lib/weekendAgenda";
 import { rivalNotesBefore } from "@/lib/postMatch";
-import { pieceSetup, SP_KINDS } from "@/lib/setPieceBoard";
+import { pieceSetup, SP_KINDS, setupLabel } from "@/lib/setPieceBoard";
+import { reasonText } from "@/lib/convocationMessage";
+import { isPrimerEquipo } from "@/lib/primerEquipo";
 import { RS } from "@/components/rs2/kit";
 import { FormChips } from "@/components/rs2/dashParts";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -467,6 +469,32 @@ export default function TacticaTab({ event, players, convocadoIds, matchDorsals,
 
   // Hoja del entrenador
   const [pdfBusy, setPdfBusy] = useState("");
+  // Página 2 de la hoja («Durante el partido», para el banquillo): se recuerda en el navegador
+  const [benchPage, setBenchPage] = useState(() => { try { return localStorage.getItem("rs_sheet_bench") !== "0"; } catch { return true; } });
+  const toggleBenchPage = () => setBenchPage((v) => { try { localStorage.setItem("rs_sheet_bench", v ? "0" : "1"); } catch { /* sin almacenamiento */ } return !v; });
+  const { data: sheetConv } = useQuery({
+    queryKey: ["convocatoria", event?.id],
+    queryFn: () => base44.entities.Convocatoria.filter({ event_id: event.id }).then((d) => d[0] || null),
+    enabled: !!event?.id,
+  });
+  const sheetExtras = () => {
+    const convIds = new Set(sheetConv?.player_ids || convocadoIds || []);
+    const why = sheetConv?.absence_reasons || {};
+    const absent = sheetConv ? players.filter((p) => p.status !== "baja" && !convIds.has(p.id))
+      .sort((a, b) => (POS_ORDER.indexOf(a.position) - POS_ORDER.indexOf(b.position)) || ((Number(a.jersey_number) || 99) - (Number(b.jersey_number) || 99)))
+      .map((p) => ({ dorsal: p.jersey_number ?? "", name: `${p.first_name || ""} ${p.last_name || ""}`.trim(), reason: reasonText(why[p.id]) })) : [];
+    const r = rivalSummary(report);
+    const rival = r ? {
+      pos: r.pos, pts: r.pts, gf: r.gf, gc: r.gc, form: r.form,
+      awayText: event?.is_home === false ? (report?.home?.pj ? `En casa: ${report.home.g}V ${report.home.e}E ${report.home.p}D` : "") : (r.away ? `Fuera: ${r.away.split("-").map((n, i) => `${n}${"VED"[i]}`).join(" ")}` : ""),
+      h2hText: r.h2h ? `Último: ${r.h2h.away ? `${event?.opponent} ${r.h2h.rival}-${r.h2h.our}` : `${r.h2h.our}-${r.h2h.rival}`}` : "",
+      scorer: r.scorers?.[0] ? `Goleador: ${r.scorers[0].name} (${r.scorers[0].goals})` : "",
+    } : null;
+    const rivalNotes = pastRivalNotes.slice(0, 2).flatMap((e) => String(e.analysis_notes_rival || "").replace(/<\/(p|li|div)>/gi, "\n").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").split("\n").map((x) => x.trim()).filter(Boolean));
+    const sheetPieces = pieces.map((pc) => { const st = pieceSetup(pc); return { kind: setupLabel(st).split(" · ")[0], name: pc.name || "", signal: pc.signal || "" }; });
+    const kitInfo = KITS[kit] ? `${String(KITS[kit].label).replace("ª", ".ª")} equipación${meta?.kit_color ? ` · ${meta.kit_color}` : ""}` : "";
+    return { callupTime: sheetConv?.callup_time || "", kitText: kitInfo, absent, rival, rivalNotes, pieces: sheetPieces, benchPage, amateur: isPrimerEquipo(team) };
+  };
   const makePdf = async (preview = false) => {
     setPdfBusy(preview ? "preview" : "pdf");
     const win = preview ? window.open("", "_blank") : null;
@@ -474,7 +502,7 @@ export default function TacticaTab({ event, players, convocadoIds, matchDorsals,
       const url = await downloadMatchSheetPDF({
         event, team, isF7, formation: formationLabel(validFormation), positions: currentPositions, slots, captainId: slotIds.includes(captain) ? captain : "",
         kit, gkKit, gkKitBench: gkKit2 || gkKit, kits: KITS, gkKits: GK_KITS, benchPlayers, planAttack, planDefense, planSet,
-        ourLogoUrl: team?.logo_url || CLUB_LOGO_URL, opponentLogoUrl: event?.opponent_logo_url, preview,
+        ourLogoUrl: team?.logo_url || CLUB_LOGO_URL, opponentLogoUrl: event?.opponent_logo_url, preview, ...sheetExtras(),
       });
       if (win && url) win.location.href = url;
     } catch (_) {
@@ -634,7 +662,11 @@ export default function TacticaTab({ event, players, convocadoIds, matchDorsals,
       </div>
       <div className="min-w-0">
         <div style={{ borderLeft: `3px solid ${RS.naranja}`, paddingLeft: 8, marginBottom: 4 }}><span className="rs2-display" style={{ fontSize: 17, color: RS.granateDark }}>{t("Hoja del entrenador")}</span></div>
-        <p style={{ fontSize: 12.5, color: RS.muted, margin: "0 0 10px" }}>{t("Once, banquillo y plan de partido en una hoja A4")}</p>
+        <p style={{ fontSize: 12.5, color: RS.muted, margin: "0 0 6px" }}>{t("Once, banquillo, rival y plan de partido en una hoja A4")}</p>
+        <label className="flex items-center" style={{ gap: 6, fontSize: 12, color: RS.ink2, margin: "0 0 8px", cursor: "pointer" }}>
+          <input type="checkbox" checked={benchPage} onChange={toggleBenchPage} data-testid="prep-bench-page" />
+          {t("Añadir la hoja para el banquillo (minutos, cambios y tarjetas del rival)")}
+        </label>
         <div className="flex flex-wrap" style={{ gap: 6 }}>
           <button type="button" onClick={() => makePdf(false)} disabled={!!pdfBusy} data-testid="prep-pdf"
             className="inline-flex items-center" style={{ gap: 6, padding: "7px 12px", borderRadius: 8, background: RS.granate, color: "#fff", fontWeight: 700, fontSize: 13 }}>
