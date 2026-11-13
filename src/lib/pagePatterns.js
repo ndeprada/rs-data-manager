@@ -33,7 +33,6 @@ export const PAGES = [
   { path: "/MyTeam/Attendance", label: "Mi equipo · Entrenamientos", pattern: "listados" },
   { path: "/MyTeam/Development", label: "Mi equipo · Desarrollo", pattern: "paneles" },
   { path: "/Matches", label: "Partidos", pattern: "listados" },
-  { path: "/Attendance", label: "Asistencia", pattern: "listados" },
   { path: "/Stats", label: "Estadísticas", pattern: "paneles" },
   { path: "/Reports", label: "Informes", pattern: "listados" },
   { path: "/Material", label: "Material", pattern: "listados" },

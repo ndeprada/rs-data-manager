@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
@@ -71,6 +71,15 @@ export default function SessionsHome({ teams, isCoordinator, defaultTeamId }) {
     .sort((a, b) => String(b.date).localeCompare(String(a.date))), [sessions, teamFilter, coachFilter]);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["coach_sessions"] });
+  // Enlace directo a una sesión (?session=<id>, p. ej. «Hoja de sesión» desde Pasar lista): se abre una vez
+  const openedLink = useRef(false);
+  useEffect(() => {
+    if (openedLink.current || !sessions.length) return;
+    const id = new URLSearchParams(window.location.search).get("session");
+    const s = id && sessions.find((x) => x.id === id);
+    if (s) { openedLink.current = true; setEditing({ session: s }); }
+  }, [sessions]);
+
 
   const duplicate = async (s) => {
     setBusy(true);
