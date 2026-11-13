@@ -246,7 +246,7 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
           </div>
           <div className="space-y-2">
             <Label className="text-gray-700">{t("Equipo de procedencia")} <span className="text-gray-400 font-normal">{t("(opcional)")}</span></Label>
-            <Input value={form.previous_club || ""} onChange={(e) => setForm({ ...form, previous_club: e.target.value })} placeholder={t("Club y equipo de la temporada pasada")} className="border-gray-200" data-testid="player-previous-club" />
+            <Input value={form.previous_club || ""} onChange={(e) => setForm({ ...form, previous_club: e.target.value, previous_club_source: "" })} placeholder={t("Club y equipo de la temporada pasada")} className="border-gray-200" data-testid="player-previous-club" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

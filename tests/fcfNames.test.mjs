@@ -36,3 +36,11 @@ console.log('fcfNames ok');
   assert.equal(originKind({ team: 'CAN BUXERES, F.C. B', lvl: 17 }, 'CAN BUXERES, F.C. A', 16), 'club');
   assert.equal(originKind({ team: 'CATALÒNIA, U.B. A', lvl: 17 }, 'CAN BUXERES, F.C. B', 17), 'new');
 }
+
+import { compCategory, originLabel } from '../src/lib/fcfNames.js';
+import assertO from 'node:assert/strict';
+assertO.equal(compCategory('JUVENIL PRIMERA DIVISIÓ'), 'Juvenil');
+assertO.equal(compCategory('CADET PRIMERA DIVISIÓ S15'), 'Cadete S15');
+assertO.equal(compCategory('TERCERA CATALANA'), '');
+assertO.equal(originLabel('ESCOLA DE FUTBOL STOITCHKOV-RACING SARRIA A', 'JUVENIL PRIMERA DIVISIÓ', { isClub: true, clubShort: 'Racing' }), 'Racing · Juvenil A');
+assertO.equal(originLabel('CAN BUXERES, F.C. A', 'CADET PRIMERA DIVISIÓ S15'), 'Can Buxeres, F.C. A · Cadete S15');

@@ -50,3 +50,21 @@ export function originKind(prev, team, lvl = null) {
   if (la && lb && la !== lb) return lb < la ? 'up' : 'club';
   return 'club';
 }
+
+// Categoría corta de una competición de la FCF («JUVENIL PRIMERA DIVISIÓ» → «Juvenil», «CADET PRIMERA DIVISIÓ S15» → «Cadete S15»)
+export function compCategory(comp) {
+  const c = plain(comp);
+  const s = c.match(/\bS(\d{1,2})$/)?.[1];
+  const base = /JUVENIL/.test(c) ? 'Juvenil' : /CADET/.test(c) ? 'Cadete' : /INFANTIL/.test(c) ? 'Infantil'
+    : /ALEV/.test(c) ? 'Alevín' : /BENJAM/.test(c) ? 'Benjamín' : /PREBENJ|ESCOLA/.test(c) ? 'Escuela' : '';
+  return base ? `${base}${s ? ` S${s}` : ''}` : '';
+}
+/** Procedencia legible: equipo del club → «Racing · Juvenil A»; otro club → nombre en minúsculas y la categoría («Can Buxeres, F.C. A · Cadete S15»). */
+export function originLabel(team, comp, { isClub = false, clubShort = '' } = {}) {
+  const cat = compCategory(comp);
+  if (isClub && clubShort) {
+    const l = teamLetter(team);
+    return [clubShort, [cat, l].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
+  }
+  return [titleCase(team), cat].filter(Boolean).join(' · ');
+}

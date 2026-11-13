@@ -31,6 +31,7 @@ import { POS_LABEL } from "@/components/myteam/MyTeamCards";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import FcfOriginsDialog from "@/components/myteam/FcfOriginsDialog";
 import { isRacingTeam } from "@/components/planning/labels";
+import { originLabel } from "@/lib/fcfNames";
 import SquadField from "@/components/myteam/SquadField";
 import TeamTop, { NoTeam } from "@/components/myteam/TeamTop";
 import { Page, RS, YearBadge, SearchBox } from "@/components/rs2/kit";
@@ -149,7 +150,8 @@ export default function Squad() {
     if (pc && p.previous_club_source === "fcf") {
       const old = p.previous_club_season && p.previous_club_season !== PREV_SEASON;
       const yy = old ? ` (${p.previous_club_season.slice(2, 4)}-${p.previous_club_season.slice(7, 9)})` : "";
-      return { text: `${pc}${yy}`, kind: isRacingTeam(pc) ? "club" : "fcf", title: [pc, p.previous_club_comp, p.previous_club_season].filter(Boolean).join(" · ") };
+      const club = isRacingTeam(pc);
+      return { text: `${originLabel(pc, p.previous_club_comp, { isClub: club, clubShort: BRAND.shortName })}${yy}`, kind: club ? "club" : "fcf", title: [pc, p.previous_club_comp, p.previous_club_season].filter(Boolean).join(" · ") };
     }
     if (pc) return { text: pc, kind: "manual" };
     const h = histBy.get(p.id);
