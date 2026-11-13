@@ -81,6 +81,31 @@ const FN_POS_OPTS = [
   { id: "under", label: msg("Bajo el nombre") },
   { id: "none", label: msg("No mostrar") },
 ];
+// Nombre solo en esta jugada (13/11/2026, Nacho: «algunos nombres o apellidos, al ser muy largos, tapan otros nombres…
+// poder editar su nombre solo en la jugada»): la etiqueta vive en la ficha de la pizarra, así que cambiarla no toca la
+// ficha del jugador ni otras jugadas. Atajos: solo el nombre, solo el apellido o la inicial con el apellido.
+function NameInPlay({ el, pl, patch }) {
+  const t = useT();
+  const full = shortName(pl);
+  const [first = "", last = ""] = full.split(" ");
+  const opts = [...new Set([full, first, last, first && last ? `${first[0]}. ${last}` : ""].filter(Boolean))];
+  const cur = el.label ?? full;
+  return (
+    <div className="space-y-1" data-testid="card-name-play">
+      <span className={cardLab}>{t("Nombre en esta jugada")}</span>
+      <input value={cur} maxLength={24} onChange={(e) => patch({ label: e.target.value }, "label")} className={cardInput} data-testid="card-name-input" />
+      <div className="flex flex-wrap gap-1" role="group" aria-label={t("Nombre en esta jugada")}>
+        {opts.map((o) => (
+          <button key={o} type="button" aria-pressed={cur === o} onClick={() => patch({ label: o }, "label")} className={`${cardPill(cur === o)} text-[11.5px]`} data-testid="card-name-opt">
+            {o === full ? t("Como en su ficha") : o}
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] text-gray-500">{t("Solo cambia aquí: su ficha y las demás jugadas no se tocan.")}</p>
+    </div>
+  );
+}
+
 function AbpChipPlayer({ el, patch, candidates, byId, attack, toTeam }) {
   const t = useT();
   const [done, setDone] = useState(null);
@@ -139,7 +164,8 @@ function AbpChipPlayer({ el, patch, candidates, byId, attack, toTeam }) {
         <input value={el.labelTop || ""} maxLength={24} onChange={(e) => patch({ labelTop: e.target.value || undefined, topMode: undefined }, "labelTop")}
           placeholder={t("p. ej. 1.er PALO, SALE AL CORTE…")} className={cardInput} data-testid="card-free-top" />
       </label>
-      <p className="text-[11.5px] text-gray-500">{t("El dorsal y el nombre salen de su ficha. La función no cambia el color de la ficha (solo el portero va en verde).")}</p>
+      {pl && <NameInPlay el={el} pl={pl} patch={patch} />}
+      <p className="text-[11.5px] text-gray-500">{t("El dorsal sale de su ficha. La función no cambia el color de la ficha (solo el portero va en verde).")}</p>
     </>
   );
 }
@@ -406,7 +432,7 @@ async function pieceSvg(piece, players, opts = {}, aspect = 1.4) {
 // el margen lo pone cada hoja (10 mm). 1, 2 o 4 jugadas por hoja (4 = dos columnas y dos filas); las instrucciones van
 // debajo del campo, a todo el ancho, y el campo ocupa todo lo que queda. «Descargar PDF» compone las mismas hojas en la
 // página (fuera de la vista) y las fotografía (`downloadSessionPdf`, como la hoja de sesión).
-const PAGE_W = 190, PAGE_H = 277, GAP = 6;
+const PAGE_W = 196, PAGE_H = 283, GAP = 6; // margen de 7 mm (13/11/2026: el campo, lo más grande posible)
 // Hoja rediseñada (06/11/2026, Nacho: «estamos perdiendo mucho espacio… la señal con una pastillita naranja encima a la
 // derecha del campo… el escudo un poco más pequeño, Racing Sarrià y debajo el equipo con la misma tipografía… el tipo de
 // jugada y el nombre… el campo más corto»): cabecera de una línea, una franja pequeña con el título automático y la señal,
@@ -429,7 +455,7 @@ function sheetCss(per, sc = "") {
   const one = per === 1;
   const D = `font-family:${clubFont.title};font-weight:400;letter-spacing:.3px;text-transform:uppercase`;
   return `
-    ${sc}.page{width:210mm;height:297mm;padding:10mm;display:${per === 4 ? "grid" : "flex"};${per === 4 ? "grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;" : "flex-direction:column;"}gap:${GAP}mm;overflow:hidden;break-after:page;page-break-after:always;background:#fff;box-sizing:border-box;font-family:'${clubFont.bodyName}',Arial,sans-serif;color:#222}
+    ${sc}.page{width:210mm;height:297mm;padding:7mm;display:${per === 4 ? "grid" : "flex"};${per === 4 ? "grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;" : "flex-direction:column;"}gap:${GAP}mm;overflow:hidden;break-after:page;page-break-after:always;background:#fff;box-sizing:border-box;font-family:'${clubFont.bodyName}',Arial,sans-serif;color:#222}
     ${sc}.page *{box-sizing:border-box}
     ${sc}.page:last-child{break-after:auto;page-break-after:auto}
     ${sc}.card{${per === 4 || per === "all" ? "" : `flex:${one ? "1 1 0" : `0 0 ${(PAGE_H - GAP) / 2}mm`};`}min-height:0;min-width:0;display:flex;flex-direction:column;overflow:hidden}
@@ -476,11 +502,10 @@ async function printPieces(list, players, perPage, teamName, book = false, look 
   const season = now.getMonth() >= 6 ? `${y}-${String(y + 1).slice(2)}` : `${y - 1}-${String(y).slice(2)}`;
   const cover = book ? `<div class="page cover"><img src="${CLUB_LOGO_URL}" alt=""><h1>ESTRATEGIA<br>A BALÓN PARADO</h1><h3>${esc(teamName || "")}</h3><p>TEMPORADA ${season}</p></div>` : "";
   const svgs = await Promise.all(list.map((p) => pieceSvg(p, players, look, fieldBoxAspect(p, per))));
-  const titles = list.map((p) => autoTitle(pieceBoard(p, players), pieceSetup(p)).title);
   const cards = list.map((p, i) => `<section class="card">
     <header><div class="club"><img src="${CLUB_LOGO_URL}" alt=""><div><b>${esc(BRAND.clubName.toUpperCase())}</b>${teamName ? `<span>${esc(teamName)}</span>` : ""}</div></div>
     <div class="ttl"><span>${esc(setupLabel(pieceSetup(p)))}</span><h2>${esc(p.name)}</h2></div></header>
-    ${titles[i] || p.signal ? `<div class="meta">${titles[i] ? `<em>${esc(titles[i])}</em>` : ""}${p.signal ? `<span class="sig"><b>SEÑAL</b>${esc(p.signal)}</span>` : ""}</div>` : ""}
+    ${p.signal ? `<div class="meta"><span class="sig"><b>SEÑAL</b>${esc(p.signal)}</span></div>` : ""}
     <div class="fld" style="aspect-ratio:${svgs[i].ar.toFixed(4)}">${svgs[i].html}</div>${p.notes ? `<div class="notes"><b>INSTRUCCIONES</b>${esc(p.notes)}</div>` : ""}</section>`);
   const bench = list.map((p, i) => {
     const st = pieceSetup(p);
