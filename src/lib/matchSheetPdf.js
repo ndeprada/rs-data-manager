@@ -7,7 +7,8 @@ import { playerFirstName } from "@/lib/playerName";
 import { f7Markings } from "./pitchGeometry";
 import { lineupLayout, firstSurname, fitText, LINEUP } from "@/lib/matchSheetLayout";
 import { drawRichText } from "@/lib/richTextPdf";
-import { BRAND } from "./brand.js";
+import { BRAND, F as clubFont } from "./brand.js";
+import { shirtPng } from "./clubKits.js";
 
 const GRANATE = [115, 0, 10];
 const hex = (h) => { const n = parseInt(h.replace("#", ""), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
@@ -75,7 +76,7 @@ export function drawPitch(doc, x0, y0, pw, ph, isF7 = false) {
   doc.rect(x0 + pw * 0.34, y0 + ph - m - 28 * s, pw * 0.32, 28 * s);
 }
 
-export async function downloadMatchSheetPDF({ event, team, isF7 = false, formation, positions, slots, captainId, kit, gkKit, gkKitBench, kits, gkKits, benchPlayers, planAttack, planDefense, planSet, ourLogoUrl, opponentLogoUrl }) {
+export async function downloadMatchSheetPDF({ event, team, isF7 = false, formation, positions, slots, captainId, kit, gkKit, gkKitBench, kits, gkKits, benchPlayers, planAttack, planDefense, planSet, ourLogoUrl, opponentLogoUrl, preview = false }) {
   const [ourLogo, oppLogo] = await Promise.all([loadImage(ourLogoUrl), loadImage(opponentLogoUrl)]);
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
   const W = 297, H = 210;
@@ -111,21 +112,37 @@ export async function downloadMatchSheetPDF({ event, team, isF7 = false, formati
   drawPitch(doc, lx, ly, pw, ph, isF7);
   const colorsFor = (p, gk = gkKit) => (p?.position === "portero" ? (gkKits[gk] || gkKits.naranja) : (kits[kit] || kits["1"]));
   const widthOf = (text, pt, bold) => { doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(pt); return doc.getTextWidth(text); };
-  const layout = lineupLayout(slots, positions, pw, ph, widthOf);
-  slots.forEach((p, i) => {
+  // Camisetas reales del club (foto + dorsal estampado), una imagen por equipación y dorsal
+  const shirtR = 6.2; // medio alto de la camiseta en mm (el nombre va debajo)
+  const shirts = new Map();
+  const titleFont = clubFont.titleName || "Racing Sarria";
+  await Promise.all(slots.filter(Boolean).map(async (p) => {
+    const k = colorsFor(p);
+    const key = `${k.img}|${p.jersey_number ?? ""}`;
+    if (!shirts.has(key)) shirts.set(key, shirtPng(k, p.jersey_number ?? "", { font: titleFont, scale: 0.5 }).catch(() => null));
+  }));
+  const shirtOf = async (p) => { const k = colorsFor(p); return k.img ? shirts.get(`${k.img}|${p.jersey_number ?? ""}`) : null; };
+  const layout = lineupLayout(slots, positions, pw, ph, widthOf, { r: shirtR });
+  for (const [i, p] of slots.entries()) {
     const L = layout[i];
-    if (!L) return;
+    if (!L) continue;
     const cx = lx + L.cx, cy = ly + L.cy, r = L.r;
     const k = colorsFor(p);
     if (L.empty) {
       doc.setDrawColor(160, 160, 160); doc.setLineDashPattern([1, 1], 0); doc.setLineWidth(0.3);
-      doc.circle(cx, cy, r, "S"); doc.setLineDashPattern([], 0);
-      return;
+      doc.circle(cx, cy, r * 0.7, "S"); doc.setLineDashPattern([], 0);
+      continue;
     }
-    doc.setFillColor(...hex(k.fill)); doc.setDrawColor(...hex(k.stroke)); doc.setLineWidth(0.7);
-    doc.circle(cx, cy, r, "FD");
-    doc.setTextColor(...hex(k.num)); doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
-    doc.text(String(p.jersey_number || p.first_name?.[0] || ""), cx, cy + 1.25, { align: "center" });
+    const img = await shirtOf(p);
+    if (img) {
+      const sh = r * 2, sw = sh * img.w / img.h;
+      try { doc.addImage(img.data, "PNG", cx - sw / 2, cy - sh / 2, sw, sh, undefined, "FAST"); } catch { /* imagen no válida */ }
+    } else {
+      doc.setFillColor(...hex(k.fill)); doc.setDrawColor(...hex(k.stroke)); doc.setLineWidth(0.7);
+      doc.circle(cx, cy, r * 0.78, "FD");
+      doc.setTextColor(...hex(k.num)); doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
+      doc.text(String(p.jersey_number || p.first_name?.[0] || ""), cx, cy + 1.25, { align: "center" });
+    }
     if (p.id === captainId) {
       doc.setFillColor(252, 221, 9); doc.setDrawColor(120, 90, 0); doc.setLineWidth(0.25);
       doc.circle(cx + r - 0.5, cy - r + 0.5, 1.9, "FD");
@@ -136,7 +153,7 @@ export async function downloadMatchSheetPDF({ event, team, isF7 = false, formati
       doc.setFont("helvetica", ln.bold ? "bold" : "normal");
       doc.text(ln.text, cx, ly + ln.y, { align: "center" });
     });
-  });
+  }
 
   // ── Banquillo ──
   const bx = lx + pw + 8;
@@ -183,5 +200,7 @@ export async function downloadMatchSheetPDF({ event, team, isF7 = false, formati
   doc.text(`Generado el ${format(new Date(), "d/MM/yyyy HH:mm")}`, W - 10, H - 5, { align: "right" });
 
   const safe = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "");
+  if (preview) return doc.output("bloburl");
   doc.save(`Hoja_entrenador_${safe(ours)}_vs_${safe(opp)}${date ? "_" + format(date, "yyyy-MM-dd") : ""}.pdf`);
+  return null;
 }
