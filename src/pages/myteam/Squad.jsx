@@ -29,6 +29,8 @@ import { BRAND } from "@/lib/brand";
 import { getCategoryLabel } from "@/components/fcfCategories";
 import { POS_LABEL } from "@/components/myteam/MyTeamCards";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
+import FcfOriginsDialog from "@/components/myteam/FcfOriginsDialog";
+import { isRacingTeam } from "@/components/planning/labels";
 import SquadField from "@/components/myteam/SquadField";
 import TeamTop, { NoTeam } from "@/components/myteam/TeamTop";
 import { Page, RS, YearBadge, SearchBox } from "@/components/rs2/kit";
@@ -103,6 +105,7 @@ export default function Squad() {
   const [q, setQ] = useState("");
   const [issue, setIssue] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [originsOpen, setOriginsOpen] = useState(false);
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
@@ -142,7 +145,13 @@ export default function Squad() {
   // Procedencia: lo escrito en la ficha («Equipo de procedencia») o, si no, su equipo del club la temporada pasada
   const histBy = useMemo(() => new Map(lastHist.map((h) => [h.player_id, h])), [lastHist]);
   const originOf = (p) => {
-    if (String(p.previous_club || "").trim()) return { text: p.previous_club.trim(), kind: "manual" };
+    const pc = String(p.previous_club || "").trim();
+    if (pc && p.previous_club_source === "fcf") {
+      const old = p.previous_club_season && p.previous_club_season !== PREV_SEASON;
+      const yy = old ? ` (${p.previous_club_season.slice(2, 4)}-${p.previous_club_season.slice(7, 9)})` : "";
+      return { text: `${pc}${yy}`, kind: isRacingTeam(pc) ? "club" : "fcf", title: [pc, p.previous_club_comp, p.previous_club_season].filter(Boolean).join(" · ") };
+    }
+    if (pc) return { text: pc, kind: "manual" };
     const h = histBy.get(p.id);
     if (!h?.team_name) return null;
     return h.team_name === team?.name ? { text: t("Mismo equipo"), kind: "same" } : { text: h.team_name, kind: "club" };
@@ -210,7 +219,11 @@ export default function Squad() {
     <Page testId="team-squad">
       <div className="rs2-wrap flex flex-col" style={{ gap: 12, maxWidth: 1440 }}>
         <AddPlayerDialog open={addOpen} onOpenChange={setAddOpen} teamId={selectedTeamId} />
+        {perms?.administration && <FcfOriginsDialog open={originsOpen} onOpenChange={setOriginsOpen} />}
         <TeamTop kicker={kicker} title={t("Plantilla")} teams={teams}>
+          {perms?.administration && view === "ficha" && (
+            <button type="button" onClick={() => setOriginsOpen(true)} className="inline-flex items-center" style={btn} data-testid="squad-origins">{t("Procedencia desde la FCF")}</button>
+          )}
           <button type="button" onClick={doPrint} className="inline-flex items-center" style={btn} data-testid="squad-print"><Printer className="w-4 h-4" /> {t("Imprimir lista")}</button>
           <button type="button" onClick={doExport} className="inline-flex items-center" style={btn} data-testid="squad-export"><Download className="w-4 h-4" /> {t("Exportar Excel")}</button>
           {canManage && (
@@ -314,8 +327,8 @@ export default function Squad() {
                                   </td>
                                   <td style={{ ...td, fontSize: 11.5, color: RS.muted }}>{FOOT[p.laterality] ? t(FOOT[p.laterality]) : "—"}</td>
                                   <td style={{ ...td, fontSize: 11.5 }}>{countryOf(p) ? <Flag player={p} /> : (p.nationality || "—")}</td>
-                                  <td style={{ ...td, fontSize: 11.5, maxWidth: 220 }} className="truncate" data-testid={`squad-origin-${p.id}`} title={originOf(p)?.text || ""}>
-                                    {(() => { const o = originOf(p); return !o ? <span style={{ color: RS.faint }}>—</span> : <span style={{ color: o.kind === "same" ? RS.muted : RS.ink, fontWeight: o.kind === "manual" ? 600 : 400 }}>{o.text}</span>; })()}
+                                  <td style={{ ...td, fontSize: 11.5, maxWidth: 220 }} className="truncate" data-testid={`squad-origin-${p.id}`} title={originOf(p)?.title || originOf(p)?.text || ""}>
+                                    {(() => { const o = originOf(p); return !o ? <span style={{ color: RS.faint }}>—</span> : <span style={{ color: o.kind === "same" ? RS.muted : RS.ink, fontWeight: o.kind === "manual" || o.kind === "fcf" ? 600 : 400 }}>{o.text}</span>; })()}
                                   </td>
                                 </>}
                                 {view === "contacto" && <>

@@ -12,6 +12,8 @@ import { permissionsOf, DIRECCION } from '../src/lib/permissions.js';
 import { readClubBrand, saveClubBrand } from './_lib/clubBrand.js';
 import { ensureSchema, importActas, searchPlayers, playerDetail, meta as fcfMeta, yearCounts, groupTeams, teamSquad, alerts as fcfAlerts, actaIds } from './_lib/fcfDb.js';
 import { isAdmin, coachTeamIdsOf } from './_lib/access.js';
+import { originProposals, originPatch } from './_lib/fcfOrigins.js';
+import { DEFAULT_BRAND } from '../src/lib/brand.js';
 import { COORD, STAFF, isApprovedUser, teamIdsOfUser, reachableUserIds, searchPeople, MAX_INDIVIDUALS } from './_lib/recipients.js';
 import {
   cleanSendAt, withNoticeParam, inboxItem, historyItem, historyStats, markRead, markAllRead, unreadCount, noticeData, dispatchDue,
@@ -193,6 +195,30 @@ export default async function handler(req, res) {
     // ── Base de datos FCF (Planificación → Scouting): solo dirección, coordinación y administración ──
     // Las actas llegan desde el navegador de quien las lee en la intranet de la FCF a través de la página /FcfBridge de la
     // app (mensajes entre ventanas), así que se guardan con su sesión: no hace falta ninguna clave.
+    // Equipo de procedencia desde las actas de la FCF (13/11/2026): GET = ver la propuesta; POST = guardarla.
+    // Solo rellena las fichas sin procedencia o con una puesta antes por este proceso (lo escrito a mano no se toca).
+    if (a === 'fcf_origins') {
+      if (!permissionsOf(user).administration) return res.status(403).json({ error: 'forbidden' });
+      await ensureSchema(db);
+      const { rows: players } = await query(`select id, data from entities where entity_type = 'Player'`);
+      const brand = await readClubBrand();
+      const rows = await originProposals(db, players, { clubName: brand.fcfName || DEFAULT_BRAND.fcfName });
+      let written = 0;
+      if (req.method === 'POST') {
+        const only = Array.isArray(body.ids) ? new Set(body.ids.map(String)) : null;
+        const list = rows.filter((r) => !only || only.has(String(r.id))).map((r) => ({ id: r.id, patch: originPatch(r) })).filter((x) => x.patch);
+        if (list.length) {
+          const { rowCount } = await query(
+            `update entities e set data = e.data || v.patch, updated_at = now()
+             from jsonb_to_recordset($1::jsonb) as v(id uuid, patch jsonb) where e.id = v.id and e.entity_type = 'Player'`, [JSON.stringify(list)]
+          );
+          written = rowCount;
+        }
+      }
+      const count = (st) => rows.filter((r) => r.status === st).length;
+      return res.status(200).json({ written, total: rows.length, ok: count('ok'), sin_anterior: count('sin_anterior'), sin_fcf: count('sin_fcf'), dudoso: count('dudoso'), manual: count('manual'), rows });
+    }
+
     if (['fcf_meta', 'fcf_search', 'fcf_player', 'fcf_import', 'fcf_years', 'fcf_group_teams', 'fcf_team', 'fcf_alerts', 'fcf_acta_ids'].includes(a)) {
       if (!permissionsOf(user).administration) return res.status(403).json({ error: 'forbidden' });
       await ensureSchema(db);

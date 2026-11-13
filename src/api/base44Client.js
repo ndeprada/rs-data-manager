@@ -135,6 +135,8 @@ export const base44 = {
 
   club: {
     brand: () => clubGet('brand'),
+    fcfOrigins: () => clubGet('fcf_origins'),
+    applyFcfOrigins: (ids) => clubPost('fcf_origins', ids ? { ids } : {}),
     saveBrand: (brand) => clubPost('brand_save', { brand }),
     vapid: () => clubGet('vapid'),
     myPush: () => clubGet('my_push'),
