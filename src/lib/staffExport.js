@@ -27,7 +27,7 @@ export const exportFileName = (base, date = new Date()) => {
 const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 /** Documento HTML listo para imprimir (A4 apaisado), con el escudo y la tipografía del club */
-export function staffPrintHtml({ header, rows, title, subtitle, logoUrl, origin = "" }) {
+export function staffPrintHtml({ header, rows, title, subtitle, logoUrl, origin = "", countText = null }) {
   const head = header.map((h) => `<th>${esc(h)}</th>`).join("");
   const body = rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c) || "—"}</td>`).join("")}</tr>`).join("");
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
@@ -49,7 +49,7 @@ export function staffPrintHtml({ header, rows, title, subtitle, logoUrl, origin 
   td:first-child{font-weight:700}
 </style></head><body>
 <header><div class="club">${logoUrl ? `<img src="${esc(logoUrl)}" alt="">` : ""}<div><h1>${esc(title)}</h1><div class="sub">${esc(subtitle)}</div></div></div>
-<div class="meta">${rows.length} persona${rows.length === 1 ? "" : "s"}</div></header>
+<div class="meta">${esc(countText ?? `${rows.length} persona${rows.length === 1 ? "" : "s"}`)}</div></header>
 <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`;
 }
 

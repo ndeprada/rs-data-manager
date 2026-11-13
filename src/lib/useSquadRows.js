@@ -43,6 +43,7 @@ export function useSquadRows(teamId) {
         totalMin, availMin,
         level: playerLevel(part),
         pj: st.length,
+        tit: part.all.titular,
         goals: st.reduce((a, s) => a + (s.goals || 0), 0),
         conceded: st.reduce((a, s) => a + (s.goals_conceded || 0), 0),
         assists: st.reduce((a, s) => a + (s.assists || 0), 0),

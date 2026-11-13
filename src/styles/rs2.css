@@ -42,6 +42,7 @@
   padding: 7px 8px; background: var(--rs-head); border-bottom: 1px solid var(--rs-line); white-space: nowrap; }
 .rs2-tbl td { padding: 6px 8px; border-bottom: 1px solid var(--rs-line-soft); text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rs2-tbl th.l, .rs2-tbl td.l { text-align: left; }
+.rs2-tbl.rs2-left th, .rs2-tbl.rs2-left td { text-align: left; }
 .rs2-tbl th:first-child, .rs2-tbl td:first-child { padding-left: 14px; }
 .rs2-tbl th:last-child, .rs2-tbl td:last-child { padding-right: 14px; }
 .rs2-tbl tbody tr:hover td { background: var(--rs-head); }

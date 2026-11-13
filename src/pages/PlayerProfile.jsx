@@ -74,7 +74,7 @@ export default function PlayerProfile() {
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [selectedImageSrc, setSelectedImageSrc] = useState(null);
   const [injuryDialogOpen, setInjuryDialogOpen] = useState(false);
-  const [tab, setTab] = useState("resumen");
+  const [tab, setTab] = useState(() => urlParams.get("tab") || "resumen");
   const now = useMemo(() => new Date(), [playerId]);
   const mobile = useIsMobile();
 

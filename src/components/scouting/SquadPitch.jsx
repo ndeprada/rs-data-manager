@@ -45,7 +45,7 @@ const LINE = "rgba(255,255,255,0.78)";
  * `k` = cuánto está achatado el campo en pantalla respecto a uno de verdad (1 = proporción real; menos, más ancho que alto): los círculos se
  * dibujan como elipses para que en pantalla sigan redondos.
  */
-function PitchSvg({ isF7, vertical, k = 1 }) {
+export function PitchSvg({ isF7, vertical, k = 1 }) {
   const kx = Math.min(1, k), ky = Math.min(1, 1 / k); // radio en horizontal (x) y en vertical (y) de un círculo que debe verse redondo
   const uid = useId().replace(/:/g, "");
   const L = isF7 ? 65 : 105, W = isF7 ? 45 : 68, cy = W / 2;

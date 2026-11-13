@@ -16,7 +16,7 @@ import { useT, useDateLocale, msg } from "@/i18n";
 export const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 export const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
 const TYPE_LABEL = { partido_liga: msg("Liga"), partido_amistoso: msg("Amistoso"), torneo: msg("Torneo") };
-const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB", mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT" };
+export const POS_LABEL = { portero: "POR", lateral: "LAT", central: "CEN", libre: "LIB", mediocentro: "MC", interior: "INT", mediapunta: "MP", delantero_centro: "DC", extremo: "EXT" };
 const LINE_LABEL = { porteros: msg("Porteros"), defensas: msg("Defensas"), medios: msg("Medios"), delanteros: msg("Delanteros"), sin: msg("Sin posición") };
 const REASON = { lesion: msg("Lesión"), enfermo: msg("Enfermo"), sancion: msg("Sanción"), viaje: msg("Viaje"), estudios: msg("Estudios") };
 export const matchLink = (e, tab) => `/MatchDetail?id=${e.id}&teamId=${e.team_id}${tab ? `&tab=${tab}` : ""}`;
