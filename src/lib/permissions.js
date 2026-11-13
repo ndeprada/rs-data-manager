@@ -144,6 +144,8 @@ export const PALETTE_ENTITIES = new Set(['SessionContent']);
 export const VIDEO_TAG_ENTITIES = new Set(['VideoTagSet']);
 // Mínimo de minutos sobre los disponibles (13/11/2026): lo lee todo el personal; lo cambia solo coordinación y dirección
 export const MINUTES_RULE_ENTITIES = new Set(['MinutesRule']);
+// Ausencias y multas del personal (13/11/2026, pedido por Nacho): solo las ven y las escriben coordinación y dirección
+export const COACH_ADMIN_ENTITIES = new Set(['CoachAbsence', 'CoachFine']);
 // Campos de la ficha del jugador que solo escribe quien puede editar fichas (entrenadores y coordinación)
 export const PLAYER_STAFF_FIELDS = [WEAK_FOOT_FIELD];
 
@@ -212,6 +214,7 @@ export function checkRoleWrite({ perms, entity, method, body = {}, existing = nu
   if (PLAYER_EVAL_ENTITIES.has(entity)) return perms.playerEval === 'edit' ? { ok: true } : { ok: false, error: 'forbidden_role' };
   if (PLANNING_ENTITIES.has(entity)) return perms.administration ? { ok: true } : { ok: false, error: 'forbidden_role' };
   if (MINUTES_RULE_ENTITIES.has(entity)) return perms.administration ? { ok: true } : { ok: false, error: 'forbidden_role' };
+  if (COACH_ADMIN_ENTITIES.has(entity)) return perms.administration ? { ok: true } : { ok: false, error: 'forbidden_role' };
   if (PALETTE_ENTITIES.has(entity)) {
     if (perms.administration) return { ok: true };
     if (method === 'POST') return body.status === 'propuesto' ? { ok: true } : { ok: false, error: 'forbidden_role' };
@@ -276,6 +279,7 @@ export function filterRoleRead({ perms, entity, docs, ownIds = new Set(), userId
   if (MEDICAL_ENTITIES.has(entity)) return perms.medical === 'none' ? [] : docs;
   if (PLAYER_EVAL_ENTITIES.has(entity)) return perms.playerEval === 'none' ? [] : docs;
   if (PLANNING_ENTITIES.has(entity)) return perms.administration ? docs : [];
+  if (COACH_ADMIN_ENTITIES.has(entity)) return perms.administration ? docs : [];
   if (SESSION_ENTITIES.has(entity)) return filterSessionRead({ perms, userId, docs });
   if (VIDEO_TAG_ENTITIES.has(entity)) return filterVideoTagRead({ perms, userId, docs });
   if (COACH_EVAL_ENTITIES.has(entity)) {

@@ -58,6 +58,11 @@ function makeEntityClient(entityType) {
       orderResult(entityType, apiFetch(`/api/entities/${entityType}`, {
         query: { q: JSON.stringify(filterObj), sort, limit },
       }), !filterObj?.id),
+    // Lectura ligera: solo esos campos (y los que necesitan los permisos), y desde una fecha si se pide ({ gte: { date: "2026-10-14" } })
+    pick: (fields = [], filterObj = {}, { sort, limit, gte } = {}) =>
+      orderResult(entityType, apiFetch(`/api/entities/${entityType}`, {
+        query: { fields: fields.join(','), q: Object.keys(filterObj).length ? JSON.stringify(filterObj) : undefined, sort, limit, gte: gte ? JSON.stringify(gte) : undefined },
+      }), true),
     // Datos de temporadas cerradas / jugadores dados de baja en un cierre (los listados normales no los incluyen)
     archived: (filterObj = {}, mode = 'only', sort, limit) =>
       apiFetch(`/api/entities/${entityType}`, { query: { q: JSON.stringify(filterObj), archived: mode, sort, limit } }),

@@ -41,7 +41,8 @@ const emptyForm = (teamId = "") => ({
   lectura: "", sistema: "", jugadores: "", direccion: "", positivo: "", otros: "",
 });
 
-export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, isOwnProfile, author }) {
+// `newSignal`: al cambiar (botón «+ Feedback» de la cabecera de la ficha) se abre el formulario de una anotación nueva
+export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, isOwnProfile, author, newSignal = 0 }) {
   const t = useT();
   const dfl = useDateLocale();
   const qc = useQueryClient();
@@ -151,6 +152,7 @@ export default function CoachFeedbackSection({ staffId, teamIds = [], canWrite, 
     setForm(emptyForm(teamIds.length === 1 ? teamIds[0] : ""));
     setEditing(null); setConfirmDelete(false); setOpen(true);
   };
+  useEffect(() => { if (newSignal && canWrite) openCreate(); }, [newSignal]); // eslint-disable-line react-hooks/exhaustive-deps
   const openEdit = (i) => {
     setForm({
       ...emptyForm(i.team_id || ""),

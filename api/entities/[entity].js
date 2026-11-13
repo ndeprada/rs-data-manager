@@ -1,6 +1,7 @@
 import { query } from '../_lib/db.js';
 import { requireUser } from '../_lib/auth.js';
 import { ARCHIVABLE } from '../_lib/season.js';
+import { parseFields, selectData, parseGte } from '../_lib/entityQuery.js';
 import { checkEntityAccess, checkTeamWrite, checkRoleWriteAccess, roleFilterDocs, isPlayerUser, playerFilterDocs } from '../_lib/access.js';
 
 function rowToDoc(row) {
@@ -59,6 +60,11 @@ export default async function handler(req, res) {
         params.push(JSON.stringify(value));
         where += ` and data -> '${key.replace(/[^a-zA-Z0-9_]/g, '')}' = $${params.length}::jsonb`;
       });
+      // Desde una fecha (u otro texto): {"date":"2026-10-14"} = registros con date >= 2026-10-14
+      for (const [key, value] of parseGte(req.query.gte)) {
+        params.push(value);
+        where += ` and data ->> '${key}' >= $${params.length}`;
+      }
 
       // Datos de temporadas cerradas: no salen en los listados normales (archived=only|all para verlos;
       // si se pide un registro concreto —id, partido o temporada— tampoco se ocultan)
@@ -81,7 +87,9 @@ export default async function handler(req, res) {
       }
 
       const player = isPlayerUser(user);
-      let sql = `select id, data, created_at, updated_at from entities where ${where} order by ${orderBy}`;
+      // Solo algunos campos (para contar sin bajar documentos enteros); los jugadores reciben siempre el documento filtrado
+      const fields = player ? null : parseFields(req.query.fields);
+      let sql = `select id, ${selectData(fields)} as data, created_at, updated_at from entities where ${where} order by ${orderBy}`;
       if (limit && !player) sql += ` limit ${parseInt(limit, 10)}`;
 
       const { rows } = await query(sql, params);

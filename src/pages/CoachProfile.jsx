@@ -1,21 +1,25 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Mail, Phone, Shield, Upload, Loader, Edit2, Trash2 } from "lucide-react";
+import { Mail, Phone, Upload, Loader, Edit2, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { useAuth } from "@/lib/AuthContext";
 import CoachPDISection from "@/components/coach/CoachPDISection";
 import CoachMatchNotesSection from "@/components/coach/CoachMatchNotesSection";
 import CoachFeedbackSection from "@/components/coach/CoachFeedbackSection";
 import CoachEval360Areas from "@/components/coach/CoachEval360Areas";
+import CoachSummaryTab from "@/components/coach/CoachSummaryTab";
+import CoachAbsencesFines from "@/components/coach/CoachAbsencesFines";
+import { Page, RS } from "@/components/rs2/kit";
+import { teamPlaysF7 } from "@/lib/matchFormat";
+import { compareTeams } from "@/lib/teamOrder";
 
 const SHOW_PDI_TAB = false;
 import ImageCropDialog from "@/components/ImageCropDialog";
@@ -50,7 +54,7 @@ export default function CoachProfile() {
   const staffId = urlParams.get("id");
   const userId = urlParams.get("userId"); // Usuario registrado con rol de staff
 
-  const { isCoordinator, isCoordinatorGeneral, coordType, teamIds, perms } = useTeamAccess();
+  const { isCoordinator, isCoordinatorGeneral, coordType, perms } = useTeamAccess();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -150,7 +154,6 @@ export default function CoachProfile() {
       })();
 
   const member = rawMember;
-  const team = teams.find(t => t.id === member?.team_id);
 
   const isOwnProfile =
     (user?.email && member?.email?.toLowerCase() === user.email.toLowerCase()) ||
@@ -190,6 +193,25 @@ export default function CoachProfile() {
   // PDI en stand-by (decisión de Nacho): más adelante será consecuencia de la Evaluación 360. Los datos y el código se conservan.
   const showPDITab = SHOW_PDI_TAB && (canViewReports || isOwnProfile);
   const showFeedbackTab = canViewReports || isOwnProfile;
+  // Ausencias y multas (13/11/2026): solo coordinación y dirección (también en el servidor)
+  const showAbsences = canViewReports && !!(perms?.isAdmin || perms?.administration);
+
+  // Ids con los que se guardan sus datos (feedback, 360, ausencias…): su ficha y, si tiene usuario, «user_<id>»
+  const storageId = member?._isUser ? `user_${member._userId}` : staffId;
+  const personIds = useMemo(() => [...new Set([storageId, linkedUser ? `user_${linkedUser.id}` : null].filter(Boolean))], [storageId, linkedUser]);
+  const profileTeams = useMemo(() => {
+    const list = assignedTeams.length ? assignedTeams.map((tm) => ({ tm, a: { team_role: tm.team_role } })) : coachTeams.map((tm) => ({ tm, a: {} }));
+    return list.sort((x, y) => compareTeams(x.tm, y.tm));
+  }, [assignedTeams, coachTeams]);
+  const profileTeamIds = [...new Set([...profileTeams.map((x) => x.tm.id), member?.team_id].filter(Boolean))];
+  const { data: fbItems = [] } = useQuery({
+    queryKey: ["coachFeedback", storageId],
+    queryFn: () => base44.entities.CoachFeedback.filter({ staff_id: storageId }),
+    enabled: !!storageId && showFeedbackTab,
+  });
+  const fbCount = fbItems.filter((i) => canViewReports || i.status === "enviado").length;
+  const [tabPick, setTabPick] = useState(() => urlParams.get("tab"));
+  const [newFb, setNewFb] = useState(0);
 
   const updatePhotoMutation = useMutation({
     mutationFn: async (file) => {
@@ -362,176 +384,120 @@ export default function CoachProfile() {
     </div>
   );
 
-  return (
-    <div className="space-y-4">
-      {/* Back */}
-      <Link to="/Coaches" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors">
-        <ArrowLeft className="w-4 h-4" /> {t("Volver a Entrenadores")}
-      </Link>
+  const roleText = ROLE_LABELS[member.role] ? t(ROLE_LABELS[member.role]) : member.role;
+  const tabs = [
+    canViewReports && { k: "resumen", label: `${t("Resumen")} ★` },
+    showFeedbackTab && { k: "feedback", label: fbCount ? `${t("Feedback")} · ${fbCount}` : t("Feedback") },
+    showFeedbackTab && { k: "eval360", label: t("Evaluación 360") },
+    showAbsences && { k: "ausencias", label: t("Ausencias y multas") },
+    showPDITab && { k: "pdi", label: t("PDI · Plan Desarrollo Individual") },
+    canViewReports && { k: "matches", label: t("Notas privadas") },
+    member.notes && { k: "notes", label: t("Info") },
+  ].filter(Boolean);
+  const tab = tabs.some((x) => x.k === tabPick) ? tabPick : tabs[0]?.k;
+  const go = (k) => { setTabPick(k); window.scrollTo?.({ top: 0, behavior: "smooth" }); };
+  const access = targetUser || linkedUser;
+  const bandBtn = (onClick, children, light, testId) => (
+    <button type="button" onClick={onClick} data-testid={testId}
+      style={{ fontSize: 13, fontWeight: 700, padding: "7px 14px", borderRadius: 8, border: light ? 0 : "1px solid rgba(255,255,255,.55)", background: light ? "#fff" : "transparent", color: light ? RS.granate : "#fff", whiteSpace: "nowrap" }}>{children}</button>
+  );
 
-      {/* Header */}
-      <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
-        <div className="h-2 w-full" style={{ background: "var(--granate)" }} />
-        <div className="p-4 sm:p-6 flex flex-wrap gap-x-4 gap-y-3 sm:gap-6 items-start">
+  return (
+    <Page testId="coach-profile">
+      <div style={{ maxWidth: 1500, margin: "0 auto", padding: "14px clamp(10px, 2vw, 22px) 28px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* Cabecera */}
+        <div data-testid="coach-band" className="flex flex-wrap items-center" style={{ gap: "12px 18px", padding: "16px 18px", borderRadius: 14, color: "#fff", background: `linear-gradient(110deg, ${RS.granateDark}, ${RS.granate})` }}>
           <div className="relative group shrink-0">
             {member.photo_url ? (
-              <img src={member.photo_url} alt={`${member.first_name} ${member.last_name}`} className="w-20 h-20 sm:w-28 sm:h-28 rounded-full object-cover shrink-0" />
+              <img src={member.photo_url} alt={`${member.first_name} ${member.last_name}`} style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} />
             ) : (
-              <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-white font-black text-3xl sm:text-5xl shrink-0"
-                style={{ background: "var(--granate)", fontFamily: "var(--font-display)" }}>
+              <div className="rs2-display" style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(255,255,255,.14)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
                 {member.first_name?.[0]}{member.last_name?.[0]}
               </div>
             )}
             {canEdit && (
-              <label className="absolute inset-0 rounded-full flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+              <label className="absolute inset-0 rounded-full flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" title={t("Cambiar foto")}>
                 <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={photoLoading} className="hidden" />
-                {photoLoading ? (
-                  <Loader className="w-5 h-5 text-white animate-spin" />
-                ) : (
-                  <Upload className="w-5 h-5 text-white" />
-                )}
+                {photoLoading ? <Loader className="w-5 h-5 text-white animate-spin" /> : <Upload className="w-5 h-5 text-white" />}
               </label>
             )}
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start sm:items-center gap-2 sm:gap-3">
-              <div className="min-w-0">
-                <h1 className="text-xl sm:text-2xl font-black uppercase break-words" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
-                  {member.first_name} {member.last_name}
-                </h1>
-                <p className="text-sm font-bold uppercase tracking-wide mt-0.5" style={{ color: "var(--naranja)", fontFamily: "var(--font-display)" }}>
-                  {ROLE_LABELS[member.role] ? t(ROLE_LABELS[member.role]) : member.role}
-                </p>
-              </div>
-              {canEdit && (
-                <button onClick={handleOpenEditDialog} className="p-2 shrink-0 hover:bg-gray-100 rounded-lg transition-colors" title={t("Editar perfil")}>
-                  <Edit2 className="w-4 h-4 text-gray-400 hover:text-gray-600" />
-                </button>
-              )}
-            </div>
-            {assignedTeams.length > 0 ? (
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
-                {assignedTeams.map(tm => (
-                  <div key={tm.assignment_id} className="flex flex-wrap items-center gap-x-1.5 text-sm text-gray-600">
-                    {/* El equipo y su icono no se parten; si no cabe, el rol pasa entero a la línea siguiente */}
-                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                      <Shield className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                      {tm.name}
-                    </span>
-                    {tm.team_role && (
-                      <span className="text-xs text-gray-400 whitespace-nowrap">· {TEAM_ROLE_LABELS[tm.team_role] ? t(TEAM_ROLE_LABELS[tm.team_role]) : tm.team_role}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : team && (
-              <div className="flex items-center gap-1.5 mt-2">
-                <Shield className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-sm text-gray-600">{team.name}</span>
-              </div>
-            )}
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
-              {member.phone && (
-                <a href={`tel:${member.phone}`} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900">
-                  <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" /> {member.phone}
-                </a>
-              )}
-              {member.email && (
-                <a href={`mailto:${member.email}`} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 min-w-0 break-all">
-                  <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" /> {member.email}
-                </a>
-              )}
+          <div style={{ flex: "1 1 260px", minWidth: 0 }}>
+            <Link to="/Coaches" style={{ fontSize: 12, color: "rgba(255,255,255,.8)" }}>‹ {t("Personal")}</Link>
+            <h1 style={{ margin: "2px 0 0", lineHeight: 1 }}>
+              <span className="rs2-display" style={{ fontSize: "clamp(26px, 4vw, 36px)", color: "#fff" }}>{member.first_name} </span>
+              <span className="rs2-display" style={{ fontSize: "clamp(26px, 4vw, 36px)", color: RS.naranja }}>{member.last_name}</span>
+            </h1>
+            <div className="flex flex-wrap items-center" style={{ gap: "2px 8px", fontSize: 13, marginTop: 6, color: "rgba(255,255,255,.92)" }}>
+              <span>{roleText}</span>
+              {profileTeams.map(({ tm, a }) => (
+                <span key={tm.id}>· {tm.name} <span style={{ opacity: .75 }}>({[a?.team_role && (TEAM_ROLE_LABELS[a.team_role] ? t(TEAM_ROLE_LABELS[a.team_role]) : a.team_role), teamPlaysF7(tm) ? "F7" : "F11"].filter(Boolean).join(", ")})</span></span>
+              ))}
+              {member.phone && <a href={`tel:${member.phone}`} style={{ color: "#fff" }}>· <Phone className="inline w-3.5 h-3.5" /> {member.phone}</a>}
+              {member.email && <a href={`mailto:${member.email}`} style={{ color: "#fff", wordBreak: "break-all" }}>· <Mail className="inline w-3.5 h-3.5" /> {member.email}</a>}
+              {access && <span>· {access.role === "admin" || access.access_status === "approved" || (!access.access_status && access.app_role) ? `✓ ${t("acceso a la app")}` : t("sin acceso a la app")}</span>}
             </div>
           </div>
-          {canDelete && (
-            // En móvil va en su propia fila, debajo de los datos, para que no se solape con el nombre
-            <div className="basis-full sm:basis-auto">
-              <button type="button" onClick={() => setDeleteOpen(true)}
-                className="flex items-center gap-1.5 text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 rounded-full px-3 py-1.5 transition-colors">
-                <Trash2 className="w-3.5 h-3.5" /> {member._isUser ? t("Quitar acceso") : t("Eliminar del personal")}
-              </button>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center" style={{ gap: 8, marginLeft: "auto" }}>
+            {canViewReports && bandBtn(() => { go("feedback"); setNewFb((n) => n + 1); }, `+ ${t("Feedback")}`, true, "band-feedback")}
+            {canEvaluate && bandBtn(() => go("eval360"), t("Evaluar 360"), false, "band-360")}
+            {showAbsences && bandBtn(() => go("ausencias"), t("Ausencia o multa"), false, "band-absence")}
+            {canEdit && (
+              <button type="button" onClick={handleOpenEditDialog} title={t("Editar perfil")} aria-label={t("Editar perfil")} style={{ padding: 8, borderRadius: 8, color: "#fff" }}><Edit2 className="w-4 h-4" /></button>
+            )}
+            {canDelete && (
+              <button type="button" onClick={() => setDeleteOpen(true)} title={member._isUser ? t("Quitar acceso") : t("Eliminar del personal")} aria-label={member._isUser ? t("Quitar acceso") : t("Eliminar del personal")} style={{ padding: 8, borderRadius: 8, color: "#fff" }}><Trash2 className="w-4 h-4" /></button>
+            )}
+          </div>
         </div>
+
+        {/* Pestañas */}
+        <div className="flex" style={{ gap: 6, overflowX: "auto", paddingBottom: 2 }} role="tablist">
+          {tabs.map((x) => (
+            <button key={x.k} type="button" role="tab" aria-selected={tab === x.k} onClick={() => setTabPick(x.k)} data-testid={`coach-tab-${x.k}`}
+              style={{ fontSize: 13, fontWeight: 600, padding: "6px 13px", borderRadius: 999, whiteSpace: "nowrap", flexShrink: 0, border: `1px solid ${tab === x.k ? RS.granate : RS.line}`, background: tab === x.k ? RS.granate : "#fff", color: tab === x.k ? "#fff" : RS.ink2 }}>
+              {x.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "resumen" && <CoachSummaryTab ids={personIds} teams={profileTeams} admin={showAbsences} onTab={go} />}
+
+        {tab === "feedback" && (
+          <CoachFeedbackSection
+            staffId={storageId}
+            teamIds={profileTeamIds}
+            canWrite={canViewReports}
+            isOwnProfile={!!isOwnProfile}
+            author={{ id: user?.id, name: user?.full_name }}
+            newSignal={newFb}
+          />
+        )}
+
+        {tab === "eval360" && (
+          <CoachEval360Areas
+            staffId={storageId}
+            ownerUserId={member._isUser ? member._userId : linkedUser?.id}
+            teamIds={profileTeamIds}
+            canEvaluate={canEvaluate}
+            canSeeData={canEvaluate && !!(perms?.isAdmin || perms?.administration)}
+            isOwnProfile={!!isOwnProfile}
+            author={{ id: user?.id, name: user?.full_name }}
+          />
+        )}
+
+        {tab === "ausencias" && <CoachAbsencesFines staffId={storageId} ids={personIds} teams={profileTeams} author={{ id: user?.id, name: user?.full_name }} />}
+
+        {tab === "pdi" && <CoachPDISection staffId={storageId} canEvaluate={canEvaluate} canView={canViewReports} isOwnProfile={isOwnProfile} />}
+
+        {tab === "matches" && <CoachMatchNotesSection staffId={storageId} teamId={member.team_id} isCoordinator={canViewReports} />}
+
+        {tab === "notes" && (
+          <div className="rs2-card" style={{ padding: 16 }}>
+            <p className="text-sm text-gray-700 leading-relaxed">{member.notes}</p>
+          </div>
+        )}
       </div>
-
-      {/* Tabs */}
-      <Tabs defaultValue={showFeedbackTab ? "feedback" : "notes"}>
-        {/* Una sola fila; en móvil, si no caben todas, se desliza hacia un lado (como las pestañas del resto de la app) */}
-        <TabsList className="flex-nowrap overflow-x-auto [&>*]:shrink-0">
-          {showFeedbackTab && (
-            <TabsTrigger value="feedback" className="px-2 text-[11px] sm:px-3 sm:text-xs" style={{ fontFamily: "var(--font-display)" }}>
-              {t("Feedback")}
-            </TabsTrigger>
-          )}
-          {showFeedbackTab && (
-            <TabsTrigger value="eval360" className="px-2 text-[11px] sm:px-3 sm:text-xs" style={{ fontFamily: "var(--font-display)" }}>
-              {t("Evaluación 360")}
-            </TabsTrigger>
-          )}
-          {showPDITab && (
-            <TabsTrigger value="pdi" className="px-2 text-[11px] sm:px-3 sm:text-xs" style={{ fontFamily: "var(--font-display)" }}>
-              {t("PDI · Plan Desarrollo Individual")}
-            </TabsTrigger>
-          )}
-          {canViewReports && (
-            <TabsTrigger value="matches" className="px-2 text-[11px] sm:px-3 sm:text-xs" style={{ fontFamily: "var(--font-display)" }}>
-              {t("Notas privadas")}
-            </TabsTrigger>
-          )}
-          {member.notes && (
-            <TabsTrigger value="notes" className="px-2 text-[11px] sm:px-3 sm:text-xs" style={{ fontFamily: "var(--font-display)" }}>
-              {t("Info")}
-            </TabsTrigger>
-          )}
-        </TabsList>
-
-        {showFeedbackTab && (
-          <TabsContent value="feedback" className="mt-4">
-            <CoachFeedbackSection
-              staffId={member._isUser ? `user_${member._userId}` : staffId}
-              teamIds={[...new Set([...(memberAssignments || []).map(a => a.team_id), member.team_id].filter(Boolean))]}
-              canWrite={canViewReports}
-              isOwnProfile={!!isOwnProfile}
-              author={{ id: user?.id, name: user?.full_name }}
-            />
-          </TabsContent>
-        )}
-
-        {showFeedbackTab && (
-          <TabsContent value="eval360" className="mt-4">
-            <CoachEval360Areas
-              staffId={member._isUser ? `user_${member._userId}` : staffId}
-              ownerUserId={member._isUser ? member._userId : linkedUser?.id}
-              teamIds={[...new Set([...(memberAssignments || []).map(a => a.team_id), member.team_id].filter(Boolean))]}
-              canEvaluate={canEvaluate}
-              canSeeData={canEvaluate && !!(perms?.isAdmin || perms?.administration)}
-              isOwnProfile={!!isOwnProfile}
-              author={{ id: user?.id, name: user?.full_name }}
-            />
-          </TabsContent>
-        )}
-
-        {showPDITab && (
-        <TabsContent value="pdi" className="mt-4">
-          <CoachPDISection staffId={member._isUser ? `user_${member._userId}` : staffId} canEvaluate={canEvaluate} canView={canViewReports} isOwnProfile={isOwnProfile} />
-        </TabsContent>
-        )}
-
-        {canViewReports && (
-        <TabsContent value="matches" className="mt-4">
-          <CoachMatchNotesSection staffId={member._isUser ? `user_${member._userId}` : staffId} teamId={member.team_id} isCoordinator={canViewReports} />
-        </TabsContent>
-        )}
-
-        {member.notes && (
-          <TabsContent value="notes" className="mt-4">
-            <div className="bg-white border border-gray-200 p-5 shadow-sm" style={{ borderRadius: "4px" }}>
-              <p className="text-sm text-gray-700 leading-relaxed">{member.notes}</p>
-            </div>
-          </TabsContent>
-        )}
-      </Tabs>
 
       {/* Crop Dialog */}
       <ImageCropDialog
@@ -675,6 +641,6 @@ export default function CoachProfile() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   );
 }
