@@ -19,5 +19,6 @@ import mt from "./screens/mt.js";
 import pl from "./screens/pl.js";
 import te from "./screens/te.js";
 import ca2 from "./screens/ca2.js";
+import pf from "./screens/pf.js";
 
-export default [...b1, ...b1x, ...b1y, ...b2, ...b2x, ...b3, ...b3x, ...cm, ...fb, ...ar, ...qc, ...mj, ...tc, ...tp, ...cfg, ...dash, ...mt, ...pl, ...te, ...ca2];
+export default [...b1, ...b1x, ...b1y, ...b2, ...b2x, ...b3, ...b3x, ...cm, ...fb, ...ar, ...qc, ...mj, ...tc, ...tp, ...cfg, ...dash, ...mt, ...pl, ...te, ...ca2, ...pf];

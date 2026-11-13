@@ -8,7 +8,7 @@ import { RELATIONS, relLabel } from "@/components/avisos/PlayerPicker";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/i18n";
 // Familiares vinculados a un jugador. El admin gestiona todo; el propio jugador solo puede aceptar/rechazar solicitudes.
-export default function FamiliesSection({ playerId }) {
+export default function FamiliesSection({ playerId, bare = false }) {
   const t = useT();
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -43,17 +43,19 @@ export default function FamiliesSection({ playerId }) {
   if (!isAdmin && links.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-black uppercase tracking-widest text-gray-500" style={{ fontFamily: "var(--font-display)" }}>{t("Familiares vinculados")}</p>
+    <div className={bare ? "" : "bg-white rounded-2xl border border-gray-200 shadow-sm p-4"} data-testid="player-families">
+      <div className={`flex items-center justify-between ${bare ? "mb-1.5" : "mb-3"}`}>
+        {bare
+          ? <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#6B5E60", margin: 0 }}>{t("Cuentas vinculadas")}</p>
+          : <p className="text-xs font-black uppercase tracking-widest text-gray-500" style={{ fontFamily: "var(--font-display)" }}>{t("Familiares vinculados")}</p>}
         {isAdmin && !adding && (
           <button onClick={() => setAdding(true)} className="flex items-center gap-1 text-xs font-bold" style={{ color: "var(--granate)" }}><Plus className="w-3.5 h-3.5" />{t("Vincular")}</button>
         )}
       </div>
       {links.length === 0 && <p className="text-xs text-gray-400">{t("Todavía no hay familiares vinculados.")}</p>}
-      <div className="space-y-2">
+      <div className={bare ? "" : "space-y-2"}>
         {links.map((l) => (
-          <div key={l.id} className="flex items-center gap-3 border border-gray-100 rounded-lg px-3 py-2">
+          <div key={l.id} className={bare ? "flex items-center gap-2 py-1.5" : "flex items-center gap-3 border border-gray-100 rounded-lg px-3 py-2"} style={bare ? { borderTop: "1px solid #F1ECEC" } : undefined}>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900 truncate">{l.name || l.email}</p>
               <p className="text-[11px] text-gray-400 truncate">{t(relLabel(l.relationship))}{l.email ? ` · ${l.email}` : ""}{l.phone ? ` · ${l.phone}` : ""}</p>
