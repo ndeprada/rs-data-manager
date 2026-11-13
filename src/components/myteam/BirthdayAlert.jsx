@@ -25,29 +25,21 @@ export default function BirthdayAlert({ players }) {
   const soon = list.filter((x) => x.days > 0);
   const when = (x) => x.date.toLocaleDateString(tag, { weekday: "long", day: "numeric", month: "long" });
   const years = (x) => (x.age ? t("{n} años", { n: x.age }) : "");
+  const short = (x) => x.date.toLocaleDateString(tag, { weekday: "short" });
+  const isToday = todayList.length > 0;
+  const shown = isToday ? todayList : soon;
+  // Tarjeta del mismo tamaño que los pendientes de Mi equipo (diseño rs2)
   return (
-    <div className="space-y-1.5">
-      {todayList.length > 0 && (
-        <div className="flex items-center gap-2.5 px-4 py-2.5 border border-orange-200 bg-orange-50" style={{ borderRadius: "6px", borderLeft: "4px solid var(--naranja)" }}>
-          <Cake className="w-5 h-5 shrink-0" style={{ color: "var(--naranja)" }} />
-          <p className="text-sm font-bold text-orange-900">
-            {t("¡Hoy cumple años")} {todayList.map((x, i) => (
-              <span key={x.p.id}>{i > 0 && (i === todayList.length - 1 ? ` ${t("y")} ` : ", ")}<Link to={`/PlayerProfile?id=${x.p.id}`} className="underline">{playerFullName(x.p)}</Link>{years(x) && ` (${years(x)})`}</span>
-            ))}!
-          </p>
-        </div>
-      )}
-      {soon.length > 0 && (
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-white border border-gray-200" style={{ borderRadius: "6px" }}>
-          <Cake className="w-4 h-4 shrink-0 text-gray-400" />
-          <p className="text-xs text-gray-600">
-            <span className="font-bold uppercase tracking-wider text-[10px] text-gray-400 mr-2" style={{ fontFamily: "var(--font-display)" }}>{t("Próximos cumpleaños")}</span>
-            {soon.map((x, i) => (
-              <span key={x.p.id}>{i > 0 && " · "}<Link to={`/PlayerProfile?id=${x.p.id}`} className="font-semibold text-gray-800 hover:underline">{playerFullName(x.p)}</Link> <span className="text-gray-500">· {years(x) && `${years(x)} · `}{when(x)}</span></span>
-            ))}
-          </p>
-        </div>
-      )}
+    <div className="rs2-card flex items-center" style={{ flex: "1 1 260px", gap: 10, padding: "8px 12px", borderRadius: 10, minWidth: 0, ...(isToday ? { background: "#FFF7ED", borderColor: "#FAD7B5" } : {}) }} data-testid="team-birthdays">
+      <Cake className="w-4 h-4 shrink-0" style={{ color: isToday ? "var(--naranja)" : "#4A3D3F" }} aria-hidden="true" />
+      <span className="rs2-display tabular-nums" style={{ fontSize: 22, lineHeight: 1, color: isToday ? "var(--naranja)" : "#4A3D3F" }}>{list.length}</span>
+      <p style={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.25, color: "#4A3D3F" }}>
+        <span style={{ fontWeight: 700 }}>{isToday ? t("¡Hoy cumple años") : t("Cumpleaños esta semana")}</span>{" · "}
+        {shown.map((x, i) => (
+          <span key={x.p.id}>{i > 0 && ", "}<Link to={`/PlayerProfile?id=${x.p.id}`} className="hover:underline" style={{ fontWeight: 600 }} title={[years(x), when(x)].filter(Boolean).join(" · ")}>{playerFullName(x.p)}</Link>{!isToday && <span style={{ color: "#6B5E60" }}> ({short(x)})</span>}</span>
+        ))}
+        {isToday && soon.length > 0 && <span style={{ color: "#6B5E60" }}> · {t("y {n} más esta semana", { n: soon.length })}</span>}
+      </p>
     </div>
   );
 }

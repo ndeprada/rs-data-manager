@@ -48,6 +48,9 @@ const Stat = ({ label, value, sub }) => (
 );
 
 // Ficha del rival con datos públicos de la FCF: de un vistazo cómo llega el rival al partido.
+// Desde «Informe del rival» de Mi equipo se llega con #rival-report: se baja hasta aquí al cargarse
+const scrollIfAsked = (el) => { if (el && window.location.hash === "#rival-report") setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 300); };
+
 export default function RivalReport({ eventId, enabled = true }) {
   const t = useT();
   const { num } = useFormat();
@@ -69,7 +72,7 @@ export default function RivalReport({ eventId, enabled = true }) {
   const pg = (n) => (rival.pj ? f1(n / rival.pj, num) : "–");
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" style={{ borderLeft: "3px solid var(--granate)" }}>
+    <div id="rival-report" ref={scrollIfAsked} className="bg-white border border-gray-200 rounded-xl overflow-hidden scroll-mt-4" style={{ borderLeft: "3px solid var(--granate)" }}>
       <div className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-gray-100">
         <div className="flex items-center gap-2.5 min-w-0 flex-1" style={{ minWidth: "11rem" }}>
           {rival.logo && <img src={rival.logo} alt="" className="w-9 h-9 object-contain shrink-0" onError={(e) => { e.currentTarget.style.display = "none"; }} />}

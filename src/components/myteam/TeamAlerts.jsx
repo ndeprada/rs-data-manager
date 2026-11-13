@@ -4,10 +4,11 @@ import { Trophy, ClipboardCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useMatchStatus } from "@/lib/matchStatus";
 import { useTrainingStatus } from "@/lib/trainingStatus";
-import PendingStrip from "@/components/dashboard/PendingStrip";
+import { PendingCards } from "@/components/rs2/dashParts";
 import BirthdayAlert from "@/components/myteam/BirthdayAlert";
 import ScheduleNudge from "@/components/myteam/ScheduleNudge";
 import { useT, msg } from "@/i18n";
+import { C as clubColor } from "@/lib/brand";
 
 // Avisos de arriba del panel "Mi equipo": lo que el entrenador tiene sin gestionar + cumpleaños de la plantilla.
 // Es lo primero que se ve al entrar, porque sirve de recordatorio de tareas pendientes.
@@ -28,13 +29,13 @@ export default function TeamAlerts({ teamId, players }) {
     const matchTab = firstMatch && (pending.get(firstMatch.id) || []).some((r) => /minutos/i.test(r)) ? "acta" : "convocatoria";
     return [
       {
-        key: "matches", icon: Trophy, count: matches.length, tone: "#d97706",
+        key: "matches", icon: Trophy, count: matches.length, tone: clubColor.primary,
         label: matches.length === 1 ? t("partido pendiente de gestionar") : t("partidos pendientes de gestionar"),
         cta: msg("Gestionar"),
         to: matches.length === 1 ? `/MatchDetail?id=${firstMatch.id}&teamId=${firstMatch.team_id}&tab=${matchTab}` : "/MyTeam/Matches",
       },
       {
-        key: "trainings", icon: ClipboardCheck, count: trainings.length, tone: "#d97706",
+        key: "trainings", icon: ClipboardCheck, count: trainings.length, tone: "#B45309",
         label: trainings.length === 1 ? t("entreno sin gestionar") : t("entrenos sin gestionar"),
         cta: msg("Pasar lista"),
         to: trainings[0] ? `/MyTeam/Attendance?eventId=${trainings[0].id}` : "/MyTeam/Attendance",
@@ -43,10 +44,9 @@ export default function TeamAlerts({ teamId, players }) {
   }, [events, pending, pendingTr, teamId, t]);
 
   return (
-    <div className="space-y-2">
-      <PendingStrip items={items} />
+    <div className="flex flex-col" style={{ gap: 8 }}>
+      <PendingCards items={items} testPrefix="team-pending" extra={<BirthdayAlert players={players} />} />
       <ScheduleNudge teamId={teamId} />
-      <BirthdayAlert players={players} />
     </div>
   );
 }

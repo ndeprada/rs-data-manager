@@ -1,11 +1,11 @@
 // Panel de control. Rediseño del 12/11/2026 con el diseño «rs2» (maqueta «Maqueta Panel · RS Manager», aprobada por Nacho:
 // «ok me parece bien», con la Agenda del fin de semana como primera pestaña de abajo). Cálculos puros en src/lib/dashboardStats.js.
 import { sortTeams, compareTeams, isF7Team } from "@/lib/teamOrder";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { UserCog, Trophy, ClipboardCheck, Users, Target, CheckCircle2 } from "lucide-react";
-import { format, startOfDay, addDays, isSameDay, differenceInMinutes, startOfWeek, endOfDay, subDays } from "date-fns";
+import { UserCog, Trophy, ClipboardCheck, Users, Target } from "lucide-react";
+import { format, startOfDay, addDays, isSameDay, startOfWeek, endOfDay, subDays } from "date-fns";
 import { Link } from "react-router-dom";
 import FCFClassificationsPanel from "../components/dashboard/FCFClassificationsPanel";
 import WeekendAgenda from "../components/dashboard/WeekendAgenda";
@@ -26,13 +26,12 @@ import { scoreText, scoreTitle, playsAway, matchResult } from "@/lib/matchScore"
 import { seasonRecord, attendanceSummary, topBy, returningSoon, wdl } from "@/lib/dashboardStats";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
 import { Page, RS } from "@/components/rs2/kit";
+import { Label, Big, Head, MoreLink, Countdown, FormChips, PendingCards, WIN, LOSS, DRAW } from "@/components/rs2/dashParts";
 import { useT, useDateLocale, msg } from "@/i18n";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const isMatch = (t) => MATCH_TYPES.includes(t);
 const TYPE_LABEL = { partido_liga: msg("Liga"), partido_amistoso: msg("Amistoso"), torneo: msg("Torneo") };
-const FORM = { G: ["V", "#15803D"], E: ["E", "#B45309"], P: ["D", "#B91C1C"] };
-const WIN = "#15803D", LOSS = "#B91C1C", DRAW = "#A16207";
 const SCOPE_KEY = "rs_dash_scope";
 
 function groupOf(team) {
@@ -44,36 +43,6 @@ function groupOf(team) {
   return "Fútbol 7";
 }
 const GROUPS = [["Todos", msg("Todos")], ["Primer equipo", msg("Primer equipo")], ["Juvenil", msg("Juvenil")], ["Cadete", msg("Cadete")], ["Infantil", msg("Infantil")], ["Fútbol 7", msg("Fútbol 7")]];
-
-const Label = ({ children, style }) => <p className="rs2-label" style={{ fontSize: 10, letterSpacing: ".12em", ...style }}>{children}</p>;
-const Big = ({ children, color = RS.granate, size = 30 }) => <span className="rs2-display tabular-nums" style={{ fontSize: size, color, lineHeight: 1 }}>{children}</span>;
-function Head({ title, right }) {
-  return (
-    <div className="flex flex-wrap items-center" style={{ gap: 10, padding: "9px 14px", borderBottom: `1px solid ${RS.lineSoft}` }}>
-      <h2 style={{ margin: 0, borderLeft: `4px solid ${RS.naranja}`, paddingLeft: 8, lineHeight: 1 }}><span className="rs2-display" style={{ fontSize: 20, lineHeight: 1.1, color: RS.granate }}>{title}</span></h2>
-      <div className="flex flex-wrap items-center" style={{ marginLeft: "auto", gap: 10, fontSize: 12 }}>{right}</div>
-    </div>
-  );
-}
-const MoreLink = ({ to, children }) => <Link to={to} style={{ color: RS.granate, fontWeight: 600, fontSize: 12 }}>{children}</Link>;
-
-function Countdown({ date }) {
-  const t = useT();
-  const [now, setNow] = useState(new Date());
-  useEffect(() => { const id = setInterval(() => setNow(new Date()), 60000); return () => clearInterval(id); }, []);
-  const mins = Math.max(0, differenceInMinutes(new Date(date), now));
-  const d = Math.floor(mins / 1440), h = Math.floor((mins % 1440) / 60), m = mins % 60;
-  return (
-    <div className="flex" style={{ gap: 6 }} data-testid="dash-countdown">
-      {[[d, msg("días")], [h, msg("horas")], [m, msg("min")]].map(([v, l]) => (
-        <div key={l} style={{ background: "rgba(255,255,255,.1)", borderRadius: 8, padding: "4px 9px", textAlign: "center" }}>
-          <div className="rs2-display tabular-nums" style={{ fontSize: 20, lineHeight: 1, color: "#fff" }}>{String(v).padStart(2, "0")}</div>
-          <div style={{ fontSize: 9, color: "rgba(255,255,255,.65)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t(l)}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function TeamCard({ team, count }) {
   const t = useT();
@@ -100,11 +69,7 @@ function TeamCard({ team, count }) {
       <div className="flex items-center" style={{ gap: 6 }}>
         <Big size={20}>{me ? `${me.pos}º` : "—"}</Big>
         <span style={{ fontSize: 11, color: RS.muted }}>{me ? t("{pts} pts", { pts: me.pts }) : ""}</span>
-        <span className="flex" style={{ marginLeft: "auto", gap: 2 }}>
-          {form.map((f, i) => (
-            <span key={i} style={{ width: 15, height: 15, borderRadius: 3, background: (FORM[f] || ["?", "#9ca3af"])[1], color: "#fff", fontSize: 9, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{(FORM[f] || ["?"])[0]}</span>
-          ))}
-        </span>
+        <span style={{ marginLeft: "auto" }}><FormChips form={form} /></span>
       </div>
     </Link>
   );
@@ -294,26 +259,7 @@ export default function Dashboard() {
         </div>
 
         {/* Pendientes */}
-        {pendingItems.length === 0 ? (
-          <p className="flex items-center" style={{ gap: 6, fontSize: 12, fontWeight: 600, color: WIN }} data-testid="dash-pending-none"><CheckCircle2 className="w-4 h-4" /> {t("Todo al día: no hay pendientes")}</p>
-        ) : (
-          <div className="flex flex-wrap" style={{ gap: 8 }} data-testid="dash-pending">
-            {pendingItems.map(({ key, icon: Icon, count, label, cta, to, tone = RS.ink2, onClick }) => {
-              const body = (
-                <>
-                  <Icon className="w-4 h-4 shrink-0" style={{ color: tone }} aria-hidden="true" />
-                  <Big size={22} color={tone}>{count}</Big>
-                  <span style={{ fontSize: 12, color: RS.ink2, lineHeight: 1.2, flex: 1, minWidth: 0 }}>{label}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: RS.granate, whiteSpace: "nowrap" }}>{t(cta)} →</span>
-                </>
-              );
-              const style = { flex: "1 1 200px", display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 10, minWidth: 0, textAlign: "left" };
-              return onClick
-                ? <button key={key} type="button" onClick={onClick} className="rs2-card hover:shadow-md transition-shadow" style={style} data-testid={`dash-pending-${key}`}>{body}</button>
-                : <Link key={key} to={to} className="rs2-card hover:shadow-md transition-shadow" style={style} data-testid={`dash-pending-${key}`}>{body}</Link>;
-            })}
-          </div>
-        )}
+        <PendingCards items={pendingItems} />
 
         {/* Próximo partido + temporada y asistencia + datos del club */}
         <div className="flex flex-wrap" style={{ gap: 12 }}>
