@@ -1,271 +1,338 @@
-import React, { useState } from "react";
-import { sortTeams } from "@/lib/teamOrder";
+// Equipos (rediseño del 13/11/2026, maqueta «Maqueta Equipos · RS Manager» aprobada por Nacho): resumen del club,
+// equipos separados en Fútbol 11 y Fútbol 7 con competición, cuerpo técnico, clasificación, racha, balance, entrenos de 30 días
+// y próximo partido; tabla o tarjetas (en el móvil, tarjetas). Cálculos puros en src/lib/teamsOverview.js.
+import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { Search, RefreshCw, Pencil, Trash2, Home, Plane, Shield } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, Plus, List, Grid3x3, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import TeamsTable from "@/components/teams/TeamsTable";
 import TeamStaffSection from "@/components/team/TeamStaffSection";
 import FcfSyncLine from "@/components/teams/FcfSyncLine";
 import FcfRelayDialog from "@/components/teams/FcfRelayDialog";
-import { buildLinks } from "@/lib/staffLink";
-import { FCF_CATEGORIES, FCF_CATEGORY_GROUPS, getCategoryLabel } from "@/components/fcfCategories";
-
-import { PageTitle } from "@/components/common/PageHeader";
+import { Page, RS } from "@/components/rs2/kit";
+import { FormChips, WIN, LOSS } from "@/components/rs2/dashParts";
+import { sortTeams } from "@/lib/teamOrder";
+import { teamPlaysF7 } from "@/lib/matchFormat";
+import { FCF_CATEGORY_GROUPS, getCategoryLabel } from "@/components/fcfCategories";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
-import { useT } from "@/i18n";
+import { staffFullName } from "@/lib/staffLink";
+import { useMatchStatus } from "@/lib/matchStatus";
+import { attendanceSummary } from "@/lib/dashboardStats";
+import { playedLeague, leagueForm, record, nextMatch, teamAttendance, coachOf, standingOf, sortOverview, overviewKpis, matchesSearch } from "@/lib/teamsOverview";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useT, useDateLocale, msg } from "@/i18n";
+
 const emptyForm = { name: "", category: "", coach_id: "", season: "", fcf_group_url: "" };
-
-// Orden de categorías por edad (mayor a menor) usando FCF_CATEGORIES
-const CATEGORY_AGE_ORDER = FCF_CATEGORIES.map(cat => cat.value);
-
-// Extrae números del nombre para ordenar correctamente (ej: "Cadete S16A" -> [16, 'A'])
-const extractNameParts = (name) => {
-  const parts = [];
-  const regex = /(\d+|[A-Z])/g;
-  let match;
-  while ((match = regex.exec(name)) !== null) {
-    const part = match[1];
-    parts.push(isNaN(part) ? part : parseInt(part));
-  }
-  return parts;
+const LOW_ATT = 80;   // entrenos de 30 días por debajo de este % = en rojo (confirmado por Nacho el 13/11/2026)
+const VIEW_KEY = "rs_teams_view";
+const SORTS = [["categoria", msg("Por categoría")], ["clasificacion", msg("Clasificación")], ["entrenos", msg("Entrenos")]];
+const chip = (bg, fg) => ({ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: bg, color: fg, whiteSpace: "nowrap", display: "inline-block" });
+const seasonLabel = (s) => String(s || "").replace(/^(\d{4})-\d{2}(\d{2})$/, "$1–$2");
+const fetchStanding = async (teamId) => {
+  const r = await fetch(`/api/sync-fcf?standings=${teamId}`, { credentials: "include" });
+  if (!r.ok) throw new Error("error");
+  return r.json();
 };
 
-const sortTeamsByAge = (teams) => sortTeams(teams);
+function Segmented({ options, value, onChange, testPrefix, label }) {
+  const t = useT();
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap" style={{ gap: 3, background: RS.soft, borderRadius: 999, padding: 3 }}>
+      {options.map(([k, l]) => (
+        <button key={k} type="button" onClick={() => onChange(k)} aria-pressed={value === k} data-testid={`${testPrefix}-${k}`}
+          style={{ fontSize: 11, padding: "3px 10px", borderRadius: 999, border: 0, fontWeight: value === k ? 700 : 400, background: value === k ? "#fff" : "none", color: value === k ? RS.granate : RS.ink2, boxShadow: value === k ? "0 1px 2px rgba(0,0,0,.08)" : "none", whiteSpace: "nowrap" }}>{t(l)}</button>
+      ))}
+    </div>
+  );
+}
 
-const AGE_GROUPS = {
-  "SENIOR": ["primera_federacio", "segona_federacio", "tercera_federacio", "lliga_elit"],
-  "JUVENIL": ["lliga_nacional_juvenil", "preferent_juvenils", "juvenil_primera_divisio", "juvenil_segona_divisio", "copa_catalunya_masculina_24_25", "copa_catalunya_masculina"],
-  "CADETE S16": ["divisio_honor_cadet_s16", "preferent_cadet_s16", "cadet_primera_divisio_s16", "cadet_segona_divisio_s16"],
-  "CADETE S15": ["divisio_honor_cadet_s15", "preferent_cadet_s15", "cadet_primera_divisio_s15", "cadet_segona_divisio_s15"],
-  "INFANTIL S14": ["divisio_honor_infantil_s14", "preferent_infantil_s14", "infantil_primera_divisio_s14", "infantil_segona_divisio_s14"],
-  "INFANTIL S13": ["divisio_honor_infantil_s13", "preferent_infantil_s13", "infantil_primera_divisio_s13", "infantil_segona_divisio_s13"],
-  "ALEVÍN S12": ["preferent_alevin_s12", "primera_divisio_alevin_s12", "segona_divisio_alevin_s12", "tercera_divisio_alevin_s12"],
-  "ALEVÍN S11": ["preferent_alevin_s11", "primera_divisio_alevin_s11", "fase_ascens_terres_ebre_primera_divisio_alevin_s11", "segona_divisio_alevin_s11", "tercera_divisio_alevin_s11"],
-  "BENJAMÍN S10": ["preferent_benjamin_s10", "primera_divisio_benjamin_s10", "segona_divisio_benjamin_s10", "tercera_divisio_benjamin_s10"],
-  "BENJAMÍN S9": ["preferent_benjamin_s9", "primera_divisio_benjamin_s9", "segona_divisio_benjamin_s9", "tercera_divisio_benjamin_s9"],
-  "PRE-BENJAMÍN": ["torneig_prebenjami_s8", "prebenjami_s8", "prebenjami_s7", "copa_girona_prebenjami_s7", "torneig_prebenjami_s7", "torneig_penyes_fc_barcelona", "ludica_infantil_futbol_7", "ludica_alevin"],
-};
-
-const groupTeamsByAge = (teams) => {
-  const grouped = {};
-  Object.keys(AGE_GROUPS).forEach(group => {
-    grouped[group] = teams.filter(t => AGE_GROUPS[group].includes(t.category));
-  });
-  return grouped;
-};
+function AttBar({ att, w = 40 }) {
+  if (!att) return <span style={{ color: RS.faint }}>—</span>;
+  const low = att.rate < LOW_ATT;
+  return (
+    <span className="tabular-nums" style={{ whiteSpace: "nowrap" }}>
+      <span style={{ display: "inline-block", width: w, height: 5, background: RS.lineSoft, borderRadius: 9, verticalAlign: "middle", marginRight: 5, overflow: "hidden" }}><span style={{ display: "block", width: `${att.rate}%`, height: "100%", background: low ? LOSS : RS.granate }} /></span>
+      <span style={low ? { color: LOSS, fontWeight: 700 } : undefined}>{att.rate} %</span>
+    </span>
+  );
+}
 
 export default function Teams() {
   const t = useT();
+  const dfl = useDateLocale();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [dialogOpen, setDialogOpen] = useState(false);
   // La FCF ya no deja leer al servidor: los datos se traen desde el navegador (FcfRelayDialog, 07/11/2026)
   const [relayOpen, setRelayOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [editingTeam, setEditingTeam] = useState(null);
   const [form, setForm] = useState(emptyForm);
-  const [viewMode, setViewMode] = useState("list");
+  const [stage, setStage] = useState("all");
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState("categoria");
+  const [view, setViewState] = useState(() => { try { return localStorage.getItem(VIEW_KEY) || "tabla"; } catch { return "tabla"; } });
+  const setView = (v) => { setViewState(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* sin almacenamiento */ } };
 
-  const { data: teams = [], isLoading } = useQuery({
-    queryKey: ["teams"],
-    queryFn: () => base44.entities.Team.list(),
+  const { data: teams = [], isLoading } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
+  const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
+  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
+  const { data: staff = [] } = useQuery({ queryKey: ["staff"], queryFn: () => base44.entities.StaffMember.list() });
+  const { data: allAssignments = [] } = useQuery({ queryKey: ["team_staff_assignments"], queryFn: () => base44.entities.TeamStaffAssignment.filter({ active: true }) });
+  const { data: attendance = [] } = useQuery({ queryKey: ["attendance_all"], queryFn: () => base44.entities.TrainingAttendance.list() });
+  const { data: injuries = [] } = useQuery({ queryKey: ["injuries_all"], queryFn: () => base44.entities.Injury.list(), retry: false });
+  const { pending } = useMatchStatus();
+  const ordered = useMemo(() => sortTeams(teams), [teams]);
+  const standings = useQueries({
+    queries: ordered.map((tm) => ({ queryKey: ["fcf-standing", tm.id], queryFn: () => fetchStanding(tm.id), staleTime: 1000 * 60 * 30, retry: 1 })),
   });
+  const standingKey = standings.map((s) => s.dataUpdatedAt).join(",");
 
-  const { data: players = [] } = useQuery({
-    queryKey: ["players"],
-    queryFn: () => base44.entities.Player.list(),
-  });
+  const rows = useMemo(() => {
+    const now = new Date();
+    const evById = new Map(events.map((e) => [e.id, e]));
+    const att = teamAttendance(attendance, evById, { now });
+    const staffName = new Map(staff.map((s) => [s.id, staffFullName(s)]));
+    const injured = new Set(injuries.filter((i) => i.status !== "alta").map((i) => i.player_id));
+    return ordered.map((team, i) => {
+      const squad = players.filter((p) => p.team_id === team.id && p.status !== "baja");
+      const played = playedLeague(events, team.id, now);
+      const pend = events.filter((e) => e.team_id === team.id && pending.has(e.id)).sort((a, b) => new Date(a.date) - new Date(b.date));
+      return {
+        team, f7: teamPlaysF7(team),
+        players: squad.length,
+        injured: squad.filter((p) => p.status === "lesionado" || injured.has(p.id)).length,
+        coach: coachOf(allAssignments.filter((a) => a.team_id === team.id), (id) => staffName.get(id), team),
+        standing: standingOf(standings[i]?.data),
+        competition: [standings[i]?.data?.competition, standings[i]?.data?.group].filter(Boolean).join(" · "),
+        form: leagueForm(played),
+        rec: record(played),
+        att: att.get(team.id) || null,
+        next: nextMatch(events, team.id, now),
+        pending: pend.length, firstPending: pend[0] || null,
+      };
+    });
+  }, [ordered, players, events, staff, allAssignments, attendance, injuries, pending, standingKey]);
 
-  const { data: events = [] } = useQuery({
-    queryKey: ["events"],
-    queryFn: () => base44.entities.Event.list(),
-  });
-
-  const { data: staff = [] } = useQuery({
-    queryKey: ["staff"],
-    queryFn: () => base44.entities.StaffMember.list(),
-  });
-
-  const { data: users = [] } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => base44.entities.User.list(),
-  });
-
-  const { data: allAssignments = [] } = useQuery({
-    queryKey: ["team_staff_assignments"],
-    queryFn: () => base44.entities.TeamStaffAssignment.filter({ active: true }),
-  });
-
-  // Entrenadores: StaffMembers + usuarios registrados con rol entrenador aprobados
-  const linkedUserIds = new Set([...buildLinks(users.filter(u => u.access_status !== "deleted"), staff).keys()]);
-  const coachUsers = users.filter(u =>
-    ["entrenador"].includes(u.app_role) &&
-    u.access_status === "approved" &&
-    !linkedUserIds.has(u.id)
-  ).map(u => ({
-    id: `user_${u.id}`,
-    first_name: u.full_name?.split(" ")[0] || u.full_name || "",
-    last_name: u.full_name?.split(" ").slice(1).join(" ") || "",
-    role: "entrenador",
-    _isUser: true,
-  }));
-  const allCoaches = [
-    ...staff.filter(s => s.role === "entrenador"),
-    ...coachUsers,
-  ];
+  const kpi = useMemo(() => overviewKpis(rows), [rows]);
+  const club = useMemo(() => {
+    const evById = new Map(events.map((e) => [e.id, e]));
+    const skip = new Set(events.filter((e) => e.cancelled === true).map((e) => e.id));
+    return attendanceSummary(attendance, evById, { skip });
+  }, [attendance, events]);
+  const visible = useMemo(() => sortOverview(rows.filter((r) => (stage === "all" || (stage === "f7") === r.f7) && matchesSearch(r, q)), sort), [rows, stage, q, sort]);
+  const groups = [
+    { key: "f11", title: t("FÚTBOL 11"), rows: visible.filter((r) => !r.f7) },
+    { key: "f7", title: t("FÚTBOL 7"), rows: visible.filter((r) => r.f7) },
+  ].filter((g) => g.rows.length);
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Team.create(data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["teams"] }); closeDialog(); },
   });
-
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Team.update(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["teams"] }); closeDialog(); },
   });
-
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Team.delete(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["teams"] }); setDeleteId(null); },
   });
-
   const closeDialog = () => { setDialogOpen(false); setEditingTeam(null); setForm(emptyForm); };
-
   const openEdit = (team) => {
     setEditingTeam(team);
-    const coachStaff = staff.find(s => s.id === team.coach_id);
-    setForm({ 
-      name: team.name, 
-      category: team.category, 
-      coach_id: team.coach_id || "", 
-      season: team.season || "", 
-      fcf_group_url: team.fcf_group_url || "" 
-    });
+    setForm({ name: team.name, category: team.category, coach_id: team.coach_id || "", season: team.season || "", fcf_group_url: team.fcf_group_url || "" });
     setDialogOpen(true);
   };
-
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (editingTeam) {
-      updateMutation.mutate({ id: editingTeam.id, data: form });
-    } else {
-      createMutation.mutate(form);
-    }
+    if (editingTeam) updateMutation.mutate({ id: editingTeam.id, data: form });
+    else createMutation.mutate(form);
   };
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-         <PageTitle kicker={t("Administración")} title={t("Equipos")} subtitle={t("Gestión de equipos del club")} />
-         <div className="flex flex-wrap items-center gap-2">
-           <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-             <button
-               onClick={() => setViewMode("list")}
-               className={`p-2 rounded transition-colors ${viewMode === "list" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-               title={t("Vista lista")}
-             >
-               <List className="w-4 h-4" />
-             </button>
-             <button
-               onClick={() => setViewMode("cards")}
-               className={`p-2 rounded transition-colors ${viewMode === "cards" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-               title={t("Vista tarjetas")}
-             >
-               <Grid3x3 className="w-4 h-4" />
-             </button>
-           </div>
-           <Button
-             onClick={() => setRelayOpen(true)}
-             variant="outline"
-             className="shadow-sm"
-             data-testid="fcf-relay-open"
-           >
-             <RefreshCw className="w-4 h-4 mr-2" /> {t("Actualizar desde la FCF")}
-           </Button>
-           <Button variant="club"
-             onClick={() => { setForm(emptyForm); setDialogOpen(true); }}
-             className="shadow-sm"
-           >
-             <Plus className="w-4 h-4 mr-2" /> {t("Nuevo Equipo")}
-           </Button>
-         </div>
-       </div>
-      <FcfSyncLine />
-      <FcfRelayDialog open={relayOpen} onOpenChange={setRelayOpen} />
+  const groupSub = (g) => {
+    const r = g.rows.reduce((a, x) => ({ w: a.w + x.rec.w, d: a.d + x.rec.d, l: a.l + x.rec.l, p: a.p + x.players }), { w: 0, d: 0, l: 0, p: 0 });
+    return [g.rows.length === 1 ? t("1 equipo") : t("{n} equipos", { n: g.rows.length }), t("{n} jugadores", { n: r.p }), `${r.w}-${r.d}-${r.l}`].join(" · ");
+  };
+  const nextText = (e) => `${format(new Date(e.date), "EEE d", { locale: dfl })}`;
+  const NextCell = ({ r }) => (
+    <span className="inline-flex items-center" style={{ gap: 6, whiteSpace: "nowrap" }}>
+      {r.next ? (<>
+        {r.next.is_home === false ? <Plane width={13} height={13} color={RS.muted} aria-label={t("Fuera")} /> : <Home width={13} height={13} color={RS.muted} aria-label={t("En casa")} />}
+        <Link to={`/MatchDetail?id=${r.next.id}&teamId=${r.team.id}`} className="hover:underline" style={{ color: RS.ink }}>
+          <b style={{ textTransform: "capitalize" }}>{nextText(r.next)}</b> {format(new Date(r.next.date), "HH:mm")} · {r.next.opponent || r.next.title || "—"}
+        </Link>
+      </>) : <span style={{ color: RS.faint }}>{t("Sin próximo partido")}</span>}
+      {r.pending > 0 && r.firstPending && (
+        <Link to={`/MatchDetail?id=${r.firstPending.id}&teamId=${r.team.id}`} style={chip("#FEF3C7", "#92400E")} title={t("Partidos jugados a los que les falta el acta o los minutos")} data-testid={`team-pending-${r.team.id}`}>
+          {t("{n} por cerrar", { n: r.pending })}
+        </Link>
+      )}
+    </span>
+  );
+  const coachCell = (r) => (r.coach.none
+    ? <span style={chip("#FEE2E2", LOSS)}>{t("Sin entrenador")}</span>
+    : <span>{r.coach.name}{r.coach.extra > 0 && <span style={{ color: RS.muted, fontSize: 11 }}> +{r.coach.extra}</span>}</span>);
+  const standingCell = (r) => (r.standing
+    ? <span style={{ whiteSpace: "nowrap" }}><span className="rs2-display tabular-nums" style={{ fontSize: 16, color: RS.granate }}>{r.standing.pos}.º</span> <span style={{ fontSize: 11, color: RS.muted }}>{t("{n} pts", { n: r.standing.pts })} · {r.standing.gap === 0 ? t("líder") : t("a {n}", { n: r.standing.gap })}</span></span>
+    : <span style={{ color: RS.faint }}>—</span>);
+  const recCell = (r) => (r.rec.n
+    ? <span className="tabular-nums" style={{ whiteSpace: "nowrap" }}><b style={{ color: WIN }}>{r.rec.w}</b>-{r.rec.d}-<b style={{ color: LOSS }}>{r.rec.l}</b></span>
+    : <span style={{ color: RS.faint }}>—</span>);
+  const actions = (r) => (
+    <span className="inline-flex" style={{ gap: 2 }}>
+      <button type="button" onClick={() => openEdit(r.team)} title={t("Editar")} aria-label={t("Editar")} data-testid={`team-edit-${r.team.id}`} className="p-1 rounded hover:bg-gray-100" style={{ color: "#B8ACAD" }}><Pencil className="w-3.5 h-3.5" /></button>
+      <button type="button" onClick={() => setDeleteId(r.team.id)} title={t("Eliminar")} aria-label={t("Eliminar")} className="p-1 rounded hover:bg-red-50" style={{ color: "#B8ACAD" }}><Trash2 className="w-3.5 h-3.5" /></button>
+    </span>
+  );
+  const teamName = (r) => (
+    <Link to={`/TeamDetail?id=${r.team.id}`} className="inline-flex items-center hover:underline" style={{ gap: 8, color: RS.ink }}>
+      <Shield width={18} height={18} color={RS.granate} aria-hidden="true" />
+      <span><b>{r.team.name}</b>{getCategoryLabel(r.team.category) && getCategoryLabel(r.team.category) !== r.team.name && <span style={{ display: "block", fontSize: 11, color: RS.muted, fontWeight: 400 }}>{getCategoryLabel(r.team.category)}</span>}</span>
+    </Link>
+  );
 
-      {isLoading ? (
-        <div className="bg-white border border-gray-200 p-8 text-center animate-pulse" style={{ borderRadius: "4px" }}>
-          <p className="text-gray-400">{t("Cargando...")}</p>
-        </div>
-      ) : teams.length === 0 ? (
-        <div className="bg-white border border-gray-200 p-12 text-center shadow-sm" style={{ borderRadius: "4px" }}>
-          <Shield className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500 font-medium">{t("No hay equipos registrados")}</p>
-          <p className="text-gray-400 text-sm mt-1">{t("Crea tu primer equipo para empezar")}</p>
-        </div>
-      ) : viewMode === "list" ? (
-        <TeamsTable
-          teams={sortTeamsByAge(teams)}
-          players={players}
-          events={events}
-          staff={staff}
-          assignments={allAssignments}
-          onEdit={openEdit}
-          onDelete={setDeleteId}
-        />
-      ) : (
-        <div className="space-y-6">
-          {Object.entries(groupTeamsByAge(teams)).map(([groupName, groupTeams]) => (
-            groupTeams.length > 0 && (
-              <div key={groupName}>
-                <h2 className="font-bold text-sm uppercase mb-3 px-1" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>
-                  {groupName}
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {groupTeams.map(team => {
-                    const teamPlayers = players.filter(p => p.team_id === team.id);
-                    const teamMatches = events.filter(e => e.team_id === team.id && e.score_home != null && e.score_away != null);
-                    const wins = teamMatches.filter(m => m.score_home > m.score_away).length;
-                    const draws = teamMatches.filter(m => m.score_home === m.score_away).length;
-                    const losses = teamMatches.length - wins - draws;
-                    return (
-                      <div key={team.id}
-                        className="bg-white border border-gray-200 p-4 hover:shadow-md transition-all group rounded-sm cursor-pointer"
-                        onClick={() => queryClient.setQueryData(['teamDetail'], team)}
-                        style={{ borderTop: "3px solid var(--granate)" }}>
-                        <div className="flex items-start gap-3 mb-3">
-                          <div className="w-8 h-8 flex items-center justify-center" style={{ background: "var(--granate-pale)", borderRadius: "4px" }}>
-                            <Shield className="w-4 h-4" style={{ color: "var(--granate)" }} />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-black text-gray-900 uppercase text-sm" style={{ fontFamily: "var(--font-display)" }}>{team.name}</p>
-                            <p className="text-xs text-gray-400">{getCategoryLabel(team.category)}</p>
-                          </div>
-                        </div>
-                        <div className="space-y-2 pt-2 border-t border-gray-100">
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-gray-500">{t("Jugadores:")}</span>
-                            <span className="font-bold text-gray-900">{teamPlayers.length}</span>
-                          </div>
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-gray-500">{t("Récord:")}</span>
-                            <span className="font-bold" style={{ color: "var(--granate)" }}>{wins}–{draws}–{losses}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+  const kpis = [
+    { k: "teams", n: kpi.teams, label: t("equipos"), sub: t("{a} F11 · {b} F7", { a: kpi.f11, b: kpi.f7 }), color: RS.granate },
+    { k: "players", n: kpi.players, label: t("jugadores"), sub: kpi.injured === 1 ? t("1 lesionado") : t("{n} lesionados", { n: kpi.injured }), color: RS.ink2 },
+    { k: "record", n: `${kpi.w}·${kpi.d}·${kpi.l}`, label: t("V · E · D"), sub: kpi.winPct == null ? t("sin partidos de liga") : t("{n} % victorias", { n: kpi.winPct }), color: WIN },
+    { k: "att", n: club.rate == null ? "—" : `${club.rate} %`, label: t("entrenos 30 días"), sub: club.trend == null ? "" : club.trend >= 0 ? t("↑ {n} pts", { n: club.trend }) : t("↓ {n} pts", { n: -club.trend }), color: club.rate != null && club.rate < LOW_ATT ? LOSS : RS.ink2 },
+    { k: "pending", n: kpi.pending, label: t("partidos por cerrar"), sub: t("acta o minutos"), color: kpi.pending ? "#B45309" : RS.ink2 },
+    { k: "nocoach", n: kpi.noCoach, label: t("sin entrenador"), sub: kpi.noCoach ? t("asignar en Editar") : t("todos asignados"), color: kpi.noCoach ? LOSS : RS.ink2 },
+  ];
+
+  const th = (h, right) => <th key={h} style={{ textAlign: right ? "right" : "left", padding: "6px 8px", fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: RS.muted, fontWeight: 700, borderBottom: `1px solid ${RS.line}`, whiteSpace: "nowrap" }}>{h}</th>;
+  const td = { padding: "5px 8px", borderTop: `1px solid ${RS.lineSoft}`, verticalAlign: "middle" };
+  const COLS = 11;
+  const tableView = (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, color: RS.ink }} data-testid="teams-table">
+        <thead><tr>
+          {th(t("Equipo"))}{th(t("Competición"))}{th(t("Cuerpo técnico"))}{th(t("Jug."), true)}{th(t("Clasif."))}{th(t("Racha"))}{th(t("V-E-D"), true)}{th(t("Goles"), true)}{th(t("Entrenos 30 d"), true)}{th(t("Próximo partido"))}{th("")}
+        </tr></thead>
+        <tbody>
+          {groups.map((g) => (
+            <React.Fragment key={g.key}>
+              <tr><td colSpan={COLS} style={{ padding: "12px 8px 4px" }}>
+                <span className="rs2-display" style={{ fontSize: 17, color: RS.granate }}>{g.title}</span>
+                <span style={{ fontSize: 11, color: RS.muted, marginLeft: 10 }}>{groupSub(g)}</span>
+              </td></tr>
+              {g.rows.map((r) => (
+                <tr key={r.team.id} data-testid={`team-row-${r.team.id}`}>
+                  <td style={{ ...td, whiteSpace: "nowrap" }}>{teamName(r)}</td>
+                  <td style={{ ...td, fontSize: 11, color: RS.ink2, whiteSpace: "nowrap" }}>{r.competition || <span style={{ color: RS.faint }}>—</span>}</td>
+                  <td style={{ ...td, whiteSpace: "nowrap" }}>{coachCell(r)}</td>
+                  <td className="tabular-nums" style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}><b>{r.players}</b>{r.injured > 0 && <span style={{ display: "block", color: LOSS, fontSize: 10, fontWeight: 700 }}>{t("{n} les.", { n: r.injured })}</span>}</td>
+                  <td style={td}>{standingCell(r)}</td>
+                  <td style={td}>{r.form.length ? <FormChips form={r.form} /> : <span style={{ color: RS.faint }}>—</span>}</td>
+                  <td style={{ ...td, textAlign: "right" }}>{recCell(r)}</td>
+                  <td className="tabular-nums" style={{ ...td, textAlign: "right", color: RS.ink2 }}>{r.rec.n ? `${r.rec.gf}:${r.rec.ga}` : "—"}</td>
+                  <td style={{ ...td, textAlign: "right" }}><AttBar att={r.att} /></td>
+                  <td style={td}><NextCell r={r} /></td>
+                  <td style={{ ...td, textAlign: "right" }}>{actions(r)}</td>
+                </tr>
+              ))}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+  const cardsView = (
+    <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 12 }} data-testid="teams-cards">
+      {groups.map((g) => (
+        <div key={g.key}>
+          <div style={{ marginBottom: 6 }}><span className="rs2-display" style={{ fontSize: 17, color: RS.granate }}>{g.title}</span><span style={{ fontSize: 11, color: RS.muted, marginLeft: 10 }}>{groupSub(g)}</span></div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))", gap: 10 }}>
+            {g.rows.map((r) => (
+              <div key={r.team.id} className="rs2-card" style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 7 }} data-testid={`team-card-${r.team.id}`}>
+                <div className="flex items-start" style={{ gap: 8 }}>
+                  <span style={{ flex: 1, minWidth: 0 }}>{teamName(r)}</span>
+                  {r.standing && <span className="rs2-display tabular-nums" style={{ fontSize: 20, color: RS.granate }} title={t("{n} pts", { n: r.standing.pts })}>{r.standing.pos}.º</span>}
+                  {actions(r)}
                 </div>
+                <div style={{ fontSize: 11, color: RS.muted }}>{[r.competition, r.coach.none ? null : r.coach.name].filter(Boolean).join(" · ")}{r.coach.none && <span style={{ ...chip("#FEE2E2", LOSS), marginLeft: 6 }}>{t("Sin entrenador")}</span>}</div>
+                <div className="flex flex-wrap items-center" style={{ gap: 10, fontSize: 12 }}>
+                  {r.form.length > 0 && <FormChips form={r.form} size={14} />}
+                  {recCell(r)}
+                  <span><b>{r.players}</b> {t("jug.")}{r.injured > 0 && <span style={{ color: LOSS, fontWeight: 700 }}> · {t("{n} les.", { n: r.injured })}</span>}</span>
+                  <span>{t("Entrenos")} <AttBar att={r.att} w={30} /></span>
+                </div>
+                <div style={{ borderTop: `1px solid ${RS.lineSoft}`, paddingTop: 6, fontSize: 12 }}><NextCell r={r} /></div>
               </div>
-            )
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+  const showCards = isMobile || view === "tarjetas";
+
+  return (
+    <Page testId="teams">
+      <div style={{ maxWidth: 1500, margin: "0 auto", padding: isMobile ? "12px 10px 24px" : "18px 22px 28px", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="flex flex-wrap items-end" style={{ gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: ".16em", color: RS.muted, textTransform: "uppercase" }}>{t("Administración · Temporada {s}", { s: seasonLabel(CURRENT_SEASON) })}</div>
+            <h1 style={{ margin: "2px 0 0", lineHeight: 1 }}><span className="rs2-display" style={{ fontSize: isMobile ? 30 : 36, color: RS.granate }}>{t("EQUIPOS")}</span></h1>
+          </div>
+          <div className="flex" style={{ marginLeft: "auto", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" onClick={() => setRelayOpen(true)} data-testid="fcf-relay-open"
+              style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8, border: `1px solid ${RS.line}`, background: "#fff", color: RS.ink2, display: "flex", gap: 6, alignItems: "center" }}>
+              <RefreshCw width={14} height={14} aria-hidden="true" /> {t("Actualizar desde la FCF")}
+            </button>
+            <button type="button" onClick={() => { setEditingTeam(null); setForm(emptyForm); setDialogOpen(true); }} data-testid="teams-new"
+              style={{ fontSize: 13, fontWeight: 700, padding: "7px 14px", borderRadius: 8, border: 0, background: RS.granate, color: "#fff" }}>+ {t("Nuevo equipo")}</button>
+          </div>
+        </div>
+        <div style={{ marginTop: 6 }}><FcfSyncLine /></div>
+        <FcfRelayDialog open={relayOpen} onOpenChange={setRelayOpen} />
+
+        <div className="flex flex-wrap" style={{ gap: 8 }} data-testid="teams-kpis">
+          {kpis.map((k) => (
+            <div key={k.k} data-testid={`teams-kpi-${k.k}`} style={{ flex: isMobile ? "1 1 140px" : "1 1 150px", display: "flex", alignItems: "baseline", gap: 8, padding: "8px 12px", background: "#fff", border: `1px solid ${RS.line}`, borderRadius: 10 }}>
+              <span className="rs2-display tabular-nums" style={{ fontSize: 24, color: k.color }}>{k.n}</span>
+              <span style={{ fontSize: 12, color: RS.ink2, lineHeight: 1.15 }}>{k.label}{k.sub && <span style={{ display: "block", fontSize: 11, color: RS.muted }}>{k.sub}</span>}</span>
+            </div>
           ))}
         </div>
-      )}
+
+        <section className="rs2-card" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="flex flex-wrap items-center" style={{ gap: 10, padding: "9px 14px", borderBottom: `1px solid ${RS.line}` }}>
+            <Segmented options={[["all", `${t("Todos")} · ${kpi.teams}`], ["f11", `${t("Fútbol 11")} · ${kpi.f11}`], ["f7", `${t("Fútbol 7")} · ${kpi.f7}`]]} value={stage} onChange={setStage} testPrefix="teams-stage" label={t("Etapa")} />
+            <label className="flex items-center" style={{ gap: 7, border: `1px solid ${RS.line}`, borderRadius: 8, padding: "4px 9px", flex: "0 1 220px", minWidth: 160 }}>
+              <Search width={13} height={13} color={RS.muted} aria-hidden="true" />
+              <span className="sr-only">{t("Buscar equipo o entrenador…")}</span>
+              <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Buscar equipo o entrenador…")} data-testid="teams-search" style={{ fontSize: 12, border: 0, outline: 0, flex: 1, minWidth: 0, background: "none", color: RS.ink }} />
+            </label>
+            <div className="flex flex-wrap items-center" style={{ marginLeft: "auto", gap: 6 }}>
+              <span style={{ fontSize: 11, color: RS.muted }}>{t("Ordenar")}</span>
+              <Segmented options={SORTS} value={sort} onChange={setSort} testPrefix="teams-sort" label={t("Ordenar")} />
+              {!isMobile && <Segmented options={[["tabla", msg("Tabla")], ["tarjetas", msg("Tarjetas")]]} value={view} onChange={setView} testPrefix="teams-view" label={t("Vista")} />}
+            </div>
+          </div>
+          {isLoading ? (
+            <div style={{ padding: 14 }} className="space-y-2">{[1, 2, 3, 4].map((i) => <div key={i} className="h-9 rounded animate-pulse" style={{ background: RS.soft }} />)}</div>
+          ) : teams.length === 0 ? (
+            <div style={{ padding: "40px 14px", textAlign: "center", color: RS.muted }}>
+              <p style={{ fontWeight: 600 }}>{t("No hay equipos registrados")}</p>
+              <p style={{ fontSize: 13 }}>{t("Crea tu primer equipo para empezar")}</p>
+            </div>
+          ) : visible.length === 0 ? (
+            <p style={{ padding: "40px 14px", textAlign: "center", color: RS.muted, fontSize: 13 }}>{t("Ningún equipo con esta búsqueda")}</p>
+          ) : showCards ? cardsView : tableView}
+          <div style={{ padding: "8px 14px 10px", fontSize: 11, color: RS.muted, borderTop: `1px solid ${RS.lineSoft}` }}>
+            {t("Racha = últimos 5 partidos de liga. Entrenos 30 d en rojo por debajo del 80 %. «Por cerrar» = partidos jugados a los que les falta el acta o los minutos. El equipo lleva a su ficha.")}
+          </div>
+        </section>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
         <DialogContent className="bg-white border-gray-200 max-h-[90vh] overflow-y-auto max-w-lg">
@@ -329,6 +396,6 @@ export default function Teams() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Page>
   );
 }
