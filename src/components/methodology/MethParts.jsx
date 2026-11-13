@@ -57,7 +57,7 @@ export function TypeChip({ type }) {
   const t = useT();
   const info = sessionTypeInfo(type);
   if (!info) return null;
-  return <span title={info.full} style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase", padding: "2px 8px", borderRadius: 999, background: info.color, color: "#fff", whiteSpace: "nowrap" }}>{t(info.label)}</span>;
+  return <span title={info.full} style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase", padding: "2px 8px", borderRadius: 999, background: info.color, color: info.ink || "#fff", whiteSpace: "nowrap" }}>{t(info.label)}</span>;
 }
 
 // Barra apilada con el reparto por bloques (orden de BLOCKS: ataque, defensa, técnica y hábitos, balón parado)

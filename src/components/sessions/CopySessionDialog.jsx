@@ -25,7 +25,7 @@ export default function CopySessionDialog({ open, onOpenChange, sessions = [], t
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold truncate">{longDate(s.date)} · {teamName(s.team_id)}</p>
                   <p className="text-[11px] text-gray-500 truncate">
-                    {type && <span style={{ color: type.color }} className="font-bold">{sessionTypeName(type)} · </span>}
+                    {type && <span style={{ color: type.text || type.color }} className="font-bold">{sessionTypeName(type)} · </span>}
                     {tasks.length} tareas · {fmtMin(mins)}{tasks[0]?.title ? ` · ${tasks.map((t) => t.title).filter(Boolean).slice(0, 2).join(", ")}` : ""}
                   </p>
                 </div>

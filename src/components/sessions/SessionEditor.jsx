@@ -438,7 +438,7 @@ export default function SessionEditor({ session, draft, teams, sessions = [], on
               <Lab>Tipo de sesión</Lab>
               <div className="flex flex-wrap gap-2" data-testid="session-types">
                 {SESSION_TYPES.map((t) => (
-                  <Pill key={t.id} on={form.session_type === t.id} color={t.color} onClick={() => set({ session_type: form.session_type === t.id ? null : t.id })}>{sessionTypeName(t)}</Pill>
+                  <Pill key={t.id} on={form.session_type === t.id} color={t.color} ink={t.ink} text={t.text} onClick={() => set({ session_type: form.session_type === t.id ? null : t.id })}>{sessionTypeName(t)}</Pill>
                 ))}
               </div>
               {type?.hint && <span className="text-[11px]" style={{ color: C.muted }}>{type.hint}</span>}

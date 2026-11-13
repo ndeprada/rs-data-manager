@@ -1,6 +1,6 @@
 // Mi equipo → Partidos. Rediseño del 13/11/2026 con el diseño rs2 (maqueta «Maqueta Mi equipo · Partidos y Desarrollo»,
 // aprobada por Nacho: «ok todo»). Cálculos puros en src/lib/teamPages.js; los pasos de cada partido, en src/lib/matchSteps.js.
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -13,7 +13,9 @@ import { isCancelled } from "@/lib/eventCancel";
 import { matchSteps } from "@/lib/matchSteps";
 import { minPlayersOf } from "@/lib/matchFormat";
 import { playedLeague, leagueForm, record, standingOf } from "@/lib/teamsOverview";
-import { splitMatches, scorersText, teamEvalAvg, homeAway, goalsByMatch } from "@/lib/teamPages";
+import { splitMatches, scorersText, teamEvalAvg, homeAway, goalsByMatch, seasonList } from "@/lib/teamPages";
+import { findRival } from "@/lib/myTeamStats";
+import { seasonStart } from "@/lib/playerProfile";
 import { getCategoryLabel } from "@/components/fcfCategories";
 import CreateEventDialog from "@/components/myteam/CreateEventDialog";
 import MatchResultPill from "@/components/calendar/MatchResultPill";
@@ -29,6 +31,14 @@ const TYPES = [
   { k: "partido_amistoso", l: msg("Amistosos") },
   { k: "torneo", l: msg("Torneos") },
 ];
+const VIEWS = [{ k: "played", l: msg("Jugados") }, { k: "next", l: msg("Por jugar") }, { k: "season", l: msg("Toda la temporada") }];
+// Cuadritos de la temporada: [fondo, letra, borde]
+const STRIP = { V: ["#15803D", "#fff"], E: ["#B45309", "#fff"], D: ["#B91C1C", "#fff"], "?": ["#E7DEDD", "#fff"], "·": ["#fff", "#fff", "#D9CFCE"] };
+const STRIP_LETTER = { V: msg("V"), E: msg("E"), D: msg("D") };
+const keep = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sin almacenamiento */ } };
+const DAYMS = 86400000;
+const dayStart = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
+const daysUntil = (d, now) => Math.round((dayStart(d) - dayStart(now)) / DAYMS);
 const STEP_LETTERS = { convocatoria: ["C", msg("Convocatoria")], tactica: ["P", msg("Preparación")], acta: ["A", msg("Acta")], postpartido: ["V", msg("Postpartido")] };
 const WARN = "#B45309";
 const PAGE = 12;
@@ -88,6 +98,8 @@ export default function TeamMatches() {
   const { canManageTeam } = useTeamAccess();
   const [type, setType] = useState("all");
   const [more, setMore] = useState(false);
+  const [view, setView] = useState(() => { try { const v = localStorage.getItem("rs_matches_view"); return ["played", "next", "season"].includes(v) ? v : "played"; } catch { return "played"; } });
+  const todayRef = useRef(null);
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
@@ -138,6 +150,66 @@ export default function TeamMatches() {
     pending: pending.get(ev.id) || soft.get(ev.id) || [], minPlayers: minPlayersOf(ev, team), now,
   });
   const shown = more ? past : past.slice(0, PAGE);
+  const upcoming = useMemo(() => seasonList(live, selectedTeamId, { now, type }).rows.filter((r) => !r.played), [live, selectedTeamId, type]);
+  const season = seasonList(live, selectedTeamId, { now, type, since: seasonStart(now) });
+  const rowsShown = view === "played" ? shown.map((ev) => ({ ev, played: true })) : view === "next" ? upcoming : season.rows;
+  const standRows = (standing?.rows || []).filter((r) => r.teamId !== standing?.ourTeamId);
+  const timeFmt = (d) => format(new Date(d), "HH:mm", { locale });
+  const whenText = (d) => {
+    const n = daysUntil(d, now);
+    return n <= 0 ? t("Hoy") : n === 1 ? t("Mañana") : t("En {n} días", { n });
+  };
+
+  // Una fila: jugado (resultado, goleadores, jugador del partido, nota del equipo) o por jugar (hora, campo, convocatoria y alineación)
+  const row = (ev, played) => {
+    const jor = ev.type === "partido_liga" ? (ev.fcf_jornada ? `J${ev.fcf_jornada}` : "—") : ev.type === "torneo" ? "T" : "A";
+    const go = (e) => { if (!e.target.closest("a")) navigate(`/MatchDetail?id=${ev.id}`); };
+    if (played) {
+      const mvp = playersById.get(ev.mvp_player_id);
+      const evAvg = teamEvalAvg(ev);
+      const goals = scorersText(ev, playersById, t("p.p."));
+      return (
+        <tr style={{ borderTop: `1px solid ${RS.lineSoft}`, cursor: "pointer" }} onClick={go} data-testid={`match-row-${ev.id}`}>
+          <td style={{ padding: "6px 8px 6px 14px", color: RS.muted, fontSize: 11.5 }}>{jor}</td>
+          <td style={{ fontWeight: 700, color: RS.granateDark, whiteSpace: "nowrap" }}>{dayFmt(ev.date)}</td>
+          <td style={{ fontSize: 11, color: RS.muted }}>{ev.is_home === false ? t("Fuera") : t("Casa")}</td>
+          <td style={{ fontWeight: 600 }}>{ev.opponent || ev.title || "—"}</td>
+          <td>{ev.score_home != null && ev.score_home !== "" ? <MatchResultPill event={ev} size="sm" /> : <span style={{ fontSize: 11.5, color: WARN }}>{t("Sin resultado")}</span>}</td>
+          <td style={{ fontSize: 11.5, color: RS.ink2, maxWidth: 200 }} className="truncate" title={goals}>{goals || <span style={{ color: RS.faint }}>—</span>}</td>
+          <td><Steps steps={stepsOf(ev)} eventId={ev.id} /></td>
+          <td style={{ fontSize: 11.5 }}>{mvp ? `🏅 ${[mvp.first_name, mvp.last_name].filter(Boolean).join(" ")}` : <span style={{ color: RS.faint }}>—</span>}</td>
+          <td style={{ textAlign: "right", paddingRight: 14, fontSize: 12, color: evAvg == null ? WARN : RS.ink }}>{evAvg == null ? t("sin valorar") : `★ ${fmt1(evAvg)}`}</td>
+        </tr>
+      );
+    }
+    const conv = convBy.get(ev.id);
+    const n = conv?.player_ids?.length || 0;
+    const plan = planBy.get(ev.id);
+    const line = (plan?.lineup || []).filter(Boolean).length;
+    const minP = minPlayersOf(ev, team);
+    const rival = ev.opponent ? findRival(standRows, ev.opponent) : null;
+    return (
+      <tr style={{ borderTop: `1px solid ${RS.lineSoft}`, cursor: "pointer", background: "#FCFAF9" }} onClick={go} data-testid={`match-row-${ev.id}`} data-next="1">
+        <td style={{ padding: "6px 8px 6px 14px", color: RS.muted, fontSize: 11.5 }}>{jor}</td>
+        <td style={{ fontWeight: 700, color: RS.ink2, whiteSpace: "nowrap" }}>{dayFmt(ev.date)} <span style={{ fontWeight: 500, color: RS.muted }}>· {timeFmt(ev.date)}</span></td>
+        <td style={{ fontSize: 11, color: RS.muted }}>{ev.is_home === false ? t("Fuera") : t("Casa")}</td>
+        <td style={{ fontWeight: 600 }}>
+          {ev.opponent || ev.title || "—"}
+          {rival?.pos ? <span style={{ fontSize: 11, fontWeight: 500, color: RS.muted }}> · {rival.pos}.º</span> : null}
+          {ev.postponed ? <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "#FEF3C7", color: "#92400E" }}>{t("Aplazado")}</span> : null}
+        </td>
+        <td style={{ fontSize: 11.5, color: RS.muted, whiteSpace: "nowrap" }}>{whenText(ev.date)}</td>
+        <td style={{ fontSize: 11.5, color: RS.muted, maxWidth: 200 }} className="truncate" title={ev.location || ""}>{ev.location || "—"}</td>
+        <td><Steps steps={stepsOf(ev)} eventId={ev.id} /></td>
+        <td colSpan={2} style={{ paddingRight: 14 }}>
+          <span className="flex flex-wrap" style={{ gap: 5 }}>
+            {chip(n ? (conv?.notified ? t("Convocatoria {n} · avisada", { n }) : t("Convocatoria {n} · sin avisar", { n })) : t("Sin convocatoria"), n >= minP && conv?.notified)}
+            {chip(line >= minP ? t("{f} listo", { f: plan?.formation || t("Alineación") }) : line ? t("Alineación {a}/{b}", { a: line, b: minP }) : t("Sin alineación"), line >= minP)}
+          </span>
+        </td>
+      </tr>
+    );
+  };
   const dayFmt = (d) => format(new Date(d), "EEE d MMM", { locale });
   const nextFmt = (d) => format(new Date(d), "EEE d · HH:mm", { locale });
   const maxGoals = Math.max(1, ...mirror.map((m) => Math.max(m.gf, m.ga)));
@@ -176,53 +248,80 @@ export default function TeamMatches() {
         </div>
 
         <div className="flex flex-wrap items-start" style={{ gap: 12 }}>
-          {/* Jugados */}
+          {/* Jugados · Por jugar · Toda la temporada */}
           <div className="rs2-card" style={{ flex: "999 1 640px", minWidth: 0, overflow: "hidden" }} data-testid="matches-played">
-            <Head title={t("Jugados")} right={<span style={{ color: RS.muted }}>{past.length}</span>} />
+            <Head title={view === "played" ? t("Jugados") : view === "next" ? t("Por jugar") : t("Toda la temporada")}
+              right={<span style={{ color: RS.muted }}>{view === "played" ? past.length : view === "next" ? upcoming.length : season.rows.length}</span>} />
             <div className="flex flex-wrap items-center" style={{ gap: 8, padding: "8px 14px" }}>
+              <Seg options={VIEWS} value={view} onChange={(k) => { setView(k); keep("rs_matches_view", k); setMore(false); }} testPrefix="matches-view" />
               <Seg options={TYPES} value={type} onChange={(k) => { setType(k); setMore(false); }} testPrefix="matches-type" />
-              <span style={{ fontSize: 11.5, color: RS.muted, marginLeft: "auto" }}>
-                {t("Pasos: C convocatoria · P preparación · A acta · V valoración")} · <b style={{ color: "#9A3412" }}>{t("naranja = falta")}</b>
-              </span>
             </div>
-            {past.length === 0 ? <p style={{ padding: "18px 14px", color: RS.muted, fontSize: 13 }}>{t("No hay partidos jugados.")}</p> : (
+
+            {/* La temporada de un vistazo: un cuadrito por partido */}
+            {season.rows.length > 0 && (
+              <div className="flex flex-wrap items-center" style={{ gap: 8, padding: "0 14px 8px" }} data-testid="matches-strip">
+                <span className="flex flex-wrap" style={{ gap: 2 }}>
+                  {season.rows.map((r, i) => {
+                    const c = r.played ? (STRIP[r.result] || STRIP["?"]) : STRIP["·"];
+                    return (
+                      <Link key={r.ev.id} to={`/MatchDetail?id=${r.ev.id}`} title={`${dayFmt(r.ev.date)} · ${r.ev.opponent || r.ev.title || ""}${r.played && r.ev.score_home != null ? ` · ${r.ev.score_home}-${r.ev.score_away}` : ""}`}
+                        data-state={r.played ? (r.result || "x") : "next"}
+                        style={{ width: 15, height: 15, borderRadius: 3, background: c[0], color: c[1], border: i === season.nextIndex ? `2px solid ${RS.naranja}` : c[2] ? `1px solid ${c[2]}` : 0, fontSize: 8.5, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                        {r.played ? (r.result ? t(STRIP_LETTER[r.result]) : "") : ""}
+                      </Link>
+                    );
+                  })}
+                </span>
+                <span style={{ fontSize: 11.5, color: RS.muted }}>
+                  {t("{a} jugados · quedan {b}", { a: season.rows.filter((r) => r.played).length, b: season.rows.filter((r) => !r.played).length })}
+                </span>
+              </div>
+            )}
+
+            {rowsShown.length === 0 ? (
+              <p style={{ padding: "18px 14px", color: RS.muted, fontSize: 13 }}>{view === "next" ? t("No hay partidos programados.") : t("No hay partidos jugados.")}</p>
+            ) : (
               <div className="overflow-x-auto">
                 <table className="rs2-tbl rs2-left" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
                   <thead><tr>
                     <th style={{ paddingLeft: 14 }}>{t("J.")}</th><th>{t("Fecha")}</th><th />
-                    <th>{t("Rival")}</th><th>{t("Resultado")}</th><th>{t("Goleadores")}</th><th>{t("Pasos")}</th>
-                    <th>{t("Jugador del partido")}</th><th style={{ textAlign: "right", paddingRight: 14 }}>{t("Equipo")}</th>
+                    <th>{t("Rival")}</th><th>{view === "next" ? t("Cuándo") : t("Resultado")}</th>
+                    <th>{view === "played" ? t("Goleadores") : view === "next" ? t("Campo") : t("Goleadores / campo")}</th><th>{t("Pasos")}</th>
+                    {view === "played" ? <><th>{t("Jugador del partido")}</th><th style={{ textAlign: "right", paddingRight: 14 }}>{t("Equipo")}</th></>
+                      : <th colSpan={2} style={{ paddingRight: 14 }}>{view === "next" ? t("Convocatoria y alineación") : t("Jugador del partido · convocatoria")}</th>}
                   </tr></thead>
                   <tbody>
-                    {shown.map((ev) => {
-                      const mvp = playersById.get(ev.mvp_player_id);
-                      const evAvg = teamEvalAvg(ev);
-                      const goals = scorersText(ev, playersById, t("p.p."));
-                      return (
-                        <tr key={ev.id} style={{ borderTop: `1px solid ${RS.lineSoft}`, cursor: "pointer" }} onClick={(e) => { if (!e.target.closest("a")) navigate(`/MatchDetail?id=${ev.id}`); }} data-testid={`match-row-${ev.id}`}>
-                          <td style={{ padding: "6px 8px 6px 14px", color: RS.muted, fontSize: 11.5 }}>{ev.type === "partido_liga" ? (ev.fcf_jornada ? `J${ev.fcf_jornada}` : "—") : ev.type === "torneo" ? "T" : "A"}</td>
-                          <td style={{ fontWeight: 700, color: RS.granateDark, whiteSpace: "nowrap" }}>{dayFmt(ev.date)}</td>
-                          <td style={{ fontSize: 11, color: RS.muted }}>{ev.is_home === false ? t("Fuera") : t("Casa")}</td>
-                          <td style={{ fontWeight: 600 }}>{ev.opponent || ev.title || "—"}</td>
-                          <td><MatchResultPill event={ev} size="sm" /></td>
-                          <td style={{ fontSize: 11.5, color: RS.ink2, maxWidth: 200 }} className="truncate" title={goals}>{goals || <span style={{ color: RS.faint }}>—</span>}</td>
-                          <td><Steps steps={stepsOf(ev)} eventId={ev.id} /></td>
-                          <td style={{ fontSize: 11.5 }}>{mvp ? `🏅 ${[mvp.first_name, mvp.last_name].filter(Boolean).join(" ")}` : <span style={{ color: RS.faint }}>—</span>}</td>
-                          <td style={{ textAlign: "right", paddingRight: 14, fontSize: 12, color: evAvg == null ? WARN : RS.ink }}>{evAvg == null ? t("sin valorar") : `★ ${fmt1(evAvg)}`}</td>
-                        </tr>
-                      );
-                    })}
+                    {rowsShown.map((r, i) => (
+                      <React.Fragment key={r.ev.id}>
+                        {view === "season" && i === season.nextIndex && (
+                          <tr data-testid="matches-today" ref={todayRef}>
+                            <td colSpan={9} style={{ padding: "5px 14px", background: "#FFF7ED", borderTop: `2px solid ${RS.naranja}`, fontSize: 11, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#9A3412" }}>
+                              {t("Hoy · quedan {n} partidos", { n: season.rows.length - season.nextIndex })}
+                            </td>
+                          </tr>
+                        )}
+                        {row(r.ev, r.played)}
+                      </React.Fragment>
+                    ))}
                   </tbody>
                 </table>
               </div>
             )}
-            <div className="flex flex-wrap items-center" style={{ gap: 8, padding: "8px 14px", borderTop: `1px solid ${RS.lineSoft}`, fontSize: 11.5, color: RS.muted }}>
-              {past.length > PAGE && (
+            <div className="flex flex-wrap items-center" style={{ gap: 10, padding: "8px 14px", borderTop: `1px solid ${RS.lineSoft}`, fontSize: 11.5, color: RS.muted }}>
+              {view === "played" && past.length > PAGE && (
                 <button type="button" onClick={() => setMore((v) => !v)} style={{ fontWeight: 700, color: RS.granate, background: "none", border: 0, padding: 0 }} data-testid="matches-more">
                   {more ? t("Ver menos") : t("… {n} partidos más", { n: past.length - PAGE })}
                 </button>
               )}
-              <span style={{ marginLeft: "auto" }}>{t("Equipo = media de las notas del postpartido (1–3)")}</span>
+              {view === "season" && season.nextIndex > 0 && (
+                <button type="button" onClick={() => todayRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })} style={{ fontWeight: 700, color: RS.granate, background: "none", border: 0, padding: 0 }} data-testid="matches-goto-next">
+                  {t("Ir al próximo partido")} ↓
+                </button>
+              )}
+              <span style={{ marginLeft: "auto" }}>
+                {t("Pasos: C convocatoria · P preparación · A acta · V valoración")} · <b style={{ color: "#9A3412" }}>{t("naranja = falta")}</b>
+                {view !== "next" && <> · {t("Equipo = media de las notas del postpartido (1–3)")}</>}
+              </span>
             </div>
           </div>
 

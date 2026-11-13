@@ -163,3 +163,22 @@ test("composition", () => {
   assert.equal(c.noYear, 1);
   assert.deepEqual(c.foot, { diestro: 1, zurdo: 1, ambidiestro: 0, none: 1 });
 });
+
+import { seasonList, seasonStrip } from "../src/lib/teamPages.js";
+
+test("seasonList y seasonStrip: toda la temporada en orden", () => {
+  const now = new Date("2026-11-13T12:00");
+  const evs = [
+    { id: "c", team_id: "t1", type: "partido_liga", date: "2026-11-22T10:00" },
+    { id: "a", team_id: "t1", type: "partido_liga", date: "2026-10-01T10:00", score_home: 2, score_away: 1 },
+    { id: "b", team_id: "t1", type: "partido_liga", date: "2026-11-08T10:00" },
+    { id: "x", team_id: "t1", type: "partido_liga", date: "2026-11-15T10:00", cancelled: true },
+    { id: "p", team_id: "t1", type: "partido_liga", date: "2026-11-29T10:00", postponed: true },
+    { id: "z", team_id: "t1", type: "partido_liga", date: "2026-07-01T10:00" },
+  ];
+  const s = seasonList(evs, "t1", { now, since: "2026-08-01" });
+  assert.deepEqual(s.rows.map((r) => r.ev.id), ["a", "b", "c", "p"]);
+  assert.equal(s.nextIndex, 2);
+  assert.deepEqual(seasonStrip(s.rows), ["V", "?", "·", "·"]);
+  assert.equal(seasonList([], "t1").nextIndex, -1);
+});

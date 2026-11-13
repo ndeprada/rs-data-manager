@@ -153,7 +153,7 @@ export function sheetBlocks({ session, team, players = [], matchRef, pdiGoals = 
       <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "0 8px", alignContent: "center", alignItems: "center", background: "#F7F3F3", borderRadius: 6, padding: "4px 9px", maxWidth: 340, fontSize: 8, lineHeight: 1.3 }}>
         <span style={kk}>Fecha</span><span style={{ fontWeight: 600 }}>{when || "—"}</span>
         <span style={kk}>Tipo</span>
-        <span>{type ? <span style={{ background: type.color, color: "#fff", borderRadius: 3, padding: "0 5px", fontWeight: 700, fontSize: 7.5, textTransform: "uppercase" }}>{sessionTypeName(type)}</span> : "—"}</span>
+        <span>{type ? <span style={{ background: type.color, color: type.ink || "#fff", borderRadius: 3, padding: "0 5px", fontWeight: 700, fontSize: 7.5, textTransform: "uppercase" }}>{sessionTypeName(type)}</span> : "—"}</span>
         <span style={kk}>Duración</span><span style={{ fontWeight: 600 }}>{session.duration || 90}'{total ? ` (${fmtMin(total)} de tareas)` : ""}</span>
         {hasText(match) && <><span style={kk}>Partido</span><span style={{ fontWeight: 600 }}>{match}</span></>}
       </div>

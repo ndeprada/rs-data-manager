@@ -39,9 +39,9 @@ export const SBtn = ({ primary = false, small = false, className = "", style, ch
 );
 
 // Pastilla (fase, tipo de sesión…): elegida = rellena
-export const Pill = ({ on, color = C.granate, dashed = false, className = "", children, ...rest }) => (
+export const Pill = ({ on, color = C.granate, ink = "#fff", text = null, dashed = false, className = "", children, ...rest }) => (
   <button type="button" aria-pressed={!!on} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-[5px] text-xs font-semibold ${className}`}
-    style={on ? { background: color, borderColor: color, color: "#fff", border: `1px solid ${color}` } : { background: "#fff", color: color === C.granate ? C.soft : color, border: `1px ${dashed ? "dashed" : "solid"} ${color === C.granate ? C.field : `${color}55`}` }} {...rest}>{children}</button>
+    style={on ? { background: color, borderColor: color, color: ink, border: `1px solid ${color}` } : { background: "#fff", color: color === C.granate ? C.soft : text || color, border: `1px ${dashed ? "dashed" : "solid"} ${color === C.granate ? C.field : `${color}55`}` }} {...rest}>{children}</button>
 );
 
 // Clases de los campos de texto como en la maqueta (borde #DDD3D4, radio 8, 14 px)

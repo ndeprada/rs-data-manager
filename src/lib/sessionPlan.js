@@ -212,12 +212,14 @@ export function priorityOf(stage, id) {
 // «Tensión», «Duración» y «Velocidad» son los nombres que usa el club para las tres sesiones de adquisición.
 // 02/11/2026 (Nacho): cinco tipos. Los tres de adquisición conservan su apodo del club; «Compensatoria» pasa a «Recuperación»
 // y «Prepartido» a «Activación» (las sesiones guardadas con el nombre antiguo se leen con el nuevo).
+// Colores de los tipos (Nacho, 13/11/2026): tensión azul, duración verde, velocidad amarillo, activación gris y recuperación morado.
+// color = fondo o barra; ink = letra encima del color; text = letra de color sobre blanco.
 export const SESSION_TYPES = [
-  { id: "fundamentos", label: "Tensión", full: "Fundamentos individuales", color: "#dc2626", hint: "Técnica, hábitos y fundamentos individuales. Espacios reducidos y mucha repetición." },
-  { id: "juego_colectivo", label: "Duración", full: "Organización colectiva", color: "#16a34a", hint: "Sistema de juego y organización colectiva. Espacios grandes y series largas." },
-  { id: "optimizacion", label: "Velocidad", full: "Optimización", color: "#2563eb", hint: "Contextualiza lo trabajado para la competición. Series muy cortas de máxima intensidad." },
-  { id: "activacion", label: "Activación", full: "Activación", color: "#d97706", hint: "Víspera del partido: activación y repaso del plan de partido con carga muy baja." },
-  { id: "recuperacion", label: "Recuperación", full: "Recuperación", color: "#7c3aed", hint: "Después del partido: recuperación y compensación según los minutos jugados." },
+  { id: "fundamentos", label: "Tensión", full: "Fundamentos individuales", color: "#2563eb", ink: "#fff", text: "#1d4ed8", hint: "Técnica, hábitos y fundamentos individuales. Espacios reducidos y mucha repetición." },
+  { id: "juego_colectivo", label: "Duración", full: "Organización colectiva", color: "#16a34a", ink: "#fff", text: "#15803d", hint: "Sistema de juego y organización colectiva. Espacios grandes y series largas." },
+  { id: "optimizacion", label: "Velocidad", full: "Optimización", color: "#eab308", ink: "#3b2a00", text: "#a16207", hint: "Contextualiza lo trabajado para la competición. Series muy cortas de máxima intensidad." },
+  { id: "activacion", label: "Activación", full: "Activación", color: "#78716c", ink: "#fff", text: "#57534e", hint: "Víspera del partido: activación y repaso del plan de partido con carga muy baja." },
+  { id: "recuperacion", label: "Recuperación", full: "Recuperación", color: "#7c3aed", ink: "#fff", text: "#6d28d9", hint: "Después del partido: recuperación y compensación según los minutos jugados." },
 ];
 const LEGACY_SESSION_TYPES = { compensatoria: "recuperacion", prepartido: "activacion" };
 export const normalizeSessionType = (id) => LEGACY_SESSION_TYPES[id] || id || null;

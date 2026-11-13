@@ -201,3 +201,21 @@ export function composition(players = [], lineOf) {
   const yearList = Object.entries(years).filter(([y]) => y !== "none").map(([y, n]) => ({ year: Number(y), n })).sort((a, b) => a.year - b.year);
   return { lines, years: yearList, noYear: years.none || 0, foot };
 }
+
+/**
+ * Toda la temporada en orden (del primero al último) para la vista «Toda la temporada» de Partidos:
+ * [{ ev, played, result }] con los ya jugados y los que faltan (también los aplazados, marcados; sin suspendidos),
+ * y `nextIndex` = posición del primer partido por jugar (o -1).
+ */
+export function seasonList(events = [], teamId, { now = new Date(), type = "all", since = null } = {}) {
+  const t = time(now);
+  const s = since ? time(since) : -Infinity;
+  const list = events
+    .filter((e) => e.team_id === teamId && MATCH_TYPES.includes(e.type) && (type === "all" || e.type === type) && e.cancelled !== true && time(e.date) >= s)
+    .sort((a, b) => time(a.date) - time(b.date))
+    .map((ev) => ({ ev, played: time(ev.date) <= t, result: time(ev.date) <= t ? resultOf(ev) : null }));
+  return { rows: list, nextIndex: list.findIndex((r) => !r.played) };
+}
+
+/** Cuadritos de la temporada: V/E/D en los jugados con marcador, «?» jugados sin marcador y «·» los que faltan */
+export const seasonStrip = (rows = []) => rows.map((r) => (r.played ? r.result || "?" : "·"));

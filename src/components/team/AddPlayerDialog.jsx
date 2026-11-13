@@ -23,7 +23,7 @@ const LATERALITY = [
 
 const emptyForm = {
   first_name: "", last_name: "", nickname: "", birth_date: "", birth_year: "", position: "", reference_role: "", extra_positions: [],
-  laterality: "", nationality: "", region: "", birth_province: "", birth_place: "", jersey_number: "", phone: "", email: "", status: "activo", team_id: "",
+  laterality: "", nationality: "", region: "", birth_province: "", birth_place: "", jersey_number: "", phone: "", email: "", status: "activo", team_id: "", previous_club: "",
 };
 
 export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPlayer }) {
@@ -59,6 +59,7 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
         email: editingPlayer.email || "",
         status: editingPlayer.status || "activo",
         team_id: editingPlayer.team_id || "",
+        previous_club: editingPlayer.previous_club || "",
       });
     } else {
       setForm({ ...emptyForm, team_id: teamId || "" });
@@ -242,6 +243,10 @@ export default function AddPlayerDialog({ open, onOpenChange, teamId, editingPla
               <Input type="date" value={form.birth_date || ""}
                 onChange={(e) => setForm({ ...form, birth_date: e.target.value, birth_year: e.target.value ? e.target.value.slice(0, 4) : form.birth_year })} className="border-gray-200" />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-gray-700">{t("Equipo de procedencia")} <span className="text-gray-400 font-normal">{t("(opcional)")}</span></Label>
+            <Input value={form.previous_club || ""} onChange={(e) => setForm({ ...form, previous_club: e.target.value })} placeholder={t("Club y equipo de la temporada pasada")} className="border-gray-200" data-testid="player-previous-club" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

@@ -13,7 +13,7 @@ import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { useSquadRows } from "@/lib/useSquadRows";
 import { squadGroups, sortSquad, LINES, unavailable } from "@/lib/myTeamStats";
 import { nextMatch } from "@/lib/teamsOverview";
-import { squadChecks, medicalOk, composition, dorsalDupes, dayOf } from "@/lib/teamPages";
+import { squadChecks, composition, dorsalDupes } from "@/lib/teamPages";
 import { cycleWarning, CARD_CYCLE } from "@/lib/statsOverview";
 import { isPrimerEquipo } from "@/lib/primerEquipo";
 import { teamPlaysF7 } from "@/lib/matchFormat";
@@ -22,7 +22,6 @@ import { roleShort } from "@/lib/squadPlan";
 import { playerFullName, playerSearchName } from "@/lib/playerName";
 import { juvenilYear } from "@/lib/juvenilYear";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
-import { seasonStart } from "@/lib/playerProfile";
 import { countryOf, Flag } from "@/lib/countries";
 import { toCsv, exportFileName, downloadCsv, printHtml, staffPrintHtml } from "@/lib/staffExport";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
@@ -44,11 +43,13 @@ const FOOT = { diestro: msg("Diestro"), zurdo: msg("Zurdo"), ambidiestro: msg("A
 const REASON = { lesion: msg("Lesión"), enfermo: msg("Enfermo"), sancion: msg("Sanción"), viaje: msg("Viaje"), estudios: msg("Estudios") };
 const CHECKS = {
   dup: msg("dorsales repetidos"), nodorsal: msg("sin dorsal"), nopos: msg("sin posición"), notutor: msg("sin teléfono del tutor"),
-  noaccount: msg("sin cuenta en la app"), nomedical: msg("sin revisión médica esta temporada"),
+  noaccount: msg("sin cuenta en la app"),
 };
-const CHECK_COLOR = { dup: LOSS, nodorsal: WARN, nopos: WARN, notutor: WARN, noaccount: RS.muted, nomedical: RS.muted };
+const CHECK_COLOR = { dup: LOSS, nodorsal: WARN, nopos: WARN, notutor: WARN, noaccount: RS.muted };
 const LINE_SHORT = { porteros: "POR", defensas: "DEF", medios: "MED", delanteros: "DEL" };
 
+// Temporada anterior («2025-2026» si estamos en «2026-2027»)
+const PREV_SEASON = (() => { const y = Number(String(CURRENT_SEASON).slice(0, 4)); return y ? `${y - 1}-${y}` : ""; })();
 const stored = (k, d, ok) => { try { const v = localStorage.getItem(k); return ok.includes(v) ? v : d; } catch { return d; } };
 const keep = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sin almacenamiento */ } };
 const fmt1 = (n) => (n == null ? "—" : String(Math.round(n * 10) / 10).replace(".", ","));
@@ -107,9 +108,9 @@ export default function Squad() {
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
   const { data: convocs = [] } = useQuery({ queryKey: ["convocatorias_all"], queryFn: () => base44.entities.Convocatoria.list() });
   const { data: accounts } = useQuery({ queryKey: ["playerAccounts"], queryFn: () => base44.club.playerAccounts(), enabled: !!perms?.editPlayers, retry: false });
-  const { data: medDocs, isError: medError } = useQuery({
-    queryKey: ["med-docs-lite"],
-    queryFn: () => base44.entities.PlayerDocument.pick(["player_id", "document_type", "created_date", "expiry_date"], { document_type: "examen_medico" }),
+  const { data: lastHist = [] } = useQuery({
+    queryKey: ["player-hist-season", PREV_SEASON],
+    queryFn: () => base44.entities.PlayerSeasonHistory.pick(["player_id", "season", "team_name", "category"], { season: PREV_SEASON }),
     retry: false,
   });
   const { rows, guests } = useSquadRows(selectedTeamId);
@@ -137,8 +138,15 @@ export default function Squad() {
     return o > 0 ? "own" : f > 0 ? "family" : accounts.pending?.[p.id] ? "pending" : "none";
   } : null;
   const seasonEndYear = Number(String(CURRENT_SEASON).slice(0, 4)) + 1;
-  const medicalIds = useMemo(() => (medDocs && !medError ? medicalOk(medDocs, { since: dayOf(seasonStart(now)), today: dayOf(now) }) : null), [medDocs, medError]);
-  const checks = squadChecks(players, { adultYear: seasonEndYear - 18, accountOf: accOf, medicalIds });
+  const checks = squadChecks(players, { adultYear: seasonEndYear - 18, accountOf: accOf });
+  // Procedencia: lo escrito en la ficha («Equipo de procedencia») o, si no, su equipo del club la temporada pasada
+  const histBy = useMemo(() => new Map(lastHist.map((h) => [h.player_id, h])), [lastHist]);
+  const originOf = (p) => {
+    if (String(p.previous_club || "").trim()) return { text: p.previous_club.trim(), kind: "manual" };
+    const h = histBy.get(p.id);
+    if (!h?.team_name) return null;
+    return h.team_name === team?.name ? { text: t("Mismo equipo"), kind: "same" } : { text: h.team_name, kind: "club" };
+  };
   const dupIds = new Set(dorsalDupes(players).flatMap((d) => d.ids));
   const comp = composition(players, lineOf);
 
@@ -165,25 +173,25 @@ export default function Squad() {
   const exportRows = () => filtered.map((r) => {
     const p = r.p, st = stateOf(r);
     return [
-      p.jersey_number ?? "", playerFullName(p), r.year ?? "", POS_LABEL[p.position] || "", FOOT[p.laterality] || "", countryOf(p)?.name || p.nationality || "",
+      p.jersey_number ?? "", playerFullName(p), r.year ?? "", POS_LABEL[p.position] || "", FOOT[p.laterality] || "", countryOf(p)?.name || p.nationality || "", originOf(p)?.text || "",
       r.pj || 0, r.tit || 0, r.pctMin == null ? "" : Math.round(r.pctMin), r.goals || 0, r.assists || 0, r.ta || 0, r.rating == null ? "" : fmt1(r.rating),
       r.attPct ?? "", st?.text || "", p.phone || "", p.email || "", p.guardian_name || "", p.guardian_phone || "", p.guardian_email || "",
       ...(accOf ? [accText[accOf(p)]] : []),
     ];
   });
-  const EXPORT_HEAD = ["Dorsal", "Jugador", "Año", "Posición", "Pie", "Nacionalidad", "PJ", "Titular", "% minutos", "Goles", "Asistencias", "Amarillas", "Valoración", "% entrenos", "Estado", "Teléfono", "Email", "Tutor", "Teléfono tutor", "Email tutor", ...(accOf ? ["Cuenta en la app"] : [])];
+  const EXPORT_HEAD = ["Dorsal", "Jugador", "Año", "Posición", "Pie", "Nacionalidad", "Procedencia", "PJ", "Titular", "% minutos", "Goles", "Asistencias", "Amarillas", "Valoración", "% entrenos", "Estado", "Teléfono", "Email", "Tutor", "Teléfono tutor", "Email tutor", ...(accOf ? ["Cuenta en la app"] : [])];
   const fileBase = `plantilla-${team?.name || "equipo"}`.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-");
   const doExport = () => downloadCsv(exportFileName(fileBase), toCsv(EXPORT_HEAD, exportRows()));
   const doPrint = () => {
     const list = groups.flatMap((g) => g.rows);
     const header = view === "contacto" ? ["Nº", "Jugador", "Año", "Pos.", "Teléfono", "Tutor", "Teléfono tutor", "Email tutor"]
-      : view === "ficha" ? ["Nº", "Jugador", "Año", "Posiciones", "Pie", "Nacionalidad", "Estado"]
+      : view === "ficha" ? ["Nº", "Jugador", "Año", "Posiciones", "Pie", "Nacionalidad", "Procedencia", "Estado"]
       : ["Nº", "Jugador", "Año", "Pos.", "PJ", "Tit.", "% min", "G", "A", "TA", "Entr.", "Estado"];
     const body = list.map((r) => {
       const p = r.p, st = stateOf(r)?.text || "";
       const base = [p.jersey_number ?? "", playerFullName(p), r.year ?? ""];
       if (view === "contacto") return [...base, POS_LABEL[p.position] || "", p.phone || "", [p.guardian_name, p.guardian_relationship].filter(Boolean).join(" · "), p.guardian_phone || "", p.guardian_email || ""];
-      if (view === "ficha") return [...base, [p.position && POS_LABEL[p.position], ...getExtraPositions(p).map((e) => POS_LABEL[e.position])].filter(Boolean).join(" · "), FOOT[p.laterality] || "", countryOf(p)?.name || p.nationality || "", st];
+      if (view === "ficha") return [...base, [p.position && POS_LABEL[p.position], ...getExtraPositions(p).map((e) => POS_LABEL[e.position])].filter(Boolean).join(" · "), FOOT[p.laterality] || "", countryOf(p)?.name || p.nationality || "", originOf(p)?.text || "", st];
       return [...base, POS_LABEL[p.position] || "", r.pj || 0, r.tit || 0, r.pctMin == null ? "" : `${Math.round(r.pctMin)} %`, r.goals || 0, r.assists || 0, r.ta || 0, r.attPct == null ? "" : `${r.attPct} %`, st];
     });
     printHtml(staffPrintHtml({ header, rows: body, title: `Plantilla · ${team?.name || ""}`, subtitle: `${BRAND.clubName} · ${CURRENT_SEASON}`, logoUrl: CLUB_LOGO_URL, origin: window.location.origin, countText: `${body.length} jugadores` }));
@@ -256,7 +264,7 @@ export default function Squad() {
                       <th style={{ textAlign: "center" }}>{t("Val.")}</th><th style={{ textAlign: "right" }}>{t("Entr.")}</th>
                     </>}
                     {view === "ficha" && <>
-                      <th>{t("Posiciones")}</th><th>{t("Pie")}</th><th>{t("Nacionalidad")}</th><th>{t("Revisión médica")}</th>
+                      <th>{t("Posiciones")}</th><th>{t("Pie")}</th><th>{t("Nacionalidad")}</th><th>{t("Procedencia")}</th>
                     </>}
                     {view === "contacto" && <>
                       <th>{t("Teléfono")}</th><th>{t("Email")}</th><th>{t("Tutor")}</th><th>{t("Tel. tutor")}</th><th>{t("Email tutor")}</th>{accOf && <th>{t("App")}</th>}
@@ -306,7 +314,9 @@ export default function Squad() {
                                   </td>
                                   <td style={{ ...td, fontSize: 11.5, color: RS.muted }}>{FOOT[p.laterality] ? t(FOOT[p.laterality]) : "—"}</td>
                                   <td style={{ ...td, fontSize: 11.5 }}>{countryOf(p) ? <Flag player={p} /> : (p.nationality || "—")}</td>
-                                  <td style={{ ...td, fontSize: 11.5 }}>{!medicalIds ? <span style={{ color: RS.faint }}>—</span> : medicalIds.has(p.id) ? <span style={{ color: WIN }}>✓ {t("Al día")}</span> : <span style={{ color: WARN }}>{t("Falta")}</span>}</td>
+                                  <td style={{ ...td, fontSize: 11.5, maxWidth: 220 }} className="truncate" data-testid={`squad-origin-${p.id}`} title={originOf(p)?.text || ""}>
+                                    {(() => { const o = originOf(p); return !o ? <span style={{ color: RS.faint }}>—</span> : <span style={{ color: o.kind === "same" ? RS.muted : RS.ink, fontWeight: o.kind === "manual" ? 600 : 400 }}>{o.text}</span>; })()}
+                                  </td>
                                 </>}
                                 {view === "contacto" && <>
                                   <td style={{ ...td, fontSize: 12 }}>{p.phone ? <a href={`tel:${p.phone}`} style={{ color: RS.ink }}>{p.phone}</a> : <span style={{ color: RS.faint }}>—</span>}</td>
@@ -331,7 +341,7 @@ export default function Squad() {
             {layout === "lista" && (
               <p style={{ padding: "8px 14px", borderTop: `1px solid ${RS.lineSoft}`, fontSize: 11.5, color: RS.muted, margin: 0 }}>
                 {view === "rend" ? t("Partidos de liga cerrados de este equipo · % min = sobre los minutos en que estaba disponible · Val. = valoración del postpartido (1–3) · Entr. = % de entrenos.")
-                  : view === "ficha" ? t("Revisión médica = documento «Examen médico» de esta temporada o sin caducar.")
+                  : view === "ficha" ? t("Procedencia = lo escrito en la ficha del jugador («Equipo de procedencia») o, si no, su equipo del club la temporada pasada.")
                   : t("Teléfonos y correos de la ficha del jugador.")}
               </p>
             )}
