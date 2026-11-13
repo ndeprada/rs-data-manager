@@ -105,7 +105,7 @@ function LiveSummary({ session, stage }) {
               const b = BLOCKS.find((x) => x.id === r.block);
               return (
                 <React.Fragment key={r.block}>
-                  <span className="font-bold truncate" style={{ color: b.color }} title={b.label}>{b.short}</span>
+                  <span className="font-bold truncate" style={{ color: b.ink || b.color }} title={b.label}>{b.short}</span>
                   <div className="h-2 rounded-full relative" style={{ background: "#F0EAEA" }}>
                     <div className="h-full rounded-full" style={{ width: `${Math.min(100, r.pct)}%`, background: b.color }} />
                     <div className="absolute" style={{ left: `${Math.min(100, r.target)}%`, top: -2, width: 2, height: 12, background: C.dark }} title={`Referencia de la etapa: ${r.target}%`} />

@@ -36,16 +36,26 @@ export function stageOfTeamName(name) {
 }
 
 // ── Bloques de contenido y porcentaje de referencia por etapa (TFM 4.8.4) ───────
+// Orden (13/11/2026, Nacho): las tres áreas de ataque seguidas, luego las tres de defensa, después técnica y hábitos
+// y el balón parado el último, para comparar de un vistazo fundamentos frente a organización colectiva.
+// Colores por familias: azules = ataque, rojos = defensa, grises = técnica y hábitos, ámbar = balón parado.
+// `color` = barras y puntos; `ink` = texto (más oscuro para que se lea sobre blanco).
 export const BLOCKS = [
-  { id: "tecnica", label: "Técnica", short: "Técnica", color: "#0891b2" },
-  { id: "habitos", label: "Hábitos de juego", short: "Hábitos", color: "#7c3aed" },
-  { id: "fi_of", label: "Fundamentos individuales ofensivos", short: "Fund. ind. ofensivos", color: "#2563eb" },
-  { id: "fi_def", label: "Fundamentos individuales defensivos", short: "Fund. ind. defensivos", color: "#dc2626" },
-  { id: "oc_of", label: "Organización colectiva ofensiva", short: "Org. colectiva of.", color: "#1d4ed8" },
-  { id: "oc_def", label: "Organización colectiva defensiva", short: "Org. colectiva def.", color: "#b91c1c" },
-  { id: "cc_of", label: "Comportamientos colectivos ofensivos", short: "Comport. colect. of.", color: "#0ea5e9" },
-  { id: "cc_def", label: "Comportamientos colectivos defensivos", short: "Comport. colect. def.", color: "#ef4444" },
-  { id: "abp", label: "Estrategia (balón parado)", short: "Estrategia", color: "#d97706" },
+  { id: "fi_of", label: "Fundamentos individuales ofensivos", short: "Fund. ind. ofensivos", group: "ataque", color: "#1E40AF", ink: "#1E40AF" },
+  { id: "oc_of", label: "Organización colectiva ofensiva", short: "Org. colectiva of.", group: "ataque", color: "#3B82F6", ink: "#1D4ED8" },
+  { id: "cc_of", label: "Comportamientos colectivos ofensivos", short: "Comport. colect. of.", group: "ataque", color: "#93C5FD", ink: "#2563EB" },
+  { id: "fi_def", label: "Fundamentos individuales defensivos", short: "Fund. ind. defensivos", group: "defensa", color: "#991B1B", ink: "#991B1B" },
+  { id: "oc_def", label: "Organización colectiva defensiva", short: "Org. colectiva def.", group: "defensa", color: "#EF4444", ink: "#B91C1C" },
+  { id: "cc_def", label: "Comportamientos colectivos defensivos", short: "Comport. colect. def.", group: "defensa", color: "#FCA5A5", ink: "#DC2626" },
+  { id: "tecnica", label: "Técnica", short: "Técnica", group: "base", color: "#57534E", ink: "#44403C" },
+  { id: "habitos", label: "Hábitos de juego", short: "Hábitos", group: "base", color: "#A8A29E", ink: "#57534E" },
+  { id: "abp", label: "Estrategia (balón parado)", short: "Estrategia", group: "abp", color: "#F59E0B", ink: "#B45309" },
+];
+export const BLOCK_GROUPS = [
+  { id: "ataque", label: "Ataque" },
+  { id: "defensa", label: "Defensa" },
+  { id: "base", label: "Técnica y hábitos" },
+  { id: "abp", label: "Balón parado" },
 ];
 export const blockInfo = (id) => BLOCKS.find((b) => b.id === id) || null;
 

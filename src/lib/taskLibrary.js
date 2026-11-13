@@ -106,8 +106,20 @@ export function libraryToSessionTask(lib, part = "principal") {
     scoring: hasText(lib?.scoring) ? String(lib.scoring).trim() : "",
     board: lib?.board ? clone(lib.board) : null,
     ...(lib?.diagram_url ? { diagram_url: lib.diagram_url } : {}),
+    // Contenidos del currículum guardados con la tarea (desde el 13/11/2026): vienen ya puestos
+    ...libraryContents(lib),
     from_library: { id: lib?.id ?? null, name: String(lib?.name ?? "").trim() },
   };
+}
+
+/** Contenidos del currículum que guarda una tarea de la biblioteca (vacíos en las tareas de antes del 13/11/2026). */
+export function libraryContents(lib) {
+  const ids = (a) => (Array.isArray(a) ? a.filter((x) => typeof x === "string" && x) : []);
+  const principal = ids(lib?.principal).slice(0, 2);
+  const secondary = ids(lib?.secondary).filter((x) => !principal.includes(x));
+  const used = new Set([...principal, ...secondary]);
+  const custom = Object.fromEntries(Object.entries(lib?.custom_contents || {}).filter(([k, v]) => used.has(k) && v?.block));
+  return { principal, secondary, custom_contents: custom, no_curriculum: lib?.no_curriculum === true };
 }
 
 /** Tarea de sesión → datos para crear una tarea nueva en la biblioteca (la sesión no se toca). */
@@ -140,6 +152,7 @@ export function sessionTaskToLibrary(task, part = task?.part || "principal") {
     coaching_points_1e: staff.fields.coaching_points_1e || "",
     coaching_points_ea_m: staff.fields.coaching_points_ea_m || "",
     coaching_points_ea_i: staff.fields.coaching_points_ea_i || "",
+    ...libraryContents(task),
   };
 }
 
@@ -155,3 +168,6 @@ export function filterLibraryTasks(tasks = [], { query = "", phase = "" } = {}) 
       return words.every((w) => hay.includes(w));
     });
 }
+
+/** Autor de una tarea nueva de la biblioteca (desde el 13/11/2026; las anteriores no lo tienen y cuentan como «del club»). */
+export const authorOf = (u) => (u?.id ? { author_id: u.id, author_name: u.full_name || u.email || "" } : {});

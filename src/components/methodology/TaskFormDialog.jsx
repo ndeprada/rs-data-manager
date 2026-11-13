@@ -12,6 +12,8 @@ import { useToast } from "@/components/ui/use-toast";
 import BoardEditor from "@/components/board/BoardEditor";
 import { hasBoard } from "@/lib/board";
 import { newTaskBoard } from "@/components/sessions/PitchBoard";
+import ContentPicker, { ContentChip } from "@/components/sessions/ContentPicker";
+import { STAGES, stagesOfContent } from "@/lib/sessionPlan";
 
 const TASK_TYPES = [
   { value: "parejas", label: "Parejas" },
@@ -39,7 +41,8 @@ const EMPTY_TASK = {
   notes: "", diagram_url: "", board: null, media_files: [],
   football_format: "ambos", players_count: "", space: "", tags: [],
   principles: "", sub_principles: "", corrections: "", scoring: "", variants: "",
-  coaching_points_1e: "", coaching_points_ea_m: "", coaching_points_ea_i: ""
+  coaching_points_1e: "", coaching_points_ea_m: "", coaching_points_ea_i: "",
+  principal: [], secondary: [], custom_contents: {},
 };
 
 export { TASK_TYPES };
@@ -49,12 +52,16 @@ export default function TaskFormDialog({ open, onOpenChange, task, onSave, teams
   const [blankBoard] = useState(newTaskBoard);
   const [uploading, setUploading] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [stage, setStage] = useState("des2");
   const { toast } = useToast();
 
   useEffect(() => {
     if (task) setForm({ ...EMPTY_TASK, ...task });
     else setForm(EMPTY_TASK);
     setBoardOpen(hasBoard(task?.board));
+    const first = [...(task?.principal || []), ...(task?.secondary || [])][0];
+    setStage((first && stagesOfContent(first)[0]) || "des2");
   }, [task, open]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -220,6 +227,24 @@ export default function TaskFormDialog({ open, onOpenChange, task, onSave, teams
                 placeholder="Subprincipios específicos..." rows={3} className="mt-1 text-xs" />
             </div>
           </div>
+
+          {/* Contenidos del currículum (13/11/2026): se guardan con la tarea y vienen puestos al cargarla en una sesión */}
+          <div className="rounded-lg border border-gray-200 p-3 space-y-2" data-testid="task-contents">
+            <div className="flex flex-wrap items-center gap-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-gray-500 flex-1">Contenidos del currículum</Label>
+              <select value={stage} onChange={(e) => setStage(e.target.value)} className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-white" title="Etapa: contenidos que se pueden elegir">
+                {STAGES.map((st) => <option key={st.id} value={st.id}>{st.label}</option>)}
+              </select>
+              <Button type="button" size="sm" variant="outline" onClick={() => setPickerOpen(true)} data-testid="task-contents-pick">{(form.principal || []).length + (form.secondary || []).length ? "Cambiar" : "Elegir contenidos"}</Button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(form.principal || []).map((id) => <ContentChip key={id} id={id} stage={stage} kind="principal" task={form} onRemove={() => set("principal", form.principal.filter((x) => x !== id))} />)}
+              {(form.secondary || []).map((id) => <ContentChip key={id} id={id} stage={stage} kind="secondary" task={form} onRemove={() => set("secondary", form.secondary.filter((x) => x !== id))} />)}
+              {!(form.principal || []).length && !(form.secondary || []).length && <span className="text-xs text-gray-400">Ninguno. Al cargar la tarea en una sesión, los contenidos se eligen allí.</span>}
+            </div>
+          </div>
+          <ContentPicker open={pickerOpen} onOpenChange={setPickerOpen} stage={stage} principal={form.principal || []} secondary={form.secondary || []}
+            custom={form.custom_contents || {}} onChange={(patch) => setForm((f) => ({ ...f, ...patch }))} />
 
           {/* Correcciones */}
           <div>

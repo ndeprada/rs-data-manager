@@ -162,7 +162,7 @@ export default function ContentPicker({ open, onOpenChange, stage, principal = [
                 <button type="button" onClick={() => toggleBlock(b.id)} className={`w-full text-left px-4 py-2.5 grid grid-cols-[1rem_0.7rem_1fr_auto_auto] items-center gap-2 hover:bg-gray-50 ${isOpen ? "bg-gray-50/70" : ""}`} data-testid={`content-block-${b.id}`}>
                   {isOpen ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                   <span className="w-2.5 h-2.5 rounded-full" style={{ background: b.color }} />
-                  <span className="text-sm font-black uppercase tracking-wide truncate" style={{ fontFamily: "var(--font-display)", color: b.color }}>{b.label}</span>
+                  <span className="text-sm font-black uppercase tracking-wide truncate" style={{ fontFamily: "var(--font-display)", color: b.ink || b.color }}>{b.label}</span>
                   <span className="text-[11px] whitespace-nowrap">
                     {pickedHere.length ? <b className={pHere ? "text-[var(--granate)]" : "text-gray-700"}>{[pHere ? `${pHere} P` : "", sHere ? `${sHere} S` : ""].filter(Boolean).join(" · ")}</b> : <span className="text-gray-400">{items.length} contenidos</span>}
                   </span>

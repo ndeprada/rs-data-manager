@@ -1,67 +1,56 @@
-import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
-import React from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, Layers, BarChart2 } from "lucide-react";
+// Metodología (rediseño rs2 del 13/11/2026, maqueta «Maqueta Metodología · RS Manager» aprobada por Nacho):
+// Sesiones · Control de contenidos · Biblioteca de tareas (?tab=control|biblioteca).
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
+import { base44 } from "@/api/base44Client";
+import { useTeamAccess } from "@/lib/TeamAccessContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Page, RS } from "@/components/rs2/kit";
 import TaskLibrary from "@/components/methodology/TaskLibrary";
 import SessionsHome from "@/components/sessions/SessionsHome";
 import ContentControl from "@/components/sessions/ContentControl";
-import { useTeamAccess } from "@/lib/TeamAccessContext";
-import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { PillBtn } from "@/components/methodology/MethParts";
+import { CURRENT_SEASON } from "@/lib/staffRoles";
+import { useT, msg } from "@/i18n";
 
-import { PageTitle } from "@/components/common/PageHeader";
+const TABS = [["sesiones", msg("Sesiones")], ["control", msg("Control de contenidos")], ["biblioteca", msg("Biblioteca de tareas")]];
+const lbl = (s) => s.replace(/^(\d{4})-\d{2}(\d{2})$/, "$1–$2");
+
 export default function Methodology() {
+  const t = useT();
+  const isMobile = useIsMobile();
   const { isCoordinator, teamIds, selectedTeamId, perms } = useTeamAccess();
+  const [params, setParams] = useSearchParams();
+  const tab = TABS.some(([k]) => k === params.get("tab")) ? params.get("tab") : "sesiones";
+  const [libQuery, setLibQuery] = useState("");
+  const go = (k) => {
+    const next = new URLSearchParams(params);
+    if (k === "sesiones") next.delete("tab"); else next.set("tab", k);
+    next.delete("session");
+    setParams(next, { replace: true });
+  };
 
-  const { data: teams = [] } = useQuery({
-    queryKey: ["teams"],
-    queryFn: () => base44.entities.Team.list(),
-  });
-
+  const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
   // Coordinadores ven todos los equipos, entrenadores solo los suyos
-  const visibleTeams = isCoordinator || perms.allTeams
-    ? teams
-    : teams.filter(t => teamIds.includes(t.id));
+  const visibleTeams = isCoordinator || perms.allTeams ? teams : teams.filter((x) => teamIds.includes(x.id));
 
   return (
-    <div className="space-y-4">
-      <PageTitle
-        before={
-          <Link to="/MyTeam" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium mb-2">
-            <ArrowLeft className="w-4 h-4" /> Volver a Mi Equipo
-          </Link>
-        }
-        kicker="Mi Equipo"
-        title="Metodología"
-        subtitle="Tus sesiones de entrenamiento, el control de lo que se trabaja y la biblioteca de tareas"
-      />
-
-      <Tabs defaultValue="sessions">
-        <TabsList>
-          <TabsTrigger value="sessions" className="gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
-            <Layers className="w-3.5 h-3.5" /> Sesiones
-          </TabsTrigger>
-          <TabsTrigger value="control" className="gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
-            <BarChart2 className="w-3.5 h-3.5" /> Control de contenidos
-          </TabsTrigger>
-          <TabsTrigger value="tasks" className="gap-1.5" style={{ fontFamily: "var(--font-display)" }}>
-            <BookOpen className="w-3.5 h-3.5" /> Biblioteca de Tareas
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="sessions" className="mt-4">
-          <SessionsHome teams={visibleTeams} isCoordinator={isCoordinator} defaultTeamId={selectedTeamId} />
-        </TabsContent>
-
-        <TabsContent value="control" className="mt-4">
-          <ContentControl teams={visibleTeams} isCoordinator={isCoordinator} defaultTeamId={selectedTeamId} />
-        </TabsContent>
-
-        <TabsContent value="tasks" className="mt-4">
-          <TaskLibrary teams={visibleTeams} isCoordinator={isCoordinator} />
-        </TabsContent>
-      </Tabs>
-    </div>
+    <Page testId="methodology">
+      <div style={{ maxWidth: 1500, margin: "0 auto", padding: isMobile ? "12px 10px 24px" : "18px 22px 28px", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="flex flex-wrap items-end" style={{ gap: "8px 22px" }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: ".16em", color: RS.muted, textTransform: "uppercase" }}>{t("Herramientas · Temporada {s}", { s: lbl(CURRENT_SEASON) })}</div>
+            <h1 style={{ margin: "2px 0 0", lineHeight: 1 }}><span className="rs2-display" style={{ fontSize: isMobile ? 30 : 36, color: RS.granate }}>{t("METODOLOGÍA")}</span></h1>
+          </div>
+          <div className="flex flex-wrap" style={{ gap: 6, paddingBottom: 2 }}>
+            {TABS.map(([k, l]) => <PillBtn key={k} on={tab === k} onClick={() => go(k)} testId={`meth-tab-${k}`}>{t(l)}</PillBtn>)}
+          </div>
+        </div>
+        {tab === "sesiones" && <SessionsHome teams={visibleTeams} isCoordinator={isCoordinator} defaultTeamId={selectedTeamId} onGoControl={() => go("control")} />}
+        {tab === "control" && <ContentControl teams={visibleTeams} isCoordinator={isCoordinator} defaultTeamId={selectedTeamId} onGoLibrary={(q) => { setLibQuery(q); go("biblioteca"); }} />}
+        {tab === "biblioteca" && <TaskLibrary teams={visibleTeams} initialQuery={libQuery} />}
+      </div>
+    </Page>
   );
 }

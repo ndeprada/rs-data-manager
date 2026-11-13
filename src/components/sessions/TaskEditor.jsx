@@ -13,7 +13,8 @@ import ContentPicker, { ContentChip } from "./ContentPicker";
 import PitchBoard, { hasBoard } from "./PitchBoard";
 import LibraryTaskPicker from "./LibraryTaskPicker";
 import { PHASES, TASK_STAFF_ROLES, recText, TASK_TYPES, fmtMin, hasText, isBlankTask, seriesLabel, taskMinutes, taskWarnings } from "@/lib/sessionPlan";
-import { libraryToSessionTask, sessionTaskToLibrary } from "@/lib/taskLibrary";
+import { authorOf, libraryToSessionTask, sessionTaskToLibrary } from "@/lib/taskLibrary";
+import { useAuth } from "@/lib/AuthContext";
 
 
 const GROUPS = ["Individual", "Colectiva", "Otras"];
@@ -26,14 +27,18 @@ export default function TaskEditor({ task, index, label, stage, roster, onChange
   const [saving, setSaving] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
   const set = (patch) => onChange(patch);
 
   // Biblioteca de tareas ↔ sesión: cargar copia una tarea de la biblioteca en esta; guardar crea una tarea NUEVA en la biblioteca.
   // En ningún caso se modifica una tarea que ya está en la biblioteca.
   const loadFromLibrary = (lib) => {
-    if (!isBlankTask(task) && !window.confirm(`Se sustituirá lo escrito en esta tarea (título, descripción, tiempos, dibujo…) por «${lib.name}». Los contenidos del currículum se mantienen. ¿Continuar?`)) return;
-    const { id: _id, part: _part, principal: _p, secondary: _s, no_curriculum: _n, ...rest } = libraryToSessionTask(lib, task.part);
-    set({ ...rest, diagram_url: rest.diagram_url || "", library_saved: null });
+    const hasOwn = (task.principal || []).length > 0 || (task.secondary || []).length > 0 || task.no_curriculum;
+    if (!isBlankTask(task) && !window.confirm(`Se sustituirá lo escrito en esta tarea (título, descripción, tiempos, dibujo…) por «${lib.name}». ${hasOwn ? "Los contenidos del currículum que ya has elegido se mantienen." : "Si la tarea de la biblioteca tiene contenidos del currículum, se ponen también."} ¿Continuar?`)) return;
+    const { id: _id, part: _part, principal, secondary, no_curriculum, custom_contents, ...rest } = libraryToSessionTask(lib, task.part);
+    // Contenidos: los que ya tenía esta tarea mandan; si no tenía, los de la biblioteca (13/11/2026)
+    const contents = hasOwn ? {} : { principal, secondary, no_curriculum, custom_contents };
+    set({ ...rest, ...contents, diagram_url: rest.diagram_url || "", library_saved: null });
   };
   const saveToLibrary = async () => {
     const name = String(task.title || "").trim();
@@ -41,7 +46,7 @@ export default function TaskEditor({ task, index, label, stage, roster, onChange
     if (task.library_saved && !window.confirm(`Ya la guardaste en la biblioteca como «${task.library_saved.name}». ¿Guardar otra copia nueva?`)) return;
     setSaving(true);
     try {
-      const created = await base44.entities.TrainingTask.create(sessionTaskToLibrary(task));
+      const created = await base44.entities.TrainingTask.create({ ...sessionTaskToLibrary(task), ...authorOf(user) });
       queryClient.invalidateQueries({ queryKey: ["training_tasks"] });
       set({ library_saved: { id: created?.id ?? null, name } });
       toast({ title: "Guardada en la biblioteca", description: `«${name}» ya está en Metodología → Biblioteca de tareas.` });
