@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
+import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import ConvocationTab from "@/components/match/ConvocationTab";
@@ -148,7 +148,7 @@ export default function MatchDetail() {
       <div className="rs2-wrap flex flex-col" style={{ gap: 12, maxWidth: 1440, paddingBottom: mobile ? 90 : undefined }}>
         <MatchHeader
           event={event} team={team} players={players} mobile={mobile}
-          ourLogo={team?.logo_url || CLUB_LOGO_URL_WHITE} rival={rival} canManage={canManage}
+          ourLogo={team?.logo_url || CLUB_LOGO_URL} rival={rival} canManage={canManage}
           onBack={() => navigate(-1)}
           onSheet={() => setActiveTab("tactica")}
           onEdit={() => setEditOpen(true)}

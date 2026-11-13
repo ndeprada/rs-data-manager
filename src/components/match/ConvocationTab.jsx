@@ -1,11 +1,12 @@
 // Convocatoria del partido (rediseñada el 13/11/2026 con la maqueta aprobada por Nacho):
-// lista por posición en dos columnas con Va/No, motivo en botones, últimos entrenos y % de minutos de cada jugador;
+// lista por posición en un solo bloque con Va/No, motivo en un desplegable, últimos entrenos y % de minutos de cada jugador;
 // a la derecha, los datos de la convocatoria (con la equipación de la Agenda) y el mensaje siempre a la vista.
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Search, Plus, Copy, Bell, Check, RotateCcw, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { matchesPlayerSearch, playerFullName } from "@/lib/playerName";
 import { buildConvocationText, dorsalOf, groupPlayers } from "@/lib/convocationMessage";
@@ -55,43 +56,42 @@ function VaNo({ on, onChange, testId }) {
   );
 }
 
-function PlayerRow({ p, on, onToggle, reason, onReason, dots, pct, level, injury }) {
+function PlayerRow({ p, on, onToggle, reason, onReason, dots, pct, level, injury, mobile }) {
   const t = useT();
   const fmt = useDateLocale();
   const pctColor = level === "alert" ? RED : level === "warn" ? "#B45309" : RS.muted;
   const injured = !!injury || p.status === "lesionado";
+  // Motivo de la no convocatoria: un desplegable en la propia fila (ocupa menos que los botones)
+  const reasonPick = !on && (
+    <Select value={reason || ""} onValueChange={(v) => onReason(v === "__none" ? "" : v)}>
+      <SelectTrigger className="h-7 text-xs shrink-0" style={{ width: mobile ? 118 : 140, borderColor: reason ? "#FCA5A5" : RS.line, background: reason ? "#FEF2F2" : "#fff", color: reason ? RED : RS.muted }} data-testid={`conv-reason-${p.id}`}>
+        <SelectValue placeholder={t("Motivo…")} />
+      </SelectTrigger>
+      <SelectContent>
+        {reason && <SelectItem value="__none">{t("Sin motivo")}</SelectItem>}
+        {NO_CONV_REASONS.map((r) => <SelectItem key={r.value} value={r.value}>{t(r.short)}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
   return (
-    <div style={{ padding: "6px 8px", borderRadius: 8, background: on ? "transparent" : "#FBF6F5", borderBottom: `1px solid ${RS.lineSoft}` }} data-testid={`conv-row-${p.id}`}>
-      <div className="flex items-center" style={{ gap: 8 }}>
-        <span className="rs2-display tabular-nums text-right shrink-0" style={{ width: 22, fontSize: 17, color: on ? RS.granate : RS.faint }}>{dorsalOf(p) || "•"}</span>
-        <span className="min-w-0 flex-1 truncate" style={{ fontSize: 13.5, color: on ? RS.ink : RS.muted }}>
-          <b style={{ fontWeight: 700 }}>{playerFullName(p)}</b> <span style={{ color: RS.faint, fontSize: 12 }}>{POS[p.position] ? t(POS[p.position]) : ""}</span>
-          {injured && <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "#FEE2E2", color: RED }}>{t("Lesión")}</span>}
-          {p._guest && <span style={{ marginLeft: 6, fontSize: 10.5, padding: "1px 6px", borderRadius: 999, background: RS.soft, color: RS.ink2 }}>{p._guest}</span>}
-        </span>
-        <span className="inline-flex shrink-0" style={{ gap: 3 }} aria-label={t("Últimos entrenos")}>
-          {(dots || []).map((d, i) => (
-            <span key={i} title={d ? `${t(DOT_LABEL[d.status] || "")}${d.reason ? ` · ${d.reason}` : ""}` : t("Sin lista")}
-              style={{ width: 7, height: 7, borderRadius: 99, background: d ? DOT[d.status] || "#ccc" : "#E4DCDB" }} />
-          ))}
-        </span>
-        <span className="tabular-nums text-right shrink-0" style={{ width: 36, fontSize: 12, color: pctColor, fontWeight: level === "alert" ? 700 : 400 }} title={t("% de minutos de la temporada")}>{pct == null ? "–" : `${pct}%`}</span>
-        <VaNo on={on} onChange={onToggle} testId={`conv-va-${p.id}`} />
-      </div>
-      {!on && (
-        <div className="flex flex-wrap items-center" style={{ gap: 4, margin: "6px 0 2px 30px" }}>
-          {NO_CONV_REASONS.map((r) => {
-            const sel = reason === r.value;
-            return (
-              <button key={r.value} type="button" onClick={() => onReason(sel ? "" : r.value)} data-testid={`conv-reason-${p.id}-${r.value}`}
-                style={{ fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 999, border: `1px solid ${sel ? "#FCA5A5" : RS.line}`, background: sel ? "#FEE2E2" : "#fff", color: sel ? RED : RS.ink2 }}>
-                {t(r.short)}
-              </button>
-            );
-          })}
-          {injury?.expected_return && <span style={{ fontSize: 11, color: RS.faint }}>· {t("vuelve {d}", { d: format(new Date(injury.expected_return), "d MMM", { locale: fmt }) })}</span>}
-        </div>
-      )}
+    <div className="flex flex-wrap items-center" style={{ gap: mobile ? "4px 6px" : 8, padding: "5px 8px", background: on ? "transparent" : "#FBF6F5", borderBottom: `1px solid ${RS.lineSoft}` }} data-testid={`conv-row-${p.id}`}>
+      <span className="rs2-display tabular-nums text-right shrink-0" style={{ width: 22, fontSize: 17, color: on ? RS.granate : RS.faint }}>{dorsalOf(p) || "•"}</span>
+      <span className="min-w-0 flex-1 truncate" style={{ fontSize: 13.5, color: on ? RS.ink : RS.muted }}>
+        <b style={{ fontWeight: 700 }}>{playerFullName(p)}</b> <span style={{ color: RS.faint, fontSize: 12 }}>{POS[p.position] ? t(POS[p.position]) : ""}</span>
+        {injured && <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "#FEE2E2", color: RED }}>{t("Lesión")}</span>}
+        {injury?.expected_return && !mobile && <span style={{ marginLeft: 6, fontSize: 11, color: RS.faint }}>{t("vuelve {d}", { d: format(new Date(injury.expected_return), "d MMM", { locale: fmt }) })}</span>}
+        {p._guest && <span style={{ marginLeft: 6, fontSize: 10.5, padding: "1px 6px", borderRadius: 999, background: RS.soft, color: RS.ink2 }}>{p._guest}</span>}
+      </span>
+      {!mobile && reasonPick}
+      <span className="inline-flex shrink-0" style={{ gap: 3 }} aria-label={t("Últimos entrenos")}>
+        {(dots || []).map((d, i) => (
+          <span key={i} title={d ? `${t(DOT_LABEL[d.status] || "")}${d.reason ? ` · ${d.reason}` : ""}` : t("Sin lista")}
+            style={{ width: 7, height: 7, borderRadius: 99, background: d ? DOT[d.status] || "#ccc" : "#E4DCDB" }} />
+        ))}
+      </span>
+      <span className="tabular-nums text-right shrink-0" style={{ width: 36, fontSize: 12, color: pctColor, fontWeight: level === "alert" ? 700 : 400 }} title={t("% de minutos de la temporada")}>{pct == null ? "–" : `${pct}%`}</span>
+      <VaNo on={on} onChange={onToggle} testId={`conv-va-${p.id}`} />
+      {mobile && !on && <div className="w-full" style={{ paddingLeft: 30 }}>{reasonPick}</div>}
     </div>
   );
 }
@@ -214,16 +214,6 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
     return m;
   }, [injuries]);
 
-  // Reparte los grupos en dos columnas parecidas
-  const columns = useMemo(() => {
-    if (mobile) return [groups];
-    const total = groups.reduce((a, g) => a + g.players.length, 0);
-    const left = [], right = [];
-    let n = 0;
-    for (const g of groups) { if (n < total / 2) { left.push(g); n += g.players.length; } else right.push(g); }
-    return [left, right];
-  }, [groups, mobile]);
-
   // ── Equipación (la misma que en la Agenda del Panel: Event.agenda_meta) ──
   const meta = agendaMeta(event);
   const kitKey = kitKeyOf(meta);
@@ -269,20 +259,20 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
       {list.map((p) => (
         <PlayerRow key={p.id} p={p} on={convocadoIds.includes(p.id)} onToggle={(on) => setOn(p.id, on)}
           reason={reasons[p.id] || ""} onReason={(v) => setReasons((prev) => ({ ...prev, [p.id]: v }))}
-          dots={dots[p.id]} pct={minutes[p.id]?.pct ?? null} level={minutes[p.id]?.level} injury={injuryOf.get(p.id)} />
+          dots={dots[p.id]} pct={minutes[p.id]?.pct ?? null} level={minutes[p.id]?.level} injury={injuryOf.get(p.id)} mobile={mobile} />
       ))}
     </div>
   );
 
   return (
-    <div className="grid items-start" style={{ gridTemplateColumns: mobile ? "1fr" : "minmax(0,1fr) 400px", gap: 12 }} data-testid="conv-tab">
+    <div className="grid items-start" style={{ gridTemplateColumns: mobile ? "minmax(0,1fr)" : "minmax(0,1fr) 400px", gap: 12 }} data-testid="conv-tab">
       {/* ── Lista ── */}
       <section className="rs2-card" style={{ padding: mobile ? 10 : 14 }} data-testid="conv-list">
         <div className="flex flex-wrap items-center" style={{ gap: "6px 14px" }}>
           <span className="flex items-baseline" style={{ gap: 5 }}><span className="rs2-display tabular-nums" style={{ fontSize: 26, color: GREEN }} data-testid="conv-count">{convocadoIds.length}</span><span style={{ fontSize: 13, color: RS.ink2 }}>{t("convocados")}</span></span>
           <span className="flex items-baseline" style={{ gap: 5 }}><span className="rs2-display tabular-nums" style={{ fontSize: 26, color: RED }}>{noConvocados.length}</span><span style={{ fontSize: 13, color: RS.ink2 }}>{t("no convocados")}</span></span>
           <span style={{ fontSize: 11.5, color: convocadoIds.length < minN ? RED : RS.faint }}>{t("mínimo {n}", { n: minN })} · <SaveStatus state={autosave.state} onRetry={autosave.flush} className="inline" /></span>
-          <span className="flex" style={{ gap: 6, marginLeft: "auto" }}>
+          <span className="flex flex-wrap" style={{ gap: 6, marginLeft: "auto" }}>
             <button type="button" style={smallBtn} onClick={toggleAll} data-testid="conv-all">{allSelected ? t("Ninguno") : t("Todos van")}</button>
             <button type="button" style={smallBtn} onClick={() => setShowGuestSearch((v) => !v)} data-testid="conv-guest"><Plus className="w-3.5 h-3.5" />{t("De otro equipo")}</button>
           </span>
@@ -315,13 +305,10 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
           </div>
         )}
 
-        <div className="grid" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0,1fr))`, gap: 16 }}>
-          {columns.map((col, i) => (
-            <div key={i}>
-              {col.map(renderGroup)}
-              {i === columns.length - 1 && guests.length > 0 && renderGroup({ group: msg("De otros equipos"), players: guests })}
-            </div>
-          ))}
+        {/* Toda la plantilla en un solo bloque, por posición */}
+        <div>
+          {groups.map(renderGroup)}
+          {guests.length > 0 && renderGroup({ group: msg("De otros equipos"), players: guests })}
         </div>
       </section>
 
