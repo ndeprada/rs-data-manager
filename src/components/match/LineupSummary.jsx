@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { actaMinutes } from "@/lib/matchDuration";
 import { useT, msg } from "@/i18n";
+import { RS } from "@/components/rs2/kit";
+import { F as clubFont } from "@/lib/brand";
+import { subTimes } from "@/lib/actaView";
 
 const POS = { portero: msg("POR"), central: msg("DFC"), libre: msg("LIB"), lateral: msg("LAT"), mediocentro: msg("MC"), interior: msg("INT"), mediapunta: msg("MP"), extremo: msg("EXT"), delantero_centro: msg("DC") };
 
@@ -42,52 +45,62 @@ export function playerLine(p, stat, matchEvents, starterIds, matchMinutes) {
   };
 }
 
-const Num = ({ v, icon }) => (
-  <span className={`w-9 text-center text-xs tabular-nums ${v ? "font-bold text-gray-800" : "text-gray-300"}`}>
-    {v ? <>{v}{icon}</> : "–"}
+// Columnas de la tabla (13/11/2026, maqueta del Acta): la posición va en su columna y cada jugador ocupa una línea
+const COLS = { pos: 40, sub: 70, min: 44, n: 34, edit: 26 };
+const Num = ({ v, children }) => (
+  <span className="text-center text-[13px] tabular-nums shrink-0" style={{ width: COLS.n, fontWeight: v ? 700 : 400, color: v ? RS.ink : "#C9BDBE" }}>
+    {v ? (children || v) : "–"}
   </span>
 );
+const CardMark = ({ red }) => <span className="inline-block rounded-[2px] align-[-1px]" style={{ width: 9, height: 12, background: red ? "#DC2626" : "#FACC15" }} />;
 
-function Row({ p, line, onEdit }) {
+function Row({ p, line, onEdit, sub }) {
   const t = useT();
+  const missing = line.starter && !line.minutes;
+  const benched = !line.starter && !line.minutes;
+  const subLabel = sub.into !== null && sub.out !== null ? `${sub.into}’–${sub.out}’` : sub.into !== null ? t("entra {m}’", { m: sub.into }) : sub.out !== null ? t("sale {m}’", { m: sub.out }) : "";
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50/60 group">
-      <span className="w-6 text-[10px] font-bold text-gray-400 shrink-0 text-center">{p.jersey_number || ""}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-bold text-gray-900 truncate leading-tight"><PlayerName player={p} /></p>
-        <p className="text-[10px] text-gray-400 leading-tight">{POS[p.position] ? t(POS[p.position]) : "—"}{line.manual && <span className="ml-1.5 text-green-600 font-bold">{t("editado")}</span>}</p>
-      </div>
-      <span className={`w-10 text-center text-xs tabular-nums ${line.minutes ? "font-bold text-gray-800" : "text-gray-300"}`} title={line.minutes ? "" : line.starter ? t("Sin minutos: pulsa el lápiz para apuntarlos") : t("No ha entrado en ningún cambio: 0 minutos")}>
-        {line.minutes ? `${line.minutes}'` : "—"}
+    <div className="flex items-center gap-1.5 px-2 hover:bg-[#FBF7F6]" style={{ height: 30, borderTop: `1px solid ${RS.lineSoft}`, opacity: benched ? 0.55 : 1, background: missing ? "#FFF8F1" : undefined }} data-testid={`lineup-row-${p.id}`}>
+      <span className="w-6 text-right shrink-0" style={{ fontFamily: clubFont.title, fontSize: 15, lineHeight: 1, color: RS.granate }}>{p.jersey_number ?? ""}</span>
+      <span className="flex-1 min-w-0 truncate text-[13px] font-bold" style={{ color: RS.ink }}>
+        <PlayerName player={p} />{line.manual && <span className="ml-1.5 text-[10px] font-bold text-green-700">{t("editado")}</span>}
       </span>
-      <Num v={line.goals} icon="⚽" />
-      <Num v={line.assists} icon="🅰️" />
-      <span className="w-9 text-center text-xs">{line.yellow ? <span title={t("Amarillas")}>🟨{line.yellow > 1 ? line.yellow : ""}</span> : <span className="text-gray-300">–</span>}</span>
-      <span className="w-9 text-center text-xs">{line.red + line.yellow2 ? <span title={line.yellow2 ? t("2ª amarilla") : t("Roja")}>🟥</span> : <span className="text-gray-300">–</span>}</span>
-      <button onClick={() => onEdit(p)} title={t("Corregir datos")} className="text-gray-300 hover:text-gray-700 shrink-0">
+      <span className="shrink-0 text-[11px] font-bold" style={{ width: COLS.pos, color: RS.muted }}>{POS[p.position] ? t(POS[p.position]) : "—"}</span>
+      <span className="shrink-0 text-[11px] whitespace-nowrap" style={{ width: COLS.sub, color: sub.into !== null && sub.out === null ? "#15803D" : "#9A3412" }}>{subLabel}</span>
+      <span className="shrink-0 text-center text-[13px] tabular-nums" style={{ width: COLS.min }}
+        title={line.minutes ? "" : line.starter ? t("Sin minutos: pulsa el lápiz para apuntarlos") : t("No ha entrado en ningún cambio: 0 minutos")}>
+        {missing
+          ? <span className="inline-block w-full rounded font-bold" style={{ color: "#B91C1C", background: "#FEF2F2" }}>?</span>
+          : <span style={{ fontWeight: line.minutes ? 700 : 400, color: line.minutes ? RS.ink : "#C9BDBE" }}>{line.minutes || 0}’</span>}
+      </span>
+      <Num v={line.goals} />
+      <Num v={line.assists} />
+      <Num v={line.yellow}>{line.yellow ? <span title={t("Amarillas")}><CardMark />{line.yellow > 1 ? line.yellow : ""}</span> : null}</Num>
+      <Num v={line.red + line.yellow2}>{line.red + line.yellow2 ? <span title={line.yellow2 ? t("2ª amarilla") : t("Roja")}><CardMark red /></span> : null}</Num>
+      <button type="button" onClick={() => onEdit(p)} title={t("Corregir datos")} aria-label={t("Corregir datos")} className="shrink-0 flex justify-center hover:text-gray-800" style={{ width: COLS.edit, color: RS.muted }}>
         <Pencil className="w-3.5 h-3.5" />
       </button>
     </div>
   );
 }
 
-function Group({ title, rows, onEdit }) {
+function Group({ title, rows, onEdit, subs }) {
   const t = useT();
   if (rows.length === 0) return null;
   return (
-    <div>
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border-y border-gray-100 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">
-        <span className="flex-1">{title} · {rows.length}</span>
-        <span className="w-10 text-center">{t("Min")}</span>
-        <span className="w-9 text-center">{t("Gol")}</span>
-        <span className="w-9 text-center">{t("Asis")}</span>
-        <span className="w-9 text-center">{t("Am.")}</span>
-        <span className="w-9 text-center">{t("Roja")}</span>
-        <span className="w-3.5" />
+    <div className="mt-2">
+      <div className="flex items-center gap-1.5 px-2 py-1 text-[10.5px] font-bold uppercase tracking-[0.08em]" style={{ borderLeft: `3px solid ${RS.naranja}`, background: RS.head, color: RS.muted }}>
+        <span className="flex-1" style={{ fontFamily: clubFont.title, fontSize: 13, letterSpacing: ".02em", color: RS.granateDark }}>{title} · {rows.length}</span>
+        <span style={{ width: COLS.pos }}>{t("Pos.")}</span>
+        <span style={{ width: COLS.sub }}>{t("Cambio")}</span>
+        <span className="text-center" style={{ width: COLS.min }}>{t("Min")}</span>
+        <span className="text-center" style={{ width: COLS.n }}>{t("Gol")}</span>
+        <span className="text-center" style={{ width: COLS.n }}>{t("As.")}</span>
+        <span className="text-center" style={{ width: COLS.n }}>{t("Am.")}</span>
+        <span className="text-center" style={{ width: COLS.n }}>{t("Roja")}</span>
+        <span style={{ width: COLS.edit }} />
       </div>
-      <div className="divide-y divide-gray-50">
-        {rows.map(({ p, line }) => <Row key={p.id} p={p} line={line} onEdit={onEdit} />)}
-      </div>
+      {rows.map(({ p, line }) => <Row key={p.id} p={p} line={line} onEdit={onEdit} sub={subs(p.id)} />)}
     </div>
   );
 }
@@ -166,30 +179,34 @@ export default function LineupSummary({ eventId, event, convocation, convocados,
     </div>
   );
 
+  const subs = (id) => subTimes(id, matchEvents);
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div className="px-5 pt-4 pb-3 flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <p className="text-sm font-bold text-gray-900">{t("Alineación y resumen por jugador")}</p>
-          <p className="text-[11px] text-gray-400">{t("Los datos salen del acta: el titular sin cambios juega el partido completo y el suplente que no entra suma 0'. Con el lápiz puedes corregir cualquier dato a mano.")}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <p className="text-[11px] text-gray-500 tabular-nums">{tot("goals")} ⚽ · {tot("assists")} 🅰️ · {tot("yellow")} 🟨 · {tot("red") + tot("yellow2")} 🟥</p>
-          {starterIds.length > 0 && onRecompute && (
-            <Button variant="outline" size="sm" className="h-7 text-xs border-gray-200" disabled={saving} title={t("Volver a calcular los minutos de todos desde el acta (lo corregido a mano no se toca)")}
-              onClick={async () => { setSaving(true); try { await onRecompute(); refresh(); } finally { setSaving(false); } }}>
-              <RotateCcw className="w-3 h-3 mr-1" /> {t("Recalcular minutos")}
-            </Button>
-          )}
-        </div>
+    <div className="bg-white rounded-xl overflow-hidden pb-1" style={{ border: `1px solid ${RS.line}` }} data-testid="acta-lineup-card">
+      <div className="px-4 pt-3 pb-1 flex items-center gap-x-3 gap-y-2 flex-wrap">
+        <span className="flex items-center gap-1.5"><span style={{ width: 3, height: 14, background: RS.naranja, borderRadius: 2 }} /><span style={{ fontFamily: clubFont.title, fontSize: 17, lineHeight: 1, color: RS.granate }}>{t("Alineación y resumen por jugador")}</span></span>
+        <span className="flex gap-1.5 text-[12px] tabular-nums" style={{ color: RS.ink2 }}>
+          <span className="rounded-full px-2 py-0.5" style={{ background: RS.head }}>⚽ {tot("goals")}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: RS.head }}>{t("{n} asist.", { n: tot("assists") })}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: RS.head }}><CardMark /> {tot("yellow")}</span>
+          <span className="rounded-full px-2 py-0.5" style={{ background: RS.head }}><CardMark red /> {tot("red") + tot("yellow2")}</span>
+        </span>
+        {starterIds.length > 0 && onRecompute && (
+          <Button variant="outline" size="sm" className="h-7 text-xs border-gray-200 ml-auto" disabled={saving} title={t("Volver a calcular los minutos de todos desde el acta (lo corregido a mano no se toca)")}
+            onClick={async () => { setSaving(true); try { await onRecompute(); refresh(); } finally { setSaving(false); } }}>
+            <RotateCcw className="w-3 h-3 mr-1" /> {t("Recalcular minutos")}
+          </Button>
+        )}
       </div>
       {!event?.match_duration && (
-        <p className="px-5 py-2 text-[11px] text-orange-700 bg-orange-50 border-y border-orange-100">
+        <p className="mx-4 mt-1 px-2 py-1.5 rounded text-[11px] text-orange-700 bg-orange-50">
           {t("Duración supuesta: {matchMinutes}' (la habitual de este equipo). Si este partido ha sido distinto, cámbiala en «Formato y resultado»: se guarda sola y los minutos se recalculan.", { matchMinutes })}
         </p>
       )}
-      <Group title={t("Titulares")} rows={titulares} onEdit={openEdit} />
-      <Group title={t("Suplentes")} rows={suplentes} onEdit={openEdit} />
+      <div className="px-2">
+        <Group title={t("Titulares")} rows={titulares} onEdit={openEdit} subs={subs} />
+        <Group title={t("Suplentes")} rows={suplentes} onEdit={openEdit} subs={subs} />
+      </div>
+      <p className="px-4 pt-2 text-[11px]" style={{ color: RS.muted }}>{t("Titular sin cambios = partido completo; suplente sin cambios = 0’. El lápiz corrige a mano cualquier dato.")}</p>
       {titulares.length === 0 && (
         <p className="px-5 py-3 text-[11px] text-orange-600 bg-orange-50 border-t border-orange-100">{t("No hay titulares marcados en la convocatoria: todos aparecen como suplentes. Puedes marcarlos con el lápiz.")}</p>
       )}

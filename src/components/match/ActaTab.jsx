@@ -17,6 +17,8 @@ import { useT, msg } from "@/i18n";
 import { pendingReasons, reasonLabel } from "@/lib/matchStatus";
 import { matchPlayed, startersWithoutMinutes } from "@/lib/matchSteps";
 import { RS } from "@/components/rs2/kit";
+import { F as clubFont } from "@/lib/brand";
+import { timelineRows, eventCounts } from "@/lib/actaView";
 
 // ── Formatos de partido ──────────────────────────────────
 const FOOTBALL_FORMATS = [
@@ -67,56 +69,70 @@ function isOnField(playerId, minute, starterIds, matchEvents) {
   return mins > 0;
 }
 
-// ── Timeline visual (con botón eliminar integrado) ───────
-function Timeline({ events, players, opponent, onRemove, onEdit }) {
+// ── Línea del tiempo (13/11/2026, maqueta del Acta): por partes, letra grande, editar y borrar a la izquierda ──
+function Timeline({ events, players, opponent, onRemove, onEdit, duration, totalMinutes, isHome, played }) {
   const t = useT();
   if (events.length === 0) return null;
-  const sorted = [...events].sort((a, b) => Number(a.minute) - Number(b.minute));
+  const rows = timelineRows(events, { duration, totalMinutes, isHome, played });
 
   const getIcon = (ev) => {
-    if (ev.type === "goal") return ev.team === "home" ? "⚽" : "🔵";
+    if (ev.type === "goal") return "⚽";
     if (ev.type === "sub") return "🔄";
-    if (ev.type === "card") return ev.cardColor === "red" || ev.cardColor === "yellow2" ? "🟥" : "🟨";
+    if (ev.type === "card") return <span className="inline-block rounded-[2px]" style={{ width: 10, height: 13, background: ev.cardColor === "red" || ev.cardColor === "yellow2" ? "#DC2626" : "#FACC15" }} />;
     return "•";
   };
-  const getDesc = (ev) => {
-    const player = players.find(p => p.id === ev.playerId);
-    const playerIn = players.find(p => p.id === ev.playerIn);
-    const playerOut = players.find(p => p.id === ev.playerOut);
+  const name = (id) => { const p = players.find((x) => x.id === id); return p ? playerFullName(p) : null; };
+  const describe = (ev) => {
     if (ev.type === "goal") {
-      const scorer = player ? `${playerFullName(player)}` : (ev.fcfName ? ev.fcfName + (ev.goalType === "gol_propio" ? ` ${t("(p.p.)")}` : "") : ev.team === "away" ? (opponent || t("Rival")) : "—");
-      const assist = players.find(p => p.id === ev.assistId);
-      return scorer + (assist ? ` (${t("as.")} ${playerFullName(assist)})` : "");
+      const scorer = name(ev.playerId) || (ev.fcfName ? ev.fcfName + (ev.goalType === "gol_propio" ? ` ${t("(p.p.)")}` : "") : ev.team === "away" ? (opponent || t("Rival")) : "—");
+      const assist = name(ev.assistId);
+      return { main: scorer, sub: assist ? `${t("as.")} ${assist}` : "" };
     }
-    if (ev.type === "sub") return `${playerIn ? playerFullName(playerIn) : "—"} ↑ / ${playerOut ? playerFullName(playerOut) : "—"} ↓`;
+    if (ev.type === "sub") return { main: `${name(ev.playerIn) || "—"} ↑`, sub: `${name(ev.playerOut) || "—"} ↓` };
     if (ev.type === "card") {
-      const who = player ? `${playerFullName(player)}` : (ev.team === "away" ? (opponent || t("Rival")) : "—");
-      return `${who} (${ev.cardColor === "yellow" ? t("amarilla") : ev.cardColor === "yellow2" ? t("2ª amarilla") : t("roja")})`;
+      const who = name(ev.playerId) || (ev.team === "away" ? (opponent || t("Rival")) : "—");
+      return { main: who, sub: ev.cardColor === "yellow" ? t("amarilla") : ev.cardColor === "yellow2" ? t("2ª amarilla") : t("roja") };
     }
-    return "";
+    return { main: "", sub: "" };
   };
+  const iconBtn = { width: 30, height: 30, borderRadius: 8, border: `1px solid ${RS.line}`, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" };
+  const divider = (label, score, key) => (
+    <div key={key} className="flex items-center gap-2 my-1.5 text-[11px] font-bold uppercase tracking-[0.1em]" style={{ color: RS.muted }}>
+      <span className="flex-1 h-px" style={{ background: RS.line }} />
+      {label}{score ? ` · ${score}` : ""}
+      <span className="flex-1 h-px" style={{ background: RS.line }} />
+    </div>
+  );
 
   return (
-    <div className="relative pl-8 space-y-1">
-      <div className="absolute left-3.5 top-1 bottom-1 w-px bg-gray-200" />
-      {sorted.map((ev) => (
-        <div key={ev.id} className="relative flex items-center gap-2 group">
-          <div className="absolute -left-5 w-5 text-center text-sm leading-none">{getIcon(ev)}</div>
-          <div className="flex items-baseline gap-1.5 flex-1 min-w-0">
-            <span className="text-xs font-black text-gray-500 w-7 shrink-0" style={{ fontFamily: "var(--font-display)" }}>{ev.minute}'</span>
-            <span className="text-xs text-gray-700 truncate">{getDesc(ev)}</span>
-            {ev.type === "goal" && <span className="text-[9px] text-gray-400 shrink-0">{goalLabel(ev.goalDetail || fromStored({ goal_type: ev.goalType }), t) || t(GOAL_TYPES.find(g => g.value === ev.goalType)?.label || "")}</span>}
-            {String(ev.id).startsWith("fcf_") && !ev.edited && <span className="text-[8px] font-bold text-blue-500 bg-blue-50 rounded px-1 shrink-0">{t("FCF")}</span>}
-            {ev.edited && <span className="text-[8px] font-bold text-green-600 bg-green-50 rounded px-1 shrink-0">{t("editado")}</span>}
+    <div data-testid="acta-events">
+      {rows.map((r, i) => {
+        if (r.kind === "period") return divider(t(r.label), r.score, `p${i}`);
+        if (r.kind === "end") return divider(t("Final"), r.score, "end");
+        const ev = r.ev;
+        const d = describe(ev);
+        const detail = ev.type === "goal" ? (goalLabel(ev.goalDetail || fromStored({ goal_type: ev.goalType }), t) || t(GOAL_TYPES.find(g => g.value === ev.goalType)?.label || "")) : "";
+        return (
+          <div key={ev.id} role="button" tabIndex={0} onClick={() => onEdit(ev)} onKeyDown={(e) => { if (e.key === "Enter") onEdit(ev); }}
+            className="flex items-center gap-2.5 px-2 py-1.5 cursor-pointer hover:bg-[#FBF7F6] rounded-md" data-testid={`acta-ev-${ev.id}`}
+            style={{ borderTop: `1px solid ${RS.lineSoft}`, background: r.rival ? "#FAFAFB" : undefined }}>
+            <span className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+              <button type="button" onClick={() => onEdit(ev)} title={t("Editar")} aria-label={t("Editar")} style={iconBtn} data-testid={`acta-ev-edit-${ev.id}`}><Pencil className="w-3.5 h-3.5" style={{ color: RS.ink2 }} /></button>
+              <button type="button" onClick={() => onRemove(ev.id)} title={t("Eliminar")} aria-label={t("Eliminar")} style={iconBtn} data-testid={`acta-ev-del-${ev.id}`}><Trash2 className="w-3.5 h-3.5" style={{ color: "#B91C1C" }} /></button>
+            </span>
+            <span className="w-9 text-right shrink-0 tabular-nums" style={{ fontFamily: clubFont.title, fontSize: 19, lineHeight: 1, color: RS.ink }}>{ev.minute ? `${ev.minute}’` : "–"}</span>
+            <span className="w-5 flex justify-center text-[15px] shrink-0" style={{ opacity: r.rival && ev.type === "goal" ? 0.55 : 1 }}>{getIcon(ev)}</span>
+            <span className="flex-1 min-w-0 leading-tight">
+              <span className="text-[14px] font-bold" style={{ color: RS.ink }}>{d.main}</span>
+              {d.sub && <span className="text-[13px]" style={{ color: RS.ink2 }}> · {d.sub}</span>}
+              {detail && <span className="block text-[11.5px]" style={{ color: RS.muted }}>{detail}</span>}
+            </span>
+            {r.score && <span className="shrink-0 rounded-md px-1.5 py-1 tabular-nums" style={{ fontFamily: clubFont.title, fontSize: 15, lineHeight: 1, color: r.rival ? "#2563EB" : RS.granate, background: r.rival ? "#EFF6FF" : "#FDF2F4" }}>{r.score}</span>}
+            {String(ev.id).startsWith("fcf_") && !ev.edited && <span className="text-[10px] font-bold text-blue-600 bg-blue-50 rounded px-1.5 shrink-0">{t("FCF")}</span>}
+            {ev.edited && <span className="text-[10px] font-bold text-green-700 bg-green-50 rounded px-1.5 shrink-0">{t("editado")}</span>}
           </div>
-          <button onClick={() => onEdit(ev)} title={t("Editar")} className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-400 hover:text-gray-700 transition-opacity shrink-0">
-            <Pencil className="w-3 h-3" />
-          </button>
-          <button onClick={() => onRemove(ev.id)} title={t("Eliminar")} className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-opacity shrink-0">
-            <Trash2 className="w-3 h-3" />
-          </button>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -254,9 +270,9 @@ export default function ActaTab({ eventId, teamId, event, players, team, onGoto 
     setFormOpen(false);
   };
   // Botón rápido: abre el formulario de ese tipo con el cursor en el minuto
-  const quickAdd = (type) => {
+  const quickAdd = (type, team = "home") => {
     setNewEvType(type);
-    setNewEvTeam("home");
+    setNewEvTeam(team);
     setNewEvGoal({}); setNewEvPlayerId(""); setNewEvAssistId(""); setNewEvPlayerIn(""); setNewEvPlayerOut(""); setNewEvCardColor("yellow");
     setEventWarning("");
     setFormOpen(true);
@@ -494,76 +510,77 @@ export default function ActaTab({ eventId, teamId, event, players, team, onGoto 
         <p className="text-xs font-semibold" style={{ color: "#15803D" }} data-testid="acta-closed">✓ {t("Partido cerrado: ya cuenta en las estadísticas.")}</p>
       )}
 
-      {/* Dos columnas en el ordenador: marcador y línea del tiempo a la izquierda, alineación y minutos a la derecha */}
-      <div className="grid xl:grid-cols-2 gap-4 items-start">
-      <div className="space-y-4 min-w-0">
-      {/* ── Formato y resultado ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-        <div className="flex flex-wrap gap-3 items-end">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Formato")}</p>
-            <Select value={format} onValueChange={changeFormat} disabled={teamF7}>
-              <SelectTrigger className="w-36 border-gray-200 h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>{FOOTBALL_FORMATS.map(f => <SelectItem key={f.value} value={f.value}>{t(f.label)}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Duración")}</p>
-            <Select value={duration} onValueChange={pickDuration}>
-              <SelectTrigger className="w-44 border-gray-200 h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {durationOptions.map(d => <SelectItem key={d.value} value={d.value}>{t(d.label)}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          {team?.id && (duration !== teamDuration || defaultSaved) && (
-            <button type="button" onClick={saveTeamDefault} disabled={savingDefault || defaultSaved}
-              className={`h-8 text-xs rounded-md border px-2.5 ${defaultSaved ? "border-green-200 bg-green-50 text-green-700 font-semibold" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
-              title={t("Los próximos partidos de este equipo empezarán con esta duración")}>
-              {defaultSaved ? t("✓ Habitual del equipo") : savingDefault ? t("Guardando…") : t("Guardar como habitual de {name}", { name: team.name })}
-            </button>
-          )}
-          <SaveStatus state={saveState} onRetry={saveAll} className="ml-auto" />
+      {/* ── Formato, duración y marcador en una sola franja ── */}
+      <div className="bg-white rounded-xl px-4 py-3 flex flex-wrap items-end gap-x-4 gap-y-3" style={{ border: `1px solid ${RS.line}` }} data-testid="acta-bar">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: RS.muted }}>{t("Formato")}</p>
+          <Select value={format} onValueChange={changeFormat} disabled={teamF7}>
+            <SelectTrigger className="w-32 border-gray-200 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>{FOOTBALL_FORMATS.map(f => <SelectItem key={f.value} value={f.value}>{t(f.label)}</SelectItem>)}</SelectContent>
+          </Select>
         </div>
-
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: RS.muted }}>{t("Duración")}</p>
+          <Select value={duration} onValueChange={pickDuration}>
+            <SelectTrigger className="w-40 border-gray-200 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {durationOptions.map(d => <SelectItem key={d.value} value={d.value}>{t(d.label)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        {team?.id && (duration !== teamDuration || defaultSaved) && (
+          <button type="button" onClick={saveTeamDefault} disabled={savingDefault || defaultSaved}
+            className={`h-8 text-xs rounded-md border px-2.5 ${defaultSaved ? "border-green-200 bg-green-50 text-green-700 font-semibold" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+            title={t("Los próximos partidos de este equipo empezarán con esta duración")}>
+            {defaultSaved ? t("✓ Habitual del equipo") : savingDefault ? t("Guardando…") : t("Guardar como habitual de {name}", { name: team.name })}
+          </button>
+        )}
+        <span className="self-stretch w-px hidden sm:block" style={{ background: RS.line }} />
         {/* Mismo orden que la cabecera del partido: el equipo local a la izquierda (el marcador guardado sigue siendo nuestros goles / goles del rival) */}
         {(() => {
-          const us = { key: "us", label: t("Nuestro equipo"), value: scoreHome, set: setScoreHome };
-          const rival = { key: "rival", label: event?.opponent || t("Rival"), value: scoreAway, set: setScoreAway };
+          const us = { key: "us", label: team?.name || t("Nuestro equipo"), value: scoreHome };
+          const rival = { key: "rival", label: event?.opponent || t("Rival"), value: scoreAway };
           const [left, right] = event?.is_home === false ? [rival, us] : [us, rival];
+          const box = (tm) => (
+            <Input type="number" min="0" inputMode="numeric" value={tm.value} onChange={e => changeScore(tm.key, e.target.value)} aria-label={tm.label}
+              className="w-14 h-11 text-center border-gray-200 px-1" style={{ fontFamily: clubFont.title, fontSize: 24, color: RS.granate }} data-testid={`acta-score-${tm.key}`} />
+          );
           return (
-            <div className="flex items-end gap-2 sm:gap-4">
-              {[left, right].map((tm, i) => (
-                <React.Fragment key={tm.key}>
-                  {i === 1 && <span className="text-3xl font-black text-gray-300 pb-3">–</span>}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-500 mb-1 h-8 flex items-end leading-tight line-clamp-2">{tm.label}</p>
-                    <Input type="number" min="0" inputMode="numeric" value={tm.value} onChange={e => changeScore(tm.key, e.target.value)}
-                      className="text-2xl font-black text-center h-14 border-gray-200" />
-                  </div>
-                </React.Fragment>
-              ))}
+            <div className="flex items-center gap-2 min-w-0" data-testid="acta-score">
+              <span className="text-[13px] text-right truncate max-w-[150px]" style={{ color: left.key === "us" ? RS.ink : RS.ink2, fontWeight: left.key === "us" ? 700 : 400 }}>{left.label}</span>
+              {box(left)}
+              <span style={{ fontFamily: clubFont.title, fontSize: 20, color: "#C9BDBE" }}>–</span>
+              {box(right)}
+              <span className="text-[13px] truncate max-w-[150px]" style={{ color: right.key === "us" ? RS.ink : RS.ink2, fontWeight: right.key === "us" ? 700 : 400 }}>{right.label}</span>
             </div>
           );
         })()}
-        {matchEvents.length > 0 && (
-          <p className="text-[10px] text-gray-400 text-center">{t("Marcador actualizado según eventos · editable manualmente")}</p>
-        )}
+        {matchEvents.length > 0 && <span className="text-[11px]" style={{ color: RS.muted }}>{t("El marcador sale de los goles de la línea del tiempo (se puede cambiar a mano)")}</span>}
+        <SaveStatus state={saveState} onRetry={saveAll} className="ml-auto" />
       </div>
 
+      {/* Línea del tiempo a la izquierda y alineación a la derecha (dos columnas en cuanto caben) */}
+      <div className="grid gap-4 items-start" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 470px), 1fr))" }}>
+      <div className="min-w-0">
       {/* ── Línea del tiempo: botones rápidos, formulario y eventos ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3" data-testid="acta-timeline">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-bold text-gray-900 mr-2">{t("📋 Línea del tiempo")}</p>
-          {[["goal", t("⚽ Gol")], ["card", t("🟨 Tarjeta")], ["sub", t("🔄 Cambio")]].map(([k, l]) => (
-            <button key={k} type="button" onClick={() => quickAdd(k)} data-testid={`acta-quick-${k}`}
-              className="text-xs font-bold rounded-lg px-3 py-1.5 border transition-colors"
-              style={{ borderColor: formOpen && newEvType === k ? RS.granate : RS.line, background: formOpen && newEvType === k ? RS.granate : RS.soft, color: formOpen && newEvType === k ? "#fff" : RS.granate }}>
-              + {l}
-            </button>
-          ))}
+      <div className="bg-white rounded-xl p-4 space-y-3" style={{ border: `1px solid ${RS.line}` }} data-testid="acta-timeline">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="flex items-center gap-1.5"><span style={{ width: 3, height: 14, background: RS.naranja, borderRadius: 2 }} /><span style={{ fontFamily: clubFont.title, fontSize: 17, lineHeight: 1, color: RS.granate }}>{t("Línea del tiempo")}</span></span>
+          {matchEvents.length > 0 && (() => { const c = eventCounts(matchEvents); return <span className="text-[12px]" style={{ color: RS.muted }}>{t("{n} eventos · {g} goles · {s} cambios · {c} tarjetas", { n: matchEvents.length, g: c.goals, s: c.subs, c: c.cards })}</span>; })()}
         </div>
-        {!formOpen && matchEvents.length === 0 && <p className="text-[11px] text-gray-400">{t("Toca + Gol, + Tarjeta o + Cambio: se abre el formulario con el minuto.")}</p>}
+        <div className="flex flex-wrap gap-1.5">
+          {[["goal", "home", t("⚽ Gol")], ["goal", "away", t("⚽ Gol rival")], ["sub", "home", t("🔄 Cambio")], ["card", "home", t("🟨 Tarjeta")]].map(([k, tm, l]) => {
+            const on = formOpen && newEvType === k && newEvTeam === tm;
+            return (
+              <button key={k + tm} type="button" onClick={() => quickAdd(k, tm)} data-testid={tm === "away" ? `acta-quick-${k}-rival` : `acta-quick-${k}`}
+                className="text-[13px] font-bold rounded-lg px-3 py-1.5 border transition-colors"
+                style={{ borderColor: on ? RS.granate : RS.line, background: on ? RS.granate : RS.soft, color: on ? "#fff" : tm === "away" ? "#1D4ED8" : RS.granate }}>
+                + {l}
+              </button>
+            );
+          })}
+        </div>
+        {!formOpen && matchEvents.length === 0 && <p className="text-[12px]" style={{ color: RS.muted }}>{t("Toca + Gol, + Tarjeta o + Cambio: se abre el formulario con el minuto.")}</p>}
         {formOpen && (
           <div className="rounded-lg p-3 space-y-2" style={{ background: RS.head, border: `1px solid ${RS.lineSoft}` }} data-testid="acta-form">
         <div className="flex flex-wrap gap-2 items-end">
@@ -674,12 +691,12 @@ export default function ActaTab({ eventId, teamId, event, players, team, onGoto 
 
         {matchEvents.length > 0 && (
           <>
-            <Timeline events={matchEvents} players={players} opponent={event?.opponent} onRemove={removeEvent} onEdit={ev => setEditEv({ ...ev })} />
-            <p className="text-[10px] text-gray-400">{t("Pulsa el lápiz para completar o corregir un evento (asistente, tipo de gol, jugador…). Los datos vienen de la FCF y tus cambios se mantienen al volver a sincronizar.")}</p>
+            <Timeline events={matchEvents} players={players} opponent={event?.opponent} onRemove={removeEvent} onEdit={ev => setEditEv({ ...ev })}
+              duration={duration} totalMinutes={matchMinutes} isHome={event?.is_home !== false} played={played} />
+            <p className="text-[11px]" style={{ color: RS.muted }}>{t("Toca un evento para completarlo o corregirlo (asistente, tipo de gol, jugador…). Los datos vienen de la FCF y tus cambios se mantienen al volver a sincronizar.")}</p>
           </>
         )}
       </div>
-
       </div>
       <div className="min-w-0" id="acta-lineup">
       {/* ── Alineación y resumen por jugador ── */}
