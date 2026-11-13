@@ -92,7 +92,7 @@ export default function CloseTab({ season }) {
 
   if (isLoading) return <p className="py-10 text-center text-sm text-gray-400">{t("Cargando…")}</p>;
 
-  const card = "bg-white border border-gray-200 shadow-sm";
+  const card = "bg-white border border-gray-200";
   const s = review?.summary;
   const a = review?.archive || review?.archived;
   const endYear = Number(season.slice(5));
@@ -100,11 +100,11 @@ export default function CloseTab({ season }) {
   const noTable = teams.filter((tm) => !standings[tm.id]);
 
   return (
-    <div className="space-y-3 max-w-3xl">
+    <div className="space-y-3">
       {error && <p className="px-4 py-2 text-sm font-semibold text-red-700 bg-red-50 border border-red-200" style={{ borderRadius: "6px" }}>{error}</p>}
 
       {closed ? (
-        <div className={`${card} p-5 space-y-3`} style={{ borderRadius: "4px", borderLeft: "4px solid #16a34a" }}>
+        <div className={`${card} p-5 space-y-3`} style={{ borderRadius: "12px", borderLeft: "4px solid #16a34a" }}>
           <div className="flex items-start gap-3">
             <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0" />
             <div className="min-w-0">
@@ -129,7 +129,7 @@ export default function CloseTab({ season }) {
         </div>
       ) : (
         <>
-          <div className={`${card} p-5 space-y-3`} style={{ borderRadius: "4px" }}>
+          <div className={`${card} p-5 space-y-3`} style={{ borderRadius: "12px" }}>
             <p className="font-black text-lg uppercase" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{t("Cerrar {lbl} y empezar {lbl2}", { lbl: lbl(season), lbl2: lbl(nextOf(season)) })}</p>
             <ul className="text-sm text-gray-700 space-y-1.5">
               <li className="flex gap-2"><Archive className="w-4 h-4 mt-0.5 shrink-0 text-gray-400" /> <span>{t("Los partidos, entrenos, convocatorias, estadísticas y asistencia pasan al historial.")} <b>{t("No se borra nada")}</b> {t("y se puede deshacer.")}</span></li>
@@ -145,7 +145,7 @@ export default function CloseTab({ season }) {
           </div>
 
           {(phase === "reviewed" || phase === "closing") && s && a && (
-            <div className={`${card} p-5 space-y-3`} style={{ borderRadius: "4px" }}>
+            <div className={`${card} p-5 space-y-3`} style={{ borderRadius: "12px" }}>
               <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t("Resumen: esto es lo que va a pasar")}</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[

@@ -31,7 +31,7 @@ export default function DuplicatesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border border-gray-200 shadow-sm p-4 space-y-3" style={{ borderRadius: "4px" }}>
+      <div className="bg-white border border-gray-200 p-4 space-y-3" style={{ borderRadius: "12px" }}>
         <div className="flex items-start gap-3">
           <Copy className="w-5 h-5 mt-0.5" style={{ color: "var(--granate)" }} />
           <div className="text-sm text-gray-600 space-y-1">

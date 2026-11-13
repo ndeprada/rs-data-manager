@@ -22,9 +22,10 @@ export function useSeasonPlan(season) {
   const [error, setError] = useState("");
 
   // Aplica un cambio: set = { ids: [...], to } o clear = ids. Se ve al instante y se guarda en orden.
-  const change = useCallback((ids, to) => {
+  // groups = [[ids, to], …] (to null = quitar la decisión): varios destinos de golpe, un solo guardado
+  const change = useCallback((groups) => {
     const next = { ...movesRef.current };
-    ids.forEach((id) => { if (to) next[id] = { to }; else delete next[id]; });
+    groups.forEach(([ids, to]) => ids.forEach((id) => { if (to) next[id] = { to }; else delete next[id]; }));
     movesRef.current = next;
     qc.setQueryData(key, (old) => ({ ...(old || { season }), moves: next }));
     setSaving((n) => n + 1);
@@ -50,7 +51,8 @@ export function useSeasonPlan(season) {
     isLoading,
     saving: saving > 0,
     error,
-    setDestination: (ids, to) => change(ids, to),
-    clear: (ids) => change(ids, null),
+    setDestination: (ids, to) => change([[ids, to]]),
+    setMany: (groups) => change(groups),
+    clear: (ids) => change([[ids, null]]),
   };
 }

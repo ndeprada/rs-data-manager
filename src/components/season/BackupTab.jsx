@@ -27,7 +27,7 @@ export default function BackupTab() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border border-gray-200 shadow-sm p-4 space-y-3" style={{ borderRadius: "4px" }}>
+      <div className="bg-white border border-gray-200 p-4 space-y-3" style={{ borderRadius: "12px" }}>
         <div className="flex items-start gap-3">
           <DatabaseBackup className="w-5 h-5 mt-0.5" style={{ color: "var(--granate)" }} />
           <div className="text-sm text-gray-600 space-y-1">
@@ -47,7 +47,7 @@ export default function BackupTab() {
         {notice && <p className={`text-xs font-semibold ${notice.ok ? "text-green-700" : "text-red-600"}`}>{notice.text}</p>}
       </div>
 
-      <div className="bg-white border border-gray-200 shadow-sm overflow-hidden" style={{ borderRadius: "4px" }}>
+      <div className="bg-white border border-gray-200 overflow-hidden" style={{ borderRadius: "12px" }}>
         <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50 text-[10px] font-bold uppercase tracking-wider text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
           {t("Copias guardadas en el servidor")}
         </div>

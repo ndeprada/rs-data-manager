@@ -18,7 +18,7 @@ const W = 210, H = 297, MARGIN = 12, BOTTOM = 284, ROW = 5;
 
 const safe = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "");
 
-export async function downloadClubPassesPDF({ season, summary, logoUrl }) {
+export async function downloadClubPassesPDF({ season, summary, logoUrl, kicker = "PLANIFICACIÓN DE PLANTILLA", title = "Pases del club", file = "Pases_del_club" }) {
   const logo = await loadImage(logoUrl);
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const widthOf = (text, pt, bold) => { doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(pt); return doc.getTextWidth(text); };
@@ -46,8 +46,8 @@ export async function downloadClubPassesPDF({ season, summary, logoUrl }) {
   // ── Cabecera ──
   if (logo) { const r = Math.min(20 / logo.w, 20 / logo.h); try { doc.addImage(logo.data, "PNG", MARGIN + (20 - logo.w * r) / 2, 8 + (20 - logo.h * r) / 2, logo.w * r, logo.h * r); } catch { /* sin escudo */ } }
   const hx = logo ? MARGIN + 25 : MARGIN;
-  put(`PLANIFICACIÓN DE PLANTILLA  ·  TEMPORADA ${season}`, hx, 13, { pt: 8.5, bold: true, color: GRANATE });
-  put("Pases del club", hx, 22, { pt: 19, bold: true });
+  put(`${kicker}  ·  TEMPORADA ${season}`, hx, 13, { pt: 8.5, bold: true, color: GRANATE });
+  put(title, hx, 22, { pt: 19, bold: true });
   put(total === 0 ? "Todavía no hay pases" : `${total} pase${total === 1 ? "" : "s"} entre ${teams.length} equipos`, hx, 28.5, { pt: 9.5, color: [90, 90, 90] });
   put(`Generado el ${today}`, W - MARGIN, 13, { pt: 7.5, color: GREY, align: "right" });
   doc.setDrawColor(...GRANATE); doc.setLineWidth(0.6); doc.line(MARGIN, 33, W - MARGIN, 33);
@@ -55,7 +55,7 @@ export async function downloadClubPassesPDF({ season, summary, logoUrl }) {
   const contentW = W - 2 * MARGIN;
   const continuation = () => {
     doc.addPage();
-    put(`PASES DEL CLUB  ·  TEMPORADA ${season}  (continuación)`, MARGIN, 12, { pt: 8.5, bold: true, color: GRANATE });
+    put(`${title.toUpperCase()}  ·  TEMPORADA ${season}  (continuación)`, MARGIN, 12, { pt: 8.5, bold: true, color: GRANATE });
     doc.setDrawColor(...GRANATE); doc.setLineWidth(0.5); doc.line(MARGIN, 15, W - MARGIN, 15);
     y = 22;
   };
@@ -125,5 +125,5 @@ export async function downloadClubPassesPDF({ season, summary, logoUrl }) {
     put(`${BRAND.appName} · ${BRAND.clubName}`, MARGIN, H - 6, { pt: 6.5, color: [150, 150, 150] });
     put(`Página ${p} de ${pages}`, W - MARGIN, H - 6, { pt: 6.5, color: [150, 150, 150], align: "right" });
   }
-  doc.save(`Pases_del_club_${safe(season)}.pdf`);
+  doc.save(`${file}_${safe(season)}.pdf`);
 }
