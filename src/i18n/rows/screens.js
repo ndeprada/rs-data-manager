@@ -16,5 +16,6 @@ import tp from "./screens/tp.js";
 import cfg from "./screens/cfg.js";
 import dash from "./screens/dash.js";
 import mt from "./screens/mt.js";
+import pl from "./screens/pl.js";
 
-export default [...b1, ...b1x, ...b1y, ...b2, ...b2x, ...b3, ...b3x, ...cm, ...fb, ...ar, ...qc, ...mj, ...tc, ...tp, ...cfg, ...dash, ...mt];
+export default [...b1, ...b1x, ...b1y, ...b2, ...b2x, ...b3, ...b3x, ...cm, ...fb, ...ar, ...qc, ...mj, ...tc, ...tp, ...cfg, ...dash, ...mt, ...pl];

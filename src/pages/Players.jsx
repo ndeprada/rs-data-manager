@@ -1,406 +1,492 @@
-import { birthYearOf } from "@/lib/birthYear";
-import { Flag, countryOf, isForeign } from "@/lib/countries";
-import PlayerName from "@/components/common/PlayerName";
-import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+// Jugadores (rediseño del 13/11/2026, maqueta «Maqueta Jugadores · RS Manager» aprobada por Nacho): resumen que filtra,
+// filtros a la izquierda, tabla agrupada por equipo o posición con estadísticas de la temporada y exportación a Excel.
+// Cálculos puros en src/lib/playersList.js.
+import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Users, User as UserIcon, UsersRound, Plus, Pencil, Trash2, Search, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format } from "date-fns";
+import { Pencil, Trash2, Search, Download, SlidersHorizontal } from "lucide-react";
+import { base44 } from "@/api/base44Client";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import PlayerArchive from "@/components/players/PlayerArchive";
-import TabBar from "@/components/common/TabBar";
-import { playerSearchName } from "@/lib/playerName";
+import { Page, RS, YearBadge, useDensity, DensityToggle } from "@/components/rs2/kit";
+import { birthYearOf } from "@/lib/birthYear";
+import { Flag, countryOf, isForeign } from "@/lib/countries";
+import { playerSearchName, playerFullName } from "@/lib/playerName";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
-
-import { PageTitle } from "@/components/common/PageHeader";
-import { useT, useFormat, msg } from "@/i18n";
+import { useMatchStatus } from "@/lib/matchStatus";
+import { participationOf, playerLevel } from "@/lib/participation";
+import { useParticipationContext } from "@/lib/useParticipation";
+import { sortTeams, teamRank } from "@/lib/teamOrder";
+import { teamPlaysF7 } from "@/lib/matchFormat";
+import { getCategoryLabel } from "@/components/fcfCategories";
+import { CURRENT_SEASON } from "@/lib/staffRoles";
+import { juvenilYear } from "@/lib/juvenilYear";
+import { toCsv, exportFileName, downloadCsv } from "@/lib/staffExport";
+import { EMPTY_FILTERS, matchesFilters, hasAnyFilter, kpiCounts, yearOptions, sortRows, groupRows, exportTable, statusOf, accountOf } from "@/lib/playersList";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useT, useDateLocale, msg } from "@/i18n";
 import { BRAND } from "@/lib/brand";
-const POSITIONS = [
-  { value: "portero", label: msg("Portero") },
-  { value: "lateral", label: msg("Lateral") },
-  { value: "central", label: msg("Central") },
-  { value: "mediocentro", label: msg("Mediocentro") },
-  { value: "interior", label: msg("Interior") },
-  { value: "mediapunta", label: msg("Mediapunta") },
-  { value: "delantero_centro", label: msg("Del. Centro") },
-  { value: "extremo", label: msg("Extremo") },
-];
 
-const POSITION_LABELS = {
-  portero: msg("POR"), lateral: msg("LAT"), central: msg("CTR"), libre: msg("LIB"),
-  mediocentro: msg("MCC"), interior: msg("INT"), mediapunta: msg("MP"), delantero_centro: msg("DC"), extremo: msg("EXT"),
-};
+const POS_LABEL = { portero: msg("POR"), lateral: msg("LAT"), central: msg("CEN"), libre: msg("LIB"), mediocentro: msg("MC"), interior: msg("INT"), mediapunta: msg("MP"), delantero_centro: msg("DC"), extremo: msg("EXT") };
+const POS_NAME = { portero: "Portero", lateral: "Lateral", central: "Central", libre: "Libre", mediocentro: "Mediocentro", interior: "Interior", mediapunta: "Mediapunta", delantero_centro: "Delantero centro", extremo: "Extremo" };
+const POS_PILLS = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
+const FOOT_NAME = { diestro: msg("Diestro"), zurdo: msg("Zurdo"), ambidiestro: msg("Ambidiestro") };
+const GROUPS = [["team", msg("Por equipo")], ["position", msg("Por posición")], ["none", msg("Sin agrupar")]];
+const GROUP_KEY = "rs_players_group";
+const LOW_ATT = 70;   // asistencia a entrenos por debajo de este % = en rojo (igual que en Mi equipo)
+const LOSS = "#B91C1C";
 
-const POSITION_PILLS = [
-  { value: "portero", label: msg("POR") },
-  { value: "delantero_centro", label: msg("DC") },
-  { value: "lateral", label: msg("LAT") },
-  { value: "central", label: msg("CTR") },
-  { value: "interior", label: msg("INT") },
-  { value: "mediapunta", label: msg("MP") },
-  { value: "extremo", label: msg("EXT") },
-];
+const chip = (bg, fg) => ({ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: bg, color: fg, whiteSpace: "nowrap", display: "inline-block" });
+const seasonLabel = (s) => String(s || "").replace(/^(\d{4})-\d{2}(\d{2})$/, "$1–$2");
 
-function PlayerAvatar({ player }) {
-  if (player.photo_url) {
-    return <img src={player.photo_url} alt={player.first_name} className="w-full h-full object-cover" />;
-  }
-  const initials = `${player.first_name?.[0] || ""}${player.last_name?.[0] || ""}`.toUpperCase();
+/** Filas de todos los jugadores con sus datos de la temporada con su equipo (mismo cálculo que la plantilla de Mi equipo) */
+function usePlayerRows(players, teams, accounts) {
+  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
+  const { data: allStats = [] } = useQuery({ queryKey: ["matchstats_all"], queryFn: () => base44.entities.MatchStats.list() });
+  const { data: attendance = [] } = useQuery({ queryKey: ["attendance_all"], queryFn: () => base44.entities.TrainingAttendance.list() });
+  const { data: injuries = [] } = useQuery({ queryKey: ["injuries_all"], queryFn: () => base44.entities.Injury.list(), retry: false });
+  const { counted } = useMatchStatus();
+  const partCtx = useParticipationContext("liga");
+  return useMemo(() => {
+    const teamById = new Map(teams.map((t) => [t.id, t]));
+    const evById = new Map(events.map((e) => [e.id, e]));
+    // Participación: solo los partidos del equipo del jugador (un contexto por equipo)
+    const ctxByTeam = new Map();
+    const ctxOf = (tid) => {
+      if (!ctxByTeam.has(tid)) ctxByTeam.set(tid, { ...partCtx, events: partCtx.events.filter((e) => e.team_id === tid) });
+      return ctxByTeam.get(tid);
+    };
+    const statsBy = new Map();
+    for (const s of allStats) {
+      const ev = evById.get(s.event_id);
+      if (!ev || !counted.has(ev.id)) continue;
+      if (!statsBy.has(s.player_id)) statsBy.set(s.player_id, []);
+      statsBy.get(s.player_id).push({ s, team: ev.team_id });
+    }
+    const attBy = new Map();
+    for (const a of attendance) {
+      if (!a.status) continue;
+      const o = attBy.get(a.player_id) || { ok: 0, n: 0 };
+      o.n++; if (a.status === "present" || a.status === "apart") o.ok++;
+      attBy.set(a.player_id, o);
+    }
+    const injBy = new Map();
+    for (const i of injuries) if (i.status !== "alta" && !injBy.has(i.player_id)) injBy.set(i.player_id, i);
+    return players.map((p) => {
+      const team = teamById.get(p.team_id) || null;
+      const st = (statsBy.get(p.id) || []).filter((x) => x.team === p.team_id).map((x) => x.s);
+      const part = p.team_id ? participationOf(p, ctxOf(p.team_id)) : null;
+      const att = attBy.get(p.id);
+      const injury = injBy.get(p.id) || null;
+      return {
+        p, team, teamRank: team ? teamRank(team) * 1000 : 99999, year: birthYearOf(p),
+        injury, injured: !!injury || p.status === "lesionado",
+        acc: accounts ? { own: accounts.own?.[p.id] || 0, family: accounts.family?.[p.id] || 0, pending: accounts.pending?.[p.id] || 0 } : null,
+        pj: st.length, goals: st.reduce((a, s) => a + (s.goals || 0), 0),
+        pctMin: part && part.all.availMin ? part.all.pctAvail : null, level: part ? playerLevel(part) : null,
+        attPct: att?.n ? Math.round((att.ok / att.n) * 100) : null, attN: att?.n || 0,
+      };
+    });
+  }, [players, teams, accounts, events, allStats, attendance, injuries, counted, partCtx]);
+}
+
+function Avatar({ p, size }) {
+  const ini = `${p.first_name?.[0] || ""}${p.last_name?.[0] || ""}`.toUpperCase() || "?";
   return (
-    <span className="text-xs font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>
-      {initials || "?"}
+    <span style={{ width: size, height: size, borderRadius: 6, background: RS.soft, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: size > 24 ? 10 : 9, color: RS.muted, overflow: "hidden", flex: "none" }}>
+      {p.photo_url ? <img src={p.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini}
     </span>
   );
 }
 
-const LATERALITY = [
-  { value: "diestro", label: msg("Diestro") },
-  { value: "zurdo", label: msg("Zurdo") },
-  { value: "ambidiestro", label: msg("Ambidiestro") },
-];
+function FilterGroup({ title, children }) {
+  return (
+    <div>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: RS.muted, marginBottom: 6 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function Pill({ on, onClick, children, testId, title, style }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={on} data-testid={testId} title={title}
+      style={{ fontSize: 11, padding: "3px 9px", borderRadius: 999, border: "1px solid", background: on ? RS.granate : "#fff", color: on ? "#fff" : RS.ink2, borderColor: on ? RS.granate : RS.line, fontWeight: on ? 700 : 500, ...style }}>
+      {children}
+    </button>
+  );
+}
+
+function Segmented({ options, value, onChange, testPrefix, label }) {
+  const t = useT();
+  return (
+    <div role="group" aria-label={label} className="flex" style={{ gap: 3, background: RS.soft, borderRadius: 999, padding: 3 }}>
+      {options.map(([k, l]) => (
+        <button key={k} type="button" onClick={() => onChange(k)} aria-pressed={value === k} data-testid={`${testPrefix}-${k}`}
+          style={{ fontSize: 11, padding: "3px 10px", borderRadius: 999, border: 0, fontWeight: value === k ? 700 : 400, background: value === k ? "#fff" : "none", color: value === k ? RS.granate : RS.ink2, boxShadow: value === k ? "0 1px 2px rgba(0,0,0,.08)" : "none", whiteSpace: "nowrap" }}>{t(l)}</button>
+      ))}
+    </div>
+  );
+}
 
 export default function Players() {
   const t = useT();
-  const fmt = useFormat();
-  const queryClient = useQueryClient();
+  const dfl = useDateLocale();
+  const qc = useQueryClient();
+  const isMobile = useIsMobile();
   const { perms } = useTeamAccess();
+  const [view, setView] = useState("current");
+  const [f, setF] = useState(EMPTY_FILTERS);
+  const [sort, setSort] = useState({ key: "position", dir: "asc" });
+  const [group, setGroupState] = useState(() => { try { return localStorage.getItem(GROUP_KEY) || "team"; } catch { return "team"; } });
+  const setGroup = (g) => { setGroupState(g); try { localStorage.setItem(GROUP_KEY, g); } catch { /* sin almacenamiento */ } };
+  const [density, setDensity] = useDensity();
+  const [showFilters, setShowFilters] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
-  const [search, setSearch] = useState("");
-  const [filterTeam, setFilterTeam] = useState("all");
-  const [filterYear, setFilterYear] = useState("all");
-  const [filterLaterality, setFilterLaterality] = useState("all");
-  const [filterPosition, setFilterPosition] = useState(new Set());
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterNat, setFilterNat] = useState("all");
-  const [filterAccount, setFilterAccount] = useState("all");
-  const [sortKey, setSortKey] = useState("last_name");
-  const [sortDir, setSortDir] = useState("asc");
-  const [view, setView] = useState("current"); // current | history
 
-  const togglePositionFilter = (pos) => {
-    const newSet = new Set(filterPosition);
-    if (newSet.has(pos)) {
-      newSet.delete(pos);
-    } else {
-      newSet.add(pos);
-    }
-    setFilterPosition(newSet);
-  };
-
-  const handleSort = (key) => {
-    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSortKey(key); setSortDir("asc"); }
-  };
-
-  const SortIcon = ({ col }) => {
-    if (sortKey !== col) return <ChevronsUpDown className="w-3 h-3 ml-1 inline opacity-40" />;
-    return sortDir === "asc" ? <ChevronUp className="w-3 h-3 ml-1 inline" /> : <ChevronDown className="w-3 h-3 ml-1 inline" />;
-  };
-
-  const { data: players = [], isLoading } = useQuery({
-    queryKey: ["players"],
-    queryFn: () => base44.entities.Player.list(),
-  });
-
-  const { data: teams = [] } = useQuery({
-    queryKey: ["teams"],
-    queryFn: () => base44.entities.Team.list(),
-  });
-
-  const { data: archivedPlayers = [] } = useQuery({
-    queryKey: ["players_archived"],
-    queryFn: () => base44.entities.Player.archived({}, "only"),
-  });
+  const { data: players = [], isLoading } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
+  const { data: teamsRaw = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
+  const { data: archivedPlayers = [] } = useQuery({ queryKey: ["players_archived"], queryFn: () => base44.entities.Player.archived({}, "only"), enabled: !!perms.editPlayers });
   // Cuentas vinculadas (propia del jugador o de un familiar): solo para quien gestiona jugadores
-  const { data: accounts } = useQuery({
-    queryKey: ["playerAccounts"],
-    queryFn: () => base44.club.playerAccounts(),
-    enabled: !!perms.editPlayers,
-    retry: false,
-  });
-  const accOf = (id) => ({ own: accounts?.own?.[id] || 0, family: accounts?.family?.[id] || 0, pending: accounts?.pending?.[id] || 0 });
-  const historyCount = new Set([...archivedPlayers.map((p) => p.id), ...players.filter((p) => p.status === "baja").map((p) => p.id)]).size;
-
+  const { data: accounts } = useQuery({ queryKey: ["playerAccounts"], queryFn: () => base44.club.playerAccounts(), enabled: !!perms.editPlayers, retry: false });
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Player.delete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["players"] }); setDeleteId(null); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["players"] }); setDeleteId(null); },
   });
 
-  const birthYears = [...new Set(
-    players.map(p => birthYearOf(p)).filter(Boolean)
-  )].sort((a, b) => b - a);
+  const teams = useMemo(() => sortTeams(teamsRaw), [teamsRaw]);
+  const rows = usePlayerRows(players, teams, accounts);
+  const historyCount = new Set([...archivedPlayers.map((p) => p.id), ...players.filter((p) => p.status === "baja").map((p) => p.id)]).size;
+  const fctx = { season: CURRENT_SEASON, searchName: playerSearchName, isForeign, countryA3: (p) => countryOf(p)?.a3 || null };
+  const kpi = useMemo(() => kpiCounts(rows, { isForeign }), [rows]);
+  const filtered = useMemo(() => rows.filter((r) => matchesFilters(r, f, fctx)), [rows, f]);
+  const sorted = useMemo(() => sortRows(filtered, sort.key, sort.dir), [filtered, sort]);
+  const groups = useMemo(() => groupRows(sorted, group, teams), [sorted, group, teams]);
+  const teamCounts = useMemo(() => { const m = new Map(); for (const r of rows) m.set(r.p.team_id, (m.get(r.p.team_id) || 0) + 1); return m; }, [rows]);
+  const years = useMemo(() => yearOptions(rows, CURRENT_SEASON), [rows]);
+  const any = hasAnyFilter(f);
+  const lista = density === "lista";
 
-  const natList = [...new Map(players.filter(isForeign).map((p) => [countryOf(p).a3, countryOf(p)])).values()].sort((a, b) => fmt.country(a.a2, a.name).localeCompare(fmt.country(b.a2, b.name), fmt.lang));
-
-  const filtered = players.filter((p) => {
-    const matchSearch = `${playerSearchName(p)}`.toLowerCase().includes(search.toLowerCase());
-    const matchTeam = filterTeam === "all" || p.team_id === filterTeam;
-    const matchYear = filterYear === "all" || (birthYearOf(p) && birthYearOf(p).toString() === filterYear);
-    const matchLaterality = filterLaterality === "all" || p.laterality === filterLaterality;
-    const matchPosition = filterPosition.size === 0 || filterPosition.has(p.position);
-    const matchStatus = filterStatus === "all" || p.status === filterStatus;
-    const acc = accOf(p.id);
-    const matchAccount = filterAccount === "all" || (filterAccount === "own" ? acc.own > 0 : filterAccount === "family" ? acc.family > 0 : acc.own === 0 && acc.family === 0);
-    const matchNat = filterNat === "all" || (filterNat === "foreign" ? isForeign(p) : filterNat === "ESP" ? countryOf(p)?.a3 === "ESP" : countryOf(p)?.a3 === filterNat);
-    return matchNat && matchSearch && matchTeam && matchYear && matchLaterality && matchPosition && matchStatus && matchAccount;
-  });
-
-  const hasFilters = search || filterTeam !== "all" || filterYear !== "all" || filterLaterality !== "all" || filterPosition.size > 0 || filterStatus !== "all" || filterNat !== "all" || filterAccount !== "all";
-
-  const sorted = [...filtered].sort((a, b) => {
-    let aVal, bVal;
-    if (sortKey === "name") { aVal = `${a.last_name} ${a.first_name}`.toLowerCase(); bVal = `${b.last_name} ${b.first_name}`.toLowerCase(); }
-    else if (sortKey === "position") {
-      const POS_ORDER = ["portero","central","libre","lateral","mediocentro","interior","mediapunta","extremo","delantero_centro"];
-      aVal = POS_ORDER.indexOf(a.position) === -1 ? 99 : POS_ORDER.indexOf(a.position);
-      bVal = POS_ORDER.indexOf(b.position) === -1 ? 99 : POS_ORDER.indexOf(b.position);
-    }
-    else if (sortKey === "jersey_number") { aVal = a.jersey_number || 999; bVal = b.jersey_number || 999; }
-    else if (sortKey === "birth_date") { aVal = birthYearOf(a) || 0; bVal = birthYearOf(b) || 0; }
-    else if (sortKey === "laterality") { aVal = a.laterality || "z"; bVal = b.laterality || "z"; }
-    else if (sortKey === "nat") { const k = (p) => (isForeign(p) ? `1${countryOf(p)?.a3 || ""}` : countryOf(p) ? "0" : "2"); aVal = k(a); bVal = k(b); }
-    else if (sortKey === "status") { aVal = a.status || ""; bVal = b.status || ""; }
-    else if (sortKey === "team") { aVal = teams.find(t => t.id === a.team_id)?.name || ""; bVal = teams.find(t => t.id === b.team_id)?.name || ""; }
-    else { aVal = `${a.last_name} ${a.first_name}`.toLowerCase(); bVal = `${b.last_name} ${b.first_name}`.toLowerCase(); }
-    if (aVal < bVal) return sortDir === "asc" ? -1 : 1;
-    if (aVal > bVal) return sortDir === "asc" ? 1 : -1;
-    return 0;
-  });
-
-  // Los entrenadores trabajan con la plantilla de su equipo (Mi Equipo); el listado del club es para quien ve a todos
   if (perms.players !== "all") {
-    return (
-      <div className="p-12 text-center">
-        <p className="text-gray-400">{t("No tienes acceso a esta sección.")}</p>
-      </div>
-    );
+    return <div className="p-12 text-center"><p className="text-gray-400">{t("No tienes acceso a esta sección.")}</p></div>;
   }
 
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <PageTitle kicker={t("Directorio")} title={t("Jugadores")} subtitle={<>{t("{club} · {length} jugadores registrados", { club: BRAND.clubName, length: players.length })}</>} />
-        {perms.editPlayers && (
-          <Button variant="club" onClick={() => { setEditingPlayer(null); setDialogOpen(true); }}>
-            <Plus className="w-4 h-4 mr-1" /> {t("Nuevo Jugador")}
-          </Button>
-        )}
-      </div>
+  const set = (patch) => setF((x) => ({ ...x, ...patch }));
+  const toggle = (k, v) => setF((x) => ({ ...x, [k]: x[k].includes(v) ? x[k].filter((y) => y !== v) : [...x[k], v] }));
+  const onSort = (key) => setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: ["pj", "pctMin", "goals", "att"].includes(key) ? "desc" : "asc" }));
+  const yearLabel = (k) => (k === "senior" ? t("Sénior") : k === "none" ? t("Sin año") : k);
 
-      <TabBar
-        value={view}
-        onChange={setView}
-        items={[{ value: "current", label: msg("Plantilla actual") }, ...(perms.editPlayers ? [{ value: "history", label: msg("Histórico"), badge: historyCount }] : [])]}
-      />
-      {view === "history" && <PlayerArchive players={players} teams={teams} />}
+  // Resumen de arriba: cada número filtra la lista
+  const kpis = [
+    { k: "total", n: kpi.total, label: t("jugadores"), color: RS.granate, on: !f.noDorsal && f.status === "all" && f.nat === "all" && f.account === "all", go: () => set({ status: "all", nat: "all", account: "all", noDorsal: false }) },
+    { k: "activos", n: kpi.activos, label: t("activos"), color: "#15803D", on: f.status === "activo", go: () => set({ status: f.status === "activo" ? "all" : "activo" }) },
+    { k: "lesionados", n: kpi.lesionados, label: t("lesionados"), color: LOSS, on: f.status === "lesionado", go: () => set({ status: f.status === "lesionado" ? "all" : "lesionado" }) },
+    { k: "bajas", n: kpi.bajas, label: t("bajas esta temporada"), color: RS.ink2, on: f.status === "baja", go: () => set({ status: f.status === "baja" ? "all" : "baja" }) },
+    { k: "extranjeros", n: kpi.extranjeros, label: t("extranjeros"), color: RS.ink2, on: f.nat === "foreign", go: () => set({ nat: f.nat === "foreign" ? "all" : "foreign" }) },
+    ...(accounts ? [{ k: "sincuenta", n: kpi.sinCuenta, label: t("sin cuenta en la app"), color: "#B45309", on: f.account === "none", go: () => set({ account: f.account === "none" ? "all" : "none" }) }] : []),
+    { k: "sindorsal", n: kpi.sinDorsal, label: t("sin dorsal"), color: RS.ink2, on: f.noDorsal, go: () => set({ noDorsal: !f.noDorsal }) },
+  ];
 
-      {view === "current" && (<>
-      {/* Resumen */}
-      <div className="grid grid-cols-3 gap-3">
-        {[[msg("Jugadores"), players.length], [msg("Activos"), players.filter(p => (p.status || "activo") === "activo").length], [msg("Lesionados"), players.filter(p => p.status === "lesionado").length]].map(([l, v]) => (
-          <div key={l} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">{t(l)}</p>
-            <p className="text-2xl font-black leading-none mt-1" style={{ fontFamily: "var(--font-display)", color: "var(--granate)" }}>{v}</p>
+  // Filtros activos como etiquetas que se quitan con ✕
+  const teamName = (id) => teams.find((x) => x.id === id)?.name || t("Sin equipo");
+  const chips = [
+    ...(f.search ? [{ k: "q", label: `«${f.search}»`, clear: () => set({ search: "" }) }] : []),
+    ...f.teams.map((id) => ({ k: `t${id}`, label: teamName(id), clear: () => toggle("teams", id) })),
+    ...(f.years.length ? [{ k: "y", label: f.years.map(yearLabel).join(", "), clear: () => set({ years: [] }) }] : []),
+    ...(f.positions.length ? [{ k: "p", label: f.positions.map((p) => t(POS_LABEL[p])).join(", "), clear: () => set({ positions: [] }) }] : []),
+    ...(f.foot !== "all" ? [{ k: "f", label: t(FOOT_NAME[f.foot]), clear: () => set({ foot: "all" }) }] : []),
+    ...(f.status !== "all" ? [{ k: "s", label: { activo: t("Activo"), lesionado: t("Lesionado"), baja: t("Baja") }[f.status], clear: () => set({ status: "all" }) }] : []),
+    ...(f.nat !== "all" ? [{ k: "n", label: f.nat === "foreign" ? t("Extranjeros") : t("España"), clear: () => set({ nat: "all" }) }] : []),
+    ...(f.account !== "all" ? [{ k: "a", label: { own: t("Cuenta propia"), family: t("Familia"), none: t("Sin cuenta") }[f.account], clear: () => set({ account: "all" }) }] : []),
+    ...(f.noDorsal ? [{ k: "d", label: t("Sin dorsal"), clear: () => set({ noDorsal: false }) }] : []),
+  ];
+
+  const exportExcel = () => {
+    const { header, rows: data } = exportTable(sorted, {
+      posName: (p) => POS_NAME[p] || "",
+      countryName: (p) => countryOf(p)?.name || p.nationality || "",
+      withAccount: !!accounts,
+    });
+    downloadCsv(exportFileName(`jugadores-${BRAND.clubName}`.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-")), toCsv(header, data));
+  };
+
+  const status = (r) => {
+    const s = statusOf(r);
+    if (s === "baja") return <span style={chip(RS.lineSoft, RS.muted)}>{t("Baja")}</span>;
+    if (s === "lesionado") {
+      const until = r.injury?.expected_return;
+      return <span style={chip("#FEE2E2", LOSS)} title={r.injury?.diagnosis || ""}>{t("Lesión")}{until ? ` · ${format(new Date(until), "d MMM", { locale: dfl })}` : ""}</span>;
+    }
+    if (r.level === "alert") return <span style={chip(RS.lineSoft, RS.ink2)} title={t("Por debajo del mínimo de minutos del club")}>{t("Pocos minutos")}</span>;
+    return null;
+  };
+  const account = (r) => {
+    const a = accountOf(r);
+    if (a === "own") return <span style={chip("#DCFCE7", "#15803D")} title={t("Tiene su propia cuenta")}>{t("Propia")}</span>;
+    if (a === "family") return <span style={chip("#E0E7FF", "#3730A3")} title={t("Familiar vinculado: {n}", { n: r.acc.family })}>{t("Familia")}{r.acc.family > 1 ? ` · ${r.acc.family}` : ""}</span>;
+    if (r.acc?.pending) return <span style={chip("#FEF3C7", "#92400E")} title={t("Solicitud de familiar pendiente: {n}", { n: r.acc.pending })}>{t("Pendiente")}</span>;
+    return <span style={chip("#FEF3C7", "#92400E")}>{t("Sin cuenta")}</span>;
+  };
+
+  const showTeamCol = group !== "team";
+  const cols = 12 + (accounts ? 1 : 0) + (showTeamCol && lista ? 1 : 0);
+  const pad = lista ? "3px 8px" : "6px 8px";
+  const th = (label, key, right) => (
+    <th key={label} onClick={key ? () => onSort(key) : undefined} aria-sort={key && sort.key === key ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}
+      style={{ textAlign: right ? "right" : "left", padding: "6px 8px", fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: sort.key === key ? RS.granate : RS.muted, fontWeight: 700, borderBottom: `1px solid ${RS.line}`, whiteSpace: "nowrap", cursor: key ? "pointer" : "default", userSelect: "none", position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
+      {label}{key ? <span style={{ opacity: sort.key === key ? 1 : 0.4, marginLeft: 3 }}>{sort.key === key ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}</span> : null}
+    </th>
+  );
+
+  const groupHead = (g) => {
+    if (group === "none") return null;
+    const title = group === "team" ? (g.team?.name || t("Sin equipo")) : t(g.label);
+    const sub = group === "team" && g.team
+      ? [teamPlaysF7(g.team) ? "F7" : "F11", getCategoryLabel(g.team.category), t("{n} jugadores", { n: g.rows.length })].filter(Boolean).join(" · ")
+      : t("{n} jugadores", { n: g.rows.length });
+    return (
+      <tr key={`h-${g.key}`}>
+        <td colSpan={cols} style={{ padding: "12px 8px 4px" }}>
+          <div className="flex items-baseline" style={{ gap: 10 }}>
+            <span className="rs2-display" style={{ fontSize: 17, color: RS.granate, textTransform: "uppercase" }}>{title}</span>
+            <span style={{ fontSize: 11, color: RS.muted }}>{sub}</span>
+            {group === "team" && g.team && <Link to={`/TeamDetail?id=${g.team.id}`} style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: RS.granate }}>{t("Ver equipo →")}</Link>}
           </div>
-        ))}
-      </div>
+        </td>
+      </tr>
+    );
+  };
 
-      {/* Barra de búsqueda y filtros (sticky) */}
-      <div className="sticky top-[56px] lg:top-0 z-20 bg-white border border-gray-200 rounded-xl shadow-sm p-3 space-y-2.5">
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input placeholder={t("Buscar por nombre…")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9 border-gray-200 h-8" />
-          </div>
-          <Select value={filterTeam} onValueChange={setFilterTeam}>
-            <SelectTrigger className="w-[170px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder={t("Equipo")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("Todos los equipos")}</SelectItem>
-              {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterYear} onValueChange={setFilterYear}>
-            <SelectTrigger className="w-[130px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder={t("Año nac.")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("Todos los años")}</SelectItem>
-              {birthYears.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterNat} onValueChange={setFilterNat}>
-            <SelectTrigger className="w-[150px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder={t("Nacionalidad")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("Toda nacionalidad")}</SelectItem>
-              <SelectItem value="ESP">{t("Españoles ({n})", { n: players.filter((p) => countryOf(p)?.a3 === "ESP").length })}</SelectItem>
-              <SelectItem value="foreign">{t("Extranjeros ({length})", { length: players.filter(isForeign).length })}</SelectItem>
-              {natList.map((c) => <SelectItem key={c.a3} value={c.a3}>{fmt.country(c.a2, c.name)} ({players.filter((p) => countryOf(p)?.a3 === c.a3).length})</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterLaterality} onValueChange={setFilterLaterality}>
-            <SelectTrigger className="w-[140px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder={t("Lateralidad")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("Toda lateralidad")}</SelectItem>
-              {LATERALITY.map(l => <SelectItem key={l.value} value={l.value}>{t(l.label)}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[120px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder={t("Estado")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("Todos")}</SelectItem>
-              <SelectItem value="activo">{t("Activo")}</SelectItem>
-              <SelectItem value="lesionado">{t("Lesionado")}</SelectItem>
-              <SelectItem value="baja">{t("Baja")}</SelectItem>
-            </SelectContent>
-          </Select>
-          {accounts && (
-            <Select value={filterAccount} onValueChange={setFilterAccount}>
-              <SelectTrigger className="w-[160px] border-gray-200 bg-white h-8 text-xs"><SelectValue placeholder={t("Cuenta")} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("Cuenta: todas")}</SelectItem>
-                <SelectItem value="own">{t("Con cuenta propia")}</SelectItem>
-                <SelectItem value="family">{t("Con familiar vinculado")}</SelectItem>
-                <SelectItem value="none">{t("Sin cuenta")}</SelectItem>
-              </SelectContent>
-            </Select>
+  const row = (r) => {
+    const p = r.p;
+    const td = { padding: pad, borderTop: `1px solid ${RS.lineSoft}` };
+    const lowAtt = r.attPct != null && r.attPct < LOW_ATT;
+    const barColor = r.level === "alert" ? LOSS : r.level === "warn" ? "#B45309" : RS.granate;
+    return (
+      <tr key={p.id} data-testid={`player-row-${p.id}`} style={{ opacity: p.status === "baja" ? 0.6 : 1 }}>
+        <td className="rs2-display tabular-nums" style={{ ...td, fontSize: 15, color: RS.granate, width: 30 }}>{p.jersey_number ?? <span style={{ color: RS.faint }}>–</span>}</td>
+        <td style={{ ...td, whiteSpace: "nowrap" }}>
+          <Link to={`/PlayerProfile?id=${p.id}`} className="inline-flex items-center hover:underline" style={{ gap: 7, fontWeight: 700, color: RS.ink }}>
+            <Avatar p={p} size={lista ? 20 : 26} />
+            <span>
+              {playerFullName(p)}
+              {!lista && showTeamCol && r.team && <span style={{ display: "block", fontSize: 11, fontWeight: 400, color: RS.muted }}>{r.team.name}</span>}
+            </span>
+          </Link>
+        </td>
+        {showTeamCol && lista && <td style={{ ...td, color: RS.muted, whiteSpace: "nowrap", fontSize: 11 }}>{r.team?.name || "—"}</td>}
+        <td style={{ ...td, whiteSpace: "nowrap" }}>{juvenilYear(r.year, CURRENT_SEASON) ? <YearBadge year={r.year} sm /> : <span className="tabular-nums" style={{ fontSize: 11, color: RS.muted }}>{r.year || "—"}</span>}</td>
+        <td style={{ ...td, color: RS.muted }} title={POS_NAME[p.position] ? t(POS_NAME[p.position]) : undefined}>{POS_LABEL[p.position] ? t(POS_LABEL[p.position]) : "—"}</td>
+        <td style={{ ...td, color: RS.muted }} title={FOOT_NAME[p.laterality] ? t(FOOT_NAME[p.laterality]) : undefined}>{FOOT_NAME[p.laterality] ? t(FOOT_NAME[p.laterality]).charAt(0) : "—"}</td>
+        <td style={{ ...td, fontSize: 11, color: RS.muted, whiteSpace: "nowrap" }}>{isForeign(p) ? <Flag player={p} /> : null}</td>
+        <td className="tabular-nums" style={{ ...td, textAlign: "right" }}>{r.pj || <span style={{ color: RS.faint }}>–</span>}</td>
+        <td className="tabular-nums" style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
+          {r.pctMin == null ? <span style={{ color: RS.faint }}>–</span> : (<>
+            <span style={{ display: "inline-block", width: 36, height: 5, background: RS.lineSoft, borderRadius: 9, verticalAlign: "middle", marginRight: 5, overflow: "hidden" }}><span style={{ display: "block", width: `${Math.min(100, r.pctMin)}%`, height: "100%", background: barColor }} /></span>
+            {r.pctMin} %
+          </>)}
+        </td>
+        <td className="tabular-nums" style={{ ...td, textAlign: "right", fontWeight: r.goals ? 700 : 400 }}>{r.goals || <span style={{ color: RS.faint }}>–</span>}</td>
+        <td className="tabular-nums" style={{ ...td, textAlign: "right", ...(lowAtt ? { color: LOSS, fontWeight: 700 } : {}) }} title={r.attN ? t("{n} entrenos registrados", { n: r.attN }) : undefined}>{r.attPct == null ? <span style={{ color: RS.faint }}>–</span> : `${r.attPct} %`}</td>
+        <td style={td}>{status(r)}</td>
+        {accounts && <td style={td}>{account(r)}</td>}
+        <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
+          {perms.editPlayers && (
+            <span className="inline-flex" style={{ gap: 2 }}>
+              <button type="button" onClick={() => { setEditingPlayer(p); setDialogOpen(true); }} title={t("Editar")} aria-label={t("Editar")} data-testid={`player-edit-${p.id}`} className="p-1 rounded hover:bg-gray-100" style={{ color: "#B8ACAD" }}><Pencil className="w-3.5 h-3.5" /></button>
+              <button type="button" onClick={() => setDeleteId(p.id)} title={t("Eliminar")} aria-label={t("Eliminar")} className="p-1 rounded hover:bg-red-50" style={{ color: "#B8ACAD" }}><Trash2 className="w-3.5 h-3.5" /></button>
+            </span>
           )}
-        </div>
+        </td>
+      </tr>
+    );
+  };
 
-        <div className="flex flex-wrap gap-x-4 gap-y-2 items-center">
-          <div className="flex flex-wrap gap-1.5 items-center">
-            <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider mr-1">{t("Posición")}</span>
-            {POSITION_PILLS.map(pos => (
-              <button
-                key={pos.value}
-                onClick={() => togglePositionFilter(pos.value)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border ${
-                  filterPosition.has(pos.value) ? "text-white" : "text-gray-500 border-gray-200 hover:border-gray-300"
-                }`}
-                style={filterPosition.has(pos.value) ? { background: "var(--granate)", borderColor: "var(--granate)" } : {}}
-              >
-                {t(pos.label)}
-              </button>
+  const filtersPanel = (
+    <aside className="rs2-card" data-testid="players-filters"
+      style={{ flex: isMobile ? "1 1 100%" : "0 0 238px", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 14, alignSelf: "flex-start" }}>
+      <label className="flex items-center" style={{ gap: 8, border: `1px solid ${RS.line}`, borderRadius: 8, padding: "6px 9px" }}>
+        <Search width={14} height={14} color={RS.muted} aria-hidden="true" />
+        <span className="sr-only">{t("Buscar nombre o dorsal…")}</span>
+        <input type="search" value={f.search} onChange={(e) => set({ search: e.target.value })} placeholder={t("Buscar nombre o dorsal…")} data-testid="players-search"
+          style={{ fontSize: 12, border: 0, outline: 0, flex: 1, minWidth: 0, background: "none", color: RS.ink }} />
+      </label>
+      <FilterGroup title={t("Equipo")}>
+        <div style={{ maxHeight: 300, overflowY: "auto" }}>
+          {teams.map((tm) => (
+            <label key={tm.id} className="flex items-center" style={{ gap: 7, fontSize: 12, padding: "3px 0", color: RS.ink, cursor: "pointer" }}>
+              <input type="checkbox" checked={f.teams.includes(tm.id)} onChange={() => toggle("teams", tm.id)} style={{ accentColor: RS.granate }} data-testid={`players-team-${tm.id}`} />
+              <span style={{ flex: 1, minWidth: 0 }} className="truncate">{tm.name}</span>
+              <span style={{ fontSize: 10, color: RS.muted }}>{teamPlaysF7(tm) ? "F7" : "F11"}</span>
+              <span className="tabular-nums" style={{ fontSize: 11, color: RS.muted, width: 22, textAlign: "right" }}>{teamCounts.get(tm.id) || 0}</span>
+            </label>
+          ))}
+        </div>
+      </FilterGroup>
+      <FilterGroup title={t("Año de nacimiento")}>
+        <div className="flex flex-wrap" style={{ gap: 4 }}>
+          {years.map((y) => (
+            <Pill key={y.key} on={f.years.includes(y.key)} onClick={() => toggle("years", y.key)} testId={`players-year-${y.key}`}>
+              {yearLabel(y.key)} <span style={{ opacity: 0.6 }}>{y.n}</span>
+            </Pill>
+          ))}
+        </div>
+      </FilterGroup>
+      <FilterGroup title={t("Posición")}>
+        <div className="flex flex-wrap" style={{ gap: 4 }}>
+          {POS_PILLS.map((p) => <Pill key={p} on={f.positions.includes(p)} onClick={() => toggle("positions", p)} testId={`players-pos-${p}`} title={t(POS_NAME[p])}>{t(POS_LABEL[p])}</Pill>)}
+        </div>
+      </FilterGroup>
+      <FilterGroup title={t("Pierna")}>
+        <div className="flex flex-wrap" style={{ gap: 4 }}>
+          {[["all", t("Todas")], ["diestro", t("Diestro")], ["zurdo", t("Zurdo")], ["ambidiestro", t("Ambas")]].map(([k, l]) => <Pill key={k} on={f.foot === k} onClick={() => set({ foot: k })} testId={`players-foot-${k}`}>{l}</Pill>)}
+        </div>
+      </FilterGroup>
+      <FilterGroup title={t("Estado")}>
+        <div className="flex flex-wrap" style={{ gap: 4 }}>
+          {[["all", t("Todos")], ["activo", t("Activo")], ["lesionado", t("Lesionado")], ["baja", t("Baja")]].map(([k, l]) => <Pill key={k} on={f.status === k} onClick={() => set({ status: k })} testId={`players-status-${k}`}>{l}</Pill>)}
+        </div>
+      </FilterGroup>
+      <FilterGroup title={t("Nacionalidad")}>
+        <div className="flex flex-wrap" style={{ gap: 4 }}>
+          <Pill on={f.nat === "all"} onClick={() => set({ nat: "all" })} testId="players-nat-all">{t("Todas")}</Pill>
+          <Pill on={f.nat === "ESP"} onClick={() => set({ nat: "ESP" })} testId="players-nat-ESP">{t("España")}</Pill>
+          <Pill on={f.nat === "foreign"} onClick={() => set({ nat: "foreign" })} testId="players-nat-foreign">{t("Extranjeros")} <span style={{ opacity: 0.6 }}>{kpi.extranjeros}</span></Pill>
+        </div>
+      </FilterGroup>
+      {accounts && (
+        <FilterGroup title={t("Cuenta en la app")}>
+          <div className="flex flex-wrap" style={{ gap: 4 }}>
+            {[["all", t("Todas")], ["own", t("Propia")], ["family", t("Familia")], ["none", t("Sin cuenta")]].map(([k, l]) => (
+              <Pill key={k} on={f.account === k} onClick={() => set({ account: k })} testId={`players-acc-${k}`}>{l}{k === "none" ? <span style={{ opacity: 0.6 }}> {kpi.sinCuenta}</span> : null}</Pill>
             ))}
           </div>
-          <div className="ml-auto flex items-center gap-3">
-            <p className="text-xs text-gray-500">{filtered.length === 1 ? t("{n} resultado", { n: 1 }) : t("{n} resultados", { n: filtered.length })}</p>
-            {hasFilters && (
-              <button
-                onClick={() => { setSearch(""); setFilterTeam("all"); setFilterYear("all"); setFilterLaterality("all"); setFilterPosition(new Set()); setFilterStatus("all"); setFilterNat("all"); setFilterAccount("all"); }}
-                className="text-xs font-semibold underline" style={{ color: "var(--granate)" }}
-              >
-                {t("Limpiar filtros")}
+        </FilterGroup>
+      )}
+      {any && <button type="button" onClick={() => setF(EMPTY_FILTERS)} style={{ fontSize: 12, fontWeight: 700, color: RS.granate, textAlign: "left", background: "none", textDecoration: "underline" }} data-testid="players-clear">{t("Limpiar filtros")}</button>}
+    </aside>
+  );
+
+  return (
+    <Page testId="players">
+      <div style={{ maxWidth: 1500, margin: "0 auto", padding: isMobile ? "12px 10px 24px" : "18px 22px 28px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* Cabecera */}
+        <div className="flex flex-wrap items-end" style={{ gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: ".16em", color: RS.muted, textTransform: "uppercase" }}>{t("Directorio · Temporada {s}", { s: seasonLabel(CURRENT_SEASON) })}</div>
+            <h1 style={{ margin: "2px 0 0", lineHeight: 1 }}><span className="rs2-display" style={{ fontSize: isMobile ? 30 : 36, color: RS.granate }}>{t("JUGADORES")}</span></h1>
+          </div>
+          {perms.editPlayers && (
+            <div className="flex" style={{ gap: 4, background: "#fff", border: `1px solid ${RS.line}`, borderRadius: 999, padding: 3, marginLeft: isMobile ? 0 : 14 }} role="group" aria-label={t("Vista")}>
+              {[["current", t("Plantilla actual")], ["history", `${t("Histórico")} · ${historyCount}`]].map(([k, l]) => (
+                <button key={k} type="button" onClick={() => setView(k)} aria-pressed={view === k} data-testid={`players-view-${k}`}
+                  style={{ fontSize: 12, fontWeight: view === k ? 700 : 400, padding: "5px 12px", borderRadius: 999, border: 0, background: view === k ? RS.granate : "none", color: view === k ? "#fff" : RS.ink2 }}>{l}</button>
+              ))}
+            </div>
+          )}
+          <div className="flex" style={{ marginLeft: "auto", gap: 8 }}>
+            {view === "current" && (
+              <button type="button" onClick={exportExcel} data-testid="players-export" title={t("Descarga la lista con los filtros puestos")}
+                style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8, border: `1px solid ${RS.line}`, background: "#fff", color: RS.ink2, display: "flex", gap: 6, alignItems: "center" }}>
+                <Download width={14} height={14} aria-hidden="true" /> {t("Exportar Excel")}
               </button>
+            )}
+            {perms.editPlayers && (
+              <button type="button" onClick={() => { setEditingPlayer(null); setDialogOpen(true); }} data-testid="players-new"
+                style={{ fontSize: 13, fontWeight: 700, padding: "7px 14px", borderRadius: 8, border: 0, background: RS.granate, color: "#fff" }}>+ {t("Nuevo jugador")}</button>
             )}
           </div>
         </div>
-      </div>
 
-      {/* Table */}
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1,2,3,4,5].map(i => <div key={i} className="bg-white border border-gray-200 h-14 rounded animate-pulse" />)}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded p-12 text-center">
-          <Users className="w-8 h-8 text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-400 text-sm uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>
-            {hasFilters ? t("Sin resultados con estos filtros") : t("No hay jugadores registrados")}
-          </p>
-        </div>
-      ) : (
-        <div className="bg-white border border-gray-200 shadow-sm overflow-hidden rounded-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-400 uppercase tracking-wider select-none" style={{ fontFamily: "var(--font-display)" }}>
-                   <th className="text-left px-4 py-2 font-bold cursor-pointer hover:text-gray-700" onClick={() => handleSort("name")}>{t("Jugador")}<SortIcon col="name" /></th>
-                   <th className="text-center px-3 py-2 font-bold hidden sm:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("birth_date")}>{t("Año nac.")}<SortIcon col="birth_date" /></th>
-                   <th className="text-center px-3 py-2 font-bold hidden md:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("nat")}>{t("Nac.")}<SortIcon col="nat" /></th>
-                   <th className="text-left px-3 py-2 font-bold hidden md:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("team")}>{t("Equipo")}<SortIcon col="team" /></th>
-                   <th className="text-center px-3 py-2 font-bold cursor-pointer hover:text-gray-700" onClick={() => handleSort("position")}>{t("Pos.")}<SortIcon col="position" /></th>
-                   <th className="text-center px-3 py-2 font-bold hidden lg:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("laterality")}>{t("Lateralidad")}<SortIcon col="laterality" /></th>
-                   <th className="text-center px-3 py-2 font-bold hidden sm:table-cell cursor-pointer hover:text-gray-700" onClick={() => handleSort("jersey_number")}>{t("Dorsal")}<SortIcon col="jersey_number" /></th>
-                   <th className="text-center px-3 py-2 font-bold cursor-pointer hover:text-gray-700" onClick={() => handleSort("status")}>{t("Estado")}<SortIcon col="status" /></th>
-                   {accounts && <th className="text-center px-3 py-2 font-bold">{t("Cuenta")}</th>}
-                   <th className="px-3 py-2"></th>
-                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {sorted.map(player => {
-                  const team = teams.find(t => t.id === player.team_id);
-                  const birthYear = birthYearOf(player);
-                  return (
-                    <tr key={player.id} className="hover:bg-gray-50 transition-colors">
-                       <td className="px-4 py-1.5">
-                         <div className="flex items-center gap-2">
-                           <div className="w-8 h-8 shrink-0 rounded flex items-center justify-center overflow-hidden border border-gray-200" style={{ background: "var(--granate)" }}>
-                             <PlayerAvatar player={player} />
-                           </div>
-                           <p className="font-bold text-gray-900 leading-tight" style={{ fontFamily: "var(--font-display)" }}><PlayerName player={player} /></p>
-                         </div>
-                       </td>
-                      <td className="px-3 py-1.5 text-center hidden sm:table-cell font-black text-gray-600 text-sm" style={{ fontFamily: "var(--font-display)" }}>{birthYear || "—"}</td>
-                      <td className="px-3 py-1.5 text-center hidden md:table-cell"><Flag player={player} /></td>
-                      <td className="px-3 py-1.5 hidden md:table-cell text-xs text-gray-500">{team?.name || "—"}</td>
-                      <td className="px-3 py-1.5 text-center">
-                        {player.position ? (
-                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full" style={{ background: "var(--granate-pale)", color: "var(--granate)", fontFamily: "var(--font-display)" }}>
-                            {t(POSITION_LABELS[player.position] || player.position)}
-                          </span>
-                        ) : <span className="text-gray-300">—</span>}
-                      </td>
-                      <td className="px-3 py-1.5 text-center hidden lg:table-cell text-xs text-gray-500 capitalize">{player.laterality || "—"}</td>
-                      <td className="px-3 py-1.5 text-center hidden sm:table-cell font-black text-gray-600" style={{ fontFamily: "var(--font-display)" }}>{player.jersey_number || "—"}</td>
-                      <td className="px-3 py-1.5 text-center">
-                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
-                          player.status === "activo" ? "bg-green-50 text-green-700 border-green-200" :
-                          player.status === "lesionado" ? "bg-red-50 text-red-700 border-red-200" :
-                          "bg-gray-100 text-gray-400 border-gray-200"
-                        }`} style={{ fontFamily: "var(--font-display)" }}>{player.status || "activo"}</span>
-                      </td>
-                      {accounts && (() => {
-                        const acc = accOf(player.id);
-                        const none = acc.own === 0 && acc.family === 0;
-                        return (
-                          <td className="px-3 py-1.5 text-center">
-                            <div className="inline-flex items-center gap-1.5">
-                              <span title={acc.own ? t("Tiene su propia cuenta") : t("Sin cuenta propia")}><UserIcon className={`w-4 h-4 ${acc.own ? "text-green-600" : "text-gray-200"}`} /></span>
-                              <span title={acc.family ? t("Familiar vinculado: {n}", { n: acc.family }) : acc.pending ? t("Solicitud de familiar pendiente: {n}", { n: acc.pending }) : t("Sin familiar vinculado")} className="inline-flex items-center">
-                                <UsersRound className={`w-4 h-4 ${acc.family ? "text-blue-600" : acc.pending ? "text-amber-500" : "text-gray-200"}`} />
-                                {acc.family > 1 && <span className="text-[10px] font-bold text-blue-600 ml-0.5">{acc.family}</span>}
-                              </span>
-                              {none && !acc.pending && <span className="sr-only">{t("Sin cuenta")}</span>}
-                            </div>
-                          </td>
-                        );
-                      })()}
-                      <td className="px-3 py-1.5 text-right">
-                        {perms.editPlayers && (
-                          <div className="flex justify-end gap-1">
-                            <button onClick={() => { setEditingPlayer(player); setDialogOpen(true); }} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => setDeleteId(player.id)} className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        {view === "history" && <div className="rs2-card" style={{ padding: 12 }}><PlayerArchive players={players} teams={teamsRaw} /></div>}
+
+        {view === "current" && (<>
+          {/* Resumen que filtra */}
+          <div className="flex flex-wrap" style={{ gap: 8 }} data-testid="players-kpis">
+            {kpis.map((k) => (
+              <button key={k.k} type="button" onClick={k.go} aria-pressed={k.on} data-testid={`players-kpi-${k.k}`}
+                style={{ flex: isMobile ? "1 1 100px" : "1 1 120px", display: "flex", alignItems: "baseline", gap: 8, padding: "8px 12px", background: "#fff", border: `1px solid ${k.on ? RS.granate : RS.line}`, borderRadius: 10, textAlign: "left", boxShadow: k.on ? `inset 0 0 0 1px ${RS.granate}` : "none" }}>
+                <span className="rs2-display tabular-nums" style={{ fontSize: 24, color: k.color }}>{k.n}</span>
+                <span style={{ fontSize: 12, color: RS.ink2, lineHeight: 1.15 }}>{k.label}</span>
+              </button>
+            ))}
           </div>
-        </div>
-      )}
 
-      </>)}
+          <div className="flex flex-wrap items-start" style={{ gap: 12 }}>
+            {isMobile && (
+              <button type="button" onClick={() => setShowFilters((v) => !v)} aria-expanded={showFilters} data-testid="players-filters-toggle"
+                style={{ flex: "1 1 100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#fff", border: `1px solid ${RS.line}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: RS.ink2 }}>
+                <SlidersHorizontal width={15} height={15} aria-hidden="true" /> {t("Filtros")}{chips.length ? ` · ${chips.length}` : ""}
+                <span style={{ marginLeft: "auto", color: RS.muted }}>{showFilters ? "▲" : "▼"}</span>
+              </button>
+            )}
+            {(!isMobile || showFilters) && filtersPanel}
+
+            <section className="rs2-card" style={{ flex: "1 1 640px", minWidth: 0, overflow: "hidden", padding: 0 }} data-testid="players-table">
+              <div className="flex flex-wrap items-center" style={{ gap: 10, padding: "9px 14px", borderBottom: `1px solid ${RS.line}` }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: RS.ink }} data-testid="players-count">{filtered.length === 1 ? t("1 jugador") : t("{n} jugadores", { n: filtered.length })}</span>
+                {chips.length > 0 && (
+                  <span className="flex flex-wrap" style={{ gap: 4 }}>
+                    {chips.map((c) => (
+                      <button key={c.k} type="button" onClick={c.clear} title={t("Quitar filtro")} data-testid="players-chip"
+                        style={{ ...chip(RS.soft, RS.granate), border: 0 }}>{c.label} ✕</button>
+                    ))}
+                  </span>
+                )}
+                <div className="flex flex-wrap items-center" style={{ marginLeft: "auto", gap: 6 }}>
+                  <span style={{ fontSize: 11, color: RS.muted }}>{t("Agrupar")}</span>
+                  <Segmented options={GROUPS} value={group} onChange={setGroup} testPrefix="players-group" label={t("Agrupar")} />
+                  <DensityToggle value={density} onChange={setDensity} />
+                </div>
+              </div>
+
+              {isLoading ? (
+                <div style={{ padding: 14 }} className="space-y-2">{[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-8 rounded animate-pulse" style={{ background: RS.soft }} />)}</div>
+              ) : filtered.length === 0 ? (
+                <p style={{ padding: "40px 14px", textAlign: "center", color: RS.muted, fontSize: 13 }}>{any ? t("Sin resultados con estos filtros") : t("No hay jugadores registrados")}</p>
+              ) : (
+                <div style={{ overflow: "auto", maxHeight: isMobile ? "none" : "calc(100vh - 230px)" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, color: RS.ink }}>
+                    <thead>
+                      <tr>
+                        {th("#", "dorsal")}
+                        {th(t("Jugador"), "name")}
+                        {showTeamCol && lista && th(t("Equipo"), "team")}
+                        {th(t("Año"), "year")}
+                        {th(t("Pos"), "position")}
+                        {th(t("Pie"))}
+                        {th(t("Nac."))}
+                        {th(t("PJ"), "pj", true)}
+                        {th(t("% min"), "pctMin", true)}
+                        {th(t("G"), "goals", true)}
+                        {th(t("Entrenos"), "att", true)}
+                        {th(t("Estado"))}
+                        {accounts && th(t("Cuenta"))}
+                        {th("")}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groups.map((g) => (
+                        <React.Fragment key={g.key}>
+                          {groupHead(g)}
+                          {g.rows.map(row)}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div style={{ padding: "8px 14px 10px", fontSize: 11, color: RS.muted, borderTop: `1px solid ${RS.lineSoft}` }}>
+                {t("Rojo = juvenil de 1.º año · naranja = 2.º año. En rojo, asistencia a entrenos por debajo del 70 %. Estadísticas de esta temporada con su equipo.")}
+              </div>
+            </section>
+          </div>
+        </>)}
+      </div>
 
       <AddPlayerDialog
         open={dialogOpen}
@@ -409,7 +495,7 @@ export default function Players() {
         editingPlayer={editingPlayer}
       />
 
-      <AlertDialog open={!!deleteId} onOpenChange={open => { if (!open) setDeleteId(null); }}>
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
         <AlertDialogContent className="bg-white border-gray-200">
           <AlertDialogHeader>
             <AlertDialogTitle>{t("¿Eliminar jugador?")}</AlertDialogTitle>
@@ -421,6 +507,7 @@ export default function Players() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Page>
   );
 }
+
