@@ -15,7 +15,7 @@ import { isAdmin, coachTeamIdsOf } from './_lib/access.js';
 import { COORD, STAFF, isApprovedUser, teamIdsOfUser, reachableUserIds, searchPeople, MAX_INDIVIDUALS } from './_lib/recipients.js';
 import {
   cleanSendAt, withNoticeParam, inboxItem, historyItem, historyStats, markRead, markAllRead, unreadCount, noticeData, dispatchDue,
-  resendUnread, describeRecipients, unreadByTeam, canManageNotice, cleanTemplate, templateVisible, templateEditable, INBOX_LIMIT,
+  resendUnread, describeRecipients, unreadByTeam, canManageNotice, editPatch, cleanTemplate, templateVisible, templateEditable, INBOX_LIMIT,
 } from './_lib/notices.js';
 
 const RELATIONS = ['padre', 'madre', 'tutor', 'otro_familiar'];
@@ -292,6 +292,25 @@ export default async function handler(req, res) {
         const code = e.message === 'not_found' ? 404 : e.message === 'forbidden' ? 403 : 400;
         return res.status(code).json({ error: e.message });
       }
+    }
+
+    // Corregir un aviso (enviado o programado): solo quien lo envió o coordinación
+    if (a === 'notice_edit' && req.method === 'POST') {
+      const { rows } = await query(`select data from entities where entity_type = 'Notice' and id = $1`, [String(body.id || '')]);
+      const d = rows[0]?.data;
+      if (!d) return res.status(404).json({ error: 'not_found' });
+      if (!canManageNotice(d, user, isCoord(user))) return res.status(403).json({ error: 'forbidden' });
+      let patch;
+      try { patch = editPatch(d, body); } catch (e) { return res.status(400).json({ error: e.message }); }
+      if (!patch) return res.status(200).json({ ok: true, unchanged: true });
+      if (patch.audience) {
+        const sender = d.sender_id === user.id ? user : (await loadUserById(d.sender_id)) || user;
+        const { ids } = await resolveRecipients(sender, patch.audience);
+        if (!ids.size) return res.status(400).json({ error: 'no_recipients' });
+        patch.expected = ids.size;
+      }
+      await query(`update entities set data = data || $2::jsonb, updated_at = now() where id = $1 and data ->> 'status' = $3`, [body.id, JSON.stringify(patch), d.status || 'enviado']);
+      return res.status(200).json({ ok: true });
     }
 
     // Avisos programados: cancelar o enviar ya

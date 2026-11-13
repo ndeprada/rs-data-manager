@@ -84,4 +84,11 @@ export default [
   ["La hora ya ha pasado", "That time has already passed", "L'heure est déjà passée", "L'hora ja ha passat"],
   ["Como mucho, 60 días por delante", "At most 60 days ahead", "Au plus 60 jours à l'avance", "Com a molt, 60 dies endavant"],
   ["de {name}", "of {name}", "de {name}", "de {name}"],
+  ["No se pudo guardar", "Could not save", "Impossible d'enregistrer", "No s'ha pogut desar"],
+  ["Editar aviso programado", "Edit scheduled notice", "Modifier l'avis programmé", "Editar avís programat"],
+  ["Corregir aviso enviado", "Correct sent notice", "Corriger l'avis envoyé", "Corregir avís enviat"],
+  ["En la app todos verán el texto corregido, marcado como «Editado». La notificación que ya llegó al móvil no se puede cambiar.", "In the app everyone will see the corrected text, marked as “Edited”. The notification that already reached the phone can't be changed.", "Dans l'app, tout le monde verra le texte corrigé, marqué « Modifié ». La notification déjà arrivée sur le mobile ne peut pas être changée.", "A l'app tothom veurà el text corregit, marcat com a «Editat». La notificació que ja ha arribat al mòbil no es pot canviar."],
+  ["Para: {who} (para cambiar las personas, cancélalo y crea otro).", "To: {who} (to change the people, cancel it and create another).", "Pour : {who} (pour changer les personnes, annule-le et crée-en un autre).", "Per a: {who} (per canviar les persones, cancel·la'l i crea'n un altre)."],
+  ["Editado {when}", "Edited {when}", "Modifié {when}", "Editat {when}"],
+  ["editado", "edited", "modifié", "editat"],
 ];

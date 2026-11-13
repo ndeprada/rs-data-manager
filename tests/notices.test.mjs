@@ -110,3 +110,22 @@ assert.equal(templateEditable({ owner_id: 'x', shared: true }, { id: 'y' }, fals
 assert.equal(templateEditable({ owner_id: 'x' }, { id: 'y' }, true), true);
 
 console.log('notices ok');
+
+// Corregir avisos
+{
+  const { editPatch } = await import('../api/_lib/notices.js');
+  const sentD = { status: 'enviado', title: 'A', body: 'b', kind: 'general' };
+  assert.equal(editPatch(sentD, { title: 'A', body: 'b' }, NOW), null, 'sin cambios');
+  const p1 = editPatch(sentD, { title: 'A bien', body: 'b', kind: 'urgente', send_at: '2026-12-01T10:00:00Z', audience: { team_ids: ['x'] } }, NOW);
+  assert.deepEqual([p1.title, p1.kind, p1.original.title, p1.edit_count, 'send_at' in p1, 'audience' in p1], ['A bien', 'urgente', 'A', 1, false, false]);
+  assert.equal(editPatch({ ...sentD, original: { title: 'A0' }, edit_count: 1 }, { title: 'C' }, NOW).original, undefined, 'el original se guarda solo la primera vez');
+  const prog = { status: 'programado', title: 'P', body: 'b', send_at: '2026-11-14T08:00:00.000Z', audience: { team_ids: ['t1'], groups: ['jugadores'] } };
+  const p2 = editPatch(prog, { send_at: '2026-11-15T09:00:00Z', audience: { team_ids: ['t2', 3], groups: ['familiares', 'malo'] }, audience_label: 'T2' }, NOW);
+  assert.deepEqual([p2.send_at, p2.audience.team_ids, p2.audience.groups, p2.audience_label], ['2026-11-15T09:00:00.000Z', ['t2'], ['familiares'], 'T2']);
+  assert.ok(!('edited_at' in p2));
+  assert.equal(editPatch({ ...prog, audience: { user_ids: ['u1'] } }, { audience: { team_ids: ['t2'] } }, NOW).audience, undefined, 'a personas concretas no se cambia el para');
+  assert.throws(() => editPatch(prog, { send_at: '2026-11-01T00:00:00Z' }, NOW), /bad_send_at/);
+  assert.throws(() => editPatch({ status: 'fallido' }, {}, NOW), /not_editable/);
+  assert.throws(() => editPatch(sentD, { body: ' ' }, NOW), /title_and_body_required/);
+  console.log('edición ok');
+}

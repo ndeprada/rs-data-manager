@@ -7,6 +7,7 @@ import { RS, SearchBox } from "@/components/rs2/kit";
 import { Head } from "@/components/rs2/dashParts";
 import { KindChip, ReadBar, Seg, kindOptions, useWhen } from "@/components/avisos/AvisoParts";
 import { filterSent, splitSent, teamsLine } from "@/lib/noticeUi";
+import EditNotice from "@/components/avisos/EditNotice";
 import { useT, useDateLocale } from "@/i18n";
 
 const KIND_LABEL = { jugador: "Jugador", familiar: "Familiar", tecnico: "Cuerpo técnico", otro: "Usuario" };
@@ -16,7 +17,7 @@ const btn = (primary) => ({
 });
 
 // Detalle de un aviso enviado: quién no lo ha leído (por equipos), reenviar a esas personas y la lista completa
-function SentDetail({ n }) {
+function SentDetail({ n, onEdit }) {
   const t = useT();
   const when = useWhen();
   const qc = useQueryClient();
@@ -41,6 +42,10 @@ function SentDetail({ n }) {
   return (
     <div style={{ margin: "8px 0 2px", padding: "9px 11px", borderRadius: 9, background: "#F8F2F1" }} data-testid={`sent-detail-${n.id}`}>
       <p style={{ margin: "0 0 6px", fontSize: 13, color: RS.ink2, whiteSpace: "pre-line" }}>{n.body}</p>
+      <div className="flex flex-wrap items-center" style={{ gap: 8, marginBottom: 7 }}>
+        <button type="button" onClick={() => onEdit(n)} style={btn(false)} data-testid={`sent-edit-${n.id}`}>{t("Editar")}</button>
+        {n.edited_at && <span style={{ fontSize: 11.5, color: RS.muted }}>{t("Editado {when}", { when: when(n.edited_at) })}</span>}
+      </div>
       {!n.tracked ? (
         <p style={{ margin: 0, fontSize: 12, color: RS.faint }}>{t("Enviado antes de que la app apuntara quién lo lee: no hay datos de lectura.")}</p>
       ) : isLoading ? (
@@ -86,7 +91,7 @@ function SentDetail({ n }) {
 }
 
 // Avisos programados: cuándo salen, para quién, y enviar ya o cancelar
-function Scheduled({ items }) {
+function Scheduled({ items, onEdit }) {
   const t = useT();
   const locale = useDateLocale();
   const qc = useQueryClient();
@@ -111,6 +116,7 @@ function Scheduled({ items }) {
           </span>
           {n.status === "programado" && (
             <span className="inline-flex" style={{ gap: 6 }}>
+              <button type="button" disabled={busy === n.id} onClick={() => onEdit(n)} style={btn(false)} data-testid={`sched-edit-${n.id}`}>{t("Editar")}</button>
               <button type="button" disabled={busy === n.id} onClick={() => act(base44.club.scheduleNow, n.id)} style={btn(false)} data-testid={`sched-now-${n.id}`}>{t("Enviar ya")}</button>
               <button type="button" disabled={busy === n.id} onClick={() => { if (window.confirm(t("¿Cancelar este aviso programado?"))) act(base44.club.scheduleCancel, n.id); }}
                 style={{ ...btn(false), color: "#B91C1C" }} data-testid={`sched-cancel-${n.id}`}>{t("Cancelar")}</button>
@@ -129,6 +135,7 @@ export default function SentList({ items, uid, coord }) {
   const [kind, setKind] = useState("all");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(null);
+  const [editing, setEditing] = useState(null);
   const kinds = useMemo(() => new Set(items.map((n) => n.kind)), [items]);
   const { scheduled, failed, sent } = splitSent(filterSent(items, { who, kind, q }, uid));
 
@@ -141,7 +148,8 @@ export default function SentList({ items, uid, coord }) {
         <div style={{ flexBasis: "100%" }} />
         <SearchBox value={q} onChange={setQ} placeholder={t("Buscar…")} testId="sent-search" />
       </div>
-      {scheduled.length > 0 && <Scheduled items={scheduled} />}
+      {scheduled.length > 0 && <Scheduled items={scheduled} onEdit={setEditing} />}
+      {editing && <EditNotice notice={editing} onClose={() => setEditing(null)} />}
       {failed.map((n) => (
         <div key={n.id} style={{ padding: "8px 14px", borderBottom: `1px solid ${RS.lineSoft}`, background: "#FEF2F2", fontSize: 12.5, color: "#B91C1C" }} data-testid={`sent-failed-${n.id}`}>
           <b>{n.title}</b> · {t("No se pudo enviar el aviso programado")}{n.error === "no_recipients" ? ` (${t("no había nadie a quien enviarlo")})` : ""}
@@ -159,6 +167,7 @@ export default function SentList({ items, uid, coord }) {
                   <span className="flex flex-wrap items-center" style={{ gap: "2px 8px" }}>
                     <b style={{ fontSize: 14, color: RS.ink }}>{n.title}</b>
                     <KindChip kind={n.kind} />
+                    {n.edited_at && <span style={{ fontSize: 11, color: RS.muted, fontStyle: "italic" }}>{t("editado")}</span>}
                     <span style={{ marginLeft: "auto", fontSize: 12, color: RS.muted, whiteSpace: "nowrap" }}>{when(n.created_date)}</span>
                   </span>
                   <span className="flex flex-wrap items-center" style={{ gap: "2px 8px", marginTop: 3 }}>
@@ -167,7 +176,7 @@ export default function SentList({ items, uid, coord }) {
                       : <span style={{ fontSize: 12, color: RS.faint }}>{n.recipients === 1 ? t("{n} destinatario", { n: 1 }) : t("{n} destinatarios", { n: n.recipients })}</span>}
                   </span>
                 </button>
-                {isOpen && <SentDetail n={n} />}
+                {isOpen && <SentDetail n={n} onEdit={setEditing} />}
               </li>
             );
           })}

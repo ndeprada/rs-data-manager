@@ -148,6 +148,7 @@ export const base44 = {
     noticeReadAll: () => clubPost('notice_read_all'),
     noticePeople: (id) => clubGet('notice_people', { id }),
     noticeResend: (id) => clubPost('notice_resend', { id }),
+    noticeEdit: (payload) => clubPost('notice_edit', payload),
     scheduleCancel: (id) => clubPost('schedule_cancel', { id }),
     scheduleNow: (id) => clubPost('schedule_now', { id }),
     noticeTemplates: () => clubGet('templates'),

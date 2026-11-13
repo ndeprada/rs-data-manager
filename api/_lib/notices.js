@@ -40,7 +40,7 @@ export function inboxItem(row, uid) {
   const d = row.data || {};
   return {
     id: row.id, title: d.title, body: d.body, url: d.url, kind: kindOf(d.kind), sender_name: d.sender_name,
-    created_date: d.sent_at || row.created_at, read: isReadBy(d, uid),
+    created_date: d.sent_at || row.created_at, read: isReadBy(d, uid), edited_at: d.edited_at || null,
   };
 }
 
@@ -58,6 +58,8 @@ export function historyItem(row) {
   return {
     id: row.id, title: d.title, body: d.body, kind: kindOf(d.kind), sender_id: d.sender_id, sender_name: d.sender_name,
     audience_label: d.audience_label, team_ids: d.audience?.team_ids || [], all_club: !!d.audience?.all_club,
+    groups: d.audience?.groups || [], by_people: (d.audience?.user_ids || []).length > 0 || (d.audience?.player_ids || []).length > 0,
+    edited_at: d.edited_at || null,
     status: d.status || 'enviado', send_at: d.send_at || null,
     recipients, expected: d.expected || 0, error: d.error || null, sent: d.sent || 0, devices: d.devices || 0,
     resent_at: d.resent_at || null, resent_count: d.resent_count || 0,
@@ -166,6 +168,33 @@ export async function dispatchDue(db, deps, now = new Date()) {
 }
 
 export const canManageNotice = (d, user, coord) => coord || d.sender_id === user.id;
+
+/**
+ * Cambios al corregir un aviso. Ya enviado: título, texto y tipo (lo que ya llegó al móvil no se puede cambiar; en la app se
+ * ve la versión corregida con «Editado»). Programado: además la hora y, si se eligió por equipos, los equipos y a quién llega.
+ * Lanza 'not_editable' | 'bad_send_at' | 'title_and_body_required'.
+ */
+export function editPatch(d, body = {}, now = new Date()) {
+  const status = d.status || 'enviado';
+  if (status !== 'enviado' && status !== 'programado') throw new Error('not_editable');
+  const title = body.title === undefined ? d.title : String(body.title || '').trim().slice(0, 100);
+  const text = body.body === undefined ? d.body : String(body.body || '').trim().slice(0, 1800);
+  if (!title || !text) throw new Error('title_and_body_required');
+  const patch = { title, body: text, kind: body.kind === undefined ? kindOf(d.kind) : kindOf(body.kind) };
+  if (status === 'enviado') {
+    const changed = title !== d.title || text !== d.body || patch.kind !== kindOf(d.kind);
+    if (!changed) return null;
+    return { ...patch, edited_at: now.toISOString(), edit_count: (d.edit_count || 0) + 1, ...(d.original ? {} : { original: { title: d.title, body: d.body } }) };
+  }
+  if (body.send_at !== undefined) patch.send_at = cleanSendAt(body.send_at, now) || d.send_at;
+  const byPeople = (d.audience?.user_ids || []).length > 0 || (d.audience?.player_ids || []).length > 0;
+  if (body.audience && !byPeople) {
+    const a = body.audience;
+    patch.audience = { ...d.audience, all_club: !!a.all_club, team_ids: Array.isArray(a.team_ids) ? a.team_ids.filter((x) => typeof x === 'string').slice(0, 80) : [], groups: Array.isArray(a.groups) ? a.groups.filter((g) => ['jugadores', 'familiares', 'tecnico'].includes(g)) : [] };
+    if (body.audience_label !== undefined) patch.audience_label = String(body.audience_label || '').slice(0, 200);
+  }
+  return patch;
+}
 
 /** Reenvía un aviso solo a quien todavía no lo ha leído. Lanza 'not_found' | 'forbidden' | 'untracked' | 'too_soon' | 'nobody'. */
 export async function resendUnread(db, { id, user, coord, push, now = new Date() }) {

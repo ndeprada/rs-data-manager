@@ -74,7 +74,12 @@ export default function Inbox({ framed = false }) {
                   <span style={{ marginLeft: "auto", fontSize: 12, color: RS.muted, whiteSpace: "nowrap" }}>{when(n.created_date)}</span>
                 </span>
                 <span className={isOpen ? "block" : "line-clamp-2"} style={{ fontSize: 13, color: RS.ink2, marginTop: 2, whiteSpace: "pre-line" }}>{n.body}</span>
-                {n.sender_name && <span style={{ display: "block", fontSize: 11.5, color: RS.muted, marginTop: 3 }}>{t("De {name}", { name: n.sender_name })}</span>}
+                {(n.sender_name || n.edited_at) && (
+                  <span style={{ display: "block", fontSize: 11.5, color: RS.muted, marginTop: 3 }}>
+                    {n.sender_name ? t("De {name}", { name: n.sender_name }) : ""}{n.sender_name && n.edited_at ? " · " : ""}
+                    {n.edited_at && <i data-testid={`inbox-edited-${n.id}`}>{t("Editado {when}", { when: when(n.edited_at) })}</i>}
+                  </span>
+                )}
               </span>
             </button>
           </li>
