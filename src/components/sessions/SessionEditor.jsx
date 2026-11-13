@@ -27,6 +27,7 @@ import {
 } from "@/lib/sessionPlan";
 import { MATCH_TYPES } from "@/lib/matchStatus";
 import { isCancelled } from "@/lib/eventCancel";
+import { trainingNotesFor } from "@/lib/postMatch";
 
 const TRAINING_TYPES = ["entrenamiento", "entrenamiento_fisico"];
 const META = ["id", "created_date", "updated_date", "owner_id", "owner_name", "season"];
@@ -273,6 +274,8 @@ export default function SessionEditor({ session, draft, teams, sessions = [], on
 
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
+  // «Para el próximo entreno» del último partido del equipo antes de esta sesión (Postpartido, 13/11/2026)
+  const fromMatch = useMemo(() => trainingNotesFor(events, form.team_id, form.date ? `${form.date}T23:59` : null), [events, form.team_id, form.date]);
   const { data: staff = [] } = useQuery({ queryKey: ["staff"], queryFn: () => base44.entities.StaffMember.list() });
   const { data: pdiGoals = [] } = useQuery({ queryKey: ["pdi_goals_all"], queryFn: () => base44.entities.PDIGoal.list("-created_date", 2000) });
   const roster = useMemo(() => sortRoster(players.filter((p) => p.team_id === form.team_id && p.status !== "baja")), [players, form.team_id]);
@@ -473,6 +476,13 @@ export default function SessionEditor({ session, draft, teams, sessions = [], on
         </div>
 
         <aside className="xl:sticky xl:top-3 flex flex-col gap-4">
+          {fromMatch && (
+            <SCard className="px-[18px] py-3.5 flex flex-col gap-1.5" data-testid="session-from-match" style={{ borderLeft: "4px solid #2563EB" }}>
+              <D size={16}>Para este entreno</D>
+              <p className="text-[11px] m-0" style={{ color: C.muted }}>Del postpartido{fromMatch.event.opponent ? ` contra ${fromMatch.event.opponent}` : ""} ({fullDate(String(fromMatch.event.date).slice(0, 10))})</p>
+              {fromMatch.items.map((it, i) => <p key={i} className="text-[13px] m-0 flex gap-1.5"><span style={{ color: "#2563EB" }}>•</span>{it}</p>)}
+            </SCard>
+          )}
           <LiveSummary session={form} stage={stage} />
           <SCard className="px-[18px] py-3.5 flex flex-col gap-1.5">
             <Lab>Notas</Lab>

@@ -26,6 +26,7 @@ import { lineupAlerts, previousLineup, plainSummary, rivalSummary, shirtName } f
 import { participationOf, playerLevel } from "@/lib/participation";
 import { useParticipationContext } from "@/lib/useParticipation";
 import { agendaMeta } from "@/lib/weekendAgenda";
+import { rivalNotesBefore } from "@/lib/postMatch";
 import { pieceSetup, SP_KINDS } from "@/lib/setPieceBoard";
 import { RS } from "@/components/rs2/kit";
 import { FormChips } from "@/components/rs2/dashParts";
@@ -270,6 +271,9 @@ export default function TacticaTab({ event, players, convocadoIds, matchDorsals,
   const { data: injuries = [] } = useQuery({ queryKey: ["injuries"], queryFn: () => base44.entities.Injury.list().catch(() => []), retry: false });
   const partCtx = useParticipationContext("liga");
   const rivalOn = event?.type === "partido_liga" && !!event?.opponent;
+  // Lo que se apuntó del rival en el postpartido de los partidos anteriores contra él (13/11/2026)
+  const { data: allEvents = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date"), enabled: !!event?.opponent });
+  const pastRivalNotes = useMemo(() => rivalNotesBefore(allEvents, event), [allEvents, event]);
   const { data: report } = useQuery({
     queryKey: ["rival_report", event?.id],
     queryFn: () => base44.club.rivalReport(event.id),
@@ -686,6 +690,17 @@ export default function TacticaTab({ event, players, convocadoIds, matchDorsals,
         </>
       ) : (
         <p style={{ fontSize: 12, color: RS.faint }}>{rivalOn ? t("Sin datos de la FCF de este rival.") : t("Puedes escribir tu análisis del rival en el informe.")}</p>
+      )}
+      {pastRivalNotes.length > 0 && (
+        <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 9, background: "#FFF7ED", border: "1px solid #FED7AA" }} data-testid="prep-rival-notes">
+          <p style={{ ...lab, color: "#9A3412" }}>{t("Lo que apuntamos de ellos")}</p>
+          {pastRivalNotes.slice(0, 2).map((e) => (
+            <div key={e.id} style={{ fontSize: 12, color: RS.ink, padding: "3px 0" }}>
+              <b style={{ fontSize: 11, color: "#9A3412" }}>{format(new Date(e.date), "d MMM yyyy", { locale })}{e.score_home != null && e.score_away != null ? ` · ${e.score_home}-${e.score_away}` : ""}</b>
+              <p style={{ whiteSpace: "pre-line", margin: "2px 0 0" }}>{e.analysis_notes_rival}</p>
+            </div>
+          ))}
+        </div>
       )}
     </section>
   ) : null;

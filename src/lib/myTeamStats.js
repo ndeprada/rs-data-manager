@@ -52,6 +52,12 @@ export function leaderGap(rows = [], ourId) {
 const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
   .replace(/\./g, "").replace(/["',]/g, " ").replace(/\b(cf|fc|ue|ce|cd|ud|ad|sd|uec|club|futbol|de|del|la|el)\b/g, " ").replace(/\s+/g, " ").trim();
 
+/** ¿Es el mismo rival? (mismo criterio que findRival: sin acentos, siglas ni puntos; vale si uno contiene al otro) */
+export function sameTeamName(a, b) {
+  const x = norm(a), y = norm(b);
+  return !!x && !!y && (x === y || x.includes(y) || y.includes(x));
+}
+
 /** Fila del rival en la clasificación por su nombre (sin acentos, siglas ni puntos; vale si uno contiene al otro) */
 export function findRival(rows = [], name) {
   const n = norm(name);
