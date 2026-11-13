@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { resultCode, matchRows, seasonTotals, attendanceWindow, attendanceStrip, nextMatchFor, neighbours } from "../src/lib/playerProfile.js";
+import { seasonStart, resultCode, matchRows, seasonTotals, attendanceWindow, attendanceStrip, nextMatchFor, neighbours } from "../src/lib/playerProfile.js";
 
 const now = new Date("2026-11-12T10:00:00");
 const ev = (id, date, x = {}) => ({ id, team_id: "t1", date, type: "partido_liga", ...x });
@@ -92,4 +92,14 @@ test("anterior y siguiente del mismo equipo, sin bajas", () => {
   assert.equal(n.total, 3);
   assert.equal(neighbours(ps, ps[1]).prev, null);
   assert.equal(neighbours(ps, ps[2]).next, null);
+});
+
+test("asistencia de toda la temporada (desde el 1 de agosto)", () => {
+  assert.equal(seasonStart(new Date("2026-11-12T10:00:00")).toDateString(), new Date(2026, 7, 1).toDateString());
+  assert.equal(seasonStart(new Date("2027-03-02T10:00:00")).getFullYear(), 2026);
+  const evs = new Map([["a", { date: "2026-08-20T19:00" }], ["b", { date: "2026-11-10T19:00" }], ["c", { date: "2026-07-20T19:00" }]]);
+  const att = [{ event_id: "a", status: "absent" }, { event_id: "b", status: "present" }, { event_id: "c", status: "present" }];
+  const w = attendanceWindow(att, evs, { now, since: seasonStart(now) });
+  assert.equal(w.n, 2);
+  assert.equal(w.pct, 50);
 });

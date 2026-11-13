@@ -27,7 +27,7 @@ import { playerFirstName, playerFullName } from "@/lib/playerName";
 import { useCountedStats, useMatchStatus } from "@/lib/matchStatus";
 import { useParticipationContext } from "@/lib/useParticipation";
 import { participationOf, playerLevel } from "@/lib/participation";
-import { matchRows, seasonTotals, attendanceWindow, attendanceStrip, nextMatchFor, neighbours } from "@/lib/playerProfile";
+import { matchRows, seasonTotals, seasonStart, attendanceWindow, attendanceStrip, nextMatchFor, neighbours } from "@/lib/playerProfile";
 import { usePlayerMode } from "@/lib/playerMode";
 import { useAuth } from "@/lib/AuthContext";
 import { INJURY_TYPE_LABELS, BODY_PART_LABELS, labelOf } from "@/lib/injuryLabels";
@@ -145,6 +145,7 @@ export default function PlayerProfile() {
   const pctMin = part && part.all.availMin ? part.all.pctAvail : null;
   const level = part ? playerLevel(part) : null;
   const attWin = attendanceWindow(playerAttendance, evById, { now });
+  const attSeason = attendanceWindow(playerAttendance, evById, { now, since: seasonStart(now) });
   const attStrip = attendanceStrip(playerAttendance, evById, { now, n: 20 });
   const next = nextMatchFor({ events: allEventsSorted, convs: convsAll, teamId: player.team_id, playerId, now });
   const nb = neighbours(players, player);
@@ -173,7 +174,7 @@ export default function PlayerProfile() {
   const go = (p) => p && navigate(`/PlayerProfile?id=${p.id}`);
 
   const minColor = level === "alert" ? LOSS : level === "warn" ? AMBER : RS.granate;
-  const attColor = attWin.pct == null ? RS.faint : attWin.pct >= 80 ? WIN : attWin.pct >= 70 ? AMBER : LOSS;
+  const attColor = attSeason.pct == null ? RS.faint : attSeason.pct >= 80 ? WIN : attSeason.pct >= 70 ? AMBER : LOSS;
   const kpis = [
     { k: "pj", n: tot.played, label: t("partidos"), sub: t("{tit} titular · {sup} suplente · de {n}", { tit: tot.starter, sup: tot.sub, n: tot.matches }) },
     { k: "min", n: pctMin == null ? "–" : `${pctMin}%`, label: t("de los minutos"), sub: t("{min}' jugados", { min: fmt.num(tot.minutes) }), color: minColor, bar: pctMin, title: level === "alert" ? t("Por debajo del mínimo de minutos del club") : undefined },
@@ -182,7 +183,7 @@ export default function PlayerProfile() {
       ? { k: "p0", n: countCleanSheets(matchStats, allEvents, allMatchStats), label: t("porterías a 0"), sub: "" }
       : { k: "asist", n: tot.assists, label: t("asistencias"), sub: t("{n} G+A", { n: tot.goals + tot.assists }) },
     { k: "tarj", n: tot.yellow, label: tot.yellow === 1 ? t("amarilla") : t("amarillas"), sub: tot.red === 1 ? t("1 roja") : t("{n} rojas", { n: tot.red }), color: RS.ink2 },
-    { k: "entrenos", n: attWin.pct == null ? "–" : `${attWin.pct}%`, label: t("entrenos"), sub: attWin.n ? t("{ok} de {n} · 30 días", { ok: attWin.present + attWin.apart, n: attWin.n }) : t("30 días"), color: attColor, bar: attWin.pct },
+    { k: "entrenos", n: attSeason.pct == null ? "–" : `${attSeason.pct}%`, label: t("entrenos"), sub: attSeason.n ? t("{ok} de {n} · temporada", { ok: attSeason.present + attSeason.apart, n: attSeason.n }) : t("toda la temporada"), color: attColor, bar: attSeason.pct },
     ...(playerMode ? [] : [{ k: "nota", n: tot.rating == null ? "–" : fmt.num(tot.rating), label: t("valoración"), sub: tot.ratedN ? t("media de {n} partidos", { n: tot.ratedN }) : t("sin valorar"), color: AMBER }]),
   ];
   const chipDark = { fontSize: 12, padding: "2px 8px", borderRadius: 6, background: "rgba(255,255,255,.14)", whiteSpace: "nowrap" };

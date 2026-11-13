@@ -51,9 +51,15 @@ export function seasonTotals(rows = []) {
   };
 }
 
-/** Asistencia de un jugador en los últimos `days` días (al margen cuenta como asiste) */
-export function attendanceWindow(attendance = [], eventsById = new Map(), { now = new Date(), days = 30 } = {}) {
-  const from = now.getTime() - days * 86400000;
+/** 1 de agosto (inicio de la temporada) de la temporada en curso */
+export function seasonStart(now = new Date()) {
+  const y = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+  return new Date(y, 7, 1);
+}
+
+/** Asistencia de un jugador en los últimos `days` días, o desde `since` (al margen cuenta como asiste) */
+export function attendanceWindow(attendance = [], eventsById = new Map(), { now = new Date(), days = 30, since = null } = {}) {
+  const from = since ? since.getTime() : now.getTime() - days * 86400000;
   const out = { n: 0, present: 0, apart: 0, absent: 0, pct: null, topReason: null };
   const reasons = {};
   for (const a of attendance) {
