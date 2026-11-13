@@ -1,130 +1,98 @@
-import React, { useState, useEffect, useRef } from "react";
-import PlayerName from "@/components/common/PlayerName";
+// Convocatoria del partido (rediseñada el 13/11/2026 con la maqueta aprobada por Nacho):
+// lista por posición en dos columnas con Va/No, motivo en botones, últimos entrenos y % de minutos de cada jugador;
+// a la derecha, los datos de la convocatoria (con la equipación de la Agenda) y el mensaje siempre a la vista.
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { Search, Plus, Check, Eye, Clock, MapPin, MessageCircle, Copy, Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import { Search, Plus, Copy, Bell, Check, RotateCcw, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
-import { matchesPlayerSearch } from "@/lib/playerName";
-import { buildConvocationText, dorsalOf, groupPlayers, reasonText } from "@/lib/convocationMessage";
-import { NO_CONV_REASONS, reasonShort } from "@/lib/participation";
+import { matchesPlayerSearch, playerFullName } from "@/lib/playerName";
+import { buildConvocationText, dorsalOf, groupPlayers } from "@/lib/convocationMessage";
+import { NO_CONV_REASONS, participationOf, playerLevel } from "@/lib/participation";
+import { useParticipationContext } from "@/lib/useParticipation";
 import { useAutosave } from "@/lib/useAutosave";
+import { agendaMeta } from "@/lib/weekendAgenda";
+import { recentTrainings, trainingDots, messageKit, kitKeyOf } from "@/lib/matchSteps";
+import { minPlayersOf } from "@/lib/matchFormat";
 import SaveStatus from "@/components/common/SaveStatus";
+import Composer from "@/components/avisos/Composer";
+import { RS } from "@/components/rs2/kit";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useT, msg, useDateLocale } from "@/i18n";
 
-const POSITION_LABELS = {
+const POS = {
   portero: msg("POR"), lateral: msg("LAT"), central: msg("CT"), libre: msg("LIB"),
   mediocentro: msg("MC"), interior: msg("INT"), mediapunta: msg("MP"), delantero_centro: msg("DC"), extremo: msg("EXT"),
 };
+const KITS = [["primera", msg("1.ª")], ["segunda", msg("2.ª")], ["tercera", msg("3.ª")]];
+const DOT = { present: "#16A34A", apart: "#D97706", absent: "#DC2626" };
+const DOT_LABEL = { present: msg("Asiste"), apart: msg("Al margen"), absent: msg("No asiste") };
+const GREEN = "#15803D", RED = "#B91C1C";
 
-// El orden por posición (porteros, defensas, medios, delanteros) y el mensaje de WhatsApp están en @/lib/convocationMessage
-const GROUP_COLORS = {
-  Porteros:        { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-800" },
-  Defensas:        { bg: "bg-blue-50",   border: "border-blue-200",   text: "text-blue-800" },
-  Medios:          { bg: "bg-green-50",  border: "border-green-200",  text: "text-green-800" },
-  Delanteros:      { bg: "bg-red-50",    border: "border-red-200",    text: "text-red-800" },
-  "Sin posición":  { bg: "bg-gray-50",   border: "border-gray-200",   text: "text-gray-700" },
-};
+const label = { fontSize: 10.5, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: RS.muted, display: "block", marginBottom: 4 };
+const input = { width: "100%", fontSize: 14, padding: "7px 10px", borderRadius: 8, border: `1px solid ${RS.input}`, background: "#fff", color: RS.ink };
+const box = { ...input, background: RS.head, color: RS.ink2 };
 
-import Composer from "@/components/avisos/Composer";
-import { useT, msg, useDateLocale } from "@/i18n";
-
-// Los jugadores de una lista (convocados o no) por posición y con el dorsal al lado; con `reasons`, el motivo de cada uno (los no convocados)
-function PlayerColumn({ players, mark, markClass, numClass, reasons }) {
-  const t = useT();
+function CardTitle({ children, extra }) {
   return (
-    <div className="space-y-1.5">
-      {groupPlayers(players).map(({ group, players: list }) => (
-        <div key={group} className="space-y-0.5">
-          {list.map(p => (
-            <p key={p.id} className={`text-xs flex items-baseline gap-1 ${markClass}`}>
-              <span aria-hidden="true">{mark}</span>
-              <span className={`w-5 text-right tabular-nums font-bold shrink-0 ${numClass}`}>{dorsalOf(p)}</span>
-              <span className="min-w-0"><PlayerName player={p} />{reasons && reasonText(reasons[p.id]) && <span className="ml-1 text-[10px] opacity-70">({t(reasonShort(reasons[p.id]))})</span>}</span>
-            </p>
-          ))}
-        </div>
-      ))}
+    <div className="flex items-center justify-between" style={{ gap: 8, marginBottom: 10 }}>
+      <div style={{ borderLeft: `3px solid ${RS.naranja}`, paddingLeft: 8 }}><span className="rs2-display" style={{ fontSize: 17, color: RS.granateDark }}>{children}</span></div>
+      {extra}
     </div>
   );
 }
 
-// ── Preview / Notify Modal ───────────────────────────────
-function NotifyModal({ open, onClose, event, team, convocados, noConvocados, reasons, callupTime, kit, observations, onMarkNotified, sending }) {
+// Va / No de cada jugador
+function VaNo({ on, onChange, testId }) {
   const t = useT();
-  // Mensaje para el grupo de WhatsApp (siempre en español): convocados y no convocados por posición, con dorsal y observaciones
-  const buildWa = () => buildConvocationText({ event, team, convocados, noConvocados, reasons, callupTime, kit, info: observations });
-  const waDefault = buildWa();
-  // Aviso al móvil: el mismo contenido que el mensaje de WhatsApp (convocados y no convocados con dorsal, casa/fuera, 👕 y ℹ️), sin marcas de WhatsApp
-  // y SIN el motivo de la no convocatoria (decisión de Nacho, 23/10: por ahora el motivo solo va en el mensaje de WhatsApp, que se edita a mano).
-  // Le llega a toda la plantilla (convocados y no convocados) para que cada uno vea si está en la lista.
-  const pushBody = buildConvocationText({ event, team, convocados, noConvocados, callupTime, kit, info: observations, plain: true });
-  const squadIds = [...new Set([...convocados, ...noConvocados].map(p => p.id))];
-  const [waMsg, setWaMsg] = useState(waDefault);
-  const [copied, setCopied] = useState(false);
-  const copyWa = async () => {
-    try { await navigator.clipboard.writeText(waMsg); }
-    catch { const t = document.createElement("textarea"); t.value = waMsg; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
-    setCopied(true); setTimeout(() => setCopied(false), 2500);
-  };
-
-  useEffect(() => {
-    if (open) setWaMsg(buildWa());
-  }, [open]);
-
+  const b = (active, bg) => ({ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: active ? bg : "transparent", color: active ? "#fff" : RS.muted });
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-white border-gray-200 max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-black text-gray-900">{t("Avisar de la convocatoria")}</DialogTitle>
-        </DialogHeader>
+    <span className="inline-flex shrink-0" style={{ background: RS.soft, borderRadius: 999, padding: 2 }} data-testid={testId} data-on={on ? "1" : "0"}>
+      <button type="button" style={b(on, GREEN)} onClick={() => !on && onChange(true)} aria-pressed={on}>{t("Va")}</button>
+      <button type="button" style={b(!on, RED)} onClick={() => on && onChange(false)} aria-pressed={!on}>{t("No")}</button>
+    </span>
+  );
+}
 
-        <div className="space-y-5">
-          {/* Convocados / No convocados */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <p className="text-[10px] font-black uppercase tracking-wider text-green-700 mb-2">{t("Convocados ({length})", { length: convocados.length })}</p>
-              <PlayerColumn players={convocados} mark="✓" markClass="text-green-800" numClass="text-green-600" />
-            </div>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-[10px] font-black uppercase tracking-wider text-red-700 mb-2">{t("No convocados ({length})", { length: noConvocados.length })}</p>
-              <PlayerColumn players={noConvocados} mark="✗" markClass="text-red-800" numClass="text-red-500" reasons={reasons} />
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-green-200 bg-green-50/60 p-3 space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-green-800 flex items-center gap-1.5"><MessageCircle className="w-3.5 h-3.5" /> {t("Para el grupo de WhatsApp")}</p>
-            <Textarea value={waMsg} onChange={e => setWaMsg(e.target.value)} rows={10} className="border-green-200 bg-white text-xs leading-relaxed" />
-            <Button type="button" onClick={copyWa} className="w-full text-white bg-green-600 hover:bg-green-700">
-              <Copy className="w-3.5 h-3.5 mr-1.5" />{copied ? t("¡Copiado! Pégalo en WhatsApp") : t("Copiar mensaje")}
-            </Button>
-          </div>
-
-          <div className="rounded-lg border border-gray-200 p-3 space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-600 flex items-center gap-1.5"><Bell className="w-3.5 h-3.5" /> {t("Aviso al móvil (app)")}</p>
-            <Composer
-              key={open ? "open" : "closed"}
-              fixed={{ player_ids: squadIds, label: `Toda la plantilla (${squadIds.length})` }}
-              defaultTitle={`Convocatoria · ${team?.name || ""}`}
-              defaultBody={pushBody}
-              bodyRows={12}
-            />
-          </div>
-
-          <div className="flex gap-3 pt-1">
-            <Button variant="outline" onClick={onClose} className="flex-1">{t("Cerrar")}</Button>
-            <Button variant="club" onClick={onMarkNotified} disabled={sending} className="flex-1">
-              <Check className="w-3.5 h-3.5 mr-1.5" />
-              {sending ? t("Guardando…") : t("Marcar como notificada")}
-            </Button>
-          </div>
-          <p className="text-[10px] text-gray-400 -mt-2">{t("Copia el mensaje al grupo de WhatsApp y/o envía el aviso al móvil; después márcala como notificada para que quede constancia.")}</p>
+function PlayerRow({ p, on, onToggle, reason, onReason, dots, pct, level, injury }) {
+  const t = useT();
+  const fmt = useDateLocale();
+  const pctColor = level === "alert" ? RED : level === "warn" ? "#B45309" : RS.muted;
+  const injured = !!injury || p.status === "lesionado";
+  return (
+    <div style={{ padding: "6px 8px", borderRadius: 8, background: on ? "transparent" : "#FBF6F5", borderBottom: `1px solid ${RS.lineSoft}` }} data-testid={`conv-row-${p.id}`}>
+      <div className="flex items-center" style={{ gap: 8 }}>
+        <span className="rs2-display tabular-nums text-right shrink-0" style={{ width: 22, fontSize: 17, color: on ? RS.granate : RS.faint }}>{dorsalOf(p) || "•"}</span>
+        <span className="min-w-0 flex-1 truncate" style={{ fontSize: 13.5, color: on ? RS.ink : RS.muted }}>
+          <b style={{ fontWeight: 700 }}>{playerFullName(p)}</b> <span style={{ color: RS.faint, fontSize: 12 }}>{POS[p.position] ? t(POS[p.position]) : ""}</span>
+          {injured && <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "#FEE2E2", color: RED }}>{t("Lesión")}</span>}
+          {p._guest && <span style={{ marginLeft: 6, fontSize: 10.5, padding: "1px 6px", borderRadius: 999, background: RS.soft, color: RS.ink2 }}>{p._guest}</span>}
+        </span>
+        <span className="inline-flex shrink-0" style={{ gap: 3 }} aria-label={t("Últimos entrenos")}>
+          {(dots || []).map((d, i) => (
+            <span key={i} title={d ? `${t(DOT_LABEL[d.status] || "")}${d.reason ? ` · ${d.reason}` : ""}` : t("Sin lista")}
+              style={{ width: 7, height: 7, borderRadius: 99, background: d ? DOT[d.status] || "#ccc" : "#E4DCDB" }} />
+          ))}
+        </span>
+        <span className="tabular-nums text-right shrink-0" style={{ width: 36, fontSize: 12, color: pctColor, fontWeight: level === "alert" ? 700 : 400 }} title={t("% de minutos de la temporada")}>{pct == null ? "–" : `${pct}%`}</span>
+        <VaNo on={on} onChange={onToggle} testId={`conv-va-${p.id}`} />
+      </div>
+      {!on && (
+        <div className="flex flex-wrap items-center" style={{ gap: 4, margin: "6px 0 2px 30px" }}>
+          {NO_CONV_REASONS.map((r) => {
+            const sel = reason === r.value;
+            return (
+              <button key={r.value} type="button" onClick={() => onReason(sel ? "" : r.value)} data-testid={`conv-reason-${p.id}-${r.value}`}
+                style={{ fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 999, border: `1px solid ${sel ? "#FCA5A5" : RS.line}`, background: sel ? "#FEE2E2" : "#fff", color: sel ? RED : RS.ink2 }}>
+                {t(r.short)}
+              </button>
+            );
+          })}
+          {injury?.expected_return && <span style={{ fontSize: 11, color: RS.faint }}>· {t("vuelve {d}", { d: format(new Date(injury.expected_return), "d MMM", { locale: fmt }) })}</span>}
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+    </div>
   );
 }
 
@@ -132,28 +100,32 @@ function NotifyModal({ open, onClose, event, team, convocados, noConvocados, rea
 export default function ConvocationTab({ eventId, teamId, event, players, team }) {
   const t = useT();
   const dfl = useDateLocale();
+  const mobile = useIsMobile();
   const queryClient = useQueryClient();
   const [convocadoIds, setConvocadoIds] = useState([]);
   const [reasons, setReasons] = useState({});
   const [notes, setNotes] = useState("");
   const [callupTime, setCallupTime] = useState("");
-  const [kit, setKit] = useState(""); // 👕 equipación que deben traer
-  const [observations, setObservations] = useState(""); // ℹ️ información extra (las observaciones de antes pasan a ser esta)
+  const [kit, setKit] = useState(""); // 👕 lo que deben traer (texto libre); la equipación 1.ª/2.ª/3.ª va en el partido (Agenda)
+  const [observations, setObservations] = useState(""); // ℹ️ información extra
   const [guestSearch, setGuestSearch] = useState("");
   const [showGuestSearch, setShowGuestSearch] = useState(false);
-  const [showNotifyModal, setShowNotifyModal] = useState(false);
-  const [sending, setSending] = useState(false);
+  const [pushOpen, setPushOpen] = useState(false);
+  const [waEdited, setWaEdited] = useState(null); // texto del mensaje cambiado a mano (null = el que sale solo)
+  const [copied, setCopied] = useState(false);
+  const msgRef = useRef(null);
 
   const { data: convocation, isFetched } = useQuery({
     queryKey: ["convocatoria", eventId],
     queryFn: () => base44.entities.Convocatoria.filter({ event_id: eventId }).then(d => d[0] || null),
     enabled: !!eventId,
   });
-
-  const { data: allPlayers = [] } = useQuery({
-    queryKey: ["players"],
-    queryFn: () => base44.entities.Player.list(),
-  });
+  const { data: allPlayers = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
+  const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
+  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-date") });
+  const { data: attendance = [] } = useQuery({ queryKey: ["attendance"], queryFn: () => base44.entities.TrainingAttendance.list() });
+  const { data: injuries = [] } = useQuery({ queryKey: ["injuries"], queryFn: () => base44.entities.Injury.list().catch(() => []), retry: false });
+  const partCtx = useParticipationContext("liga");
 
   // Lo que se guarda. El motivo de cada jugador no convocado queda guardado para las estadísticas de ausencias.
   const buildForm = (ids, why, n, callup, obs, kitText) => ({
@@ -168,7 +140,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
 
   // Carga de lo guardado y guardado automático (no se guarda nada hasta que lo guardado esté cargado)
   const [hydrated, setHydrated] = useState(false);
-  const convIdRef = useRef(null); // id de la convocatoria (también cuando la crea este mismo guardado)
+  const convIdRef = useRef(null);
   const autosave = useAutosave({
     value: form,
     enabled: hydrated,
@@ -180,6 +152,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
       }
       queryClient.invalidateQueries({ queryKey: ["convocatoria", eventId] });
       queryClient.invalidateQueries({ queryKey: ["convocatorias"] });
+      queryClient.invalidateQueries({ queryKey: ["convocatorias_all"] });
     },
   });
   useEffect(() => {
@@ -199,258 +172,237 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
     setHydrated(true);
   }, [isFetched, convocation?.id]);
 
-  // «Avisar convocatoria»: primero se guarda lo pendiente y luego se abre el aviso
-  const handleSaveAndNotify = async () => {
-    await autosave.flush();
-    setShowNotifyModal(true);
-  };
-
-  // Deja constancia de que el entrenador ya ha avisado (WhatsApp y/o aviso al móvil)
-  const handleMarkNotified = async () => {
-    setSending(true);
-    try {
-      const id = convIdRef.current || convocation?.id;
-      if (id) {
-        await base44.entities.Convocatoria.update(id, { notified: true, notified_at: new Date().toISOString() });
-      }
-      queryClient.invalidateQueries({ queryKey: ["convocatoria", eventId] });
-      setShowNotifyModal(false);
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const toggleConvocado = (pid) => {
-    setConvocadoIds(prev => prev.includes(pid) ? prev.filter(id => id !== pid) : [...prev, pid]);
-  };
-
-  // Jugadores por grupo de posición (porteros, defensas, centrocampistas, delanteros) y, dentro de cada grupo, por posición y apellido
+  // ── Jugadores ──
   const activePlayers = players.filter(p => p.status !== "baja");
-  const playerGroups = groupPlayers(activePlayers);
-
-  const guestPlayers = allPlayers.filter(p =>
-    p.team_id !== teamId &&
-    !activePlayers.find(sp => sp.id === p.id) &&
-    (guestSearch ? matchesPlayerSearch(p, guestSearch) : false)
-  );
-
-  // Seleccionar / quitar a todos los jugadores del equipo de golpe (luego se ajusta uno a uno)
-  const allSelected = activePlayers.length > 0 && activePlayers.every(p => convocadoIds.includes(p.id));
-  const toggleAll = () => {
-    const teamIds = activePlayers.map(p => p.id);
-    setConvocadoIds(prev => allSelected
-      ? prev.filter(id => !teamIds.includes(id))
-      : [...new Set([...prev, ...teamIds])]);
-  };
-
+  const ownIds = new Set(activePlayers.filter((p) => p.team_id === teamId).map((p) => p.id));
+  const teamName = (id) => teams.find((x) => x.id === id)?.name || t("otro equipo");
+  // Invitados (de otros equipos): solo los convocados; salen al final con su equipo
+  const guests = allPlayers.filter((p) => convocadoIds.includes(p.id) && !ownIds.has(p.id)).map((p) => ({ ...p, _guest: teamName(p.team_id) }));
+  const squad = activePlayers.filter((p) => ownIds.has(p.id));
+  const groups = groupPlayers(squad);
   const convocados = allPlayers.filter(p => convocadoIds.includes(p.id));
-  const noConvocados = activePlayers.filter(p => !convocadoIds.includes(p.id));
-  const convocadosCount = convocadoIds.length;
+  const noConvocados = squad.filter(p => !convocadoIds.includes(p.id));
+  const minN = minPlayersOf(event, team);
+  const allSelected = squad.length > 0 && squad.every(p => convocadoIds.includes(p.id));
+
+  const setOn = (pid, on) => setConvocadoIds((prev) => on ? [...new Set([...prev, pid])] : prev.filter((id) => id !== pid));
+  const toggleAll = () => {
+    const ids = squad.map(p => p.id);
+    setConvocadoIds(prev => allSelected ? prev.filter(id => !ids.includes(id)) : [...new Set([...prev, ...ids])]);
+  };
+  const guestResults = allPlayers.filter(p =>
+    p.team_id !== teamId && p.status !== "baja" && !convocadoIds.includes(p.id) && (guestSearch ? matchesPlayerSearch(p, guestSearch) : false));
+
+  // Últimos entrenos y % de minutos de cada jugador
+  const trainings = useMemo(() => recentTrainings(events, teamId, { before: event?.date, n: 3 }), [events, teamId, event?.date]);
+  const shownIds = [...squad, ...guests].map((p) => p.id);
+  const dots = useMemo(() => trainingDots(trainings, attendance, shownIds), [trainings, attendance, shownIds.join(",")]);
+  const minutes = useMemo(() => {
+    const out = {};
+    const ctxByTeam = new Map();
+    for (const p of [...squad, ...guests]) {
+      if (!p.team_id) continue;
+      if (!ctxByTeam.has(p.team_id)) ctxByTeam.set(p.team_id, { ...partCtx, events: partCtx.events.filter((e) => e.team_id === p.team_id) });
+      const part = participationOf(p, ctxByTeam.get(p.team_id));
+      out[p.id] = { pct: part.all.availMin ? part.all.pctAvail : null, level: playerLevel(part) };
+    }
+    return out;
+  }, [partCtx, shownIds.join(",")]);
+  const injuryOf = useMemo(() => {
+    const m = new Map();
+    for (const i of injuries) if (i.status !== "alta" && !m.has(i.player_id)) m.set(i.player_id, i);
+    return m;
+  }, [injuries]);
+
+  // Reparte los grupos en dos columnas parecidas
+  const columns = useMemo(() => {
+    if (mobile) return [groups];
+    const total = groups.reduce((a, g) => a + g.players.length, 0);
+    const left = [], right = [];
+    let n = 0;
+    for (const g of groups) { if (n < total / 2) { left.push(g); n += g.players.length; } else right.push(g); }
+    return [left, right];
+  }, [groups, mobile]);
+
+  // ── Equipación (la misma que en la Agenda del Panel: Event.agenda_meta) ──
+  const meta = agendaMeta(event);
+  const kitKey = kitKeyOf(meta);
+  const setKitKey = async (key) => {
+    const next = { ...meta, kit: key === "primera" ? "" : key };
+    queryClient.setQueryData(["event", eventId], (old) => old ? { ...old, agenda_meta: next } : old);
+    await base44.entities.Event.update(eventId, { agenda_meta: next });
+    queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+    queryClient.invalidateQueries({ queryKey: ["events"] });
+  };
+  const kitForMessage = messageKit(meta, kit);
+
+  // ── Mensaje y aviso ──
+  const waAuto = buildConvocationText({ event, team, convocados, noConvocados, reasons, callupTime, kit: kitForMessage, info: observations });
+  const waMsg = waEdited ?? waAuto;
+  const pushBody = buildConvocationText({ event, team, convocados, noConvocados, callupTime, kit: kitForMessage, info: observations, plain: true });
+  const squadIds = [...new Set([...convocados, ...noConvocados].map(p => p.id))];
+  const copyWa = async () => {
+    try { await navigator.clipboard.writeText(waMsg); }
+    catch { const ta = document.createElement("textarea"); ta.value = waMsg; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+    setCopied(true); setTimeout(() => setCopied(false), 2500);
+  };
+  const markNotified = async (value = true) => {
+    await autosave.flush();
+    const id = convIdRef.current || convocation?.id;
+    if (!id) return;
+    await base44.entities.Convocatoria.update(id, value ? { notified: true, notified_at: new Date().toISOString() } : { notified: false, notified_at: null });
+    queryClient.invalidateQueries({ queryKey: ["convocatoria", eventId] });
+    queryClient.invalidateQueries({ queryKey: ["convocatorias_all"] });
+  };
+  const openPush = async () => { await autosave.flush(); setPushOpen(true); };
 
   const eventDate = event?.date ? new Date(event.date) : null;
+  const notified = !!convocation?.notified;
+  const pill = (bg, fg) => ({ fontSize: 13, fontWeight: 700, padding: "7px 14px", borderRadius: 8, background: bg, color: fg, display: "inline-flex", alignItems: "center", gap: 6 });
+  const smallBtn = { fontSize: 12.5, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: `1px solid ${RS.line}`, background: "#fff", color: RS.ink, display: "inline-flex", alignItems: "center", gap: 5 };
+
+  const renderGroup = ({ group, players: list }) => (
+    <div key={group} style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase", color: RS.muted, padding: "2px 8px 4px" }}>
+        {t(group)} <span style={{ color: RS.ink2 }}>{t("{a} de {b}", { a: list.filter((p) => convocadoIds.includes(p.id)).length, b: list.length })}</span>
+      </div>
+      {list.map((p) => (
+        <PlayerRow key={p.id} p={p} on={convocadoIds.includes(p.id)} onToggle={(on) => setOn(p.id, on)}
+          reason={reasons[p.id] || ""} onReason={(v) => setReasons((prev) => ({ ...prev, [p.id]: v }))}
+          dots={dots[p.id]} pct={minutes[p.id]?.pct ?? null} level={minutes[p.id]?.level} injury={injuryOf.get(p.id)} />
+      ))}
+    </div>
+  );
 
   return (
-    <div className="space-y-4">
+    <div className="grid items-start" style={{ gridTemplateColumns: mobile ? "1fr" : "minmax(0,1fr) 400px", gap: 12 }} data-testid="conv-tab">
+      {/* ── Lista ── */}
+      <section className="rs2-card" style={{ padding: mobile ? 10 : 14 }} data-testid="conv-list">
+        <div className="flex flex-wrap items-center" style={{ gap: "6px 14px" }}>
+          <span className="flex items-baseline" style={{ gap: 5 }}><span className="rs2-display tabular-nums" style={{ fontSize: 26, color: GREEN }} data-testid="conv-count">{convocadoIds.length}</span><span style={{ fontSize: 13, color: RS.ink2 }}>{t("convocados")}</span></span>
+          <span className="flex items-baseline" style={{ gap: 5 }}><span className="rs2-display tabular-nums" style={{ fontSize: 26, color: RED }}>{noConvocados.length}</span><span style={{ fontSize: 13, color: RS.ink2 }}>{t("no convocados")}</span></span>
+          <span style={{ fontSize: 11.5, color: convocadoIds.length < minN ? RED : RS.faint }}>{t("mínimo {n}", { n: minN })} · <SaveStatus state={autosave.state} onRetry={autosave.flush} className="inline" /></span>
+          <span className="flex" style={{ gap: 6, marginLeft: "auto" }}>
+            <button type="button" style={smallBtn} onClick={toggleAll} data-testid="conv-all">{allSelected ? t("Ninguno") : t("Todos van")}</button>
+            <button type="button" style={smallBtn} onClick={() => setShowGuestSearch((v) => !v)} data-testid="conv-guest"><Plus className="w-3.5 h-3.5" />{t("De otro equipo")}</button>
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center" style={{ gap: 6, fontSize: 11.5, color: RS.faint, margin: "6px 0 8px" }}>
+          <span>{t("Junto a cada jugador:")}</span>
+          <span className="inline-flex" style={{ gap: 3 }}><span style={{ width: 7, height: 7, borderRadius: 99, background: DOT.present }} /><span style={{ width: 7, height: 7, borderRadius: 99, background: DOT.apart }} /><span style={{ width: 7, height: 7, borderRadius: 99, background: DOT.absent }} /></span>
+          <span>{trainings.length === 1 ? t("último entreno") : t("últimos {n} entrenos", { n: trainings.length || 3 })}</span><span>·</span><span>{t("% de minutos de la temporada")}</span>
+        </div>
 
-      {/* ── Info del partido ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2" style={{ fontFamily: "var(--font-display)" }}>
-          {t("Información del partido")}
-        </p>
-        <div className="flex flex-wrap items-center gap-4">
-          {eventDate && (
-            <div className="flex items-center gap-1.5 text-sm text-gray-700 min-w-0">
-              <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-              <div>
-                <span className="text-[10px] text-gray-400 block leading-none">{t("Hora partido")}</span>
-                <span className="font-semibold text-xs">{format(eventDate, "HH:mm")} · {format(eventDate, "EEE d MMM", { locale: dfl })}</span>
-              </div>
+        {showGuestSearch && (
+          <div style={{ border: `1px solid ${RS.line}`, borderRadius: 10, padding: 10, marginBottom: 10, background: RS.head }} data-testid="conv-guest-box">
+            <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: RS.ink2 }}>{t("Buscar jugadores de otros equipos del club")}</span>
+              <button type="button" onClick={() => { setShowGuestSearch(false); setGuestSearch(""); }} aria-label={t("Cerrar")}><X className="w-4 h-4" style={{ color: RS.muted }} /></button>
             </div>
-          )}
-          {event?.location && (
-            <div className="flex items-center gap-1.5 text-sm text-gray-700 min-w-0">
-              <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-              <div>
-                <span className="text-[10px] text-gray-400 block leading-none">{t("Campo")}</span>
-                <span className="font-semibold text-xs truncate">{event.location}</span>
-              </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: RS.faint }} />
+              <input autoFocus placeholder={t("Nombre del jugador…")} value={guestSearch} onChange={e => setGuestSearch(e.target.value)} style={{ ...input, paddingLeft: 30 }} data-testid="conv-guest-search" />
             </div>
-          )}
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-            <div>
-              <span className="text-[10px] text-gray-400 block leading-none mb-0.5">{t("Convocatoria")}</span>
-              <Input
-                type="time"
-                value={callupTime}
-                onChange={e => setCallupTime(e.target.value)}
-                className="h-7 text-xs border-gray-200 w-28"
-              />
-            </div>
+            {guestSearch && guestResults.slice(0, 8).map(p => (
+              <button key={p.id} type="button" onClick={() => { setOn(p.id, true); setGuestSearch(""); }}
+                className="w-full text-left flex items-center hover:bg-white" style={{ gap: 8, padding: "6px 8px", borderRadius: 6, fontSize: 13 }}>
+                <span className="rs2-display" style={{ width: 22, color: RS.granate }}>{dorsalOf(p) || "•"}</span>
+                <b>{playerFullName(p)}</b>
+                <span style={{ marginLeft: "auto", fontSize: 12, color: RS.faint }}>{POS[p.position] ? t(POS[p.position]) : ""} · {teamName(p.team_id)}</span>
+              </button>
+            ))}
+            {guestSearch && guestResults.length === 0 && <p style={{ fontSize: 12, color: RS.faint, textAlign: "center", padding: 6 }}>{t("Sin resultados")}</p>}
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* ── Header stats + actions ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-3 text-sm items-center">
-          <span className="font-bold" style={{ color: "var(--granate)" }}>{t("{convocadosCount} convocados", { convocadosCount })}</span>
-          {convocation?.notified && (
-            <span className="text-[10px] text-green-600 font-bold border border-green-200 bg-green-50 px-2 py-0.5 rounded-full">{t("✓ Notificado")}</span>
-          )}
-        </div>
-        <div className="flex gap-2 flex-wrap items-center">
-          <SaveStatus state={autosave.state} onRetry={autosave.flush} />
-          <Button size="sm" variant="outline" onClick={toggleAll} className="text-xs border-gray-200">
-            <Check className="w-3.5 h-3.5 mr-1" /> {allSelected ? t("Quitar todos") : t("Seleccionar todos")}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setShowGuestSearch(!showGuestSearch)} className="text-xs border-gray-200">
-            <Plus className="w-3.5 h-3.5 mr-1" /> {t("Añadir de otro equipo")}
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleSaveAndNotify} disabled={autosave.state === "saving" || convocadosCount === 0}
-            className="text-xs border-blue-200 text-blue-700 hover:bg-blue-50">
-            <Eye className="w-3.5 h-3.5 mr-1" /> {t("Avisar convocatoria")}
-          </Button>
-        </div>
-      </div>
-
-      {/* Guest search */}
-      {showGuestSearch && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
-          <p className="text-xs font-semibold text-blue-700">{t("Buscar jugadores de otros equipos del club")}</p>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-            <input placeholder={t("Nombre del jugador…")} value={guestSearch} onChange={e => setGuestSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 text-sm border border-blue-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
-          </div>
-          {guestSearch && guestPlayers.slice(0, 8).map(p => (
-            <button key={p.id} onClick={() => { if (!convocadoIds.includes(p.id)) setConvocadoIds(prev => [...prev, p.id]); setGuestSearch(""); }}
-              className="w-full text-left flex items-center gap-2 px-3 py-2 rounded hover:bg-blue-100 text-sm">
-              <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: "var(--granate)" }}>
-                {p.first_name?.[0]}{p.last_name?.[0]}
-              </div>
-              <span className="font-medium"><PlayerName player={p} /></span>
-              <span className="text-xs text-gray-400 ml-auto">{POSITION_LABELS[p.position] ? t(POSITION_LABELS[p.position]) : "—"}</span>
-            </button>
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0,1fr))`, gap: 16 }}>
+          {columns.map((col, i) => (
+            <div key={i}>
+              {col.map(renderGroup)}
+              {i === columns.length - 1 && guests.length > 0 && renderGroup({ group: msg("De otros equipos"), players: guests })}
+            </div>
           ))}
-          {guestSearch && guestPlayers.length === 0 && <p className="text-xs text-gray-500 text-center py-2">{t("Sin resultados")}</p>}
+        </div>
+      </section>
+
+      {/* ── Datos y mensaje ── */}
+      <div className="flex flex-col" style={{ gap: 12 }}>
+        <section className="rs2-card" style={{ padding: 14 }} data-testid="conv-data">
+          <CardTitle>{t("Datos de la convocatoria")}</CardTitle>
+          <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <label><span style={label}>{t("Hora de convocatoria")}</span>
+              <input type="time" value={callupTime} onChange={e => setCallupTime(e.target.value)} style={input} data-testid="conv-callup" /></label>
+            <div><span style={label}>{t("Partido")}</span><div style={box}>{eventDate ? `${format(eventDate, "HH:mm")} · ${format(eventDate, "EEE d MMM", { locale: dfl })}` : "–"}</div></div>
+          </div>
+          <div style={{ marginTop: 10 }}><span style={label}>{t("Campo")}</span><div style={box}>{event?.location || "–"}</div></div>
+          <div style={{ marginTop: 10 }}>
+            <span style={label}>👕 {t("Equipación")}</span>
+            <div className="flex flex-wrap items-center" style={{ gap: 6 }}>
+              {KITS.map(([k, l]) => (
+                <button key={k} type="button" onClick={() => setKitKey(k)} data-testid={`conv-kit-${k}`} aria-pressed={kitKey === k}
+                  style={{ fontSize: 13, fontWeight: 700, minWidth: 44, padding: "6px 10px", borderRadius: 8, border: `1px solid ${kitKey === k ? RS.granate : RS.line}`, background: kitKey === k ? RS.granate : "#fff", color: kitKey === k ? "#fff" : RS.ink }}>{t(l)}</button>
+              ))}
+              <span style={{ fontSize: 11.5, color: RS.faint }}>· {t("la misma que en la Agenda del Panel")}</span>
+            </div>
+            <input value={kit} onChange={e => setKit(e.target.value)} style={{ ...input, marginTop: 6 }} placeholder={t("Qué más deben traer: chándal, medias…")} aria-label={t("Equipación que deben traer")} data-testid="conv-kit-text" />
+          </div>
+          <label className="block" style={{ marginTop: 10 }}><span style={label}>ℹ️ {t("Información extra")}</span>
+            <textarea value={observations} onChange={e => setObservations(e.target.value)} rows={2} style={input} placeholder={t("Material, comida, desplazamiento o cualquier otra indicación…")} data-testid="conv-info" /></label>
+          <label className="block" style={{ marginTop: 10 }}><span style={label}>{t("Notas internas (no se envían)")}</span>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} style={input} placeholder={t("Notas para el cuerpo técnico (no se envían a jugadores)…")} data-testid="conv-notes" /></label>
+        </section>
+
+        <section className="rs2-card" style={{ padding: 14 }} ref={msgRef} data-testid="conv-message">
+          <CardTitle extra={waEdited != null && (
+            <button type="button" onClick={() => setWaEdited(null)} style={{ fontSize: 11.5, color: RS.granate, display: "inline-flex", alignItems: "center", gap: 4 }} data-testid="conv-msg-reset">
+              <RotateCcw className="w-3 h-3" />{t("Rehacer el mensaje")}</button>
+          )}>{t("Mensaje y aviso")}</CardTitle>
+          <textarea value={waMsg} onChange={(e) => setWaEdited(e.target.value)} rows={mobile ? 10 : 13} data-testid="conv-msg"
+            style={{ width: "100%", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12.5, lineHeight: 1.45, padding: 12, borderRadius: 10, border: "none", background: "#F1ECE6", color: RS.ink, resize: "vertical" }} />
+          {waEdited != null && <p style={{ fontSize: 11, color: RS.faint, marginTop: 2 }}>{t("Cambiado a mano: ya no se actualiza solo.")}</p>}
+          <div className="flex flex-wrap" style={{ gap: 6, marginTop: 8 }}>
+            <button type="button" style={pill(RS.granateDark, "#fff")} onClick={copyWa} data-testid="conv-copy"><Copy className="w-3.5 h-3.5" />{copied ? t("¡Copiado!") : t("Copiar para WhatsApp")}</button>
+            <button type="button" style={{ ...pill(RS.naranja, "#fff"), opacity: convocadoIds.length ? 1 : 0.5 }} disabled={!convocadoIds.length} onClick={openPush} data-testid="conv-push"><Bell className="w-3.5 h-3.5" />{t("Enviar aviso al móvil · {n}", { n: squadIds.length })}</button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between" style={{ gap: 6, marginTop: 10, fontSize: 12.5 }} data-testid="conv-notified" data-notified={notified ? "1" : "0"}>
+            {notified ? (
+              <>
+                <span style={{ color: GREEN, fontWeight: 700 }}><Check className="w-3.5 h-3.5 inline -mt-0.5" /> {convocation?.notified_at ? t("Avisada el {d}", { d: format(new Date(convocation.notified_at), "d MMM · HH:mm", { locale: dfl }) }) : t("Avisada")}</span>
+                <button type="button" onClick={() => markNotified(false)} style={{ color: RS.muted, textDecoration: "underline" }}>{t("Quitar la marca")}</button>
+              </>
+            ) : (
+              <>
+                <span style={{ color: "#B45309" }}>● {t("Sin avisar todavía")}</span>
+                <button type="button" onClick={() => markNotified(true)} disabled={!convocadoIds.length} style={{ color: RS.granate, fontWeight: 700, textDecoration: "underline" }} data-testid="conv-mark">{t("Marcar como avisada")}</button>
+              </>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* Móvil: barra fija para ir al mensaje */}
+      {mobile && (
+        <div className="fixed left-0 right-0 bottom-0 flex items-center justify-between" style={{ zIndex: 30, padding: "10px 14px", background: RS.granateDark, color: "#fff", paddingBottom: "calc(10px + env(safe-area-inset-bottom))" }} data-testid="conv-mobile-bar">
+          <span style={{ fontSize: 14 }}><b className="rs2-display" style={{ fontSize: 20 }}>{convocadoIds.length}</b> {t("convocados")}</span>
+          <button type="button" onClick={() => msgRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} style={pill(RS.naranja, "#fff")}>{t("Mensaje y aviso")}</button>
         </div>
       )}
 
-      {/* ── Player list by group ── */}
-      <div className="space-y-3">
-        {playerGroups.map(({ group, players: groupList }) => {
-          const colors = GROUP_COLORS[group];
-          return (
-            <div key={group}>
-              <div className={`flex items-center gap-2 px-3 py-1 rounded-t-lg border ${colors.bg} ${colors.border}`}>
-                <span className={`text-[10px] font-black uppercase tracking-widest ${colors.text}`} style={{ fontFamily: "var(--font-display)" }}>
-                  {t(group)}
-                </span>
-                <span className="text-[10px] text-gray-400">({groupList.length})</span>
-              </div>
-              <div className="border border-t-0 border-gray-200 rounded-b-lg overflow-hidden divide-y divide-gray-100">
-                {groupList.map(player => {
-                  const isConv = convocadoIds.includes(player.id);
-                  return (
-                    <div key={player.id}
-                      className={`flex items-center gap-2.5 px-3 py-1.5 transition-all ${isConv ? "bg-white" : "bg-gray-50/50"}`}>
-                      <input type="checkbox" checked={isConv} onChange={() => toggleConvocado(player.id)}
-                        className="w-4 h-4 rounded border-gray-300 shrink-0" style={{ accentColor: "var(--granate)" }} />
-
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
-                        style={{ background: isConv ? "var(--granate)" : "#d1d5db" }}>
-                        {player.first_name?.[0]}{player.last_name?.[0]}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-semibold truncate ${isConv ? "text-gray-900" : "text-gray-400"}`}>
-                          <PlayerName player={player} format="last" />
-                          {player.status === "lesionado" && <span className="ml-1 text-[10px] text-orange-500">⚠</span>}
-                        </p>
-                        <p className="text-[10px] text-gray-400 leading-none">
-                          {POSITION_LABELS[player.position] ? t(POSITION_LABELS[player.position]) : "—"}{player.jersey_number ? ` · #${player.jersey_number}` : ""}
-                        </p>
-                      </div>
-
-                      {!isConv && (
-                        <Select value={reasons[player.id] || ""} onValueChange={v => setReasons(prev => ({ ...prev, [player.id]: v }))}>
-                          <SelectTrigger className="h-6 w-28 text-[10px] border-gray-200 bg-white text-gray-400 shrink-0">
-                            <SelectValue placeholder={t("Motivo…")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {NO_CONV_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{t(r.label)}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ── Observations ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-        <p className="text-[10px] font-black uppercase tracking-wider text-gray-400" style={{ fontFamily: "var(--font-display)" }}>
-          {t("Observaciones")}
-        </p>
-        <div className="flex items-start gap-2.5">
-          <span className="text-lg leading-8 shrink-0" aria-hidden="true">👕</span>
-          <div className="flex-1 min-w-0">
-            <span className="text-[10px] text-gray-400 block leading-none mb-1">{t("Equipación que deben traer")}</span>
-            <Input
-              value={kit}
-              onChange={e => setKit(e.target.value)}
-              className="border-gray-200 text-sm"
-              placeholder={t("Camiseta, pantalón, medias, chándal…")}
-              aria-label={t("Equipación que deben traer")}
-            />
-          </div>
-        </div>
-        <div className="flex items-start gap-2.5">
-          <span className="text-lg leading-8 shrink-0" aria-hidden="true">ℹ️</span>
-          <div className="flex-1 min-w-0">
-            <span className="text-[10px] text-gray-400 block leading-none mb-1">{t("Información extra")}</span>
-            <Textarea
-              value={observations}
-              onChange={e => setObservations(e.target.value)}
-              rows={2}
-              className="border-gray-200 text-sm"
-              placeholder={t("Material, comida, desplazamiento o cualquier otra indicación…")}
-              aria-label={t("Información extra")}
-            />
-          </div>
-        </div>
-        <div className="pt-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{t("Notas internas")}</p>
-          <Textarea
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            rows={2}
-            className="border-gray-200 text-sm"
-            placeholder={t("Notas para el cuerpo técnico (no se envían a jugadores)…")}
+      {/* Aviso al móvil: el mismo contenido que el mensaje, sin el motivo de los no convocados; le llega a toda la plantilla.
+          Al enviarlo, la convocatoria queda marcada como avisada. */}
+      <Dialog open={pushOpen} onOpenChange={setPushOpen}>
+        <DialogContent className="bg-white border-gray-200 max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="font-black text-gray-900">{t("Aviso al móvil (app)")}</DialogTitle></DialogHeader>
+          <Composer
+            key={pushOpen ? "open" : "closed"}
+            fixed={{ player_ids: squadIds, label: `Toda la plantilla (${squadIds.length})` }}
+            defaultTitle={`Convocatoria · ${team?.name || ""}`}
+            defaultBody={pushBody}
+            bodyRows={12}
+            onSent={() => markNotified(true)}
           />
-        </div>
-      </div>
-
-      {/* ── Notify modal ── */}
-      <NotifyModal
-        open={showNotifyModal}
-        onClose={() => setShowNotifyModal(false)}
-        event={event}
-        team={team}
-        convocados={convocados}
-        noConvocados={noConvocados}
-        reasons={reasons}
-        callupTime={callupTime}
-        kit={kit}
-        observations={observations}
-        onMarkNotified={handleMarkNotified}
-        sending={sending}
-      />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

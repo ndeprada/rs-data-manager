@@ -14,6 +14,9 @@ import GoalClassifier from "@/components/match/GoalClassifier";
 import SaveStatus from "@/components/common/SaveStatus";
 import { toStored, fromStored, goalLabel } from "@/lib/goalTypes";
 import { useT, msg } from "@/i18n";
+import { pendingReasons, reasonLabel } from "@/lib/matchStatus";
+import { matchPlayed, startersWithoutMinutes } from "@/lib/matchSteps";
+import { RS } from "@/components/rs2/kit";
 
 // ── Formatos de partido ──────────────────────────────────
 const FOOTBALL_FORMATS = [
@@ -119,7 +122,7 @@ function Timeline({ events, players, opponent, onRemove, onEdit }) {
 }
 
 // ── Componente principal ─────────────────────────────────
-export default function ActaTab({ eventId, teamId, event, players, team }) {
+export default function ActaTab({ eventId, teamId, event, players, team, onGoto }) {
   const t = useT();
   const queryClient = useQueryClient();
 
@@ -150,6 +153,9 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
   const [newEvPlayerOut, setNewEvPlayerOut] = useState("");
   const [newEvCardColor, setNewEvCardColor] = useState("yellow");
   const [eventWarning, setEventWarning] = useState("");
+  const [formOpen, setFormOpen] = useState(false); // el formulario se abre con los botones rápidos (+ Gol, + Tarjeta, + Cambio)
+  const minuteRef = useRef(null);
+  const [recomputing, setRecomputing] = useState(false);
 
   const { data: convocation } = useQuery({
     queryKey: ["convocatoria", eventId],
@@ -159,6 +165,12 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
 
   const convocadoIds = convocation?.player_ids || [];
   const starterIds = convocation?.starters || [];
+  // Lo que falta para cerrar el partido (mismo cálculo que el Panel y «Partidos por cerrar»)
+  const { data: evStats = [] } = useQuery({
+    queryKey: ["matchstats-event", eventId],
+    queryFn: () => base44.entities.MatchStats.filter({ event_id: eventId }),
+    enabled: !!eventId,
+  });
 
   const POSITION_SORT_ORDER = ["portero", "central", "libre", "lateral", "mediocentro", "interior", "mediapunta", "extremo", "delantero_centro"];
   const sortByPosition = (a, b) => {
@@ -239,6 +251,16 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
     commitEvents([...matchEventsRef.current, ev]);
     setEventWarning(warning);
     setNewEvGoal({}); setNewEvMinute(""); setNewEvPlayerId(""); setNewEvAssistId(""); setNewEvPlayerIn(""); setNewEvPlayerOut("");
+    setFormOpen(false);
+  };
+  // Botón rápido: abre el formulario de ese tipo con el cursor en el minuto
+  const quickAdd = (type) => {
+    setNewEvType(type);
+    setNewEvTeam("home");
+    setNewEvGoal({}); setNewEvPlayerId(""); setNewEvAssistId(""); setNewEvPlayerIn(""); setNewEvPlayerOut(""); setNewEvCardColor("yellow");
+    setEventWarning("");
+    setFormOpen(true);
+    setTimeout(() => minuteRef.current?.focus(), 30);
   };
 
   // Campos del partido que se guardan con los eventos (el marcador solo si cambia el número de goles)
@@ -440,9 +462,41 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
     queueSave({ score_home: home, score_away: away });
   }, [event?.id, event?.score_home, event?.score_away]);
 
-  return (
-    <div className="space-y-5">
+  // ── Lo que falta para cerrar el partido ──
+  const played = matchPlayed(event);
+  const pending = played ? pendingReasons(event, convocation, evStats, team) : [];
+  const noMinIds = startersWithoutMinutes(convocation, evStats);
+  const noMinNames = noMinIds.map((id) => players.find((p) => p.id === id)).filter(Boolean).map((p) => playerFullName(p));
+  const needsConv = pending.some((r) => r === "Sin convocatoria" || r.startsWith("Convocados:"));
+  const needsLineup = pending.some((r) => r === "Sin alineación" || r.startsWith("Alineación incompleta"));
+  const needsMinutes = pending.includes("Faltan minutos/cambios");
+  const recompute = async () => { setRecomputing(true); try { await saveStats(matchEvents, true); } finally { setRecomputing(false); } };
+  const bannerBtn = { fontSize: 12, fontWeight: 700, padding: "5px 11px", borderRadius: 8, border: `1px solid ${RS.line}`, background: "#fff", color: RS.granate, whiteSpace: "nowrap" };
 
+  return (
+    <div className="space-y-4">
+
+      {played && pending.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl px-4 py-3" style={{ background: "#FFF4EB", border: "1px solid #FBD5B5" }} data-testid="acta-close-banner">
+          <span className="text-sm" style={{ color: "#9A3412" }}>
+            ● {t("Para cerrar el partido falta:")} <b>{pending.map((r) => reasonLabel(r, t)).join(" · ")}</b>
+            {needsMinutes && noMinNames.length > 0 && <span className="ml-1">({noMinNames.join(", ")})</span>}
+          </span>
+          <span className="flex flex-wrap gap-2 ml-auto">
+            {needsMinutes && <button type="button" style={bannerBtn} onClick={recompute} disabled={recomputing} data-testid="acta-recompute">{recomputing ? t("Guardando…") : t("Recalcular minutos")}</button>}
+            {needsMinutes && <button type="button" style={bannerBtn} onClick={() => document.getElementById("acta-lineup")?.scrollIntoView({ behavior: "smooth" })}>{t("Corregir a mano")}</button>}
+            {needsConv && onGoto && <button type="button" style={bannerBtn} onClick={() => onGoto("convocatoria")} data-testid="acta-goto-conv">{t("Ir a la convocatoria")}</button>}
+            {needsLineup && onGoto && <button type="button" style={bannerBtn} onClick={() => onGoto("tactica")} data-testid="acta-goto-prep">{t("Poner la alineación")}</button>}
+          </span>
+        </div>
+      )}
+      {played && pending.length === 0 && (
+        <p className="text-xs font-semibold" style={{ color: "#15803D" }} data-testid="acta-closed">✓ {t("Partido cerrado: ya cuenta en las estadísticas.")}</p>
+      )}
+
+      {/* Dos columnas en el ordenador: marcador y línea del tiempo a la izquierda, alineación y minutos a la derecha */}
+      <div className="grid xl:grid-cols-2 gap-4 items-start">
+      <div className="space-y-4 min-w-0">
       {/* ── Formato y resultado ── */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
         <div className="flex flex-wrap gap-3 items-end">
@@ -497,10 +551,21 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
         )}
       </div>
 
-      {/* ── Añadir evento de partido ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-        <p className="text-sm font-bold text-gray-900">{t("Añadir evento al partido")}</p>
-
+      {/* ── Línea del tiempo: botones rápidos, formulario y eventos ── */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3" data-testid="acta-timeline">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-bold text-gray-900 mr-2">{t("📋 Línea del tiempo")}</p>
+          {[["goal", t("⚽ Gol")], ["card", t("🟨 Tarjeta")], ["sub", t("🔄 Cambio")]].map(([k, l]) => (
+            <button key={k} type="button" onClick={() => quickAdd(k)} data-testid={`acta-quick-${k}`}
+              className="text-xs font-bold rounded-lg px-3 py-1.5 border transition-colors"
+              style={{ borderColor: formOpen && newEvType === k ? RS.granate : RS.line, background: formOpen && newEvType === k ? RS.granate : RS.soft, color: formOpen && newEvType === k ? "#fff" : RS.granate }}>
+              + {l}
+            </button>
+          ))}
+        </div>
+        {!formOpen && matchEvents.length === 0 && <p className="text-[11px] text-gray-400">{t("Toca + Gol, + Tarjeta o + Cambio: se abre el formulario con el minuto.")}</p>}
+        {formOpen && (
+          <div className="rounded-lg p-3 space-y-2" style={{ background: RS.head, border: `1px solid ${RS.lineSoft}` }} data-testid="acta-form">
         <div className="flex flex-wrap gap-2 items-end">
           <div>
             <p className="text-[10px] text-gray-400 mb-1">{t("Tipo")}</p>
@@ -525,7 +590,7 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
           </div>
           <div>
             <p className="text-[10px] text-gray-400 mb-1">{t("Minuto")}</p>
-            <Input type="number" min="1" max={matchMinutes + 15} value={newEvMinute} onChange={e => setNewEvMinute(e.target.value)}
+            <Input ref={minuteRef} type="number" min="1" max={matchMinutes + 15} value={newEvMinute} onChange={e => setNewEvMinute(e.target.value)}
               className="h-8 w-16 text-xs border-gray-200" placeholder="1'" />
           </div>
 
@@ -597,25 +662,31 @@ export default function ActaTab({ eventId, teamId, event, players, team }) {
           </Button>
         </div>
 
+            <button type="button" onClick={() => setFormOpen(false)} className="text-[11px] text-gray-500 underline">{t("Cancelar")}</button>
+          </div>
+        )}
+
         {eventWarning && (
           <div className="flex items-start gap-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {eventWarning}
           </div>
         )}
+
+        {matchEvents.length > 0 && (
+          <>
+            <Timeline events={matchEvents} players={players} opponent={event?.opponent} onRemove={removeEvent} onEdit={ev => setEditEv({ ...ev })} />
+            <p className="text-[10px] text-gray-400">{t("Pulsa el lápiz para completar o corregir un evento (asistente, tipo de gol, jugador…). Los datos vienen de la FCF y tus cambios se mantienen al volver a sincronizar.")}</p>
+          </>
+        )}
       </div>
 
-      {/* ── Timeline ── */}
-      {matchEvents.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-          <p className="text-sm font-bold text-gray-900">{t("📋 Línea del tiempo")}</p>
-          <Timeline events={matchEvents} players={players} opponent={event?.opponent} onRemove={removeEvent} onEdit={ev => setEditEv({ ...ev })} />
-          <p className="text-[10px] text-gray-400">{t("Pulsa el lápiz para completar o corregir un evento (asistente, tipo de gol, jugador…). Los datos vienen de la FCF y tus cambios se mantienen al volver a sincronizar.")}</p>
-        </div>
-      )}
-
+      </div>
+      <div className="min-w-0" id="acta-lineup">
       {/* ── Alineación y resumen por jugador ── */}
       <LineupSummary eventId={eventId} event={event} convocation={convocation} convocados={convocados} starterIds={starterIds}
         matchEvents={matchEvents} matchMinutes={matchMinutes} onRecompute={() => saveStats(matchEvents, true)} />
+      </div>
+      </div>
 
       {/* ── Editar evento ── */}
       <Dialog open={!!editEv} onOpenChange={o => { if (!o) setEditEv(null); }}>

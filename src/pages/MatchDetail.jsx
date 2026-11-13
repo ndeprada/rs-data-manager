@@ -1,86 +1,48 @@
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Trash2, Users, FileText, Map, Pencil, Upload, MapPin, Calendar, ClipboardCheck } from "lucide-react";
 import { CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
 import ConvocationTab from "@/components/match/ConvocationTab";
 import ActaTab from "@/components/match/ActaTab";
 import TacticaTab from "@/components/match/TacticaTab";
 import PostMatchTab from "@/components/match/PostMatchTab";
 import EditEventDialog from "@/components/myteam/EditEventDialog";
-import { isCancelled, cancelText } from "@/lib/eventCancel";
-import { playerFullName } from "@/lib/playerName";
+import { MatchHeader, MatchStepsNav } from "@/components/match/MatchHeader";
 import { matchPlayerIds, withGuests } from "@/lib/matchPlayers";
-
-import TabBar from "@/components/common/TabBar";
-import { useT, useDateLocale, msg } from "@/i18n";
-import { matchFormat } from "@/lib/matchFormat";
-function Shield({ src, name, canUpload, onUpload }) {
-  const t = useT();
-  const inputRef = useRef(null);
-  const [uploading, setUploading] = useState(false);
-
-  const handleFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    onUpload(file_url);
-    setUploading(false);
-  };
-
-  return (
-    <div className="flex flex-col items-center gap-1 relative group">
-      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden flex items-center justify-center border-2 border-white/20 bg-white/10 relative">
-        {src ? (
-          <img src={src} alt={name} className="w-full h-full object-contain p-1.5" />
-        ) : (
-          <span className="text-3xl font-black text-white/30" style={{ fontFamily: "var(--font-display)" }}>
-            {name?.[0] || "?"}
-          </span>
-        )}
-        {canUpload && (
-          <>
-            <button
-              onClick={() => inputRef.current?.click()}
-              className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 rounded-2xl"
-              title={t("Subir escudo del rival")}
-            >
-              {uploading
-                ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                : <><Upload className="w-4 h-4 text-white" /><span className="text-[9px] text-white font-bold uppercase tracking-wide">{t("Subir")}</span></>
-              }
-            </button>
-            <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-          </>
-        )}
-      </div>
-      <p className="text-[10px] uppercase tracking-wider text-white/55 font-bold text-center max-w-[110px] leading-tight" style={{ fontFamily: "var(--font-display)" }}>
-        {name}
-      </p>
-    </div>
-  );
-}
+import { Page } from "@/components/rs2/kit";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useT } from "@/i18n";
+import { matchFormat, minPlayersOf } from "@/lib/matchFormat";
+import { pendingReasons } from "@/lib/matchStatus";
+import { matchSteps, matchPlayed, STEP_KEYS } from "@/lib/matchSteps";
+import { findRival } from "@/lib/myTeamStats";
 
 export default function MatchDetail() {
   const t = useT();
-  const dfl = useDateLocale();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const mobile = useIsMobile();
   const params = new URLSearchParams(location.search);
   const { canManageTeam } = useTeamAccess();
   const eventId = params.get("id");
   const teamId = params.get("teamId");
 
-  const [activeTab, setActiveTab] = useState(["convocatoria", "acta", "tactica", "postpartido"].includes(params.get("tab")) ? params.get("tab") : "convocatoria");
+  const [activeTab, setActiveTabState] = useState(STEP_KEYS.includes(params.get("tab")) ? params.get("tab") : null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+
+  // El paso elegido queda en la dirección (?tab=) para volver al mismo sitio
+  const setActiveTab = (key) => {
+    setActiveTabState(key);
+    const q = new URLSearchParams(location.search);
+    q.set("tab", key);
+    navigate({ search: q.toString() }, { replace: true });
+  };
 
   const { data: event, isLoading: eventLoading } = useQuery({
     queryKey: ["event", eventId],
@@ -104,6 +66,28 @@ export default function MatchDetail() {
     queryKey: ["convocatoria", eventId],
     queryFn: () => base44.entities.Convocatoria.filter({ event_id: eventId }).then(d => d[0] || null),
     enabled: !!eventId,
+  });
+  const { data: plan } = useQuery({
+    queryKey: ["matchplan", eventId],
+    queryFn: () => base44.entities.MatchPlan.filter({ event_id: eventId }).then(d => d[0] || null),
+    enabled: !!eventId,
+  });
+  const { data: evStats = [] } = useQuery({
+    queryKey: ["matchstats-event", eventId],
+    queryFn: () => base44.entities.MatchStats.filter({ event_id: eventId }),
+    enabled: !!eventId,
+  });
+  // Clasificación de la FCF (para el puesto y la racha del rival)
+  const { data: standing } = useQuery({
+    queryKey: ["fcf-standing", teamId],
+    queryFn: async () => {
+      const r = await fetch(`/api/sync-fcf?standings=${teamId}`, { credentials: "include" });
+      if (!r.ok) throw new Error("error");
+      return r.json();
+    },
+    enabled: !!teamId,
+    staleTime: 1000 * 60 * 30,
+    retry: 1,
   });
 
   // Jugadores del partido = plantilla + invitados de otros equipos del club (convocados, titulares o en el acta)
@@ -129,6 +113,13 @@ export default function MatchDetail() {
     onSuccess: () => navigate(-1),
   });
 
+  const steps = useMemo(() => {
+    if (!event) return [];
+    const now = new Date();
+    const pending = matchPlayed(event, now) ? pendingReasons(event, convocation, evStats, team) : [];
+    return matchSteps({ event, conv: convocation, plan, stats: evStats, pending, minPlayers: minPlayersOf(event, team), now });
+  }, [event, convocation, plan, evStats, team]);
+
   if (eventLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -146,181 +137,53 @@ export default function MatchDetail() {
     );
   }
 
-  const eventDate = event.date ? new Date(event.date) : null;
-  const scoreHome = event.score_home;
-  const scoreAway = event.score_away;
-  const hasScore = scoreHome !== null && scoreHome !== undefined && scoreAway !== null && scoreAway !== undefined;
-  const diff = hasScore ? Number(scoreHome) - Number(scoreAway) : null;
-  const resultLabel  = diff !== null ? (diff > 0 ? t("Victoria") : diff < 0 ? t("Derrota") : t("Empate")) : null;
-  const resultBg     = diff !== null ? (diff > 0 ? "rgba(22,163,74,0.18)" : diff < 0 ? "rgba(220,38,38,0.18)" : "rgba(202,138,4,0.18)") : null;
-  const resultBorder = diff !== null ? (diff > 0 ? "rgba(22,163,74,0.5)"  : diff < 0 ? "rgba(220,38,38,0.5)"  : "rgba(202,138,4,0.5)")  : null;
-  const resultText   = diff !== null ? (diff > 0 ? "#4ade80" : diff < 0 ? "#f87171" : "#fbbf24") : null;
-
-  const isHome = event.is_home !== false;
-  const ourTeamName  = team?.name || t("Nosotros");
-  const rivalName    = event.opponent || t("Rival");
-  const ourLogoUrl   = team?.logo_url || CLUB_LOGO_URL_WHITE;
-  const rivalLogoUrl = event.opponent_logo_url;
-
-  const displayLeft  = isHome ? scoreHome : scoreAway;
-  const displayRight = isHome ? scoreAway : scoreHome;
-
-  const goalEvents = event.goal_events || [];
-  const ourGoals   = goalEvents.filter(g => g.team === "home").sort((a, b) => a.minute - b.minute);
-  const theirGoals = goalEvents.filter(g => g.team === "away").sort((a, b) => a.minute - b.minute);
-
-  const typeLabel = event.type === "partido_liga" ? t("Liga") : event.type === "partido_amistoso" ? t("Amistoso") : t("Torneo");
-
-  const TABS = [
-    { key: "convocatoria", label: msg("Convocatoria"),        icon: Users },
-    { key: "tactica",      label: msg("Preparación partido"), short: t("Preparación"), icon: Map },
-    { key: "acta",         label: msg("Acta"),                icon: FileText },
-    { key: "postpartido",  label: msg("Post-partido"), icon: ClipboardCheck },
-  ];
+  // Sin paso elegido en la dirección: se abre el que toca ahora
+  const tab = activeTab || steps.find((s) => s.state === "now")?.key || (matchPlayed(event) ? "acta" : "convocatoria");
+  const canManage = canManageTeam(teamId);
+  const standRows = standing?.rows || [];
+  const rival = event.opponent ? findRival(standRows.filter((r) => r.teamId !== standing?.ourTeamId), event.opponent) : null;
 
   return (
-    <div className="space-y-0">
-      {/* ── HERO HEADER ── */}
-      <div className="relative overflow-hidden rounded-2xl mb-4 bg-club-banner">
-
-        <div className="relative px-4 pt-3 pb-3">
-          {/* Top bar */}
-          <div className="flex items-center justify-between mb-1">
-            <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-white/60 hover:text-white text-xs font-semibold transition-colors">
-              <ArrowLeft className="w-4 h-4" /> {t("Volver")}
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider border border-white/15 text-white/55">
-                {typeLabel}
-              </span>
-              {event.postponed_from && (
-                <span className="text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider bg-amber-400/15 border border-amber-300/40 text-amber-200" title={t("Partido aplazado")}>
-                  {t("Aplazado · antes {format}", { format: format(new Date(event.postponed_from), "d MMM", { locale: dfl }) })}
-                </span>
-              )}
-              {isCancelled(event) && (
-                <span className="text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider bg-white/15 border border-white/30 text-white" title={t("Para restaurarlo: Editar → botón de cancelado")}>
-                  {cancelText(event, t)}
-                </span>
-              )}
-              {canManageTeam(teamId) && <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white/60 hover:text-white border border-white/15 hover:border-white/30 transition-all">
-                <Pencil className="w-3 h-3" /> {t("Editar")}
-              </button>}
-              {canManageTeam(teamId) && <button onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium text-red-400/80 hover:text-red-300 border border-red-500/20 hover:border-red-500/40 transition-all">
-                <Trash2 className="w-3 h-3" />
-              </button>}
-            </div>
-          </div>
-
-          {/* ── MARCADOR COMPACTO: [equipo + goleadores] [resultado] [equipo + goleadores] ── */}
-          {(() => {
-            const ours = ourGoals.map((g, i) => {
-              const scorer = players.find(p => p.id === g.player_id);
-              return { k: "o" + i, minute: g.minute, label: scorer ? `${playerFullName(scorer)}` : (g.goal_type === "gol_propio" ? t("Propia puerta") : "—") };
-            });
-            const theirs = theirGoals.map((g, i) => {
-              const ev = (event.match_events || []).find(e => e.id === g.id);
-              return { k: "t" + i, minute: g.minute, label: ev?.fcfName || "" };
-            });
-            const leftList = isHome ? ours : theirs;
-            const rightList = isHome ? theirs : ours;
-            const leftShield = isHome
-              ? <Shield src={ourLogoUrl} name={ourTeamName} canUpload={false} onUpload={() => {}} />
-              : <Shield src={rivalLogoUrl} name={rivalName} canUpload={true} onUpload={(url) => updateLogoMutation.mutate({ opponent_logo_url: url })} />;
-            const rightShield = isHome
-              ? <Shield src={rivalLogoUrl} name={rivalName} canUpload={true} onUpload={(url) => updateLogoMutation.mutate({ opponent_logo_url: url })} />
-              : <Shield src={ourLogoUrl} name={ourTeamName} canUpload={false} onUpload={() => {}} />;
-            return (
-              <div className="grid grid-cols-[1fr_auto_1fr] gap-x-2 items-start">
-                <div className="flex flex-col items-center gap-1.5 min-w-0">
-                  {leftShield}
-                  <div className="flex flex-col items-center gap-0.5 w-full">
-                    {leftList.map(g => (
-                      <span key={g.k} className="text-[10px] text-white/60 leading-snug text-center">⚽ {g.label} <span className="text-white/35">{g.minute}'</span></span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex flex-col items-center gap-1.5 pt-2">
-                  <div className="flex items-center gap-1">
-                    <span className="text-5xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>{hasScore ? displayLeft : "–"}</span>
-                    <span className="text-xl font-black leading-none text-white/20">:</span>
-                    <span className="text-5xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>{hasScore ? displayRight : "–"}</span>
-                  </div>
-                  {resultLabel ? (
-                    <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border" style={{ color: resultText, background: resultBg, borderColor: resultBorder }}>{resultLabel}</span>
-                  ) : (
-                    <span className="text-[9px] text-white/30 uppercase tracking-wider">{t("Sin resultado")}</span>
-                  )}
-                </div>
-
-                <div className="flex flex-col items-center gap-1.5 min-w-0">
-                  {rightShield}
-                  <div className="flex flex-col items-center gap-0.5 w-full">
-                    {rightList.map(g => (
-                      <span key={g.k} className="text-[10px] text-white/60 leading-snug text-center"><span className="text-white/35">{g.minute}'</span> ⚽ {g.label}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Meta info */}
-          <div className="flex items-center justify-center gap-4 mt-2 flex-wrap">
-            {eventDate && (
-              <div className="flex items-center gap-1.5 text-white/40 text-[11px]">
-                <Calendar className="w-3.5 h-3.5" />
-                <span>{format(eventDate, "EEE d MMM yyyy · HH:mm", { locale: dfl })}</span>
-              </div>
-            )}
-            {event.location && (
-              <div className="flex items-center gap-1.5 text-white/40 text-[11px]">
-                <MapPin className="w-3.5 h-3.5" />
-                <span>{event.location}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── TABS ── */}
-      <TabBar
-        fill
-        className="mb-4"
-        value={activeTab}
-        onChange={setActiveTab}
-        items={TABS.map(({ key, label, short, icon }) => ({ value: key, label, short, icon }))}
-      />
-
-      {/* ── CONTENT ── */}
-      {!canManageTeam(teamId) && (
-        <div className="mb-3 px-3 py-2 rounded-md text-xs font-semibold border border-orange-200 bg-orange-50 text-orange-800">
-          {t("Solo lectura: solo los entrenadores de este equipo, la Dirección Deportiva y la administración pueden gestionar la convocatoria, el acta y la táctica.")}
-        </div>
-      )}
-      <div {...(!canManageTeam(teamId) ? { inert: "", style: { pointerEvents: "none", opacity: 0.92 } } : {})}>
-      {activeTab === "convocatoria" && (
-        <ConvocationTab eventId={eventId} teamId={teamId} event={event} players={players} team={team} />
-      )}
-      {activeTab === "acta" && (
-        <ActaTab eventId={eventId} teamId={teamId} event={event} players={players} team={team} />
-      )}
-      {activeTab === "tactica" && (
-        <TacticaTab
-          event={event}
-          players={players}
-          convocadoIds={convocation?.player_ids || []}
-          starterIds={convocation?.starters || []}
-          footballFormat={matchFormat(event, team)}
-          team={team}
+    <Page testId="match-detail">
+      <div className="rs2-wrap flex flex-col" style={{ gap: 12, maxWidth: 1440, paddingBottom: mobile ? 90 : undefined }}>
+        <MatchHeader
+          event={event} team={team} players={players} mobile={mobile}
+          ourLogo={team?.logo_url || CLUB_LOGO_URL_WHITE} rival={rival} canManage={canManage}
+          onBack={() => navigate(-1)}
+          onSheet={() => setActiveTab("tactica")}
+          onEdit={() => setEditOpen(true)}
+          onDelete={() => setConfirmDelete(true)}
+          onRivalLogo={(url) => updateLogoMutation.mutate({ opponent_logo_url: url })}
         />
-      )}
 
-      {activeTab === "postpartido" && (
-        <PostMatchTab eventId={eventId} teamId={teamId} event={event} players={players} convocation={convocation} team={team} />
-      )}
+        <MatchStepsNav steps={steps} active={tab} onChange={setActiveTab} mobile={mobile} />
 
+        {!canManage && (
+          <div className="px-3 py-2 rounded-md text-xs font-semibold border border-orange-200 bg-orange-50 text-orange-800">
+            {t("Solo lectura: solo los entrenadores de este equipo, la Dirección Deportiva y la administración pueden gestionar la convocatoria, el acta y la táctica.")}
+          </div>
+        )}
+        <div {...(!canManage ? { inert: "", style: { pointerEvents: "none", opacity: 0.92 } } : {})}>
+          {tab === "convocatoria" && (
+            <ConvocationTab eventId={eventId} teamId={teamId} event={event} players={players} team={team} />
+          )}
+          {tab === "acta" && (
+            <ActaTab eventId={eventId} teamId={teamId} event={event} players={players} team={team} onGoto={setActiveTab} />
+          )}
+          {tab === "tactica" && (
+            <TacticaTab
+              event={event}
+              players={players}
+              convocadoIds={convocation?.player_ids || []}
+              starterIds={convocation?.starters || []}
+              footballFormat={matchFormat(event, team)}
+              team={team}
+            />
+          )}
+          {tab === "postpartido" && (
+            <PostMatchTab eventId={eventId} teamId={teamId} event={event} players={players} convocation={convocation} team={team} />
+          )}
+        </div>
       </div>
 
       {/* ── DIALOGS ── */}
@@ -345,6 +208,6 @@ export default function MatchDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Page>
   );
 }
