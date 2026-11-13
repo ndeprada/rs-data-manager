@@ -106,4 +106,8 @@ export default [
   ["Sin avisar", "Without notice", "Sans prévenir", "Sense avisar"],
   ["Retraso", "Lateness", "Retard", "Retard"],
   ["Falta sin avisar", "Absence without notice", "Absence sans prévenir", "Falta sense avisar"],
+  ["Lo anota la coordinación. Si ves algo que no está bien, coméntalo con tu coordinador.", "Recorded by coordination. If something isn't right, talk to your coordinator.", "Noté par la coordination. Si quelque chose ne va pas, parles-en à ton coordinateur.", "Ho anota la coordinació. Si veus alguna cosa que no està bé, comenta-ho amb el teu coordinador."],
+  ["Visible para el entrenador", "Visible to the coach", "Visible pour l'entraîneur", "Visible per a l'entrenador"],
+  ["Ve sus ausencias y multas en su ficha (solo leerlas).", "They see their absences and fines on their profile (read only).", "Il voit ses absences et amendes sur sa fiche (lecture seule).", "Veu les seves absències i multes a la fitxa (només llegir-les)."],
+  ["Ahora solo lo ve la coordinación.", "Only coordination sees this for now.", "Pour l'instant, seule la coordination le voit.", "Ara només ho veu la coordinació."],
 ];

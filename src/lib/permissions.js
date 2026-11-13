@@ -144,8 +144,10 @@ export const PALETTE_ENTITIES = new Set(['SessionContent']);
 export const VIDEO_TAG_ENTITIES = new Set(['VideoTagSet']);
 // Mínimo de minutos sobre los disponibles (13/11/2026): lo lee todo el personal; lo cambia solo coordinación y dirección
 export const MINUTES_RULE_ENTITIES = new Set(['MinutesRule']);
-// Ausencias y multas del personal (13/11/2026, pedido por Nacho): solo las ven y las escriben coordinación y dirección
-export const COACH_ADMIN_ENTITIES = new Set(['CoachAbsence', 'CoachFine']);
+// Ausencias y multas del personal (13/11/2026, pedido por Nacho): las escriben solo coordinación y dirección.
+// El entrenador ve las suyas solo si coordinación lo activa («Visible para el entrenador»: CoachAdminShare {staff_id, visible}).
+export const COACH_ADMIN_ENTITIES = new Set(['CoachAbsence', 'CoachFine', 'CoachAdminShare']);
+export const COACH_ADMIN_SHARE = 'CoachAdminShare';
 // Campos de la ficha del jugador que solo escribe quien puede editar fichas (entrenadores y coordinación)
 export const PLAYER_STAFF_FIELDS = [WEAK_FOOT_FIELD];
 
@@ -274,12 +276,17 @@ export function filterSessionRead({ perms, userId, docs }) {
 }
 
 // Lo que puede leer: devuelve los documentos permitidos. Las lecturas no fallan: lo no permitido simplemente no sale.
-export function filterRoleRead({ perms, entity, docs, ownIds = new Set(), userId = null }) {
+// `sharedOwn` = coordinación ha hecho visibles sus ausencias y multas a esta persona
+export function filterRoleRead({ perms, entity, docs, ownIds = new Set(), userId = null, sharedOwn = false }) {
   if (perms.isAdmin) return docs;
   if (MEDICAL_ENTITIES.has(entity)) return perms.medical === 'none' ? [] : docs;
   if (PLAYER_EVAL_ENTITIES.has(entity)) return perms.playerEval === 'none' ? [] : docs;
   if (PLANNING_ENTITIES.has(entity)) return perms.administration ? docs : [];
-  if (COACH_ADMIN_ENTITIES.has(entity)) return perms.administration ? docs : [];
+  if (COACH_ADMIN_ENTITIES.has(entity)) {
+    if (perms.administration) return docs;
+    if (entity === COACH_ADMIN_SHARE) return docs.filter((d) => ownIds.has(d.staff_id));
+    return sharedOwn ? docs.filter((d) => ownIds.has(d.staff_id)) : [];
+  }
   if (SESSION_ENTITIES.has(entity)) return filterSessionRead({ perms, userId, docs });
   if (VIDEO_TAG_ENTITIES.has(entity)) return filterVideoTagRead({ perms, userId, docs });
   if (COACH_EVAL_ENTITIES.has(entity)) {

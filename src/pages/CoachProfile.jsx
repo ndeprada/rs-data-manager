@@ -210,6 +210,13 @@ export default function CoachProfile() {
     enabled: !!storageId && showFeedbackTab,
   });
   const fbCount = fbItems.filter((i) => canViewReports || i.status === "enviado").length;
+  // El propio entrenador ve sus ausencias y multas solo si coordinación las ha hecho visibles (el servidor solo le da las suyas)
+  const { data: ownShares = [] } = useQuery({
+    queryKey: ["coachAdminShare", "own", storageId],
+    queryFn: () => base44.entities.CoachAdminShare.list(),
+    enabled: !!isOwnProfile && !showAbsences,
+  });
+  const absencesForCoach = !showAbsences && !!isOwnProfile && ownShares.some((d) => d.visible === true && personIds.includes(d.staff_id));
   const [tabPick, setTabPick] = useState(() => urlParams.get("tab"));
   const [newFb, setNewFb] = useState(0);
 
@@ -389,7 +396,7 @@ export default function CoachProfile() {
     canViewReports && { k: "resumen", label: `${t("Resumen")} ★` },
     showFeedbackTab && { k: "feedback", label: fbCount ? `${t("Feedback")} · ${fbCount}` : t("Feedback") },
     showFeedbackTab && { k: "eval360", label: t("Evaluación 360") },
-    showAbsences && { k: "ausencias", label: t("Ausencias y multas") },
+    (showAbsences || absencesForCoach) && { k: "ausencias", label: t("Ausencias y multas") },
     showPDITab && { k: "pdi", label: t("PDI · Plan Desarrollo Individual") },
     canViewReports && { k: "matches", label: t("Notas privadas") },
     member.notes && { k: "notes", label: t("Info") },
@@ -486,7 +493,7 @@ export default function CoachProfile() {
           />
         )}
 
-        {tab === "ausencias" && <CoachAbsencesFines staffId={storageId} ids={personIds} teams={profileTeams} author={{ id: user?.id, name: user?.full_name }} />}
+        {tab === "ausencias" && <CoachAbsencesFines staffId={storageId} ids={personIds} teams={profileTeams} author={{ id: user?.id, name: user?.full_name }} readOnly={!showAbsences} />}
 
         {tab === "pdi" && <CoachPDISection staffId={storageId} canEvaluate={canEvaluate} canView={canViewReports} isOwnProfile={isOwnProfile} />}
 

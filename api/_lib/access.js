@@ -7,7 +7,7 @@
 import { query } from './db.js';
 import {
   permissionsOf, canManageTeamWith, checkRoleWrite, filterRoleRead, staffIdsOfUser, checkSessionWrite,
-  MEDICAL_ENTITIES, PLAYER_EVAL_ENTITIES, COACH_EVAL_ENTITIES, SESSION_ENTITIES, PLANNING_ENTITIES, PALETTE_ENTITIES, VIDEO_TAG_ENTITIES, MINUTES_RULE_ENTITIES, COACH_ADMIN_ENTITIES, checkVideoTagWrite, PLAYER_STAFF_FIELDS,
+  MEDICAL_ENTITIES, PLAYER_EVAL_ENTITIES, COACH_EVAL_ENTITIES, SESSION_ENTITIES, PLANNING_ENTITIES, PALETTE_ENTITIES, VIDEO_TAG_ENTITIES, MINUTES_RULE_ENTITIES, COACH_ADMIN_ENTITIES, COACH_ADMIN_SHARE, checkVideoTagWrite, PLAYER_STAFF_FIELDS,
 } from '../../src/lib/permissions.js';
 import { minPlayersOf } from '../../src/lib/matchFormat.js';
 
@@ -240,8 +240,14 @@ export function makeRoleAccess(run) {
     async roleFilterDocs(user, entity, docs) {
       if (!ROLE_ENTITIES.has(entity) || !isStaffUser(user)) return docs;
       const perms = permissionsOf(user);
-      const ownIds = COACH_EVAL_ENTITIES.has(entity) && perms.coaches === 'own' ? await ownStaffIds(user) : new Set();
-      return filterRoleRead({ perms, entity, docs, ownIds, userId: user.id });
+      const ownIds = (COACH_EVAL_ENTITIES.has(entity) && perms.coaches === 'own') || (COACH_ADMIN_ENTITIES.has(entity) && !perms.administration) ? await ownStaffIds(user) : new Set();
+      // Ausencias y multas: el entrenador solo las ve si coordinación las ha hecho visibles para él
+      let sharedOwn = false;
+      if (COACH_ADMIN_ENTITIES.has(entity) && entity !== COACH_ADMIN_SHARE && !perms.administration && ownIds.size) {
+        const { rows } = await run(`select data from entities where entity_type = $1`, [COACH_ADMIN_SHARE]);
+        sharedOwn = rows.some((r) => r.data?.visible === true && ownIds.has(r.data?.staff_id));
+      }
+      return filterRoleRead({ perms, entity, docs, ownIds, userId: user.id, sharedOwn });
     },
   };
 }

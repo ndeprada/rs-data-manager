@@ -111,3 +111,17 @@ assert.equal((await write(coord, 'CoachSession', 'POST', { owner_id: coord.id })
 assert.equal((await write(admin, 'CoachSession', 'PUT', { obj_atk: 'x' }, sLuis)).ok, true, 'administración puede todo');
 
 console.log('roleAccess ok');
+
+// Ausencias y multas del personal: solo coordinación; el entrenador las ve si se han hecho visibles para él
+{
+  const abs = [{ id: 'a1', staff_id: staffAna }, { id: 'a2', staff_id: staffLuis }];
+  assert.equal((await read(ana, 'CoachAbsence', abs)).length, 0, 'sin activar, Ana no ve sus ausencias');
+  assert.equal((await read(coord, 'CoachAbsence', abs)).length, 2);
+  assert.equal((await read(armand, 'CoachFine', abs)).length, 0, 'psicología no las ve');
+  await add('CoachAdminShare', { staff_id: staffAna, visible: true });
+  assert.deepEqual((await read(ana, 'CoachAbsence', abs)).map((d) => d.id), ['a1'], 'activado: Ana ve solo las suyas');
+  assert.equal((await read(luis, 'CoachFine', abs)).length, 0, 'Luis sigue sin verlas');
+  assert.equal((await write(ana, 'CoachAbsence', 'POST', { staff_id: staffAna })).ok, false, 'el entrenador no las escribe');
+  assert.equal((await write(ana, 'CoachAdminShare', 'POST', { staff_id: staffAna, visible: true })).ok, false);
+  assert.equal((await write(coord, 'CoachAdminShare', 'POST', { staff_id: staffLuis, visible: true })).ok, true);
+}

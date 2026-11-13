@@ -49,7 +49,8 @@ const Btn = ({ children, onClick, kind = "primary", disabled, testId, type = "bu
   </button>
 );
 
-export default function CoachAbsencesFines({ staffId, ids, teams = [], author }) {
+// `readOnly` = la ve el propio entrenador (solo si coordinación la ha hecho visible); no puede anotar ni cambiar nada
+export default function CoachAbsencesFines({ staffId, ids, teams = [], author, readOnly = false }) {
   const t = useT();
   const { locale, num } = useFormat();
   const qc = useQueryClient();
@@ -57,6 +58,14 @@ export default function CoachAbsencesFines({ staffId, ids, teams = [], author })
   const { data: absences = [] } = useQuery({ queryKey: ["coachAbsences"], queryFn: () => base44.entities.CoachAbsence.list("-date") });
   const { data: fines = [] } = useQuery({ queryKey: ["coachFines"], queryFn: () => base44.entities.CoachFine.list("-date") });
   const { events } = useMatchStatus();
+  // «Visible para el entrenador»: un registro por persona (CoachAdminShare); sin registro = no lo ve
+  const { data: shares = [] } = useQuery({ queryKey: ["coachAdminShare", staffId], queryFn: () => base44.entities.CoachAdminShare.filter({ staff_id: staffId }), enabled: !readOnly && !!staffId });
+  const share = shares[0] || null;
+  const visible = share?.visible === true;
+  const toggleShare = useMutation({
+    mutationFn: () => (share ? base44.entities.CoachAdminShare.update(share.id, { visible: !visible }) : base44.entities.CoachAdminShare.create({ staff_id: staffId, visible: true })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["coachAdminShare"] }),
+  });
   const abs = absenceSummary(absences, idSet, CURRENT_SEASON);
   const fin = fineSummary(fines, idSet, CURRENT_SEASON);
   const teamIds = teams.map((x) => x.tm.id);
@@ -116,12 +125,24 @@ export default function CoachAbsencesFines({ staffId, ids, teams = [], author })
 
   return (
     <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))", gap: 12, alignItems: "start" }} data-testid="coach-absences">
+      {readOnly ? (
+        <p style={{ gridColumn: "1 / -1", margin: 0, fontSize: 12, color: RS.muted }}>{t("Lo anota la coordinación. Si ves algo que no está bien, coméntalo con tu coordinador.")}</p>
+      ) : (
+        <div className="flex flex-wrap items-center" style={{ gridColumn: "1 / -1", gap: 10, padding: "8px 12px", borderRadius: 10, border: `1px solid ${visible ? "#BBF7D0" : RS.line}`, background: visible ? "#F0FDF4" : "#fff" }} data-testid="absence-share">
+          <button type="button" role="switch" aria-checked={visible} onClick={() => toggleShare.mutate()} disabled={toggleShare.isPending} data-testid="absence-share-toggle"
+            style={{ width: 38, height: 22, borderRadius: 999, border: 0, padding: 2, background: visible ? "#15803D" : "#CFC6C5", display: "inline-flex", justifyContent: visible ? "flex-end" : "flex-start", flexShrink: 0 }}>
+            <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", display: "block" }} />
+          </button>
+          <span style={{ fontSize: 13, fontWeight: 600, color: RS.ink }}>{t("Visible para el entrenador")}</span>
+          <span style={{ fontSize: 12, color: RS.muted }}>{visible ? t("Ve sus ausencias y multas en su ficha (solo leerlas).") : t("Ahora solo lo ve la coordinación.")}</span>
+        </div>
+      )}
       <section style={card}>
         <Head title={t("AUSENCIAS")} right={<>
           <span style={{ color: RS.muted }}>{t("{n} esta temporada", { n: abs.season })}</span>
-          <Btn onClick={newAbsence} testId="absence-new">+ {t("Anotar ausencia")}</Btn>
+          {!readOnly && <Btn onClick={newAbsence} testId="absence-new">+ {t("Anotar ausencia")}</Btn>}
         </>} />
-        <p style={{ fontSize: 12, color: RS.muted, padding: "8px 14px 0", margin: 0 }}>{t("Solo se anotan los días que no viene: no hace falta pasar lista al cuerpo técnico.")}</p>
+        {!readOnly && <p style={{ fontSize: 12, color: RS.muted, padding: "8px 14px 0", margin: 0 }}>{t("Solo se anotan los días que no viene: no hace falta pasar lista al cuerpo técnico.")}</p>}
         {abs.list.length ? (
           <div style={{ padding: "6px 0" }}>
             {abs.list.map((a) => (
@@ -134,7 +155,7 @@ export default function CoachAbsencesFines({ staffId, ids, teams = [], author })
                   </div>
                   {a.notes && <p style={{ fontSize: 12, color: RS.ink2, margin: "2px 0 0" }}>{a.notes}</p>}
                 </div>
-                {iconBtn(() => editAbsence(a), t("Editar"), Pencil, `absence-edit-${a.id}`)}
+                {!readOnly && iconBtn(() => editAbsence(a), t("Editar"), Pencil, `absence-edit-${a.id}`)}
               </div>
             ))}
           </div>
@@ -144,7 +165,7 @@ export default function CoachAbsencesFines({ staffId, ids, teams = [], author })
       <section style={card}>
         <Head title={t("MULTAS")} right={<>
           <span style={{ color: fin.pendingAmount ? "#B91C1C" : RS.muted, fontWeight: fin.pendingAmount ? 700 : 400 }} data-testid="fines-pending">{t("{e} por pagar", { e: euro(num, fin.pendingAmount) })}</span>
-          <Btn onClick={newFine} testId="fine-new">+ {t("Anotar multa")}</Btn>
+          {!readOnly && <Btn onClick={newFine} testId="fine-new">+ {t("Anotar multa")}</Btn>}
         </>} />
         {fin.list.length ? (
           <div style={{ padding: "6px 0" }}>
@@ -160,11 +181,11 @@ export default function CoachAbsencesFines({ staffId, ids, teams = [], author })
                     {f.description && <p style={{ fontSize: 12, color: RS.ink2, margin: "2px 0 0" }}>{f.description}</p>}
                   </div>
                   <b className="tabular-nums" style={{ fontSize: 14, color: paid ? RS.muted : "#B91C1C", whiteSpace: "nowrap" }}>{euro(num, Number(f.amount) || 0)}</b>
-                  <button type="button" onClick={() => togglePaid.mutate(f)} data-testid={`fine-paid-${f.id}`} title={paid ? t("Marcar como pendiente") : t("Marcar como pagada")}
+                  <button type="button" onClick={() => !readOnly && togglePaid.mutate(f)} disabled={readOnly} data-testid={`fine-paid-${f.id}`} title={readOnly ? undefined : paid ? t("Marcar como pendiente") : t("Marcar como pagada")}
                     style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", border: 0, background: paid ? "#DCFCE7" : "#FEF3C7", color: paid ? "#166534" : "#92400E" }}>
                     {paid ? `✓ ${t("Pagada")}${f.paid_at ? ` ${format(new Date(`${f.paid_at}T12:00:00`), "d/M")}` : ""}` : t("Pendiente")}
                   </button>
-                  {iconBtn(() => editFine(f), t("Editar"), Pencil, `fine-edit-${f.id}`)}
+                  {!readOnly && iconBtn(() => editFine(f), t("Editar"), Pencil, `fine-edit-${f.id}`)}
                 </div>
               );
             })}
