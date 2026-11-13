@@ -37,6 +37,8 @@ export default function MatchDetail() {
   const [editOpen, setEditOpen] = useState(false);
 
   // El paso elegido queda en la dirección (?tab=) para volver al mismo sitio
+  // «Hoja del entrenador» de la cabecera: va a Preparación y descarga la hoja en PDF (la genera TacticaTab)
+  const [sheetReq, setSheetReq] = useState(0);
   const setActiveTab = (key) => {
     setActiveTabState(key);
     const q = new URLSearchParams(location.search);
@@ -150,7 +152,7 @@ export default function MatchDetail() {
           event={event} team={team} players={players} mobile={mobile}
           ourLogo={team?.logo_url || CLUB_LOGO_URL} rival={rival} canManage={canManage}
           onBack={() => navigate(-1)}
-          onSheet={() => setActiveTab("tactica")}
+          onSheet={() => { setActiveTab("tactica"); setSheetReq((n) => n + 1); }}
           onEdit={() => setEditOpen(true)}
           onDelete={() => setConfirmDelete(true)}
           onRivalLogo={(url) => updateLogoMutation.mutate({ opponent_logo_url: url })}
@@ -178,6 +180,8 @@ export default function MatchDetail() {
               starterIds={convocation?.starters || []}
               footballFormat={matchFormat(event, team)}
               team={team}
+              sheetRequest={sheetReq}
+              onSheetHandled={() => setSheetReq(0)}
             />
           )}
           {tab === "postpartido" && (

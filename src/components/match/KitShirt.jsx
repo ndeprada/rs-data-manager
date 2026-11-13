@@ -2,7 +2,7 @@
 // Encima del texto van las capas de sombra y luz de la propia foto, recortadas a la forma de las letras, para que el
 // estampado siga los pliegues. Se dibuja dentro de un <svg>; (x, y) = centro, h = alto en unidades del svg.
 import React, { useId } from "react";
-import { KIT_IMG, KIT_BACK_TEXT } from "@/lib/clubKits";
+import { KIT_IMG, KIT_BACK_TEXT, kitHref } from "@/lib/clubKits";
 import { F as clubFont } from "@/lib/brand";
 
 export function KitShirt({ x = 0, y = 0, h, kit, number = "", backText = KIT_BACK_TEXT, shadow = true }) {
@@ -20,12 +20,12 @@ export function KitShirt({ x = 0, y = 0, h, kit, number = "", backText = KIT_BAC
         {shadow && <filter id={`${uid}f`} x="-20%" y="-60%" width="140%" height="220%"><feGaussianBlur stdDeviation="8" /></filter>}
       </defs>
       {shadow && <ellipse cx="220" cy="490" rx="170" ry="8" fill="#000" opacity=".25" filter={`url(#${uid}f)`} />}
-      <image href={kit.img} width={KIT_IMG.w} height={KIT_IMG.h} />
+      <image href={kitHref(kit.img)} width={KIT_IMG.w} height={KIT_IMG.h} />
       <g fill={kit.num}>{back}{num}</g>
       {(back || num) && (
         <g clipPath={`url(#${uid}t)`}>
-          <image href={kit.shade} width={KIT_IMG.w} height={KIT_IMG.h} />
-          <image href={kit.light} width={KIT_IMG.w} height={KIT_IMG.h} opacity=".7" />
+          <image href={kitHref(kit.shade)} width={KIT_IMG.w} height={KIT_IMG.h} />
+          <image href={kitHref(kit.light)} width={KIT_IMG.w} height={KIT_IMG.h} opacity=".7" />
         </g>
       )}
     </g>

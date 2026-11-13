@@ -1,4 +1,4 @@
-import React, { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2, BookmarkPlus, X, Copy, Users, Printer, FileDown, Star } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -11,6 +11,7 @@ import { useT, msg } from "@/i18n";
 import BoardEditor from "@/components/board/BoardEditor";
 import SetPieceWizard from "@/components/match/SetPieceWizard";
 import Board from "@/components/board/BoardSvg";
+import { preloadKitData } from "@/lib/clubKits";
 import { boardSvgMarkup } from "@/components/board/exportPng";
 import { load3d } from "@/components/board/load3d";
 import { animFrameCount, chipStyle, contrastColor, fnPosOf, is3D, isStadium, orbitOf, teamsOf } from "@/lib/board";
@@ -162,7 +163,7 @@ const selPill = { height: 32, borderRadius: 999, border: `1px solid ${RS.input}`
 // Una jugada (rediseño del 06/11/2026, maqueta «Maqueta ABP · rediseño» aprobada por Nacho): encima de la pizarra, en una franja,
 // el nombre, el tipo, a favor / en contra, el lado, la estructura de partida, el resumen automático y la señal; la pizarra de
 // siempre; a la derecha «Quién hace qué» (jugador y función de cada ficha) y las instrucciones.
-function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDuplicate, onRemove, libLinked, onPrint, busy, total }) {
+function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDuplicate, onRemove, libLinked, onPrint, busy, total, shirtKit }) {
   const t = useT();
   const board = pieceBoard(piece, lookup);
   const setup = pieceSetup(piece);
@@ -237,6 +238,11 @@ function PieceEditor({ piece, onChange, candidates, lookup, teamId, onSave, onDu
         <button type="button" onClick={onRemove} title={t("Quitar del partido")} aria-label={t("Quitar del partido")} style={{ ...iconBtn, color: "#B42318" }} data-testid="sp-remove"><Trash2 className="w-4 h-4" /></button>
       </div>
       <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
+        <span className="inline-flex items-center" style={{ background: RS.bg, borderRadius: 999, padding: 2 }} data-testid="sp-chips">
+          <span style={{ fontSize: 11.5, color: RS.muted, padding: "0 6px 0 8px" }}>{t("Fichas")}</span>
+          <button type="button" style={segBtn(!board.realShirts)} onClick={() => board.realShirts && setBoard({ ...board, realShirts: undefined })} data-testid="sp-chips-buttons">{t("Botones")}</button>
+          <button type="button" style={segBtn(!!board.realShirts)} onClick={() => { if (!board.realShirts) { preloadKitData(); setBoard({ ...board, realShirts: true, shirtKit: shirtKit || board.shirtKit }); } }} data-testid="sp-chips-shirts">{t("Camisetas")}</button>
+        </span>
         <select value={setup.kind} onChange={(e) => setSetup({ kind: e.target.value })} aria-label={t("Tipo de jugada")} style={selPill} data-testid="sp-kind">
           {SP_KINDS.map((k) => <option key={k.id} value={k.id}>{t(KIND_LABEL[k.id])}</option>)}
         </select>
@@ -462,6 +468,7 @@ const fontFaces = () => `
 const fileSlug = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase();
 
 async function printPieces(list, players, perPage, teamName, book = false, look = {}, mode = "print") {
+  if (list.some((p) => p.board?.realShirts)) await preloadKitData();
   // «Todas en una» (banquillo, 06/11/2026): hasta 8 jugadas por hoja en dos columnas, con la señal bien grande
   const per = perPage === "all" ? "all" : [1, 2, 4].includes(perPage) ? perPage : 1;
   const chunk = per === "all" ? 8 : per;
@@ -527,8 +534,17 @@ async function printPieces(list, players, perPage, teamName, book = false, look 
   return true;
 }
 
-export default function SetPieceBoard({ pieces, onChange, candidates = [], allPlayers = [], teamName = "", teamId, eventId, eventDate }) {
+export default function SetPieceBoard({ pieces, onChange, candidates = [], allPlayers = [], teamName = "", teamId, eventId, eventDate, shirtKit = null }) {
   const t = useT();
+  // Camisetas reales (13/11/2026): las jugadas con «Fichas: Camisetas» llevan la equipación del partido (la de la Preparación)
+  const kitKey = shirtKit ? `${shirtKit.field}|${shirtKit.gk}` : "";
+  useEffect(() => {
+    if (!pieces.some((p) => p.board?.realShirts)) return;
+    preloadKitData();
+    if (!shirtKit) return;
+    const stale = pieces.some((p) => p.board?.realShirts && `${p.board.shirtKit?.field}|${p.board.shirtKit?.gk}` !== kitKey);
+    if (stale) onChange(pieces.map((p) => (p.board?.realShirts ? { ...p, board: { ...p.board, shirtKit: { ...shirtKit } } } : p)));
+  }, [kitKey, pieces]);
   const qc = useQueryClient();
   const auth = useAuthOptional();
   const [activeId, setActiveId] = useState(null);
@@ -817,7 +833,7 @@ export default function SetPieceBoard({ pieces, onChange, candidates = [], allPl
                 <p className="text-sm text-center" style={{ color: RS.muted, margin: "16px 0" }}>{t("Aún no hay jugadas. Crea una nueva, usa una de la biblioteca o tráelas del partido anterior.")}</p>
               </Card>
             ) : (
-              <PieceEditor key={active.id} piece={active} onChange={update} candidates={candidates} lookup={lookup} teamId={teamId}
+              <PieceEditor key={active.id} piece={active} onChange={update} candidates={candidates} lookup={lookup} teamId={teamId} shirtKit={shirtKit}
                 libLinked={!!active.lib_id && library.some((l) => l.id === active.lib_id)}
                 onSave={saveToLibrary} onDuplicate={duplicate} onRemove={() => remove(active.id)}
                 busy={busy} total={pieces.length}

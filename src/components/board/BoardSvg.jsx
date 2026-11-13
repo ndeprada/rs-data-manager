@@ -1,4 +1,6 @@
 import { AD_LOGOS } from "@/lib/adLogos";
+import { boardKitOf } from "@/lib/clubKits";
+import { KitShirt } from "@/components/match/KitShirt";
 import { BIG_STAND, BS, cornerR, roundRect, rowSeats, seatHash, stairQuads, standRows } from "@/lib/stadiumGeo";
 import React from "react";
 import {
@@ -965,6 +967,11 @@ function Chip({ el, ctx, c, r, ghost = false, puck = 0 }) {
   // con peto, el dorsal se lee sobre el color del peto
   const bib = el.bib ? (bn ? { text: "#111111", halo: "#ffffff" } : { text: contrastColor(el.bib), halo: contrastColor(el.bib) === "#ffffff" ? "#111827" : "#ffffff" }) : null;
   const gy = c.y + puck; // suelo
+  // Camisetas reales del club (balón parado): la ficha del equipo propio es la foto de la espalda con el dorsal
+  if (board?.realShirts && el.team === "a" && !bn) {
+    const kit = boardKitOf(board.shirtKit, el.fn === "portero");
+    return <KitShirt x={c.x} y={gy - r * 0.15} h={r * 2.7} kit={kit} number={ghost ? "" : inner} backText="" shadow={!ghost} />;
+  }
   return (
     <>
       {shadow > 0 && <circle cx={c.x + SHADOW.x * r} cy={gy + SHADOW.y * r} r={r * 1.14} fill="url(#chip-shadow)" fillOpacity={shadow} />}

@@ -248,7 +248,7 @@ function PlanBlock({ id, icon, title, hint, value, onChange, placeholder, summar
 }
 
 // ── Pestaña ─────────────────────────────────────────────
-export default function TacticaTab({ event, players, convocadoIds, starterIds, footballFormat, team }) {
+export default function TacticaTab({ event, players, convocadoIds, starterIds, footballFormat, team, sheetRequest = 0, onSheetHandled }) {
   const t = useT();
   const locale = useDateLocale();
   const qc = useQueryClient();
@@ -293,12 +293,14 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const [showAbp, setShowAbp] = useState(false);
   const [note, setNote] = useState("");
   const loaded = useRef(false);
+  const [ready, setReady] = useState(false); // lo guardado ya está puesto en pantalla
   const planId = useRef(null);
   const chain = useRef(Promise.resolve());
 
   useEffect(() => {
     if (!isFetched || loaded.current) return;
     loaded.current = true;
+    setReady(true);
     if (plan) {
       planId.current = plan.id;
       if (isFormationOf(isF7, normalizeFormation(plan.formation))) setFormation(normalizeFormation(plan.formation));
@@ -473,6 +475,14 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
       setNote(t("No se pudo generar la hoja."));
     } finally { setPdfBusy(""); }
   };
+
+  // Botón «Hoja del entrenador» de la cabecera del partido: descarga la hoja en cuanto el plan está cargado
+  const playersReady = allPlayers.length > 0 || players.length > 0;
+  useEffect(() => {
+    if (!sheetRequest || !ready || !playersReady || pdfBusy) return;
+    onSheetHandled?.();
+    makePdf(false);
+  }, [sheetRequest, ready, playersReady, pdfBusy]);
 
   const filled = slotIds.filter(Boolean).length;
   const rs = rivalSummary(report);
@@ -759,7 +769,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
       )}
       {abpStrip}
       {showAbp && (
-        <SetPieceBoard allPlayers={allPlayers} pieces={pieces} onChange={setPieces} teamId={team?.id || event?.team_id} teamName={team?.name} eventId={event?.id} eventDate={event?.date}
+        <SetPieceBoard allPlayers={allPlayers} pieces={pieces} onChange={setPieces} shirtKit={{ field: kit, gk: gkKit }} teamId={team?.id || event?.team_id} teamName={team?.name} eventId={event?.id} eventDate={event?.date}
           candidates={[...new Set([...(convocadoIds || [])])].map(findPlayer).filter(Boolean).sort((a, b) => ((Number(a.jersey_number) || 999) - (Number(b.jersey_number) || 999)))} />
       )}
       <PlayerPicker

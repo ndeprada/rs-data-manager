@@ -448,6 +448,9 @@ export function normalizeBoard(value) {
       // el fotograma 1 es la HOJA (balón parado, 06/11/2026): la imagen que se imprime; la animación son los siguientes
       ...(value.sheet === true ? { sheet: true } : {}),
       ...(typeof value.nameStack === "boolean" ? { nameStack: value.nameStack } : {}),
+      // fichas del equipo propio como camisetas reales del club (balón parado, 13/11/2026): equipación de campo y de portero
+      ...(value.realShirts === true ? { realShirts: true } : {}),
+      ...(value.shirtKit && typeof value.shirtKit === "object" ? { shirtKit: { field: ["1", "2", "3"].includes(value.shirtKit.field) ? value.shirtKit.field : "1", gk: ["naranja", "azul"].includes(value.shirtKit.gk) ? value.shirtKit.gk : "naranja" } } : {}),
       ...(value.pitchLen >= 60 && value.pitchLen < 105 ? { pitchLen: value.pitchLen } : {}),
       ...(validOrbit(value.orbit) ? { orbit: validOrbit(value.orbit) } : {}),
       frames: frames.map((f) => ({ id: f.id || newId(), els: Array.isArray(f.els) ? f.els : [], ...(validCam(f.cam) ? { cam: validCam(f.cam) } : {}), ...(validOrbit(f.orbit) ? { orbit: validOrbit(f.orbit) } : {}), ...(typeof f.note === "string" && f.note.trim() ? { note: f.note.slice(0, 200) } : {}) })),

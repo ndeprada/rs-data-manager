@@ -35,4 +35,6 @@ export default [
   ["Aún no hay jugadas para este partido.", "No set plays for this match yet.", "Pas encore de coups de pied arrêtés pour ce match.", "Encara no hi ha jugades per a aquest partit."],
   ["Cerrar editor", "Close editor", "Fermer l'éditeur", "Tancar l'editor"],
   ["Abrir editor de jugadas ›", "Open set-play editor ›", "Ouvrir l'éditeur de coups arrêtés ›", "Obrir l'editor de jugades ›"],
+  ["Botones", "Discs", "Pions", "Botons"],
+  ["Camisetas", "Shirts", "Maillots", "Samarretes"],
 ];

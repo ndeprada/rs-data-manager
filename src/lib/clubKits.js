@@ -35,6 +35,26 @@ export const GK_KITS = {
   azul: { label: msg("Azul eléctrico"), img: azul, shade: azulSombra, light: azulLuz, num: "#FFFFFF", fill: "#1F6BFF", stroke: "#0A3290" },
 };
 
+// Copia de cada imagen como data URL: dentro de un SVG convertido en imagen (PNG, vídeo, impresión) no se cargan archivos de fuera
+const dataUrls = new Map();
+export const kitHref = (src) => dataUrls.get(src) || src;
+let preload = null;
+export function preloadKitData() {
+  if (!preload) {
+    const all = [...Object.values(KITS), ...Object.values(GK_KITS)].flatMap((k) => [k.img, k.shade, k.light]);
+    preload = Promise.all(all.map(async (src) => {
+      try {
+        const blob = await fetch(src).then((r) => r.blob());
+        const url = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); });
+        dataUrls.set(src, url);
+      } catch { /* se queda la dirección normal */ }
+    }));
+  }
+  return preload;
+}
+/** Equipación de una ficha del equipo propio en la pizarra (camisetas reales): portero o de campo */
+export const boardKitOf = (shirtKit, isGk) => (isGk ? GK_KITS[shirtKit?.gk] || GK_KITS.naranja : KITS[shirtKit?.field] || KITS["1"]);
+
 export const kitFor = (player, kit, gkKit) =>
   player?.position === "portero" ? (GK_KITS[gkKit] || GK_KITS.naranja) : (KITS[kit] || KITS["1"]);
 
