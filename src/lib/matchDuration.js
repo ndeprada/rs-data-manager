@@ -59,21 +59,46 @@ export const eventMinutes = (ev, team) => totalMinutes(ev?.match_duration || def
 
 // Minutos de un jugador del equipo según los eventos del acta:
 // titular = desde el 0 hasta que sale (cambio, roja o 2ª amarilla) o hasta el final; suplente = desde que entra hasta que sale o el final.
-export function calcMinutesPlayed(playerId, starterIds, events, matchMinutes) {
+export function playedIntervals(playerId, starterIds, events, matchMinutes) {
   const marks = (events || [])
     .filter((e) => e.team !== "away" && e.minute !== "" && e.minute != null && (
       (e.type === "sub" && (e.playerIn === playerId || e.playerOut === playerId)) ||
       (e.type === "card" && e.playerId === playerId && (e.cardColor === "red" || e.cardColor === "yellow2"))))
     .map((e) => ({ m: Math.min(Number(e.minute) || 0, matchMinutes), isIn: e.type === "sub" && e.playerIn === playerId }))
     .sort((a, b) => a.m - b.m);
-  let cur = starterIds.includes(playerId) ? 0 : null;
-  let sum = 0;
+  let cur = (starterIds || []).includes(playerId) ? 0 : null;
+  const out = [];
   for (const k of marks) {
     if (k.isIn) { if (cur === null) cur = k.m; }
-    else if (cur !== null) { sum += Math.max(0, k.m - cur); cur = null; }
+    else if (cur !== null) { if (k.m > cur) out.push([cur, k.m]); cur = null; }
   }
-  if (cur !== null) sum += Math.max(0, matchMinutes - cur);
-  return sum;
+  if (cur !== null && matchMinutes > cur) out.push([cur, matchMinutes]);
+  return out;
+}
+
+export function calcMinutesPlayed(playerId, starterIds, events, matchMinutes) {
+  return playedIntervals(playerId, starterIds, events, matchMinutes).reduce((s, [a, b]) => s + (b - a), 0);
+}
+
+// Cuartos jugados en un partido de 4 cuartos ("4x15", "4x12"…). Cuenta un cuarto si estuvo en el campo al menos la mitad de él
+// (13/11/2026, criterio mío por confirmar con Nacho). Si los minutos guardados no cuadran con los cambios del acta
+// (minutos corregidos a mano), se calcula con los minutos: minutos ÷ duración del cuarto, redondeado.
+// Devuelve null si el partido no es de cuartos.
+export function quartersPlayed(playerId, starterIds, events, duration, minutes) {
+  const m = String(duration || "").match(/^4x(\d+)$/);
+  if (!m) return null;
+  const q = Number(m[1]);
+  const mins = Number(minutes) || 0;
+  const iv = playedIntervals(playerId, starterIds, events, 4 * q);
+  const sum = iv.reduce((s, [a, b]) => s + (b - a), 0);
+  if (Math.abs(sum - mins) > 1) return Math.max(0, Math.min(4, Math.round(mins / q)));
+  let n = 0;
+  for (let k = 0; k < 4; k++) {
+    const from = k * q, to = from + q;
+    const on = iv.reduce((s, [a, b]) => s + Math.max(0, Math.min(b, to) - Math.max(a, from)), 0);
+    if (on >= q / 2) n++;
+  }
+  return n;
 }
 
 // Regla del acta para cualquier equipo:

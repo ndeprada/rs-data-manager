@@ -1,6 +1,6 @@
 // Participación de un jugador en los partidos: titular, suplente, no convocado (y por qué), minutos y porcentajes.
 // Funciones puras (se prueban con tests). Los partidos que se pasan ya vienen filtrados (cerrados y del tipo elegido).
-import { defaultDuration, totalMinutes } from './matchDuration.js';
+import { defaultDuration, totalMinutes, quartersPlayed } from './matchDuration.js';
 import { matchFormat, teamPlaysF7 } from './matchFormat.js';
 import { msg } from "../i18n/translate.js";
 
@@ -25,13 +25,35 @@ export const REASON_ORDER = [...NO_CONV_REASONS.map((r) => r.value), NO_REASON];
 export const isAjeno = (reason) => !!NO_CONV_REASONS.find((x) => x.value === reason)?.ajeno;
 
 // Minutos mínimos sobre los disponibles: por debajo salta la alerta. En fútbol 11 el objetivo del club es el 40 %.
+// Son los valores por defecto: coordinación los puede cambiar para todo el club y, si hace falta, para un equipo concreto
+// (entidad MinutesRule, una fila: { f7: {alert, target}, f11: {alert, target}, teams: { <teamId>: {alert, target} } }; 13/11/2026).
 export const MIN_PCT = {
   f7: { alert: 50, target: null },
   f11: { alert: 35, target: 40 },
 };
+const pctOrNull = (v) => { if (v === '' || v == null) return null; const n = Math.round(Number(v)); return Number.isFinite(n) && n >= 0 && n <= 100 ? n : null; };
+// Una regla limpia: { alert, target } (objetivo opcional y nunca por debajo de la alerta); null si no vale
+export function cleanRule(r) {
+  const alert = pctOrNull(r?.alert);
+  if (alert == null) return null;
+  const target = pctOrNull(r?.target);
+  return { alert, target: target != null && target > alert ? target : null };
+}
+// Reglas del club a partir de la fila guardada (lo que falte, los valores por defecto)
+export function rulesOf(doc) {
+  const teams = {};
+  for (const [id, r] of Object.entries(doc?.teams || {})) { const c = cleanRule(r); if (c) teams[id] = c; }
+  return { f7: cleanRule(doc?.f7) || MIN_PCT.f7, f11: cleanRule(doc?.f11) || MIN_PCT.f11, teams };
+}
+// La regla que vale para un formato y el equipo del jugador: la propia del equipo (en el formato en que juega el equipo) o la del club
+export function ruleFor(format, team, rules) {
+  const own = team && rules?.teams?.[team.id];
+  if (own && format === (teamPlaysF7(team) ? 'f7' : 'f11')) return own;
+  return rules?.[format] || MIN_PCT[format];
+}
 // 'alert' (por debajo del mínimo), 'warn' (por debajo del objetivo) u 'ok'; null si no hay datos
-export function minutesLevel(format, pct) {
-  const t = MIN_PCT[format];
+export function minutesLevel(format, pct, rule) {
+  const t = rule || MIN_PCT[format];
   if (!t || pct == null) return null;
   if (pct < t.alert) return 'alert';
   if (t.target && pct < t.target) return 'warn';
@@ -45,7 +67,7 @@ export const FORMAT_LABEL = { f11: msg("Fútbol 11"), f7: msg("Fútbol 7") };
 // Un formato en el que no tuvo ningún partido disponible no cuenta.
 export function playerLevel(part, format = 'all') {
   const formats = format === 'all' ? ['f7', 'f11'] : [format];
-  return worstLevel(formats.filter((f) => part[f].availMatches > 0).map((f) => minutesLevel(f, part[f].pctAvail)));
+  return worstLevel(formats.filter((f) => part[f].availMatches > 0).map((f) => minutesLevel(f, part[f].pctAvail, part.rules?.[f])));
 }
 
 // Partes del partido: "2x45" -> 2, "4x15" -> 4
@@ -60,6 +82,8 @@ export function formatOfEvent(ev, duration, team) {
 
 const emptyBucket = () => ({
   conv: 0, played: 0, titular: 0, suplente: 0, suplenteSin: 0, noConv: 0, reasons: {},
+  benched: 0, unavailable: 0,        // no convocados: lo deja fuera el entrenador (decisión técnica, descanso, sin motivo) / no podía estar
+  quarters: [0, 0, 0, 0, 0], qMatches: 0, // partidos de 4 cuartos en que fue convocado, por cuartos jugados (0 a 4)
   mins: 0,
   totalMatches: 0, totalMin: 0,      // todos los partidos del jugador (los de su equipo + en los que fue de invitado)
   availMatches: 0, availMin: 0,      // los partidos en que estaba a disposición del entrenador
@@ -91,6 +115,7 @@ function finish(b) {
 export function participationOf(player, ctx) {
   const out = { all: emptyBucket(), f11: emptyBucket(), f7: emptyBucket() };
   const pid = player.id;
+  const ownTeam = ctx.teamsById?.get(player.team_id);
   for (const ev of ctx.events) {
     const conv = ctx.convBy.get(ev.id);
     if (!conv) continue;
@@ -108,11 +133,13 @@ export function participationOf(player, ctx) {
     if (called) {
       const minutes = stat?.minutes_played || 0;
       const starter = (conv.starters || []).includes(pid);
+      const q = quartersPlayed(pid, conv.starters || [], ev.match_events, evDuration, minutes);
       for (const b of targets) {
         b.conv++;
         if (minutes > 0) b.played++;
         if (starter) b.titular++; else { b.suplente++; if (!(minutes > 0)) b.suplenteSin++; }
         b.mins += minutes;
+        if (q != null) { b.quarters[q]++; b.qMatches++; }
         b.totalMatches++; b.totalMin += total;
         b.availMatches++; b.availMin += total;
       }
@@ -121,28 +148,30 @@ export function participationOf(player, ctx) {
       const disponible = !isAjeno(reason);
       for (const b of targets) {
         b.noConv++; b.reasons[reason] = (b.reasons[reason] || 0) + 1;
+        if (disponible) b.benched++; else b.unavailable++;
         b.totalMatches++; b.totalMin += total;
         if (disponible) { b.availMatches++; b.availMin += total; }
       }
     }
   }
-  return { all: finish(out.all), f11: finish(out.f11), f7: finish(out.f7) };
+  const rules = { f7: ruleFor('f7', ownTeam, ctx.rules), f11: ruleFor('f11', ownTeam, ctx.rules) };
+  return { all: finish(out.all), f11: finish(out.f11), f7: finish(out.f7), rules };
 }
 
 // Alertas de minutos de un jugador: una por cada formato en que está por debajo del mínimo sobre los minutos disponibles
 export function minutesAlerts(part) {
   return ['f7', 'f11']
-    .filter((f) => part[f].availMatches > 0 && minutesLevel(f, part[f].pctAvail) === 'alert')
-    .map((f) => ({ format: f, pct: part[f].pctAvail, min: MIN_PCT[f].alert }));
+    .filter((f) => part[f].availMatches > 0 && minutesLevel(f, part[f].pctAvail, part.rules?.[f]) === 'alert')
+    .map((f) => ({ format: f, pct: part[f].pctAvail, min: (part.rules?.[f] || MIN_PCT[f]).alert }));
 }
 
 // Índices por partido para no recorrer listas enteras jugador a jugador
-export function buildContext({ events, convocs, stats, teams }) {
+export function buildContext({ events, convocs, stats, teams, rules }) {
   const convBy = new Map((convocs || []).map((c) => [c.event_id, c]));
   const statsBy = new Map();
   for (const s of stats || []) {
     if (!statsBy.has(s.event_id)) statsBy.set(s.event_id, new Map());
     statsBy.get(s.event_id).set(s.player_id, s);
   }
-  return { events, convBy, statsBy, teamsById: new Map((teams || []).map((t) => [t.id, t])) };
+  return { events, convBy, statsBy, teamsById: new Map((teams || []).map((t) => [t.id, t])), rules: rules || rulesOf(null) };
 }

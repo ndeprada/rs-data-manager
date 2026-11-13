@@ -14,8 +14,9 @@ import { Kpi, VedBar, recordSmall, CompareTable, LeadersCard, RecentResults, Pla
 import { useCountedStats, STAT_SCOPES } from "@/lib/matchStatus";
 import { statTeamResolver, statsOfTeam } from "@/lib/teamStats";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
-import { useParticipationContext } from "@/lib/useParticipation";
-import { participationOf, minutesAlerts, reasonShort } from "@/lib/participation";
+import { useParticipationContext, useMinutesRules } from "@/lib/useParticipation";
+import MinutesRuleDialog from "@/components/stats/MinutesRuleDialog";
+import { participationOf, minutesAlerts, reasonShort, ruleFor, isAjeno } from "@/lib/participation";
 import { teamPlaysF7 } from "@/lib/matchFormat";
 import { sortTeams } from "@/lib/teamOrder";
 import { standingOf } from "@/lib/teamsOverview";
@@ -62,6 +63,8 @@ export default function Stats() {
   const { data: injuries = [] } = useQuery({ queryKey: ["injuries_open"], queryFn: () => base44.entities.Injury.list(), enabled: perms.stats !== "none" });
   const matchStats = useCountedStats(rawStats, scope);
   const ctxAll = useParticipationContext(scope);
+  const { doc: ruleDoc, rules } = useMinutesRules();
+  const [ruleOpen, setRuleOpen] = useState(false);
 
   // Un entrenador ve las estadísticas de sus equipos; quien trabaja con todo el club, las de todos
   const limited = perms.stats === "team";
@@ -142,9 +145,17 @@ export default function Stats() {
     return players.filter((p) => p.team_id === team.id && p.status !== "baja").map((p) => {
       const part = participationOf(p, ctx);
       const tt = totals.get(p.id) || { goals: 0, assists: 0, minutes: 0, yellow: 0, red: 0, games: 0 };
-      return { p, b: part.all, t: tt, inj: openInjury.get(p.id), warn: withCycle ? cycleWarning(tt.yellow) : null };
+      return { p, b: part.all, rule: part.rules[fmt], t: tt, inj: openInjury.get(p.id), warn: withCycle ? cycleWarning(tt.yellow) : null };
     });
-  }, [isAll, team, ctxAll, players, totals, openInjury, withCycle]);
+  }, [isAll, team, ctxAll, players, totals, openInjury, withCycle, fmt]);
+  const teamRule = team ? ruleFor(fmt, team, rules) : null;
+  // Fútbol 7: cuántas veces los convocados jugaron 0, 1, 2, 3 o 4 cuartos (para valorar el reparto de minutos del entrenador)
+  const quarterMix = useMemo(() => {
+    const q = [0, 0, 0, 0, 0];
+    for (const r of playerRows) (r.b.quarters || []).forEach((n, k) => { q[k] += n; });
+    const total = q.reduce((a, b) => a + b, 0);
+    return { q, total };
+  }, [playerRows]);
   const guests = useMemo(() => (isAll || !team ? [] : [...totals.values()].map((r) => ({ p: playersById.get(r.player_id), t: r })).filter((x) => x.p && x.p.team_id !== team.id && x.t.games > 0).map((x) => ({ ...x, team: teamsById.get(x.p.team_id)?.name || "" }))), [isAll, team, totals, playersById, teamsById]);
   const usedOwn = playerRows.filter((r) => r.b.played > 0).length;
   const yellowsAll = [...totals.values()].reduce((s, r) => s + r.yellow, 0), redsAll = [...totals.values()].reduce((s, r) => s + r.red, 0);
@@ -168,8 +179,9 @@ export default function Stats() {
       const header = ["Dorsal", "Jugador", "Año", "Posición", "Asiste", "A parte", "No", "% asistencia"];
       downloadCsv(exportFileName(`asistencia-${name}`), toCsv(header, attRows.map((r) => [r.p.jersey_number ?? "", playerFullName(r.p), birthYearOf(r.p) ?? "", POS_LABEL[r.p.position] || "", r.present, r.apart, r.absent, r.pct ?? ""])));
     } else if (!isAll) {
-      const header = ["Dorsal", "Jugador", "Año", "Posición", "PJ", "Titular", "Suplente", "No convocado", "Minutos", "% minutos disponibles", "Goles", "Asistencias", "Amarillas", "Rojas", "Motivos de no convocatoria"];
-      downloadCsv(exportFileName(`estadisticas-${name}`), toCsv(header, sortPlayers(playerRows, playerSort).map(({ p, b, t: x }) => [p.jersey_number ?? "", playerFullName(p), birthYearOf(p) ?? "", POS_LABEL[p.position] || "", b.played, b.titular, b.suplente, b.noConv, b.mins, b.pctAvail ?? "", x.goals, x.assists, x.yellow, x.red, Object.entries(b.reasons || {}).map(([k, n]) => `${reasonShort(k)} ${n}`).join(" · ")])));
+      const f7 = fmt === "f7";
+      const header = ["Dorsal", "Jugador", "Año", "Posición", "Convocado", "PJ", "Titular", "Suplente", "Suplente sin jugar", "Fuera (decisión del entrenador)", "No disponible", ...(f7 ? ["1 cuarto", "2 cuartos", "3 cuartos", "4 cuartos"] : []), "Minutos", "% minutos disponibles", "Mínimo %", "Goles", "Asistencias", "Amarillas", "Rojas", "Motivos de no convocatoria"];
+      downloadCsv(exportFileName(`estadisticas-${name}`), toCsv(header, sortPlayers(playerRows, playerSort).map(({ p, b, t: x, rule }) => [p.jersey_number ?? "", playerFullName(p), birthYearOf(p) ?? "", POS_LABEL[p.position] || "", b.conv, b.played, b.titular, b.suplente, b.suplenteSin, b.benched, b.unavailable, ...(f7 ? [1, 2, 3, 4].map((k) => b.quarters?.[k] || 0) : []), b.mins, b.pctAvail ?? "", rule?.alert ?? "", x.goals, x.assists, x.yellow, x.red, Object.entries(b.reasons || {}).map(([k, n]) => `${reasonShort(k)}${isAjeno(k) ? " (no disponible)" : ""} ${n}`).join(" · ")])));
     }
   };
   const canExport = (tab === "resumen" && isAll) || (!isAll && (tab === "jugadores" || tab === "asistencia"));
@@ -233,10 +245,19 @@ export default function Stats() {
             ) : (
               <Kpi title={t("Jugadores usados")} big={usedOwn} small={t("de {n}", { n: playerRows.length }) + (guests.length ? ` · ${guests.length === 1 ? t("1 de otro equipo") : t("{n} de otros equipos", { n: guests.length })}` : "")} testId="stats-kpi-used" />
             )}
-            <Kpi title={t("Pocos minutos")} big={lowCount} color={lowCount ? "#B91C1C" : undefined} small={lowCount === 1 ? t("jugador") : t("jugadores")} foot={t("por debajo del mínimo del club")} testId="stats-kpi-low" />
-            {tab === "jugadores" && !isAll && (
+            <Kpi title={t("Pocos minutos")} big={lowCount} color={lowCount ? "#B91C1C" : undefined} small={lowCount === 1 ? t("jugador") : t("jugadores")} foot={t("por debajo de su mínimo de minutos")} testId="stats-kpi-low" />
+            {tab === "jugadores" && !isAll && !(fmt === "f7" && quarterMix.total > 0) && (
               <Kpi title={t("Tarjetas")} big={yellowsAll} small={<>{t("amarillas")} · <b style={{ color: "#B91C1C" }}>{redsAll}</b> {redsAll === 1 ? t("roja") : t("rojas")}</>}
                 foot={warned.length ? warned.map((r) => playerFullName(r.p)).join(", ") + " · " + t("a 1 de sanción") : null} testId="stats-kpi-cards" />
+            )}
+            {tab === "jugadores" && !isAll && fmt === "f7" && quarterMix.total > 0 && (
+              <Kpi title={t("Cuartos por convocatoria")} big={`${Math.round(((quarterMix.q[2] + quarterMix.q[3] + quarterMix.q[4]) / quarterMix.total) * 100)} %`}
+                small={t("juegan 2 cuartos o más")} testId="stats-kpi-quarters"
+                foot={[0, 1, 2, 3, 4].map((k) => `${k}C ${quarterMix.q[k]}`).join(" · ")}>
+                <span className="flex" style={{ width: 180, height: 7, borderRadius: 9, overflow: "hidden", background: "#F1ECEC", marginTop: 6 }}>
+                  {[0, 1, 2, 3, 4].map((k) => quarterMix.q[k] ? <span key={k} title={`${k}C · ${quarterMix.q[k]}`} style={{ width: `${(quarterMix.q[k] / quarterMix.total) * 100}%`, background: ["#B91C1C", "#F59E0B", "#D6B4B8", "#A3474F", "#73000A"][k] }} /> : null)}
+                </span>
+              </Kpi>
             )}
           </div>
         )}
@@ -261,7 +282,9 @@ export default function Stats() {
           )
         )}
 
-        {tab === "jugadores" && (isAll ? chooseTeam : <PlayerStatsTable rows={playerRows} guests={guests} sort={playerSort} onSort={setPlayerSort} fmt={fmt} cycle={withCycle ? CARD_CYCLE : null} />)}
+        {tab === "jugadores" && (isAll ? chooseTeam : <PlayerStatsTable rows={playerRows} guests={guests} sort={playerSort} onSort={setPlayerSort} fmt={fmt} cycle={withCycle ? CARD_CYCLE : null}
+          rule={teamRule} ruleOwn={!!(team && rules.teams[team.id])} onEditRule={perms.administration ? () => setRuleOpen(true) : null} />)}
+        {perms.administration && <MinutesRuleDialog open={ruleOpen} onOpenChange={setRuleOpen} doc={ruleDoc} team={isAll ? null : team} teams={allTeams} />}
 
         {tab === "goles" && <GoalStatsPanel events={played} players={players} teams={allTeams} />}
 

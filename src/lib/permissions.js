@@ -142,6 +142,8 @@ export const PALETTE_ENTITIES = new Set(['SessionContent']);
 // Tablas de etiquetas del análisis de vídeo (11/11/2026): cada persona tiene las suyas y puede compartirlas con el club.
 // Las compartidas (shared) las ve todo el personal; solo las cambia su autor (owner_id) o coordinación.
 export const VIDEO_TAG_ENTITIES = new Set(['VideoTagSet']);
+// Mínimo de minutos sobre los disponibles (13/11/2026): lo lee todo el personal; lo cambia solo coordinación y dirección
+export const MINUTES_RULE_ENTITIES = new Set(['MinutesRule']);
 // Campos de la ficha del jugador que solo escribe quien puede editar fichas (entrenadores y coordinación)
 export const PLAYER_STAFF_FIELDS = [WEAK_FOOT_FIELD];
 
@@ -209,6 +211,7 @@ export function checkRoleWrite({ perms, entity, method, body = {}, existing = nu
   if (MEDICAL_ENTITIES.has(entity)) return perms.medical === 'edit' ? { ok: true } : { ok: false, error: 'forbidden_role' };
   if (PLAYER_EVAL_ENTITIES.has(entity)) return perms.playerEval === 'edit' ? { ok: true } : { ok: false, error: 'forbidden_role' };
   if (PLANNING_ENTITIES.has(entity)) return perms.administration ? { ok: true } : { ok: false, error: 'forbidden_role' };
+  if (MINUTES_RULE_ENTITIES.has(entity)) return perms.administration ? { ok: true } : { ok: false, error: 'forbidden_role' };
   if (PALETTE_ENTITIES.has(entity)) {
     if (perms.administration) return { ok: true };
     if (method === 'POST') return body.status === 'propuesto' ? { ok: true } : { ok: false, error: 'forbidden_role' };

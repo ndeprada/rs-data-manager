@@ -199,3 +199,40 @@ assert.equal(formatOfEvent({ football_format: 'f11' }, '2x35', { name: 'Infantil
 
 assert.equal(reasonShort('lesion'), 'Lesión');
 assert.equal(reasonShort(NO_REASON), 'Sin motivo');
+
+// ── Reglas de minutos propias (13/11/2026) y cuartos jugados ──
+{
+  const { rulesOf, ruleFor, cleanRule } = await import('../src/lib/participation.js');
+  const { quartersPlayed } = await import('../src/lib/matchDuration.js');
+  assert.deepEqual(cleanRule({ alert: '45', target: '40' }), { alert: 45, target: null }); // objetivo por debajo de la alerta: fuera
+  assert.equal(cleanRule({ alert: 'x' }), null);
+  const r = rulesOf({ f7: { alert: 60 }, teams: { S12: { alert: 40, target: 50 }, bad: { alert: 300 } } });
+  assert.deepEqual(r.f7, { alert: 60, target: null });
+  assert.deepEqual(r.f11, MIN_PCT.f11);
+  assert.equal(r.teams.bad, undefined);
+  const s12 = { id: 'S12', name: 'Aleví S12 A', category: 'alevi_s12' };
+  assert.deepEqual(ruleFor('f7', s12, r), { alert: 40, target: 50 });
+  assert.deepEqual(ruleFor('f11', s12, r), MIN_PCT.f11); // la regla del equipo solo vale en su formato
+  assert.deepEqual(ruleFor('f7', { id: 'X', name: 'Aleví S11 B', category: 'alevi_s11' }, r), { alert: 60, target: null });
+  assert.equal(minutesLevel('f7', 45, ruleFor('f7', s12, r)), 'warn');
+
+  // Cuartos: titular que sale en el 30 de 4x15 = 2 cuartos; entra en el 20 = 3 (el 2.º cuarto, 10 de 15); entra en el 50 = 1 (10 de 15 del último); entra en el 55 = 0
+  const evs = [{ type: 'sub', minute: 30, playerOut: 'a', playerIn: 'b' }, { type: 'sub', minute: 20, playerIn: 'c', playerOut: 'z' }, { type: 'sub', minute: 50, playerIn: 'd', playerOut: 'y' }];
+  assert.equal(quartersPlayed('a', ['a'], evs, '4x15', 30), 2);
+  assert.equal(quartersPlayed('c', [], evs, '4x15', 40), 3);
+  assert.equal(quartersPlayed('d', [], evs, '4x15', 10), 1);
+  assert.equal(quartersPlayed('g', [], [{ type: 'sub', minute: 55, playerIn: 'g', playerOut: 'y' }], '4x15', 5), 0);
+  assert.equal(quartersPlayed('e', ['e'], [], '4x15', 60), 4);
+  assert.equal(quartersPlayed('f', [], [], '4x15', 30), 2);      // minutos a mano sin cambios en el acta: 30 ÷ 15
+  assert.equal(quartersPlayed('a', ['a'], evs, '2x45', 30), null);
+
+  // En el contexto: buckets con no disponibles / fuera por el entrenador, cuartos y la regla del equipo
+  const c2 = buildContext({ events, convocs, stats, teams, rules: rulesOf({ teams: { A: { alert: 70 } } }) });
+  const pa = participationOf(p3, c2);
+  assert.equal(pa.all.unavailable, 2); assert.equal(pa.all.benched, 1);
+  const p1q = participationOf(p1, c2);
+  assert.equal(p1q.f7.qMatches, 2); assert.equal(p1q.f7.quarters[4], 1); // e1 entero; e2 = 45' sin cambios → 3 cuartos
+  assert.equal(p1q.f7.quarters[3], 1);
+  assert.equal(p1q.rules.f11.alert, 70); // equipo A sin etapa conocida = F11: su regla vale en F11
+  assert.deepEqual(p1q.rules.f7, MIN_PCT.f7);
+}

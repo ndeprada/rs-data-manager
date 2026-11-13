@@ -9,7 +9,7 @@ import { PctBar, Seg, GroupHead } from "@/components/myteam/AttendanceParts";
 import MatchResultPill from "@/components/calendar/MatchResultPill";
 import { squadGroups } from "@/lib/myTeamStats";
 import { sortPlayers } from "@/lib/statsOverview";
-import { minutesLevel, reasonShort, MIN_PCT, FORMAT_LABEL } from "@/lib/participation";
+import { minutesLevel, reasonShort, isAjeno } from "@/lib/participation";
 import { playerFullName } from "@/lib/playerName";
 import { birthYearOf } from "@/lib/birthYear";
 import { juvenilYear } from "@/lib/juvenilYear";
@@ -149,14 +149,18 @@ export function RecentResults({ list, teamsById, showTeam }) {
 const PLAYER_SORTS = [["pos", msg("Por posición")], ["min", msg("Más minutos")], ["goles", msg("Goles")], ["bajo", msg("% más bajo")]];
 const reasonsLine = (reasons, t) => Object.entries(reasons || {}).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${t(reasonShort(k))} ${n}`).join(" · ");
 
-export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle }) {
+export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle, rule, ruleOwn, onEditRule }) {
   const t = useT();
   const dfl = useDateLocale();
   const td = { padding: "5px 8px", borderTop: "1px solid #F3EEEE", verticalAlign: "middle", whiteSpace: "nowrap" };
   const th = (a = "left", cls = "") => ({ style: { textAlign: a, padding: "6px 8px", fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: RS.muted, fontWeight: 700, borderBottom: `1px solid ${RS.line}`, whiteSpace: "nowrap" }, className: cls });
-  const level = (pct) => minutesLevel(fmt, pct);
-  const barFor = (pct) => {
-    const lv = level(pct);
+  const level = (pct, r) => minutesLevel(fmt, pct, r || rule);
+  const isF7 = fmt === "f7";
+  const cols = 17 + (isF7 ? 4 : 0);
+  const reasonsOf = (reasons, ajeno) => Object.entries(reasons || {}).filter(([k]) => isAjeno(k) === ajeno).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${t(reasonShort(k))} ${n}`).join(" · ");
+  const qCell = (n, k) => <td key={k} style={{ ...td, textAlign: "right", color: n ? (k < 2 ? LOSS : RS.ink) : RS.faint, fontWeight: n && k < 2 ? 700 : 400, background: "#FBF8F7" }} className="tabular-nums hidden md:table-cell">{n || "–"}</td>;
+  const barFor = (pct, r) => {
+    const lv = level(pct, r);
     const c = lv === "alert" ? LOSS : lv === "warn" ? WARN : RS.granate;
     if (pct == null) return <span style={{ color: RS.faint }}>—</span>;
     return (
@@ -169,7 +173,7 @@ export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle }) {
   const chip = (txt, bg, fg, key) => <span key={key} style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: bg, color: fg, whiteSpace: "nowrap" }}>{txt}</span>;
   const row = (r) => {
     const { p, b, t: tt, inj, warn } = r;
-    const lv = level(b.pctAvail);
+    const lv = level(b.pctAvail, r.rule);
     const jy = juvenilYear(birthYearOf(p), CURRENT_SEASON);
     return (
       <tr key={p.id} data-testid={`stats-player-${p.id}`}>
@@ -177,12 +181,15 @@ export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle }) {
         <td style={td}><Link to={`/PlayerProfile?id=${p.id}`} style={{ fontWeight: 700, color: RS.ink }}>{playerFullName(p)}</Link></td>
         <td style={{ ...td, color: RS.muted }} className="hidden md:table-cell">{jy ? <YearBadge year={birthYearOf(p)} sm /> : (birthYearOf(p) ?? "—")}</td>
         <td style={{ ...td, color: RS.muted }}>{POS_LABEL[p.position] || "—"}</td>
+        <td style={{ ...td, textAlign: "right" }} className="tabular-nums hidden md:table-cell">{b.conv}</td>
         <td style={{ ...td, textAlign: "right" }} className="tabular-nums">{b.played}</td>
         <td style={{ ...td, textAlign: "right" }} className="tabular-nums hidden md:table-cell">{b.titular}</td>
-        <td style={{ ...td, textAlign: "right", color: RS.muted }} className="tabular-nums hidden md:table-cell">{b.suplente}</td>
-        <td style={{ ...td, textAlign: "right", color: RS.muted }} className="tabular-nums hidden md:table-cell">{b.noConv || "–"}</td>
+        <td style={{ ...td, textAlign: "right", color: RS.muted }} className="tabular-nums hidden md:table-cell" title={b.suplenteSin ? t("{n} sin jugar", { n: b.suplenteSin }) : undefined}>{b.suplente}{b.suplenteSin ? <span style={{ fontSize: 10, color: RS.faint }}> ({b.suplenteSin})</span> : null}</td>
+        <td style={{ ...td, textAlign: "right", color: b.benched ? RS.ink : RS.faint }} className="tabular-nums hidden md:table-cell" title={reasonsOf(b.reasons, false) || undefined}>{b.benched || "–"}</td>
+        <td style={{ ...td, textAlign: "right", color: b.unavailable ? RS.ink : RS.faint }} className="tabular-nums hidden md:table-cell" title={reasonsOf(b.reasons, true) || undefined}>{b.unavailable || "–"}</td>
+        {isF7 && [1, 2, 3, 4].map((k) => qCell(b.quarters?.[k] || 0, k))}
         <td style={{ ...td, textAlign: "right" }} className="tabular-nums">{b.mins}'</td>
-        <td style={td}>{barFor(b.pctAvail)}</td>
+        <td style={td}>{barFor(b.pctAvail, r.rule)}</td>
         <td style={{ ...td, textAlign: "right", fontWeight: 700 }} className="tabular-nums">{tt.goals || "–"}</td>
         <td style={{ ...td, textAlign: "right" }} className="tabular-nums">{tt.assists || "–"}</td>
         <td style={{ ...td, textAlign: "right" }} className="tabular-nums hidden md:table-cell">{tt.yellow || "–"}{tt.red ? <span style={{ color: LOSS }}> · {tt.red}R</span> : null}</td>
@@ -205,27 +212,32 @@ export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle }) {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead><tr>
             <th {...th()}>#</th><th {...th()}>{t("Jugador")}</th><th {...th("left", "hidden md:table-cell")}>{t("Año")}</th><th {...th()}>{t("Pos")}</th>
-            <th {...th("right")} title={t("Partidos jugados")}>{t("PJ")}</th><th {...th("right", "hidden md:table-cell")}>{t("Tit.")}</th><th {...th("right", "hidden md:table-cell")}>{t("Sup.")}</th>
-            <th {...th("right", "hidden md:table-cell")}>{t("No conv.")}</th><th {...th("right")}>{t("Minutos")}</th><th {...th()}>{t("% min. disponibles")}</th>
+            <th {...th("right", "hidden md:table-cell")} title={t("Partidos convocado")}>{t("Conv.")}</th>
+            <th {...th("right")} title={t("Partidos jugados")}>{t("PJ")}</th><th {...th("right", "hidden md:table-cell")}>{t("Tit.")}</th><th {...th("right", "hidden md:table-cell")} title={t("Suplente (entre paréntesis, sin llegar a jugar)")}>{t("Sup.")}</th>
+            <th {...th("right", "hidden md:table-cell")} title={t("No convocado por decisión del entrenador: decisión técnica, descanso o sin motivo")}>{t("Fuera")}</th>
+            <th {...th("right", "hidden md:table-cell")} title={t("No disponible: lesión, enfermedad, sanción, viaje, estudios u otro motivo")}>{t("No disp.")}</th>
+            {isF7 && [1, 2, 3, 4].map((k) => <th key={k} {...th("right", "hidden md:table-cell")} title={k === 1 ? t("Partidos en que jugó 1 cuarto") : t("Partidos en que jugó {n} cuartos", { n: k })} >{t("{n}C", { n: k })}</th>)}
+            <th {...th("right")}>{t("Minutos")}</th><th {...th()}>{t("% min. disponibles")}</th>
             <th {...th("right")}>{t("G")}</th><th {...th("right")}>{t("A")}</th><th {...th("right", "hidden md:table-cell")} title={t("Tarjetas amarillas")}>{t("TA")}</th>
             <th {...th("left", "hidden lg:table-cell")}>{t("Motivos de no convocatoria")}</th><th {...th()} />
           </tr></thead>
           <tbody>
             {groups.map((g) => (
               <React.Fragment key={g.key}>
-                {g.label && <tr><td colSpan={15} style={{ padding: "10px 8px 3px" }}><GroupHead title={t(g.label)} right={g.rows.length} /></td></tr>}
+                {g.label && <tr><td colSpan={cols} style={{ padding: "10px 8px 3px" }}><GroupHead title={t(g.label)} right={g.rows.length} /></td></tr>}
                 {g.rows.map(row)}
               </React.Fragment>
             ))}
             {guests.length > 0 && (
               <>
-                <tr><td colSpan={15} style={{ padding: "10px 8px 3px" }}><GroupHead title={t("De otros equipos")} right={guests.length} /></td></tr>
+                <tr><td colSpan={cols} style={{ padding: "10px 8px 3px" }}><GroupHead title={t("De otros equipos")} right={guests.length} /></td></tr>
                 {guests.map((x) => (
                   <tr key={x.p.id} style={{ background: "#F8FBFF" }}>
                     <td style={td} />
                     <td style={td}><Link to={`/PlayerProfile?id=${x.p.id}`} style={{ fontWeight: 700, color: RS.ink }}>{playerFullName(x.p)}</Link> <span style={{ fontSize: 11, color: RS.muted }}>{x.team}</span></td>
                     <td style={td} className="hidden md:table-cell" /><td style={{ ...td, color: RS.muted }}>{POS_LABEL[x.p.position] || "—"}</td>
-                    <td style={{ ...td, textAlign: "right" }}>{x.t.games}</td><td style={td} className="hidden md:table-cell" /><td style={td} className="hidden md:table-cell" /><td style={td} className="hidden md:table-cell" />
+                    <td style={td} className="hidden md:table-cell" /><td style={{ ...td, textAlign: "right" }}>{x.t.games}</td><td style={td} className="hidden md:table-cell" /><td style={td} className="hidden md:table-cell" /><td style={td} className="hidden md:table-cell" /><td style={td} className="hidden md:table-cell" />
+                    {isF7 && [1, 2, 3, 4].map((k) => <td key={k} style={td} className="hidden md:table-cell" />)}
                     <td style={{ ...td, textAlign: "right" }}>{x.t.minutes}'</td>
                     <td style={{ ...td, fontSize: 11, color: RS.muted }}>{t("Cuenta en su equipo")}</td>
                     <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{x.t.goals || "–"}</td><td style={{ ...td, textAlign: "right" }}>{x.t.assists || "–"}</td>
@@ -234,13 +246,18 @@ export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle }) {
                 ))}
               </>
             )}
-            {!rows.length && <tr><td colSpan={15} style={{ padding: 24, textAlign: "center", color: RS.faint }}>{t("Todavía no hay partidos cerrados de este equipo en esta competición.")}</td></tr>}
+            {!rows.length && <tr><td colSpan={cols} style={{ padding: 24, textAlign: "center", color: RS.faint }}>{t("Todavía no hay partidos cerrados de este equipo en esta competición.")}</td></tr>}
           </tbody>
         </table>
       </div>
       <div style={{ padding: "8px 14px 10px", fontSize: 11, color: RS.muted, borderTop: `1px solid ${RS.line}` }}>
         <b style={{ color: RS.ink2 }}>{t("% min. disponibles")}</b> {t("= minutos jugados sobre los de los partidos en que podía jugar (sin lesión, sanción, viaje…).")}{" "}
-        {t("Rojo por debajo del mínimo del club: {f11} {a11} % (objetivo {target} %, en ámbar) · {f7} {a7} %.", { f11: t(FORMAT_LABEL.f11), a11: MIN_PCT.f11.alert, target: MIN_PCT.f11.target, f7: t(FORMAT_LABEL.f7), a7: MIN_PCT.f7.alert })}
+        <span data-testid="stats-rule">
+          {rule ? (rule.target ? t("Mínimo de este equipo: {a} % (en rojo por debajo) · objetivo {b} % (en ámbar)", { a: rule.alert, b: rule.target }) : t("Mínimo de este equipo: {a} % (en rojo por debajo)", { a: rule.alert })) : null}
+          {rule ? ` · ${ruleOwn ? t("propio del equipo") : t("el del club")}` : null}
+          {onEditRule && <> · <button type="button" onClick={onEditRule} data-testid="stats-rule-edit" style={{ font: "inherit", fontWeight: 700, color: RS.granate, background: "none", border: 0, padding: 0, cursor: "pointer", textDecoration: "underline" }}>{t("Cambiar")}</button></>}
+        </span>
+        {isF7 ? ` ${t("1C–4C: partidos en que jugó 1, 2, 3 o 4 cuartos (cuenta un cuarto si estuvo al menos la mitad); en rojo, menos de 2.")}` : ""}
         {cycle ? ` ${t("«A 1 de sanción»: le falta una amarilla para cumplir ciclo ({n} amarillas = 1 partido).", { n: cycle })}` : ""}
       </div>
     </section>
