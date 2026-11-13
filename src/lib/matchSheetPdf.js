@@ -115,9 +115,9 @@ export async function downloadMatchSheetPDF({ event, team, isF7 = false, formati
   const titleFont = (pt) => { if (TF) doc.setFont(TF, "normal"); else doc.setFont("helvetica", "bold"); doc.setFontSize(pt); };
   const font = (pt, bold = false, italic = false) => { doc.setFont("helvetica", bold ? (italic ? "bolditalic" : "bold") : italic ? "italic" : "normal"); doc.setFontSize(pt); };
   const heading = (text, x, y, right = "") => {
-    doc.setFillColor(...ORANGE); doc.rect(x, y - 3.1, 0.9, 3.6, "F");
-    titleFont(11); doc.setTextColor(...GRANATE); doc.text(text, x + 2.6, y);
-    if (right) { font(6.8); doc.setTextColor(...MUTED); return doc.text(right, x + headingW(x), y, { align: "right" }); }
+    doc.setFillColor(...ORANGE); doc.rect(x, y - 4.3, 1.1, 5, "F");
+    titleFont(14.5); doc.setTextColor(...GRANATE); doc.text(text, x + 3, y);
+    if (right) { font(7.2); doc.setTextColor(...MUTED); return doc.text(right, x + headingW(x), y, { align: "right" }); }
   };
   let headingW = () => 0;
 
@@ -168,13 +168,7 @@ export async function downloadMatchSheetPDF({ event, team, isF7 = false, formati
     doc.setTextColor(...GRANATE); doc.text(visitor.toUpperCase(), x, 23);
     doc.setDrawColor(...GRANATE); doc.setLineWidth(0.9); doc.line(M, 31, W - M, 31);
   };
-  const footer = (n, total) => {
-    doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(M, H - 9, W - M, H - 9);
-    font(7.3, true); doc.setTextColor(...GRANATE); doc.text(String(BRAND.clubName || "").toUpperCase(), M, H - 5);
-    const cw = doc.getTextWidth(String(BRAND.clubName || "").toUpperCase());
-    font(7.3); doc.setTextColor(...MUTED); doc.text(` · ${ours}`, M + cw, H - 5);
-    doc.text(`${BRAND.appName} · Generado el ${format(new Date(), "d/MM/yyyy HH:mm")}${total > 1 ? ` · Página ${n} de ${total}` : ""}`, W - M, H - 5, { align: "right" });
-  };
+
 
   const when = date ? format(date, "EEE d MMM · HH:mm", { locale: es }).toUpperCase() : "";
   const place = event?.location ? `${isHome ? "En casa" : "Fuera"} · ${event.location}` : (isHome ? "En casa" : "Fuera");
@@ -182,7 +176,7 @@ export async function downloadMatchSheetPDF({ event, team, isF7 = false, formati
     [when, callupTime ? `Convocatoria ${callupTime}` : "", place, kitText].filter(Boolean));
 
   // ── Columna 1: once en el campo ──
-  const top = 41, bottom = H - 12;
+  const top = 44, bottom = H - 7;
   const lx = M, ph = bottom - top - 3, pw = ph * 300 / 420;
   headingW = () => pw - 2.6;
   heading(`${isF7 ? "SIETE" : "ONCE"} INICIAL · ${formation}`, lx, top - 3, captainId ? "C = capitán" : "");
@@ -235,7 +229,7 @@ export async function downloadMatchSheetPDF({ event, team, isF7 = false, formati
   const bx = lx + pw + 6, bw = 70;
   headingW = () => bw;
   heading("BANQUILLO", bx, top - 3, benchPlayers.length ? "min. entra" : "");
-  let y = top + 1.5;
+  let y = top + 1.8;
   const rowH = Math.min(5.6, 70 / Math.max(benchPlayers.length, 1));
   benchPlayers.forEach((p) => {
     doc.setDrawColor(241, 236, 236); doc.setLineWidth(0.25); doc.line(bx, y - 1.2, bx + bw, y - 1.2);
@@ -250,7 +244,7 @@ export async function downloadMatchSheetPDF({ event, team, isF7 = false, formati
   y += 5;
   if (absent.length) {
     heading("NO CONVOCADOS", bx, y);
-    y += 3.6;
+    y += 4.6;
     absent.slice(0, 8).forEach((a) => {
       titleFont(8.5); doc.setTextColor(...MUTED); doc.text(String(a.dorsal ?? ""), bx + 6, y + 2.4, { align: "right" });
       const txt = `${a.name}${a.reason ? ` · ${a.reason}` : ""}`;
@@ -263,7 +257,7 @@ export async function downloadMatchSheetPDF({ event, team, isF7 = false, formati
   }
   if (rival) {
     heading(`RIVAL · ${String(opp).toUpperCase()}`.slice(0, 34), bx, y);
-    y += 7.5;
+    y += 9;
     if (rival.pos) { titleFont(17); doc.setTextColor(...GRANATE); doc.text(`${rival.pos}.º`, bx, y); }
     font(7.6); doc.setTextColor(...INK2);
     doc.text([rival.pts != null ? `${rival.pts} pts` : "", rival.gf != null ? `${rival.gf} GF` : "", rival.gc != null ? `${rival.gc} GC` : ""].filter(Boolean).join(" · "), bx + 13, y - 0.6);
@@ -305,7 +299,7 @@ export async function downloadMatchSheetPDF({ event, team, isF7 = false, formati
   });
   if (abpH) {
     heading("BALÓN PARADO", rx, py, abp.length ? `${pieces.length} jugada${pieces.length === 1 ? "" : "s"}` : "");
-    let ay = py + 4.5;
+    let ay = py + 5.8;
     if (abp.length) {
       abp.forEach((pc) => {
         doc.setDrawColor(241, 236, 236); doc.setLineWidth(0.25); doc.line(rx, ay - 1.4, rx + rw, ay - 1.4);
@@ -328,8 +322,7 @@ export async function downloadMatchSheetPDF({ event, team, isF7 = false, formati
   doc.setDrawColor(217, 208, 208); doc.setLineWidth(0.25);
   for (let i = 1; i <= 4; i++) doc.line(rx, ny + 1 + i * 6, rx + rw, ny + 1 + i * 6);
 
-  const total = benchPage ? 2 : 1;
-  footer(1, total);
+
 
   // ── Página 2: para el banquillo durante el partido ──
   if (benchPage) {
@@ -419,7 +412,6 @@ export async function downloadMatchSheetPDF({ event, team, isF7 = false, formati
       doc.roundedRect(x, sy + 6.5, 10, 8, 1, 1, "S"); doc.roundedRect(x + 14, sy + 6.5, 10, 8, 1, 1, "S");
       titleFont(12); doc.setTextColor(...MUTED); doc.text("–", x + 12, sy + 12.3, { align: "center" });
     });
-    footer(2, 2);
   }
 
   const safe = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "");
