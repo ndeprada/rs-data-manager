@@ -50,6 +50,7 @@ import { TeamAccessProvider } from '@/lib/TeamAccessContext';
 import { lazyPage } from '@/lib/lazyPage';
 import UpdateNotice from '@/components/common/UpdateNotice';
 import AutoFcfSync from '@/components/common/AutoFcfSync';
+import { NoticeOpenWatcher } from '@/lib/noticeReads';
 import { useTeamAccess } from '@/lib/TeamAccessContext';
 
 const STAFF_ROLES = STAFF_FUNCTION_VALUES;
@@ -106,13 +107,14 @@ const AuthenticatedApp = () => {
 
   // Familiar con vínculo aprobado
   if (user && !isAdminUser && user.app_role === 'familiar' && status === 'approved') {
-    return <PatternScope page="familia"><FamilyHome /></PatternScope>;
+    return <><NoticeOpenWatcher /><PatternScope page="familia"><FamilyHome /></PatternScope></>;
   }
 
   // Jugador con acceso aprobado
   if (user && !isAdminUser && user.app_role === 'jugador' && status === 'approved') {
     return (
       <TeamAccessProvider>
+        <NoticeOpenWatcher />
         <Routes>
           <Route element={<Layout />}>
             <Route path="/PlayerTeam" element={<PlayerTeam />} />
@@ -140,6 +142,7 @@ const AuthenticatedApp = () => {
   return (
     <TeamAccessProvider>
     <AutoFcfSync />
+    <NoticeOpenWatcher />
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route element={<Layout />}>

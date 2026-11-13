@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { usePendingUsersCount } from "@/lib/pendingUsers";
+import { useUnreadNotices } from "@/lib/noticeReads";
 import { POLL } from "@/lib/query-client";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -58,7 +59,7 @@ function SectionLabel({ children }) {
   );
 }
 
-function NavItem({ item, onClick, badge = 0 }) {
+function NavItem({ item, onClick, badge = 0, badgeTitle = null }) {
   const t = useT();
   const location = useLocation();
   const active = location.pathname === item.path;
@@ -74,7 +75,7 @@ function NavItem({ item, onClick, badge = 0 }) {
         <item.icon className={`shrink-0 w-3.5 h-3.5 ${active ? "text-[color:var(--granate)]" : "text-white/55 group-hover:text-white/85"}`} />
       )}
       <span className="flex-1 leading-none">{t(item.label)}</span>
-      {badge > 0 && <span className="min-w-4 h-4 px-1 rounded-full bg-club-accent text-white text-[9px] font-black flex items-center justify-center shrink-0" title={t("{n} usuario(s) pendientes de aceptar", { n: badge })}>{badge}</span>}
+      {badge > 0 && <span className="min-w-4 h-4 px-1 rounded-full bg-club-accent text-white text-[9px] font-black flex items-center justify-center shrink-0" title={badgeTitle || t("{n} usuario(s) pendientes de aceptar", { n: badge })} data-testid={`nav-badge-${item.path.replace("/", "")}`}>{badge}</span>}
       
     </Link>
   );
@@ -138,6 +139,7 @@ function MyTeamNav({ onClose, notificationCount }) {
 
 function PlayerSidebar({ onClose = () => {}, drawer = false }) {
   const t = useT();
+  const unreadNotices = useUnreadNotices();
   const { user, logout } = useAuth();
   return (
     <div className="rs-nodark flex flex-col h-full" style={{ background: "var(--granate)" }}>
@@ -150,7 +152,7 @@ function PlayerSidebar({ onClose = () => {}, drawer = false }) {
       <nav className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5">
         <NavItem item={{ label: msg("Mi equipo"), path: "/PlayerTeam", icon: Users }} onClick={onClose} />
         <NavItem item={{ label: msg("Mi ficha y estadísticas"), path: "/PlayerProfile", icon: UserCheck }} onClick={onClose} />
-        <NavItem item={{ label: msg("Avisos"), path: "/Avisos", icon: Bell }} onClick={onClose} />
+        <NavItem item={{ label: msg("Avisos"), path: "/Avisos", icon: Bell }} onClick={onClose} badge={unreadNotices} badgeTitle={t("{n} avisos sin leer", { n: unreadNotices })} />
       </nav>
       <div className="px-2 py-3 border-t border-white/10">
         <div className="flex items-center gap-2 px-1.5 py-1.5">
@@ -173,6 +175,7 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
   const { user, logout } = useAuth();
   const { isCoordinator, appRole, selectedTeamId, perms } = useTeamAccess();
   const pendingUsersCount = usePendingUsersCount(isCoordinator);
+  const unreadNotices = useUnreadNotices();
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
     queryFn: () => base44.entities.Event.list("-date"),
@@ -284,7 +287,7 @@ function StaffSidebar({ onClose = () => {}, drawer = false }) {
         )}
 
         <SectionLabel>{msg("Comunicación")}</SectionLabel>
-        <NavItem item={{ label: msg("Avisos"), path: "/Avisos", icon: Bell }} onClick={onClose} />
+        <NavItem item={{ label: msg("Avisos"), path: "/Avisos", icon: Bell }} onClick={onClose} badge={unreadNotices} badgeTitle={t("{n} avisos sin leer", { n: unreadNotices })} />
         {user?.player_id && user.role !== "admin" && (
           <NavItem item={{ label: msg("Mi ficha de jugador"), path: `/PlayerProfile?id=${user.player_id}&as=player`, icon: UserCheck }} onClick={onClose} />
         )}
@@ -337,6 +340,7 @@ export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isCoordinator } = useTeamAccess();
   const pendingUsersCount = usePendingUsersCount(isCoordinator);
+  const unreadNotices = useUnreadNotices();
   const playerMode = usePlayerMode();
   const { pathname } = useLocation();
   // Patrón de página de la configuración del club (en la zona de jugadores, siempre «familias»)
@@ -382,7 +386,7 @@ export default function Layout() {
         <div className="flex items-center gap-2">
           <button onClick={() => setMobileOpen(!mobileOpen)} aria-label={t("Menú")} className="relative p-2 -ml-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            {pendingUsersCount > 0 && !mobileOpen && <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-club-accent border border-club" />}
+            {(pendingUsersCount > 0 || unreadNotices > 0) && !mobileOpen && <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-club-accent border border-club" />}
           </button>
           <Link to={playerMode ? "/PlayerTeam" : "/Dashboard"} onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
             <img src={CLUB_LOGO_URL_WHITE} alt={BRAND.clubName} className="w-7 h-7 object-contain" />

@@ -1,0 +1,14 @@
+name: Avisos programados
+# Cada 5 minutos pide a la app que envíe los avisos programados que ya tocan (solo envía lo que ya debía salir).
+# GitHub no garantiza la puntualidad exacta: a veces se retrasa unos minutos.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: curl -fsS --max-time 60 "https://rs-dm.vercel.app/api/club?a=dispatch"

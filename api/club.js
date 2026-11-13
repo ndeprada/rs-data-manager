@@ -13,6 +13,10 @@ import { readClubBrand, saveClubBrand } from './_lib/clubBrand.js';
 import { ensureSchema, importActas, searchPlayers, playerDetail, meta as fcfMeta, yearCounts, groupTeams, teamSquad, alerts as fcfAlerts, actaIds } from './_lib/fcfDb.js';
 import { isAdmin, coachTeamIdsOf } from './_lib/access.js';
 import { COORD, STAFF, isApprovedUser, teamIdsOfUser, reachableUserIds, searchPeople, MAX_INDIVIDUALS } from './_lib/recipients.js';
+import {
+  cleanSendAt, withNoticeParam, inboxItem, historyItem, historyStats, markRead, markAllRead, unreadCount, noticeData, dispatchDue,
+  resendUnread, describeRecipients, unreadByTeam, canManageNotice, cleanTemplate, templateVisible, templateEditable, INBOX_LIMIT,
+} from './_lib/notices.js';
 
 const RELATIONS = ['padre', 'madre', 'tutor', 'otro_familiar'];
 
@@ -110,6 +114,18 @@ async function pushTo(userIds, payload) {
   return { sent, failed, devices: rows.length };
 }
 
+// Avisos programados que ya tocan (los lanza la tarea de GitHub cada pocos minutos y también al abrir Avisos)
+const loadUserById = async (id) => {
+  const { rows } = await query(`select e.id, e.data, a.email from entities e left join auth_users a on a.id = e.id where e.id = $1 and e.entity_type = 'User'`, [id]);
+  return rows[0] ? { id: rows[0].id, email: rows[0].email, ...rows[0].data } : null;
+};
+const dispatchNow = () => dispatchDue({ query }, {
+  loadUser: loadUserById,
+  canSend: (u) => isApprovedUser(u) && canSend(u),
+  resolve: async (u, audience) => [...(await resolveRecipients(u, audience)).ids],
+  push: pushTo,
+}).catch(() => ({ claimed: 0, sent: 0 }));
+
 // ── Vínculos de familiares ───────────────────────────────────────────────────
 async function promoteGuardian(userId) {
   const { rows } = await query(`select data from entities where entity_type = 'User' and id = $1`, [userId]);
@@ -160,6 +176,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'brand_failed' });
     }
   }
+  // Envía los avisos programados que ya tocan. Es pública a propósito: solo envía lo que ya debía salir.
+  if (req.query.a === 'dispatch') return res.status(200).json(await dispatchNow());
   const user = await requireUser(req, res);
   if (!user) return;
   const a = req.query.a;
@@ -231,22 +249,109 @@ export default async function handler(req, res) {
     }
 
     if (a === 'inbox') {
+      await dispatchNow();
       const { rows } = await query(
-        `select id, data, created_at from entities where entity_type = 'Notice' and data -> 'recipient_ids' ? $1 order by created_at desc limit 40`, [user.id]
+        `select id, data, created_at from entities where entity_type = 'Notice' and data -> 'recipient_ids' ? $1 order by created_at desc limit ${INBOX_LIMIT}`, [user.id]
       );
-      return res.status(200).json(rows.map((r) => ({ id: r.id, title: r.data.title, body: r.data.body, url: r.data.url, sender_name: r.data.sender_name, created_date: r.created_at })));
+      return res.status(200).json(rows.map((r) => inboxItem(r, user.id)));
     }
+
+    if (a === 'unread_count') return res.status(200).json({ n: await unreadCount({ query }, user.id) });
+    if (a === 'notice_read' && req.method === 'POST') return res.status(200).json({ n: await markRead({ query }, user.id, body.ids) });
+    if (a === 'notice_read_all' && req.method === 'POST') return res.status(200).json({ n: await markAllRead({ query }, user.id) });
 
     if (a === 'history') {
       if (!canSend(user)) return res.status(403).json({ error: 'forbidden' });
+      await dispatchNow();
       const mine = isCoord(user) ? '' : `and data ->> 'sender_id' = $1`;
       const { rows } = await query(
-        `select id, data, created_at from entities where entity_type = 'Notice' ${mine} order by created_at desc limit 100`, isCoord(user) ? [] : [user.id]
+        `select id, data, created_at from entities where entity_type = 'Notice' ${mine} order by created_at desc limit 150`, isCoord(user) ? [] : [user.id]
       );
-      return res.status(200).json(rows.map((r) => ({
-        id: r.id, title: r.data.title, body: r.data.body, sender_name: r.data.sender_name, audience_label: r.data.audience_label,
-        recipients: (r.data.recipient_ids || []).length, sent: r.data.sent || 0, devices: r.data.devices || 0, created_date: r.created_at,
-      })));
+      const items = rows.map(historyItem).filter((n) => n.status !== 'cancelado');
+      return res.status(200).json({ items, stats: historyStats(items) });
+    }
+
+    // Quién lo ha leído y quién no (solo quien lo envió o coordinación)
+    if (a === 'notice_people') {
+      const { rows } = await query(`select data from entities where entity_type = 'Notice' and id = $1`, [String(req.query.id || '')]);
+      const d = rows[0]?.data;
+      if (!d) return res.status(404).json({ error: 'not_found' });
+      if (!canManageNotice(d, user, isCoord(user))) return res.status(403).json({ error: 'forbidden' });
+      const [users, players, links, teams] = await Promise.all([byType('User'), byType('Player'), byType('GuardianLink'), teamMap()]);
+      const people = describeRecipients(d.recipient_ids || [], { users, players, links, teams });
+      const read = new Set(d.read_ids || []);
+      const unread = people.filter((p) => !read.has(p.id));
+      const byName = (x, y) => x.team.localeCompare(y.team, 'es') || x.name.localeCompare(y.name, 'es');
+      return res.status(200).json({ tracked: d.track_read === true, unread: unread.sort(byName), read: people.filter((p) => read.has(p.id)).sort(byName), by_team: unreadByTeam(unread) });
+    }
+
+    if (a === 'notice_resend' && req.method === 'POST') {
+      try {
+        return res.status(200).json(await resendUnread({ query }, { id: String(body.id || ''), user, coord: isCoord(user), push: pushTo }));
+      } catch (e) {
+        const code = e.message === 'not_found' ? 404 : e.message === 'forbidden' ? 403 : 400;
+        return res.status(code).json({ error: e.message });
+      }
+    }
+
+    // Avisos programados: cancelar o enviar ya
+    if ((a === 'schedule_cancel' || a === 'schedule_now') && req.method === 'POST') {
+      const { rows } = await query(`select data from entities where entity_type = 'Notice' and id = $1`, [String(body.id || '')]);
+      const d = rows[0]?.data;
+      if (!d || d.status !== 'programado') return res.status(404).json({ error: 'not_found' });
+      if (!canManageNotice(d, user, isCoord(user))) return res.status(403).json({ error: 'forbidden' });
+      if (a === 'schedule_cancel') {
+        await query(`delete from entities where id = $1 and data ->> 'status' = 'programado'`, [body.id]);
+        return res.status(200).json({ ok: true });
+      }
+      await query(`update entities set data = data || jsonb_build_object('send_at', $2::text) where id = $1 and data ->> 'status' = 'programado'`, [body.id, new Date().toISOString()]);
+      return res.status(200).json(await dispatchNow());
+    }
+
+    // Plantillas de avisos
+    if (a === 'templates') {
+      if (!canSend(user)) return res.status(403).json({ error: 'forbidden' });
+      const rows = await byType('NoticeTemplate');
+      const coord = isCoord(user);
+      return res.status(200).json(rows.filter((r) => templateVisible(r.data, user, coord))
+        .map((r) => ({ id: r.id, ...r.data, editable: templateEditable(r.data, user, coord) }))
+        .sort((x, y) => x.name.localeCompare(y.name, 'es')));
+    }
+    if ((a === 'template_save' || a === 'template_delete') && req.method === 'POST') {
+      if (!canSend(user)) return res.status(403).json({ error: 'forbidden' });
+      const coord = isCoord(user);
+      let current = null;
+      if (body.id) {
+        const { rows } = await query(`select data from entities where entity_type = 'NoticeTemplate' and id = $1`, [String(body.id)]);
+        current = rows[0]?.data || null;
+        if (!current) return res.status(404).json({ error: 'not_found' });
+        if (!templateEditable(current, user, coord)) return res.status(403).json({ error: 'forbidden' });
+      }
+      if (a === 'template_delete') {
+        if (!current) return res.status(400).json({ error: 'id_required' });
+        await query(`delete from entities where id = $1`, [body.id]);
+        return res.status(200).json({ ok: true });
+      }
+      let clean;
+      try { clean = cleanTemplate(body); } catch { return res.status(400).json({ error: 'bad_template' }); }
+      if (current) {
+        await query(`update entities set data = data || $2::jsonb, updated_at = now() where id = $1`, [body.id, JSON.stringify(clean)]);
+        return res.status(200).json({ id: body.id, ...current, ...clean });
+      }
+      const data = { ...clean, owner_id: user.id, owner_name: user.full_name || user.email, shared: coord };
+      const { rows } = await query(`insert into entities (entity_type, data) values ('NoticeTemplate', $1::jsonb) returning id`, [JSON.stringify(data)]);
+      return res.status(200).json({ id: rows[0].id, ...data });
+    }
+
+    // Cuántas personas (a las que puede escribir) no tienen los avisos activados en ningún móvil
+    if (a === 'push_coverage') {
+      if (!canSend(user)) return res.status(403).json({ error: 'forbidden' });
+      const [users, players, links] = await Promise.all([byType('User'), byType('Player'), byType('GuardianLink')]);
+      const reach = reachableUserIds(senderScope(user), { users, players, links });
+      const { rows } = await query(`select distinct data ->> 'user_id' as u from entities where entity_type = 'PushSubscription'`);
+      const withPush = new Set(rows.map((r) => r.u));
+      const without = [...reach].filter((id) => !withPush.has(id)).length;
+      return res.status(200).json({ people: reach.size, without_push: without });
     }
 
     // Buscador de personas para un aviso individual (nombre, función y equipo; sin correos ni teléfonos)
@@ -276,18 +381,20 @@ export default async function handler(req, res) {
       const title = String(body.title || '').trim().slice(0, 100);
       const text = String(body.body || '').trim().slice(0, 1800); // la convocatoria con listas de jugadores supera los 600
       if (!title || !text) return res.status(400).json({ error: 'title_and_body_required' });
-      if (list.length === 0) return res.status(400).json({ error: 'no_recipients' });
+      let scheduled;
+      try { scheduled = cleanSendAt(body.send_at); } catch { return res.status(400).json({ error: 'bad_send_at' }); }
+      if (!scheduled && list.length === 0) return res.status(400).json({ error: 'no_recipients' });
       const url = typeof body.url === 'string' && body.url.startsWith('/') ? body.url : '/Avisos';
-      const delivery = await pushTo(list, { title, body: text, url });
+      const base = noticeData({ title, body: text, url, kind: body.kind, audience: body.audience, audience_label: body.audience_label, sender: user, scheduled });
       const { rows: ins } = await query(
         `insert into entities (entity_type, data) values ('Notice', $1::jsonb) returning id`,
-        [JSON.stringify({
-          title, body: text, url, sender_id: user.id, sender_name: user.full_name || user.email,
-          audience: body.audience || {}, audience_label: String(body.audience_label || '').slice(0, 200),
-          recipient_ids: list, sent: delivery.sent, failed: delivery.failed, devices: delivery.devices,
-        })]
+        [JSON.stringify(scheduled ? { ...base, expected: list.length } : { ...base, recipient_ids: list, sent: 0, failed: 0, devices: 0 })]
       );
-      return res.status(200).json({ id: ins[0].id, recipients: list.length, ...delivery });
+      const id = ins[0].id;
+      if (scheduled) return res.status(200).json({ id, scheduled, recipients: list.length });
+      const delivery = await pushTo(list, { title, body: text, url: withNoticeParam(url, id), notice_id: id });
+      await query(`update entities set data = data || $2::jsonb where id = $1`, [id, JSON.stringify(delivery)]);
+      return res.status(200).json({ id, recipients: list.length, ...delivery });
     }
 
     // ── Familiares ──────────────────────────────────────────────

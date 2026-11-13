@@ -102,7 +102,7 @@ export default function Composer({ fixed = null, defaultTitle = "", defaultBody 
   const send = async () => {
     setBusy(true); setNotice(null);
     try {
-      const r = await base44.club.send({ title, body, url: defaultUrl, audience, audience_label: label });
+      const r = await base44.club.send({ title, body, url: defaultUrl, audience, audience_label: label, kind: fixed ? "partido" : "general" });
       setNotice({ ok: true, text: `${r.recipients === 1 ? t("Enviado a {n} persona", { n: 1 }) : t("Enviado a {n} personas", { n: r.recipients })} (${r.sent === 1 ? t("{n} dispositivo con aviso activado", { n: 1 }) : t("{n} dispositivos con aviso activado", { n: r.sent })}).` });
       setTitle(defaultTitle); setBody(defaultBody); setPicked([]);
       qc.invalidateQueries({ queryKey: ["noticeHistory"] });
