@@ -89,9 +89,24 @@ export const isAnimatedBoard = (board) => animFrameCount(withSheet(board)) > 1;
 // Pizarra de una jugada: la guardada o la antigua convertida, siempre con la hoja delante
 // (en balón parado el nombre y el apellido van en dos líneas salvo que se elija una: 07/11/2026, Nacho)
 export const pieceBoard = (piece, players = []) => {
-  const b = withSheet(piece?.board ? upgradeFunctions(normalizeBoard(piece.board)) : legacyToBoard(piece, players));
+  const b0 = withSheet(piece?.board ? upgradeFunctions(normalizeBoard(piece.board)) : legacyToBoard(piece, players));
+  const b = matchDorsalsOnChips(b0, players);
   return typeof b.nameStack === "boolean" ? b : { ...b, nameStack: true };
 };
+// Dorsal de este partido en las fichas (13/11/2026): si la convocatoria le ha puesto otro dorsal a un jugador
+// (`own_jersey_number` = el de su ficha), la ficha que aún lleva el de su ficha pasa a llevar el del partido
+export function matchDorsalsOnChips(board, players = []) {
+  const changed = new Map((players || []).filter((p) => p.own_jersey_number !== undefined).map((p) => [p.id, p]));
+  if (!changed.size) return board;
+  let touched = false;
+  const out = mapTokens(board, (e) => {
+    const p = e.player_id && changed.get(e.player_id);
+    if (!p || String(e.inner ?? "") !== String(p.own_jersey_number ?? "")) return e;
+    touched = true;
+    return { ...e, inner: String(p.jersey_number).slice(0, 3) };
+  });
+  return touched ? out : board;
+}
 export const emptyPieceBoard = () => legacyToBoard({ id: "nueva", tokens: [], arrows: [] });
 
 // Voltear izquierda ↔ derecha (p. ej. un córner del otro lado): todo se refleja respecto al centro del campo, en todos los fotogramas

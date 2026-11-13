@@ -52,4 +52,13 @@ export default [
   ["Postpartido", "Post-match", "Après-match", "Postpartit"],
   ["Hoja del entrenador", "Coach's sheet", "Feuille de l'entraîneur", "Full de l'entrenador"],
   ["Rival: {pos}º · {pts} pts", "Opponent: {pos} · {pts} pts", "Adversaire : {pos}e · {pts} pts", "Rival: {pos}è · {pts} pts"],
+  ["Dorsal en este partido","Number for this match","Numéro pour ce match","Dorsal en aquest partit"],
+  ["Dorsal en este partido (en su ficha: {n})","Number for this match (on the profile: {n})","Numéro pour ce match (sur sa fiche : {n})","Dorsal en aquest partit (a la seva fitxa: {n})"],
+  ["Hay un dorsal repetido entre los convocados","There is a repeated number among the called-up players","Un numéro est en double parmi les convoqués","Hi ha un dorsal repetit entre els convocats"],
+  ["Hay {n} dorsales repetidos entre los convocados","There are {n} repeated numbers among the called-up players","{n} numéros sont en double parmi les convoqués","Hi ha {n} dorsals repetits entre els convocats"],
+  ["Ponle otro dorsal solo para este partido: su ficha no cambia. Sale así en la convocatoria, la alineación, la hoja del entrenador y el balón parado.","Give them another number just for this match: the profile does not change. It is used in the call-up, the line-up, the coach sheet and set pieces.","Donnez-lui un autre numéro pour ce match seulement : sa fiche ne change pas. Il apparaît dans la convocation, la composition, la feuille de l'entraîneur et les coups de pied arrêtés.","Posa-li un altre dorsal només per a aquest partit: la seva fitxa no canvia. Surt així a la convocatòria, l'alineació, el full de l'entrenador i la pilota aturada."],
+  ["este equipo","this team","cette équipe","aquest equip"],
+  ["Dorsal {n}","Number {n}","Numéro {n}","Dorsal {n}"],
+  ["Nuevo dorsal para {name}:","New number for {name}:","Nouveau numéro pour {name} :","Nou dorsal per a {name}:"],
+  ["Libres:","Free:","Libres :","Lliures:"],
 ];

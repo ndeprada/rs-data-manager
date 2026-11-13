@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { base44 } from "@/api/base44Client";
+import { withMatchDorsals } from "@/lib/matchDorsals";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CLUB_LOGO_URL } from "@/lib/clubConfig";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -100,7 +101,9 @@ export default function MatchDetail() {
     queryFn: () => base44.entities.Player.list(),
     enabled: needsGuests,
   });
-  const players = useMemo(() => withGuests(teamPlayers, allPlayers, guestIds), [teamPlayers, allPlayers, guestIds]);
+  const rawPlayers = useMemo(() => withGuests(teamPlayers, allPlayers, guestIds), [teamPlayers, allPlayers, guestIds]);
+  // Dorsales solo de este partido (los pone la convocatoria si dos convocados coinciden): valen en todas las pestañas
+  const players = useMemo(() => withMatchDorsals(rawPlayers, convocation?.match_dorsals), [rawPlayers, convocation?.match_dorsals]);
 
   const updateLogoMutation = useMutation({
     mutationFn: (data) => base44.entities.Event.update(eventId, data),
@@ -167,7 +170,7 @@ export default function MatchDetail() {
         )}
         <div {...(!canManage ? { inert: "", style: { pointerEvents: "none", opacity: 0.92 } } : {})}>
           {tab === "convocatoria" && (
-            <ConvocationTab eventId={eventId} teamId={teamId} event={event} players={players} team={team} />
+            <ConvocationTab eventId={eventId} teamId={teamId} event={event} players={rawPlayers} team={team} />
           )}
           {tab === "acta" && (
             <ActaTab eventId={eventId} teamId={teamId} event={event} players={players} team={team} onGoto={setActiveTab} />
@@ -177,6 +180,7 @@ export default function MatchDetail() {
               event={event}
               players={players}
               convocadoIds={convocation?.player_ids || []}
+              matchDorsals={convocation?.match_dorsals}
               starterIds={convocation?.starters || []}
               footballFormat={matchFormat(event, team)}
               team={team}

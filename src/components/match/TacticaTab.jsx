@@ -6,6 +6,7 @@
 // el editor de jugadas de siempre. Lógica pura en src/lib/matchPrep.js; camisetas en src/lib/clubKits.js.
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { withMatchDorsals } from "@/lib/matchDorsals";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RotateCcw, Eraser, Wand2, Search, FileDown, Eye, History, ChevronDown, ChevronUp, X } from "lucide-react";
 import { downloadMatchSheetPDF } from "@/lib/matchSheetPdf";
@@ -248,7 +249,7 @@ function PlanBlock({ id, icon, title, hint, value, onChange, placeholder, summar
 }
 
 // ── Pestaña ─────────────────────────────────────────────
-export default function TacticaTab({ event, players, convocadoIds, starterIds, footballFormat, team, sheetRequest = 0, onSheetHandled }) {
+export default function TacticaTab({ event, players, convocadoIds, matchDorsals, starterIds, footballFormat, team, sheetRequest = 0, onSheetHandled }) {
   const t = useT();
   const locale = useDateLocale();
   const qc = useQueryClient();
@@ -263,7 +264,9 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const validDefault = formations[0];
   const teamPlayers = [...players.filter(p => p.status !== "baja")].sort((a, b) => (POS_ORDER.indexOf(a.position) - POS_ORDER.indexOf(b.position)) || (a.last_name || "").localeCompare(b.last_name || ""));
 
-  const { data: allPlayers = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
+  const { data: allPlayersRaw = [] } = useQuery({ queryKey: ["players"], queryFn: () => base44.entities.Player.list() });
+  // con el dorsal de este partido (si la convocatoria le ha puesto otro)
+  const allPlayers = useMemo(() => withMatchDorsals(allPlayersRaw, matchDorsals), [allPlayersRaw, matchDorsals]);
   const { data: injuries = [] } = useQuery({ queryKey: ["injuries"], queryFn: () => base44.entities.Injury.list().catch(() => []), retry: false });
   const partCtx = useParticipationContext("liga");
   const rivalOn = event?.type === "partido_liga" && !!event?.opponent;
@@ -346,7 +349,7 @@ export default function TacticaTab({ event, players, convocadoIds, starterIds, f
   const currentPositions = positions || defaultPositions;
   const nSlots = defaultPositions.length;
   const slotIds = Array.from({ length: nSlots }, (_, i) => lineup[i] || null);
-  const findPlayer = (id) => allPlayers.find(p => p.id === id) || players.find(p => p.id === id) || null;
+  const findPlayer = (id) => players.find(p => p.id === id) || allPlayers.find(p => p.id === id) || null;
   const slots = slotIds.map(id => (id ? findPlayer(id) : null));
   const taken = new Set(slotIds.filter(Boolean));
 

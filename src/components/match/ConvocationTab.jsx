@@ -16,6 +16,7 @@ import { useAutosave } from "@/lib/useAutosave";
 import { agendaMeta } from "@/lib/weekendAgenda";
 import { recentTrainings, trainingDots, messageKit, kitKeyOf } from "@/lib/matchSteps";
 import { minPlayersOf } from "@/lib/matchFormat";
+import { withMatchDorsals, dorsalClashes, freeDorsals, cleanMatchDorsals } from "@/lib/matchDorsals";
 import SaveStatus from "@/components/common/SaveStatus";
 import Composer from "@/components/avisos/Composer";
 import { RS } from "@/components/rs2/kit";
@@ -56,7 +57,7 @@ function VaNo({ on, onChange, testId }) {
   );
 }
 
-function PlayerRow({ p, on, onToggle, reason, onReason, dots, pct, level, injury, mobile }) {
+function PlayerRow({ p, on, onToggle, reason, onReason, dots, pct, level, injury, mobile, onDorsal, clash }) {
   const t = useT();
   const fmt = useDateLocale();
   const pctColor = level === "alert" ? RED : level === "warn" ? "#B45309" : RS.muted;
@@ -75,7 +76,15 @@ function PlayerRow({ p, on, onToggle, reason, onReason, dots, pct, level, injury
   );
   return (
     <div className="flex flex-wrap items-center" style={{ gap: mobile ? "4px 6px" : 8, padding: "5px 8px", background: on ? "transparent" : "#FBF6F5", borderBottom: `1px solid ${RS.lineSoft}` }} data-testid={`conv-row-${p.id}`}>
-      <span className="rs2-display tabular-nums text-right shrink-0" style={{ width: 22, fontSize: 17, color: on ? RS.granate : RS.faint }}>{dorsalOf(p) || "•"}</span>
+      {onDorsal && on ? (
+        // invitado convocado: su dorsal se puede cambiar solo para este partido
+        <input value={dorsalOf(p)} onChange={(e) => onDorsal(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))} inputMode="numeric" aria-label={t("Dorsal en este partido")}
+          title={p.own_jersey_number != null ? t("Dorsal en este partido (en su ficha: {n})", { n: p.own_jersey_number || "–" }) : t("Dorsal en este partido")}
+          className="rs2-display tabular-nums text-center shrink-0" data-testid={`conv-dorsal-${p.id}`}
+          style={{ width: 34, fontSize: 16, padding: "1px 2px", borderRadius: 6, color: clash ? RED : RS.granate, border: `1.5px solid ${clash ? "#FCA5A5" : RS.line}`, background: clash ? "#FEF2F2" : "#fff" }} />
+      ) : (
+        <span className="rs2-display tabular-nums text-right shrink-0" style={{ width: 22, fontSize: 17, color: clash && on ? RED : on ? RS.granate : RS.faint }}>{dorsalOf(p) || "•"}</span>
+      )}
       <span className="min-w-0 flex-1 truncate" style={{ fontSize: 13.5, color: on ? RS.ink : RS.muted }}>
         <b style={{ fontWeight: 700 }}>{playerFullName(p)}</b> <span style={{ color: RS.faint, fontSize: 12 }}>{POS[p.position] ? t(POS[p.position]) : ""}</span>
         {injured && <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "#FEE2E2", color: RED }}>{t("Lesión")}</span>}
@@ -104,6 +113,7 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
   const queryClient = useQueryClient();
   const [convocadoIds, setConvocadoIds] = useState([]);
   const [reasons, setReasons] = useState({});
+  const [dorsals, setDorsals] = useState({}); // dorsal solo para este partido: { player_id: "23" }
   const [notes, setNotes] = useState("");
   const [callupTime, setCallupTime] = useState("");
   const [kit, setKit] = useState(""); // 👕 lo que deben traer (texto libre); la equipación 1.ª/2.ª/3.ª va en el partido (Agenda)
@@ -128,15 +138,16 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
   const partCtx = useParticipationContext("liga");
 
   // Lo que se guarda. El motivo de cada jugador no convocado queda guardado para las estadísticas de ausencias.
-  const buildForm = (ids, why, n, callup, obs, kitText) => ({
+  const buildForm = (ids, why, n, callup, obs, kitText, dz) => ({
     player_ids: ids,
+    match_dorsals: cleanMatchDorsals(dz, ids, allPlayers),
     notes: n,
     callup_time: callup,
     observations: obs,
     kit: kitText,
     absence_reasons: Object.fromEntries(Object.entries(why).filter(([id, r]) => r && !ids.includes(id))),
   });
-  const form = buildForm(convocadoIds, reasons, notes, callupTime, observations, kit);
+  const form = buildForm(convocadoIds, reasons, notes, callupTime, observations, kit, dorsals);
 
   // Carga de lo guardado y guardado automático (no se guarda nada hasta que lo guardado esté cargado)
   const [hydrated, setHydrated] = useState(false);
@@ -167,7 +178,8 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
       setObservations(convocation.observations || "");
       setKit(convocation.kit || "");
       setReasons(why);
-      autosave.reset(buildForm(ids, why, convocation.notes || "", convocation.callup_time || "", convocation.observations || "", convocation.kit || ""));
+      setDorsals(convocation.match_dorsals || {});
+      autosave.reset(buildForm(ids, why, convocation.notes || "", convocation.callup_time || "", convocation.observations || "", convocation.kit || "", convocation.match_dorsals || {}));
     }
     setHydrated(true);
   }, [isFetched, convocation?.id]);
@@ -177,11 +189,17 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
   const ownIds = new Set(activePlayers.filter((p) => p.team_id === teamId).map((p) => p.id));
   const teamName = (id) => teams.find((x) => x.id === id)?.name || t("otro equipo");
   // Invitados (de otros equipos): solo los convocados; salen al final con su equipo
-  const guests = allPlayers.filter((p) => convocadoIds.includes(p.id) && !ownIds.has(p.id)).map((p) => ({ ...p, _guest: teamName(p.team_id) }));
-  const squad = activePlayers.filter((p) => ownIds.has(p.id));
+  const guests = withMatchDorsals(allPlayers.filter((p) => convocadoIds.includes(p.id) && !ownIds.has(p.id)).map((p) => ({ ...p, _guest: teamName(p.team_id) })), dorsals);
+  const squad = withMatchDorsals(activePlayers.filter((p) => ownIds.has(p.id)), dorsals);
   const groups = groupPlayers(squad);
-  const convocados = allPlayers.filter(p => convocadoIds.includes(p.id));
+  const convocadosRaw = allPlayers.filter(p => convocadoIds.includes(p.id));
+  const convocados = withMatchDorsals(convocadosRaw, dorsals);
   const noConvocados = squad.filter(p => !convocadoIds.includes(p.id));
+  // Dorsales repetidos entre los convocados (p. ej. un juvenil con el mismo número que uno del primer equipo)
+  const clashes = dorsalClashes(convocadosRaw, dorsals, teamId);
+  const clashIds = new Set(clashes.flatMap((c) => c.players.map((p) => p.id)));
+  const free = freeDorsals(convocadosRaw, dorsals, 8);
+  const setDorsal = (pid, v) => setDorsals((prev) => ({ ...prev, [pid]: v }));
   const minN = minPlayersOf(event, team);
   const allSelected = squad.length > 0 && squad.every(p => convocadoIds.includes(p.id));
 
@@ -259,7 +277,8 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
       {list.map((p) => (
         <PlayerRow key={p.id} p={p} on={convocadoIds.includes(p.id)} onToggle={(on) => setOn(p.id, on)}
           reason={reasons[p.id] || ""} onReason={(v) => setReasons((prev) => ({ ...prev, [p.id]: v }))}
-          dots={dots[p.id]} pct={minutes[p.id]?.pct ?? null} level={minutes[p.id]?.level} injury={injuryOf.get(p.id)} mobile={mobile} />
+          dots={dots[p.id]} pct={minutes[p.id]?.pct ?? null} level={minutes[p.id]?.level} injury={injuryOf.get(p.id)} mobile={mobile}
+          clash={clashIds.has(p.id)} onDorsal={p._guest || dorsals[p.id] != null || clashes.some((c) => c.change.some((x) => x.id === p.id)) ? (v) => setDorsal(p.id, v) : null} />
       ))}
     </div>
   );
@@ -302,6 +321,34 @@ export default function ConvocationTab({ eventId, teamId, event, players, team }
               </button>
             ))}
             {guestSearch && guestResults.length === 0 && <p style={{ fontSize: 12, color: RS.faint, textAlign: "center", padding: 6 }}>{t("Sin resultados")}</p>}
+          </div>
+        )}
+
+        {clashes.length > 0 && (
+          <div style={{ border: "1px solid #FCA5A5", background: "#FEF2F2", borderRadius: 10, padding: "8px 10px", marginBottom: 10 }} data-testid="conv-dorsal-clash">
+            <div style={{ fontSize: 13, fontWeight: 700, color: RED }}>{clashes.length === 1 ? t("Hay un dorsal repetido entre los convocados") : t("Hay {n} dorsales repetidos entre los convocados", { n: clashes.length })}</div>
+            <p style={{ fontSize: 12, color: RS.ink2, margin: "2px 0 6px" }}>{t("Ponle otro dorsal solo para este partido: su ficha no cambia. Sale así en la convocatoria, la alineación, la hoja del entrenador y el balón parado.")}</p>
+            {clashes.map((c) => (
+              <div key={c.dorsal} style={{ padding: "5px 0", borderTop: "1px solid #FDE2E2" }}>
+                <div style={{ fontSize: 12.5 }}>
+                  <b className="tabular-nums" style={{ color: RED }}>{t("Dorsal {n}", { n: c.dorsal })}</b>{": "}
+                  {c.players.map((p) => `${playerFullName(p)} (${p.team_id === teamId ? (team?.name || t("este equipo")) : teamName(p.team_id)})`).join(" · ")}
+                </div>
+                {c.change.map((p) => (
+                  <div key={p.id} className="flex flex-wrap items-center" style={{ gap: 6, marginTop: 4 }}>
+                    <span style={{ fontSize: 12, color: RS.ink2 }}>{t("Nuevo dorsal para {name}:", { name: playerFullName(p) })}</span>
+                    <input value={dorsals[p.id] ?? ""} placeholder={c.dorsal} inputMode="numeric" aria-label={t("Nuevo dorsal para {name}:", { name: playerFullName(p) })}
+                      onChange={(e) => setDorsal(p.id, e.target.value.replace(/[^0-9]/g, "").slice(0, 3))} data-testid={`conv-clash-input-${p.id}`}
+                      className="tabular-nums text-center" style={{ width: 46, fontSize: 14, fontWeight: 700, padding: "3px 4px", borderRadius: 6, border: "1px solid #FCA5A5", background: "#fff" }} />
+                    <span style={{ fontSize: 11.5, color: RS.muted }}>{t("Libres:")}</span>
+                    {free.slice(0, 6).map((n) => (
+                      <button key={n} type="button" onClick={() => setDorsal(p.id, n)} data-testid={`conv-clash-free-${p.id}-${n}`}
+                        className="tabular-nums" style={{ fontSize: 12, fontWeight: 700, minWidth: 28, padding: "2px 6px", borderRadius: 6, border: `1px solid ${RS.line}`, background: "#fff", color: RS.ink }}>{n}</button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
         )}
 
