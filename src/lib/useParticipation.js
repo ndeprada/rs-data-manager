@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useMatchStatus, STAT_SCOPES } from "@/lib/matchStatus";
 import { buildContext, rulesOf } from "@/lib/participation";
+import { goalsOf } from "@/lib/participationGoals";
 
 // Datos para calcular la participación de los jugadores en los partidos cerrados del tipo elegido
 // (liga, torneos o amistosos: los mismos que usan el resto de estadísticas).
@@ -11,7 +12,8 @@ export function useMinutesRules() {
   const { data: docs = [], isFetched } = useQuery({ queryKey: ["minutes-rules"], queryFn: () => base44.entities.MinutesRule.list(), staleTime: 5 * 60 * 1000 });
   const doc = docs[0] || null;
   const rules = useMemo(() => rulesOf(doc), [doc]);
-  return { doc, rules, isFetched };
+  const goals = useMemo(() => goalsOf(doc), [doc]);
+  return { doc, rules, goals, isFetched };
 }
 
 export function useParticipationContext(scope = "liga") {

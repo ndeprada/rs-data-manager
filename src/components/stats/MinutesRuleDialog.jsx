@@ -7,9 +7,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { RS } from "@/components/rs2/kit";
 import { cleanRule, MIN_PCT } from "@/lib/participation";
 import { teamPlaysF7 } from "@/lib/matchFormat";
+import { goalsOf, cleanGoals, GOAL_KEYS, GOAL_LABEL } from "@/lib/participationGoals";
 import { useT } from "@/i18n";
 
 const box = { width: 64, padding: "5px 8px", border: `1px solid ${RS.line}`, borderRadius: 8, fontSize: 13, textAlign: "right" };
+
+function GoalInputs({ format, value, onChange, testPrefix, t }) {
+  return (
+    <span className="inline-flex items-center flex-wrap" style={{ gap: 8, fontSize: 12, color: RS.ink2 }}>
+      {GOAL_KEYS[format].map((k) => (
+        <label key={k} className="inline-flex items-center" style={{ gap: 5 }}>{t(GOAL_LABEL[k])} ≥
+          <input type="number" min={0} max={60} value={value?.[k] ?? ""} onChange={(e) => onChange({ ...(value || {}), [k]: e.target.value })} style={box} data-testid={`${testPrefix}-${k}`} />
+        </label>
+      ))}
+      <span style={{ color: RS.muted }}>{t("partidos")}</span>
+    </span>
+  );
+}
 
 function RuleInputs({ value, onChange, testPrefix, t }) {
   return (
@@ -31,6 +45,11 @@ export default function MinutesRuleDialog({ open, onOpenChange, doc, team, teams
   const [f11, setF11] = useState({});
   const [own, setOwn] = useState(null); // null = como el club
   const [others, setOthers] = useState({});
+  const [g7, setG7] = useState({});
+  const [g11, setG11] = useState({});
+  const [teamGoal, setTeamGoal] = useState("club"); // club | own | off
+  const [ownGoal, setOwnGoal] = useState({});
+  const [otherGoals, setOtherGoals] = useState({});
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
@@ -42,6 +61,14 @@ export default function MinutesRuleDialog({ open, onOpenChange, doc, team, teams
     setOwn(team && teamsRules[team.id] ? { ...teamsRules[team.id] } : null);
     if (team) delete teamsRules[team.id];
     setOthers(teamsRules);
+    const gl = goalsOf(doc);
+    setG7({ ...(gl.f7 || {}) }); setG11({ ...(gl.f11 || {}) });
+    const tg = { ...(doc?.team_goals || {}) };
+    const mine = team ? tg[team.id] : null;
+    setTeamGoal(mine?.off ? "off" : mine ? "own" : "club");
+    setOwnGoal(mine && !mine.off ? { ...mine } : {});
+    if (team) delete tg[team.id];
+    setOtherGoals(tg);
     setErr("");
   }, [open, doc, team]);
 
@@ -58,7 +85,13 @@ export default function MinutesRuleDialog({ open, onOpenChange, doc, team, teams
       if (!c) { setErr(t("Pon un mínimo entre 0 y 100 % para el equipo o elige «Como el club».")); return; }
       rules[team.id] = c;
     }
-    const data = { f7: c7, f11: c11, teams: rules, updated_at: new Date().toISOString() };
+    const teamGoals = { ...otherGoals };
+    if (team && teamGoal === "off") teamGoals[team.id] = { off: true };
+    if (team && teamGoal === "own") {
+      const c = cleanGoals(ownGoal, fmt);
+      if (c) teamGoals[team.id] = { ...c, format: fmt };
+    }
+    const data = { f7: c7, f11: c11, teams: rules, goals: { f7: cleanGoals(g7, "f7"), f11: cleanGoals(g11, "f11") }, team_goals: teamGoals, updated_at: new Date().toISOString() };
     setSaving(true);
     try {
       if (doc?.id) await base44.entities.MinutesRule.update(doc.id, data);
@@ -79,8 +112,8 @@ export default function MinutesRuleDialog({ open, onOpenChange, doc, team, teams
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg" data-testid="minutes-rule-dialog">
-        <DialogHeader><DialogTitle>{t("Mínimo de minutos")}</DialogTitle></DialogHeader>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto" data-testid="minutes-rule-dialog">
+        <DialogHeader><DialogTitle>{t("Minutos y objetivos de participación")}</DialogTitle></DialogHeader>
         <p style={{ fontSize: 12, color: RS.muted, margin: 0 }}>{t("Porcentaje de los minutos disponibles que debería jugar cada jugador. Por debajo del mínimo sale en rojo («Pocos minutos»); por debajo del objetivo, en ámbar.")}</p>
 
         <div style={section}>
@@ -101,6 +134,36 @@ export default function MinutesRuleDialog({ open, onOpenChange, doc, team, teams
             {own && <div style={{ marginTop: 8 }}><RuleInputs value={own} onChange={setOwn} testPrefix="rule-team" t={t} /></div>}
           </div>
         )}
+
+        <div style={section} data-testid="goals-section">
+          <div style={lab}>{t("Objetivos de participación a final de liga")}</div>
+          <p style={{ fontSize: 12, color: RS.muted, margin: "0 0 8px" }}>{t("Mínimo de partidos que debería llegar a tener cada jugador al acabar la liga. En Estadísticas se ve si cada uno va a ritmo. Déjalo vacío para no fijar ese objetivo.")}</p>
+          <div className="flex flex-col" style={{ gap: 8 }}>
+            <div className="flex items-center flex-wrap" style={{ gap: 10 }}><b style={{ width: 80, fontSize: 13 }}>{t("Fútbol 11")}</b><GoalInputs format="f11" value={g11} onChange={setG11} testPrefix="goal-f11" t={t} /></div>
+            <div className="flex items-center flex-wrap" style={{ gap: 10 }}><b style={{ width: 80, fontSize: 13 }}>{t("Fútbol 7")}</b><GoalInputs format="f7" value={g7} onChange={setG7} testPrefix="goal-f7" t={t} /></div>
+          </div>
+          {team && (
+            <div style={{ marginTop: 10 }}>
+              <div className="inline-flex flex-wrap" style={{ gap: 3, background: "#F3ECEB", borderRadius: 999, padding: 3 }}>
+                {seg(teamGoal === "club", t("{team}: como el club", { team: team.name }), () => setTeamGoal("club"), "goal-team-club")}
+                {seg(teamGoal === "own", t("Propios"), () => { setTeamGoal("own"); if (!Object.keys(ownGoal).length) setOwnGoal({ ...((fmt === "f7" ? g7 : g11) || {}) }); }, "goal-team-own")}
+                {seg(teamGoal === "off", t("Sin objetivos (rendimiento)"), () => setTeamGoal("off"), "goal-team-off")}
+              </div>
+              {teamGoal === "own" && <div style={{ marginTop: 8 }}><GoalInputs format={fmt} value={ownGoal} onChange={setOwnGoal} testPrefix="goal-team" t={t} /></div>}
+            </div>
+          )}
+          {Object.keys(otherGoals).length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              {Object.entries(otherGoals).map(([id, r]) => (
+                <div key={id} className="flex items-center" style={{ gap: 8, fontSize: 12, padding: "3px 0" }}>
+                  <span style={{ flex: 1 }}>{teamName(id)}</span>
+                  <span style={{ color: RS.ink2 }}>{r.off ? t("Sin objetivos (rendimiento)") : GOAL_KEYS[r.format === "f7" ? "f7" : "f11"].filter((k) => r[k]).map((k) => `${t(GOAL_LABEL[k])} ${r[k]}`).join(" · ")}</span>
+                  <button type="button" onClick={() => setOtherGoals((o) => { const n = { ...o }; delete n[id]; return n; })} style={{ fontSize: 11, fontWeight: 700, color: RS.granate, background: "none", border: 0, cursor: "pointer" }}>{t("Volver al del club")}</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {Object.keys(others).length > 0 && (
           <div style={section}>

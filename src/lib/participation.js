@@ -84,6 +84,7 @@ const emptyBucket = () => ({
   conv: 0, played: 0, titular: 0, suplente: 0, suplenteSin: 0, noConv: 0, reasons: {},
   benched: 0, unavailable: 0,        // no convocados: lo deja fuera el entrenador (decisión técnica, descanso, sin motivo) / no podía estar
   quarters: [0, 0, 0, 0, 0], qMatches: 0, // partidos de 4 cuartos en que fue convocado, por cuartos jugados (0 a 4)
+  full: 0, q3plus: 0,                // partidos completos (los 4 cuartos o todos los minutos) y, en F7, de 3 cuartos o más
   mins: 0,
   totalMatches: 0, totalMin: 0,      // todos los partidos del jugador (los de su equipo + en los que fue de invitado)
   availMatches: 0, availMin: 0,      // los partidos en que estaba a disposición del entrenador
@@ -139,7 +140,8 @@ export function participationOf(player, ctx) {
         if (minutes > 0) b.played++;
         if (starter) b.titular++; else { b.suplente++; if (!(minutes > 0)) b.suplenteSin++; }
         b.mins += minutes;
-        if (q != null) { b.quarters[q]++; b.qMatches++; }
+        if (q != null) { b.quarters[q]++; b.qMatches++; if (q >= 3) b.q3plus++; }
+        if (q != null ? q === 4 : minutes >= total) b.full++;
         b.totalMatches++; b.totalMin += total;
         b.availMatches++; b.availMin += total;
       }

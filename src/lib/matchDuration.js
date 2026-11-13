@@ -80,9 +80,10 @@ export function calcMinutesPlayed(playerId, starterIds, events, matchMinutes) {
   return playedIntervals(playerId, starterIds, events, matchMinutes).reduce((s, [a, b]) => s + (b - a), 0);
 }
 
-// Cuartos jugados en un partido de 4 cuartos ("4x15", "4x12"…). Cuenta un cuarto si estuvo en el campo al menos la mitad de él
-// (13/11/2026, criterio mío por confirmar con Nacho). Si los minutos guardados no cuadran con los cambios del acta
-// (minutos corregidos a mano), se calcula con los minutos: minutos ÷ duración del cuarto, redondeado.
+// Cuartos jugados en un partido de 4 cuartos ("4x15", "4x12"…), orientativo. Cuenta un cuarto si estuvo en el campo MÁS de
+// la mitad de él (13/11/2026, Nacho: «si juega más de 8 minutos… se podría computar»; en F7 los tres primeros cuartos se
+// juegan enteros y solo hay cambios durante el último). Si los minutos guardados no cuadran con los cambios del acta
+// (minutos corregidos a mano), se calcula con los minutos: cuartos enteros + 1 si lo que sobra pasa de la mitad.
 // Devuelve null si el partido no es de cuartos.
 export function quartersPlayed(playerId, starterIds, events, duration, minutes) {
   const m = String(duration || "").match(/^4x(\d+)$/);
@@ -91,12 +92,12 @@ export function quartersPlayed(playerId, starterIds, events, duration, minutes) 
   const mins = Number(minutes) || 0;
   const iv = playedIntervals(playerId, starterIds, events, 4 * q);
   const sum = iv.reduce((s, [a, b]) => s + (b - a), 0);
-  if (Math.abs(sum - mins) > 1) return Math.max(0, Math.min(4, Math.round(mins / q)));
+  if (Math.abs(sum - mins) > 1) return Math.max(0, Math.min(4, Math.floor(mins / q) + (mins % q > q / 2 ? 1 : 0)));
   let n = 0;
   for (let k = 0; k < 4; k++) {
     const from = k * q, to = from + q;
     const on = iv.reduce((s, [a, b]) => s + Math.max(0, Math.min(b, to) - Math.max(a, from)), 0);
-    if (on >= q / 2) n++;
+    if (on > q / 2) n++;
   }
   return n;
 }

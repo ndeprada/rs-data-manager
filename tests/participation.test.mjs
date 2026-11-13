@@ -224,6 +224,9 @@ assert.equal(reasonShort(NO_REASON), 'Sin motivo');
   assert.equal(quartersPlayed('g', [], [{ type: 'sub', minute: 55, playerIn: 'g', playerOut: 'y' }], '4x15', 5), 0);
   assert.equal(quartersPlayed('e', ['e'], [], '4x15', 60), 4);
   assert.equal(quartersPlayed('f', [], [], '4x15', 30), 2);      // minutos a mano sin cambios en el acta: 30 ÷ 15
+  assert.equal(quartersPlayed('f', [], [], '4x15', 40), 3);      // 2 enteros + 10' del tercero (más de la mitad)
+  assert.equal(quartersPlayed('f', [], [], '4x15', 37), 2);      // 7' del tercero: no llega a la mitad
+  assert.equal(quartersPlayed('h', [], [{ type: 'sub', minute: 52.5, playerIn: 'h', playerOut: 'y' }], '4x15', 7.5), 0); // justo la mitad: no cuenta
   assert.equal(quartersPlayed('a', ['a'], evs, '2x45', 30), null);
 
   // En el contexto: buckets con no disponibles / fuera por el entrenador, cuartos y la regla del equipo
@@ -233,6 +236,7 @@ assert.equal(reasonShort(NO_REASON), 'Sin motivo');
   const p1q = participationOf(p1, c2);
   assert.equal(p1q.f7.qMatches, 2); assert.equal(p1q.f7.quarters[4], 1); // e1 entero; e2 = 45' sin cambios → 3 cuartos
   assert.equal(p1q.f7.quarters[3], 1);
+  assert.equal(p1q.f7.full, 1); assert.equal(p1q.f7.q3plus, 2); assert.equal(p1q.f11.full, 2); // e3: 70 de 70 y e4: 80 de 80 (invitado)
   assert.equal(p1q.rules.f11.alert, 70); // equipo A sin etapa conocida = F11: su regla vale en F11
   assert.deepEqual(p1q.rules.f7, MIN_PCT.f7);
 }

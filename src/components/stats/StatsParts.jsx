@@ -10,6 +10,7 @@ import MatchResultPill from "@/components/calendar/MatchResultPill";
 import { squadGroups } from "@/lib/myTeamStats";
 import { sortPlayers } from "@/lib/statsOverview";
 import { minutesLevel, reasonShort, isAjeno } from "@/lib/participation";
+import { GOAL_SHORT, GOAL_LABEL } from "@/lib/participationGoals";
 import { playerFullName } from "@/lib/playerName";
 import { birthYearOf } from "@/lib/birthYear";
 import { juvenilYear } from "@/lib/juvenilYear";
@@ -59,6 +60,7 @@ export function CompareTable({ rows, sort, onSort, onPick }) {
             <th style={th()}>{t("Equipo")}</th><th style={th()} className="hidden lg:table-cell">{t("Competición")}</th><th style={th("center")}>{t("Pos")}</th>
             <th style={th("right")}>{t("PJ")}</th><th style={th()}>{t("V-E-D")}</th><th style={th("right")}>{t("Goles")}</th>
             <th style={th()} className="hidden md:table-cell">{t("Racha")}</th><th style={th()}>{t("Entrenos")}</th><th style={th("center")}>{t("Pocos min.")}</th>
+            <th style={th("center")} title={t("Jugadores por detrás del ritmo de sus objetivos de temporada (titular, completos, 3 cuartos)")}>{t("Objetivos")}</th>
           </tr></thead>
           <tbody>
             {rows.map((r) => {
@@ -77,10 +79,11 @@ export function CompareTable({ rows, sort, onSort, onPick }) {
                   <td style={td} className="hidden md:table-cell">{r.form.length ? <FormChips form={r.form} size={16} /> : <span style={{ color: RS.faint }}>—</span>}</td>
                   <td style={td}><PctBar pct={r.att} w={40} /></td>
                   <td style={{ ...td, textAlign: "center", fontWeight: r.low ? 700 : 400, color: r.low ? LOSS : RS.faint }}>{r.low || "—"}</td>
+                  <td style={{ ...td, textAlign: "center", fontWeight: r.behind ? 700 : 400, color: r.behind ? WARN : RS.faint }} title={r.behind == null ? t("Sin objetivos (equipo de rendimiento)") : undefined}>{r.behind == null ? "·" : (r.behind || "✓")}</td>
                 </tr>
               );
             })}
-            {!rows.length && <tr><td colSpan={9} style={{ padding: 24, textAlign: "center", color: RS.faint }}>{t("Sin equipos")}</td></tr>}
+            {!rows.length && <tr><td colSpan={10} style={{ padding: 24, textAlign: "center", color: RS.faint }}>{t("Sin equipos")}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -149,14 +152,25 @@ export function RecentResults({ list, teamsById, showTeam }) {
 const PLAYER_SORTS = [["pos", msg("Por posición")], ["min", msg("Más minutos")], ["goles", msg("Goles")], ["bajo", msg("% más bajo")]];
 const reasonsLine = (reasons, t) => Object.entries(reasons || {}).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${t(reasonShort(k))} ${n}`).join(" · ");
 
-export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle, rule, ruleOwn, onEditRule }) {
+export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle, rule, ruleOwn, onEditRule, goals, pace, goalsOff }) {
   const t = useT();
   const dfl = useDateLocale();
   const td = { padding: "5px 8px", borderTop: "1px solid #F3EEEE", verticalAlign: "middle", whiteSpace: "nowrap" };
   const th = (a = "left", cls = "") => ({ style: { textAlign: a, padding: "6px 8px", fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: RS.muted, fontWeight: 700, borderBottom: `1px solid ${RS.line}`, whiteSpace: "nowrap" }, className: cls });
   const level = (pct, r) => minutesLevel(fmt, pct, r || rule);
   const isF7 = fmt === "f7";
-  const cols = 17 + (isF7 ? 4 : 0);
+  const withGoals = !!goals;
+  const cols = 17 + (isF7 ? 4 : 0) + (withGoals ? 1 : 0);
+  const GOAL_COLOR = { done: [WIN, "#DCFCE7"], ok: [RS.ink2, "#F3ECEB"], behind: [WARN, "#FEF3C7"], impossible: [LOSS, "#FEE2E2"] };
+  const goalChips = (list) => (
+    <span className="inline-flex" style={{ gap: 3 }}>
+      {list.map((g) => {
+        const [fg, bg] = GOAL_COLOR[g.state];
+        const tip = `${t(GOAL_LABEL[g.key])}: ${g.value} ${t("de")} ${g.target} · ${g.state === "done" ? t("cumplido") : g.state === "behind" ? t("por detrás del ritmo") : g.state === "impossible" ? t("ya no llega con los partidos que quedan") : t("va a ritmo")}`;
+        return <span key={g.key} title={tip} data-state={g.state} className="tabular-nums" style={{ fontSize: 10.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: bg, color: fg, whiteSpace: "nowrap" }}>{g.state === "done" ? "✓ " : ""}{t(GOAL_SHORT[g.key])} {g.value}/{g.target}</span>;
+      })}
+    </span>
+  );
   const reasonsOf = (reasons, ajeno) => Object.entries(reasons || {}).filter(([k]) => isAjeno(k) === ajeno).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${t(reasonShort(k))} ${n}`).join(" · ");
   const qCell = (n, k) => <td key={k} style={{ ...td, textAlign: "right", color: n ? (k < 2 ? LOSS : RS.ink) : RS.faint, fontWeight: n && k < 2 ? 700 : 400, background: "#FBF8F7" }} className="tabular-nums hidden md:table-cell">{n || "–"}</td>;
   const barFor = (pct, r) => {
@@ -190,6 +204,7 @@ export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle, rule,
         {isF7 && [1, 2, 3, 4].map((k) => qCell(b.quarters?.[k] || 0, k))}
         <td style={{ ...td, textAlign: "right" }} className="tabular-nums">{b.mins}'</td>
         <td style={td}>{barFor(b.pctAvail, r.rule)}</td>
+        {withGoals && <td style={td} data-testid={`stats-goals-${p.id}`}>{goalChips(r.goals || [])}</td>}
         <td style={{ ...td, textAlign: "right", fontWeight: 700 }} className="tabular-nums">{tt.goals || "–"}</td>
         <td style={{ ...td, textAlign: "right" }} className="tabular-nums">{tt.assists || "–"}</td>
         <td style={{ ...td, textAlign: "right" }} className="tabular-nums hidden md:table-cell">{tt.yellow || "–"}{tt.red ? <span style={{ color: LOSS }}> · {tt.red}R</span> : null}</td>
@@ -218,6 +233,7 @@ export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle, rule,
             <th {...th("right", "hidden md:table-cell")} title={t("No disponible: lesión, enfermedad, sanción, viaje, estudios u otro motivo")}>{t("No disp.")}</th>
             {isF7 && [1, 2, 3, 4].map((k) => <th key={k} {...th("right", "hidden md:table-cell")} title={k === 1 ? t("Partidos en que jugó 1 cuarto") : t("Partidos en que jugó {n} cuartos", { n: k })} >{t("{n}C", { n: k })}</th>)}
             <th {...th("right")}>{t("Minutos")}</th><th {...th()}>{t("% min. disponibles")}</th>
+            {withGoals && <th {...th()} title={t("Objetivos de participación a final de liga")}>{t("Objetivos")}</th>}
             <th {...th("right")}>{t("G")}</th><th {...th("right")}>{t("A")}</th><th {...th("right", "hidden md:table-cell")} title={t("Tarjetas amarillas")}>{t("TA")}</th>
             <th {...th("left", "hidden lg:table-cell")}>{t("Motivos de no convocatoria")}</th><th {...th()} />
           </tr></thead>
@@ -240,6 +256,7 @@ export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle, rule,
                     {isF7 && [1, 2, 3, 4].map((k) => <td key={k} style={td} className="hidden md:table-cell" />)}
                     <td style={{ ...td, textAlign: "right" }}>{x.t.minutes}'</td>
                     <td style={{ ...td, fontSize: 11, color: RS.muted }}>{t("Cuenta en su equipo")}</td>
+                    {withGoals && <td style={td} />}
                     <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{x.t.goals || "–"}</td><td style={{ ...td, textAlign: "right" }}>{x.t.assists || "–"}</td>
                     <td style={{ ...td, textAlign: "right" }} className="hidden md:table-cell">{x.t.yellow || "–"}</td><td style={td} className="hidden lg:table-cell" /><td style={td} />
                   </tr>
@@ -257,7 +274,9 @@ export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle, rule,
           {rule ? ` · ${ruleOwn ? t("propio del equipo") : t("el del club")}` : null}
           {onEditRule && <> · <button type="button" onClick={onEditRule} data-testid="stats-rule-edit" style={{ font: "inherit", fontWeight: 700, color: RS.granate, background: "none", border: 0, padding: 0, cursor: "pointer", textDecoration: "underline" }}>{t("Cambiar")}</button></>}
         </span>
-        {isF7 ? ` ${t("1C–4C: partidos en que jugó 1, 2, 3 o 4 cuartos (cuenta un cuarto si estuvo al menos la mitad); en rojo, menos de 2.")}` : ""}
+        {isF7 ? ` ${t("1C–4C: partidos en que jugó 1, 2, 3 o 4 cuartos (orientativo: cuenta un cuarto si estuvo más de la mitad); en rojo, menos de 2.")}` : ""}
+        {withGoals ? ` ${t("Objetivos a final de liga: ✓ cumplido, gris a ritmo, ámbar por detrás del ritmo, rojo ya no llega (quedan {n} partidos).", { n: pace?.remaining ?? 0 })}` : ""}
+        {goalsOff ? ` ${t("Equipo de rendimiento: sin objetivos de participación.")}` : ""}
         {cycle ? ` ${t("«A 1 de sanción»: le falta una amarilla para cumplir ciclo ({n} amarillas = 1 partido).", { n: cycle })}` : ""}
       </div>
     </section>
