@@ -128,11 +128,11 @@ export default function Players() {
 
   // Resumen de arriba: cada número filtra la lista
   const kpis = [
-    { k: "total", n: kpi.total, label: t("jugadores"), color: RS.granate, on: !f.noDorsal && f.status === "all" && f.nat === "all" && f.account === "all", go: () => set({ status: "all", nat: "all", account: "all", noDorsal: false }) },
-    { k: "activos", n: kpi.activos, label: t("activos"), color: "#15803D", on: f.status === "activo", go: () => set({ status: f.status === "activo" ? "all" : "activo" }) },
-    { k: "lesionados", n: kpi.lesionados, label: t("lesionados"), color: LOSS, on: f.status === "lesionado", go: () => set({ status: f.status === "lesionado" ? "all" : "lesionado" }) },
-    { k: "bajas", n: kpi.bajas, label: t("bajas esta temporada"), color: RS.ink2, on: f.status === "baja", go: () => set({ status: f.status === "baja" ? "all" : "baja" }) },
-    { k: "extranjeros", n: kpi.extranjeros, label: t("extranjeros"), color: RS.ink2, on: f.nat === "foreign", go: () => set({ nat: f.nat === "foreign" ? "all" : "foreign" }) },
+    { k: "total", n: kpi.total, label: kpi.total === 1 ? t("jugador") : t("jugadores"), color: RS.granate, on: !f.noDorsal && f.status === "all" && f.nat === "all" && f.account === "all", go: () => set({ status: "all", nat: "all", account: "all", noDorsal: false }) },
+    { k: "activos", n: kpi.activos, label: kpi.activos === 1 ? t("activo") : t("activos"), color: "#15803D", on: f.status === "activo", go: () => set({ status: f.status === "activo" ? "all" : "activo" }) },
+    { k: "lesionados", n: kpi.lesionados, label: kpi.lesionados === 1 ? t("lesionado") : t("lesionados"), color: LOSS, on: f.status === "lesionado", go: () => set({ status: f.status === "lesionado" ? "all" : "lesionado" }) },
+    { k: "bajas", n: kpi.bajas, label: kpi.bajas === 1 ? t("baja esta temporada") : t("bajas esta temporada"), color: RS.ink2, on: f.status === "baja", go: () => set({ status: f.status === "baja" ? "all" : "baja" }) },
+    { k: "extranjeros", n: kpi.extranjeros, label: kpi.extranjeros === 1 ? t("extranjero") : t("extranjeros"), color: RS.ink2, on: f.nat === "foreign", go: () => set({ nat: f.nat === "foreign" ? "all" : "foreign" }) },
     ...(accounts ? [{ k: "sincuenta", n: kpi.sinCuenta, label: t("sin cuenta en la app"), color: "#B45309", on: f.account === "none", go: () => set({ account: f.account === "none" ? "all" : "none" }) }] : []),
     { k: "sindorsal", n: kpi.sinDorsal, label: t("sin dorsal"), color: RS.ink2, on: f.noDorsal, go: () => set({ noDorsal: !f.noDorsal }) },
   ];

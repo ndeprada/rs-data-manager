@@ -85,10 +85,14 @@ function LeaderCol({ label, rows, value, teamShort }) {
       <Label style={{ marginBottom: 3 }}>{label}</Label>
       {rows.length === 0 && <p style={{ fontSize: 12, color: RS.faint }}>—</p>}
       {rows.map((r, i) => (
-        <div key={r.player.id} className="flex items-center" style={{ gap: 6, padding: "2px 0" }}>
+        <div key={r.player.id} className="flex items-center" style={{ gap: 6, padding: "3px 0" }}>
           <span style={{ width: 14, fontSize: 11, color: RS.faint, fontWeight: 700 }}>{i + 1}</span>
-          <Link to={`/PlayerProfile?id=${r.player.id}`} className="truncate hover:underline" style={{ flex: 1, minWidth: 0, fontSize: 12, color: RS.ink, fontWeight: i === 0 ? 700 : 500 }}>{playerFullName(r.player)}</Link>
-          <span className="truncate" style={{ fontSize: 10, color: RS.faint, maxWidth: 70 }}>{teamShort(r.player.team_id)}</span>
+          {/* Nombre entero (hasta dos líneas) y el equipo debajo: antes se cortaba en «Javier Ca…» */}
+          <span style={{ flex: 1, minWidth: 0, lineHeight: 1.2 }}>
+            <Link to={`/PlayerProfile?id=${r.player.id}`} className="hover:underline" title={playerFullName(r.player)}
+              style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", fontSize: 12, color: RS.ink, fontWeight: i === 0 ? 700 : 500 }}>{playerFullName(r.player)}</Link>
+            <span className="block truncate" style={{ fontSize: 10, color: RS.faint }}>{teamShort(r.player.team_id)}</span>
+          </span>
           <span className="rs2-display tabular-nums" style={{ fontSize: 14, color: RS.granate, minWidth: 30, textAlign: "right" }}>{value(r)}</span>
         </div>
       ))}
@@ -148,7 +152,8 @@ export default function Dashboard() {
   const nextSteps = next ? matchSteps({ event: next, conv: nextConv, plan: nextPlans[0] || null, minPlayers: minPlayersOf(next, teams.find((x) => x.id === next.team_id)), now }) : null;
 
   // Temporada
-  const played = events.filter((e) => isMatch(e.type) && e.score_home != null && e.score_away != null && inScope(e.team_id));
+  // Solo liga, como en Equipos y Estadísticas (los amistosos y torneos no cuentan en el balance de la temporada)
+  const played = events.filter((e) => e.type === "partido_liga" && !isCancelled(e) && e.score_home != null && e.score_away != null && e.score_home !== "" && e.score_away !== "" && new Date(e.date) <= now && inScope(e.team_id));
   const rec = seasonRecord(played);
 
   // Asistencia de los últimos 30 días
@@ -158,10 +163,12 @@ export default function Dashboard() {
 
   // Datos del club
   const scopeTeams = teams.filter((x) => inScope(x.id));
-  const scopePlayers = players.filter((p) => inScope(p.team_id));
+  // Sin bajas, y lesionado = ficha «lesionado» o lesión sin alta (mismo criterio que Equipos y Jugadores)
+  const scopePlayers = players.filter((p) => inScope(p.team_id) && p.status !== "baja");
   const f7Count = scopeTeams.filter(isF7Team).length;
   const activePlayers = scopePlayers.filter((p) => p.status === "activo").length;
-  const injured = scopePlayers.filter((p) => p.status === "lesionado").length;
+  const openInjury = new Set(injuries.filter((i) => i.status !== "alta").map((i) => i.player_id));
+  const injured = scopePlayers.filter((p) => p.status === "lesionado" || openInjury.has(p.id)).length;
   const scopePlayerIds = new Set(scopePlayers.map((p) => p.id));
   const back = returningSoon(injuries.filter((i) => scopePlayerIds.has(i.player_id)), { now }).length;
 
@@ -326,7 +333,7 @@ export default function Dashboard() {
 
           <section className="grid" style={{ flex: "1 1 380px", minWidth: 0, gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
             <div className="rs2-card" style={{ padding: "11px 14px" }} data-testid="dash-season">
-              <Label>{mineMode ? t("Temporada · mis equipos") : t("Temporada · todo el club")}</Label>
+              <Label>{mineMode ? t("Liga · mis equipos") : t("Liga · todo el club")}</Label>
               <div className="flex items-baseline" style={{ gap: 6, marginTop: 6 }}>
                 <Big color={WIN}>{rec.w}</Big><span style={{ fontSize: 10, color: RS.muted }}>{t("V")}</span>
                 <Big color={RS.muted}>{rec.d}</Big><span style={{ fontSize: 10, color: RS.muted }}>{t("E")}</span>

@@ -50,6 +50,7 @@ export function useSquadRows(teamId) {
         mins,
         minPJ: st.length ? Math.round(mins / st.length) : null,
         pctMin: part.all.pctAvail,
+        belowMin: part.all.belowMin, perf: part.perf, // partidos por debajo del mínimo por partido (25' / la mitad en F7)
         rating: rated.length ? rated.reduce((a, s) => a + s.rating, 0) / rated.length : null,
         ta: st.reduce((a, s) => a + (s.yellow_cards || 0), 0),
         tr: st.reduce((a, s) => a + (s.red_cards || 0), 0),

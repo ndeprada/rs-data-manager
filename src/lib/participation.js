@@ -99,6 +99,7 @@ const emptyBucket = () => ({
   quarters: [0, 0, 0, 0, 0], qMatches: 0, // partidos de 4 cuartos en que fue convocado, por cuartos jugados (0 a 4)
   full: 0, q3plus: 0,                // partidos completos (los 4 cuartos o todos los minutos) y, en F7, de 3 cuartos o más
   mins: 0,
+  belowMin: 0,                       // partidos convocado jugando menos del mínimo por partido (25' en F11, la mitad en F7)
   totalMatches: 0, totalMin: 0,      // todos los partidos del jugador (los de su equipo + en los que fue de invitado)
   availMatches: 0, availMin: 0,      // los partidos en que estaba a disposición del entrenador
   avgTotal: null, pctTotal: null, avgAvail: null, pctAvail: null,
@@ -142,7 +143,8 @@ export function participationOf(player, ctx) {
     const evTeam = ctx.teamsById.get(ev.team_id);
     const evDuration = ev.match_duration || defaultDuration(matchFormat(ev, evTeam), evTeam);
     const total = totalMinutes(evDuration);
-    const targets = [out.all, out[formatOfEvent(ev, evDuration, evTeam)]];
+    const evFormat = formatOfEvent(ev, evDuration, evTeam);
+    const targets = [out.all, out[evFormat]];
 
     if (called) {
       const minutes = stat?.minutes_played || 0;
@@ -153,6 +155,7 @@ export function participationOf(player, ctx) {
         if (minutes > 0) b.played++;
         if (starter) b.titular++; else { b.suplente++; if (!(minutes > 0)) b.suplenteSin++; }
         b.mins += minutes;
+        if (minutes < matchMinimum(evFormat, total)) b.belowMin++;
         if (q != null) { b.quarters[q]++; b.qMatches++; if (q >= 3) b.q3plus++; }
         if (q != null ? q === 4 : minutes >= total) b.full++;
         b.totalMatches++; b.totalMin += total;
@@ -170,7 +173,7 @@ export function participationOf(player, ctx) {
     }
   }
   const rules = { f7: ruleFor('f7', ownTeam, ctx.rules), f11: ruleFor('f11', ownTeam, ctx.rules) };
-  return { all: finish(out.all), f11: finish(out.f11), f7: finish(out.f7), rules };
+  return { all: finish(out.all), f11: finish(out.f11), f7: finish(out.f7), rules, perf: isPerformanceTeam(ownTeam) };
 }
 
 // Alertas de minutos de un jugador: una por cada formato en que está por debajo del mínimo sobre los minutos disponibles

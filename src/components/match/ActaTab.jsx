@@ -10,6 +10,7 @@ import { playerFullName } from "@/lib/playerName";
 import { matchFormat, teamPlaysF7 } from "@/lib/matchFormat";
 import { calcMinutesPlayed, actaMinutes, totalMinutes, defaultDuration, teamDefaultDuration, durationLabel, DURATIONS } from "@/lib/matchDuration";
 import LineupSummary from "@/components/match/LineupSummary";
+import { matchMinimum, isPerformanceTeam } from "@/lib/participation";
 import GoalClassifier from "@/components/match/GoalClassifier";
 import SaveStatus from "@/components/common/SaveStatus";
 import { toStored, fromStored, goalLabel } from "@/lib/goalTypes";
@@ -704,7 +705,8 @@ export default function ActaTab({ eventId, teamId, event, players, team, onGoto 
       <div className="min-w-0" id="acta-lineup">
       {/* ── Alineación y resumen por jugador ── */}
       <LineupSummary eventId={eventId} event={event} convocation={convocation} convocados={convocados} starterIds={starterIds}
-        matchEvents={matchEvents} matchMinutes={matchMinutes} onRecompute={() => saveStats(matchEvents, true)} />
+        matchEvents={matchEvents} matchMinutes={matchMinutes} onRecompute={() => saveStats(matchEvents, true)}
+        minimum={matchMinimum(matchFormat({ football_format: format }, team), matchMinutes)} perf={isPerformanceTeam(team)} />
       </div>
       </div>
 

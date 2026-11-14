@@ -127,7 +127,11 @@ export default function MyTeam() {
     );
   }
 
-  const kicker = [t("Mi equipo"), getCategoryLabel(team?.category), standing?.competition && [standing.competition, standing.group].filter(Boolean).join(" "), team?.coach && t("Entrenador: {name}", { name: team.coach })].filter(Boolean).join(" · ");
+  // La categoría no se repite si la competición ya la dice («Tercera Catalana · Tercera Catalana Grup 9»)
+  const compText = standing?.competition ? [standing.competition, standing.group].filter(Boolean).join(" ") : "";
+  const catText = getCategoryLabel(team?.category);
+  const plain = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const kicker = [t("Mi equipo"), catText && !(compText && plain(compText).includes(plain(catText))) ? catText : "", compText, team?.coach && t("Entrenador: {name}", { name: team.coach })].filter(Boolean).join(" · ");
 
   return (
     <Page testId="myteam">

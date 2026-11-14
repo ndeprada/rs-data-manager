@@ -156,7 +156,7 @@ export default function Stats() {
     return players.filter((p) => p.team_id === team.id && p.status !== "baja").map((p) => {
       const part = participationOf(p, ctx);
       const tt = totals.get(p.id) || { goals: 0, assists: 0, minutes: 0, yellow: 0, red: 0, games: 0 };
-      return { p, b: part.all, rule: part.rules[fmt], goals: teamGoals ? playerGoals(part.all, teamGoals, { played: part.all.availMatches, remaining: pace.remaining }) : [], t: tt, inj: openInjury.get(p.id), warn: withCycle ? cycleWarning(tt.yellow) : null };
+      return { p, b: part.all, perf: part.perf, rule: part.rules[fmt], goals: teamGoals ? playerGoals(part.all, teamGoals, { played: part.all.availMatches, remaining: pace.remaining }) : [], t: tt, inj: openInjury.get(p.id), warn: withCycle ? cycleWarning(tt.yellow) : null };
     });
   }, [isAll, team, ctxAll, players, totals, openInjury, withCycle, fmt, teamGoals, pace]);
   const behindRows = playerRows.filter((r) => goalsBehind(r.goals));
@@ -192,8 +192,8 @@ export default function Stats() {
       downloadCsv(exportFileName(`asistencia-${name}`), toCsv(header, attRows.map((r) => [r.p.jersey_number ?? "", playerFullName(r.p), birthYearOf(r.p) ?? "", POS_LABEL[r.p.position] || "", r.present, r.apart, r.absent, r.pct ?? ""])));
     } else if (!isAll) {
       const f7 = fmt === "f7";
-      const header = ["Dorsal", "Jugador", "Año", "Posición", "Convocado", "PJ", "Titular", "Suplente", "Suplente sin jugar", "Fuera (decisión del entrenador)", "No disponible", ...(f7 ? ["1 cuarto", "2 cuartos", "3 cuartos", "4 cuartos"] : []), "Minutos", "% minutos disponibles", "Mínimo %", "Goles", "Asistencias", "Amarillas", "Rojas", "Motivos de no convocatoria"];
-      downloadCsv(exportFileName(`estadisticas-${name}`), toCsv(header, sortPlayers(playerRows, playerSort).map(({ p, b, t: x, rule, goals: gl }) => [p.jersey_number ?? "", playerFullName(p), birthYearOf(p) ?? "", POS_LABEL[p.position] || "", b.conv, b.played, b.titular, b.suplente, b.suplenteSin, b.benched, b.unavailable, ...(f7 ? [1, 2, 3, 4].map((k) => b.quarters?.[k] || 0) : []), b.mins, b.pctAvail ?? "", rule?.alert ?? "", ...(gl || []).map((g) => `${g.value} de ${g.target}${g.state === "done" ? " (cumplido)" : g.state === "behind" ? " (por detrás)" : g.state === "impossible" ? " (ya no llega)" : ""}`), x.goals, x.assists, x.yellow, x.red, Object.entries(b.reasons || {}).map(([k, n]) => `${reasonShort(k)}${isAjeno(k) ? " (no disponible)" : ""} ${n}`).join(" · ")])));
+      const header = ["Dorsal", "Jugador", "Año", "Posición", "Convocado", "PJ", "Titular", "Suplente", "Suplente sin jugar", "Fuera (decisión del entrenador)", "No disponible", ...(f7 ? ["1 cuarto", "2 cuartos", "3 cuartos", "4 cuartos"] : []), "Minutos", "% minutos disponibles", "Mínimo %", "Partidos por debajo del mínimo por partido", ...(playerRows[0]?.goals || []).map((g) => `Objetivo: ${{ starts: "titular", full: "completos", q3: "3 cuartos o más" }[g.key] || g.key}`), "Goles", "Asistencias", "Amarillas", "Rojas", "Motivos de no convocatoria"];
+      downloadCsv(exportFileName(`estadisticas-${name}`), toCsv(header, sortPlayers(playerRows, playerSort).map(({ p, b, t: x, rule, goals: gl }) => [p.jersey_number ?? "", playerFullName(p), birthYearOf(p) ?? "", POS_LABEL[p.position] || "", b.conv, b.played, b.titular, b.suplente, b.suplenteSin, b.benched, b.unavailable, ...(f7 ? [1, 2, 3, 4].map((k) => b.quarters?.[k] || 0) : []), b.mins, b.pctAvail ?? "", rule?.alert ?? "", b.belowMin || 0, ...(gl || []).map((g) => `${g.value} de ${g.target}${g.state === "done" ? " (cumplido)" : g.state === "behind" ? " (por detrás)" : g.state === "impossible" ? " (ya no llega)" : ""}`), x.goals, x.assists, x.yellow, x.red, Object.entries(b.reasons || {}).map(([k, n]) => `${reasonShort(k)}${isAjeno(k) ? " (no disponible)" : ""} ${n}`).join(" · ")])));
     }
   };
   const canExport = (tab === "resumen" && isAll) || (!isAll && (tab === "jugadores" || tab === "asistencia"));

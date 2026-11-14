@@ -10,6 +10,8 @@ export default [
   ["Después:","Then:","Ensuite :","Després:"],
   ["Temporada · mis equipos","Season · my teams","Saison · mes équipes","Temporada · els meus equips"],
   ["Temporada · todo el club","Season · whole club","Saison · tout le club","Temporada · tot el club"],
+  ["Liga · todo el club","League · whole club","Championnat · tout le club","Lliga · tot el club"],
+  ["Liga · mis equipos","League · my teams","Championnat · mes équipes","Lliga · els meus equips"],
   ["{pct} % victorias · {gf} goles a favor · {ga} en contra","{pct}% wins · {gf} goals for · {ga} against","{pct} % de victoires · {gf} buts marqués · {ga} encaissés","{pct} % victòries · {gf} gols a favor · {ga} en contra"],
   ["Asistencia · últimos 30 días","Attendance · last 30 days","Présence · 30 derniers jours","Assistència · últims 30 dies"],
   ["{n} pts","{n} pts","{n} pts","{n} pts"],

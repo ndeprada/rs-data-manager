@@ -160,7 +160,7 @@ export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle, rule,
   const level = (pct, r) => minutesLevel(fmt, pct, r || rule);
   const isF7 = fmt === "f7";
   const withGoals = !!goals;
-  const cols = 17 + (isF7 ? 4 : 0) + (withGoals ? 1 : 0);
+  const cols = 18 + (isF7 ? 4 : 0) + (withGoals ? 1 : 0);
   const GOAL_COLOR = { done: [WIN, "#DCFCE7"], ok: [RS.ink2, "#F3ECEB"], behind: [WARN, "#FEF3C7"], impossible: [LOSS, "#FEE2E2"] };
   const goalChips = (list) => (
     <span className="inline-flex" style={{ gap: 3 }}>
@@ -204,6 +204,8 @@ export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle, rule,
         {isF7 && [1, 2, 3, 4].map((k) => qCell(b.quarters?.[k] || 0, k))}
         <td style={{ ...td, textAlign: "right" }} className="tabular-nums">{b.mins}'</td>
         <td style={td}>{barFor(b.pctAvail, r.rule)}</td>
+        <td style={{ ...td, textAlign: "right", fontWeight: b.belowMin ? 700 : 400, color: !b.belowMin ? RS.faint : r.perf ? RS.ink2 : "#B45309" }} className="tabular-nums hidden md:table-cell"
+          data-testid={`stats-below-${p.id}`} title={r.perf ? t("orientativo en esta etapa") : undefined}>{b.belowMin || "–"}</td>
         {withGoals && <td style={td} data-testid={`stats-goals-${p.id}`}>{goalChips(r.goals || [])}</td>}
         <td style={{ ...td, textAlign: "right", fontWeight: 700 }} className="tabular-nums">{tt.goals || "–"}</td>
         <td style={{ ...td, textAlign: "right" }} className="tabular-nums">{tt.assists || "–"}</td>
@@ -233,6 +235,7 @@ export function PlayerStatsTable({ rows, guests, sort, onSort, fmt, cycle, rule,
             <th {...th("right", "hidden md:table-cell")} title={t("No disponible: lesión, enfermedad, sanción, viaje, estudios u otro motivo")}>{t("No disp.")}</th>
             {isF7 && [1, 2, 3, 4].map((k) => <th key={k} {...th("right", "hidden md:table-cell")} title={k === 1 ? t("Partidos en que jugó 1 cuarto") : t("Partidos en que jugó {n} cuartos", { n: k })} >{t("{n}C", { n: k })}</th>)}
             <th {...th("right")}>{t("Minutos")}</th><th {...th()}>{t("% min. disponibles")}</th>
+            <th {...th("right", "hidden md:table-cell")} title={t("Partidos convocado jugando menos del mínimo por partido (25’ en fútbol 11, la mitad en fútbol 7)")}>{t("< mín.")}</th>
             {withGoals && <th {...th()} title={t("Objetivos de participación a final de liga")}>{t("Objetivos")}</th>}
             <th {...th("right")}>{t("G")}</th><th {...th("right")}>{t("A")}</th><th {...th("right", "hidden md:table-cell")} title={t("Tarjetas amarillas")}>{t("TA")}</th>
             <th {...th("left", "hidden lg:table-cell")}>{t("Motivos de no convocatoria")}</th><th {...th()} />

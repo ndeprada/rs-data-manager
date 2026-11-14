@@ -2,6 +2,7 @@
 // parece todo muy bien» a las 7 propuestas): vistas Rendimiento · Ficha · Contacto, lista por posición o dorsal (juveniles
 // por colores), cifras de disponibilidad, composición, «Revisar fichas» que filtra la lista, vista Lista / Campo,
 // imprimir y exportar a Excel. Cálculos puros en src/lib/teamPages.js; las filas, en src/lib/useSquadRows.js.
+import BelowMinBadge from "@/components/match/BelowMinBadge";
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -312,7 +313,7 @@ export default function Squad() {
                                   <td style={{ ...td, fontSize: 11, color: RS.muted }} title={FOOT[p.laterality] ? t(FOOT[p.laterality]) : ""}>{FOOT[p.laterality] ? t(FOOT[p.laterality]).charAt(0) : "—"}</td>
                                   <td style={{ ...td, textAlign: "center", fontWeight: 700 }}>{r.pj}</td>
                                   <td style={{ ...td, textAlign: "center", color: RS.muted, fontSize: 11.5 }}>{r.tit ?? 0}</td>
-                                  <td style={td}><MinBar pct={r.pctMin} level={r.level} /></td>
+                                  <td style={{ ...td, whiteSpace: "nowrap" }}><MinBar pct={r.pctMin} level={r.level} /><BelowMinBadge n={r.belowMin} perf={r.perf} testId={`squad-below-${r.p.id}`} /></td>
                                   <td style={{ ...td, textAlign: "center", fontWeight: 700, color: r.goals ? RS.granate : RS.muted }}>{p.position === "portero" ? <span title={t("Goles encajados")} style={{ color: RS.muted, fontWeight: 500 }}>{r.conceded}</span> : r.goals}</td>
                                   <td style={{ ...td, textAlign: "center", color: RS.muted }}>{r.assists}</td>
                                   <td style={{ ...td, textAlign: "center" }}>

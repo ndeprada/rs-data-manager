@@ -54,10 +54,12 @@ const Num = ({ v, children }) => (
 );
 const CardMark = ({ red }) => <span className="inline-block rounded-[2px] align-[-1px]" style={{ width: 9, height: 12, background: red ? "#DC2626" : "#FACC15" }} />;
 
-function Row({ p, line, onEdit, sub }) {
+function Row({ p, line, onEdit, sub, minimum, perf }) {
   const t = useT();
   const missing = line.starter && !line.minutes;
   const benched = !line.starter && !line.minutes;
+  // Por debajo del mínimo por partido (14/11/2026): 25' en F11, la mitad del partido en F7; solo con el partido jugado
+  const below = minimum != null && !missing && (line.minutes || 0) < minimum;
   const subLabel = sub.into !== null && sub.out !== null ? `${sub.into}’–${sub.out}’` : sub.into !== null ? t("entra {m}’", { m: sub.into }) : sub.out !== null ? t("sale {m}’", { m: sub.out }) : "";
   return (
     <div className="flex items-center gap-1.5 px-2 hover:bg-[#FBF7F6]" style={{ height: 30, borderTop: `1px solid ${RS.lineSoft}`, opacity: benched ? 0.55 : 1, background: missing ? "#FFF8F1" : undefined }} data-testid={`lineup-row-${p.id}`}>
@@ -68,10 +70,13 @@ function Row({ p, line, onEdit, sub }) {
       <span className="shrink-0 text-[11px] font-bold" style={{ width: COLS.pos, color: RS.muted }}>{POS[p.position] ? t(POS[p.position]) : "—"}</span>
       <span className="shrink-0 text-[11px] whitespace-nowrap" style={{ width: COLS.sub, color: sub.into !== null && sub.out === null ? "#15803D" : "#9A3412" }}>{subLabel}</span>
       <span className="shrink-0 text-center text-[13px] tabular-nums" style={{ width: COLS.min }}
-        title={line.minutes ? "" : line.starter ? t("Sin minutos: pulsa el lápiz para apuntarlos") : t("No ha entrado en ningún cambio: 0 minutos")}>
+        title={below ? (perf ? t("Por debajo del mínimo por partido ({m}’, orientativo)", { m: minimum }) : t("Por debajo del mínimo por partido ({m}’)", { m: minimum })) : line.minutes ? "" : line.starter ? t("Sin minutos: pulsa el lápiz para apuntarlos") : t("No ha entrado en ningún cambio: 0 minutos")}
+        data-below={below ? "1" : undefined}>
         {missing
           ? <span className="inline-block w-full rounded font-bold" style={{ color: "#B91C1C", background: "#FEF2F2" }}>?</span>
-          : <span style={{ fontWeight: line.minutes ? 700 : 400, color: line.minutes ? RS.ink : "#C9BDBE" }}>{line.minutes || 0}’</span>}
+          : below
+            ? <span className="inline-block w-full rounded font-bold" style={{ color: perf ? "#92400E" : "#B45309", background: perf ? "#FEF9EC" : "#FEF3C7" }}>{line.minutes || 0}’</span>
+            : <span style={{ fontWeight: line.minutes ? 700 : 400, color: line.minutes ? RS.ink : "#C9BDBE" }}>{line.minutes || 0}’</span>}
       </span>
       <Num v={line.goals} />
       <Num v={line.assists} />
@@ -84,7 +89,7 @@ function Row({ p, line, onEdit, sub }) {
   );
 }
 
-function Group({ title, rows, onEdit, subs }) {
+function Group({ title, rows, onEdit, subs, minimum, perf }) {
   const t = useT();
   if (rows.length === 0) return null;
   return (
@@ -100,12 +105,12 @@ function Group({ title, rows, onEdit, subs }) {
         <span className="text-center" style={{ width: COLS.n }}>{t("Roja")}</span>
         <span style={{ width: COLS.edit }} />
       </div>
-      {rows.map(({ p, line }) => <Row key={p.id} p={p} line={line} onEdit={onEdit} sub={subs(p.id)} />)}
+      {rows.map(({ p, line }) => <Row key={p.id} p={p} line={line} onEdit={onEdit} sub={subs(p.id)} minimum={minimum} perf={perf} />)}
     </div>
   );
 }
 
-export default function LineupSummary({ eventId, event, convocation, convocados, starterIds, matchEvents, matchMinutes, onRecompute }) {
+export default function LineupSummary({ eventId, event, convocation, convocados, starterIds, matchEvents, matchMinutes, onRecompute, minimum: minIn = null, perf = false }) {
   const t = useT();
   const qc = useQueryClient();
   const { data: stats = [] } = useQuery({
@@ -120,6 +125,10 @@ export default function LineupSummary({ eventId, event, convocation, convocados,
   const titulares = lines.filter((r) => r.line.starter);
   const suplentes = lines.filter((r) => !r.line.starter);
   const tot = (k) => lines.reduce((a, r) => a + (r.line[k] || 0), 0);
+  // El mínimo por partido solo se mira con el partido ya jugado
+  const played = !!event?.date && new Date(event.date) <= new Date();
+  const minimum = played && minIn ? minIn : null;
+  const belowRows = minimum == null ? [] : lines.filter((r) => !(r.line.starter && !r.line.minutes) && (r.line.minutes || 0) < minimum);
 
   const openEdit = (p) => {
     const l = lines.find((r) => r.p.id === p.id).line;
@@ -197,14 +206,23 @@ export default function LineupSummary({ eventId, event, convocation, convocados,
           </Button>
         )}
       </div>
+      {belowRows.length > 0 && (
+        <p className="mx-4 mt-1 px-2 py-1.5 rounded text-[11px]" style={{ color: "#92400E", background: "#FEF3C7" }} data-testid="acta-below-min">
+          <b>{belowRows.length === 1
+            ? t("1 convocado por debajo del mínimo de {m}’:", { m: minimum })
+            : t("{n} convocados por debajo del mínimo de {m}’:", { n: belowRows.length, m: minimum })}</b>{" "}
+          {belowRows.map((r) => `${r.p.nickname || r.p.first_name} ${String(r.p.last_name || "").split(" ")[0]} (${r.line.minutes || 0}’)`).join(" · ")}
+          {perf && <span style={{ opacity: 0.8 }}> · {t("orientativo en esta etapa")}</span>}
+        </p>
+      )}
       {!event?.match_duration && (
         <p className="mx-4 mt-1 px-2 py-1.5 rounded text-[11px] text-orange-700 bg-orange-50">
           {t("Duración supuesta: {matchMinutes}' (la habitual de este equipo). Si este partido ha sido distinto, cámbiala en «Formato y resultado»: se guarda sola y los minutos se recalculan.", { matchMinutes })}
         </p>
       )}
       <div className="px-2">
-        <Group title={t("Titulares")} rows={titulares} onEdit={openEdit} subs={subs} />
-        <Group title={t("Suplentes")} rows={suplentes} onEdit={openEdit} subs={subs} />
+        <Group title={t("Titulares")} rows={titulares} onEdit={openEdit} subs={subs} minimum={minimum} perf={perf} />
+        <Group title={t("Suplentes")} rows={suplentes} onEdit={openEdit} subs={subs} minimum={minimum} perf={perf} />
       </div>
       <p className="px-4 pt-2 text-[11px]" style={{ color: RS.muted }}>{t("Titular sin cambios = partido completo; suplente sin cambios = 0’. El lápiz corrige a mano cualquier dato.")}</p>
       {titulares.length === 0 && (

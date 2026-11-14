@@ -23,7 +23,8 @@ import { isF7Team } from "@/lib/teamOrder";
 import { FORMATION_POSITIONS, formationsFor, isFormationOf, formationOptions, formationLabel, normalizeFormation, tacticsFormat } from "@/lib/matchFormations";
 import { KITS, GK_KITS, kitFor, matchKit, agendaKitOf } from "@/lib/clubKits";
 import { lineupAlerts, previousLineup, plainSummary, rivalSummary, shirtName } from "@/lib/matchPrep";
-import { participationOf, playerLevel } from "@/lib/participation";
+import { participationOf, playerLevel, matchMinimum, isPerformanceTeam } from "@/lib/participation";
+import { defaultDuration, totalMinutes } from "@/lib/matchDuration";
 import { useParticipationContext } from "@/lib/useParticipation";
 import { agendaMeta } from "@/lib/weekendAgenda";
 import { rivalNotesBefore } from "@/lib/postMatch";
@@ -458,6 +459,9 @@ export default function TacticaTab({ event, players, convocadoIds, matchDorsals,
     return m;
   }, [injuries]);
   const alerts = lineupAlerts({ slots, injuryOf, convocadoIds, bench: benchPlayers, minutesOf });
+  // Mínimo de minutos por partido para cada convocado (14/11/2026): 25' en F11, la mitad del partido en F7
+  const matchMin = matchMinimum(isF7 ? "f7" : "f11", totalMinutes(event?.match_duration || defaultDuration(isF7 ? "f7" : "f11", team)));
+  const perfTeam = isPerformanceTeam(team);
   const alertSlots = new Set(alerts.filter(a => a.slot != null).map(a => a.slot));
   const dorsal = (p) => (p.jersey_number ? ` (${p.jersey_number})` : "");
   const alertText = (a) => {
@@ -596,6 +600,13 @@ export default function TacticaTab({ event, players, convocadoIds, matchDorsals,
                   );
                 })}
               </div>
+            )}
+            {(convocadoIds || []).length > 0 && (
+              <p style={{ fontSize: 10.5, color: RS.muted, marginTop: 6, lineHeight: 1.3 }} data-testid="prep-match-min">
+                {perfTeam
+                  ? t("Mínimo por partido: {m}’ a cada convocado (orientativo en esta etapa)", { m: matchMin })
+                  : t("Mínimo por partido: {m}’ a cada convocado", { m: matchMin })}
+              </p>
             )}
           </div>
           {filled > 0 && (

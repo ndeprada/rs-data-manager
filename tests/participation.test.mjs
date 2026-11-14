@@ -252,3 +252,18 @@ assert.equal(reasonShort(NO_REASON), 'Sin motivo');
   assert.equal(isPerformanceTeam({ name: 'Juvenil C' }), true);
   assert.equal(isPerformanceTeam({ name: 'Infantil S14 A' }), false);
 }
+
+// ── Mínimo por partido (14/11/2026): convocado jugando menos de 25' en F11 o de la mitad del partido en F7 ──
+{
+  const p1b = participationOf(p1, ctx), p2b = participationOf(p2, ctx), p4b = participationOf(p4, ctx);
+  assert.equal(p1b.all.belowMin, 0);
+  // p2: e1 F7 30' de 60' (justo la mitad: no) · e2 F7 15' de 60' (sí) · e3 F11 20' (sí)
+  assert.equal(p2b.all.belowMin, 2);
+  assert.equal(p2b.f7.belowMin, 1);
+  assert.equal(p2b.f11.belowMin, 1);
+  // p4: convocado en e2 sin jugar
+  assert.equal(p4b.all.belowMin, 1);
+  assert.equal(p1b.perf, false);
+  // p1 jugando de invitado en el cadete no cambia su equipo: su equipo no es de rendimiento
+  assert.equal(participationOf(mk('px', 'B'), ctx).perf, true);
+}

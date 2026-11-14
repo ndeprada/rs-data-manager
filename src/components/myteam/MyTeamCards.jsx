@@ -1,5 +1,6 @@
 // Piezas de la pantalla Mi equipo (rediseño del 13/11/2026, maqueta «Maqueta Mi equipo · RS Manager» aprobada por Nacho).
 // Cálculos puros en src/lib/myTeamStats.js; piezas comunes con el Panel en src/components/rs2/dashParts.jsx.
+import BelowMinBadge from "@/components/match/BelowMinBadge";
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, ChevronLeft, ChevronRight, Home, Plane, User } from "lucide-react";
@@ -352,6 +353,7 @@ export function SquadCompact({ rows, outById, canManage, onAddPlayer }) {
                             <>
                               <span style={{ display: "inline-block", width: 42, height: 5, background: RS.lineSoft, borderRadius: 9, verticalAlign: "middle", marginRight: 6, overflow: "hidden" }}><span style={{ display: "block", width: `${Math.min(100, r.pctMin)}%`, height: "100%", background: r.level === "alert" ? LOSS : r.level === "warn" ? "#B45309" : RS.granate }} /></span>
                               {r.pctMin} %
+                              <BelowMinBadge n={r.belowMin} perf={r.perf} testId={`team-below-${r.p.id}`} />
                             </>
                           )}
                         </td>
