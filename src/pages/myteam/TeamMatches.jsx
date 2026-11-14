@@ -11,6 +11,7 @@ import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { useMatchStatus, reasonLabel } from "@/lib/matchStatus";
 import { isCancelled } from "@/lib/eventCancel";
 import { matchSteps } from "@/lib/matchSteps";
+import StepSquares from "@/components/match/StepSquares";
 import { minPlayersOf } from "@/lib/matchFormat";
 import { playedLeague, leagueForm, record, standingOf } from "@/lib/teamsOverview";
 import { splitMatches, scorersText, teamEvalAvg, homeAway, goalsByMatch, seasonList } from "@/lib/teamPages";
@@ -39,7 +40,6 @@ const keep = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sin alma
 const DAYMS = 86400000;
 const dayStart = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
 const daysUntil = (d, now) => Math.round((dayStart(d) - dayStart(now)) / DAYMS);
-const STEP_LETTERS = { convocatoria: ["C", msg("Convocatoria")], tactica: ["P", msg("Preparación")], acta: ["A", msg("Acta")], postpartido: ["V", msg("Postpartido")] };
 const WARN = "#B45309";
 const PAGE = 12;
 
@@ -66,25 +66,7 @@ function Seg({ options, value, onChange, testPrefix }) {
   );
 }
 
-/** Cuatro cuadraditos C · P · A · V: verde = hecho, naranja = lo que falta ahora, gris = más adelante */
-function Steps({ steps, eventId }) {
-  const t = useT();
-  return (
-    <span className="inline-flex" style={{ gap: 3 }} data-testid={`match-steps-${eventId}`}>
-      {steps.map((s) => {
-        const [letter, name] = STEP_LETTERS[s.key];
-        const sub = s.sub ? t(s.sub.key, s.sub.vars) : "";
-        const st = s.state === "done" ? { background: WIN, color: "#fff" }
-          : s.state === "now" ? { background: "#FFF7ED", color: "#9A3412", border: "1px solid #F5C2A0" }
-          : { background: "#F3ECEB", color: "#B7AAAC" };
-        return (
-          <Link key={s.key} to={`/MatchDetail?id=${eventId}&tab=${s.key}`} title={`${t(name)} · ${sub}`} data-state={s.state}
-            style={{ width: 18, height: 18, borderRadius: 5, fontSize: 10, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", ...st }}>{letter}</Link>
-        );
-      })}
-    </span>
-  );
-}
+const Steps = (props) => <StepSquares {...props} />;
 
 const chip = (text, ok) => (
   <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 999, background: ok ? "#DCFCE7" : "#F3ECEB", color: ok ? "#166534" : RS.muted, whiteSpace: "nowrap" }}>{text}</span>

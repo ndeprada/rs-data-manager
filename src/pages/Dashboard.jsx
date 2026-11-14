@@ -479,7 +479,7 @@ export default function Dashboard() {
             ))}
             <div style={{ marginLeft: "auto" }}><MoreLink to="/Teams">{t("Gestionar equipos →")}</MoreLink></div>
           </div>
-          {tab === "agenda" && <div style={{ padding: 12 }}><WeekendAgenda events={weekendEvents} teams={teams} fields={fields} /></div>}
+          {tab === "agenda" && <div style={{ padding: 12 }}><WeekendAgenda events={weekendEvents} teams={teams} fields={fields} convocs={convocs} /></div>}
           {tab === "equipos" && (
             <div style={{ padding: "10px 14px 14px" }} className="flex flex-col">
               <div className="flex flex-wrap" style={{ gap: 6, marginBottom: 10 }}>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import EventWeather from "@/components/EventWeather";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQueries } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { format, addDays, parseISO, startOfDay } from "date-fns";
 import { es as esLocale } from "date-fns/locale";
@@ -12,6 +12,9 @@ import { CLUB_LOGO_URL_WHITE } from "@/lib/clubConfig";
 import { isCancelled, cancelText } from "@/lib/eventCancel";
 import { useT, useDateLocale, msg } from "@/i18n";
 import { C as clubColor, F as clubFont, BRAND } from "@/lib/brand";
+import StepSquares from "@/components/match/StepSquares";
+import { matchSteps } from "@/lib/matchSteps";
+import { minPlayersOf } from "@/lib/matchFormat";
 import { agendaMeta, kitInfo, kitText, kitSwatch, KIT_COLORS, KIT_SIZES, sortAgenda, homeGroups, fitScale } from "@/lib/weekendAgenda";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
@@ -153,7 +156,7 @@ function AgendaSheet({ mode, label, matches, homes, getTeam, fieldName, innerRef
   );
 }
 
-export default function WeekendAgenda({ events = [], teams = [], fields = [] }) {
+export default function WeekendAgenda({ events = [], teams = [], fields = [], convocs = null }) {
   const t = useT();
   const dfl = useDateLocale();
   const qc = useQueryClient();
@@ -194,6 +197,19 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
   const getField = (id) => fields.find((f) => f.id === id);
   const fieldName = (ev) => getField(ev.field_id)?.name || ev.location || "";
   const homes = homeGroups(chrono, fieldName);
+
+  // Pasos C · P de cada partido (14/11/2026, Nacho: «no quiero que al generar el pdf salga esa parte»): solo en pantalla,
+  // nunca en la hoja que se comparte. Plan leído ligero por partido (alineación y sistema).
+  const showSteps = Array.isArray(convocs);
+  const planQs = useQueries({
+    queries: (showSteps ? inWeekend : []).map((ev) => ({
+      queryKey: ["match-plan-lite", ev.id],
+      queryFn: () => base44.entities.MatchPlan.pick(["event_id", "lineup", "formation"], { event_id: ev.id }),
+      staleTime: 60_000,
+    })),
+  });
+  const planOf = Object.fromEntries((showSteps ? inWeekend : []).map((ev, i) => [ev.id, planQs[i]?.data?.[0] || null]));
+  const stepsOf = (ev) => matchSteps({ event: ev, conv: convocs.find((c) => c.event_id === ev.id), plan: planOf[ev.id], minPlayers: minPlayersOf(ev, getTeam(ev.team_id)) });
 
   const startEdit = (event) => {
     const meta = agendaMeta(event);
@@ -323,7 +339,7 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                {[t("Día"), t("Hora"), t("Equipo"), t("Rival"), t("Loc/Vis"), t("Campo"), t("Vestuario"), t("Equipación")].map((h) => (
+                {[t("Día"), t("Hora"), t("Equipo"), t("Rival"), t("Loc/Vis"), t("Campo"), t("Vestuario"), t("Equipación"), showSteps && t("Conv. · Prep.")].filter(Boolean).map((h) => (
                   <th key={h} className="px-3 py-2 text-left font-bold uppercase tracking-wider text-gray-500 text-[10px] whitespace-nowrap" style={{ fontFamily: "var(--font-display)" }}>{h}</th>
                 ))}
                 <th className="px-3 py-2 w-8" />
@@ -382,6 +398,12 @@ export default function WeekendAgenda({ events = [], teams = [], fields = [] }) 
                         </div>
                       ) : <KitChip meta={meta} />}
                     </td>
+                    {showSteps && (
+                      <td className="px-3 py-2 whitespace-nowrap" title={t("Solo en pantalla: no sale en el PDF ni en la imagen")}>
+                        {isCancelled(ev) ? <span className="text-gray-300">—</span>
+                          : <StepSquares steps={stepsOf(ev)} eventId={ev.id} teamId={ev.team_id} only={["convocatoria", "tactica"]} testId={`agenda-steps-${ev.id}`} />}
+                      </td>
+                    )}
                     <td className="px-2 py-2 whitespace-nowrap">
                       {isEditing ? (
                         <div className="flex gap-1">

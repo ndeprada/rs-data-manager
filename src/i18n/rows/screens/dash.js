@@ -38,4 +38,6 @@ export default [
   ["Imagen","Image","Image","Imatge"],
   ["Una sola hoja, lista para enviar a los entrenadores o publicar en redes.","A single page, ready to send to coaches or post on social media.","Une seule page, prête à envoyer aux entraîneurs ou à publier sur les réseaux.","Un sol full, a punt per enviar als entrenadors o publicar a xarxes."],
   ["Partidos en {campo}","Matches at {campo}","Matchs à {campo}","Partits a {campo}"],
+  ["Conv. · Prep.", "Call-up · Prep.", "Convoc. · Prép.", "Conv. · Prep."],
+  ["Solo en pantalla: no sale en el PDF ni en la imagen", "On screen only: not in the PDF or the image", "À l'écran uniquement : pas dans le PDF ni l'image", "Només a la pantalla: no surt al PDF ni a la imatge"],
 ];
