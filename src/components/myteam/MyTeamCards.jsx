@@ -24,8 +24,31 @@ export const matchLink = (e, tab) => `/MatchDetail?id=${e.id}&teamId=${e.team_id
 const chipStyle = (bg, fg) => ({ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: bg, color: fg, whiteSpace: "nowrap" });
 const Chip = ({ bg, fg, children, title }) => <span style={chipStyle(bg, fg)} title={title}>{children}</span>;
 
+// ── Pasos del partido en la banda (14/11/2026, Nacho: «ok ves con ello»): C · P con lo que llevan; A · V solo la letra hasta jugarse
+const STEP_NAME = { convocatoria: ["C", msg("Convocatoria")], tactica: ["P", msg("Preparación")], acta: ["A", msg("Acta")], postpartido: ["V", msg("Postpartido")] };
+function BandSteps({ steps, next }) {
+  const t = useT();
+  return (
+    <div className="flex flex-wrap items-center" style={{ gap: 6, marginTop: 2 }} data-testid="team-next-steps">
+      {steps.map((s) => {
+        const [letter, name] = STEP_NAME[s.key];
+        const sub = s.sub ? t(s.sub.key, s.sub.vars) : "";
+        const later = s.state === "todo";
+        const sq = s.state === "done" ? { background: WIN, color: "#fff" } : s.state === "now" ? { background: RS.naranja, color: "#fff" } : { background: "rgba(255,255,255,.14)", color: "rgba(255,255,255,.6)" };
+        return (
+          <Link key={s.key} to={matchLink(next, s.key)} title={`${t(name)} · ${sub}`} data-state={s.state} data-testid={`team-next-step-${s.key}`}
+            className="inline-flex items-center" style={{ gap: 6, padding: later ? 3 : "3px 10px 3px 3px", borderRadius: 999, background: later ? "transparent" : "rgba(255,255,255,.08)", fontSize: 11, color: "rgba(255,255,255,.88)", minWidth: 0 }}>
+            <span style={{ width: 18, height: 18, borderRadius: 5, fontSize: 10, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "none", ...sq }}>{letter}</span>
+            {!later && <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}><b>{t(name)}</b> · {sub}</span>}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Próximo partido ─────────────────────────────────────────────────────────
-export function NextMatchBand({ next, team, conv, squadSize, us, rival, out, canManage }) {
+export function NextMatchBand({ next, team, conv, squadSize, us, rival, out, canManage, steps }) {
   const t = useT();
   const dfl = useDateLocale();
   if (!next) return <section className="rs2-card flex items-center" style={{ padding: 18, fontSize: 13, color: RS.faint }} data-testid="team-next-none">{t("Sin partidos programados.")}</section>;
@@ -75,6 +98,7 @@ export function NextMatchBand({ next, team, conv, squadSize, us, rival, out, can
             </>
           ) : <Link to={matchLink(next)} style={{ ...btn, background: "rgba(255,255,255,.12)" }}>{t("Ver partido")}</Link>}
         </div>
+        {steps && <BandSteps steps={steps} next={next} />}
       </div>
       <div className="grid" style={{ flex: "0 1 340px", minWidth: 0, gridTemplateColumns: "1fr 1fr", gap: 8, alignContent: "start" }}>
         <Side label={t("Rival")} row={rival} />

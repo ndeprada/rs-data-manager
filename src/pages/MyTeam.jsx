@@ -24,6 +24,8 @@ import { playerFullName } from "@/lib/playerName";
 import { Page, RS } from "@/components/rs2/kit";
 import { NextMatchBand, KpiRow, TeamWeek, MiniStanding, SquadCompact, MatchesCard, TeamLeaders, MATCH_TYPES } from "@/components/myteam/MyTeamCards";
 import { useT } from "@/i18n";
+import { matchSteps } from "@/lib/matchSteps";
+import { minPlayersOf } from "@/lib/matchFormat";
 
 const PILL_MAX = 4; // con más equipos para elegir, desplegable en vez de botones
 
@@ -68,6 +70,13 @@ export default function MyTeam() {
   const upcoming = matches.filter((e) => new Date(e.date) >= now && !isCancelled(e)).sort((a, b) => new Date(a.date) - new Date(b.date));
   const next = upcoming[0];
   const nextConv = next ? convocs.find((c) => c.event_id === next.id) : null;
+  // Pasos C · P · A · V del próximo partido: el plan se lee ligero (solo alineación y sistema)
+  const { data: nextPlans = [] } = useQuery({
+    queryKey: ["match-plan-lite", next?.id],
+    queryFn: () => base44.entities.MatchPlan.pick(["event_id", "lineup", "formation"], { event_id: next.id }),
+    enabled: !!next?.id,
+  });
+  const nextSteps = next ? matchSteps({ event: next, conv: nextConv, plan: nextPlans[0] || null, minPlayers: minPlayersOf(next, team), now }) : null;
   const played = matches.filter((e) => e.score_home != null && e.score_away != null);
   const lastPlayed = matches.filter((e) => new Date(e.date) < now).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 3);
   const rec = seasonRecord(played);
@@ -155,7 +164,7 @@ export default function MyTeam() {
         <TeamAlerts teamId={selectedTeamId} players={teamPlayers} />
 
         {/* Próximo partido */}
-        <NextMatchBand next={next} team={team} conv={nextConv} squadSize={rows.length} us={me} rival={rival} out={out} canManage={canManage} />
+        <NextMatchBand next={next} team={team} conv={nextConv} squadSize={rows.length} us={me} rival={rival} out={out} canManage={canManage} steps={nextSteps} />
 
         {/* Datos */}
         <KpiRow rec={rec} standing={standing} me={me} att={att} lowAtt={lowAtt} squad={squad} />
