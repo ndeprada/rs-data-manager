@@ -25,6 +25,13 @@ export default function FcfBridge() {
       const d = ev.data;
       if (!d || typeof d !== "object") return;
       if (d.type === "rs-fcf-ping") { reply(ev.source, { type: "rs-fcf-ready" }); return; }
+      // Lo ya cargado (temporada, competición, grupo, actas) para que el lector se salte los grupos completos
+      if (d.type === "rs-fcf-meta") {
+        base44.club.fcfMeta()
+          .then((m) => reply(ev.source, { type: "rs-fcf-meta", id: d.id, ok: true, competitions: (m.competitions || []).map((c) => [c.season, c.competition, c.grp, c.actas]) }))
+          .catch((e) => reply(ev.source, { type: "rs-fcf-meta", id: d.id, ok: false, error: String(e?.message || e) }));
+        return;
+      }
       if (d.type !== "rs-fcf-batch" || !Array.isArray(d.actas)) return;
       // De uno en uno, en el orden en que llegan
       queue.current = queue.current.then(async () => {
