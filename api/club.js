@@ -219,6 +219,20 @@ export default async function handler(req, res) {
       return res.status(200).json({ written, total: rows.length, ok: count('ok'), sin_anterior: count('sin_anterior'), sin_fcf: count('sin_fcf'), dudoso: count('dudoso'), manual: count('manual'), rows });
     }
 
+    // Trayectoria de un jugador del club según las actas de la FCF (pestaña Historial de su ficha, 14/11/2026).
+    // La ve el personal y el propio jugador; solo si su ficha ya está vinculada a la FCF (fcf_player_id).
+    if (a === 'player_career') {
+      const pid = String(req.query.player || '');
+      if (!isUuid(pid)) return res.status(400).json({ error: 'bad_player' });
+      if (!(isAdmin(user) || STAFF.includes(user.app_role) || user.player_id === pid)) return res.status(403).json({ error: 'forbidden' });
+      const { rows } = await query(`select data->>'fcf_player_id' as fid from entities where entity_type = 'Player' and id = $1`, [pid]);
+      const fid = rows[0]?.fid;
+      if (!fid) return res.status(200).json({ linked: false, seasons: [] });
+      await ensureSchema(db);
+      const d = await playerDetail(db, fid);
+      return res.status(200).json({ linked: !!d, fcf_id: fid, seasons: d?.seasons || [] });
+    }
+
     if (['fcf_meta', 'fcf_search', 'fcf_player', 'fcf_import', 'fcf_years', 'fcf_group_teams', 'fcf_team', 'fcf_alerts', 'fcf_acta_ids'].includes(a)) {
       if (!permissionsOf(user).administration) return res.status(403).json({ error: 'forbidden' });
       await ensureSchema(db);

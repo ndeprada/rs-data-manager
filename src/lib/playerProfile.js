@@ -1,7 +1,7 @@
 // Cálculos de la ficha del jugador (sin importaciones de la app: se prueban en Node).
 
 const LEAGUE = "partido_liga";
-const MATCHES = ["partido_amistoso", "partido_liga", "torneo"];
+export const MATCHES = ["partido_amistoso", "partido_liga", "torneo"];
 const TRAININGS = ["entrenamiento", "entrenamiento_fisico", "sesion_teorica", "sesion_video"];
 const time = (d) => { const x = new Date(d || 0).getTime(); return Number.isNaN(x) ? 0 : x; };
 
@@ -16,12 +16,12 @@ export function resultCode(ev) {
  * Partidos de liga ya cerrados que cuentan para el jugador: los de su equipo y aquellos en que jugó de invitado.
  * Del más reciente al más antiguo: { ev, guest, called, starter, minutes, goals, assists, yellow, red, rating, result, reason }
  */
-export function matchRows({ events = [], convs = [], stats = [], playerId, teamId, counted }) {
+export function matchRows({ events = [], convs = [], stats = [], playerId, teamId, counted, types = [LEAGUE] }) {
   const convBy = new Map(convs.map((c) => [c.event_id, c]));
   const statBy = new Map(stats.filter((s) => s.player_id === playerId).map((s) => [s.event_id, s]));
   const rows = [];
   for (const ev of events) {
-    if (ev.type !== LEAGUE || (counted && !counted.has(ev.id))) continue;
+    if (!types.includes(ev.type) || (counted && !counted.has(ev.id))) continue;
     const stat = statBy.get(ev.id) || null;
     const conv = convBy.get(ev.id) || null;
     const own = ev.team_id === teamId;
@@ -32,6 +32,7 @@ export function matchRows({ events = [], convs = [], stats = [], playerId, teamI
       ev, guest: !own, called, starter: called && (conv?.starters || []).includes(playerId), minutes,
       goals: stat?.goals || 0, assists: stat?.assists || 0, yellow: stat?.yellow_cards || 0, red: stat?.red_cards || 0,
       rating: stat?.rating || null, result: resultCode(ev), reason: !called ? conv?.absence_reasons?.[playerId] || null : null,
+      notes: (stat?.notes || "").trim() || null, stat, mvp: !!ev.mvp_player_id && ev.mvp_player_id === playerId,
     });
   }
   return rows.sort((a, b) => time(b.ev.date) - time(a.ev.date));

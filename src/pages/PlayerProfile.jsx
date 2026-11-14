@@ -3,30 +3,29 @@ import { countCleanSheets, useCleanSheetData } from "@/lib/cleanSheet";
 import React, { useMemo, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { HeartPulse, Camera, Loader2, Pencil, Trash2, User, Plus } from "lucide-react";
+import { HeartPulse, Camera, Loader2, Pencil, Trash2, User } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import MatchStatsSection from "../components/player/MatchStatsSection";
-import PlayerCorrectionsSection from "../components/player/PlayerCorrectionsSection";
-import AttendanceHistorySection from "../components/player/AttendanceHistorySection";
+import ProfileMatches from "../components/player/ProfileMatches";
+import ProfileTrainings from "../components/player/ProfileTrainings";
 import PDISection from "../components/player/PDISection";
 import PDIPlanSection from "../components/player/PDIPlanSection";
 import Evaluation360Section from "../components/player/Evaluation360Section";
 import InjurySection from "../components/player/InjurySection";
-import PlayerPerformancePanel from "../components/player/PlayerPerformancePanel";
 import DocumentsSection from "../components/player/DocumentsSection";
-import TrainingLoadSection from "../components/player/TrainingLoadSection";
-import PlayerSeasonHistorySection from "../components/player/PlayerSeasonHistorySection";
+import ProfileHistory from "../components/player/ProfileHistory";
+import { CURRENT_SEASON } from "@/lib/staffRoles";
+import { canConfigureClub } from "@/lib/permissions";
 import ProfileSummary from "../components/player/ProfileSummary";
+import { Cols } from "../components/player/ProfileParts";
 import { getExtraPositions } from "@/lib/playerPositions";
 import AddPlayerDialog from "@/components/team/AddPlayerDialog";
 import ImageCropDialog from "@/components/ImageCropDialog";
-import InjuryRegistrationDialog from "@/components/player/InjuryRegistrationDialog";
 import { playerFirstName, playerFullName } from "@/lib/playerName";
 import { useCountedStats, useMatchStatus } from "@/lib/matchStatus";
-import { useParticipationContext } from "@/lib/useParticipation";
+import { useParticipationContext, useMinutesRules } from "@/lib/useParticipation";
 import { participationOf, playerLevel } from "@/lib/participation";
+import { injuryImpact } from "@/lib/profileTabs";
 import { matchRows, seasonTotals, seasonStart, attendanceWindow, attendanceStrip, nextMatchFor, neighbours } from "@/lib/playerProfile";
 import { usePlayerMode } from "@/lib/playerMode";
 import { useAuth } from "@/lib/AuthContext";
@@ -35,7 +34,6 @@ import { useTeamAccess } from "@/lib/TeamAccessContext";
 import { Flag, countryOf } from "@/lib/countries";
 import { Page, RS, YearBadge } from "@/components/rs2/kit";
 import { WIN, LOSS } from "@/components/rs2/dashParts";
-import { PlayerMatchesReadOnly, PlayerInjuriesReadOnly, PlayerDocumentsReadOnly, PlayerHistoryReadOnly } from "@/components/player/PlayerReadOnlySections";
 import { useT, useFormat, msg } from "@/i18n";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -73,7 +71,6 @@ export default function PlayerProfile() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [selectedImageSrc, setSelectedImageSrc] = useState(null);
-  const [injuryDialogOpen, setInjuryDialogOpen] = useState(false);
   const [tab, setTab] = useState(() => urlParams.get("tab") || "resumen");
   const now = useMemo(() => new Date(), [playerId]);
   const mobile = useIsMobile();
@@ -87,22 +84,20 @@ export default function PlayerProfile() {
     enabled: !!playerId && playersFetched && !inList,
   });
   const { data: teams = [] } = useQuery({ queryKey: ["teams"], queryFn: () => base44.entities.Team.list() });
-  const { data: staffList = [] } = useQuery({ queryKey: ["staff"], queryFn: () => base44.entities.StaffMember.list() });
   const { data: attendance = [] } = useQuery({ queryKey: ["attendance"], queryFn: () => base44.entities.TrainingAttendance.list() });
   const { data: injuries = [] } = useQuery({ queryKey: ["injuries"], queryFn: () => base44.entities.Injury.list() });
   const { data: raw_matchStats = [] } = useQuery({ queryKey: ["matchstats", playerId], queryFn: () => base44.entities.MatchStats.filter({ player_id: playerId }, "date"), enabled: !!playerId });
   const matchStats = useCountedStats(raw_matchStats);
   const { data: convsAll = [] } = useQuery({ queryKey: ["convocatorias_all"], queryFn: () => base44.entities.Convocatoria.list() });
   const { data: statsAll = [] } = useQuery({ queryKey: ["matchstats_all"], queryFn: () => base44.entities.MatchStats.list() });
-  const { counted, events: allEventsSorted } = useMatchStatus();
+  const { counted, countedOther, events: allEventsSorted } = useMatchStatus();
+  const { goals: partGoals } = useMinutesRules();
   const partCtx = useParticipationContext("liga");
   const { data: accounts = null } = useQuery({ queryKey: ["playerAccounts"], queryFn: () => base44.club.playerAccounts(), enabled: !!perms.editPlayers && !isPlayerAccount, retry: false });
 
   const player = players.find((p) => p.id === playerId) || archivedPlayer;
   const { events: allEvents, allStats: allMatchStats } = useCleanSheetData(player?.position === "portero");
   const team = teams.find((t) => t.id === player?.team_id);
-  const teamStaff = staffList.filter((s) => s.team_id === player?.team_id && s.email);
-  const staffEmails = teamStaff.map((s) => s.email);
 
   const deleteMutation = useMutation({
     mutationFn: () => base44.entities.Player.delete(playerId),
@@ -136,6 +131,7 @@ export default function PlayerProfile() {
 
   // Temporada con su equipo (partidos de liga cerrados) y entrenos
   const evById = new Map(allEventsSorted.map((e) => [e.id, e]));
+  const teamsById = new Map(teams.map((x) => [x.id, x]));
   const playerAttendance = attendance.filter((a) => a.player_id === playerId);
   const playerInjuries = injuries.filter((i) => i.player_id === playerId);
   const activeInjuries = playerInjuries.filter((i) => i.status !== "alta");
@@ -298,54 +294,48 @@ export default function PlayerProfile() {
           )}
 
           {tab === "stats" && (
-            <div className="space-y-4">
-              <PlayerPerformancePanel playerId={playerId} />
-              {playerMode ? <PlayerMatchesReadOnly playerId={playerId} /> : <MatchStatsSection playerId={playerId} isGoalkeeper={isGK} readOnly={!staffEdit} />}
-              {!playerMode && <PlayerCorrectionsSection playerId={playerId} teamId={player.team_id} />}
-            </div>
+            <ProfileMatches player={player} team={team} teamsById={teamsById} events={allEventsSorted} convs={convsAll} stats={statsAll}
+              counted={counted} countedOther={countedOther} part={part} goals={partGoals} playerMode={playerMode} staffEdit={staffEdit} mobile={mobile} now={now} />
           )}
 
           {tab === "entrenos" && (
-            <div className="space-y-4">
-              <AttendanceHistorySection attendance={playerAttendance} injuries={playerInjuries} />
-              {!playerMode && perms.load !== "none" && <TrainingLoadSection playerId={playerId} />}
-            </div>
+            <ProfileTrainings player={player} events={allEventsSorted} attendance={attendance} now={now} mobile={mobile} playerMode={playerMode} showLoad={!playerMode && perms.load !== "none"} />
           )}
 
           {tab === "pdi" && can("pdi") && (
-            <div className="space-y-6">
-              <Evaluation360Section player={player} playerId={playerId} team={team} />
-              <PDIPlanSection player={player} team={team} />
-              {!playerMode && <details className="bg-white border border-gray-200 rounded-2xl shadow-sm">
-                <summary className="px-5 py-3 cursor-pointer text-sm font-semibold text-gray-600">{t("Evaluaciones antiguas (texto libre)")}</summary>
-                <div className="px-4 pb-4">
-                  <PDISection readOnly playerId={playerId} playerName={`${playerFullName(player)}`} playerEmail={player.email} />
-                </div>
-              </details>}
-            </div>
+            <Cols mobile={mobile} ratio="2.2fr 1fr"
+              left={<PDIPlanSection player={player} team={team} />}
+              right={<>
+                <Evaluation360Section player={player} playerId={playerId} team={team} />
+                {!playerMode && <details className="rs2-card" style={{ padding: "8px 14px" }}>
+                  <summary className="cursor-pointer text-xs font-semibold text-gray-600">{t("Evaluaciones antiguas (texto libre)")}</summary>
+                  <div className="pt-2">
+                    <PDISection readOnly playerId={playerId} playerName={`${playerFullName(player)}`} playerEmail={player.email} />
+                  </div>
+                </details>}
+              </>} />
           )}
 
           {tab === "injuries" && can("injuries") && (
-            playerMode || perms.medical !== "edit" ? <PlayerInjuriesReadOnly playerId={playerId} /> : <div className="space-y-4">
-              <Button variant="club" onClick={() => setInjuryDialogOpen(true)} className="w-full">
-                <Plus className="w-4 h-4 mr-2" /> {t("Registrar lesión")}
-              </Button>
-              <InjurySection playerId={playerId} playerName={`${playerFullName(player)}`} playerEmail={player.email} staffEmails={staffEmails} />
-            </div>
+            <InjurySection playerId={playerId} readOnly={playerMode || perms.medical !== "edit"} mobile={mobile}
+              impactOf={(inj) => injuryImpact(inj, { events: allEventsSorted, convs: convsAll, attendance: playerAttendance, playerId, teamId: player.team_id, now })} />
           )}
 
           {tab === "documents" && can("documents") && (
-            playerMode || perms.medical !== "edit" ? <PlayerDocumentsReadOnly playerId={playerId} /> : <DocumentsSection playerId={playerId} />
+            <DocumentsSection playerId={playerId} mobile={mobile} minor={!!year && now.getFullYear() - year < 18}
+              readOnly={playerMode || perms.medical !== "edit"} canConfigure={!playerMode && canConfigureClub(authUser)} />
           )}
 
-          {tab === "historial" && (!staffEdit ? <PlayerHistoryReadOnly playerId={playerId} /> : <PlayerSeasonHistorySection playerId={playerId} />)}
+          {tab === "historial" && (
+            <ProfileHistory player={player} staffEdit={staffEdit} mobile={mobile}
+              current={{ season: CURRENT_SEASON, team: team?.name || "", category: team?.category || "", pj: tot.played, tit: tot.starter, minutes: tot.minutes, pctMin, goals: tot.goals, yellow: tot.yellow, red: tot.red, attPct: attSeason.pct, rating: playerMode ? null : tot.rating }} />
+          )}
         </div>
       </div>
 
       {/* Dialogs */}
       <ImageCropDialog open={cropDialogOpen} onOpenChange={setCropDialogOpen} imageSrc={selectedImageSrc} onConfirm={handleCropConfirm} isLoading={uploading} />
       <AddPlayerDialog open={editDialogOpen} onOpenChange={setEditDialogOpen} teamId={player.team_id} editingPlayer={player} />
-      {injuryDialogOpen && <InjuryRegistrationDialog playerId={playerId} onClose={() => setInjuryDialogOpen(false)} />}
 
       <AlertDialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>
         <AlertDialogContent className="bg-white border-gray-200">

@@ -20,6 +20,7 @@ import pl from "./screens/pl.js";
 import te from "./screens/te.js";
 import ca2 from "./screens/ca2.js";
 import pf from "./screens/pf.js";
+import pf2 from "./screens/pf2.js";
 import md from "./screens/md.js";
 import pr from "./screens/pr.js";
 import pm from "./screens/pm.js";
@@ -31,4 +32,4 @@ import se from "./screens/se.js";
 import me from "./screens/me.js";
 import tm from "./screens/tm.js";
 
-export default [...b1, ...b1x, ...b1y, ...b2, ...b2x, ...b3, ...b3x, ...cm, ...fb, ...ar, ...qc, ...mj, ...tc, ...tp, ...cfg, ...dash, ...mt, ...pl, ...te, ...ca2, ...pf, ...md, ...pr, ...at, ...st2, ...pm, ...co, ...av, ...se, ...me, ...tm];
+export default [...b1, ...b1x, ...b1y, ...b2, ...b2x, ...b3, ...b3x, ...cm, ...fb, ...ar, ...qc, ...mj, ...tc, ...tp, ...cfg, ...dash, ...mt, ...pl, ...te, ...ca2, ...pf, ...pf2, ...md, ...pr, ...at, ...st2, ...pm, ...co, ...av, ...se, ...me, ...tm];

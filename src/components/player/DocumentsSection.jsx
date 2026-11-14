@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileUp, File, Trash2, Calendar, Download, Loader2 } from "lucide-react";
+import { FileUp, Trash2, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,7 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
+import { useT, useDateLocale } from "@/i18n";
+import { BRAND, C as clubColor, REQUIRED_DOC_TYPES, brandDiff, fullBrand } from "@/lib/brand";
+import { storeBrand } from "@/lib/brandBoot";
+import { DOCUMENT_TYPE_LABELS } from "@/lib/injuryLabels";
+import { docRows } from "@/lib/profileTabs";
+import { Cols, th, td } from "./ProfileParts";
 
 const DOCUMENT_TYPES = [
   { value: "examen_medico", label: "Examen Médico" },
@@ -20,16 +25,10 @@ const DOCUMENT_TYPES = [
   { value: "otro", label: "Otro" },
 ];
 
-const TYPE_COLORS = {
-  examen_medico: { bg: "#f0fdf4", text: "#16a34a", icon: "🏥" },
-  autorizacion_legal: { bg: "#f3f4f6", text: "#4b5563", icon: "⚖️" },
-  copia_identificacion: { bg: "#fef3c7", text: "#b45309", icon: "🪪" },
-  seguro: { bg: "#dbeafe", text: "#0284c7", icon: "🛡️" },
-  consentimiento_padres: { bg: "#ede9fe", text: "#7c3aed", icon: "👨‍👩‍👧" },
-  otro: { bg: "#f5f5f5", text: "#6b7280", icon: "📄" },
-};
 
-export default function DocumentsSection({ playerId }) {
+export default function DocumentsSection({ playerId, minor = false, readOnly = false, canConfigure = false, mobile = false }) {
+  const t = useT();
+  const dfl = useDateLocale();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
@@ -84,109 +83,96 @@ export default function DocumentsSection({ playerId }) {
     }
   };
 
-  const isExpiringSoon = (expiryDate) => {
-    if (!expiryDate) return false;
-    const expiry = parseISO(expiryDate);
-    const today = new Date();
-    const thirtyDaysLater = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-    return expiry <= thirtyDaysLater && expiry > today;
+  const now = new Date();
+  const [req, setReq] = useState(() => BRAND.requiredDocs || []);
+  const [savingReq, setSavingReq] = useState(false);
+  const { rows, rest, counts } = docRows(documents, req, { now, minor });
+  const d = (x) => { try { return x ? format(parseISO(x), "d MMM yyyy", { locale: dfl }) : "—"; } catch { return "—"; } };
+  const openUpload = (type) => { setForm({ document_type: type || "", title: type ? t(DOCUMENT_TYPE_LABELS[type] || "") : "", file: null, expiry_date: "", notes: "" }); setDialogOpen(true); };
+  const toggleReq = async (k) => {
+    const next = req.includes(k) ? req.filter((x) => x !== k) : [...req, k];
+    setReq(next);
+    setSavingReq(true);
+    try {
+      const { brand: saved = {} } = await base44.club.brand();
+      const { brand } = await base44.club.saveBrand(brandDiff({ ...fullBrand(saved), requiredDocs: next }));
+      storeBrand(brand);
+      BRAND.requiredDocs = brand.requiredDocs || [];
+    } catch { setReq(req); } finally { setSavingReq(false); }
   };
-
-  const isExpired = (expiryDate) => {
-    if (!expiryDate) return false;
-    return parseISO(expiryDate) < new Date();
+  const stateChip = (r) => {
+    const map = { missing: [t("Falta"), "#FEE2E2", "#B91C1C"], expired: [t("Caducado"), "#FEE2E2", "#B91C1C"], soon: [t("Caduca en {n} días", { n: r.days }), "#FEF3C7", "#92400E"], ok: [t("En regla"), "#DCFCE7", "#15803D"] };
+    const [label, bg, fg] = map[r.state];
+    return <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: bg, color: fg, whiteSpace: "nowrap" }}>{label}</span>;
   };
+  const head = (title, right) => (
+    <div className="flex flex-wrap items-center" style={{ gap: 6, marginBottom: 8 }}>
+      <h2 style={{ margin: 0, borderLeft: `3px solid ${clubColor.accent}`, paddingLeft: 7, lineHeight: 1 }}><span className="rs2-display" style={{ fontSize: 17, color: clubColor.primary }}>{title}</span></h2>
+      {right && <span style={{ marginLeft: "auto" }}>{right}</span>}
+    </div>
+  );
+  const smallBtn = (label, onClick, primary, testId) => (
+    <button type="button" onClick={onClick} data-testid={testId} style={{ font: "inherit", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 8, border: `1px solid ${primary ? clubColor.primary : "#E6DEDD"}`, background: primary ? clubColor.primary : "#fff", color: primary ? "#fff" : clubColor.primary, whiteSpace: "nowrap" }}>{label}</button>
+  );
+  const row = (r, i) => (
+    <tr key={r.doc?.id || r.type + i} data-testid={`doc-row-${r.type}`}>
+      <td style={td({ fontWeight: 700 })}>{t(DOCUMENT_TYPE_LABELS[r.type] || DOCUMENT_TYPE_LABELS.otro)}</td>
+      <td style={td({ color: r.doc ? "#4A3D3F" : "#9C8E90", maxWidth: 220 })}><span className="line-clamp-2">{r.doc?.title || "—"}{r.doc?.notes ? <span style={{ color: "#9C8E90" }}> · {r.doc.notes}</span> : null}</span></td>
+      <td style={td({ whiteSpace: "nowrap", color: "#6B5E60" })}>{r.doc ? d(r.doc.upload_date) : "—"}</td>
+      <td style={td({ whiteSpace: "nowrap", color: "#6B5E60" })}>{r.doc?.expiry_date ? d(r.doc.expiry_date) : "—"}</td>
+      <td style={td()}>{stateChip(r)}</td>
+      <td style={td({ textAlign: "right", whiteSpace: "nowrap" })}>
+        {r.doc ? (
+          <span className="inline-flex items-center" style={{ gap: 4 }}>
+            <a href={r.doc.file_url} target="_blank" rel="noopener noreferrer" title={t("Ver")} style={{ padding: 4, color: "#6B5E60" }}><Download className="w-4 h-4" /></a>
+            {!readOnly && (r.state === "soon" || r.state === "expired") && smallBtn(t("Renovar"), () => openUpload(r.type), false, `doc-renew-${r.type}`)}
+            {!readOnly && <button type="button" onClick={() => setDeleteId(r.doc.id)} title={t("Eliminar")} style={{ padding: 4, border: 0, background: "none", color: "#9C8E90" }}><Trash2 className="w-4 h-4" /></button>}
+          </span>
+        ) : !readOnly && smallBtn(t("Subir"), () => openUpload(r.type), true, `doc-upload-${r.type}`)}
+      </td>
+    </tr>
+  );
+  const table = (list) => (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ borderCollapse: "collapse", width: "100%" }}>
+        <thead><tr>{[t("Tipo"), t("Documento"), t("Subido"), t("Caduca"), t("Estado"), ""].map((h, i) => <th key={i} style={th()}>{h}</th>)}</tr></thead>
+        <tbody>{list.map(row)}</tbody>
+      </table>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">Documentos</h3>
-          <p className="text-sm text-gray-500 mt-1">Gestiona exámenes médicos y documentación legal</p>
-        </div>
-        <Button variant="club"
-          onClick={() => setDialogOpen(true)}
-        >
-          <FileUp className="w-4 h-4 mr-2" /> Subir
-        </Button>
-      </div>
-
-      {documents.length === 0 ? (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-          <File className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-600 font-medium">Sin documentos</p>
-          <p className="text-gray-400 text-sm mt-1">Sube documentación importante del jugador</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {documents.map((doc) => {
-            const typeInfo = TYPE_COLORS[doc.document_type] || TYPE_COLORS.otro;
-            const expired = isExpired(doc.expiry_date);
-            const expiringSoon = isExpiringSoon(doc.expiry_date);
-
-            return (
-              <div
-                key={doc.id}
-                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                style={{ borderTop: `3px solid ${typeInfo.text}` }}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div
-                      className="w-10 h-10 rounded flex items-center justify-center text-lg shrink-0"
-                      style={{ background: typeInfo.bg }}
-                    >
-                      {typeInfo.icon}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-gray-900 truncate">{doc.title}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {DOCUMENT_TYPES.find((t) => t.value === doc.document_type)?.label}
-                      </p>
-                      {doc.upload_date && (
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          Subido: {format(parseISO(doc.upload_date), "d MMM yyyy", { locale: es })}
-                        </p>
-                      )}
-                      {doc.expiry_date && (
-                        <div
-                          className="text-xs mt-1 flex items-center gap-1"
-                          style={{
-                            color: expired ? "#dc2626" : expiringSoon ? "#ea580c" : "#16a34a",
-                          }}
-                        >
-                          <Calendar className="w-3 h-3" />
-                          {expired && "Expirado"}
-                          {expiringSoon && !expired && "Vence pronto"}
-                          {!expired && !expiringSoon && "Vigente"}
-                          : {format(parseISO(doc.expiry_date), "d MMM yyyy", { locale: es })}
-                        </div>
-                      )}
-                      {doc.notes && <p className="text-xs text-gray-600 mt-2">{doc.notes}</p>}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <a
-                      href={doc.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-                    >
-                      <Download className="w-4 h-4" />
-                    </a>
-                    <button
-                      onClick={() => setDeleteId(doc.id)}
-                      className="p-2 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+    <div className="flex flex-col" style={{ gap: 12 }}>
+      <Cols mobile={mobile} ratio="2.2fr 1fr"
+        left={<>
+          <section className="rs2-card" style={{ padding: "10px 14px" }} data-testid="docs-card">
+            {head(t("Documentos del jugador"), !readOnly && <Button variant="club" size="sm" onClick={() => openUpload("")} data-testid="docs-upload"><FileUp className="w-3.5 h-3.5 mr-1" />{t("Subir documento")}</Button>)}
+            {(rows.length + rest.length) > 0 && (
+              <div className="flex flex-wrap" style={{ gap: 6, marginBottom: 8 }}>
+                {counts.missing > 0 && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: "#FEE2E2", color: "#B91C1C" }}>{t("{n} falta(n)", { n: counts.missing })}</span>}
+                {counts.expired > 0 && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: "#FEE2E2", color: "#B91C1C" }}>{t("{n} caducado(s)", { n: counts.expired })}</span>}
+                {counts.soon > 0 && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: "#FEF3C7", color: "#92400E" }}>{t("{n} caduca(n) pronto", { n: counts.soon })}</span>}
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: "#DCFCE7", color: "#15803D" }}>{t("{n} en regla", { n: counts.ok })}</span>
               </div>
-            );
-          })}
-        </div>
-      )}
+            )}
+            {rows.length + rest.length === 0 ? <p style={{ fontSize: 12, color: "#9C8E90", margin: 0 }}>{t("Sin documentos.")}</p> : table([...rows, ...rest])}
+          </section>
+        </>}
+        right={
+          <section className="rs2-card" style={{ padding: "10px 14px" }} data-testid="docs-required">
+            {head(t("Lo que pide el club"))}
+            <p style={{ fontSize: 12, color: "#4A3D3F", margin: "0 0 8px" }}>{t("Documentos que debe tener cada jugador. Los que faltan salen en rojo en la ficha de cada jugador.")}</p>
+            <div className="flex flex-col" style={{ gap: 4 }}>
+              {REQUIRED_DOC_TYPES.map((k) => (
+                <label key={k} className="inline-flex items-center" style={{ gap: 6, fontSize: 12.5, cursor: canConfigure ? "pointer" : "default" }}>
+                  <input type="checkbox" checked={req.includes(k)} disabled={!canConfigure || savingReq} onChange={() => toggleReq(k)} data-testid={`docs-req-${k}`} />
+                  {t(DOCUMENT_TYPE_LABELS[k])}{k === "consentimiento_padres" && <span style={{ color: "#9C8E90" }}> ({t("menores")})</span>}
+                </label>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: "#6B5E60", margin: "8px 0 0" }}>{canConfigure ? t("Vale para todo el club. Lo cambia la dirección.") : t("Lo elige la dirección para todo el club.")}</p>
+          </section>
+        } />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="bg-white border-gray-200">

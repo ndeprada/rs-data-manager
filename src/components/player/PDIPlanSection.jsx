@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Target, CheckCircle2, Plus, Trash2, RotateCcw, ChevronDown, ChevronUp, BookOpen, AlertTriangle, Play } from "lucide-react";
+import { CheckCircle2, Plus, Trash2, RotateCcw, ChevronDown, ChevronUp, BookOpen, AlertTriangle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -80,39 +80,45 @@ function CompetencyPicker({ options, selectedId, onSelect, labelOf }) {
   );
 }
 
+const STATE_COLOR = { a_mejorar: "#F59E0B", trabajando: "#2563EB", mejorado: "#15803D" };
 function GoalCard({ goal, onAdvance, onBack, onDelete, onToggleVisible, readOnly }) {
   const t = useT();
   const { tag: dateTag } = useFormat();
   const st = goal.status === "mejorado" ? "mejorado" : goal.status === "trabajando" ? "trabajando" : "a_mejorar";
   const rl = goal.role_label ? t(goal.role_label) : "";
   const tag = goal.source === "role" ? t("Rol · {rol}", { rol: rl }) : goal.source === "f7" ? t("Contenido · {rol}", { rol: rl }) : goal.source === "other" ? t("Otra posición · {rol}", { rol: rl }) : t("General · {grupo}", { grupo: GROUP_LABELS[goal.group] ? t(GROUP_LABELS[goal.group]) : "" });
-  const tagCls = goal.source === "role" ? "bg-amber-100 text-amber-800" : goal.source === "f7" ? "bg-sky-100 text-sky-800" : goal.source === "other" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-600";
-  const box = st === "mejorado" ? "border-green-200 bg-green-50/50" : st === "trabajando" ? "border-blue-200 bg-blue-50/40" : "border-gray-200 bg-white";
+  const d = (x) => { const v = x ? new Date(x) : null; return v && !isNaN(v) ? v.toLocaleDateString(dateTag, { day: "numeric", month: "short" }) : ""; };
+  const since = st === "mejorado" ? (goal.improved_date ? t("Mejorado el {fecha}", { fecha: d(goal.improved_date) }) : "") : goal.created_date ? t("Desde el {fecha}", { fecha: d(goal.created_date) }) : goal.period || "";
+  const btn = { font: "inherit", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid #E6DEDD", background: "#fff", color: clubColor.primary, display: "inline-flex", alignItems: "center", gap: 3 };
   return (
-    <div className={`rounded-xl border p-3 ${box}`}>
-      <div className="flex items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-1.5 mb-1">
-            <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${tagCls}`}>{tag}</span>
-            {st === "trabajando" && <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">{t("Trabajando")}</span>}
-            {goal.period && <span className="text-[10px] text-gray-400">{goal.period}</span>}
-            {!readOnly && <VisibilityBadge value={goal.visible_to_player} onToggle={(v) => onToggleVisible(goal, v)} />}
-            {st === "mejorado" && goal.improved_date && <span className="text-[10px] text-green-700">{t("Mejorado el {fecha}", { fecha: new Date(goal.improved_date).toLocaleDateString(dateTag) })}</span>}
-          </div>
-          <p className="text-sm text-gray-800">{t(goal.competency_text)}</p>
-          {goal.objective && <p className="text-sm text-gray-600 mt-1.5"><strong>{t("Objetivo:")}</strong> {goal.objective}</p>}
-          {goal.strategy && <p className="text-sm text-gray-600 mt-1"><strong>{t("Cómo se trabaja:")}</strong> {goal.strategy}</p>}
-          {goal.evidence && <p className="text-sm text-gray-600 mt-1"><strong>{t("Evidencia / comportamiento observado:")}</strong> {goal.evidence}</p>}
-        </div>
-        {!readOnly && <div className="flex flex-col gap-1 shrink-0">
-          {st === "a_mejorar" && <button onClick={() => onAdvance(goal)} title={t("Empezar a trabajarlo")} className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-700"><Play className="w-4 h-4" /></button>}
-          {st === "trabajando" && <button onClick={() => onAdvance(goal)} title={t("Marcar como mejorado")} className="p-1.5 rounded-lg hover:bg-green-50 text-gray-500 hover:text-green-700"><CheckCircle2 className="w-4 h-4" /></button>}
-          {st !== "a_mejorar" && <button onClick={() => onBack(goal)} title={st === "mejorado" ? t("Reabrir (a mejorar)") : t("Volver a 'a mejorar'")} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"><RotateCcw className="w-4 h-4" /></button>}
-          <button onClick={() => onDelete(goal)} title={t("Eliminar")} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>}
+    <div className="bg-white" style={{ border: "1px solid #E6DEDD", borderRadius: 10, padding: "8px 10px" }} data-testid={`pdi-goal-${goal.id}`}>
+      <div className="flex items-center" style={{ gap: 6 }}>
+        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: "#6B5E60", flex: 1, minWidth: 0 }} className="truncate">{tag}</span>
+        {!readOnly && <VisibilityBadge value={goal.visible_to_player} onToggle={(v) => onToggleVisible(goal, v)} />}
       </div>
+      <p style={{ fontSize: 13, fontWeight: 700, margin: "3px 0 0", color: "#1E1416" }}>{t(goal.competency_text)}</p>
+      {goal.objective && <p style={{ fontSize: 12, color: "#4A3D3F", margin: "3px 0 0" }}>{goal.objective}</p>}
+      {goal.strategy && <p style={{ fontSize: 11.5, color: "#6B5E60", margin: "3px 0 0" }}><b>{t("Cómo se trabaja:")}</b> {goal.strategy}</p>}
+      {goal.evidence && <p style={{ fontSize: 11.5, color: "#6B5E60", margin: "3px 0 0" }}><b>{t("Evidencia / comportamiento observado:")}</b> {goal.evidence}</p>}
+      <div className="flex flex-wrap items-center" style={{ gap: 5, marginTop: 6 }}>
+        <span style={{ fontSize: 11, color: "#6B5E60", marginRight: "auto" }}>{since}</span>
+        {!readOnly && st !== "a_mejorar" && <button type="button" style={btn} onClick={() => onBack(goal)} title={st === "mejorado" ? t("Reabrir (a mejorar)") : t("Volver a 'a mejorar'")} data-testid={`pdi-back-${goal.id}`}><RotateCcw className="w-3 h-3" /></button>}
+        {!readOnly && st === "a_mejorar" && <button type="button" style={btn} onClick={() => onAdvance(goal)} data-testid={`pdi-advance-${goal.id}`}><Play className="w-3 h-3" />{t("Empezar a trabajarlo")}</button>}
+        {!readOnly && st === "trabajando" && <button type="button" style={{ ...btn, color: "#15803D" }} onClick={() => onAdvance(goal)} data-testid={`pdi-advance-${goal.id}`}><CheckCircle2 className="w-3 h-3" />{t("Mejorado")}</button>}
+        {!readOnly && <button type="button" style={{ ...btn, color: "#9CA3AF" }} onClick={() => onDelete(goal)} title={t("Eliminar")}><Trash2 className="w-3 h-3" /></button>}
+      </div>
+    </div>
+  );
+}
+
+function Column({ title, color, list, children, testId }) {
+  return (
+    <div style={{ flex: "1 1 220px", minWidth: 0, background: "#FAF7F6", border: "1px solid #E6DEDD", borderRadius: 12, padding: 8 }} data-testid={testId}>
+      <div className="flex items-center" style={{ gap: 6, marginBottom: 6 }}>
+        <span style={{ width: 8, height: 8, borderRadius: 9, background: color }} />
+        <b style={{ fontSize: 13 }}>{title}</b><span style={{ fontSize: 11, color: "#6B5E60" }}>{list.length}</span>
+      </div>
+      <div className="flex flex-col" style={{ gap: 6 }}>{children}</div>
     </div>
   );
 }
@@ -225,52 +231,45 @@ export default function PDIPlanSection({ player, team }) {
     );
   }
 
+  const stageBtns = !playerMode && (
+    <span className="inline-flex items-center" style={{ gap: 4 }}>
+      {["f7", "f11"].map((k) => (
+        <button key={k} type="button" onClick={() => setStage.mutate(k)}
+          style={{ font: "inherit", fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 999, border: `1px solid ${stage === k ? clubColor.primary : "#E6DEDD"}`, background: stage === k ? clubColor.primary : "#fff", color: stage === k ? "#fff" : "#4A3D3F" }}>{t(STAGE_LABEL[k])}</button>
+      ))}
+      {!player.pdi_stage && <span style={{ fontSize: 10, color: "#9C8E90" }}>{t("(según el equipo)")}</span>}
+    </span>
+  );
+  const goalProps = { onAdvance: advance, onBack: back, onDelete: (x) => remove.mutate(x.id), onToggleVisible: toggleVisible, readOnly: playerMode };
+  const toDo = toImprove.filter((g) => g.status !== "trabajando");
+
   return (
-    <div className="space-y-4">
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-        <div className="flex flex-wrap items-start gap-4">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `var(--granate-pale, ${clubColor.primarySoft})` }}>
-            <Target className="w-5 h-5" style={{ color: "var(--granate)" }} />
-          </div>
-          <div className="flex-1 min-w-[220px]">
-            <h3 className="font-semibold text-gray-900">{t("Plan de Desarrollo Individual · competencias")}</h3>
-            <div className={`flex items-center gap-2 mt-2 ${playerMode ? "hidden" : ""}`}>
-              <span className="text-xs text-gray-500">{t("Etapa:")}</span>
-              {["f7", "f11"].map((k) => (
-                <button key={k} type="button" onClick={() => setStage.mutate(k)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold border ${stage === k ? "text-white border-transparent" : "bg-white text-gray-600 border-gray-200"}`}
-                  style={stage === k ? { background: "var(--granate)" } : {}}>{t(STAGE_LABEL[k])}</button>
-              ))}
-              {!player.pdi_stage && <span className="text-[10px] text-gray-400">{t("(según el equipo)")}</span>}
-            </div>
-            {isF7 && !f7 && <p className="text-xs text-gray-500 mt-1">{t("En Fútbol 7 la posición pesa poco: se trabajan sobre todo competencias técnicas, físicas y mentales.")}</p>}
-            <p className="text-sm text-gray-500 mt-1.5">
-              {t("Posición:")} <strong>{posLabel}</strong>
-              {roleInfo && !isF7 ? <> · {t("Rol de referencia:")} <strong>{t(roleInfo.role.label)}</strong></> : null}
-            </p>
-            {!roleInfo && !isF7 && !playerMode && (
-              <div className="mt-2 max-w-xs">
-                <Label className="text-xs text-gray-500">{t("Asigna un rol de referencia")}</Label>
-                <Select value="" onValueChange={(v) => setRole.mutate(v)}>
-                  <SelectTrigger className="border-gray-200"><SelectValue placeholder={t("Seleccionar rol")} /></SelectTrigger>
-                  <SelectContent>
-                    {getRoleOptions(player.position).map((r) => <SelectItem key={r.value} value={r.value}>{t(r.label)}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {roleInfo && !isF7 && <p className="text-xs text-gray-500 mt-1.5 max-w-2xl">{t(roleInfo.role.description)}</p>}
-          </div>
-          {!playerMode && <Button variant="club" onClick={() => { setTab(roleInfo && !isF7 ? "role" : f7 ? "f7" : catalog ? "general" : "other"); setOpen(true); }} className="shrink-0">
-            <Plus className="w-4 h-4 mr-2" /> {t("Añadir aspecto")}
-          </Button>}
+    <div className="flex flex-col" style={{ gap: 12 }}>
+      <section className="rs2-card" style={{ padding: "10px 14px" }} data-testid="pdi-plan">
+        <div className="flex flex-wrap items-center" style={{ gap: 8, marginBottom: 8 }}>
+          <h2 style={{ margin: 0, borderLeft: `3px solid ${clubColor.accent}`, paddingLeft: 7, lineHeight: 1 }}><span className="rs2-display" style={{ fontSize: 17, color: clubColor.primary }}>{t("Plan de desarrollo")}</span></h2>
+          {!playerMode && <span style={{ marginLeft: "auto" }}><Button variant="club" size="sm" onClick={() => { setTab(roleInfo && !isF7 ? "role" : f7 ? "f7" : catalog ? "general" : "other"); setOpen(true); }} data-testid="pdi-add"><Plus className="w-3.5 h-3.5 mr-1" />{t("Añadir aspecto")}</Button></span>}
         </div>
-        {f7 && <F7PositionGuide player={player} className="mt-4 pt-4 border-t border-gray-100" />}
-        {catalog && <button onClick={() => setShowRef(!showRef)} className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800">
-          <BookOpen className="w-3.5 h-3.5" /> {t("Ver competencias de referencia")} {showRef ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-        </button>}
+        <div className="flex flex-wrap items-center" style={{ gap: 10, fontSize: 12, marginBottom: 10 }}>
+          <span>{t("Posición:")} <b>{posLabel}</b></span>
+          {roleInfo && !isF7 && <span>· {t("Rol de referencia:")} <b>{t(roleInfo.role.label)}</b></span>}
+          {!roleInfo && !isF7 && !playerMode && (
+            <span style={{ minWidth: 200 }}>
+              <Select value="" onValueChange={(v) => setRole.mutate(v)}>
+                <SelectTrigger className="border-gray-200 h-8 text-xs"><SelectValue placeholder={t("Asigna un rol de referencia")} /></SelectTrigger>
+                <SelectContent>{getRoleOptions(player.position).map((r) => <SelectItem key={r.value} value={r.value}>{t(r.label)}</SelectItem>)}</SelectContent>
+              </Select>
+            </span>
+          )}
+          {stageBtns}
+          {catalog && <button type="button" onClick={() => setShowRef(!showRef)} className="inline-flex items-center" style={{ marginLeft: "auto", gap: 4, border: 0, background: "none", fontSize: 12, fontWeight: 700, color: clubColor.primary }}>
+            <BookOpen className="w-3.5 h-3.5" /> {t("Ver competencias de referencia")} {showRef ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>}
+        </div>
+        {isF7 && !f7 && <p className="text-xs text-gray-500" style={{ margin: "0 0 8px" }}>{t("En Fútbol 7 la posición pesa poco: se trabajan sobre todo competencias técnicas, físicas y mentales.")}</p>}
+        {f7 && <F7PositionGuide player={player} className="mb-3" />}
         {catalog && showRef && (
-          <div className="mt-3 grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-2 gap-4" style={{ marginBottom: 10 }}>
             {roleInfo && (
               <div className="rounded-xl bg-amber-50 border border-amber-100 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-amber-800 mb-2">{t("Competencias clave · {rol}", { rol: t(roleInfo.role.label) })}</p>
@@ -290,29 +289,23 @@ export default function PDIPlanSection({ player, team }) {
             </div>
           </div>
         )}
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-4">
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-semibold text-gray-900 flex items-center gap-2"><Target className="w-4 h-4 text-orange-500" /> {t("Aspectos a mejorar")} <span className="text-xs text-gray-400">({toImprove.length}{active.length ? ` · ${t("{n} trabajando", { n: active.length })}` : ""})</span></h4>
+        {active.length > 3 && (
+          <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg p-2" style={{ marginBottom: 8 }}>
+            <AlertTriangle className="w-4 h-4 shrink-0" /> {t("El método recomienda un máximo de 2–3 objetivos activos por trimestre. El resto quedan registrados sin intervención principal.")}
           </div>
-          {toImprove.length > 3 && (
-            <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg p-2 mb-3">
-              <AlertTriangle className="w-4 h-4 shrink-0" /> {t("El método recomienda un máximo de 2–3 objetivos activos por trimestre. El resto quedan registrados sin intervención principal.")}
-            </div>
-          )}
-          <div className="space-y-2">
-            {toImprove.length === 0 ? <p className="text-sm text-gray-400">{t("Aún no hay aspectos a mejorar.")}</p> : toImprove.map((g) => <GoalCard key={g.id} goal={g} onAdvance={advance} onBack={back} onDelete={(x) => remove.mutate(x.id)} onToggleVisible={toggleVisible} readOnly={playerMode} />)}
-          </div>
+        )}
+        <div className="flex flex-wrap" style={{ gap: 10, alignItems: "flex-start" }}>
+          <Column title={t("A mejorar")} color={STATE_COLOR.a_mejorar} list={toDo} testId="pdi-col-a_mejorar">
+            {toDo.length === 0 ? <p style={{ fontSize: 12, color: "#9C8E90", margin: 4 }}>{t("Aún no hay aspectos a mejorar.")}</p> : toDo.map((g) => <GoalCard key={g.id} goal={g} {...goalProps} />)}
+          </Column>
+          <Column title={t("Trabajando")} color={STATE_COLOR.trabajando} list={active} testId="pdi-col-trabajando">
+            {active.length === 0 ? <p style={{ fontSize: 12, color: "#9C8E90", margin: 4 }}>{t("Nada en marcha ahora.")}</p> : active.map((g) => <GoalCard key={g.id} goal={g} {...goalProps} />)}
+          </Column>
+          <Column title={t("Mejorado")} color={STATE_COLOR.mejorado} list={improved} testId="pdi-col-mejorado">
+            {improved.length === 0 ? <p style={{ fontSize: 12, color: "#9C8E90", margin: 4 }}>{t("Todavía no hay aspectos marcados como mejorados.")}</p> : improved.map((g) => <GoalCard key={g.id} goal={g} {...goalProps} />)}
+          </Column>
         </div>
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-          <h4 className="font-semibold text-gray-900 flex items-center gap-2 mb-3"><CheckCircle2 className="w-4 h-4 text-green-600" /> {t("Trabajados y mejorados")} <span className="text-xs text-gray-400">({improved.length})</span></h4>
-          <div className="space-y-2">
-            {improved.length === 0 ? <p className="text-sm text-gray-400">{t("Todavía no hay aspectos marcados como mejorados.")}</p> : improved.map((g) => <GoalCard key={g.id} goal={g} onAdvance={advance} onBack={back} onDelete={(x) => remove.mutate(x.id)} onToggleVisible={toggleVisible} readOnly={playerMode} />)}
-          </div>
-        </div>
-      </div>
+      </section>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-white border-gray-200 max-h-[90vh] overflow-y-auto sm:max-w-2xl">

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, Radar } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,15 +80,15 @@ function EvalCard({ ev, areas, onEdit, onDelete, onToggleVisible, readOnly }) {
   // Notas de criterios que ya no existen para este puesto (se conservan, pero no cuentan en la media)
   const legacy = areas.some((a) => Object.keys(ev.scores?.[a.key] || {}).some((id) => !a.items.some((it) => it.id === id)));
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50" onClick={() => setOpen(!open)}>
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="px-3 py-2 flex items-center gap-2 cursor-pointer hover:bg-gray-50" onClick={() => setOpen(!open)}>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 text-sm">{ev.period || t("Evaluación")}</p>
           <p className="text-xs text-gray-400">
             {ev.date ? new Date(ev.date).toLocaleDateString(tag) : ""}{ev.evaluator ? ` · ${ev.evaluator}` : ""}
           </p>
         </div>
-        <div className="hidden sm:flex items-center gap-2">
+        <div className="hidden">
           {AREAS.map((a) => (
             <span key={a.key} className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-50 border border-gray-100" style={{ color: scoreColor(avg[a.key]) }} title={t(a.label)}>
               {t(a.label).slice(0, 3)} {avg[a.key] ?? "—"}
@@ -105,7 +105,7 @@ function EvalCard({ ev, areas, onEdit, onDelete, onToggleVisible, readOnly }) {
       </div>
       {open && (
         <div className="border-t border-gray-100 px-4 py-4 space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid gap-4">
             {areas.map((a) => {
               const rated = a.items.filter((it) => ev.scores?.[a.key]?.[it.id]);
               if (!rated.length) return null;
@@ -142,6 +142,7 @@ function EvalCard({ ev, areas, onEdit, onDelete, onToggleVisible, readOnly }) {
 
 export default function Evaluation360Section({ player, playerId, team }) {
   const t = useT();
+  const { tag: dateTag } = useFormat();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -209,45 +210,62 @@ export default function Evaluation360Section({ player, playerId, team }) {
   const tabs = [...areas.map((a) => ({ key: a.key, label: a.label, pending: !!a.pendingReview })), { key: "cierre", label: msg("Cierre") }];
   const curArea = areas.find((a) => a.key === tab);
 
-  return (
-    <div className="space-y-4">
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
-          <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `var(--granate-pale, ${clubColor.primarySoft})` }}>
-            <Radar className="w-5 h-5" style={{ color: "var(--granate)" }} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900">{t("Evaluación 360")}</h3>
-            <p className="text-sm text-gray-500">{t("Perfil general de")} <strong>{playerFirstName(player)}</strong>{t(": técnica, táctica, física y mental (1-10). Es el punto de partida; el trabajo concreto se planifica en el plan de desarrollo.")}</p>
-          </div>
-          </div>
-          {!playerMode && <Button variant="club" onClick={openNew} className="shrink-0 w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" /> {t("Nueva evaluación")}
-          </Button>}
-        </div>
-        {latestAvg && (
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{t("Última evaluación")} · {latest.period || ""}</p>
-              <span className="text-sm font-black px-2.5 py-1 rounded-full text-white" style={{ background: scoreColor(latestAvg.overall) }}>{t("Media")} {latestAvg.overall ?? "—"}</span>
-            </div>
-            <AreaBars avg={latestAvg} />
-          </div>
-        )}
-      </div>
+  const prev = evals[1] || null;
+  const prevAvg = prev ? computeAverages(prev.scores, areas) : null;
+  const firstLines = (txt) => String(txt || "").split(/\n|·|;/).map((x) => x.replace(/^[-•\s]+/, "").trim()).filter(Boolean).slice(0, 4);
 
-      {isLoading ? (
-        <div className="text-center py-6 text-gray-400">{t("Cargando...")}</div>
-      ) : evals.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center shadow-sm">
-          <p className="text-gray-500 font-medium">{t("Aún no hay evaluaciones 360")}</p>
-          <p className="text-gray-400 text-sm mt-1">{t("Crea la primera para tener el perfil básico del jugador.")}</p>
+  return (
+    <div className="flex flex-col" style={{ gap: 12 }}>
+      <section className="rs2-card" style={{ padding: "10px 14px" }} data-testid="e360-card">
+        <div className="flex items-center" style={{ gap: 6, marginBottom: 8 }}>
+          <h2 style={{ margin: 0, borderLeft: `3px solid ${clubColor.accent}`, paddingLeft: 7, lineHeight: 1 }}><span className="rs2-display" style={{ fontSize: 17, color: clubColor.primary }}>{t("Evaluación 360")}</span></h2>
+          {!playerMode && <span style={{ marginLeft: "auto" }}><Button variant="club" size="sm" onClick={openNew} data-testid="e360-new"><Plus className="w-3.5 h-3.5 mr-1" />{t("Nueva")}</Button></span>}
         </div>
-      ) : (
-        <div className="space-y-3">
-          {evals.map((ev) => <EvalCard key={ev.id} ev={ev} areas={areas} onEdit={openEdit} onDelete={setDeleteId} readOnly={playerMode} onToggleVisible={(e, v) => toggleVisible.mutate({ id: e.id, v })} />)}
-        </div>
+        {isLoading ? <p className="text-sm text-gray-400">{t("Cargando...")}</p> : !latestAvg ? (
+          <>
+            <p className="text-sm text-gray-500 font-medium">{t("Aún no hay evaluaciones 360")}</p>
+            <p className="text-xs text-gray-400 mt-1">{t("Perfil general de")} <strong>{playerFirstName(player)}</strong>{t(": técnica, táctica, física y mental (1-10). Es el punto de partida; el trabajo concreto se planifica en el plan de desarrollo.")}</p>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-baseline" style={{ gap: 8, marginBottom: 6 }}>
+              <span className="rs2-display tabular-nums" style={{ fontSize: 28, lineHeight: 1, color: scoreColor(latestAvg.overall) }}>{latestAvg.overall ?? "—"}</span>
+              <span style={{ fontSize: 12, color: "#4A3D3F" }}>{t("media")} · {latest.date ? new Date(latest.date).toLocaleDateString(dateTag) : latest.period || ""}{latest.evaluator ? ` · ${latest.evaluator}` : ""}</span>
+            </div>
+            {AREAS.map((a) => {
+              const v = latestAvg[a.key];
+              const pv = prevAvg?.[a.key];
+              const diff = v != null && pv != null ? Math.round((v - pv) * 10) / 10 : null;
+              return (
+                <div key={a.key} className="flex items-center" style={{ gap: 8, fontSize: 12, padding: "3px 0" }} data-testid={`e360-area-${a.key}`}>
+                  <span style={{ width: 56 }}>{t(a.label)}</span>
+                  <div style={{ flex: 1, height: 6, background: "#F1ECEC", borderRadius: 9, overflow: "hidden" }}><div style={{ width: `${(v || 0) * 10}%`, height: "100%", background: scoreColor(v), borderRadius: 9 }} /></div>
+                  <b className="tabular-nums" style={{ width: 26, textAlign: "right" }}>{v ?? "—"}</b>
+                  <span className="tabular-nums" style={{ width: 38, fontSize: 11, color: diff > 0 ? "#15803D" : diff < 0 ? "#B91C1C" : "#9C8E90" }}>{diff == null ? "" : diff > 0 ? `▲${diff}` : diff < 0 ? `▼${-diff}` : "="}</span>
+                </div>
+              );
+            })}
+            {prev && <p style={{ fontSize: 11, color: "#6B5E60", margin: "4px 0 0" }}>{t("Escala 1–10 · ▲▼ frente a la evaluación anterior ({fecha})", { fecha: prev.date ? new Date(prev.date).toLocaleDateString(dateTag) : prev.period || "" })}</p>}
+            {[[msg("Puntos fuertes"), latest.strengths, ["#DCFCE7", "#15803D"]], [msg("A mejorar"), latest.improve, ["#FEF3C7", "#92400E"]]].map(([k, v, [bg, fg]]) => firstLines(v).length ? (
+              <div key={k} style={{ marginTop: 8 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "#6B5E60", margin: 0 }}>{t(k)}</p>
+                <div className="flex flex-wrap" style={{ gap: 4, marginTop: 4 }}>{firstLines(v).map((x, i) => <span key={i} style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 999, background: bg, color: fg }}>{x}</span>)}</div>
+              </div>
+            ) : null)}
+          </>
+        )}
+      </section>
+
+      {evals.length > 0 && (
+        <section className="rs2-card" style={{ padding: "10px 14px" }} data-testid="e360-list">
+          <div className="flex items-center" style={{ gap: 6, marginBottom: 8 }}>
+            <h2 style={{ margin: 0, borderLeft: `3px solid ${clubColor.accent}`, paddingLeft: 7, lineHeight: 1 }}><span className="rs2-display" style={{ fontSize: 17, color: clubColor.primary }}>{t("Todas las evaluaciones")}</span></h2>
+            <span style={{ fontSize: 11, color: "#6B5E60" }}>{evals.length}</span>
+          </div>
+          <div className="flex flex-col" style={{ gap: 6 }}>
+            {evals.map((ev) => <EvalCard key={ev.id} ev={ev} areas={areas} onEdit={openEdit} onDelete={setDeleteId} readOnly={playerMode} onToggleVisible={(e, v) => toggleVisible.mutate({ id: e.id, v })} />)}
+          </div>
+        </section>
       )}
 
       <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>

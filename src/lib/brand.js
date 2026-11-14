@@ -62,7 +62,7 @@ export function setBrand(cfg = {}) {
   const colors = { ...d.colors, ...(cfg.colors || {}) };
   const fonts = { ...d.fonts, ...(cfg.fonts || {}) };
   const social = { ...d.social, ...(cfg.social || {}) };
-  Object.assign(BRAND, { ...d, ...cfg, colors, fonts, social, patterns: cfg.patterns || {}, pages: cfg.pages || {}, hidden: cfg.hidden || [] });
+  Object.assign(BRAND, { ...d, ...cfg, colors, fonts, social, patterns: cfg.patterns || {}, pages: cfg.pages || {}, hidden: cfg.hidden || [], requiredDocs: cfg.requiredDocs || [] });
   Object.assign(C, colors);
   Object.assign(F, fonts, {
     title: fontStack(fonts.titleName), // "'Racing Sarria', sans-serif"
@@ -130,6 +130,9 @@ const cleanUrl = (v) => {
 };
 const cleanFontName = (v) => str(v, 60).replace(/[^\p{L}\p{N} \-]/gu, "").replace(/\s+/g, " ").trim();
 
+// Documentos que el club pide a cada jugador (Ficha del jugador → Documentos; 14/11/2026). Por defecto, ninguno.
+export const REQUIRED_DOC_TYPES = ["autorizacion_legal", "seguro", "consentimiento_padres", "copia_identificacion", "examen_medico"];
+
 // Deja solo lo que se puede guardar, con valores válidos (también en el servidor)
 export function cleanBrand(raw = {}) {
   const r = raw && typeof raw === "object" ? raw : {};
@@ -138,6 +141,7 @@ export function cleanBrand(raw = {}) {
   { const v = str(r.shortName, 20); if (v) out.shortName = v; }
   if (r.theme === "dark" || r.theme === "choice") out.theme = r.theme;
   if (Array.isArray(r.hidden)) { const h = MENU_KEYS.filter((k) => r.hidden.includes(k)); if (h.length) out.hidden = h; }
+  if (Array.isArray(r.requiredDocs)) { const rd = REQUIRED_DOC_TYPES.filter((k) => r.requiredDocs.includes(k)); if (rd.length) out.requiredDocs = rd; }
   for (const k of ["logo", "logoWhite", "loginImage", "icon", "web"]) { const v = cleanUrl(r[k]); if (v) out[k] = v; }
   if (r.social && typeof r.social === "object") {
     const so = {};
@@ -168,7 +172,7 @@ export function cleanBrand(raw = {}) {
 // Configuración completa (por defecto + lo guardado), lista para editar
 export function fullBrand(cfg = {}) {
   const d = DEFAULT_BRAND, c = cleanBrand(cfg);
-  return { ...d, ...c, colors: { ...d.colors, ...(c.colors || {}) }, fonts: { ...d.fonts, ...(c.fonts || {}) }, social: { ...d.social, ...(c.social || {}) }, patterns: c.patterns || {}, pages: c.pages || {}, hidden: c.hidden || [] };
+  return { ...d, ...c, colors: { ...d.colors, ...(c.colors || {}) }, fonts: { ...d.fonts, ...(c.fonts || {}) }, social: { ...d.social, ...(c.social || {}) }, patterns: c.patterns || {}, pages: c.pages || {}, hidden: c.hidden || [], requiredDocs: c.requiredDocs || [] };
 }
 
 // Solo lo que cambia respecto a los valores por defecto
@@ -176,6 +180,7 @@ export function brandDiff(full = {}) {
   const c = cleanBrand(full), d = DEFAULT_BRAND, out = {};
   for (const k of ["appName", "clubName", "shortName", "fcfName", "logo", "logoWhite", "loginImage", "icon", "web"]) if (c[k] && c[k] !== d[k]) out[k] = c[k];
   if (c.hidden) out.hidden = c.hidden;
+  if (c.requiredDocs) out.requiredDocs = c.requiredDocs;
   if (c.theme) out.theme = c.theme;
   for (const group of ["social", "colors"]) {
     const g = {};

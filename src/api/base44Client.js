@@ -173,6 +173,7 @@ export const base44 = {
     requestLink: (player_id, relationship) => clubPost('link_request', { player_id, relationship }),
     myLinks: () => clubGet('my_links'),
     playerLinks: (player_id) => clubGet('player_links', { player_id }),
+    playerCareer: (player) => clubGet('player_career', { player }),
     pendingLinks: () => clubGet('pending_links'),
     playerAccounts: () => clubGet('player_accounts'),
     decideLink: (link_id, decision) => clubPost('link_decision', { link_id, decision }),
