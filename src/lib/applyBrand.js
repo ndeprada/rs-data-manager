@@ -69,7 +69,11 @@ export function applyBrand(b = BRAND) {
     setMeta('meta[name="apple-mobile-web-app-title"]', "content", b.appName);
   }
   setMeta('meta[name="theme-color"]', "content", b.colors?.primary);
-  setMeta('link[rel="icon"]', "href", b.icon || b.logo);
+  // Icono de la pestaña: el servidor lo hace cuadrado sin deformar (un escudo no es cuadrado y el navegador lo estiraba).
+  // La «v» cambia con la imagen para que el navegador no se quede con el de antes.
+  const favSrc = b.icon || b.logo || "";
+  let h = 0; for (let i = 0; i < favSrc.length; i += 1) h = (h * 31 + favSrc.charCodeAt(i)) | 0;
+  setMeta('link[rel="icon"]', "href", `/api/icon?fav=1&s=64&v=${(h >>> 0).toString(36)}`);
   // Patrones de página: solo hay reglas si se ha cambiado algo
   const css = patternCss(b, b.colors);
   let st = document.getElementById("club-patterns");
