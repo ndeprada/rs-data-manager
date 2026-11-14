@@ -1,3 +1,4 @@
+import { teamCategoryLabel } from "@/components/fcfCategories";
 import React from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -42,7 +43,7 @@ export default function ReportPreview({ data, onDownload }) {
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-gray-900">{team.name}</h3>
-              <p className="text-xs text-gray-400">{team.category} · Entrenador: {team.coach} · {team.season}</p>
+              <p className="text-xs text-gray-400">{teamCategoryLabel(team)} · Entrenador: {team.coach} · {team.season}</p>
             </div>
           </div>
 

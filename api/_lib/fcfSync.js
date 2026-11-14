@@ -1,3 +1,4 @@
+import { splitFullName } from './nameSplit.js';
 import { query } from './db.js';
 import { buildGuestIndex } from './rosterMatch.js';
 import { validCoords } from '../../src/lib/weather.js';
@@ -70,13 +71,8 @@ function isF7(catName) {
   return teamPlaysF7({ name: catName, category: categorySlug(catName) });
 }
 
-function splitName(full) {
-  const parts = clean(full).split(' ');
-  if (parts.length <= 2) return { first: titleCase(parts[0] || ''), last: titleCase(parts.slice(1).join(' ')) };
-  const last = parts.slice(-2).join(' ');
-  const first = parts.slice(0, -2).join(' ');
-  return { first: titleCase(first), last: titleCase(last) };
-}
+// Nombre completo de la plantilla FCF → nombre y apellidos (con apellidos compuestos: «Abante de Prada»)
+const splitName = splitFullName;
 
 function shortTeamName(catName, letter) {
   const c = norm(catName);

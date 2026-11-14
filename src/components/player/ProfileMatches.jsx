@@ -9,7 +9,7 @@ import MatchStatDialog from "./MatchStatDialog";
 import { Box, Chip, CHIP, Note, Empty, SmallBtn, Seg, Bar, Stars, th, td, Cols, AMBER } from "./ProfileParts";
 import { matchRows, MATCHES } from "@/lib/playerProfile";
 import { manualRows, participationSplit, ratingInfo } from "@/lib/profileTabs";
-import { reasonShort, MIN_PCT } from "@/lib/participation";
+import { reasonShort, matchMinimum, isPerformanceTeam, MATCH_MIN_F11 } from "@/lib/participation";
 import { eventMinutes } from "@/lib/matchDuration";
 import { teamPlaysF7 } from "@/lib/matchFormat";
 import { goalsFor, playerGoals, seasonPace, GOAL_LABEL, GOAL_SHORT } from "@/lib/participationGoals";
@@ -46,7 +46,6 @@ export default function ProfileMatches({ player, team, teamsById, events, convs,
   const split = participationSplit(rows);
   const rating = ratingInfo(rows);
   const f7 = teamPlaysF7(team);
-  const rule = part?.rules?.[f7 ? "f7" : "f11"] || MIN_PCT[f7 ? "f7" : "f11"];
   const teamOf = (ev) => teamsById.get(ev.team_id) || team;
   const pctOf = (r) => {
     if (!r.ev?.id) return null;
@@ -54,6 +53,11 @@ export default function ProfileMatches({ player, team, teamsById, events, convs,
     return total ? Math.min(100, Math.round((r.minutes / total) * 100)) : null;
   };
   const chart = liga.slice(0, 12).reverse();
+  // Escala del gráfico: en fútbol 11, minutos (raya en el mínimo por partido, 25'); en fútbol 7, % del partido (raya en el 50 %)
+  const chartMax = f7 ? 100 : Math.max(MATCH_MIN_F11 * 2, ...chart.map((r) => (r.ev?.id ? eventMinutes(r.ev, teamOf(r.ev)) : 0) || 0), ...chart.map((r) => r.minutes || 0));
+  const barValue = (r) => (f7 ? pctOf(r) ?? 0 : Math.min(100, ((r.minutes || 0) / chartMax) * 100));
+  const minLine = f7 ? 50 : (MATCH_MIN_F11 / chartMax) * 100;
+  const orient = isPerformanceTeam(team);
   const g = !playerMode && team ? goalsFor(team, goals) : null;
   const pace = g ? seasonPace(events, team.id, now) : null;
   const goalList = g && part ? playerGoals(part.all, g, { played: part.all.availMatches, remaining: pace.remaining }) : [];
@@ -145,12 +149,14 @@ export default function ProfileMatches({ player, team, teamsById, events, convs,
       {chart.length === 0 ? <Empty>{t("Aún no hay partidos de liga cerrados.")}</Empty> : (
         <>
           <div style={{ position: "relative" }}>
-            <div style={{ position: "absolute", left: 0, right: 0, bottom: 16 + 80 * (rule.alert / 100), borderTop: `1.5px dashed ${RS.naranja}` }} aria-hidden="true" />
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 16 + 80 * (minLine / 100), borderTop: `1.5px dashed ${RS.naranja}` }} aria-hidden="true" />
             <div className="flex items-end" style={{ gap: 5 }}>
               {chart.map((r, i) => {
-                const p = pctOf(r) ?? 0;
+                const p = barValue(r);
+                const total = r.ev?.id ? eventMinutes(r.ev, teamOf(r.ev)) : 0;
+                const under = r.called && total && r.minutes < matchMinimum(f7 ? "f7" : "f11", total);
                 return (
-                  <div key={r.ev.id || i} className="flex flex-col items-center" style={{ flex: 1, gap: 3 }} title={`${r.ev.opponent || ""} · ${r.minutes}'`}>
+                  <div key={r.ev.id || i} className="flex flex-col items-center" style={{ flex: 1, gap: 3 }} title={`${r.ev.opponent || ""} · ${r.minutes}'${under ? ` · ${t("por debajo del mínimo")}` : ""}`}>
                     <div style={{ height: 80, width: "100%", maxWidth: 22, display: "flex", alignItems: "flex-end", background: "#F7F3F2", borderRadius: 4 }}>
                       <div style={{ height: `${Math.max(p, r.called ? 2 : 0)}%`, width: "100%", background: r.starter ? RS.granate : SUB, borderRadius: 4 }} />
                     </div>
@@ -160,7 +166,7 @@ export default function ProfileMatches({ player, team, teamsById, events, convs,
               })}
             </div>
           </div>
-          <Note><span style={{ color: RS.naranja, fontWeight: 700 }}>- - -</span> {t("mínimo del club ({n} %)", { n: rule.alert })} · {t("granate titular, claro suplente")}</Note>
+          <Note><span style={{ color: RS.naranja, fontWeight: 700 }}>- - -</span> {f7 ? t("mínimo por partido: la mitad del partido") : t("mínimo por partido: {n} minutos", { n: MATCH_MIN_F11 })}{orient ? ` (${t("orientativo")})` : ""} · {t("granate titular, claro suplente")}</Note>
         </>
       )}
     </Box>

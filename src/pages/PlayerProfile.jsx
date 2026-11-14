@@ -14,6 +14,7 @@ import Evaluation360Section from "../components/player/Evaluation360Section";
 import InjurySection from "../components/player/InjurySection";
 import DocumentsSection from "../components/player/DocumentsSection";
 import ProfileHistory from "../components/player/ProfileHistory";
+import { teamCategoryLabel } from "@/components/fcfCategories";
 import { CURRENT_SEASON } from "@/lib/staffRoles";
 import { canConfigureClub } from "@/lib/permissions";
 import ProfileSummary from "../components/player/ProfileSummary";
@@ -71,7 +72,7 @@ export default function PlayerProfile() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [selectedImageSrc, setSelectedImageSrc] = useState(null);
-  const [tab, setTab] = useState(() => urlParams.get("tab") || "resumen");
+  const [tab, setTab] = useState(() => { const q = urlParams.get("tab"); return ({ partidos: "stats", medico: "injuries", documentos: "documents" })[q] || q || "resumen"; });
   const now = useMemo(() => new Date(), [playerId]);
   const mobile = useIsMobile();
 
@@ -98,6 +99,7 @@ export default function PlayerProfile() {
   const player = players.find((p) => p.id === playerId) || archivedPlayer;
   const { events: allEvents, allStats: allMatchStats } = useCleanSheetData(player?.position === "portero");
   const team = teams.find((t) => t.id === player?.team_id);
+  const catLabel = (() => { const c = teamCategoryLabel(team); return c && c.toLowerCase() !== String(team?.name || "").toLowerCase() ? c : ""; })();
 
   const deleteMutation = useMutation({
     mutationFn: () => base44.entities.Player.delete(playerId),
@@ -214,7 +216,7 @@ export default function PlayerProfile() {
               <div className="flex flex-wrap items-center" style={{ gap: 6, fontSize: 12, color: "rgba(255,255,255,.8)" }}>
                 <Link to={backTo} onClick={(e) => { if (!playerMode && window.history.state?.idx > 0) { e.preventDefault(); navigate(-1); } }} style={{ color: "#fff" }} data-testid="profile-back">‹ {perms.players === "all" || playerMode ? t("Jugadores") : t("Plantilla")}</Link>
                 {team && <><span>·</span><span>{team.name}</span></>}
-                {team?.category && team.category !== team.name && <span style={{ opacity: 0.8 }}>· {team.category}</span>}
+                {catLabel && <span data-testid="profile-category" style={{ opacity: 0.65, fontWeight: 400 }}>· {catLabel}</span>}
               </div>
               <h1 style={{ margin: "4px 0 6px" }}>
                 <span className="rs2-display" style={{ fontSize: mobile ? 28 : 38, lineHeight: 1, color: "#fff" }}><span className="rs2-display" style={{ color: RS.naranja }}>{playerFirstName(player)}</span> {player.last_name}</span>
@@ -328,7 +330,7 @@ export default function PlayerProfile() {
 
           {tab === "historial" && (
             <ProfileHistory player={player} staffEdit={staffEdit} mobile={mobile}
-              current={{ season: CURRENT_SEASON, team: team?.name || "", category: team?.category || "", pj: tot.played, tit: tot.starter, minutes: tot.minutes, pctMin, goals: tot.goals, yellow: tot.yellow, red: tot.red, attPct: attSeason.pct, rating: playerMode ? null : tot.rating }} />
+              current={{ season: CURRENT_SEASON, team: team?.name || "", category: teamCategoryLabel(team), pj: tot.played, tit: tot.starter, minutes: tot.minutes, pctMin, goals: tot.goals, yellow: tot.yellow, red: tot.red, attPct: attSeason.pct, rating: playerMode ? null : tot.rating }} />
           )}
         </div>
       </div>

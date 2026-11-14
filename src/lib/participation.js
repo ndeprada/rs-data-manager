@@ -3,6 +3,19 @@
 import { defaultDuration, totalMinutes, quartersPlayed } from './matchDuration.js';
 import { matchFormat, teamPlaysF7 } from './matchFormat.js';
 import { msg } from "../i18n/translate.js";
+import { isPrimerEquipo } from './primerEquipo.js';
+
+// Mínimo de minutos POR PARTIDO para un convocado (14/11/2026, Nacho): fútbol 11 = 25 minutos; fútbol 7 = la mitad de lo que
+// dura el partido en esa categoría. Es otra cosa que el % de minutos de la temporada (MIN_PCT). En las etapas de rendimiento
+// (Cadet S16 A, juveniles y primer equipo) el mínimo se mantiene pero es orientativo.
+export const MATCH_MIN_F11 = 25;
+export const matchMinimum = (format, duration) => (format === 'f7' ? Math.round((Number(duration) || 0) / 2) : MATCH_MIN_F11);
+const normTeam = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[_\s]+/g, ' ').trim();
+export function isPerformanceTeam(team) {
+  if (!team) return false;
+  const n = normTeam(team.name), c = normTeam(team.category);
+  return isPrimerEquipo(team) || n.startsWith('juvenil') || c.includes('juvenil') || /^cadet s16 a\b/.test(n);
+}
 
 // Motivos por los que un jugador no está convocado (los mismos que se eligen en la pestaña Convocatoria).
 // `ajeno` = motivo ajeno al entrenador: ese partido el jugador NO estaba disponible y no cuenta para el % de minutos.

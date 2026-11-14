@@ -240,3 +240,15 @@ assert.equal(reasonShort(NO_REASON), 'Sin motivo');
   assert.equal(p1q.rules.f11.alert, 70); // equipo A sin etapa conocida = F11: su regla vale en F11
   assert.deepEqual(p1q.rules.f7, MIN_PCT.f7);
 }
+
+// Mínimo por partido (14/11/2026): F11 25 minutos, F7 la mitad; orientativo en rendimiento
+{
+  const { matchMinimum, isPerformanceTeam } = await import('../src/lib/participation.js');
+  const assert = (await import('node:assert/strict')).default;
+  assert.equal(matchMinimum('f11', 80), 25);
+  assert.equal(matchMinimum('f7', 60), 30);
+  assert.equal(isPerformanceTeam({ name: 'Cadet S16 A' }), true);
+  assert.equal(isPerformanceTeam({ name: 'Cadet S16 B' }), false);
+  assert.equal(isPerformanceTeam({ name: 'Juvenil C' }), true);
+  assert.equal(isPerformanceTeam({ name: 'Infantil S14 A' }), false);
+}

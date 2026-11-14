@@ -1,3 +1,4 @@
+import { getCategoryLabel } from "@/components/fcfCategories";
 // Ficha del jugador → pestaña Historial (14/11/2026, maqueta «Maqueta Ficha del jugador · pestañas» aprobada por Nacho)
 // Trayectoria por temporadas: las del club (temporadas cerradas en la app + la que está en curso) y las de las actas de la FCF.
 import React, { useMemo, useState } from "react";
@@ -55,7 +56,7 @@ export default function ProfileHistory({ player, current, staffEdit, mobile }) {
                   {r.live && <span style={{ marginLeft: 6 }}><Chip bg={CHIP.ok[0]} fg={CHIP.ok[1]}>{t("En curso")}</Chip></span>}
                   {isOrigin && <span style={{ marginLeft: 6 }}><Chip bg={CHIP.warn[0]} fg={CHIP.warn[1]}>{t("Procedencia")}</Chip></span>}
                 </td>
-                <td style={td({ color: RS.ink2, fontSize: 12 })}>{r.competition ? `${shortComp(r.competition)}${r.grp ? ` · ${r.grp}` : ""}` : r.category || dash}</td>
+                <td style={td({ color: RS.ink2, fontSize: 12 })}>{r.competition ? `${shortComp(r.competition)}${r.grp ? ` · ${r.grp}` : ""}` : (r.category ? getCategoryLabel(r.category) : dash)}</td>
                 <td style={td({ textAlign: "center" })}>{n(r.pj)}</td>
                 <td style={td({ textAlign: "center" })}>{n(r.tit)}</td>
                 <td style={td({ textAlign: "center", whiteSpace: "nowrap" })}>{r.minutes == null ? dash : <>{fmt.num(r.minutes)}'{r.pctMin != null ? <span style={{ color: RS.muted }}> · {r.pctMin}%</span> : null}</>}</td>

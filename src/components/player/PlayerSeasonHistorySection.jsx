@@ -1,3 +1,4 @@
+import { getCategoryLabel } from "@/components/fcfCategories";
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -132,7 +133,7 @@ export default function PlayerSeasonHistorySection({ playerId }) {
                     </div>
                     <div>
                       <p className={`font-bold text-sm ${s.is_current ? "text-white" : "text-gray-800"}`}>{teamName}</p>
-                      {s.category && <p className={`text-[10px] ${s.is_current ? "text-white/60" : "text-gray-400"}`}>{s.category}</p>}
+                      {s.category && <p className={`text-[10px] ${s.is_current ? "text-white/60" : "text-gray-400"}`}>{getCategoryLabel(s.category)}</p>}
                     </div>
                   </div>
                   {isAdmin && (

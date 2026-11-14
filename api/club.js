@@ -13,6 +13,7 @@ import { readClubBrand, saveClubBrand } from './_lib/clubBrand.js';
 import { ensureSchema, importActas, searchPlayers, playerDetail, meta as fcfMeta, yearCounts, groupTeams, teamSquad, alerts as fcfAlerts, actaIds } from './_lib/fcfDb.js';
 import { isAdmin, coachTeamIdsOf } from './_lib/access.js';
 import { originProposals, originPatch } from './_lib/fcfOrigins.js';
+import { nameProposals } from './_lib/nameSplit.js';
 import { DEFAULT_BRAND } from '../src/lib/brand.js';
 import { COORD, STAFF, isApprovedUser, teamIdsOfUser, reachableUserIds, searchPeople, MAX_INDIVIDUALS } from './_lib/recipients.js';
 import {
@@ -217,6 +218,28 @@ export default async function handler(req, res) {
       }
       const count = (st) => rows.filter((r) => r.status === st).length;
       return res.status(200).json({ written, total: rows.length, ok: count('ok'), sin_anterior: count('sin_anterior'), sin_fcf: count('sin_fcf'), dudoso: count('dudoso'), manual: count('manual'), rows });
+    }
+
+    // Fichas con el nombre mal partido (primer apellido dentro del nombre), comparadas con la FCF (14/11/2026).
+    // GET = lista; POST {ids} = corrige esas fichas (solo nombre y apellidos; el apodo no se toca).
+    if (a === 'name_check') {
+      if (!permissionsOf(user).administration) return res.status(403).json({ error: 'forbidden' });
+      await ensureSchema(db);
+      const { rows: players } = await query(`select id, data from entities where entity_type = 'Player'`);
+      const rows = await nameProposals(db, players);
+      let written = 0;
+      if (req.method === 'POST') {
+        const only = new Set((Array.isArray(body.ids) ? body.ids : []).map(String));
+        const list = rows.filter((r) => only.has(String(r.id))).map((r) => ({ id: r.id, patch: r.proposed }));
+        if (list.length) {
+          const { rowCount } = await query(
+            `update entities e set data = e.data || v.patch, updated_at = now()
+             from jsonb_to_recordset($1::jsonb) as v(id uuid, patch jsonb) where e.id = v.id and e.entity_type = 'Player'`, [JSON.stringify(list)]
+          );
+          written = rowCount;
+        }
+      }
+      return res.status(200).json({ written, total: rows.length, rows });
     }
 
     // Trayectoria de un jugador del club según las actas de la FCF (pestaña Historial de su ficha, 14/11/2026).

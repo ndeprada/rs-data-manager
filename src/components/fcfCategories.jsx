@@ -76,6 +76,15 @@ export const getCategoryLabel = (value) => {
   return cat ? cat.label : String(value || "").replace(/_/g, " ");
 };
 
+// Categoría de un equipo para leerla: la de la FCF tal cual («Cadet Primera Divisió S15») o, si no, la de la lista.
+// Nunca la clave interna («cadet_primera_divisio_s15»).
+const cap = (w) => (w.length > 2 && w === w.toUpperCase() ? w.charAt(0) + w.slice(1).toLowerCase() : w);
+export const teamCategoryLabel = (team) => {
+  const fcf = String(team?.fcf_category_name || "").trim();
+  if (fcf) return fcf.split(/\s+/).map((w) => (/^S\d+$/i.test(w) ? w.toUpperCase() : cap(w))).join(" ");
+  return team?.category ? getCategoryLabel(team.category) : "";
+};
+
 export const FCF_CATEGORY_GROUPS = FCF_CATEGORIES.reduce((acc, cat) => {
   if (!acc[cat.group]) acc[cat.group] = [];
   acc[cat.group].push(cat);
