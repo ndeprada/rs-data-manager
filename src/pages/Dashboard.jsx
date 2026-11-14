@@ -28,6 +28,9 @@ import { CURRENT_SEASON } from "@/lib/staffRoles";
 import { Page, RS } from "@/components/rs2/kit";
 import { Label, Big, Head, MoreLink, Countdown, FormChips, PendingCards, WIN, LOSS, DRAW } from "@/components/rs2/dashParts";
 import { useT, useDateLocale, msg } from "@/i18n";
+import { BandSteps } from "@/components/myteam/MyTeamCards";
+import { matchSteps } from "@/lib/matchSteps";
+import { minPlayersOf } from "@/lib/matchFormat";
 
 const MATCH_TYPES = ["partido_amistoso", "partido_liga", "torneo"];
 const isMatch = (t) => MATCH_TYPES.includes(t);
@@ -136,6 +139,13 @@ export default function Dashboard() {
   const nextMine = hasMine && !mineMode ? upcoming.find((e) => myIds.has(e.team_id)) : null;
   const convOf = (e) => convocs.find((c) => c.event_id === e?.id);
   const nextConv = convOf(next);
+  // Pasos C · P · A · V del próximo partido (14/11/2026): plan ligero, solo alineación y sistema
+  const { data: nextPlans = [] } = useQuery({
+    queryKey: ["match-plan-lite", next?.id],
+    queryFn: () => base44.entities.MatchPlan.pick(["event_id", "lineup", "formation"], { event_id: next.id }),
+    enabled: !!next?.id,
+  });
+  const nextSteps = next ? matchSteps({ event: next, conv: nextConv, plan: nextPlans[0] || null, minPlayers: minPlayersOf(next, teams.find((x) => x.id === next.team_id)), now }) : null;
 
   // Temporada
   const played = events.filter((e) => isMatch(e.type) && e.score_home != null && e.score_away != null && inScope(e.team_id));
@@ -295,6 +305,7 @@ export default function Dashboard() {
                   ) : <Link to={matchLink(next)} style={{ color: "#fff", fontWeight: 600, fontSize: 13, padding: "7px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,.35)" }}>{t("Ver partido")}</Link>}
                 </div>
               </div>
+              {nextSteps && <BandSteps steps={nextSteps} next={next} testId="dash-next-steps" />}
               {(after.length > 0 || (nextMine && nextMine.id !== next.id)) && (
                 <div className="flex flex-wrap" style={{ borderTop: "1px solid rgba(255,255,255,.14)", paddingTop: 8, gap: "4px 14px", fontSize: 11, color: "rgba(255,255,255,.78)" }}>
                   {nextMine && nextMine.id !== next.id && (

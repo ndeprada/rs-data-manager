@@ -26,10 +26,10 @@ const Chip = ({ bg, fg, children, title }) => <span style={chipStyle(bg, fg)} ti
 
 // ── Pasos del partido en la banda (14/11/2026, Nacho: «ok ves con ello»): C · P con lo que llevan; A · V solo la letra hasta jugarse
 const STEP_NAME = { convocatoria: ["C", msg("Convocatoria")], tactica: ["P", msg("Preparación")], acta: ["A", msg("Acta")], postpartido: ["V", msg("Postpartido")] };
-function BandSteps({ steps, next }) {
+export function BandSteps({ steps, next, testId = "team-next-steps" }) {
   const t = useT();
   return (
-    <div className="flex flex-wrap items-center" style={{ gap: 6, marginTop: 2 }} data-testid="team-next-steps">
+    <div className="flex flex-wrap items-center" style={{ gap: 6, marginTop: 2 }} data-testid={testId}>
       {steps.map((s) => {
         const [letter, name] = STEP_NAME[s.key];
         const sub = s.sub ? t(s.sub.key, s.sub.vars) : "";
